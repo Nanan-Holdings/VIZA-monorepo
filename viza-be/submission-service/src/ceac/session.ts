@@ -25,6 +25,42 @@ import { installCeacPostbackMonitor } from "./aspnet";
 export const CEAC_DEFAULT_USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36";
 
+export const CEAC_BROWSERBASE_DEFAULT_TIMEOUT_SECONDS = 1_800;
+export const CEAC_BROWSERBASE_MAX_TIMEOUT_SECONDS = 3_600;
+
+/**
+ * Resolve the bounded CEAC Browserbase TTL from deployment configuration.
+ * CEAC runs default to the historical 1,800-second lease; deployments may
+ * extend that lease up to one hour, but malformed or out-of-range values fail
+ * before a provider session is created.
+ */
+export function resolveCeacBrowserbaseTimeoutSeconds(
+  env: NodeJS.ProcessEnv = process.env,
+): number {
+  const raw = env.CEAC_BROWSERBASE_TIMEOUT_SECONDS?.trim();
+  if (!raw) return CEAC_BROWSERBASE_DEFAULT_TIMEOUT_SECONDS;
+
+  if (!/^\d+$/.test(raw)) {
+    throw new SessionBootstrapError(
+      "CEAC_BROWSERBASE_TIMEOUT_SECONDS must be an integer between 1800 and 3600 seconds.",
+      { details: { setting: "CEAC_BROWSERBASE_TIMEOUT_SECONDS" } },
+    );
+  }
+
+  const parsed = Number(raw);
+  if (
+    !Number.isSafeInteger(parsed)
+    || parsed < CEAC_BROWSERBASE_DEFAULT_TIMEOUT_SECONDS
+    || parsed > CEAC_BROWSERBASE_MAX_TIMEOUT_SECONDS
+  ) {
+    throw new SessionBootstrapError(
+      "CEAC_BROWSERBASE_TIMEOUT_SECONDS must be an integer between 1800 and 3600 seconds.",
+      { details: { setting: "CEAC_BROWSERBASE_TIMEOUT_SECONDS" } },
+    );
+  }
+  return parsed;
+}
+
 export interface CeacSessionOptions {
   /** Headless mode for the underlying Chromium instance. Default: true. */
   headless?: boolean;
@@ -95,7 +131,10 @@ export async function startCeacSession(
 
   try {
     if (browserbaseEnabled("CEAC")) {
-      const cloud = await connectReconnectableBrowserbaseCloudBrowser({ prefix: "CEAC", timeoutSeconds: 1800 });
+      const cloud = await connectReconnectableBrowserbaseCloudBrowser({
+        prefix: "CEAC",
+        timeoutSeconds: resolveCeacBrowserbaseTimeoutSeconds(),
+      });
       cloudSession = cloud;
       browser = cloud.browser;
       context = cloud.context;

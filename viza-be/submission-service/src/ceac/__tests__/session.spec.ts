@@ -7,6 +7,11 @@ import { assertNoGate, detectGate } from "../gates";
 import { assertPage } from "../pages";
 import { gotoCeacStartPage } from "../start-page-navigation";
 import { tryCaptureBootstrapDiagnostics } from "../diagnostics";
+import {
+  CEAC_BROWSERBASE_DEFAULT_TIMEOUT_SECONDS,
+  CEAC_BROWSERBASE_MAX_TIMEOUT_SECONDS,
+  resolveCeacBrowserbaseTimeoutSeconds,
+} from "../session";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -14,6 +19,26 @@ import { dirname, join, resolve } from "node:path";
 let browser: Browser;
 before(async () => { browser = await chromium.launch({ headless: true }); });
 after(async () => { await browser.close(); });
+
+it("resolves the bounded CEAC Browserbase timeout from deployment configuration", () => {
+  assert.equal(
+    resolveCeacBrowserbaseTimeoutSeconds({}),
+    CEAC_BROWSERBASE_DEFAULT_TIMEOUT_SECONDS,
+  );
+  assert.equal(
+    resolveCeacBrowserbaseTimeoutSeconds({
+      CEAC_BROWSERBASE_TIMEOUT_SECONDS: String(CEAC_BROWSERBASE_MAX_TIMEOUT_SECONDS),
+    }),
+    CEAC_BROWSERBASE_MAX_TIMEOUT_SECONDS,
+  );
+
+  for (const value of ["1799", "3601", "1800.5", "3600seconds", "not-a-number"]) {
+    assert.throws(
+      () => resolveCeacBrowserbaseTimeoutSeconds({ CEAC_BROWSERBASE_TIMEOUT_SECONDS: value }),
+      /integer between 1800 and 3600 seconds/,
+    );
+  }
+});
 
 it("preserves a failed bootstrap surface without serializing hidden input values", async () => {
   const page = await browser.newPage();

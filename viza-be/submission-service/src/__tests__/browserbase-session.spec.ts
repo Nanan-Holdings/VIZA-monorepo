@@ -516,6 +516,48 @@ test("reconnects the same keep-alive session with dynamic handles and one permit
   }
 });
 
+test("keeps the DS-160 extended timeout while other reconnectable runners stay bounded", async () => {
+  const snapshot = Object.fromEntries(ENV_NAMES.map((name) => [name, process.env[name]]));
+  process.env.BROWSERBASE_API_KEY = "test-secret";
+  process.env.BROWSERBASE_MAX_CONCURRENCY = "1";
+  process.env.CEAC_BROWSERBASE_COUNTRY = "US";
+  process.env.US_APPOINTMENT_BROWSERBASE_REGION = "us-east-1";
+  process.env.US_APPOINTMENT_BROWSERBASE_COUNTRY = "US";
+  const ceacRequests: SessionApiRequest[] = [];
+  const appointmentRequests: SessionApiRequest[] = [];
+  const ceacBrowser = makeFakeBrowser();
+  const appointmentBrowser = makeFakeBrowser();
+  let ceac: Awaited<ReturnType<typeof connectReconnectableBrowserbaseCloudBrowser>> | null = null;
+  let appointment: Awaited<ReturnType<typeof connectReconnectableBrowserbaseCloudBrowser>> | null = null;
+  try {
+    ceac = await connectReconnectableBrowserbaseCloudBrowser({
+      prefix: "CEAC",
+      timeoutSeconds: 3_600,
+      fetchImpl: browserbaseReconnectFetch(ceacRequests, "ceac-extended-session"),
+      connectOverCDPImpl: async () => ceacBrowser.browser,
+    });
+    const ceacCreate = ceacRequests.find((request) => request.url === "https://api.browserbase.com/v1/sessions");
+    assert.ok(ceacCreate);
+    assert.equal(JSON.parse(String(ceacCreate.init?.body)).timeout, 3_600);
+    await ceac.close();
+    ceac = null;
+
+    appointment = await connectReconnectableBrowserbaseCloudBrowser({
+      prefix: "US_APPOINTMENT",
+      timeoutSeconds: 3_600,
+      fetchImpl: browserbaseReconnectFetch(appointmentRequests, "appointment-session"),
+      connectOverCDPImpl: async () => appointmentBrowser.browser,
+    });
+    const appointmentCreate = appointmentRequests.find((request) => request.url === "https://api.browserbase.com/v1/sessions");
+    assert.ok(appointmentCreate);
+    assert.equal(JSON.parse(String(appointmentCreate.init?.body)).timeout, 900);
+  } finally {
+    if (ceac) await ceac.close();
+    if (appointment) await appointment.close();
+    restoreEnvironment(snapshot);
+  }
+});
+
 test("closes a reconnect candidate when close wins the reconnect race", async () => {
   const snapshot = Object.fromEntries(ENV_NAMES.map((name) => [name, process.env[name]]));
   process.env.BROWSERBASE_API_KEY = "test-secret";

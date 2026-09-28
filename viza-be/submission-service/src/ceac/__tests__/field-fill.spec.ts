@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { assertFamilyUnknownParentBranches, fillPageFields, orchestrateFill, verifyPageFieldValues } from "../orchestrator";
 import { createRecoveryTracker } from "../artifacts";
-import { ds160ContactMappings, ds160TravelMappings } from "../../ds160-form-mappings";
+import { ds160ContactMappings, ds160TravelMappings, ds160WorkPreviousMappings } from "../../ds160-form-mappings";
 import { deriveDS160Answers } from "../../ds160-derive-answers";
 import { createDs160BranchPolicy, ds160MappingRepeatGroup } from "../field-contract";
 
@@ -147,6 +147,32 @@ test("fills intended stay on the no-specific-plans branch instead of dropping it
     assert.equal(await page.locator('#tbxTRAVEL_LOS').inputValue(), '10');
     assert.equal(await page.locator('#ddlTRAVEL_LOS_CD').inputValue(), 'D');
   } finally { await browser.close(); }
+});
+
+test("canonical education attendance answer overrides a stale CEAC alias", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <label><input name="rblOtherEduc" type="radio" value="N">No</label>
+      <label><input name="rblOtherEduc" type="radio" value="Y">Yes</label>
+    `);
+    const answers = deriveDS160Answers({
+      has_attended_education: "no",
+      has_other_education: "yes",
+    });
+    const mapping = ds160WorkPreviousMappings.has_other_education;
+    await fillPageFields(page, { has_other_education: mapping }, answers, {}, {
+      requireMappedAnswers: true,
+    });
+    assert.equal(await page.locator('input[name="rblOtherEduc"][value="N"]').isChecked(), true);
+    assert.equal(await page.locator('input[name="rblOtherEduc"][value="Y"]').isChecked(), false);
+    await verifyPageFieldValues(page, { has_other_education: mapping }, answers, {}, {
+      requireMappedAnswers: true,
+    });
+  } finally {
+    await browser.close();
+  }
 });
 
 test("an unknown official branch cannot advance through an unmapped page", async () => {

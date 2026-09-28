@@ -19,7 +19,7 @@ describe("deriveDS160Answers", () => {
     assert.equal(derived.surname, "");
   });
 
-  it("clears stale mechanical alias targets while preserving non-empty target compatibility", () => {
+  it("lets canonical sources replace stale aliases while preserving target-only compatibility", () => {
     const cleared = {
       home_address_state_province: "",
       home_address_state: "OLD STATE",
@@ -35,7 +35,18 @@ describe("deriveDS160Answers", () => {
       home_address_state: "EXISTING TARGET",
     };
     deriveDS160Answers(compatible);
-    assert.equal(compatible.home_address_state, "EXISTING TARGET");
+    assert.equal(compatible.home_address_state, "NEW STATE");
+
+    const targetOnly = { home_address_state: "EXISTING TARGET" };
+    deriveDS160Answers(targetOnly);
+    assert.equal(targetOnly.home_address_state, "EXISTING TARGET");
+
+    const education = deriveDS160Answers({
+      has_attended_education: "no",
+      has_other_education: "yes",
+    });
+    assert.equal(education.has_attended_education, "N");
+    assert.equal(education.has_other_education, "N");
   });
 
   it("preserves a native-script name even when a translated alias is saved", () => {

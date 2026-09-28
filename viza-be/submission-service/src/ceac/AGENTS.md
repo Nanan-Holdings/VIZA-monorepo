@@ -46,7 +46,8 @@ diagnostics, `.dat` capture, CAPTCHA solving, and one-shot final submission.
    structured gate, while unrelated timeouts remain bootstrap failures. Local
    tests may pass a shorter `verificationGraceMs` to the navigation helper.
    Browserbase sessions use bounded same-session reconnection and an explicit
-   provider release on close, with a 1,800-second TTL. Filling/navigation may
+   provider release on close, with a deployment-bounded 1,800–3,600-second TTL
+   (1,800 seconds by default). Filling/navigation may
    retry only a confirmed transport disconnect, after the official origin,
    same Application ID and allowed current/next page are re-verified. A final
    signature action is never replayed by this transport recovery path.

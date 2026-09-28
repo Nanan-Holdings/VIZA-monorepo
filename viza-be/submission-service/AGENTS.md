@@ -73,6 +73,12 @@ without updating this worker image and verifying these runtime flags.
 
 Scope: this file applies to `viza-be/submission-service/**`.
 
+`src/ds160-derive-answers.ts` treats present canonical form values as
+authoritative over persisted legacy key aliases, including explicit No and
+empty answers. Legacy target-only drafts remain supported. Keep the pure
+derivation and CEAC field-fill regressions together so branch visibility,
+the official radio, its read-back and the input audit agree.
+
 The U.S. appointment exact-job endpoint `/internal/us-appointment/wake` uses
 `src/us-appointment/dispatch.ts` and `claim-repository.ts` with migration 0193.
 It is separate from the shared runner RPC cutover, requires the internal bearer
@@ -181,7 +187,10 @@ and must fail closed; callers must not perform a direct table settlement.
 - DS-160 browser state is an ephemeral CEAC Browserbase or Chromium context.
   A dropped Browserbase control connection may reconnect to the same provider
   session only after the official origin, Application ID and allowed page are
-  verified. CEAC uses a 1,800-second provider TTL and explicitly releases the
+  verified. CEAC defaults to a 1,800-second provider TTL; its validated
+  deployment override is bounded at 3,600 seconds and the legacy deployment
+  sets both provider TTL and DS-160 stale-duration configuration to 3,600.
+  It explicitly releases the
   provider session on close; final signing is never replayed by reconnect logic.
   Mid-flow expiry creates a fresh context and retrieves the application with
   the persisted Application ID, surname prefix, birth year, and security answer.

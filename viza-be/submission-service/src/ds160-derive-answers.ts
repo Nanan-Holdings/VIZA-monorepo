@@ -47,11 +47,13 @@ export function buildDs160AnswerMap(
  *                        "DO_NOT_KNOW", the companion *_na key is set to "Y".
  *   3. Key aliases     — form uses fuller names (home_address_state_province)
  *                        while orchestrator uses CEAC-shortened forms
- *                        (home_address_state). Aliased non-destructively.
+ *                        (home_address_state). Canonical sources take
+ *                        precedence over stale alias targets.
  *
- * Derivation never overwrites an existing key — if the answer set already
- * contains a derived target, the existing value wins. This keeps the
- * function idempotent and safe to re-run.
+ * Canonical sources win over any persisted legacy alias target; a target is
+ * preserved only when its source is absent. This keeps renamed controls and
+ * their branch conditions consistent while remaining idempotent and safe to
+ * re-run.
  */
 
 interface DateSplit {
@@ -478,9 +480,12 @@ function applyAliases(answers: Record<string, string>): void {
   for (const { from, to } of KEY_ALIASES) {
     const value = answers[from];
     if (value === undefined) continue;
-    // An explicit empty source clears a stale derived target. For non-empty
-    // sources, preserve the historical target-first compatibility behavior.
-    if (value === "" || answers[to] === undefined) answers[to] = value;
+    // The canonical source is authoritative whenever it is present. A
+    // persisted legacy target can be stale after the schema renamed a field;
+    // keeping it would let the official control disagree with the source
+    // branch and its repeat-row conditions. An absent source still leaves an
+    // existing target untouched for backward compatibility.
+    answers[to] = value;
   }
 }
 

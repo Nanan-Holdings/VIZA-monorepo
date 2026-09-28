@@ -94,6 +94,8 @@ type FetchLike = (
 const BROWSERBASE_SESSION_RELEASE_TIMEOUT_MS = 10_000;
 const BROWSERBASE_BROWSER_CLOSE_TIMEOUT_MS = 10_000;
 const RECONNECTABLE_SESSION_TIMEOUT_SECONDS = 900;
+const RECONNECTABLE_CEAC_MIN_TIMEOUT_SECONDS = 1_800;
+const RECONNECTABLE_CEAC_MAX_TIMEOUT_SECONDS = 3_600;
 const RECONNECTABLE_CONNECT_TIMEOUT_MS = 20_000;
 const RECONNECTABLE_MAX_RECONNECT_ATTEMPTS = 2;
 
@@ -349,6 +351,27 @@ function resolveReconnectableHandles(browser: Browser): BrowserbaseBrowserHandle
 
 class BrowserbaseReconnectTopologyError extends BrowserbaseReconnectError {}
 
+function resolveReconnectableSessionTimeoutSeconds(
+  prefix: string,
+  requestedTimeoutSeconds: number | undefined,
+): number {
+  const normalizedPrefix = prefix.trim().toUpperCase();
+  if (
+    normalizedPrefix === "CEAC"
+    && requestedTimeoutSeconds !== undefined
+    && Number.isSafeInteger(requestedTimeoutSeconds)
+    && requestedTimeoutSeconds >= RECONNECTABLE_CEAC_MIN_TIMEOUT_SECONDS
+    && requestedTimeoutSeconds <= RECONNECTABLE_CEAC_MAX_TIMEOUT_SECONDS
+  ) {
+    return requestedTimeoutSeconds;
+  }
+
+  // Preserve the existing explicit 1,800-second behavior for any legacy
+  // reconnectable caller, while keeping the default and every other country
+  // runner bounded at 900 seconds.
+  return requestedTimeoutSeconds === 1_800 ? 1_800 : RECONNECTABLE_SESSION_TIMEOUT_SECONDS;
+}
+
 class ReconnectableBrowserbaseCloudBrowserImpl implements ReconnectableBrowserbaseCloudBrowser {
   readonly sessionId: string;
   readonly replayUrl: string;
@@ -574,7 +597,7 @@ class ReconnectableBrowserbaseCloudBrowserImpl implements ReconnectableBrowserba
 
 export async function connectReconnectableBrowserbaseCloudBrowser(options: {
   prefix: string;
-  /** Defaults to 900 seconds; long form workflows may explicitly select 1800. */
+  /** Defaults to 900 seconds; CEAC may explicitly select 1800–3600. */
   timeoutSeconds?: number;
   /** Test-only transport injection; production callers omit this. */
   fetchImpl?: FetchLike;
@@ -589,7 +612,7 @@ export async function connectReconnectableBrowserbaseCloudBrowser(options: {
       prefix: options.prefix,
       fetchImpl: options.fetchImpl,
       keepAlive: true,
-      timeoutSeconds: options.timeoutSeconds === 1800 ? 1800 : RECONNECTABLE_SESSION_TIMEOUT_SECONDS,
+      timeoutSeconds: resolveReconnectableSessionTimeoutSeconds(options.prefix, options.timeoutSeconds),
     });
     const connectOverCDP = options.connectOverCDPImpl ?? chromium.connectOverCDP.bind(chromium);
     browser = await connectOverCDP(cloudSession.connectUrl, { timeout: 45_000 });
