@@ -304,3 +304,18 @@ material. Existing or concurrently populated drafts must match both the source
 answers and documents before reuse. Twenty-four focused route tests passed;
 frontend type checking and lint passed with no errors. Production creation and
 the new official run are still separate verification steps.
+
+Production release `dpl_2ejY4N2Ki5Yk9TcY26va1N9QTyPu` (commit `a84c954e`)
+became READY at `app.viza.it.com`. Normal applicant authentication followed by
+the explicit restart API returned HTTP 201 and new application
+`ef128413-2750-4b0d-b5a8-931b6728e453`. A scoped database comparison proved
+349 source and 349 target answers, with zero missing, added or changed values.
+Ownership matched; the new row had no old CEAC ID, `.dat`, confirmation,
+queue rows or final-submission attempts. Its application document reference
+was copied. The authenticated production browser loaded the new application
+without alerts, completed its readiness check and clicked the actual Submit
+button at 19:20 UTC. Job `f279755a-926b-4cdb-b6fb-c9b37c3ad0d1` was created
+and the stopped worker woke automatically. Run `ds160-live-mulmujt2-y0mkof`
+started at 19:20:46 UTC, selected the saved BEJ post and reached start-page
+CAPTCHA handling. This establishes a real new run, not official submission
+success. The five-minute monitor now tracks this new application and job only.
