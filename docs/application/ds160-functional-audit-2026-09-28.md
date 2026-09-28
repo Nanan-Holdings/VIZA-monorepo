@@ -90,3 +90,19 @@ this audit.
   `viza-gmail-s-projects`.
 - The first release build was canceled before promotion when the enum boundary
   was found; it was not used as the accepted production release.
+
+## Production release verification
+
+- Accepted release: `dpl_CGY6MotsjPMqfVocgm7REJyzuaNR`, state `READY`, production
+  alias `https://app.viza.it.com`.
+- The deployment API confirms release commit
+  `344b0c0d27a1844e2041b7eaf350412c1a7d5482` and organization commit author
+  `viza-gmail <nanan.viza2016@gmail.com>` on project
+  `prj_GUFPqF0Ir6oWOsxMwX9ezfi3bJ7W`.
+- A read-only Chrome check of the existing draft on the production alias loaded
+  without the application-error screen or browser console errors. The assistant
+  asked for the next incomplete employer field instead of repeating the already
+  answered SSN question. The unsupported employer sentinel no longer counted as
+  complete, and its input was enabled and not read-only.
+- No live applicant answers were edited during this check, and no official
+  submission was initiated or repeated.
