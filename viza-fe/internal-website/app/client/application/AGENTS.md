@@ -90,6 +90,10 @@ Before changing this route, read:
   and confirmation PDF artifacts are rendered as authenticated downloads.
   `UsResultCard.test.tsx` verifies that the completed DS-160 action requests a
   fresh application instead of being swallowed by completed-result idempotency.
+  `Ds160RecoveryResultCard.test.tsx` verifies that a recoverable DS-160
+  submission uses the parent save/validation callback with an explicit retry
+  intent, while the standalone card keeps the guarded API fallback and
+  localized failure message.
   `WaitingCardPolling.test.tsx` and `VnResultCardPolling.test.tsx` cover France
   account and Vietnam official-fee reads: each effect allows one pending request
   through response-body completion, owns its abort deadline, and cancels on

@@ -69,6 +69,7 @@ import {
   isIndonesiaEVisaApplication,
   isAutomatedOnlineApplication,
   type SubmissionMode,
+  type SubmissionRetryIntent,
   type TaiwanOfficialTermsConsentInput,
 } from "@/lib/submission-queue";
 import { GenericEvisaResultCard } from "./GenericEvisaResultCard";
@@ -96,6 +97,7 @@ interface SubmissionStatusStepProps {
   onResubmit?: (
     mode: SubmissionMode,
     taiwanOfficialTermsConsent?: TaiwanOfficialTermsConsentInput,
+    intent?: SubmissionRetryIntent,
   ) => Promise<void> | void;
 }
 
@@ -782,22 +784,30 @@ function buildTwResultFromStatus(input: {
   };
 }
 
-function GenericResultCard({
+export function GenericResultCard({
   applicationId,
   applicationCountry,
   applicationVisaType,
   jobId,
   result,
+  onResubmit,
 }: {
   applicationId: string | null;
   applicationCountry: string | null;
   applicationVisaType: string | null;
   jobId: string | null;
   result: GenericSubmissionResult;
+  onResubmit?: (
+    mode: SubmissionMode,
+    taiwanOfficialTermsConsent?: TaiwanOfficialTermsConsentInput,
+    intent?: SubmissionRetryIntent,
+  ) => Promise<void> | void;
 }) {
   const isZh = isChineseLocale(useLocale());
   const [startingLive, setStartingLive] = useState(false);
   const [liveError, setLiveError] = useState<string | null>(null);
+  const [resumingDs160, setResumingDs160] = useState(false);
+  const [ds160RecoveryError, setDs160RecoveryError] = useState<string | null>(null);
   const [manualAction, setManualAction] = useState<ManualAction | null>(null);
   const [manualActionError, setManualActionError] = useState<string | null>(null);
   const [completingManualAction, setCompletingManualAction] = useState(false);
@@ -817,6 +827,9 @@ function GenericResultCard({
     result.mode === "live_assisted" &&
     isIndonesiaEVisaApplication(applicationCountry ?? result.targetCountry, applicationVisaType ?? result.visaType);
   const officialManualAction = isDs160Action || isFranceAction;
+  const isDs160FinalSubmissionRecovery =
+    isDs160Action && result.actionType?.trim().toLowerCase() === "final_submission_recovery";
+  const requiresOfficialManualAction = officialManualAction && !isDs160FinalSubmissionRecovery;
   const franceLiveEnabled =
     process.env.NEXT_PUBLIC_FRANCE_LIVE_SUBMISSION_ENABLED === "true" &&
     process.env.NEXT_PUBLIC_FRANCE_SUBMISSION_MODE === "live_assisted";
@@ -840,12 +853,16 @@ function GenericResultCard({
   const canContinueIndonesiaLive = Boolean(applicationId) && isIndonesiaAction;
   const liveTarget = canStartDs160Live ? "ds160" : canStartFranceLive ? "france" : canContinueIndonesiaLive ? "indonesia" : null;
   const Icon = unsupported || actionRequired ? AlertTriangle : FlaskConical;
-  const title = actionRequired
+  const title = isDs160FinalSubmissionRecovery
+      ? (isZh ? "DS-160 提交已暂停" : "DS-160 submission paused")
+    : actionRequired
       ? (isZh ? "需要人工操作" : "Manual action required")
     : unsupported
       ? (isZh ? "暂不支持自动提交" : "Automated submission unavailable")
       : (isZh ? "Dry-run 已完成" : "Dry-run submission complete");
-  const badge = actionRequired
+  const badge = isDs160FinalSubmissionRecovery
+      ? (isZh ? "可重试" : "Retry available")
+    : actionRequired
       ? (isZh ? "需操作" : "Action required")
     : unsupported
       ? (isZh ? "暂不支持" : "Unsupported")
@@ -854,6 +871,10 @@ function GenericResultCard({
     ? (isZh
         ? "自动提交暂未支持该国家，我们可以先帮你整理材料和生成申请草稿。"
         : "Automated submission is not available for this country yet. We can still organize documents and prepare the draft.")
+    : isDs160FinalSubmissionRecovery
+      ? (isZh
+          ? "已保存这份申请的官网草稿。点击重试后，系统会核对提交记录，并继续可恢复的草稿。"
+          : "The official draft for this application is saved. Click retry to check the submission record and continue the recoverable draft.")
     : actionRequired
       ? (localizeActionText(result.actionInstructions, isZh) ??
           localizeActionText(result.message, isZh) ??
@@ -862,7 +883,7 @@ function GenericResultCard({
       : result.message;
 
   useEffect(() => {
-    if (!jobId || !officialManualAction) return;
+    if (!jobId || !requiresOfficialManualAction) return;
     let cancelled = false;
 
     const loadManualActions = async () => {
@@ -897,7 +918,48 @@ function GenericResultCard({
     return () => {
       cancelled = true;
     };
-  }, [jobId, officialManualAction]);
+  }, [jobId, requiresOfficialManualAction]);
+
+  const resumeDs160 = async () => {
+    if (!applicationId || resumingDs160 || !isDs160FinalSubmissionRecovery) return;
+    setResumingDs160(true);
+    setDs160RecoveryError(null);
+    try {
+      if (onResubmit) {
+        await onResubmit("live_assisted", undefined, "retry");
+        return;
+      }
+      const response = await fetch(`/api/applications/${applicationId}/retry-submission`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "live_assisted",
+          country: applicationCountry,
+          visaType: applicationVisaType ?? result.visaType,
+          // This is a guarded resume of the existing flow. A fresh DS-160
+          // must use the separate new-application path after a confirmed
+          // successful result; do not turn an uncertain final click into one.
+          intent: "retry",
+        }),
+      });
+      const payload = (await response.json().catch(() => null)) as { error?: unknown } | null;
+      if (!response.ok) {
+        const fallbackMessage = isZh
+          ? `DS-160 恢复请求未被接受（${response.status}），请稍后重试。`
+          : `The DS-160 recovery request was not accepted (${response.status}). Try again later.`;
+        throw new Error(
+          typeof payload?.error === "string"
+            ? payload.error
+            : fallbackMessage,
+        );
+      }
+      window.location.reload();
+    } catch (error) {
+      setDs160RecoveryError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setResumingDs160(false);
+    }
+  };
 
   const startLiveAssisted = async () => {
     if (!applicationId || startingLive || !liveTarget) return;
@@ -1102,7 +1164,7 @@ function GenericResultCard({
 
         {liveError ? <ClientErrorAlert message={liveError} /> : null}
 
-        {actionRequired && result.actionType && (
+        {actionRequired && result.actionType && !isDs160FinalSubmissionRecovery && (
           <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
             <div className="text-xs text-amber-700">{isZh ? "检查点" : "Checkpoint"}</div>
             <div className="mt-0.5 font-mono text-sm font-medium text-foreground">
@@ -1111,7 +1173,32 @@ function GenericResultCard({
           </div>
         )}
 
-        {officialManualAction && (
+        {isDs160FinalSubmissionRecovery && (
+          <div className="space-y-3 rounded-md border border-amber-200 bg-amber-50 p-3">
+            <div className="flex items-start gap-2 text-sm font-medium text-amber-900">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+              <span>{isZh ? "下一步" : "Next step"}</span>
+            </div>
+            <Button
+              type="button"
+              className="w-full"
+              onClick={resumeDs160}
+              disabled={!applicationId || resumingDs160}
+            >
+              {resumingDs160 ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RotateCw className="mr-2 h-4 w-4" />
+              )}
+              {resumingDs160
+                ? (isZh ? "正在重试 DS-160" : "Retrying DS-160")
+                : (isZh ? "重试 DS-160" : "Retry DS-160")}
+            </Button>
+            {ds160RecoveryError ? <ClientErrorAlert message={ds160RecoveryError} /> : null}
+          </div>
+        )}
+
+        {requiresOfficialManualAction && (
           <div className="space-y-3 rounded-md border border-amber-200 bg-amber-50 p-3">
             <div className="flex items-start gap-2">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
@@ -2072,6 +2159,7 @@ export function SubmissionStatusStep({
           vietnamNeedsAttentionResult,
           snapshot?.queue?.id ?? null,
           isZh,
+          onResubmit,
         )}
       </div>
     );
@@ -2227,6 +2315,7 @@ export function SubmissionStatusStep({
           effectiveResult,
           snapshot?.queue?.id ?? null,
           isZh,
+          onResubmit,
         )}
       </div>
     );
@@ -2283,6 +2372,7 @@ function renderSubmissionResultCard(
   result: SubmissionResult | null,
   jobId: string | null = null,
   isZh = false,
+  onResubmit?: SubmissionStatusStepProps["onResubmit"],
 ) {
   if (!result) {
     const persistenceKey = submissionProgressPersistenceKey(jobId);
@@ -2389,6 +2479,7 @@ function renderSubmissionResultCard(
           applicationVisaType={visaType}
           jobId={jobId}
           result={result}
+          onResubmit={onResubmit}
         />
       );
     // POR-006: standard e-Visa launch countries share one generic card.

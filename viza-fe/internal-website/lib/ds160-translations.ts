@@ -290,8 +290,12 @@ const ZH_LABELS: Record<string, string> = {
   "PHYSICAL SCIENCES": "物理科学",
   "LEGAL PROFESSION": "法律专业",
   "RELIGIOUS VOCATION": "宗教职业",
-  "Briefly Describe Your Duties": "简要描述您的职责（如适用）",
-  "Describe Duties": "描述职责（如适用）",
+  // CEAC renders this control only in the active employer/school branch and
+  // requires an answer there.  “If applicable” was misleading in Chinese:
+  // it made a required textarea look optional even though the branch itself
+  // is the applicability gate.
+  "Briefly Describe Your Duties": "简要描述您的职责",
+  "Describe Duties": "描述职责",
   "Were you previously employed?": "您以前是否有工作？",
   "Employer Name": "雇主名称",
   "Previous Employer — Name": "前雇主——名称",

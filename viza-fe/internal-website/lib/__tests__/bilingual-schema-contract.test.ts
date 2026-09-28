@@ -9,6 +9,7 @@ import {
   usesBilingualAnswerPair,
 } from "../bilingual-schema-contract";
 import { DS160_US_REGION_ZH_BY_CODE, translateUsRegionName } from "../ds160-translations";
+import { evaluateShowIf } from "../form-utils";
 import { shouldSkipTranslation } from "../translation/translation-field-rules";
 import { TW_CITY_OPTIONS, TW_DISTRICTS_BY_CITY, TW_DISTRICT_COUNT } from "../taiwan-administrative-units";
 import type { VisaFormFieldRow } from "../../types/visa-form-fields";
@@ -356,6 +357,30 @@ describe("bilingual schema contract", () => {
     expect(resolveLocalizedFieldLabel(country, "zh")).toBe("出生国家/地区");
     expect(resolveLocalizedFieldLabel(province, "zh")).toBe("出生省/州（如适用）");
     expect(resolveLocalizedFieldLabel(city, "zh")).toBe("出生城市");
+  });
+
+  it("keeps DS-160 duties required only inside the applicable occupation branch", () => {
+    const duties = normalizeBilingualFormField(field({
+      visaType: "DS160",
+      fieldName: "job_duties",
+      label: "Briefly Describe Your Duties",
+      fieldType: "textarea",
+      required: true,
+      conditionalLogic: {
+        showIf: "primary_occupation !== _empty && primary_occupation !== retired && primary_occupation !== homemaker && primary_occupation !== not_employed",
+      },
+    }));
+
+    expect(resolveLocalizedFieldLabel(duties, "zh")).toBe("简要描述您的职责");
+    expect(resolveLocalizedFieldLabel(duties, "zh")).not.toContain("如适用");
+    expect(duties.required).toBe(true);
+
+    for (const occupation of ["student", "business", "other"]) {
+      expect(evaluateShowIf(duties, { primary_occupation: occupation }), occupation).toBe(true);
+    }
+    for (const occupation of ["", "retired", "homemaker", "not_employed"]) {
+      expect(evaluateShowIf(duties, { primary_occupation: occupation }), occupation).toBe(false);
+    }
   });
 
   it("uses curated labels for Schengen surname-at-birth fields", () => {

@@ -209,6 +209,7 @@ import {
   isVietnamEVisaApplication,
   isVietnamPrearrivalApplication,
   type SubmissionMode,
+  type SubmissionRetryIntent,
   type TaiwanOfficialTermsConsentInput,
 } from "@/lib/submission-queue";
 import {
@@ -1466,6 +1467,7 @@ interface SubmissionQueueJobInput {
   locale: string;
   answerSnapshot?: Record<string, string>;
   taiwanOfficialTermsConsent?: TaiwanOfficialTermsConsentInput;
+  intent?: SubmissionRetryIntent;
 }
 
 type SubmissionQueueJobResult = {
@@ -1488,10 +1490,11 @@ async function insertSubmissionQueueJob(
       mode: input.mode,
       country: input.country,
       visaType: input.visaType,
-      // DS-160 retries must start a fresh CEAC application even when this
-      // VIZA application already has an older successful submission. This
-      // helper is also used by the result card's onResubmit path.
-      intent: isDs160VisaType(input.visaType) ? "new_application" : "retry",
+      // A normal DS-160 review submits a fresh CEAC application. Recovery from
+      // an earlier final-submission checkpoint explicitly uses the guarded
+      // ordinary retry intent so the page can flush and validate its draft
+      // before the server decides whether the existing CEAC flow is resumable.
+      intent: input.intent ?? (isDs160VisaType(input.visaType) ? "new_application" : "retry"),
       answerSnapshot: input.answerSnapshot,
       taiwanOfficialTermsConsent: input.taiwanOfficialTermsConsent,
     }),
@@ -4484,6 +4487,7 @@ export default function ApplicationPage() {
   const handleDynamicReviewComplete = async (
     mode: SubmissionMode = "dry_run",
     taiwanOfficialTermsConsent?: TaiwanOfficialTermsConsentInput,
+    submissionIntent?: SubmissionRetryIntent,
   ) => {
     if (submittedReadOnlyRef.current) return;
     setSaving(true);
@@ -4557,6 +4561,7 @@ export default function ApplicationPage() {
             ? submissionAnswerSnapshot
             : undefined,
           taiwanOfficialTermsConsent,
+          intent: submissionIntent,
         });
         const submittedAt = new Date().toISOString();
         queueAccepted = true;
@@ -4705,6 +4710,7 @@ export default function ApplicationPage() {
   const handleReviewComplete = async (
     mode: SubmissionMode = "dry_run",
     taiwanOfficialTermsConsent?: TaiwanOfficialTermsConsentInput,
+    submissionIntent?: SubmissionRetryIntent,
   ) => {
     setSaving(true);
     setSubmittingMode(mode);
@@ -4791,6 +4797,7 @@ export default function ApplicationPage() {
         createdAt: new Date().toISOString(),
         locale,
         taiwanOfficialTermsConsent,
+        intent: submissionIntent,
       });
 
       const submittedAt = new Date().toISOString();
