@@ -377,7 +377,10 @@ test("browser adapter falls back to the existing extended mapping for a visible 
       phoneRows: 1,
       phoneAddButtons: 0,
       includePhoneRemove: false,
-      phoneIdPrefix: "APP_ADD_TEL",
+      // The extended DS-160 mapping is backed by the observed CEAC
+      // tbxAddPhoneInfo control. Keep this fixture aligned with that official
+      // selector so the fallback test exercises the real mapping contract.
+      phoneIdPrefix: "tbxAddPhoneInfo",
     }),
     async (page) => {
       let receivedMapping: FormFieldMapping | undefined;
@@ -399,7 +402,7 @@ test("browser adapter falls back to the existing extended mapping for a visible 
         },
       });
       assert.equal(receivedMapping?.type, "text");
-      assert.match(receivedMapping?.selector ?? "", /APP_ADD_TEL/);
+      assert.match(receivedMapping?.selector ?? "", /tbxAddPhoneInfo/);
       assert.equal(
         await page.locator('input[data-field="additional_phone"]').inputValue(),
         "EXTENDED MAPPING PHONE",

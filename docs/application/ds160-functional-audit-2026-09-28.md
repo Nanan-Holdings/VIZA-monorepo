@@ -319,3 +319,100 @@ and the stopped worker woke automatically. Run `ds160-live-mulmujt2-y0mkof`
 started at 19:20:46 UTC, selected the saved BEJ post and reached start-page
 CAPTCHA handling. This establishes a real new run, not official submission
 success. The five-minute monitor now tracks this new application and job only.
+
+The new worker's encrypted input snapshot independently matched both source
+and new application: 349 stored rows, 349 branch-answer keys, 378 derived keys,
+and identical profile fallback. No old CEAC recovery metadata appeared in the
+snapshot. At 19:25 UTC the first fresh run stopped on an official form HTTP 403
+while filling Personal Information 1. Its input and diagnostic artifacts were
+persisted privately with no upload failure; final-signature attempt count was
+zero. The worker subsequently shut down normally. An authorized normal retry
+request at 19:29:56 created job `a0458847-e1f4-4046-aa55-3d35f2a8e989`, preserved
+the captured CEAC identity and superseded only the prior queue row. Run
+`ds160-live-muln6jti-q0zyz5` passed the start-page verification and successfully
+retrieved the same official draft at 19:31:37, then resumed Personal Information
+1. This recovery proves the new draft's retrieval identity was saved despite
+the earlier rejected form update; it does not yet prove final submission.
+
+Structural coverage of this new snapshot against the current 337-field DS-160
+seed/contract found zero unconsumed active seed fields and zero directly
+unmapped active raw DS-160 fields. The 349 raw rows include 90 bilingual aliases,
+five profile-fallback fields, 15 NA/unknown control pairs, seven inactive
+branch/age-gated fields, and 117 historical or other-schema keys outside the
+current DS-160 seed; these categories are not an additive count of official
+questions. Raw row equality must not be reported as 349 official fields matched.
+The social-media helper controls and secondary-phone aliases have structural
+mapping but still require this run's official DOM/review evidence before any
+parity claim. No personal values were included in this coverage report.
+
+At 19:54:43 UTC the same-draft recovery stopped at Work/Education Previous.
+CEAC rejected missing institution/address/course and attendance dates. The
+job settled as `ds160_blocked / portal_action_required`, its encrypted input
+and official diagnostic evidence uploaded successfully, and the machine stopped
+automatically. There were zero final-submission fences. The exact cause is
+under investigation; historical school details from another application must
+not be substituted for this run's current saved answers.
+
+A separate semantic check of active bilingual values found one identifier
+conflict between `national_id_number` and its localized companions. This is
+an unresolved pre-signing issue, not proof of official parity. Further retries
+must use a corrected and verified input snapshot after resolving both issues.
+
+The identity mismatch was a UI/runtime precedence bug: entry and bilingual
+review preferred historical localized copies, while the CEAC runner consumed
+the canonical answer. Commit `94d3763b` classifies the DS-160 national ID as a
+literal structured field. Seventy-four focused schema, input and review tests
+passed; frontend type-check and lint passed (57 existing warnings, no errors).
+Production release `dpl_EZeowohiqJ9EPCNQAZ748d3Qds9R` became READY. A production
+browser reload of the new application verified that the old displayed mirror
+was replaced and no page-load error or alert appeared. No applicant identity
+value was changed by this repair. All three stored variants differ from the
+number supplied earlier in this conversation, so factual confirmation remains
+pending rather than silently selecting one.
+
+The education snapshot contains `has_attended_education=no` but the historical
+runner alias `has_other_education=yes`, with no school-detail answers. The
+runtime therefore opened an empty school branch instead of following the
+current frontend controller. A correction is in progress. The user was also
+asked whether the earlier supplied school history applies to this new current-
+data application. Official retries and the monitor are paused at these factual
+conflicts; existing records, the current CEAC draft and final-signature fences
+are preserved.
+
+The bounded follow-up scanned all 349 snapshot rows against 22 key aliases,
+71 language-pair groups, 22 date-splitting rules and 52 NA/unknown rules. It
+found only the education boolean conflict and the two national-ID mirrors
+described above; no other enum, date-component or NA-marker conflicts were
+found. Ordinary source-language/English prose differences were excluded as
+translations. This checks this application's transformations, not all possible
+DS-160 answers or official branch behavior. The deployed browser also confirmed
+that review contains the same current ID as entry and no longer contains the
+old mirror, without exposing either value in the diagnostic output.
+
+Commit `f5799f34` fixes the education failure in the shared derivation layer:
+every present canonical source overrides its mechanical legacy alias, while
+target-only historical drafts remain compatible. Filling and official read-back
+now receive the same derived branch answer; no special education override or
+invented school record was added. The final combined derivation, real-browser
+fixture filling, provider lifecycle, session and lease suite passed 83/83,
+and submission-service type-check passed.
+
+Measured filling took 24 minutes to reach previous education, leaving several
+official pages still to complete. The same release changes CEAC's validated
+provider timeout from a hard-coded 1,800 seconds to a 1,800–3,600-second range,
+with both legacy deployment duration settings at 3,600 seconds. Other countries'
+defaults are unchanged. Image
+`sha256:55042aea6551f3e43e8f1ec016e71013a2da664b4d66faafd655c7b4b5728703`
+was built and applied to the stopped legacy machine. Read-back confirmed the
+new image, both 3,600-second settings, concurrency 1, two shared CPUs, 4 GiB,
+120-second idle exit, disabled automatic start and stopped state. No new
+official attempt was launched while the factual questions remain unanswered.
+
+An additional repeat-adapter regression run exposed a stale test-only phone
+control name. Its fixture and exact-selector assertion now use the already
+verified `tbxAddPhoneInfo` mapping instead of historical `APP_ADD_TEL`; no
+production selector or validation was relaxed. All 15 repeat-adapter tests
+passed. Together with the 74 frontend and 83 runner checks, this repair has
+172 passing focused tests, plus production browser entry/review verification.
+The corrected full official run and post-submission field comparison are still
+pending the applicant's two factual answers.
