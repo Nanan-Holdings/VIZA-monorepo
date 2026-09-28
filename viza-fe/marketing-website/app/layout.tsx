@@ -14,6 +14,12 @@ const gtmId = process.env.NEXT_PUBLIC_GTM_ID?.trim();
    is a public client-side value, so it belongs where a diff shows it. */
 const gaMeasurementId =
   process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim() || "G-RKJ1ZKV7QK";
+/* Microsoft Clarity project (session replay + heatmaps), under
+   edward.zhang@kelin.studio. Constant with an env override for the same reason
+   as the GA4 id above. /apply is wrapped in data-clarity-mask because it shows
+   passport data; next.config.ts names *.clarity.ms in script-src/connect-src. */
+const clarityProjectId =
+  process.env.NEXT_PUBLIC_CLARITY_ID?.trim() || "ypb021bkpf";
 
 // Checkout completes on the portal origin, so GA4 has to be told these two
 // hosts are one session — otherwise the purchase is attributed to a referral
@@ -151,6 +157,17 @@ export default async function RootLayout({
               `}
             </Script>
           </>
+        ) : null}
+        {clarityProjectId !== "REPLACE_ME" ? (
+          <Script id="microsoft-clarity" strategy="afterInteractive">
+            {`
+              (function(c,l,a,r,i,t,y){
+                c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+                t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+                y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+              })(window,document,"clarity","script","${clarityProjectId}");
+            `}
+          </Script>
         ) : null}
         <Script id="marketing-click-tracking" strategy="afterInteractive">
           {`
