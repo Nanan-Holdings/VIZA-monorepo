@@ -84,7 +84,7 @@ describe("DynamicStepForm US state hydration", () => {
 
     await waitFor(() => expect(onDraftChange).toHaveBeenCalled());
     await waitFor(() => {
-      expect(screen.getByRole("combobox")).toHaveTextContent("加利福尼亚州");
+      expect(screen.getByRole("button", { name: "加利福尼亚州" })).toHaveTextContent("加利福尼亚州");
       expect(onDraftChange).toHaveBeenLastCalledWith(expect.objectContaining({ us_address_state: "CA" }));
       expect(container.querySelector('[data-field-name="us_address_state"]'))
         .toHaveAttribute("data-field-warning", "false");

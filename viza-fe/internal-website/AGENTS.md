@@ -142,6 +142,17 @@ and `DOES_NOT_APPLY` are valid only when the field explicitly permits them;
 never apply ordinary date parsing to an allowed sentinel. Keep real dates and
 unsupported sentinels validated, including after clearing the checkbox. The
 adjacent tests and dynamic-form regressions cover this shared contract.
+`lib/form-field-sentinels.ts` is the shared allow/reject predicate for these
+sentinels across manual completion, local field errors, assistant validation,
+and review formatting. It normalizes legacy casing/whitespace before applying
+the field's metadata; unsupported sentinels remain editable but cannot count
+as complete or pass review.
+`lib/__tests__/ds160-live-branch-audit.test.ts` and its
+`lib/__tests__/fixtures/ds160-live-branch-metadata-20260928.json` fixture
+replay the dated live B1/B2 metadata: all active conditional expressions in
+both directions, repeat-row second-instance scope, and field-specific sentinel
+allow/reject branches. The fixture is derived from the read-only live export
+and must retain independent branch assignments and live field metadata.
 `lib/ds160-family-validation.ts` owns the CEAC DS-160 immediate-relative
 relationship cross-field rule. Keep it separate from the U.S. contact rule:
 the immediate-relative `SPOUSE` option accepts only Married or Legally

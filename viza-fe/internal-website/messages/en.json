@@ -743,6 +743,8 @@
       "scrollToLatest": "Jump to latest message",
       "emptyConversation": "Tell me what you would like to add, or answer the questions I ask. You can also use the microphone to dictate your answer.",
       "thinking": "Checking your application...",
+      "draftComplete": "All required form fields are complete. Next, review your supporting documents and application details.",
+      "draftQuestion": "Please provide “{label}”.",
       "readOnly": {
         "description": "Review the saved conversation and completion progress for this submitted application.",
         "emptyConversation": "No form filling assistant conversation was saved before this application was submitted.",

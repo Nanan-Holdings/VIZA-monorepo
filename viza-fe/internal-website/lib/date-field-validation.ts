@@ -1,7 +1,13 @@
 import type { VisaFormFieldRow } from "@/types/visa-form-fields";
+import {
+  DO_NOT_KNOW_SENTINEL,
+  DOES_NOT_APPLY_SENTINEL,
+} from "@/lib/form-field-sentinels";
 
-export const DO_NOT_KNOW_DATE_SENTINEL = "DO_NOT_KNOW";
-export const DOES_NOT_APPLY_DATE_SENTINEL = "DOES_NOT_APPLY";
+export { DO_NOT_KNOW_SENTINEL, DOES_NOT_APPLY_SENTINEL } from "@/lib/form-field-sentinels";
+
+export const DO_NOT_KNOW_DATE_SENTINEL = DO_NOT_KNOW_SENTINEL;
+export const DOES_NOT_APPLY_DATE_SENTINEL = DOES_NOT_APPLY_SENTINEL;
 
 export type DateMinimumPrecision = "day" | "month" | "year";
 

@@ -237,9 +237,10 @@ describe("DynamicStepForm date sentinel validation", () => {
 
   it.each(["1988", "2023-02-29"])("rejects an incomplete or impossible date: %s", (value) => {
     const { container } = renderDateField(dateField(), { father_date_of_birth: value });
-    expect(container.querySelector('[data-field-name="father_date_of_birth"]'))
-      .toHaveAttribute("data-field-warning", "true");
+    const fieldRoot = container.querySelector('[data-field-name="father_date_of_birth"]');
+    expect(fieldRoot).toHaveAttribute("data-field-warning", "true");
     expect(screen.getByText("日期格式不符合要求")).toBeInTheDocument();
+    expect(fieldRoot?.querySelector("button")).not.toBeDisabled();
   });
 
   it("does not flag an allowed unknown date and clears the sentinel when unchecked", async () => {

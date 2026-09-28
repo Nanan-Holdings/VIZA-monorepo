@@ -33,6 +33,10 @@ import {
   getDs160NationalityDuplicateMessage,
 } from "@/lib/ds160-nationality-validation";
 import { isLegacyCompatibilityOnlyField } from "@/lib/legacy-compatibility-fields";
+import {
+  getFormFieldSentinel,
+  getFormFieldSentinelState,
+} from "@/lib/form-field-sentinels";
 import type { VisaFormFieldOption, WizardStep } from "@/types/visa-form-fields";
 import type {
   FormAssistantProgress,
@@ -137,10 +141,7 @@ function relatedAnswer(
 }
 
 function isAllowedAnswerOverride(value: string, rules: Record<string, unknown>): boolean {
-  return (
-    (value === "DO_NOT_KNOW" && (rules.allow_do_not_know === true || rules.allow_unknown === true)) ||
-    (value === "DOES_NOT_APPLY" && (rules.allow_does_not_apply === true || rules.has_does_not_apply === true))
-  );
+  return getFormFieldSentinelState(value, rules) === "allowed";
 }
 
 function isAllowedYearOnlyDate(value: string, rules: Record<string, unknown>): boolean {
@@ -441,6 +442,7 @@ export function validateApplicationAnswers(params: {
         const rules = field.validationRules ?? {};
         const suffix = answerInstanceSuffix(field.fieldName, answerKey);
         const allowedOverride = isAllowedAnswerOverride(value, rules);
+        const sentinelState = getFormFieldSentinelState(value, rules);
         const yearOnlyDate = field.fieldType === "date" && isAllowedYearOnlyDate(value, rules);
 
         if (
@@ -453,6 +455,25 @@ export function validateApplicationAnswers(params: {
             fieldNames: [answerKey],
             message: message(`${label} must be accepted.`, `请勾选并接受${label}。`),
           });
+        }
+
+        if (sentinelState === "unsupported") {
+          const unknown = getFormFieldSentinel(value) === "DO_NOT_KNOW";
+          const answerEn = unknown ? "Do Not Know" : "Does Not Apply";
+          const answerZh = unknown ? "不知道" : "不适用";
+          errors.push({
+            code: field.fieldType === "date" ? "invalid_date" : "unsupported_sentinel",
+            fieldNames: [answerKey],
+            message: message(
+              field.fieldType === "date"
+                ? `${label} must be a valid date.`
+                : `${label} does not allow “${answerEn}”. Choose the official option or enter a real value.`,
+              field.fieldType === "date"
+                ? `请为${label}填写有效日期。`
+                : `${label}不允许填写“${answerZh}”，请选择官网提供的选项或填写真实值。`,
+            ),
+          });
+          continue;
         }
 
         if (allowedOverride) continue;

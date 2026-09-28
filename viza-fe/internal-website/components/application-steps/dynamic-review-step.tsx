@@ -37,6 +37,7 @@ import {
 } from "@/lib/date-field-validation";
 import { getDs160AgeVisibleStep } from "@/lib/ds160-age-gate";
 import { isLegacyCompatibilityOnlyField } from "@/lib/legacy-compatibility-fields";
+import { getFormFieldSentinel } from "@/lib/form-field-sentinels";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 
 function formatDateOfficial(value: string): string | null {
@@ -211,6 +212,9 @@ export function getBilingualReviewValue(
   field: WizardStep["fields"][number],
   side: "zh" | "en",
 ): string {
+  // An explicit checkbox answer supersedes a previously translated text value.
+  const sentinel = getFormFieldSentinel(value);
+  if (sentinel) return sentinel;
   if (!usesBilingualAnswerPair(field)) return value;
 
   const explicit = dynamicAnswers[`${answerKey}_${side}`]?.trim();
@@ -332,7 +336,10 @@ export function DynamicReviewStep({
     field?: WizardStep["fields"][number],
     side: "zh" | "en" = "zh",
   ): string => {
-    if (!value || value === "does_not_apply") return t("dynamicField.doesNotApply");
+    const sentinel = getFormFieldSentinel(value);
+    if (sentinel === "DOES_NOT_APPLY") return t("dynamicField.doesNotApply");
+    if (sentinel === "DO_NOT_KNOW") return t("dynamicField.doNotKnow");
+    if (!value) return t("review.notProvided");
     if (!field) return value;
 
     if (field.fieldType === "checkbox") {
@@ -485,13 +492,14 @@ export function DynamicReviewStep({
           const badges: string[] = [];
           const warnings: string[] = [];
 
-          if (field.fieldType === "date") {
+          const allowedDateSentinel = field.fieldType === "date" && isAllowedDateSentinel(value, field.validationRules);
+          if (field.fieldType === "date" && !allowedDateSentinel) {
             badges.push(t("translation.officialFormatBadge"));
           } else if (field.fieldType === "select" || field.fieldType === "radio" || field.fieldType === "country") {
             badges.push(t("translation.optionLabelBadge"));
           }
 
-          if (field.fieldType === "date") {
+          if (field.fieldType === "date" && !allowedDateSentinel) {
             warnings.push(t("translation.dateFormatWarning", { format: "DD/MM/YYYY" }));
           }
 

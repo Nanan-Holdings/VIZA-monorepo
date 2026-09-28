@@ -112,6 +112,16 @@ Before changing this route, read:
 - `long-form/__tests__/page-orchestration.test.tsx` mounts the coordinator with
   a minimal DB schema and verifies ordinary draft refreshes reuse dynamic-step
   props while an answer edit during validation rejects the stale response.
+- `app/api/applications/[id]/form-assistant/turn/route.test.ts` exercises the
+  actual assistant route with deterministic service parsing and in-memory
+  persistence, including the DS-160 SSN “不适用” branch, idempotency,
+  read-only/ownership guards, malformed requests, and provider failure cleanup.
+  `long-form/page.tsx` reconciles manual draft changes on its debounced derived
+  refresh without interrupting an in-flight assistant turn. It preserves the
+  server clarification while the first missing field's `fieldName` and
+  `reason` stay the same, updates only missing/progress state in that case, and
+  uses the base field name when clearing repeated-row drafts patched by the
+  assistant.
 
 ## Guardrails
 

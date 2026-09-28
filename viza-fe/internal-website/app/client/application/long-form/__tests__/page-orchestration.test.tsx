@@ -18,11 +18,14 @@ const testState = vi.hoisted(() => ({
   tabCompletionCalls: 0,
   assistantProgressCalls: 0,
   automaticValidationCalls: 0,
+  assistantResponse: null as Record<string, unknown> | null,
+  assistantTurnResponse: null as Record<string, unknown> | null,
   saveDynamicAnswersCalls: [] as Array<{
     applicationId: string;
     answers: Record<string, unknown>;
   }>,
   initialDynamicAnswers: {} as Record<string, string>,
+  includeUnrelatedMissingAfterEdit: false,
   validationRequestStarted: Promise.withResolvers<void>(),
   resolveValidation: null as ((value: unknown) => void) | null,
 }));
@@ -73,7 +76,11 @@ vi.mock("@/lib/supabase/client", () => ({
 }));
 
 vi.mock("next-intl", () => {
-  const translate = Object.assign((key: string) => key, { has: () => false });
+  const translate = Object.assign((key: string, values?: { label?: string }) => {
+    if (key === "formAssistant.draftComplete") return "All required form fields are complete. Next, review your supporting documents and application details.";
+    if (key === "formAssistant.draftQuestion") return `Please provide “${values?.label ?? ""}”.`;
+    return key;
+  }, { has: () => false });
   return {
     useLocale: () => "en",
     useTranslations: () => translate,
@@ -190,10 +197,14 @@ vi.mock("@/components/client/form-assistant", () => {
   const FormFillingAssistant = (props: Record<string, unknown>) => {
     testState.assistantPropsHistory.push(props);
     const onValidate = props.onValidate as () => Promise<unknown>;
+    const onSend = props.onSend as (text: string) => Promise<unknown>;
     return (
-      <button type="button" data-testid="assistant-validate" onClick={() => void onValidate()}>
-        Validate
-      </button>
+      <>
+        <button type="button" data-testid="assistant-validate" onClick={() => void onValidate()}>
+          Validate
+        </button>
+        <button type="button" data-testid="assistant-send" onClick={() => void onSend("update")}>Send</button>
+      </>
     );
   };
   return { FormFillingAssistant };
@@ -326,6 +337,26 @@ vi.mock("@/lib/application-tab-completion", () => ({
   },
   getApplicationFieldErrorMessage: () => "Invalid",
   getContiguousCompletedCount: () => 0,
+  getMissingDynamicFormFields: (_steps: unknown, answers: Record<string, string>) => {
+    if (answers.branch !== "alternate" || answers.alternate_details) return [];
+    const missingFields = [{
+      stepId: 1,
+      stepName: "Alternate details",
+      fieldName: "alternate_details",
+      label: "Alternate details",
+      reason: "required",
+    }];
+    if (testState.includeUnrelatedMissingAfterEdit && answers.first_name === "edited") {
+      missingFields.push({
+        stepId: 1,
+        stepName: "Personal",
+        fieldName: "unrelated_confirmation",
+        label: "Unrelated confirmation",
+        reason: "required",
+      });
+    }
+    return missingFields;
+  },
   getMissingRequiredDocumentRequirementKeys: () => [],
   getRequiredDocumentProgress: () => ({ completed: 0, total: 0 }),
 }));
@@ -425,8 +456,11 @@ beforeEach(() => {
   testState.tabCompletionCalls = 0;
   testState.assistantProgressCalls = 0;
   testState.automaticValidationCalls = 0;
+  testState.assistantResponse = null;
+  testState.assistantTurnResponse = null;
   testState.saveDynamicAnswersCalls.length = 0;
   testState.initialDynamicAnswers = {};
+  testState.includeUnrelatedMissingAfterEdit = false;
   testState.validationRequestStarted = Promise.withResolvers<void>();
   testState.resolveValidation = null;
   window.matchMedia = vi.fn(() => ({
@@ -450,6 +484,18 @@ beforeEach(() => {
       testState.submissionPosts.push(String(init?.body));
       return response({ jobId: "mock-job", queueStatus: "queued" }) as Response;
     }
+    if (url.includes("/form-assistant/turn")) {
+      return response({
+        assistantMessage: "Updated",
+        appliedPatches: [],
+        skippedConflicts: [],
+        missingFields: [],
+        progress: { completed: 0, total: 1 },
+        sources: [],
+        canRunFinalCheck: true,
+        ...(testState.assistantTurnResponse ?? {}),
+      }) as Response;
+    }
     if (url.includes("form-assistant?") && !url.includes("/validate")) {
       return response({
         sessionId: "assistant-session",
@@ -459,6 +505,7 @@ beforeEach(() => {
         aiFilledFieldNames: [],
         progress: { completed: 0, total: 1 },
         canRunFinalCheck: true,
+        ...(testState.assistantResponse ?? {}),
       }) as Response;
     }
     if (url.includes("/form-assistant/validate")) {
@@ -560,6 +607,99 @@ describe("long form page orchestration", () => {
     expect(refreshedProps.aiFilledFieldNames).toBe(initialProps.aiFilledFieldNames);
     expect(refreshedProps.invalidFieldNames).toBe(initialProps.invalidFieldNames);
     expect(refreshedProps.invalidFieldMessages).toBe(initialProps.invalidFieldMessages);
+  });
+
+  it("reconciles the assistant prompt after a manual edit completes its current target", async () => {
+    testState.initialDynamicAnswers = { branch: "alternate" };
+    testState.assistantResponse = {
+      assistantMessage: "Server clarification for alternate details",
+      messages: [],
+      missingFields: [{
+        stepId: 1,
+        stepName: "Alternate details",
+        fieldName: "alternate_details",
+        label: "Alternate details",
+        reason: "required",
+      }],
+      progress: { completed: 0, total: 1 },
+    };
+    const { default: ApplicationPage } = await import("../page");
+    render(<ApplicationPage />);
+
+    await waitFor(() => expect((testState.assistantPropsHistory.at(-1)?.messages as unknown[] | undefined)?.length).toBe(1), { timeout: 1500 });
+    expect((testState.assistantPropsHistory.at(-1)?.messages as Array<{ content: string }>).at(-1)?.content)
+      .toBe("Server clarification for alternate details");
+
+    testState.includeUnrelatedMissingAfterEdit = true;
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("dynamic-edit"));
+      await new Promise((resolve) => window.setTimeout(resolve, 450));
+    });
+    expect((testState.assistantPropsHistory.at(-1)?.messages as Array<{ content: string }>).at(-1)?.content)
+      .toBe("Server clarification for alternate details");
+    expect(testState.assistantPropsHistory.at(-1)?.missingFields).toHaveLength(2);
+
+    fireEvent.click(screen.getByTestId("dynamic-edit-step-2"));
+    await waitFor(() => {
+      const props = testState.assistantPropsHistory.at(-1)!;
+      expect((props.messages as Array<{ content: string }>).at(-1)?.content)
+        .toContain("Next, review your supporting documents");
+      expect(props.missingFields).toEqual([]);
+    }, { timeout: 1500 });
+  });
+
+  it("clears a repeated-row draft when the assistant patches that row", async () => {
+    testState.initialDynamicAnswers = { branch: "alternate" };
+    testState.assistantTurnResponse = {
+      assistantMessage: "Updated row",
+      appliedPatches: [{
+        fieldName: "alternate_details__1",
+        value: "assistant-value",
+        sourceKind: "user_chat",
+        confidence: "high",
+      }],
+      skippedConflicts: [],
+      missingFields: [],
+      progress: { completed: 0, total: 1 },
+      sources: [],
+      canRunFinalCheck: true,
+    };
+    const { default: ApplicationPage } = await import("../page");
+    render(<ApplicationPage />);
+
+    await waitFor(() => expect(screen.getByTestId("dynamic-edit-step-2")).toBeInTheDocument());
+    const secondStepProps = testState.dynamicPropsHistory
+      .slice()
+      .reverse()
+      .find((props) => (props.step as { stepNumber?: number }).stepNumber === 2)!;
+    act(() => {
+      (secondStepProps.onDraftChange as (answers: Record<string, string>) => void)({
+        alternate_details__1: "manual-old-value",
+      });
+    });
+
+    await waitFor(() => expect(testState.assistantPropsHistory.at(-1)?.loading).toBe(false));
+    fireEvent.click(screen.getByTestId("assistant-send"));
+    await waitFor(() => expect(testState.saveDynamicAnswersCalls.length).toBeGreaterThan(0));
+    expect(testState.saveDynamicAnswersCalls.at(-1)?.answers).toMatchObject({
+      alternate_details__1: "manual-old-value",
+    });
+
+    act(() => {
+      const latestSecondStepProps = testState.dynamicPropsHistory
+        .slice()
+        .reverse()
+        .find((props) => (props.step as { stepNumber?: number }).stepNumber === 2)!;
+      (latestSecondStepProps.onDraftChange as (answers: Record<string, string>) => void)({
+        alternate_details__2: "next-row-value",
+      });
+    });
+    fireEvent.click(screen.getByTestId("assistant-send"));
+    await waitFor(() => expect(testState.saveDynamicAnswersCalls.length).toBeGreaterThan(1));
+    expect(testState.saveDynamicAnswersCalls.at(-1)?.answers).toMatchObject({
+      alternate_details__2: "next-row-value",
+    });
+    expect(testState.saveDynamicAnswersCalls.at(-1)?.answers).not.toHaveProperty("alternate_details__1");
   });
 
   it("rejects a validation response captured before an in-flight edit", async () => {

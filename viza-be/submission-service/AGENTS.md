@@ -45,6 +45,10 @@ disabled `Next: PHOTO` state, with Back/save/readback and lease/gate checks;
 normal enabled Next navigation remains the preferred path. Keep the focused
 security5/navigation regression covered by the final combined 121-test run,
 and keep the final runner-image digest aligned with this boundary.
+The frontend/runtime branch audit is recorded in
+`docs/ds160-b1-b2-branch-audit-2026-09-28.md`; it uses the dated live
+337-row metadata export and must remain separate from official CEAC server
+verification claims.
 
 Product policy (2026-09-15): payment execution has been removed.
 `src/payment-removed.ts` defines the unconditional retirement boundary.

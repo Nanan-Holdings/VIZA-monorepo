@@ -21,7 +21,9 @@ review, bilingual review helpers, and status confirmation.
   dependent answer. Keep outer controllers global and include partially filled
   rows in the missing-information review.
 - `__tests__/dynamic-review-localization.test.tsx`: focused coverage for
-  bilingual review labels, enum display, and source/official values.
+  bilingual review labels, enum display, and source/official values. Canonical
+  NA/unknown answers override stale translated mirrors; allowed date sentinels
+  must not display ordinary date-format warnings.
 - `review-step.tsx` and `bilingual-review-panel.tsx`: legacy review surfaces.
 - `team-step.tsx`: manage companion applicants before final submission.
 - `__tests__/team-step.test.tsx`: verifies that saved Settings traveler profiles

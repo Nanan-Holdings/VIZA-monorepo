@@ -23,6 +23,8 @@ vi.mock("next-intl", () => ({
       "review.notProvided": "未填写",
       "savingOfficialValue": "正在保存…",
       "officialValueSaveFailed": "保存失败，请重试。",
+      "dynamicField.doesNotApply": "不适用",
+      "dynamicField.doNotKnow": "不知道",
     })[key] ?? key;
     translate.has = () => false;
     return translate;
@@ -49,6 +51,26 @@ function baseField(overrides: Partial<WizardStep["fields"][number]>): WizardStep
 }
 
 describe("dynamic review localization", () => {
+  test.each([
+    ["us_social_security_number", "DOES_NOT_APPLY", "不适用", "text", { allow_does_not_apply: true }],
+    ["father_date_of_birth", "DO_NOT_KNOW", "不知道", "date", { allow_do_not_know: true }],
+  ] as const)("reviews %s with localized sentinel and authoritative canonical value", (fieldName, value, label, fieldType, validationRules) => {
+    const field = baseField({ fieldName, visaType: "DS160", fieldType, validationRules });
+    const answers = { [fieldName]: value, [`${fieldName}_zh`]: "旧答案", [`${fieldName}_en`]: "OLD ANSWER" };
+    expect(getBilingualReviewValue(answers, fieldName, value, field, "zh")).toBe(value);
+    expect(getBilingualReviewValue(answers, fieldName, value, field, "en")).toBe(value);
+    render(<DynamicReviewStep
+      applicationId="test-only" visaType="DS160" dynamicAnswers={answers}
+      dbSteps={[{ stepNumber: 1, stepName: "Personal Information", fields: [field] }]}
+      photoPath={null} onEdit={vi.fn()} onPhotoEdit={vi.fn()} onComplete={vi.fn()}
+      showAction={false} readOnly
+    />);
+    expect(screen.getByText(label)).toBeInTheDocument();
+    expect(screen.getByText(value)).toBeInTheDocument();
+    expect(screen.queryByText("旧答案")).not.toBeInTheDocument();
+    expect(screen.queryByText("translation.dateFormatWarning")).not.toBeInTheDocument();
+  });
+
   test.each([
     ["no", "yes", false, true],
     ["yes", "no", true, false],

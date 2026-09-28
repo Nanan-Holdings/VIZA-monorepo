@@ -16,6 +16,9 @@ reports, and workflow documentation for VIZA.
 - `prd-backend-data-schema.md`: backend data model requirements.
 - `application/DG.md`: application form developer guide.
 - `application/UG.md`: application form user guide.
+- `application/ds160-functional-audit-2026-09-28.md`: B1/B2 assistant, manual
+  form, persistence, review, branch coverage, and submission-contract audit;
+  distinguishes synthetic browser checks from dated official portal evidence.
 - `application/schema-ui-contract.md`: canonical mapping from scraped master
   schema fields to frozen application components, conditional-panel ownership,
   strict audit workflow, and the edge-case component backlog.

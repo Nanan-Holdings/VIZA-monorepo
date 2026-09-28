@@ -31,6 +31,7 @@ import {
 } from "@/lib/ds160-nationality-validation";
 import { isLegacyCompatibilityOnlyField } from "@/lib/legacy-compatibility-fields";
 import { getDs160OfficialOptionSource, resolveDs160OfficialOptionValue } from "@/lib/ds160-official-options";
+import { getFormFieldSentinelState } from "@/lib/form-field-sentinels";
 import type { VisaFormFieldRow, WizardStep } from "@/types/visa-form-fields";
 
 export interface ApplicationStepRef {
@@ -473,6 +474,9 @@ function isFieldComplete(
   if (expected !== null) return normalizeAnswer(values[valueKey]) === expected;
   const value = text(values[valueKey]);
   if (!hasValue(value)) return false;
+  const sentinelState = getFormFieldSentinelState(value, field.validationRules);
+  if (sentinelState === "unsupported") return false;
+  if (sentinelState === "allowed") return true;
   if (!isDateFieldValueComplete(field, value)) return false;
   if (isPastUpcomingTravelDate(field, value, now)) return false;
   return isAllowedChoiceValue(field, value, values, repeatIndex);

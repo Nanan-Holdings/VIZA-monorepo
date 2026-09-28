@@ -60,6 +60,7 @@ import { countries } from "country-data-list";
 import { getDateFieldValueState, parseDateFieldValue } from "@/lib/date-field-validation";
 import { isDs160FieldVisibleForRuntime } from "@/lib/ds160-age-gate";
 import { isLegacyCompatibilityOnlyField } from "@/lib/legacy-compatibility-fields";
+import { getFormFieldSentinel, getFormFieldSentinelState } from "@/lib/form-field-sentinels";
 import {
   FORMER_SPOUSE_COUNT_FIELD,
   FORMER_SPOUSE_IDENTITY_FIELDS,
@@ -1992,22 +1993,24 @@ function getLocalFieldIssue(
     }
   }
 
-  // Date sentinels are canonical answers only when the schema explicitly
-  // exposes the corresponding unknown/not-applicable branch. They must skip
-  // date parsing and every date-specific constraint, while arbitrary strings
-  // still follow the normal strict date validation below.
-  if (field.fieldType === "date" && getDateFieldValueState(trimmed, rules) === "allowed_sentinel") {
-    return issue("ok", "");
+  const sentinelState = getFormFieldSentinelState(trimmed, rules);
+  if (sentinelState === "unsupported") {
+    const unknown = getFormFieldSentinel(trimmed) === "DO_NOT_KNOW";
+    const displayAnswer = isZh
+      ? unknown ? "不知道" : "不适用"
+      : unknown ? "Do Not Know" : "Does Not Apply";
+    return issue(
+      "error",
+      field.fieldType === "date"
+        ? isZh
+          ? "日期格式不符合要求"
+          : "Date format does not match the requirement"
+        : isZh
+          ? `此字段不支持“${displayAnswer}”，请选择官网提供的选项或填写真实值`
+          : `This field does not support “${displayAnswer}”. Choose the official option or enter a real value.`,
+    );
   }
-
-  // Non-date controls use the same official sentinel answers as date fields
-  // (for example DS-160 SSN may explicitly be DOES_NOT_APPLY). Once the
-  // schema opts into that branch, skip ordinary length/pattern/option checks;
-  // the sentinel is the completed canonical answer for that field.
-  const isAllowedNonDateSentinel =
-    (trimmed === "DO_NOT_KNOW" && (rules?.allow_do_not_know === true || rules?.allow_unknown === true))
-    || (trimmed === "DOES_NOT_APPLY" && (rules?.allow_does_not_apply === true || rules?.has_does_not_apply === true));
-  if (isAllowedNonDateSentinel) {
+  if (sentinelState === "allowed") {
     return issue("ok", "");
   }
 
@@ -5523,11 +5526,17 @@ function DynamicStepFormImpl({
           const valueKey = instanceKey(f.fieldName, index);
           const fieldValues = getScopedFieldValues(f, valueKey);
           if (!isFieldConditionallyVisible(f, valueKey) || !isRequiredField(f, fieldValues)) return true;
-          return Boolean((values[valueKey] ?? "").trim());
+          const value = values[valueKey] ?? "";
+          const validationField = getEffectiveFieldState(f, valueKey).validationField;
+          return Boolean(value.trim()) &&
+            getFormFieldSentinelState(value, validationField.validationRules) !== "unsupported";
         }).every(Boolean);
       }
       if (!isFieldConditionallyVisible(f, f.fieldName) || !isRequiredField(f)) return true;
-      return Boolean((values[f.fieldName] ?? "").trim());
+      const value = values[f.fieldName] ?? "";
+      const validationField = getEffectiveFieldState(f, f.fieldName).validationField;
+      return Boolean(value.trim()) &&
+        getFormFieldSentinelState(value, validationField.validationRules) !== "unsupported";
     });
 
   const valueEntries = Object.entries(values);

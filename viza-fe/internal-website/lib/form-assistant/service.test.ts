@@ -272,7 +272,7 @@ function yesNoField(fieldName: string, label: string, labelZh: string): VisaForm
 function createAssistantAdminStub(
   priorResponse?: Record<string, unknown>,
   recentMessageRows: Array<Record<string, unknown>> = [],
-  options: { rejectConfirmationInputMode?: boolean } = {},
+  options: { rejectConfirmationInputMode?: boolean; rejectAnswerWrites?: boolean } = {},
 ) {
   const messages: Array<Record<string, unknown>> = [];
   const answerUpdates: Array<Record<string, unknown>> = [];
@@ -296,6 +296,7 @@ function createAssistantAdminStub(
       chain.limit = returnChain;
       chain.ilike = returnChain;
       chain.in = returnChain;
+      chain.is = returnChain;
       chain.delete = () => {
         operation = "delete";
         return chain;
@@ -341,18 +342,21 @@ function createAssistantAdminStub(
           return { data: { id: `message-${messageSequence}` }, error: null };
         }
         if (table === "visa_application_answers" && operation === "update") {
+          if (options.rejectAnswerWrites) return { data: null, error: { code: "08006" } };
           return { data: { field_name: "accommodation_name", ...payload }, error: null };
         }
         return { data: null, error: null };
       };
       chain.then = (
-        onFulfilled: (value: { data: Array<Record<string, unknown>> | null; error: null }) => unknown,
+        onFulfilled: (value: { data: Array<Record<string, unknown>> | null; error: { code: string } | null }) => unknown,
         onRejected?: (reason: unknown) => unknown,
       ) => Promise.resolve({
         data: table === "form_assistant_messages" && operation === "select"
           ? recentMessageRows
           : null,
-        error: null,
+        error: options.rejectAnswerWrites && table === "visa_application_answers" && operation === "insert"
+          ? { code: "08006" }
+          : null,
       }).then(onFulfilled, onRejected);
       return chain;
     },
@@ -2746,6 +2750,285 @@ describe("parseDirectCurrentFieldAnswer", () => {
       confidence: "high",
       modelSource: "deterministic",
     });
+  });
+});
+
+describe("schema-gated non-date sentinel answers", () => {
+  const ssnField: VisaFormFieldRow = {
+    ...field("us_social_security_number", "U.S. Social Security Number", "美国社会安全号码（如适用）"),
+    visaType: "DS160",
+    validationRules: {
+      has_does_not_apply: true,
+      pattern: "^[0-9]{3}-[0-9]{2}-[0-9]{4}$",
+    },
+  };
+  const unknownTextField: VisaFormFieldRow = {
+    ...field("lost_passport_number", "Lost passport number", "遗失护照号码"),
+    visaType: "DS160",
+    validationRules: { allow_do_not_know: true, maxLength: 20 },
+  };
+  const ordinaryTextField = field("ordinary_text", "Ordinary text", "普通文本");
+
+  it.each([false, true])("explains a failed sentinel save without acknowledging or advancing (existing empty row: %s)", async (existingRow) => {
+    const stub = createAssistantAdminStub(undefined, [], { rejectAnswerWrites: true });
+    const result = await runAssistantTurn({
+      admin: stub.admin,
+      session: { id: "failure-session", schema_fingerprint: "qa", knowledge_release_key: null, state_json: {} },
+      applicationId: "synthetic-application",
+      applicantId: "synthetic-applicant",
+      authUserId: "synthetic-user",
+      steps: [{ stepNumber: 1, stepName: "Personal", fields: [ssnField] }],
+      answers: existingRow ? { us_social_security_number: { value: "", source: "user_form" } } : {},
+      text: "无",
+      locale: "zh",
+      inputMode: "text",
+      idempotencyKey: "save-failure",
+      country: "united_states",
+      visaType: "DS160",
+    });
+    expect(result.appliedPatches).toEqual([]);
+    expect(result.missingFields[0]?.fieldName).toBe("us_social_security_number");
+    expect(result.progress).toEqual({ completed: 0, total: 1 });
+    expect(result.canRunFinalCheck).toBe(false);
+    expect(result.assistantMessage).toContain("未能保存");
+    expect(result.assistantMessage).toContain("请重新发送");
+    expect(result.assistantMessage).not.toContain("已将");
+  });
+
+  it.each(["无", "没有", "不适用", "N/A", "none", "no", "我没有SSN"])(
+    "maps %s to the official Does Not Apply answer when the schema exposes it",
+    (answer) => {
+      expect(parseDirectCurrentFieldAnswer(answer, ssnField)).toEqual({
+        fieldName: "us_social_security_number",
+        value: "DOES_NOT_APPLY",
+        confidence: "high",
+        modelSource: "deterministic",
+      });
+    },
+  );
+
+  it.each(["不知道", "不清楚", "unknown", "I don't know"])(
+    "maps %s to Do Not Know only when the schema explicitly permits it",
+    (answer) => {
+      expect(parseDirectCurrentFieldAnswer(answer, unknownTextField)).toEqual({
+        fieldName: "lost_passport_number",
+        value: "DO_NOT_KNOW",
+        confidence: "high",
+        modelSource: "deterministic",
+      });
+    },
+  );
+
+  it("does not turn sentinel words into values for ordinary fields or unsupported branches", () => {
+    expect(parseDirectCurrentFieldAnswer("无", ordinaryTextField)).toBeNull();
+    expect(parseDirectCurrentFieldAnswer("不知道", ssnField)).toBeNull();
+    expect(validateProposal(ssnField, {
+      fieldName: ssnField.fieldName,
+      value: "DOES_NOT_APPLY",
+      confidence: "high",
+    }, {})).toBe(true);
+    expect(validateProposal(ordinaryTextField, {
+      fieldName: ordinaryTextField.fieldName,
+      value: "DOES_NOT_APPLY",
+      confidence: "high",
+    }, {})).toBe(false);
+    for (const value of ["does_not_apply", "Does_Not_Apply", "do_not_know"]) {
+      expect(validateProposal(ordinaryTextField, {
+        fieldName: ordinaryTextField.fieldName,
+        value,
+        confidence: "high",
+      }, {})).toBe(false);
+    }
+    expect(validateProposal(ssnField, {
+      fieldName: ssnField.fieldName,
+      value: "does_not_apply",
+      confidence: "high",
+    }, {})).toBe(true);
+  });
+
+  it("saves SSN Does Not Apply and advances to the next required field", async () => {
+    const nextField = {
+      ...field("national_id_number", "National Identification Number", "国民身份证号码"),
+      visaType: "DS160",
+      validationRules: { has_does_not_apply: true, maxLength: 20 },
+    };
+    const stub = createAssistantAdminStub();
+    const result = await runAssistantTurn({
+      admin: stub.admin,
+      session: {
+        id: "session-id",
+        schema_fingerprint: "fingerprint",
+        knowledge_release_key: null,
+        state_json: {},
+      },
+      applicationId: "application-id",
+      applicantId: "applicant-id",
+      authUserId: "user-id",
+      steps: [{
+        stepNumber: 2,
+        stepName: "Personal Information 2",
+        fields: [ssnField, nextField],
+      }],
+      answers: {
+        us_social_security_number: { value: "", source: "user_form" },
+      },
+      text: "无",
+      locale: "zh",
+      inputMode: "text",
+      idempotencyKey: "ds160-ssn-does-not-apply",
+      country: "united_states",
+      visaType: "DS160",
+    });
+
+    expect(result.appliedPatches).toEqual([expect.objectContaining({
+      fieldName: "us_social_security_number",
+      value: "DOES_NOT_APPLY",
+    })]);
+    expect(result.missingFields.map((missing) => missing.fieldName)).toEqual(["national_id_number"]);
+    expect(result.assistantMessage).toContain("不适用");
+    expect(result.assistantMessage).not.toContain("社会安全号码");
+    expect(stub.answerUpdates).toEqual([expect.objectContaining({
+      value_text: "DOES_NOT_APPLY",
+      source: "form_assistant",
+    })]);
+  });
+
+  it("keeps a repeated row's sentinel answer scoped to that row", async () => {
+    const repeatedNumber: VisaFormFieldRow = {
+      ...field("lost_passport_number", "Lost passport number", "遗失护照号码"),
+      visaType: "DS160",
+      validationRules: {
+        repeat_group: "lost_passport",
+        allow_do_not_know: true,
+        has_does_not_apply: true,
+      },
+    };
+    const repeatedCountry: VisaFormFieldRow = {
+      ...field("lost_passport_country", "Issuing country", "签发国家"),
+      visaType: "DS160",
+      validationRules: { repeat_group: "lost_passport" },
+    };
+    const stub = createAssistantAdminStub();
+    const result = await runAssistantTurn({
+      admin: stub.admin,
+      session: {
+        id: "session-id",
+        schema_fingerprint: "fingerprint",
+        knowledge_release_key: null,
+        state_json: {},
+      },
+      applicationId: "application-id",
+      applicantId: "applicant-id",
+      authUserId: "user-id",
+      steps: [{ stepNumber: 7, stepName: "Passport Information", fields: [repeatedNumber, repeatedCountry] }],
+      answers: {
+        lost_passport_number: { value: "DOES_NOT_APPLY", source: "user_form" },
+        lost_passport_country: { value: "CHN", source: "user_form" },
+        lost_passport_country__2: { value: "CHN", source: "user_form" },
+      },
+      text: "无",
+      locale: "zh",
+      inputMode: "text",
+      idempotencyKey: "ds160-repeat-na",
+      country: "united_states",
+      visaType: "DS160",
+    });
+
+    expect(result.appliedPatches).toEqual([expect.objectContaining({
+      fieldName: "lost_passport_number__2",
+      value: "DOES_NOT_APPLY",
+    })]);
+    expect(result.missingFields).toEqual([]);
+    expect(stub.answerUpdates).toEqual([expect.objectContaining({
+      field_name: "lost_passport_number__2",
+      value_text: "DOES_NOT_APPLY",
+    })]);
+  });
+
+  it("keeps a model answer for a repeated second row scoped to that row", async () => {
+    const originalKey = process.env.OPENAI_API_KEY;
+    process.env.OPENAI_API_KEY = "test-key";
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => ({
+      ok: true,
+      json: async () => ({
+        output_text: JSON.stringify({
+          intent: "answer",
+          reply: "",
+          // Providers may return the base schema name even though the
+          // current question is the second repeat instance.
+          patches: [{
+            fieldName: "lost_passport_number",
+            value: "LP-SECOND",
+            confidence: "high",
+          }],
+        }),
+      }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    const repeatedNumber: VisaFormFieldRow = {
+      ...field("lost_passport_number", "Lost passport number", "遗失护照号码"),
+      visaType: "DS160",
+      validationRules: {
+        repeat_group: "lost_passport",
+        maxLength: 20,
+      },
+    };
+    const repeatedCountry: VisaFormFieldRow = {
+      ...field("lost_passport_country", "Issuing country", "签发国家"),
+      visaType: "DS160",
+      validationRules: { repeat_group: "lost_passport" },
+    };
+    const stub = createAssistantAdminStub();
+
+    try {
+      const result = await runAssistantTurn({
+        admin: stub.admin,
+        session: {
+          id: "session-id",
+          schema_fingerprint: "fingerprint",
+          knowledge_release_key: null,
+          state_json: {},
+        },
+        applicationId: "application-id",
+        applicantId: "applicant-id",
+        authUserId: "user-id",
+        steps: [{ stepNumber: 7, stepName: "Passport Information", fields: [repeatedNumber, repeatedCountry] }],
+        answers: {
+          lost_passport_number: { value: "LP-FIRST", source: "user_form" },
+          lost_passport_country: { value: "CHN", source: "user_form" },
+          lost_passport_country__2: { value: "CHN", source: "user_form" },
+        },
+        text: "LP-SECOND",
+        locale: "en",
+        inputMode: "text",
+        idempotencyKey: "ds160-repeat-model",
+        country: "united_states",
+        visaType: "DS160",
+      });
+
+      expect(fetchMock).toHaveBeenCalledOnce();
+      const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as { input: string };
+      const modelInput = JSON.parse(requestBody.input) as {
+        currentQuestion: { fieldName: string };
+        missingFieldManifest: Array<{ fieldName: string }>;
+      };
+      expect(modelInput.currentQuestion.fieldName).toBe("lost_passport_number__2");
+      expect(modelInput.missingFieldManifest).toEqual(expect.arrayContaining([
+        expect.objectContaining({ fieldName: "lost_passport_number__2" }),
+      ]));
+      expect(result.appliedPatches).toEqual([expect.objectContaining({
+        fieldName: "lost_passport_number__2",
+        value: "LP-SECOND",
+      })]);
+      expect(stub.answerUpdates).toEqual([expect.objectContaining({
+        field_name: "lost_passport_number__2",
+        value_text: "LP-SECOND",
+      })]);
+    } finally {
+      if (originalKey === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = originalKey;
+      vi.unstubAllGlobals();
+    }
   });
 });
 

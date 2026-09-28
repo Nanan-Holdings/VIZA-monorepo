@@ -69,6 +69,7 @@ import type {
   FormAssistantTurnResponse,
   FormAssistantValidationResponse,
   FormAssistantTranscriptionResponse,
+  FormAssistantMessage,
 } from "@/types/form-assistant";
 type FormAssistantRequestError = Error & {
   code?: string;
@@ -148,6 +149,7 @@ import {
   computeAllTabCompletion,
   getApplicationFieldErrorMessage,
   getContiguousCompletedCount,
+  getMissingDynamicFormFields,
   getMissingRequiredDocumentRequirementKeys,
   getRequiredDocumentProgress,
   type MissingApplicationField,
@@ -250,6 +252,93 @@ function prepareFormAssistantState(
         inputMode: "system",
       },
     ],
+  };
+}
+
+function buildDraftAssistantMessage(
+  missingFields: MissingApplicationField[],
+  copy: {
+    complete: string;
+    question: (label: string, labelZh?: string) => string;
+  },
+): string {
+  const nextField = missingFields[0];
+  if (!nextField) return copy.complete;
+
+  return copy.question(nextField.label, nextField.labelZh);
+}
+
+function reconcileDraftFormAssistantState(
+  state: FormAssistantState,
+  options: {
+    answers: Record<string, string>;
+    dbSteps: WizardStep[];
+    country: string;
+    visaType: string;
+    messageCopy: {
+      complete: string;
+      question: (label: string, labelZh?: string) => string;
+    };
+  },
+): FormAssistantState {
+  const missingFields = getMissingDynamicFormFields(options.dbSteps, options.answers, {
+    country: options.country,
+    visaType: options.visaType,
+  });
+  const progress = getAssistantProgress(options.dbSteps, options.answers);
+  const assistantMessage = buildDraftAssistantMessage(missingFields, options.messageCopy);
+  const currentMessage = state.messages.at(-1);
+  const isCurrentAssistantMessage = currentMessage?.role === "assistant" &&
+    currentMessage.id.startsWith("assistant-current-");
+  const nextMessage: FormAssistantMessage = {
+    id: isCurrentAssistantMessage
+      ? currentMessage.id
+      : `assistant-current-${state.sessionId}-${crypto.randomUUID()}`,
+    role: "assistant",
+    content: assistantMessage,
+    createdAt: currentMessage?.createdAt ?? new Date().toISOString(),
+    inputMode: "system",
+  };
+  const currentMissingField = state.missingFields[0];
+  const nextMissingField = missingFields[0];
+  const sameCurrentTarget = currentMissingField?.fieldName === nextMissingField?.fieldName &&
+    currentMissingField?.reason === nextMissingField?.reason;
+  const sameMissingFields = state.missingFields.length === missingFields.length &&
+    state.missingFields.every((field, index) => {
+      const next = missingFields[index];
+      return field.fieldName === next?.fieldName && field.reason === next?.reason;
+    });
+  const sameProgress = state.progress.completed === progress.completed &&
+    state.progress.total === progress.total;
+  const nextCanRunFinalCheck = missingFields.length === 0
+    ? state.canRunFinalCheck
+    : false;
+  // Keep a server-authored clarification/explanation whenever the first
+  // missing target is unchanged. The local draft can change the remaining
+  // missing-field list or progress without making that clarification stale.
+  // Only a changed field/reason pair should replace the current assistant
+  // message and message history.
+  if (sameCurrentTarget) {
+    if (sameMissingFields && sameProgress && state.canRunFinalCheck === nextCanRunFinalCheck) {
+      return state;
+    }
+    return {
+      ...state,
+      missingFields,
+      progress,
+      canRunFinalCheck: nextCanRunFinalCheck,
+    };
+  }
+
+  return {
+    ...state,
+    assistantMessage,
+    missingFields,
+    progress,
+    canRunFinalCheck: nextCanRunFinalCheck,
+    messages: isCurrentAssistantMessage
+      ? [...state.messages.slice(0, -1), nextMessage]
+      : [...state.messages, nextMessage],
   };
 }
 
@@ -1688,6 +1777,15 @@ export default function ApplicationPage() {
   const router = useRouter();
   const t = useTranslations("application");
   const locale = useLocale();
+  const draftAssistantMessageCopy = useMemo(
+    () => ({
+      complete: t("formAssistant.draftComplete"),
+      question: (label: string, labelZh?: string) => t("formAssistant.draftQuestion", {
+        label: locale.toLowerCase().startsWith("zh") ? (labelZh ?? label) : label,
+      }),
+    }),
+    [locale, t],
+  );
   const searchParams = useSearchParams();
   const jumpToReview = searchParams.get("step") === "review";
   const jumpToTeam = searchParams.get("step") === "team";
@@ -1833,6 +1931,7 @@ export default function ApplicationPage() {
   const formAssistantAnswersMarkedDirtyRef = useRef(false);
   const formAssistantValidationRefreshGuardRef = useRef(new FormAssistantValidationRefreshGuard());
   const formAssistantValidateRef = useRef<(() => Promise<FormAssistantValidationResponse>) | null>(null);
+  const formAssistantDraftSyncPendingRef = useRef(false);
   const formAssistantRetryRef = useRef<{
     applicationId: string;
     text: string;
@@ -2033,7 +2132,10 @@ export default function ApplicationPage() {
       : null;
     // Returning to the saved value still changes the visible branch. Compare
     // with the previous draft here; the persisted baseline only decides save work.
-    if (hasDraftChanged) scheduleDynamicDerivedRefresh();
+    if (hasDraftChanged) {
+      formAssistantDraftSyncPendingRef.current = true;
+      scheduleDynamicDerivedRefresh();
+    }
     const manuallyChangedAiFields = new Set(
       Object.entries(nextData)
         .filter(([fieldName, value]) =>
@@ -2174,7 +2276,25 @@ export default function ApplicationPage() {
       })
       .then((state) => {
         if (controller.signal.aborted) return;
-        setFormAssistantState(prepareFormAssistantState(state, { readOnly: formAssistantReadOnly }));
+        const preparedState = prepareFormAssistantState(state, { readOnly: formAssistantReadOnly });
+        if (formAssistantReadOnly) {
+          setFormAssistantState(preparedState);
+        } else {
+          // The server's current prompt can lag behind a saved/manual draft
+          // after a refresh. Reconcile it against the same schema and answer
+          // snapshot rendered by this page before exposing it to the user.
+          const draftAnswers = {
+            ...dynamicAnswersRef.current,
+            ...collectDraftAnswers(dynamicDraftRef.current),
+          };
+          setFormAssistantState(reconcileDraftFormAssistantState(preparedState, {
+            answers: draftAnswers,
+            dbSteps,
+            country: resolvedCountry,
+            visaType: resolvedVisaType,
+            messageCopy: draftAssistantMessageCopy,
+          }));
+        }
         setAiFilledFieldNames(state.aiFilledFieldNames);
       })
       .catch((assistantError) => {
@@ -2188,7 +2308,17 @@ export default function ApplicationPage() {
         if (!controller.signal.aborted) setFormAssistantBusy(false);
       });
     return () => controller.abort();
-  }, [appState.applicationId, formAssistantEligible, formAssistantReadOnly, formAssistantReloadKey, locale]);
+  }, [
+    appState.applicationId,
+    dbSteps,
+    formAssistantEligible,
+    formAssistantReadOnly,
+    formAssistantReloadKey,
+    draftAssistantMessageCopy,
+    locale,
+    resolvedCountry,
+    resolvedVisaType,
+  ]);
 
   // A concurrent Server Action refresh can remount the client subtree after a
   // successful assistant request and leave the card in its empty 0 / 0 shell.
@@ -2318,6 +2448,37 @@ export default function ApplicationPage() {
     () => ({ ...dynamicAnswers, ...pendingDynamicDrafts }),
     [dynamicAnswers, pendingDynamicDrafts],
   );
+  useEffect(() => {
+    if (!useDynamic || formAssistantReadOnly || formAssistantBusy || !formAssistantDraftSyncPendingRef.current) return;
+
+    // Manual edits are intentionally reconciled on the existing draft
+    // debounce cadence. Updating the assistant on every keystroke would
+    // recreate its message list and make the large form feel sluggish.
+    const draftAnswers = {
+      ...dynamicAnswersRef.current,
+      ...collectDraftAnswers(dynamicDraftRef.current),
+    };
+    formAssistantDraftSyncPendingRef.current = false;
+    setFormAssistantState((current) => {
+      if (!current) return current;
+      return reconcileDraftFormAssistantState(current, {
+        answers: draftAnswers,
+        dbSteps,
+        country: resolvedCountry,
+        visaType: resolvedVisaType,
+        messageCopy: draftAssistantMessageCopy,
+      });
+    });
+  }, [
+    dbSteps,
+    draftAssistantMessageCopy,
+    draftVersion,
+    formAssistantBusy,
+    formAssistantReadOnly,
+    resolvedCountry,
+    resolvedVisaType,
+    useDynamic,
+  ]);
   // Cross-section gates must see the current draft, not the 30-second save
   // snapshot. Restrict the override to structural DS-160 inputs so ordinary
   // typing keeps sibling DynamicStepForm props stable.
@@ -2779,6 +2940,7 @@ export default function ApplicationPage() {
     dynamicPersistedAnswersRef.current = {};
     dynamicAnswersRef.current = {};
     dynamicDraftRef.current = {};
+    formAssistantDraftSyncPendingRef.current = false;
     setDynamicAnswers({});
     if (draftVersionTimerRef.current !== null) {
       window.clearTimeout(draftVersionTimerRef.current);
@@ -3456,8 +3618,9 @@ export default function ApplicationPage() {
           // `_en` value cannot visually override the correction on reload.
           delete patch[`${item.fieldName}_zh`];
           delete patch[`${item.fieldName}_en`];
+          const patchBaseFieldName = getBaseAnswerFieldName(item.fieldName);
           const stepIndex = dbSteps.findIndex((step) =>
-            step.fields.some((field) => field.fieldName === item.fieldName),
+            step.fields.some((field) => getBaseAnswerFieldName(field.fieldName) === patchBaseFieldName),
           );
           if (stepIndex >= 0) {
             // The assistant route already persisted this patch with

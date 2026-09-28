@@ -25,6 +25,7 @@ import { resolveLocalizedOptions, resolveLocalizedPlaceholder } from "@/lib/bili
 import { translateUsRegionName } from "@/lib/ds160-translations";
 import { getDs160OfficialOptions, getDs160OfficialOptionSource, resolveDs160OfficialOptionValue } from "@/lib/ds160-official-options";
 import { getDateFieldMinimumPrecision, type DateMinimumPrecision } from "@/lib/date-field-validation";
+import { getFormFieldSentinel, isAllowedFormFieldSentinel } from "@/lib/form-field-sentinels";
 import { convertSimplifiedToTraditional } from "@/lib/chinese-conversion";
 import { cn } from "@/lib/utils";
 import {
@@ -513,8 +514,11 @@ export function DynamicFormField({
       const dateMinimumPrecision: DateMinimumPrecision = getDateFieldMinimumPrecision(dateRules);
       const dateCanUseMonth = dateMinimumPrecision === "month" || dateMinimumPrecision === "year";
       const dateCanUseYear = dateMinimumPrecision === "year" || dateAllowYearOnly;
-      const dateIsDoNotKnow = value === "DO_NOT_KNOW";
-      const dateIsDoesNotApply = value === "DOES_NOT_APPLY";
+      const dateSentinel = getFormFieldSentinel(value);
+      const dateIsDoNotKnow = dateSentinel === "DO_NOT_KNOW"
+        && isAllowedFormFieldSentinel(dateSentinel, dateRules);
+      const dateIsDoesNotApply = dateSentinel === "DOES_NOT_APPLY"
+        && isAllowedFormFieldSentinel(dateSentinel, dateRules);
       const trimmedDateValue = value.trim();
       const inferredDateMode: DatePickerMode = /^\d{4}$/.test(trimmedDateValue) && dateCanUseYear
         ? "year"
@@ -881,7 +885,9 @@ export function DynamicFormField({
         } | null;
         const allowSsnDoesNotApply = ssnRules?.allow_does_not_apply === true
           || ssnRules?.has_does_not_apply === true;
-        const ssnIsDoesNotApply = value === "DOES_NOT_APPLY";
+        const ssnSentinel = getFormFieldSentinel(value);
+        const ssnIsDoesNotApply = ssnSentinel === "DOES_NOT_APPLY"
+          && isAllowedFormFieldSentinel(ssnSentinel, ssnRules);
         const ssnInput = ssnIsDoesNotApply ? (
           <ApplicationFormControlDisplay className={`h-12 text-[15px] text-gray-400 ${forceWhiteBackground ? "bg-white" : "bg-gray-50"}`}>
             {doesNotApplyLabel}
@@ -919,14 +925,17 @@ export function DynamicFormField({
         const rules = field.validationRules as {
           allow_custom_value?: boolean;
           allow_do_not_know?: boolean;
+          allow_unknown?: boolean;
           allow_does_not_apply?: boolean;
           has_does_not_apply?: boolean;
           official_control_type?: string;
         } | null;
-        const allowDoNotKnow = rules?.allow_do_not_know;
-        const allowDoesNotApply = rules?.allow_does_not_apply || rules?.has_does_not_apply;
-        const isDoNotKnow = value === "DO_NOT_KNOW";
-        const isDoesNotApply = value === "DOES_NOT_APPLY";
+        const allowDoNotKnow = rules?.allow_do_not_know === true || rules?.allow_unknown === true;
+        const allowDoesNotApply = rules?.allow_does_not_apply === true || rules?.has_does_not_apply === true;
+        const sentinel = getFormFieldSentinel(value);
+        const isAllowedSentinel = sentinel !== null && isAllowedFormFieldSentinel(sentinel, rules);
+        const isDoNotKnow = isAllowedSentinel && sentinel === "DO_NOT_KNOW";
+        const isDoesNotApply = isAllowedSentinel && sentinel === "DOES_NOT_APPLY";
         const isOverridden = isDoNotKnow || isDoesNotApply;
         const hasSideCheckbox = allowDoNotKnow || allowDoesNotApply;
 

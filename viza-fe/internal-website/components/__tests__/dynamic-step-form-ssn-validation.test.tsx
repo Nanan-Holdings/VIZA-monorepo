@@ -130,4 +130,30 @@ describe("DynamicStepForm DS-160 Social Security Number validation", () => {
     expect(fieldRoot).toHaveTextContent("格式不符合要求");
     expect(continueButton).toBeDisabled();
   });
+
+  it("keeps a legacy SSN sentinel editable when the schema no longer allows it", () => {
+    // Keep this raw schema row to model a historical field whose NA flag was
+    // removed; normalizeBilingualFormField intentionally restores the current
+    // DS-160 SSN contract for production rows.
+    const unsupportedSsnField = {
+      ...ssnField(),
+      validationRules: { pattern: "^[0-9]{3}-[0-9]{2}-[0-9]{4}$" },
+    };
+    const { container } = render(
+      <DynamicStepForm
+        step={stepFor(unsupportedSsnField)}
+        prefill={{ us_social_security_number: "DOES_NOT_APPLY" }}
+        onComplete={vi.fn()}
+        visaType="DS160"
+      />,
+    );
+
+    const fieldRoot = container.querySelector('[data-field-name="us_social_security_number"]');
+    const input = container.querySelector<HTMLInputElement>("input");
+    expect(fieldRoot).toHaveAttribute("data-field-warning", "true");
+    expect(screen.getByText(/不支持“不适用”/)).toBeInTheDocument();
+    expect(input).not.toBeNull();
+    expect(input).not.toBeDisabled();
+    expect(screen.queryByRole("checkbox", { name: "不适用" })).not.toBeInTheDocument();
+  });
 });

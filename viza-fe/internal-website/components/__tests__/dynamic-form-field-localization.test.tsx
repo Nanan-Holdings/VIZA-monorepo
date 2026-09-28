@@ -100,6 +100,53 @@ describe("DynamicFormField localization", () => {
     expect(screen.getAllByText("dynamicField.doesNotApply")).toHaveLength(2);
   });
 
+  it("keeps an unsupported sentinel editable and lets an allowed sentinel clear", () => {
+    const onChange = vi.fn();
+    const unsupportedField = field({
+      id: "employer-name",
+      visaType: "DS160",
+      fieldName: "employer_name",
+      label: "Employer name",
+      fieldType: "text",
+      validationRules: { maxLength: 75 },
+    });
+    const { rerender } = render(
+      <DynamicFormField
+        field={unsupportedField}
+        value="DOES_NOT_APPLY"
+        onChange={onChange}
+        displayLocale="en"
+      />,
+    );
+
+    const editableInput = screen.getByRole("textbox", { name: "Employer name" });
+    expect(editableInput).not.toBeDisabled();
+    expect(editableInput).toHaveValue("DOES_NOT_APPLY");
+    fireEvent.change(editableInput, { target: { value: "NUS" } });
+    expect(onChange).toHaveBeenCalledWith("NUS");
+    expect(screen.queryByRole("checkbox", { name: "Does not apply" })).not.toBeInTheDocument();
+
+    const allowedField = field({
+      ...unsupportedField,
+      validationRules: { allow_does_not_apply: true, maxLength: 75 },
+    });
+    rerender(
+      <DynamicFormField
+        field={allowedField}
+        value="DOES_NOT_APPLY"
+        onChange={onChange}
+        displayLocale="en"
+      />,
+    );
+
+    const doesNotApply = screen.getByRole("checkbox", { name: "Does not apply" });
+    expect(doesNotApply).toBeChecked();
+    expect(doesNotApply).not.toBeDisabled();
+    expect(screen.getByRole("textbox", { name: "Employer name" })).toBeDisabled();
+    fireEvent.click(doesNotApply);
+    expect(onChange).toHaveBeenCalledWith("");
+  });
+
   it("renders an official text autocomplete while preserving free entry", () => {
     const onChange = vi.fn();
     const departureField = field({
