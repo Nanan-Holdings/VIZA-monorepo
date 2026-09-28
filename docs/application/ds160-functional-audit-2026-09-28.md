@@ -247,3 +247,21 @@ not asserted to be the exact first attempt's in-memory input. A post-success
 comparison must use the new pre-navigation snapshot, official field evidence,
 branches, repeat indexes and NA states, and explicitly report unsupported,
 missing or ambiguous evidence rather than declaring unconditional parity.
+
+Release verification: frontend `dpl_HaqFJqwYbhBgWW1SvNgDfs5RvF9a` is READY at
+`https://app.viza.it.com`. Runner image built from the final working content
+committed in `911fed7d` is
+`sha256:eb609f95a2c391f2f39861a703c13da545e271a4e73004a06bfe65905aa32598`.
+The retained machine was updated while stopped. At 18:35 UTC an actual
+production browser click woke it automatically; queue readback proved that
+the original job was reused, with no extra queue row. The UI displayed the
+localized running state without an alert. Its progress percentage is not an
+official CEAC completion measurement.
+
+The second attempt hit a CEAC start-page timeout at 18:37:23 UTC. Encrypted
+input and diagnostic artifacts were uploaded, and their paths and hashes were
+persisted with `evidenceUploadFailed=false`. The corrected drain claimed the
+same row automatically and began attempt three at 18:37:27 UTC, proving that
+the retry lease no longer strands this runtime-failure path. No official
+success has been claimed by these observations. Five-minute thread monitoring
+continues the result check and the requested post-success comparison.
