@@ -761,7 +761,7 @@ describe("cloud submission retry routing", () => {
     vi.unstubAllGlobals();
   });
 
-  it("starts a fresh CEAC application when retrying a failed DS-160", async () => {
+  it("resumes the existing DS-160 application when retrying a failed run", async () => {
     const onResubmit = vi.fn();
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -796,7 +796,7 @@ describe("cloud submission retry routing", () => {
             mode: "live_assisted",
             country: "united_states",
             visaType: "DS160",
-            intent: "new_application",
+            intent: "retry",
           }),
         }),
       );

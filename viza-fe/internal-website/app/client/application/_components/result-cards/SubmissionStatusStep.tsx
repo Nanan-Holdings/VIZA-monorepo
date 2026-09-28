@@ -1541,9 +1541,9 @@ export function SubmissionStatusStep({
       queue: null,
     });
     try {
-      // A failed DS-160 already has a persisted answer set. Retry it directly
-      // through the fresh-application endpoint instead of re-running the
-      // long-form save/validation callback before the queue write.
+      // A failed submission already has a persisted answer set. Retry the
+      // existing VIZA application directly; a fresh DS-160 belongs to the
+      // separate new-application endpoint after a confirmed success.
       const isTaiwanRetry = isTaiwanEntryPermitApplication(retryCountry, retryVisaType);
       const isVietnamPrearrivalRetry = isVietnamPrearrivalApplication(retryCountry, retryVisaType);
       if (
@@ -1564,10 +1564,9 @@ export function SubmissionStatusStep({
           mode,
           country: retryCountry,
           visaType: retryVisaType,
-          // A failed DS-160 retry must create a fresh CEAC application. A
-          // normal retry is intentionally idempotent and returns the previous
-          // successful submission when this VIZA application has history.
-          intent: isDs160VisaType(retryVisaType) ? "new_application" : "retry",
+          // This is a retry of the existing VIZA application. The dedicated
+          // new-application endpoint owns fresh DS-160 creation.
+          intent: "retry",
           taiwanOfficialTermsConsent,
         }),
       });

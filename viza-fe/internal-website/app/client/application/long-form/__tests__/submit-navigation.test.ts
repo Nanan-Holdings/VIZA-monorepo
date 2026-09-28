@@ -138,6 +138,21 @@ describe("application submit navigation", () => {
     expect(queueHelper).toContain("input.locale.toLowerCase().startsWith(\"zh\")");
   });
 
+  it("keeps the shared queue helper on the existing-application retry intent", () => {
+    const pageSource = readFileSync(
+      join(process.cwd(), "app/client/application/long-form/page.tsx"),
+      "utf8",
+    );
+    const queueHelper = sourceBetween(
+      pageSource,
+      "async function insertSubmissionQueueJob",
+      "async function prepareSubmissionAccess",
+    );
+
+    expect(queueHelper).toContain('intent: input.intent ?? "retry"');
+    expect(queueHelper).not.toContain('isDs160VisaType(input.visaType) ? "new_application"');
+  });
+
   it("keeps the form assistant visible but read-only after a reliable success", () => {
     const pageSource = readFileSync(
       join(process.cwd(), "app/client/application/long-form/page.tsx"),

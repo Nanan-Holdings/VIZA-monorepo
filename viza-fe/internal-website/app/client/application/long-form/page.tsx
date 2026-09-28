@@ -1490,11 +1490,9 @@ async function insertSubmissionQueueJob(
       mode: input.mode,
       country: input.country,
       visaType: input.visaType,
-      // A normal DS-160 review submits a fresh CEAC application. Recovery from
-      // an earlier final-submission checkpoint explicitly uses the guarded
-      // ordinary retry intent so the page can flush and validate its draft
-      // before the server decides whether the existing CEAC flow is resumable.
-      intent: input.intent ?? (isDs160VisaType(input.visaType) ? "new_application" : "retry"),
+      // Keep retries on this VIZA application resumable. A fresh DS-160 uses
+      // the separate new-application endpoint after a confirmed success.
+      intent: input.intent ?? "retry",
       answerSnapshot: input.answerSnapshot,
       taiwanOfficialTermsConsent: input.taiwanOfficialTermsConsent,
     }),
