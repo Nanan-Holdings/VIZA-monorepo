@@ -18,6 +18,7 @@ audit. Browser mutations used synthetic data with external network writes blocke
 | A stale illegal NA answer could disable an input with no checkbox to clear it. | Unsupported sentinel values remain editable and incomplete; legal branches retain their clearable checkbox. |
 | Save errors could repeat a question without explaining the failure. | Explain the failed save and request retry; never acknowledge or advance an answer that was not written. |
 | Review could show stale translated values or date-format warnings for a sentinel. | Canonical sentinel answers take precedence over translated mirrors and use localized review labels. |
+| Spouse/partner address has an ordinary `do_not_know` enum, distinct from a checkbox sentinel. | Exact declared options follow enum validation; deterministic option answers bypass vague-answer rejection. Both enum fields are covered, including rejection of undeclared NA values. |
 
 ## Evidence inventory
 
@@ -76,6 +77,10 @@ this audit.
   (includes two suites already counted in the main sweep). This adds official
   proof, U.S.-contact, form-utils, bilingual, and schema/UI contract checks.
 - Assistant service after save-failure feedback: 281 tests passed.
+- Final enum-boundary sweep: 7 suites / 382 tests passed, including 282 service
+  tests. A delayed input-otp selection callback was drained during test teardown
+  to avoid a jsdom teardown race. The browser showed the spouse-address
+  `不知道` option selected, no field warning, and 100% required-field completion.
 - `npm run type-check`: passed. `npm run lint`: zero errors, 57 existing warnings.
 - `git diff --check`: passed.
 - Upload preflight: 1,975 files; no environment files, MCP config, local browser
@@ -83,3 +88,5 @@ this audit.
 - Release identity verified using `/v2/user`: `nananviza2016-8879`, organization
   email `nanan.viza2016@gmail.com`; project `viza-internal`, team
   `viza-gmail-s-projects`.
+- The first release build was canceled before promotion when the enum boundary
+  was found; it was not used as the accepted production release.

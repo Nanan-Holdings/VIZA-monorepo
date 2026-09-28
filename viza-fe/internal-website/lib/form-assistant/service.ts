@@ -31,8 +31,7 @@ import {
   getAssistantProgress,
 } from "./validator";
 import {
-  getFormFieldSentinel,
-  isAllowedFormFieldSentinel,
+  getFormFieldSentinelState,
 } from "@/lib/form-field-sentinels";
 
 export { isFieldClarificationRequest } from "./constants";
@@ -2486,12 +2485,12 @@ export function validateProposal(
 ): boolean {
   if (patch.confidence !== "high" || !patch.value?.trim()) return false;
   const trimmedValue = patch.value.trim();
-  const sentinel = getFormFieldSentinel(trimmedValue);
-  if (sentinel) {
+  const sentinelState = getFormFieldSentinelState(trimmedValue, field.validationRules, field.options);
+  if (sentinelState !== "none") {
     // Sentinel values are schema-controlled answers. Keep this check shared
     // with final validation so casing variants cannot pass ordinary text
     // patterns or be persisted into fields without the official branch.
-    return isAllowedFormFieldSentinel(sentinel, field.validationRules);
+    return sentinelState === "allowed";
   }
   if (isVagueFormAnswer(patch.value)) return false;
   if (field.fieldType === "date" && !/^\d{4}-\d{2}-\d{2}$/.test(patch.value)) return false;
@@ -2782,11 +2781,11 @@ export async function runAssistantTurn(params: {
   });
   const timeZone = formAssistantTimeZone(params.country, params.visaType);
   const referenceDate = isoDateInTimeZone(new Date(), timeZone);
-  const directSentinelChoice = parseDirectSentinelAnswer(message, currentField);
+  const directSchemaChoice = parseDirectCurrentFieldAnswer(message, currentField, { timeZone });
   // “不知道” is normally a vague answer, but it is an explicit official
-  // branch for fields whose schema opts into DO_NOT_KNOW. Let that branch
-  // advance deterministically while keeping unsupported fields conservative.
-  const exactVagueAnswer = isVagueFormAnswer(message) && !directSentinelChoice;
+  // branch for some text/date fields and a declared option for some selects.
+  // Let either schema-defined choice advance without guessing ordinary text.
+  const exactVagueAnswer = isVagueFormAnswer(message) && !directSchemaChoice;
   const fieldClarificationRequest = isFieldClarificationRequest(message);
   const applicationReadinessQuestion = missing.length === 0 && isApplicationReadinessQuestion(message);
   const deterministicOptionClarification = Boolean(
@@ -2802,7 +2801,7 @@ export async function runAssistantTurn(params: {
   const directCurrentCandidate = correctionCancellation || exactVagueAnswer || fieldClarificationRequest || promptInjectionAttempt ||
     ambiguousAlternativeAnswer || multiAnswerMessage
     ? null
-    : directSentinelChoice ?? parseDirectCurrentFieldAnswer(message, currentField, { timeZone });
+    : directSchemaChoice;
   const directCurrentChoice = scopePatchToAnswerKey(
     directCurrentCandidate,
     currentField,

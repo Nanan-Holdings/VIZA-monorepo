@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DynamicStepForm } from "@/components/dynamic-step-form";
 import { normalizeBilingualFormField } from "@/lib/bilingual-schema-contract";
@@ -20,6 +20,15 @@ vi.mock("@/components/field-guidance-panel", () => ({
 vi.mock("@/lib/chinese-conversion", () => ({
   convertSimplifiedToTraditional: async (value: string) => value,
 }));
+
+beforeEach(() => vi.useFakeTimers());
+afterEach(async () => {
+  cleanup();
+  // input-otp mirrors selection in a delayed callback. Drain it while jsdom
+  // still exists, rather than letting it run after this suite is torn down.
+  await act(async () => { await vi.runOnlyPendingTimersAsync(); });
+  vi.useRealTimers();
+});
 
 beforeAll(() => {
   if (!("ResizeObserver" in globalThis)) {

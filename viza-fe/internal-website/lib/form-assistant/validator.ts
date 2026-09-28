@@ -442,7 +442,7 @@ export function validateApplicationAnswers(params: {
         const rules = field.validationRules ?? {};
         const suffix = answerInstanceSuffix(field.fieldName, answerKey);
         const allowedOverride = isAllowedAnswerOverride(value, rules);
-        const sentinelState = getFormFieldSentinelState(value, rules);
+        const sentinelState = getFormFieldSentinelState(value, rules, field.options);
         const yearOnlyDate = field.fieldType === "date" && isAllowedYearOnlyDate(value, rules);
 
         if (

@@ -474,7 +474,7 @@ function isFieldComplete(
   if (expected !== null) return normalizeAnswer(values[valueKey]) === expected;
   const value = text(values[valueKey]);
   if (!hasValue(value)) return false;
-  const sentinelState = getFormFieldSentinelState(value, field.validationRules);
+  const sentinelState = getFormFieldSentinelState(value, field.validationRules, field.options);
   if (sentinelState === "unsupported") return false;
   if (sentinelState === "allowed") return true;
   if (!isDateFieldValueComplete(field, value)) return false;

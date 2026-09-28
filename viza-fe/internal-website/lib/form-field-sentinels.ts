@@ -1,3 +1,5 @@
+import type { VisaFormFieldOption } from "@/types/visa-form-fields";
+
 /**
  * Canonical sentinel answers used by official visa forms.
  *
@@ -45,9 +47,16 @@ export function isAllowedFormFieldSentinel(
 export function getFormFieldSentinelState(
   value: string | null | undefined,
   rules: FormFieldSentinelRules,
+  options?: readonly VisaFormFieldOption[] | null,
 ): FormFieldSentinelState {
   const sentinel = getFormFieldSentinel(value);
   if (!sentinel) return "none";
+  // Some controls use a sentinel-like spelling as an ordinary official enum
+  // (for example spouse_address_type = "do_not_know"). An exact declared
+  // option follows normal enum validation; it does not require an NA checkbox.
+  if (options?.some((option) => (typeof option === "string" ? option : option.value) === value?.trim())) {
+    return "none";
+  }
   return isAllowedFormFieldSentinel(sentinel, rules) ? "allowed" : "unsupported";
 }
 

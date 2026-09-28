@@ -1,5 +1,11 @@
 # DS-160 B1/B2 branch audit — 2026-09-28
 
+Final addendum: the audit also covers both ordinary unknown-address enums
+(`spouse_address_type` and `partner_address_type`). Their declared
+`do_not_know` option is valid without a sentinel-checkbox flag; undeclared
+`DOES_NOT_APPLY` remains invalid. The live audit now has 7 tests. The final
+shared-validator/service/renderer sweep passed 382 tests across 7 suites.
+
 This is a finite contract and runtime audit for the active B1/B2 DS-160
 schema. It covers the DB-driven manual form, deterministic completion and
 assistant validation, repeat rows, age/nationality/travel gates, and the

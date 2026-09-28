@@ -1993,7 +1993,7 @@ function getLocalFieldIssue(
     }
   }
 
-  const sentinelState = getFormFieldSentinelState(trimmed, rules);
+  const sentinelState = getFormFieldSentinelState(trimmed, rules, field.options);
   if (sentinelState === "unsupported") {
     const unknown = getFormFieldSentinel(trimmed) === "DO_NOT_KNOW";
     const displayAnswer = isZh
@@ -5529,14 +5529,14 @@ function DynamicStepFormImpl({
           const value = values[valueKey] ?? "";
           const validationField = getEffectiveFieldState(f, valueKey).validationField;
           return Boolean(value.trim()) &&
-            getFormFieldSentinelState(value, validationField.validationRules) !== "unsupported";
+            getFormFieldSentinelState(value, validationField.validationRules, validationField.options) !== "unsupported";
         }).every(Boolean);
       }
       if (!isFieldConditionallyVisible(f, f.fieldName) || !isRequiredField(f)) return true;
       const value = values[f.fieldName] ?? "";
       const validationField = getEffectiveFieldState(f, f.fieldName).validationField;
       return Boolean(value.trim()) &&
-        getFormFieldSentinelState(value, validationField.validationRules) !== "unsupported";
+        getFormFieldSentinelState(value, validationField.validationRules, validationField.options) !== "unsupported";
     });
 
   const valueEntries = Object.entries(values);

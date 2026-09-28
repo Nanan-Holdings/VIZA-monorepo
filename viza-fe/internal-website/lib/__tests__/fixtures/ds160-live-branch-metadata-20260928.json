@@ -554,6 +554,72 @@
       }
     }
   ],
+  "sentinelOptionFields": [
+    {
+      "field_name": "spouse_address_type",
+      "field_type": "select",
+      "required": true,
+      "step_name": "Family Information: Spouse",
+      "validation_rules": null,
+      "options": [
+        {
+          "text": "SAME AS HOME ADDRESS",
+          "value": "same_as_home"
+        },
+        {
+          "text": "SAME AS MAILING ADDRESS",
+          "value": "same_as_mailing"
+        },
+        {
+          "text": "SAME AS U.S. CONTACT ADDRESS",
+          "value": "same_as_us_contact"
+        },
+        {
+          "text": "DO NOT KNOW",
+          "value": "do_not_know"
+        },
+        {
+          "text": "OTHER (SPECIFY ADDRESS)",
+          "value": "other"
+        }
+      ],
+      "conditional_logic": {
+        "showIf": "marital_status === married || marital_status === legally_separated || marital_status === common_law"
+      }
+    },
+    {
+      "field_name": "partner_address_type",
+      "field_type": "select",
+      "required": true,
+      "step_name": "Family Information: Partner",
+      "validation_rules": null,
+      "options": [
+        {
+          "text": "SAME AS HOME ADDRESS",
+          "value": "same_as_home"
+        },
+        {
+          "text": "SAME AS MAILING ADDRESS",
+          "value": "same_as_mailing"
+        },
+        {
+          "text": "SAME AS U.S. CONTACT ADDRESS",
+          "value": "same_as_us_contact"
+        },
+        {
+          "text": "DO NOT KNOW",
+          "value": "do_not_know"
+        },
+        {
+          "text": "OTHER (SPECIFY ADDRESS)",
+          "value": "other"
+        }
+      ],
+      "conditional_logic": {
+        "showIf": "marital_status === civil_union"
+      }
+    }
+  ],
   "conditionalBranches": [
     {
       "showIf": "other_names_used === yes",

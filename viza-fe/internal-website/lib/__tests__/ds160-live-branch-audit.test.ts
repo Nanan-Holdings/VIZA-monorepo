@@ -15,6 +15,7 @@ import liveBranchMetadata from "./fixtures/ds160-live-branch-metadata-20260928.j
 
 type LiveBranchMetadata = typeof liveBranchMetadata;
 type LiveSentinelField = LiveBranchMetadata["sentinelFields"][number];
+type LiveSentinelOptionField = LiveBranchMetadata["sentinelOptionFields"][number];
 
 const LEGACY_FIELDS = new Set(liveBranchMetadata.legacyCompatibilityOnly);
 const LIVE_EXPORT_PATH = process.env.DS160_LIVE_SCHEMA_PATH
@@ -56,6 +57,24 @@ function sentinelField(meta: LiveSentinelField): VisaFormFieldRow {
     fieldType: meta.field_type as VisaFormFieldType,
     stepName: meta.step_name,
     validationRules: meta.validation_rules,
+  };
+}
+
+function sentinelOptionField(meta: LiveSentinelOptionField): VisaFormFieldRow {
+  return {
+    id: meta.field_name,
+    visaType: "DS160",
+    fieldName: meta.field_name,
+    label: meta.field_name,
+    fieldType: meta.field_type as VisaFormFieldType,
+    required: meta.required,
+    stepNumber: 1,
+    stepName: meta.step_name,
+    displayOrder: 1,
+    placeholder: null,
+    validationRules: meta.validation_rules,
+    options: meta.options as VisaFormFieldRow["options"],
+    conditionalLogic: meta.conditional_logic,
   };
 }
 
@@ -194,6 +213,8 @@ describe("DS-160 live metadata branch inventory", () => {
     expect(new Set(liveBranchMetadata.legacyCompatibilityOnly).size).toBe(6);
     expect(liveBranchMetadata.conditionalBranches).toHaveLength(81);
     expect(liveBranchMetadata.repeatGroups).toHaveLength(22);
+    expect(liveBranchMetadata.sentinelOptionFields.map((field) => field.field_name).sort())
+      .toEqual(["partner_address_type", "spouse_address_type"]);
     expect(liveBranchMetadata.repeatGroups.map((group) => group.group)).not.toContain("specific_travel_plans");
     expect(liveBranchMetadata.repeatGroups
       .filter((group) => group.max_items === 1)
@@ -281,6 +302,54 @@ describe("DS-160 live metadata branch inventory", () => {
     });
     expect(validation.progress).toEqual({ completed: 0, total: 1 });
     expect(validation.errors[0]).toEqual(expect.objectContaining({ code: "unsupported_sentinel" }));
+  });
+
+  it("keeps the declared lower-case enum distinct from unsupported N/A values", () => {
+    for (const meta of liveBranchMetadata.sentinelOptionFields) {
+      const field = sentinelOptionField(meta);
+      const step = singleFieldStep(field);
+      // The raw sentinel helper still rejects the canonical uppercase token
+      // when no sentinel rule is declared. The validator canonicalizes a
+      // case-insensitive match back to the exact declared option first.
+      expect(getFormFieldSentinelState("DO_NOT_KNOW", meta.validation_rules), meta.field_name)
+        .toBe("unsupported");
+      for (const acceptedValue of ["do_not_know", "DO_NOT_KNOW"]) {
+        const acceptedAnswer = { [meta.field_name]: acceptedValue };
+        const acceptedValidation = validateApplicationAnswers({
+          steps: [step],
+          answers: acceptedAnswer,
+          visaType: "DS160",
+        });
+        expect(acceptedValidation.errors, `${meta.field_name} ${acceptedValue}`).toEqual([]);
+        expect(acceptedValidation.missingFields, `${meta.field_name} ${acceptedValue}`).toEqual([]);
+        expect(acceptedValidation.progress, `${meta.field_name} ${acceptedValue}`)
+          .toEqual({ completed: 1, total: 1 });
+        if (acceptedValue === "do_not_know") {
+          expect(getMissingDynamicFormFields([step], acceptedAnswer, {
+            visaType: "DS160",
+            now: new Date("2026-09-28T00:00:00Z"),
+          }), meta.field_name).toEqual([]);
+        }
+      }
+
+      const rejectedAnswer = { [meta.field_name]: "DOES_NOT_APPLY" };
+      const rejectedValidation = validateApplicationAnswers({
+        steps: [step],
+        answers: rejectedAnswer,
+        visaType: "DS160",
+      });
+      expect(rejectedValidation.errors, `${meta.field_name} unsupported sentinel`)
+        .not.toEqual([]);
+      expect(rejectedValidation.missingFields.map((item) => item.fieldName), `${meta.field_name} unsupported sentinel`)
+        .toContain(meta.field_name);
+      expect(rejectedValidation.progress, `${meta.field_name} unsupported sentinel`)
+        .toEqual({ completed: 0, total: 1 });
+      expect(getMissingDynamicFormFields([step], rejectedAnswer, {
+        visaType: "DS160",
+        now: new Date("2026-09-28T00:00:00Z"),
+      }).map((item) => item.fieldName), `${meta.field_name} unsupported sentinel`)
+        .toContain(meta.field_name);
+    }
   });
 
   it("uses independent true/false fixtures to verify every active conditional branch", () => {

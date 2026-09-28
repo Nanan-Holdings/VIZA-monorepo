@@ -2769,6 +2769,29 @@ describe("schema-gated non-date sentinel answers", () => {
   };
   const ordinaryTextField = field("ordinary_text", "Ordinary text", "普通文本");
 
+  it("saves the declared unknown spouse-address option instead of treating it as a vague answer", async () => {
+    const addressField: VisaFormFieldRow = {
+      ...field("spouse_address_type", "Spouse address", "配偶地址"),
+      visaType: "DS160", fieldType: "select",
+      options: [
+        { value: "same_as_home", text: "SAME AS HOME ADDRESS", label_zh: "与家庭地址相同" },
+        { value: "do_not_know", text: "DO NOT KNOW", label_zh: "不知道" },
+      ],
+    };
+    const stub = createAssistantAdminStub();
+    const result = await runAssistantTurn({
+      admin: stub.admin,
+      session: { id: "enum-session", schema_fingerprint: "qa", knowledge_release_key: null, state_json: {} },
+      applicationId: "synthetic-application", applicantId: "synthetic-applicant", authUserId: "synthetic-user",
+      steps: [{ stepNumber: 1, stepName: "Family", fields: [addressField] }],
+      answers: {}, text: "不知道", locale: "zh", inputMode: "text", idempotencyKey: "unknown-enum",
+      country: "united_states", visaType: "DS160",
+    });
+    expect(result.appliedPatches).toEqual([expect.objectContaining({ fieldName: "spouse_address_type", value: "do_not_know" })]);
+    expect(result.missingFields).toEqual([]);
+    expect(result.assistantMessage).not.toContain("不替你猜");
+  });
+
   it.each([false, true])("explains a failed sentinel save without acknowledging or advancing (existing empty row: %s)", async (existingRow) => {
     const stub = createAssistantAdminStub(undefined, [], { rejectAnswerWrites: true });
     const result = await runAssistantTurn({
