@@ -178,8 +178,9 @@ Machine readback confirmed the US Browserbase proxy, concurrency one, unchanged
 shared 2-CPU/4-GB sizing, and 120-second idle exit. It subsequently stopped
 automatically. No additional retained machine was created.
 
-An actual production retry click did not enqueue a job: the saved duties
-answer contained an unsupported not-applicable sentinel. It also exposed a
+An actual production retry click did not enqueue a job. A visible duties
+input contained a not-applicable answer; the final production validator
+identified Employer Name as the current blocking field. The click exposed a
 UI error-lifetime bug: the parent switched the status card into its starting
 view, unmounting the card whose local error state was used for failures. Parent
 validation errors were hidden while the prior submission result was shown.
@@ -191,3 +192,14 @@ editing the synthetic duties answer and retrying saved the answers and produced
 exactly one simulated submission request and a completed result. Browser
 console errors were empty. The final status-card/navigation regression ran
 36 tests successfully, and frontend type checking passed.
+
+Final frontend release: `dpl_2EF4rLgaMfbuqTJtX4CwUSA3GwED`, `READY`, production
+alias `https://app.viza.it.com`, code commit `6b597c3a`. The organization CLI
+identity and commit author were verified, and the final upload dry-run had
+1,976 files with no forbidden environment/config/cache/evidence paths.
+On the actual saved application, Chrome displayed the corrected duties label,
+an enabled retry button, and after the retry click the persistent localized
+error `请先补齐或修正以下信息：雇主名称。` with no browser console errors. The
+existing recovery result remained visible. This confirms the correction path;
+it is not proof of a new official submission. The local isolated test server
+was stopped after verification.
