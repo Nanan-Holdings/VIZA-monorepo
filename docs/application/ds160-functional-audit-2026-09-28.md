@@ -416,3 +416,45 @@ passed. Together with the 74 frontend and 83 runner checks, this repair has
 172 passing focused tests, plus production browser entry/review verification.
 The corrected full official run and post-submission field comparison are still
 pending the applicant's two factual answers.
+
+The applicant subsequently confirmed both requested facts. The identity was
+saved through the authenticated production form and read back successfully;
+an owner-, status- and final-fence-guarded update synchronized its literal
+companions and the confirmed prior-school history. The school's public address
+and postal code were checked against its official site. Read-back found 371
+answer rows, matching identity copies, both education controllers set to yes,
+and the confirmed attendance dates. The production browser showed 126/126
+required fields complete. No new official retry or final signature was started.
+
+The subsequent full browser review exposed additional material conflicts
+between given/native names, U.S. address geography, current occupation and
+school/employer data, home-address completeness, and the earlier declared
+travel history. These were not covered by the preceding mechanical alias,
+enum and date-component audit. The user received one bundled factual question;
+the earlier successful application's answers were not silently substituted.
+The existing new CEAC draft and stopped worker remain preserved, and monitoring
+remains paused pending the corrected facts. Required-field completion is not
+factual verification, and no official field-parity or submission-success claim
+is supported yet.
+
+An independent read-only cross-field check of the corrected 371 stored rows
+(406 derived keys, against the current 337-field contract) found no further
+clear conflicts in travel-date order, passport issue/expiry dates, birth data,
+nationality relationships or the inspected negative branches. This narrows
+the pending factual clarification; it is not CEAC read-back evidence.
+
+The browser also exposed a retry dead end: `portal_action_required` rendered
+the manual-verification panel even though no corresponding manual action
+existed. Its only continuation button was disabled because `manualAction` was
+null, while the ordinary guarded retry callback was not exposed for that
+state. The repair exposes the ordinary guarded retry for an evidenced CEAC
+form-validation failure only after a valid manual-action response confirms no
+pending task for that job. Missing/malformed responses and job changes cannot
+reuse the previous empty result; real CAPTCHA tasks and final-submission
+recovery retain their separate paths. No manual action or successful official
+result is fabricated to unblock it.
+
+The focused recovery-card, retry API, queue-contract and status-route suites
+passed 99/99. Frontend type-check passed, and full lint had no errors (57
+pre-existing warnings); the final changed-file lint likewise had no errors.
+Deployment and production browser verification are recorded separately below.

@@ -138,6 +138,41 @@ type ManualAction = {
   screenshotUrl: string | null;
 };
 
+function isManualAction(value: unknown): value is ManualAction {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    typeof value.actionType === "string" &&
+    typeof value.status === "string" &&
+    (value.instruction === null || typeof value.instruction === "string") &&
+    (value.screenshotUrl === null || typeof value.screenshotUrl === "string")
+  );
+}
+
+/**
+ * `portal_action_required` is also used for portal gates and runtime stops.
+ * Only expose the correction retry when the persisted message carries the
+ * CEAC form-validation evidence emitted by the navigator. Retrieve identity
+ * failures and security gates must remain behind their existing safeguards.
+ */
+function hasDs160FormValidationEvidence(result: GenericSubmissionResult): boolean {
+  const text = [result.actionInstructions, result.message]
+    .filter((value): value is string => typeof value === "string")
+    .join(" ");
+  if (!text) return false;
+  if (
+    /\bCEAC\s+Retrieve\b|\bretrieval\s+(?:form|identity)\b/i.test(text) ||
+    /\b(?:captcha|cloudflare|waf|anti[- ]?bot|security verification|manual action|gate detected)\b/i.test(text)
+  ) {
+    return false;
+  }
+  return (
+    /\bCEAC\s+(?:next|back)\s+rejected on page\b/i.test(text) ||
+    /\b(?:CEAC|official)\s+(?:form|portal)\s+validation\b/i.test(text) ||
+    /\b(?:required|missing)\s+(?:fields?|information)\b/i.test(text)
+  );
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -809,6 +844,8 @@ export function GenericResultCard({
   const [resumingDs160, setResumingDs160] = useState(false);
   const [ds160RecoveryError, setDs160RecoveryError] = useState<string | null>(null);
   const [manualAction, setManualAction] = useState<ManualAction | null>(null);
+  const [manualActionReadComplete, setManualActionReadComplete] = useState(false);
+  const [manualActionReadKey, setManualActionReadKey] = useState<string | null>(null);
   const [manualActionError, setManualActionError] = useState<string | null>(null);
   const [completingManualAction, setCompletingManualAction] = useState(false);
   const unsupported = result.status === "unsupported";
@@ -829,7 +866,18 @@ export function GenericResultCard({
   const officialManualAction = isDs160Action || isFranceAction;
   const isDs160FinalSubmissionRecovery =
     isDs160Action && result.actionType?.trim().toLowerCase() === "final_submission_recovery";
+  const isDs160PortalActionRequired =
+    isDs160Action && result.actionType?.trim().toLowerCase() === "portal_action_required";
   const requiresOfficialManualAction = officialManualAction && !isDs160FinalSubmissionRecovery;
+  const manualActionQueryKey = `${jobId ?? ""}:${result.actionType?.trim().toLowerCase() ?? ""}`;
+  const isDs160FormValidationFailure =
+    isDs160PortalActionRequired && hasDs160FormValidationEvidence(result);
+  const ds160ValidationRetryAvailable =
+    isDs160FormValidationFailure &&
+    manualActionReadComplete &&
+    manualActionReadKey === manualActionQueryKey &&
+    !manualAction &&
+    !manualActionError;
   const franceLiveEnabled =
     process.env.NEXT_PUBLIC_FRANCE_LIVE_SUBMISSION_ENABLED === "true" &&
     process.env.NEXT_PUBLIC_FRANCE_SUBMISSION_MODE === "live_assisted";
@@ -855,12 +903,16 @@ export function GenericResultCard({
   const Icon = unsupported || actionRequired ? AlertTriangle : FlaskConical;
   const title = isDs160FinalSubmissionRecovery
       ? (isZh ? "DS-160 提交已暂停" : "DS-160 submission paused")
+    : ds160ValidationRetryAvailable
+      ? (isZh ? "DS-160 需要修改" : "DS-160 needs corrections")
+    : isDs160PortalActionRequired
+      ? (isZh ? "DS-160 提交已暂停" : "DS-160 submission paused")
     : actionRequired
       ? (isZh ? "需要人工操作" : "Manual action required")
     : unsupported
       ? (isZh ? "暂不支持自动提交" : "Automated submission unavailable")
       : (isZh ? "Dry-run 已完成" : "Dry-run submission complete");
-  const badge = isDs160FinalSubmissionRecovery
+  const badge = isDs160FinalSubmissionRecovery || ds160ValidationRetryAvailable
       ? (isZh ? "可重试" : "Retry available")
     : actionRequired
       ? (isZh ? "需操作" : "Action required")
@@ -883,8 +935,18 @@ export function GenericResultCard({
       : result.message;
 
   useEffect(() => {
-    if (!jobId || !requiresOfficialManualAction) return;
+    if (!jobId || !requiresOfficialManualAction) {
+      setManualAction(null);
+      setManualActionReadComplete(false);
+      setManualActionReadKey(null);
+      setManualActionError(null);
+      return;
+    }
     let cancelled = false;
+    setManualAction(null);
+    setManualActionReadComplete(false);
+    setManualActionReadKey(null);
+    setManualActionError(null);
 
     const loadManualActions = async () => {
       try {
@@ -902,13 +964,25 @@ export function GenericResultCard({
               : `Manual actions returned ${response.status}`,
           );
         }
-        const pending = payload?.manualActions?.find((action) => action.status === "pending") ?? null;
+        if (
+          !Array.isArray(payload?.manualActions) ||
+          !payload.manualActions.every(isManualAction)
+        ) {
+          throw new Error(isZh
+            ? "无法读取官网操作状态，请刷新后重试。"
+            : "Could not read the official action status. Refresh and try again.");
+        }
+        const pending = payload.manualActions.find((action) => action.status === "pending") ?? null;
         if (!cancelled) {
           setManualAction(pending);
           setManualActionError(null);
+          setManualActionReadComplete(true);
+          setManualActionReadKey(manualActionQueryKey);
         }
       } catch (error) {
         if (!cancelled) {
+          setManualActionReadComplete(false);
+          setManualActionReadKey(null);
           setManualActionError(error instanceof Error ? error.message : String(error));
         }
       }
@@ -918,10 +992,14 @@ export function GenericResultCard({
     return () => {
       cancelled = true;
     };
-  }, [jobId, requiresOfficialManualAction]);
+  }, [isZh, jobId, manualActionQueryKey, requiresOfficialManualAction, result.actionType]);
 
   const resumeDs160 = async () => {
-    if (!applicationId || resumingDs160 || !isDs160FinalSubmissionRecovery) return;
+    if (
+      !applicationId ||
+      resumingDs160 ||
+      (!isDs160FinalSubmissionRecovery && !ds160ValidationRetryAvailable)
+    ) return;
     setResumingDs160(true);
     setDs160RecoveryError(null);
     try {
@@ -1164,7 +1242,7 @@ export function GenericResultCard({
 
         {liveError ? <ClientErrorAlert message={liveError} /> : null}
 
-        {actionRequired && result.actionType && !isDs160FinalSubmissionRecovery && (
+        {actionRequired && result.actionType && !isDs160FinalSubmissionRecovery && !ds160ValidationRetryAvailable && (
           <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
             <div className="text-xs text-amber-700">{isZh ? "检查点" : "Checkpoint"}</div>
             <div className="mt-0.5 font-mono text-sm font-medium text-foreground">
@@ -1198,7 +1276,36 @@ export function GenericResultCard({
           </div>
         )}
 
-        {requiresOfficialManualAction && (
+        {ds160ValidationRetryAvailable && (
+          <div className="space-y-3 rounded-md border border-amber-200 bg-amber-50 p-3">
+            <div className="flex items-start gap-2 text-sm font-medium text-amber-900">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+              <span>
+                {isZh
+                  ? "官网表单校验未通过。请检查并修正必填或格式错误后，再重试。"
+                  : "The official form reported validation errors. Review and correct required or format errors before retrying."}
+              </span>
+            </div>
+            <Button
+              type="button"
+              className="w-full"
+              onClick={resumeDs160}
+              disabled={!applicationId || resumingDs160}
+            >
+              {resumingDs160 ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RotateCw className="mr-2 h-4 w-4" />
+              )}
+              {resumingDs160
+                ? (isZh ? "正在重试 DS-160" : "Retrying DS-160")
+                : (isZh ? "修改后重试" : "Retry after corrections")}
+            </Button>
+            {ds160RecoveryError ? <ClientErrorAlert message={ds160RecoveryError} /> : null}
+          </div>
+        )}
+
+        {requiresOfficialManualAction && !ds160ValidationRetryAvailable && (
           <div className="space-y-3 rounded-md border border-amber-200 bg-amber-50 p-3">
             <div className="flex items-start gap-2">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
@@ -1206,7 +1313,9 @@ export function GenericResultCard({
                 <div className="text-sm font-medium text-amber-900">
                   {isFranceAction
                     ? (isZh ? "需要你完成 France-Visas 官网操作" : "France-Visas official action required")
-                    : (isZh ? "需要你完成 CEAC 官网验证" : "CEAC official verification required")}
+                    : manualAction
+                      ? (isZh ? "需要你完成 CEAC 官网验证" : "CEAC official verification required")
+                      : (isZh ? "DS-160 提交已暂停" : "DS-160 submission paused")}
                 </div>
                 <p className="mt-1 text-sm leading-relaxed text-amber-900">
                   {localizeActionText(manualAction?.instruction, isZh) ??
