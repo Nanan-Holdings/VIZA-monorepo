@@ -4,23 +4,31 @@ import { isRunnerCutoverPaused } from "@/lib/runner-cutover-pause.server";
 
 type WakeEnvironment = Partial<NodeJS.ProcessEnv>;
 
+type WakeEndpoint = "default" | "legacy";
+
 export type SubmissionWorkerWakeResult =
   | { ok: true }
   | { ok: false; reason: "cutover_paused" | "not_configured" | "insecure_url" | "request_failed" };
 
-function resolveWakeBaseUrl(env: WakeEnvironment, target: string): string | null {
+function resolveWakeBaseUrl(
+  env: WakeEnvironment,
+  target: string,
+  endpoint: WakeEndpoint = "default",
+): string | null {
   const normalized = target.trim().toLowerCase().replace(/[\s-]+/gu, "_");
   const isPool = normalized === "pool" || normalized === "runner_pool" ||
       ["vn", "vietnam", "sg", "singapore", "my", "malaysia", "th", "thailand"].includes(normalized)
   const isIndonesia = normalized === "indonesia" || normalized === "id";
   const isSouthKorea = normalized === "south_korea" || normalized === "korea" || normalized === "kr" || normalized === "kor";
-  const explicitUrl = isPool
-    ? env.RUNNER_POOL_SUBMISSION_SERVICE_URL
-    : isIndonesia
-      ? env.INDONESIA_SUBMISSION_SERVICE_URL
-      : isSouthKorea
-        ? env.SOUTH_KOREA_SUBMISSION_SERVICE_URL ?? env.KOREA_SUBMISSION_SERVICE_URL
-        : env.VIETNAM_SUBMISSION_SERVICE_URL ?? env.SUBMISSION_SERVICE_CLOUD_URL;
+  const explicitUrl = endpoint === "legacy"
+    ? env.SUBMISSION_SERVICE_CLOUD_URL
+    : isPool
+      ? env.RUNNER_POOL_SUBMISSION_SERVICE_URL
+      : isIndonesia
+        ? env.INDONESIA_SUBMISSION_SERVICE_URL
+        : isSouthKorea
+          ? env.SOUTH_KOREA_SUBMISSION_SERVICE_URL ?? env.KOREA_SUBMISSION_SERVICE_URL
+          : env.VIETNAM_SUBMISSION_SERVICE_URL ?? env.SUBMISSION_SERVICE_CLOUD_URL;
   if (explicitUrl?.trim()) return explicitUrl.trim().replace(/\/+$/u, "");
 
   const app = isPool
@@ -33,8 +41,12 @@ function resolveWakeBaseUrl(env: WakeEnvironment, target: string): string | null
   return /^[a-z0-9][a-z0-9-]{0,62}$/u.test(app) ? `https://${app}.fly.dev` : null;
 }
 
-function resolveWakeConfig(env: WakeEnvironment, target: string): { baseUrl: string; token: string } | null {
-  const baseUrl = resolveWakeBaseUrl(env, target);
+function resolveWakeConfig(
+  env: WakeEnvironment,
+  target: string,
+  endpoint: WakeEndpoint = "default",
+): { baseUrl: string; token: string } | null {
+  const baseUrl = resolveWakeBaseUrl(env, target, endpoint);
   const token = (
     env.SUBMISSION_QUEUE_INTERNAL_TOKEN ??
     env.VIETNAM_CARD_SESSION_INTERNAL_TOKEN
@@ -48,6 +60,7 @@ export async function wakeCloudSubmissionWorker(
     env?: WakeEnvironment;
     fetchImpl?: typeof fetch;
     target?: string;
+    endpoint?: WakeEndpoint;
   } = {},
 ): Promise<SubmissionWorkerWakeResult> {
   const env = options.env ?? process.env;
@@ -56,6 +69,7 @@ export async function wakeCloudSubmissionWorker(
   }
   const fetchImpl = options.fetchImpl ?? fetch;
   const target = options.target ?? "legacy";
+  const endpoint = options.endpoint ?? "default";
   const normalizedTarget = target.trim().toLowerCase().replace(/[\s-]+/gu, "_");
   // Country aliases can also wake maintenance handled by the shared service.
   // Only explicit runner-pool enqueues use the runner_job-only endpoint.
@@ -67,7 +81,7 @@ export async function wakeCloudSubmissionWorker(
     env,
     fetchImpl,
   });
-  const config = resolveWakeConfig(env, target);
+  const config = resolveWakeConfig(env, target, endpoint);
   if (!config) {
     return machineWake.ok && machineWake.state === "start_requested"
       ? { ok: true }
@@ -99,4 +113,23 @@ export async function wakeCloudSubmissionWorker(
       ? { ok: true }
       : { ok: false, reason: "request_failed" };
   }
+}
+
+/**
+ * DS-160 is served by the retained legacy worker even though its application
+ * country is United States. Keep this mapping explicit so the generic legacy
+ * compatibility path used by Vietnam is not changed accidentally.
+ */
+export async function wakeDs160SubmissionWorker(
+  jobId: string | null,
+  options: {
+    env?: WakeEnvironment;
+    fetchImpl?: typeof fetch;
+  } = {},
+): Promise<SubmissionWorkerWakeResult> {
+  return wakeCloudSubmissionWorker(jobId, {
+    ...options,
+    target: "legacy",
+    endpoint: "legacy",
+  });
 }

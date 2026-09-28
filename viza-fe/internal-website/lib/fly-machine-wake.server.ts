@@ -61,6 +61,10 @@ function targetApps(env: WakeEnvironment): Record<FlyWakeTarget, string> {
 }
 
 const COUNTRY_ALIASES: Record<string, FlyWakeTarget> = {
+  us: "legacy",
+  usa: "legacy",
+  united_states: "legacy",
+  united_states_of_america: "legacy",
   id: "indonesia",
   indonesia: "indonesia",
   vn: "pool",

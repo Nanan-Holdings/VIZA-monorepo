@@ -5,7 +5,10 @@ import { createClient } from "@/lib/supabase/server";
 import { getClientSessionFromRequest } from "@/lib/client-session";
 import { clientSessionOwnsApplicant } from "@/lib/application-api-auth";
 import { compareFaces } from "@/lib/face/match";
-import { wakeCloudSubmissionWorker } from "@/lib/submission-worker-wake.server";
+import {
+  wakeCloudSubmissionWorker,
+  wakeDs160SubmissionWorker,
+} from "@/lib/submission-worker-wake.server";
 import { isRunnerCutoverPaused } from "@/lib/runner-cutover-pause.server";
 import { ensureFlyMachineStarted } from "@/lib/fly-machine-wake.server";
 import { documentVersion } from "@/lib/legal/document-versions";
@@ -121,6 +124,10 @@ type RetryQueueInsertResult = {
   reusedExisting: boolean;
   supersededCount: number;
 };
+
+function isWakeableDs160QueueStatus(status: SubmissionQueueStatus | null): boolean {
+  return status === "ds160_prefill_pending" || status === "ds160_live_assisted_pending";
+}
 
 type SgacScheduleDecision =
   | { action: "submit"; arrivalDate: string; departureDate: string }
@@ -2432,6 +2439,12 @@ export async function POST(
     )
       ? await ensureFlyMachineStarted("indonesia")
       : null;
+    const ds160Wake =
+      isDs160VisaType(ownedApplication.visa_type) &&
+      isWakeableDs160QueueStatus(queueResult.queueStatus) &&
+      queueResult.jobId
+        ? await wakeDs160SubmissionWorker(queueResult.jobId)
+        : null;
     if (freshDs160Submission) {
       const { error: appUpdateError } = await admin
         .from("applications")
@@ -2462,7 +2475,7 @@ export async function POST(
       result: ownedApplication.submission_result,
       queueTransport: isTaiwanFormalSubmit ? "runner_job" : poolEnqueue?.transport ?? "submission_queue",
       queueBackend: isTaiwanFormalSubmit ? "runner_job" : undefined,
-      workerTriggered: poolEnqueue?.workerTriggered ?? stickyWake?.ok ?? false,
+      workerTriggered: poolEnqueue?.workerTriggered ?? stickyWake?.ok ?? ds160Wake?.ok ?? false,
     });
   }
 
@@ -2508,14 +2521,16 @@ export async function POST(
     ? false
     : poolEnqueue
       ? poolEnqueue.workerTriggered
-      : isIndonesiaEVisaApplication(
-          ownedApplication.country,
-          ownedApplication.visa_type,
-        )
-        ? (await ensureFlyMachineStarted("indonesia")).ok
-        : (await wakeCloudSubmissionWorker(queueResult.jobId, {
-            target: ownedApplication.country ?? "legacy",
-          })).ok;
+      : isDs160VisaType(ownedApplication.visa_type)
+        ? (await wakeDs160SubmissionWorker(queueResult.jobId)).ok
+        : isIndonesiaEVisaApplication(
+            ownedApplication.country,
+            ownedApplication.visa_type,
+          )
+          ? (await ensureFlyMachineStarted("indonesia")).ok
+          : (await wakeCloudSubmissionWorker(queueResult.jobId, {
+              target: ownedApplication.country ?? "legacy",
+            })).ok;
 
   return NextResponse.json({
     ok: true,

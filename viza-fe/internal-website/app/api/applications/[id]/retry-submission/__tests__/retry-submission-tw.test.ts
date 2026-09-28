@@ -1,6 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "../route";
 
+const {
+  mockWakeCloudSubmissionWorker,
+  mockWakeDs160SubmissionWorker,
+} = vi.hoisted(() => ({
+  mockWakeCloudSubmissionWorker: vi.fn(async () => ({ ok: true as const })),
+  mockWakeDs160SubmissionWorker: vi.fn(async () => ({ ok: true as const })),
+}));
+
+vi.mock("@/lib/submission-worker-wake.server", () => ({
+  wakeCloudSubmissionWorker: mockWakeCloudSubmissionWorker,
+  wakeDs160SubmissionWorker: mockWakeDs160SubmissionWorker,
+}));
+
 const applicationId = "app_tw_entry";
 const profile = {
   id: "profile_tw",
@@ -77,6 +90,14 @@ let activeRunnerJob: Record<string, unknown> | null = null;
 let activeHandoff: Record<string, unknown> | null = null;
 let runnerJobQueryError: { message: string } | null = null;
 let handoffQueryError: { message: string } | null = null;
+let submissionRetryRpcRow = {
+  queue_id: "unexpected_submission_queue_job",
+  queue_status: "tw_live_assisted_pending",
+  queue_mode: "live_assisted",
+  queue_provider: "taiwan_overseas_cn_entry_permit_live",
+  reused_existing: false,
+  superseded_count: 0,
+};
 let mockCompleteness: any = {
   complete: true,
   missingInfoCount: 0,
@@ -163,7 +184,14 @@ function createMaybeSingleQuery(row: unknown, error: { message: string } | null 
 function createApplicationAnswersQuery() {
   const query = {
     select: () => query,
-    eq: async () => ({ data: currentApplicationAnswers, error: null }),
+    eq: () => query,
+    in: () => query,
+    maybeSingle: async () => ({
+      data: currentApplicationAnswers.find((row) => row.field_name === "consular_post") ?? null,
+      error: null,
+    }),
+    then: (resolve: (value: { data: typeof currentApplicationAnswers; error: null }) => unknown) =>
+      Promise.resolve({ data: currentApplicationAnswers, error: null }).then(resolve),
     upsert: async (rows: Array<Record<string, unknown>>) => {
       lastAnswerUpsert = rows;
       const byFieldName = new Map(
@@ -227,14 +255,7 @@ function createAdminMock() {
       }
       lastRpcArgs = args;
       return {
-        data: {
-          queue_id: "unexpected_submission_queue_job",
-          queue_status: "tw_live_assisted_pending",
-          queue_mode: "live_assisted",
-          queue_provider: "taiwan_overseas_cn_entry_permit_live",
-          reused_existing: false,
-          superseded_count: 0,
-        },
+        data: submissionRetryRpcRow,
         error: null,
       };
     },
@@ -285,6 +306,16 @@ describe("Taiwan entry permit retry submission API", () => {
     activeHandoff = null;
     runnerJobQueryError = null;
     handoffQueryError = null;
+    submissionRetryRpcRow = {
+      queue_id: "unexpected_submission_queue_job",
+      queue_status: "tw_live_assisted_pending",
+      queue_mode: "live_assisted",
+      queue_provider: "taiwan_overseas_cn_entry_permit_live",
+      reused_existing: false,
+      superseded_count: 0,
+    };
+    mockWakeCloudSubmissionWorker.mockClear();
+    mockWakeDs160SubmissionWorker.mockClear();
     mockCompleteness = {
       complete: true,
       missingInfoCount: 0,
@@ -502,6 +533,120 @@ describe("Taiwan entry permit retry submission API", () => {
       applicationId,
       country: "taiwan",
     });
+  });
+
+  it("cold-wakes a new DS-160 job through the explicit legacy target", async () => {
+    process.env.DS160_LIVE_SUBMISSION_ENABLED = "true";
+    process.env.DS160_SUBMISSION_MODE = "live_assisted";
+    currentApplication = {
+      ...baseApplication,
+      country: "united_states",
+      visa_type: "DS160",
+    };
+    currentApplicationAnswers = [
+      ...normalApplicationAnswers,
+      { field_name: "consular_post", value_text: "BEJ", value_json: null },
+    ];
+    submissionRetryRpcRow = {
+      queue_id: "ds160_new_job",
+      queue_status: "ds160_live_assisted_pending",
+      queue_mode: "live_assisted",
+      queue_provider: "ceac_live",
+      reused_existing: false,
+      superseded_count: 0,
+    };
+
+    const result = await post({
+      mode: "live_assisted",
+      country: "united_states",
+      visaType: "DS160",
+    });
+
+    expect(result.status).toBe(200);
+    expect(result.body).toMatchObject({
+      ok: true,
+      jobId: "ds160_new_job",
+      queueStatus: "ds160_live_assisted_pending",
+      workerTriggered: true,
+    });
+    expect(mockWakeDs160SubmissionWorker).toHaveBeenCalledWith("ds160_new_job");
+    expect(mockWakeCloudSubmissionWorker).not.toHaveBeenCalled();
+  });
+
+  it("re-wakes the same pending DS-160 job when a retry reuses it", async () => {
+    process.env.DS160_LIVE_SUBMISSION_ENABLED = "true";
+    process.env.DS160_SUBMISSION_MODE = "live_assisted";
+    currentApplication = {
+      ...baseApplication,
+      country: "united_states",
+      visa_type: "DS160",
+    };
+    currentApplicationAnswers = [
+      ...normalApplicationAnswers,
+      { field_name: "consular_post", value_text: "BEJ", value_json: null },
+    ];
+    submissionRetryRpcRow = {
+      queue_id: "ds160_existing_pending",
+      queue_status: "ds160_live_assisted_pending",
+      queue_mode: "live_assisted",
+      queue_provider: "ceac_live",
+      reused_existing: true,
+      superseded_count: 0,
+    };
+
+    const result = await post({
+      mode: "live_assisted",
+      country: "united_states",
+      visaType: "DS160",
+    });
+
+    expect(result.status).toBe(200);
+    expect(result.body).toMatchObject({
+      ok: true,
+      alreadyQueued: true,
+      jobId: "ds160_existing_pending",
+      workerTriggered: true,
+    });
+    expect(mockWakeDs160SubmissionWorker).toHaveBeenCalledTimes(1);
+    expect(mockWakeDs160SubmissionWorker).toHaveBeenCalledWith("ds160_existing_pending");
+    expect(mockWakeCloudSubmissionWorker).not.toHaveBeenCalled();
+  });
+
+  it("does not wake a reused DS-160 job that is already processing", async () => {
+    process.env.DS160_LIVE_SUBMISSION_ENABLED = "true";
+    process.env.DS160_SUBMISSION_MODE = "live_assisted";
+    currentApplication = {
+      ...baseApplication,
+      country: "united_states",
+      visa_type: "DS160",
+    };
+    currentApplicationAnswers = [
+      ...normalApplicationAnswers,
+      { field_name: "consular_post", value_text: "BEJ", value_json: null },
+    ];
+    submissionRetryRpcRow = {
+      queue_id: "ds160_processing",
+      queue_status: "ds160_live_assisted_processing",
+      queue_mode: "live_assisted",
+      queue_provider: "ceac_live",
+      reused_existing: true,
+      superseded_count: 0,
+    };
+
+    const result = await post({
+      mode: "live_assisted",
+      country: "united_states",
+      visaType: "DS160",
+    });
+
+    expect(result.status).toBe(200);
+    expect(result.body).toMatchObject({
+      ok: true,
+      alreadyQueued: true,
+      jobId: "ds160_processing",
+      workerTriggered: false,
+    });
+    expect(mockWakeDs160SubmissionWorker).not.toHaveBeenCalled();
   });
 
   it("blocks Taiwan retry when an active runner_job already exists", async () => {

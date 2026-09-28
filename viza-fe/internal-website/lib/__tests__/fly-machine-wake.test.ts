@@ -50,6 +50,37 @@ describe("ensureFlyMachineStarted", () => {
     });
   });
 
+  it("routes United States aliases to the retained legacy app", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([{ id: "legacy-machine-1", state: "stopped" }]), {
+          status: 200,
+        }),
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+
+    await expect(
+      ensureFlyMachineStarted("united_states", {
+        env: {
+          FLY_SUBMISSION_ORG_TOKEN: "org-token",
+          FLY_SUBMISSION_LEGACY_APP: "viza-prod-submission-legacy",
+        },
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+      }),
+    ).resolves.toMatchObject({
+      ok: true,
+      target: "legacy",
+      app: "viza-prod-submission-legacy",
+      state: "start_requested",
+    });
+    expect(fetchImpl).toHaveBeenNthCalledWith(
+      2,
+      "https://api.machines.dev/v1/apps/viza-prod-submission-legacy/machines/legacy-machine-1/start",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
   it("starts one retained stopped machine for a country alias", async () => {
     const fetchImpl = vi
       .fn()
