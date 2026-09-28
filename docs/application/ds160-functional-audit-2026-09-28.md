@@ -265,3 +265,13 @@ same row automatically and began attempt three at 18:37:27 UTC, proving that
 the retry lease no longer strands this runtime-failure path. No official
 success has been claimed by these observations. Five-minute thread monitoring
 continues the result check and the requested post-success comparison.
+
+At 18:39 UTC attempt three reached Retrieve and CEAC explicitly rejected the
+surname. Its sanitized validation list contained only `Surname does not match.`
+The job became `ds160_blocked / portal_action_required`; there were zero final
+submission attempt records for this application. Private audit upload succeeded.
+The machine automatically stopped by 18:41 UTC. Monitoring was paused at this
+terminal data/recovery blocker. The user was asked to distinguish a new
+submission based on the current frontend answers from comparison of their
+separate September 20 submitted application; those records must not be swapped
+silently. No post-submission parity conclusion is available for this failed run.
