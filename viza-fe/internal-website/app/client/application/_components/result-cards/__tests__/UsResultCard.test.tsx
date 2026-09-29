@@ -47,6 +47,10 @@ describe("UsResultCard", () => {
       expect(card.copiedValue).toContain("{label}");
       expect(card.customEmailLabel).toBeTruthy();
       expect(card.openCeacStatus).toBeTruthy();
+      expect(card.proofEmailFailed).toBeTruthy();
+      expect(card.proofEmailFailedBody).toBeTruthy();
+      expect(card.proofEmailUnavailable).toBeTruthy();
+      expect(card.proofEmailUnavailableBody).toBeTruthy();
     }
   });
 
@@ -84,6 +88,30 @@ describe("UsResultCard", () => {
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     anchorClick.mockRestore();
+  });
+
+  it("keeps an email delivery failure separate from the saved proof and submission", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      ok: false,
+      code: "ds160_proof_email_failed",
+      error: "Resend domain is not verified; NOTIFY_FROM_EMAIL is invalid.",
+    }), { status: 500 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<UsResultCard applicationId="viza-application-id" result={submittedResult} />);
+    fireEvent.click(screen.getByRole("button", { name: "emailConfirmation" }));
+    fireEvent.click(screen.getByRole("button", { name: "sendToAccountEmail" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("proofEmailFailed")).toBeInTheDocument();
+      expect(screen.getByText("proofEmailFailedBody")).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/NOTIFY_FROM_EMAIL/u)).not.toBeInTheDocument();
+    expect(screen.getByText("submitted")).toBeInTheDocument();
+    const retryButton = screen.getByRole("button", { name: "sendToAccountEmail" });
+    expect(retryButton).toBeEnabled();
+    fireEvent.click(retryButton);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
   });
 
   it("does not promise CEAC retrieval when the security answer is hidden", () => {

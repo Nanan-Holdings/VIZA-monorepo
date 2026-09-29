@@ -21,7 +21,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { UsSubmissionResult } from "@/lib/submission-result";
-import type { Ds160ProofKind } from "@/lib/ds160-proof";
+import {
+  DS160_PROOF_EMAIL_ERROR_CODE,
+  DS160_PROOF_EMAIL_UNAVAILABLE_CODE,
+  type Ds160ProofKind,
+} from "@/lib/ds160-proof";
 
 function CopyValue({ label, value }: { label: string; value: string }) {
   const t = useTranslations("usAppointment.ds160Card");
@@ -102,11 +106,29 @@ type ProofBusyState = Partial<Record<Ds160ProofKind, boolean>>;
 type ProofActionResponse = {
   ok?: boolean;
   status?: "ready" | "queued" | "sent" | "unsupported" | "failed";
+  code?: string;
   downloadUrl?: string;
   recipient?: string;
   message?: string;
   error?: string;
 };
+
+type ProofErrorState = {
+  code?: string;
+  message: string;
+};
+
+function createProofRequestError(message: string, code?: string): Error & { code?: string } {
+  const error = new Error(message) as Error & { code?: string };
+  if (code) error.code = code;
+  return error;
+}
+
+function readProofErrorCode(error: unknown): string | undefined {
+  if (!(error instanceof Error)) return undefined;
+  const code = (error as Error & { code?: unknown }).code;
+  return typeof code === "string" ? code : undefined;
+}
 
 export function UsResultCard({
   applicationId,
@@ -126,7 +148,7 @@ export function UsResultCard({
   const [newApplicationError, setNewApplicationError] = useState<string | null>(null);
   const [proofBusy, setProofBusy] = useState<ProofBusyState>({});
   const [proofMessage, setProofMessage] = useState<string | null>(null);
-  const [proofError, setProofError] = useState<string | null>(null);
+  const [proofError, setProofError] = useState<ProofErrorState | null>(null);
   const [emailPanelOpen, setEmailPanelOpen] = useState(false);
   const [customEmail, setCustomEmail] = useState("");
   const emailPanelId = `ds160-email-panel-${useId()}`;
@@ -216,7 +238,10 @@ export function UsResultCard({
       }
     } catch (error) {
       setProofMessage(null);
-      setProofError(error instanceof Error ? error.message : String(error));
+      setProofError({
+        code: readProofErrorCode(error),
+        message: error instanceof Error ? error.message : String(error),
+      });
     } finally {
       setProofBusy((prev) => ({ ...prev, [kind]: false }));
     }
@@ -239,7 +264,10 @@ export function UsResultCard({
     });
     const payload = (await response.json().catch(() => null)) as ProofActionResponse | null;
     if (!response.ok) {
-      throw new Error(payload?.error ?? `${t("proofFailed")} (${response.status})`);
+      throw createProofRequestError(
+        payload?.error ?? `${t("proofFailed")} (${response.status})`,
+        payload?.code,
+      );
     }
     return payload ?? {};
   };
@@ -252,7 +280,10 @@ export function UsResultCard({
       });
       const payload = (await response.json().catch(() => null)) as ProofActionResponse | null;
       if (!response.ok) {
-        throw new Error(payload?.error ?? `${t("proofFailed")} (${response.status})`);
+        throw createProofRequestError(
+          payload?.error ?? `${t("proofFailed")} (${response.status})`,
+          payload?.code,
+        );
       }
       if (payload?.status === "failed") {
         throw new Error(payload.error ?? t("proofFailed"));
@@ -350,9 +381,21 @@ export function UsResultCard({
             {proofError && (
               <Alert variant="destructive" className="mt-3">
                 <AlertIcon variant="destructive" />
-                <AlertTitle>{t("proofFailed")}</AlertTitle>
+                <AlertTitle>
+                  {proofError.code === DS160_PROOF_EMAIL_ERROR_CODE
+                    ? t("proofEmailFailed")
+                    : proofError.code === DS160_PROOF_EMAIL_UNAVAILABLE_CODE
+                      ? t("proofEmailUnavailable")
+                    : t("proofFailed")}
+                </AlertTitle>
                 <AlertDescription>
-                  <p>{proofError}</p>
+                  <p>
+                    {proofError.code === DS160_PROOF_EMAIL_ERROR_CODE
+                      ? t("proofEmailFailedBody")
+                      : proofError.code === DS160_PROOF_EMAIL_UNAVAILABLE_CODE
+                        ? t("proofEmailUnavailableBody")
+                        : proofError.message}
+                  </p>
                 </AlertDescription>
               </Alert>
             )}

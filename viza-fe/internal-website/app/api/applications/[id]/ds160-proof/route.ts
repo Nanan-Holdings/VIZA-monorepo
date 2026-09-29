@@ -6,6 +6,8 @@ import { wakeCloudSubmissionWorker } from "@/lib/submission-worker-wake.server";
 import { isRunnerCutoverPaused } from "@/lib/runner-cutover-pause.server";
 import {
   DS160_PROOF_QUEUE_STATUS,
+  ds160ProofEmailFailureResponse,
+  ds160ProofEmailUnavailableResponse,
   fileNameForKind,
   resolveDs160ProofAction,
   type Ds160ProofKind,
@@ -33,6 +35,13 @@ type ProofRequest = {
   emailMode?: unknown;
   email?: unknown;
 };
+
+class ProofEmailDeliveryError extends Error {
+  constructor() {
+    super("DS-160 proof email delivery failed.");
+    this.name = "ProofEmailDeliveryError";
+  }
+}
 
 function readProofKind(value: unknown): Ds160ProofKind | null {
   return value === "confirmation" || value === "application" || value === "email-confirmation"
@@ -151,20 +160,6 @@ function missingProofMessage(kind: Ds160ProofKind): string {
   return "CEAC proof recovery completed, but the requested official PDF was not returned.";
 }
 
-function proofEmailErrorMessage(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error);
-  if (message.includes("RESEND_API_KEY")) {
-    return "邮件服务未配置：请在 viza-fe/internal-website/.env.local 设置 RESEND_API_KEY，然后重启前端服务。";
-  }
-  if (
-    message.includes("domain is not verified") ||
-    message.includes('"name":"validation_error"')
-  ) {
-    return "DS-160 文件已保存，但邮件未发送：当前发件域名尚未在 Resend 验证。请在 Resend 验证域名，并将 NOTIFY_FROM_EMAIL 配置为该域名下的发件地址；你仍可直接下载文件。";
-  }
-  return message;
-}
-
 async function sendProofEmail(input: {
   admin: ReturnType<typeof createAdminClient>;
   applicationId: string;
@@ -182,20 +177,25 @@ async function sendProofEmail(input: {
   const bytes = Buffer.from(await file.arrayBuffer());
   const applicationLabel =
     typeof input.result.applicationId === "string" ? input.result.applicationId : input.applicationId;
-  const sent = await sendEmail({
-    from: process.env.NOTIFY_FROM_EMAIL?.trim() || "VIZA <updates@viza.it.com>",
-    to: input.to,
-    subject: `DS-160 confirmation ${applicationLabel}`,
-    text:
-      `您好，\n\n您的 DS-160 确认证明已附在本邮件中。\n\nApplication ID: ${applicationLabel}\n\nVIZA`,
-    attachments: [
-      {
-        filename: fileNameForKind("email-confirmation", applicationLabel),
-        content: bytes.toString("base64"),
-        contentType: "application/pdf",
-      },
-    ],
-  });
+  let sent: { id: string };
+  try {
+    sent = await sendEmail({
+      from: process.env.NOTIFY_FROM_EMAIL?.trim() || "VIZA <updates@viza.it.com>",
+      to: input.to,
+      subject: `DS-160 confirmation ${applicationLabel}`,
+      text:
+        `您好，\n\n您的 DS-160 确认证明已附在本邮件中。\n\nApplication ID: ${applicationLabel}\n\nVIZA`,
+      attachments: [
+        {
+          filename: fileNameForKind("email-confirmation", applicationLabel),
+          content: bytes.toString("base64"),
+          contentType: "application/pdf",
+        },
+      ],
+    });
+  } catch {
+    throw new ProofEmailDeliveryError();
+  }
   return sent;
 }
 
@@ -332,8 +332,17 @@ export async function POST(
       message: "DS-160 证明文件已发送。",
     });
   } catch (error) {
+    console.error("[ds160-proof] email delivery failed", {
+      failure: error instanceof ProofEmailDeliveryError ? "provider_rejected" : "artifact_or_email_error",
+    });
+    if (!(error instanceof ProofEmailDeliveryError)) {
+      return NextResponse.json(
+        ds160ProofEmailUnavailableResponse(),
+        { status: 500 },
+      );
+    }
     return NextResponse.json(
-      { error: proofEmailErrorMessage(error) },
+      ds160ProofEmailFailureResponse(),
       { status: 500 },
     );
   }

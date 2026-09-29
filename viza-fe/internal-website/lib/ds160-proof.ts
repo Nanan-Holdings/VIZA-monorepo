@@ -1,4 +1,27 @@
 export const DS160_PROOF_QUEUE_STATUS = "ds160_proof_pending" as const;
+export const DS160_PROOF_EMAIL_ERROR_CODE = "ds160_proof_email_failed" as const;
+export const DS160_PROOF_EMAIL_UNAVAILABLE_CODE = "ds160_proof_email_unavailable" as const;
+
+export function ds160ProofEmailFailureResponse(): {
+  code: typeof DS160_PROOF_EMAIL_ERROR_CODE;
+  error: string;
+} {
+  return {
+    code: DS160_PROOF_EMAIL_ERROR_CODE,
+    error:
+      "The DS-160 proof file was saved, but the email could not be sent. You can still download the saved file or try sending it again later.",
+  };
+}
+
+export function ds160ProofEmailUnavailableResponse(): {
+  code: typeof DS160_PROOF_EMAIL_UNAVAILABLE_CODE;
+  error: string;
+} {
+  return {
+    code: DS160_PROOF_EMAIL_UNAVAILABLE_CODE,
+    error: "The DS-160 proof email could not be sent. Please try again later.",
+  };
+}
 
 export type Ds160ProofKind = "confirmation" | "application" | "email-confirmation";
 
