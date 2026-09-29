@@ -78,6 +78,105 @@ test("school review values remain scoped to the numbered record and known contai
   assert.equal(verifyOfficialReview(expected, [snapshot(rows.map((entry, index) => index === 3 ? {...entry, value: "FIRST CITY"} : entry), "workeducation")]).status, "failed");
 });
 
+test("maps review-only companions and address continuations to their exact rows", () => {
+  const expected = [
+    field("address_and_phone", "secondary_phone_na", "Yes", "ctl00_cbexAPP_MOBILE_TEL_NA"),
+    field("us_contact", "us_contact_email_na", "Yes", "ctl00_cbexUS_POC_EMAIL_ADDR_NA"),
+    field("work_education_present", "employer_address_line2", "SUITE 200"),
+    field("work_education_previous", "education_address_line2__2", "SECOND LINE 2"),
+  ];
+  const personalRows = [
+    row("Edit Address and Phone Information", "Secondary Phone Number:", "DOES NOT APPLY"),
+  ];
+  const contactRows = [
+    row("Edit U.S. Point of Contact Information", "Email Address:", "DOES NOT APPLY"),
+  ];
+  const workRows = [
+    {...row("Edit Present Work Information", "Present Employer or School Address:", "1 TEST STREET"), position: 1},
+    {...row("Edit Present Work Information", "", "SUITE 200"), position: 2},
+    {...row("Edit Previous Work Information", "Name of Institution (1):", "FIRST SCHOOL", "EDUCYs"), position: 10},
+    {...row("Edit Previous Work Information", "Address of Institution:", "FIRST LINE 1", "EDUCYs"), position: 11},
+    {...row("Edit Previous Work Information", "", "FIRST LINE 2", "EDUCYs"), position: 12},
+    {...row("Edit Previous Work Information", "Name of Institution (2):", "SECOND SCHOOL", "EDUCYs"), position: 20},
+    {...row("Edit Previous Work Information", "Address of Institution:", "SECOND LINE 1", "EDUCYs"), position: 21},
+    {...row("Edit Previous Work Information", "", "SECOND LINE 2", "EDUCYs"), position: 22},
+  ];
+  const result = verifyOfficialReview(expected, [
+    snapshot(personalRows),
+    snapshot(contactRows, "uscontact"),
+    snapshot(workRows, "workeducation"),
+  ]);
+  assert.deepEqual(result, {status: "passed", matched: 4, issues: []});
+});
+
+test("compatibility mappings reject a row from the wrong scope and an actual wrong value", () => {
+  const expected = [
+    field("address_and_phone", "secondary_phone_na", "Yes", "ctl00_cbexAPP_MOBILE_TEL_NA"),
+    field("us_contact", "us_contact_email_na", "Yes", "ctl00_cbexUS_POC_EMAIL_ADDR_NA"),
+    field("work_education_present", "employer_address_line2", "SUITE 200"),
+    field("work_education_previous", "education_address_line2__2", "SECOND LINE 2"),
+  ];
+  const wrongRows = verifyOfficialReview(expected, [
+    snapshot([row("Edit Address and Phone Information", "Work Phone Number:", "DOES NOT APPLY")]),
+    snapshot([row("Edit U.S. Point of Contact Information", "Phone Number:", "DOES NOT APPLY")], "uscontact"),
+    snapshot([
+      {...row("Edit Present Work Information", "Present Employer or School Address:", "1 TEST STREET"), position: 1},
+      {...row("Edit Present Work Information", "City:", "TEST CITY"), position: 2},
+      {...row("Edit Previous Work Information", "Name of Institution (2):", "SECOND SCHOOL", "OTHER"), position: 20},
+      {...row("Edit Previous Work Information", "Address of Institution:", "SECOND LINE 1", "OTHER"), position: 21},
+      {...row("Edit Previous Work Information", "", "SECOND LINE 2", "OTHER"), position: 22},
+    ], "workeducation"),
+  ]);
+  assert.equal(wrongRows.status, "unverified");
+
+  const wrongValues = verifyOfficialReview(expected, [
+    snapshot([row("Edit Address and Phone Information", "Secondary Phone Number:", "YES")]),
+    snapshot([row("Edit U.S. Point of Contact Information", "Email Address:", "synthetic@example.test")], "uscontact"),
+    snapshot([
+      {...row("Edit Present Work Information", "Present Employer or School Address:", "1 TEST STREET"), position: 1},
+      {...row("Edit Present Work Information", "", "OTHER SUITE"), position: 2},
+      {...row("Edit Previous Work Information", "Name of Institution (2):", "SECOND SCHOOL", "EDUCYs"), position: 20},
+      {...row("Edit Previous Work Information", "Address of Institution:", "SECOND LINE 1", "EDUCYs"), position: 21},
+      {...row("Edit Previous Work Information", "", "OTHER LINE 2", "EDUCYs"), position: 22},
+    ], "workeducation"),
+  ]);
+  assert.equal(wrongValues.status, "failed");
+  assert.deepEqual(wrongValues.issues.map(issue => issue.reason), [
+    "review_value_mismatch",
+    "review_value_mismatch",
+    "review_value_mismatch",
+    "review_value_mismatch",
+  ]);
+});
+
+test("uses a captured unwrapped duties value only for job duties", () => {
+  const expected = field("work_education_present", "job_duties", "SYNTHETICDUTIES");
+  const layoutRow = {
+    ...row("Edit Present Work Information", "Briefly Describe your Duties:", "SYNTHETIC DUTIES"),
+    unwrappedValue: "SYNTHETICDUTIES",
+  };
+  assert.equal(verifyOfficialReview([expected], [snapshot([layoutRow], "workeducation")]).status, "passed");
+
+  const wrongPunctuation = {
+    ...layoutRow,
+    unwrappedValue: "SYNTHETICDUTIES!",
+  };
+  assert.equal(verifyOfficialReview([expected], [snapshot([wrongPunctuation], "workeducation")]).status, "failed");
+
+  const realSpaceChange = {
+    ...layoutRow,
+    unwrappedValue: "SYNTHETIC DUTIES",
+  };
+  assert.equal(verifyOfficialReview([expected], [snapshot([realSpaceChange], "workeducation")]).status, "failed");
+
+  const otherField = field("work_education_present", "primary_occupation", "STUDENT");
+  const unrelatedUnwrappedValue = {
+    ...row("Edit Present Work Information", "Primary Occupation:", "OTHER"),
+    unwrappedValue: "STUDENT",
+  };
+  assert.equal(verifyOfficialReview([otherField], [snapshot([unrelatedUnwrappedValue], "workeducation")]).status, "failed");
+});
+
 test("unknown fields and divergent payer aliases remain unverified", () => {
   assert.equal(verifyOfficialReview([field("passport", "unmapped_field", "VALUE")], [snapshot([row(passport, "Something:", "VALUE")])]).status, "unverified");
   const expected = [field("travel_information", "who_is_paying", "SELF"), field("travel_information", "travel_payer", "OTHER")];

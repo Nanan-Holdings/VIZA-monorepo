@@ -908,3 +908,58 @@ latency; the current logs do not isolate their share from CEAC server time or
 cross-region CDP latency. A future timing change must preserve field/branch
 read-back, request-error/gate detection and review expectations. No proven new
 failure in the active run justified interrupting it to release such changes.
+## 2026-09-29 — Incremental CEAC filling algorithm
+
+The applicant explicitly requested a faster submission algorithm. The candidate
+now compares each eligible live control with the requested value and writes only
+when different. Already-correct controls do not generate extra input/change
+events or controller postbacks. Changed controls retain ordinary postback waits
+and fresh read-back; the complete page/repeat verification and official-review
+comparison are preserved. Independent Playwright visibility/enabled/editability
+reads run concurrently, a duplicate locator count was removed, and value/display
+text/review identity are read together. Selects resolve an exact official value
+or unique exact label before selecting, avoiding speculative selection timeouts;
+ambiguous labels cannot qualify as an unchanged field.
+
+A real local Chromium fixture with 15 already-correct text/select/radio/checkbox
+controls took 9,408 ms on the previous implementation and 1,331–1,438 ms on the
+candidate. Every field was still verified; input/change events decreased from
+14 to zero. This synthetic replay measurement is not a whole-application or
+production latency guarantee. The 72 field-fill, repeat-row, ASP.NET, official
+review and final-submit browser/pure regressions passed, as did type checking.
+They include later controllers overwriting skipped values, explicit clears,
+length limits, duplicate selectors/options, slow NA postbacks and final fences.
+The default ASP.NET idle/postback waits were deliberately retained because
+plain inputs may have delegated or delayed event handlers.
+
+The active production run was not interrupted or redeployed during this work.
+It passed photo upload and reached the official Confirm Photo surface at
+13:05:58 UTC, then Review at 13:06:01. At 13:09:12, pre-sign review verification
+stopped on five unresolved fields. No final signature occurred. The queue's
+normal bounded retry started another attempt; official evidence investigation
+is required before any new deployment or operator-triggered retry. Photo upload
+success does not resolve the independent review-comparison blocker.
+
+The hash-verified private evidence contained 149 review expectations: 144
+matched and five required investigation. Four were missing exact rules for
+secondary-phone NA, contact-email NA, and employer/school address continuations.
+The new rules keep the exact official page, section, repeat record and adjacent
+row constraints. Replaying the original evidence with the candidate matches
+148 fields; the one remaining duties mismatch stays blocked because that old
+capture has no DOM-layout evidence. The stored, derived and filled duties values
+are identical. Its official review screenshot shows a mid-word line break at
+the sole added whitespace position. The new capture records unwrapped DOM text
+only when the visible value cell contains text and visible BR elements alone.
+Only duties may use this representation, with normal strict text comparison;
+real spaces, punctuation and content are never stripped to manufacture a match.
+Fresh official capture is still required to validate this fix in production.
+
+The generic Error from Review previously caused a full automatic retry even
+though replaying unchanged input cannot repair mapping/comparison errors. Typed
+review failures now stop that loop, preserve the same draft/evidence and expose
+an input-review checkpoint. Existing final-fence recovery remains authoritative.
+The combined 98 field/repeat/postback/review/retry/final-submit tests passed;
+type checking and compilation passed. A further warm-up regression verifies
+that an already visible mapped field is used even when a hidden template is
+first in DOM order, avoiding the previous unnecessary ten-second timeout.
+The default postback/gate waits and all final review guards remain unchanged.

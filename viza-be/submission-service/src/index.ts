@@ -284,6 +284,60 @@ import {
 } from "./work-availability.js";
 
 const MAX_ATTEMPTS = 3;
+type Ds160ReviewFailureCode = "DS160_REVIEW_UNVERIFIED" | "DS160_REVIEW_MISMATCH";
+
+function getDs160ReviewFailureCode(error: unknown): Ds160ReviewFailureCode | null {
+  if (!error || typeof error !== "object") return null;
+  const direct = error as { code?: unknown; error?: unknown };
+  const nested = direct.error && typeof direct.error === "object"
+    ? direct.error as { code?: unknown }
+    : null;
+  const code = typeof direct.code === "string"
+    ? direct.code
+    : typeof nested?.code === "string" ? nested.code : null;
+  return code === "DS160_REVIEW_UNVERIFIED" || code === "DS160_REVIEW_MISMATCH"
+    ? code
+    : null;
+}
+
+function ds160ReviewFailureMessage(code: Ds160ReviewFailureCode): string {
+  return code === "DS160_REVIEW_UNVERIFIED"
+    ? "The official DS-160 Review page could not verify all mapped fields before signing. Review evidence was preserved and automatic retry is disabled until the review is corrected."
+    : "The official DS-160 Review page found mapped field differences before signing. Review evidence was preserved and automatic retry is disabled until the review is corrected.";
+}
+
+function buildDs160ReviewBlockedPayload(
+  base: Record<string, unknown>,
+  result: {
+    applicationId?: unknown;
+    lastCheckpoint?: unknown;
+    datArtifact?: unknown;
+    failureScreenshot?: unknown;
+  },
+  code: Ds160ReviewFailureCode,
+): Record<string, unknown> {
+  const message = ds160ReviewFailureMessage(code);
+  return {
+    ...base,
+    status: "action_required",
+    reason: message,
+    error: {
+      name: "OfficialReviewVerificationError",
+      code,
+      message,
+    },
+    ...(result.applicationId ? { applicationId: result.applicationId } : {}),
+    ...(result.lastCheckpoint ? { lastCheckpoint: result.lastCheckpoint } : {}),
+    ...(result.datArtifact ? { datArtifact: result.datArtifact } : {}),
+    ...(result.failureScreenshot ? { failureScreenshot: result.failureScreenshot } : {}),
+    reviewVerification: {
+      status: code === "DS160_REVIEW_UNVERIFIED" ? "unverified" : "failed",
+      evidencePreserved: true,
+      finalSubmission: "not_started",
+    },
+  };
+}
+
 const SUBMISSION_QUEUE_WORKER_ID =
   process.env.SUBMISSION_SERVICE_WORKER_ID?.trim() || `submission-service-${process.pid}`;
 const parsedSubmissionQueueLeaseSeconds = Number.parseInt(
@@ -2789,6 +2843,30 @@ async function processDs160Item(
 
       // Data rejection and explicit portal gates require a correction or a
       // later user retry; do not burn all attempts on unchanged input.
+      const reviewFailureCode = getDs160ReviewFailureCode(result.error);
+      if (reviewFailureCode) {
+        const reviewMessage = ds160ReviewFailureMessage(reviewFailureCode);
+        const reviewFailurePayload = buildDs160ReviewBlockedPayload(
+          recoveryFailurePayload,
+          result,
+          reviewFailureCode,
+        );
+        await updateOwnedDs160Queue(item, {
+          status: "ds160_blocked",
+          current_stage: "official_review_verification_required",
+          last_error: reviewMessage,
+          error_code: reviewFailureCode,
+          error_message: reviewMessage,
+          ceac_result_payload: reviewFailurePayload,
+          updated_at: new Date().toISOString(),
+        });
+        await writeSubmissionResult(
+          item.application_id,
+          buildDs160ActionRequiredResult(item.application_id, "input_review_required", reviewMessage),
+          "action_required",
+        );
+        return;
+      }
       const retryDisposition = classifyDs160RetryFailure(result.error, item.attempts, MAX_ATTEMPTS);
       if (retryDisposition === "blocked") {
         await updateOwnedDs160Queue(item, {
@@ -2975,6 +3053,31 @@ async function processDs160Item(
       await sendDs160FailureAlertIfEnabled(
         item.application_id,
         `[CEAC gate detected] ${errorMsg}`,
+      );
+    } else if (getDs160ReviewFailureCode(err)) {
+      const reviewFailureCode = getDs160ReviewFailureCode(err);
+      if (!reviewFailureCode) {
+        throw new Error("DS-160 review failure code could not be read safely.");
+      }
+      const reviewMessage = ds160ReviewFailureMessage(reviewFailureCode);
+      const payload = buildDs160ReviewBlockedPayload(
+        withDs160RecoveryFailure(item.ceac_result_payload, err, runId, diagnosticRedactions),
+        result,
+        reviewFailureCode,
+      );
+      await updateOwnedDs160Queue(item, {
+        status: "ds160_blocked",
+        current_stage: "official_review_verification_required",
+        last_error: reviewMessage,
+        error_code: reviewFailureCode,
+        error_message: reviewMessage,
+        ceac_result_payload: payload,
+        updated_at: new Date().toISOString(),
+      });
+      await writeSubmissionResult(
+        item.application_id,
+        buildDs160ActionRequiredResult(item.application_id, "input_review_required", reviewMessage),
+        "action_required",
       );
     } else if (classifyDs160RetryFailure(err, item.attempts, MAX_ATTEMPTS) === "blocked") {
       const payload = withDs160RecoveryFailure(item.ceac_result_payload, err, runId, diagnosticRedactions);

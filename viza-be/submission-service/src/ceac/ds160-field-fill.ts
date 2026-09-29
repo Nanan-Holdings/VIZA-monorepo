@@ -18,6 +18,63 @@ export type FindVisibleDs160Field = (
 
 export type WaitForDs160Postback = (page: Page) => Promise<void>;
 
+export interface Ds160ControlObservation {
+  matches: boolean;
+  canSkipWrite: boolean;
+  maxLength: number;
+  controlId: string;
+  displayValue: string;
+  resolvedSelectValue: string | null;
+  ambiguousSelect: boolean;
+}
+
+/** One fresh read, never cached across an action or a postback. */
+export async function observeDs160Control(
+  control: Locator,
+  type: FormFieldMapping["type"],
+  expected: string,
+): Promise<Ds160ControlObservation> {
+  return control.evaluate((node, target) => {
+    const input = node instanceof HTMLInputElement ? node : null;
+    const text = input ?? (node instanceof HTMLTextAreaElement ? node : null);
+    const select = node instanceof HTMLSelectElement ? node : null;
+    const normalized = target.expected.trim().toLowerCase();
+    let matches = false;
+    let canSkipWrite = false;
+    let displayValue = "";
+    let resolvedSelectValue: string | null = null;
+    let ambiguousSelect = false;
+    if (target.type === "select" && select) {
+      const selected = select.selectedOptions[0];
+      displayValue = selected?.innerText.trim() ?? "";
+      matches = Boolean(select.value) && (select.value.trim().toLowerCase() === normalized ||
+        (selected?.textContent ?? "").trim().toLowerCase() === normalized);
+      // Do not turn an ambiguous label into a successful no-op. An exact
+      // official value still follows selectOption's existing value semantics.
+      const enabledOptions = Array.from(select.options).filter(option => !option.disabled &&
+        !option.closest('optgroup[disabled]'));
+      const exactValues = enabledOptions.filter(option => option.value === target.expected);
+      const candidates = exactValues.length ? exactValues : enabledOptions.filter(option =>
+        option.value.trim().toLowerCase() === normalized || option.text.trim().toLowerCase() === normalized);
+      ambiguousSelect = candidates.length > 1;
+      resolvedSelectValue = candidates.length === 1 ? candidates[0].value : null;
+      canSkipWrite = matches && resolvedSelectValue !== null && select.value === resolvedSelectValue;
+    } else if ((target.type === "radio" || target.type === "checkbox") && input?.type === target.type) {
+      const checked = target.type === "radio" || /^(Y|1|true|yes)$/i.test(target.expected);
+      matches = input.checked === checked && (target.type !== "radio" || input.value === target.expected);
+      displayValue = /^(Y|1|true|yes)$/i.test(target.expected) ? "Yes" : "No";
+      canSkipWrite = matches;
+    } else if ((target.type === "text" || target.type === "date") && text) {
+      matches = text.value === target.expected;
+      displayValue = text.value;
+      canSkipWrite = matches;
+    }
+    return { matches, canSkipWrite, displayValue, resolvedSelectValue, ambiguousSelect,
+      maxLength: text?.maxLength ?? -1,
+      controlId: node.getAttribute("id") ?? node.getAttribute("name") ?? "" };
+  }, { type, expected });
+}
+
 function repeatParts(fieldName: string): { base: string; suffix: string } {
   const match = /^(.*?)(__\d+)$/.exec(fieldName);
   return match ? { base: match[1], suffix: match[2] } : { base: fieldName, suffix: "" };

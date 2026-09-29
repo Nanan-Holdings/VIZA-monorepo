@@ -3,7 +3,55 @@ import type { ReviewTableRow, ReviewTableRule } from "./review-table-contract";
 import { PERSONAL_REVIEW_TABLE_RULES } from "./review-table-personal";
 import { WORK_REVIEW_TABLE_RULES } from "./review-table-work";
 
-const RULES: readonly ReviewTableRule[] = [...PERSONAL_REVIEW_TABLE_RULES, ...WORK_REVIEW_TABLE_RULES];
+/**
+ * A few persisted answer names describe a companion/continuation control,
+ * while the official review surface exposes the value on the same labelled
+ * row as its neighbouring field. Keep these compatibility rules here so the
+ * row binding remains exact (page, edit group, repeat container and physical
+ * continuation position) instead of falling back to a page-wide text search.
+ */
+const REVIEW_FIELD_COMPATIBILITY_RULES: readonly ReviewTableRule[] = [
+  {
+    page: "personal",
+    section: "address_and_phone",
+    group: "Edit Address and Phone Information",
+    label: "Secondary Phone Number:",
+    fields: ["secondary_phone_na"],
+    format: "na",
+  },
+  {
+    page: "uscontact",
+    section: "us_contact",
+    group: "Edit U.S. Point of Contact Information",
+    label: "Email Address:",
+    fields: ["us_contact_email_na"],
+    format: "na",
+  },
+  {
+    page: "workeducation",
+    section: "work_education_present",
+    group: "Edit Present Work Information",
+    label: "Present Employer or School Address:",
+    fields: ["employer_address_line2"],
+    continuation: true,
+  },
+  {
+    page: "workeducation",
+    section: "work_education_previous",
+    group: "Edit Previous Work Information",
+    container: "EDUCYs",
+    label: "Address of Institution:",
+    fields: ["education_address_line2"],
+    continuation: true,
+    scopeAnchor: "Name of Institution ({n}):",
+  },
+] as const;
+
+const RULES: readonly ReviewTableRule[] = [
+  ...PERSONAL_REVIEW_TABLE_RULES,
+  ...WORK_REVIEW_TABLE_RULES,
+  ...REVIEW_FIELD_COMPATIBILITY_RULES,
+];
 const normalize = (value: string): string => value.trim().replace(/\s+/g, " ").toLowerCase();
 const months = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
 
@@ -109,7 +157,13 @@ function matchingRows(snapshots: ReviewSnapshot[], rule: ReviewTableRule, index:
   return matches;
 }
 
-function compareRule(rule: ReviewTableRule, fields: Array<ReviewExpectation | undefined>, na: ReviewExpectation | undefined, actual: string): "match" | "mismatch" | "incomplete" {
+function compareRule(
+  rule: ReviewTableRule,
+  fields: Array<ReviewExpectation | undefined>,
+  na: ReviewExpectation | undefined,
+  actual: string,
+  unwrappedActual?: string,
+): "match" | "mismatch" | "incomplete" {
   if (rule.format === "date" && na && normalize(na.value) === "yes") {
     if (fields.some(Boolean)) return "incomplete";
     return normalize(actual) === "does not apply" ? "match" : "mismatch";
@@ -166,7 +220,21 @@ function compareRule(rule: ReviewTableRule, fields: Array<ReviewExpectation | un
       if (values.length !== 1) return "incomplete";
       expected = values[0];
   }
-  return observed === normalize(expected) ? "match" : "mismatch";
+  if (observed === normalize(expected)) return "match";
+
+  // A CEAC duties value can contain only layout <br> nodes.  The captured
+  // innerText representation may insert a separator that is absent from the
+  // field's actual textContent. Retry that representation only for the
+  // single, exact job_duties rule and only when capture proved it was safe.
+  if (
+    rule.fields.length === 1 &&
+    rule.fields[0] === "job_duties" &&
+    unwrappedActual !== undefined &&
+    normalize(unwrappedActual) === normalize(expected)
+  ) {
+    return "match";
+  }
+  return "mismatch";
 }
 
 /** Match only catalogued, scoped official rows; every read-back must be covered. */
@@ -205,7 +273,14 @@ export function verifyTableReview(expectations: ReviewExpectation[], snapshots: 
         covered.forEach(field => addIssue(field.fieldName, rows.length ? "ambiguous_observed_row" : "missing_observed_value"));
         continue;
       }
-      const comparison = compareRule(rule, entries.slice(0, rule.fields.length).map(list => list[0]), rule.naField ? entries.at(-1)?.[0] : undefined, rows[0].value);
+      const observedRow = rows[0];
+      const comparison = compareRule(
+        rule,
+        entries.slice(0, rule.fields.length).map(list => list[0]),
+        rule.naField ? entries.at(-1)?.[0] : undefined,
+        observedRow.value,
+        observedRow.unwrappedValue,
+      );
       if (comparison === "match") covered.forEach(field => matched.add(field));
       else covered.forEach(field => addIssue(field.fieldName, comparison === "incomplete" ? "incomplete_composite_expectation" : "review_value_mismatch"));
     }

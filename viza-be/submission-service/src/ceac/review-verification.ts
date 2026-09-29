@@ -151,12 +151,24 @@ async function readVisibleReviewRows(page: Page): Promise<ReviewTableRow[]> {
         const containerElement = row.closest("[id]");
         const container = containerElement && containerElement !== section && section.contains(containerElement)
           ? containerElement.id : "";
+        // CEAC can insert BRs inside long textarea words on Review. Preserve
+        // real text-node spaces; do not guess that every whitespace difference
+        // is wrapping, or concatenate hidden/nested content into an answer.
+        const children = Array.from(data[0].children);
+        const hasOnlyVisibleBreaks = children.length > 0 && children.every(child => {
+          const childStyle = window.getComputedStyle(child);
+          return child.tagName === "BR" && child.getClientRects().length > 0 &&
+            childStyle.display !== "none" && childStyle.visibility !== "hidden" && childStyle.opacity !== "0";
+        });
         result.push({
           group,
           container,
           position,
           label: (cells[0] as HTMLElement).innerText.replace(/\s+/g, " ").trim(),
           value: (data[0] as HTMLElement).innerText.replace(/\s+/g, " ").trim(),
+          ...(hasOnlyVisibleBreaks
+            ? { unwrappedValue: (data[0].textContent ?? "").replace(/\s+/g, " ").trim() }
+            : {}),
         });
       }
     }

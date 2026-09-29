@@ -7,6 +7,8 @@ export interface ReviewTableRow {
   position?: number;
   label: string;
   value: string;
+  /** DOM text without BR layout separators, only for a visible text/BR-only cell. */
+  unwrappedValue?: string;
 }
 
 /** Explicit formatting observed on CEAC's review surface. */

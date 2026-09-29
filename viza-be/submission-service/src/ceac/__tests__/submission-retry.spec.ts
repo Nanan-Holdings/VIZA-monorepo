@@ -6,6 +6,7 @@ import {
   type Ds160RetryQueueSnapshot,
   type Ds160RetryReadClient,
 } from "../submission-retry";
+import { OfficialReviewVerificationError } from "../errors";
 
 const APPLICATION_UUID = "application-1";
 const CEAC_ID = "AA00FHOZ99";
@@ -545,10 +546,18 @@ test("fails closed on application, fence, and queue history read errors", async 
 test("classifies validation and official gates as blocked, then bounds runtime retries", () => {
   for (const code of [
     "VALIDATION_FAILED",
+    "DS160_REVIEW_UNVERIFIED",
+    "DS160_REVIEW_MISMATCH",
     "GATE_DETECTED",
     "MANUAL_ACTION_REQUIRED",
   ]) {
     assert.equal(classifyDs160RetryFailure({ code }, 0, 3), "blocked");
+  }
+  for (const status of ["unverified", "failed"] as const) {
+    assert.equal(
+      classifyDs160RetryFailure(new OfficialReviewVerificationError(status, 5), 0, 3),
+      "blocked",
+    );
   }
   assert.equal(
     classifyDs160RetryFailure({ error: { code: "gate_detected" } }, 0, 3),

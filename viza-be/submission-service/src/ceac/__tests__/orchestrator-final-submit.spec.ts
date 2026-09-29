@@ -347,6 +347,7 @@ test("does not sign from a retrieved sign page without current fill and official
 
     assert.equal(result.result.status, "failed");
     assert.deepEqual(await memory.guard.inspect(), { kind: "available" });
+    assert.equal(result.result.error?.code, "DS160_REVIEW_UNVERIFIED");
     assert.match(page.url(), /complete_signandsubmit/);
     assert.equal(await page.locator("#passport").inputValue(), "");
   } finally {

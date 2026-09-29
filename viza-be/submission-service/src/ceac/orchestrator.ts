@@ -60,7 +60,7 @@ import {
   type PreservedRecovery,
 } from "./artifacts";
 import { buildSuccessResult, buildFailureResult, type CeacRunResult } from "./result";
-import { CeacError, serializeError, UnexpectedPageError } from "./errors";
+import { CeacError, OfficialReviewVerificationError, serializeError, UnexpectedPageError } from "./errors";
 import type { CeacSession } from "./session";
 import { rebuildSessionForResume } from "./session";
 import { tryCaptureScreenshot } from "./diagnostics";
@@ -92,6 +92,8 @@ import { resolvePreviousTravelMappings } from "./previous-travel-branch";
 import {
   clearDs160NaCompanionBeforeTextFill,
   hasMeaningfulDs160TextAnswer,
+  observeDs160Control,
+  type Ds160ControlObservation,
 } from "./ds160-field-fill";
 import { captureOfficialReviewPage, verifyOfficialReview, type ReviewExpectation, type ReviewSnapshot } from "./review-verification";
 import { applyExplicitPreparerAnswer, fillVerifiedPassportSignature, type Ds160PreparerAnswers } from "./signature-fields";
@@ -573,7 +575,7 @@ export async function orchestrateFill(
           fs.writeFileSync(path.join(outputDir, "official-review-expectations.json"), JSON.stringify(expected, null, 2));
           fs.writeFileSync(path.join(outputDir, "official-review-diff.json"), JSON.stringify(diff, null, 2));
           if (diff.status !== "passed") {
-            throw new Error(`DS-160 official review comparison ${diff.status}: ${diff.issues.length} field(s) require verification before signing.`);
+            throw new OfficialReviewVerificationError(diff.status, diff.issues.length);
           }
           await recordSectionCheckpoint(page, {
             ...checkpointOpts,
@@ -740,12 +742,19 @@ export async function orchestrateFill(
         if (currentPageId === "previous_us_travel") {
           nonRepeatMappings = await resolvePreviousTravelMappings(page, nonRepeatMappings, branch.values);
         }
+        const fillStartedAt = Date.now();
+        const fillStats = { compared: 0, unchanged: 0, writeAttempts: 0 };
+        const observeStats = (stats: Ds160FillStats): void => {
+          fillStats.compared += stats.compared;
+          fillStats.unchanged += stats.unchanged;
+          fillStats.writeAttempts += stats.writeAttempts;
+        };
         try {
-          await fillPageFields(page, nonRepeatMappings, answers, profile, { requireMappedAnswers: true });
+          await fillPageFields(page, nonRepeatMappings, answers, profile, { requireMappedAnswers: true, observeStats });
           await fillDs160RepeatGroups({
           page, pageId: currentPageId, answers: ds160RepeatAnswers(branch.values, answers), mappings,
           fillRow: async row => fillPageFields(page, row.mappings, row.answers, {}, {
-            scope: row.scope, resolveScope: row.resolveScope, requireMappedAnswers: true,
+            scope: row.scope, resolveScope: row.resolveScope, requireMappedAnswers: true, observeStats,
           }),
           verifyRow: async row => verifyPageFieldValues(row.scope ?? page, row.mappings, row.answers, {}, {
             requireMappedAnswers: true, observeVerified,
@@ -765,6 +774,7 @@ export async function orchestrateFill(
         if (currentPageId === "family_relatives") {
           await assertFamilyUnknownParentBranches(page, branch.values);
         }
+        console.log(`[orchestrator] Page verified: ${currentPageId}; elapsedMs=${Date.now() - fillStartedAt}; compared=${fillStats.compared}; unchanged=${fillStats.unchanged}; writeAttempts=${fillStats.writeAttempts}`);
         sectionsFilled.push(currentPageId);
       } else {
         if (ageGatedWorkPage || branchGatedUsContactPage) {
@@ -1222,14 +1232,13 @@ async function findVisibleField(
   let match: Locator | null = null;
   for (let i = 0; i < count; i += 1) {
     const candidate = all.nth(i);
-    if (!(await candidate.isVisible().catch(() => false))) continue;
-    if (!(await candidate.isEnabled().catch(() => false))) continue;
-    if (
-      (mapping.type === "text" || mapping.type === "date") &&
-      !(await candidate.isEditable().catch(() => false))
-    ) {
-      continue;
-    }
+    const [visible, enabled, editable] = await Promise.all([
+      candidate.isVisible().catch(() => false),
+      candidate.isEnabled().catch(() => false),
+      mapping.type === "text" || mapping.type === "date"
+        ? candidate.isEditable().catch(() => false) : Promise.resolve(true),
+    ]);
+    if (!visible || !enabled || !editable) continue;
     if (mapping.type === "radio") return candidate;
     if (match) throw new Error("mapped field selector is ambiguous within its row");
     match = candidate;
@@ -1247,8 +1256,10 @@ async function findVisibleRadio(
   let match: Locator | null = null;
   for (let i = 0; i < count; i += 1) {
     const candidate = options.nth(i);
-    if (!(await candidate.isVisible().catch(() => false))) continue;
-    if (!(await candidate.isEnabled().catch(() => false))) continue;
+    const [visible, enabled] = await Promise.all([
+      candidate.isVisible().catch(() => false), candidate.isEnabled().catch(() => false),
+    ]);
+    if (!visible || !enabled) continue;
     if (match) throw new Error("radio selector is ambiguous within its row");
     match = candidate;
   }
@@ -1260,47 +1271,21 @@ async function verifyFilledField(
   selector: string,
   mapping: FormFieldMapping,
   value: string,
-): Promise<void> {
-  if (mapping.type === "radio") {
-    const radio = await findVisibleRadio(page, selector, value);
-    if (!radio || !(await radio.isChecked().catch(() => false))) {
-      throw new Error("radio selection could not be verified");
-    }
-    return;
-  }
-
-  const field = await findVisibleField(page, selector, mapping);
+  candidate?: Locator,
+): Promise<Ds160ControlObservation> {
+  const field = mapping.type === "radio"
+    ? await findVisibleRadio(page, selector, value)
+    : candidate ?? await findVisibleField(page, selector, mapping);
   if (!field) throw new Error("field could not be located after fill");
+  const observed = await observeDs160Control(field, mapping.type, value);
+  if (!observed.matches) throw new Error("field value could not be verified");
+  return observed;
+}
 
-  if (mapping.type === "checkbox") {
-    const shouldCheck = /^(Y|1|true|yes)$/i.test(value);
-    if ((await field.isChecked().catch(() => !shouldCheck)) !== shouldCheck) {
-      throw new Error("checkbox state could not be verified");
-    }
-    return;
-  }
-
-  if (mapping.type === "select") {
-    const selectedValue = await field.inputValue().catch(() => "");
-    const selectedText =
-      (await field.locator("option:checked").first().textContent().catch(() => ""))?.trim() ?? "";
-    const normalizedTarget = value.trim().toLowerCase();
-    const normalizedValue = selectedValue.trim().toLowerCase();
-    const normalizedText = selectedText.toLowerCase();
-    if (
-      !selectedValue ||
-      (normalizedValue !== normalizedTarget &&
-        normalizedText !== normalizedTarget)
-    ) {
-      throw new Error("select value could not be verified");
-    }
-    return;
-  }
-
-  const actualValue = await field.inputValue().catch(async () =>
-    field.evaluate((node) => String((node as HTMLInputElement | HTMLTextAreaElement).value ?? "")),
-  );
-  if (actualValue !== value) throw new Error("text value could not be verified");
+export interface Ds160FillStats {
+  compared: number;
+  unchanged: number;
+  writeAttempts: number;
 }
 
 export interface FillPageFieldsOptions {
@@ -1312,6 +1297,8 @@ export interface FillPageFieldsOptions {
   isFieldActive?: (fieldName: string) => boolean;
   /** An active supplied answer must have a visible, verifiable control. */
   requireMappedAnswers?: boolean;
+  /** Aggregate operation counts only; never applicant answers or control values. */
+  observeStats?: (stats: Ds160FillStats) => void;
 }
 
 export async function fillPageFields(
@@ -1322,6 +1309,7 @@ export async function fillPageFields(
   options: FillPageFieldsOptions = {},
 ): Promise<void> {
   const debug = process.env.CEAC_FILL_DEBUG === "1";
+  const stats: Ds160FillStats = { compared: 0, unchanged: 0, writeAttempts: 0 };
   installCeacPostbackMonitor(page);
   assertCeacPostbackHealthy(page);
   let scope = options.scope ?? page;
@@ -1343,6 +1331,7 @@ export async function fillPageFields(
     try {
       await scope
         .locator(combinedSelector)
+        .filter({ visible: true })
         .first()
         .waitFor({ state: "visible", timeout: 10_000 });
     } catch {
@@ -1400,37 +1389,46 @@ export async function fillPageFields(
 
     for (const selector of selectors) {
       try {
-        const all = scope.locator(selector);
-        const count = await all.count();
-        if (count === 0) continue;
         const el = await findVisibleField(scope, selector, mapping);
         if (!el) continue;
         sawVisibleCandidate = true;
         if (debug) console.log(`[fill] ${fieldName} (${mapping.type}) → matched selector "${selector}"`);
+
+        const target = mapping.type === "radio" ? await findVisibleRadio(scope, selector, value) : el;
+        if (!target) throw new Error("radio option is unavailable");
+        const existing = await observeDs160Control(target, mapping.type, value);
+        stats.compared++;
+        if (existing.ambiguousSelect) throw new Error("official option is ambiguous");
+        if ((mapping.type === "text" || mapping.type === "date") &&
+          Number.isInteger(existing.maxLength) && existing.maxLength >= 0 && value.length > existing.maxLength) {
+          throw new FieldLengthError(fieldName, mapping.label, existing.maxLength);
+        }
+        if (existing.canSkipWrite) {
+          // Retrieved drafts usually contain the requested value already.
+          // Avoid generating change events/postbacks for identical values;
+          // the complete page is still re-read after all dependent fields.
+          assertCeacPostbackHealthy(page);
+          stats.unchanged++;
+          filled = true;
+          break;
+        }
+
+        stats.writeAttempts++;
 
         if (mapping.type === "radio") {
           // Radio: selector targets the RadioButtonList base. Append
           // [value="<val>"] so we target only the option with the
           // matching value. (The outer loop already split the selector
           // by comma so `selector` here is a single branch.)
-          const radio = await findVisibleRadio(scope, selector, value);
-          if (!radio) {
-            throw new Error("radio option is unavailable");
-          }
-          await radio.check({ timeout: 5_000 });
+          await target.check({ timeout: 5_000 });
         } else if (mapping.type === "select") {
-          await selectCeacOption(el, value);
+          await selectCeacOption(el, existing.resolvedSelectValue ?? value);
         } else if (mapping.type === "checkbox") {
           // Checkbox: interpret the value as a truthy/falsy flag. "Y",
           // "true", "1", "yes" → check; everything else → uncheck.
           const shouldCheck = /^(Y|1|true|yes)$/i.test(value);
           await el.setChecked(shouldCheck, { timeout: 5_000 });
         } else {
-          const maxLength = await el.evaluate(node =>
-            (node as HTMLInputElement | HTMLTextAreaElement).maxLength);
-          if (Number.isInteger(maxLength) && maxLength >= 0 && value.length > maxLength) {
-            throw new FieldLengthError(fieldName, mapping.label, maxLength);
-          }
           try {
             await el.fill(value, { timeout: 5_000 });
           } catch {
@@ -1478,6 +1476,7 @@ export async function fillPageFields(
     requireMappedAnswers: options.requireMappedAnswers,
     choicesOnly: !options.requireMappedAnswers,
   });
+  options.observeStats?.(stats);
 }
 
 /** Re-read after all postbacks, including those caused by later repeat rows. */
@@ -1510,19 +1509,10 @@ export async function verifyPageFieldValues(
         const candidate = await findVisibleField(page, selector, mapping);
         if (!candidate) continue;
         sawVisibleCandidate = true;
-        await verifyFilledField(page, selector, mapping, value);
+        const observed = await verifyFilledField(page, selector, mapping, value, candidate);
         if (options.observeVerified) {
-          const control = mapping.type === "radio"
-            ? await findVisibleRadio(page, selector, value)
-            : candidate;
-          if (!control) throw new Error("Verified control disappeared before review snapshot");
-          const controlId = await control.getAttribute("id") ?? await control.getAttribute("name") ?? "";
+          const { controlId, displayValue } = observed;
           if (!controlId) throw new Error("Verified control has no stable review identity");
-          const displayValue = mapping.type === "select"
-            ? (await control.locator("option:checked").innerText()).trim()
-            : mapping.type === "radio" || mapping.type === "checkbox"
-              ? /^(Y|1|true|yes)$/i.test(value) ? "Yes" : "No"
-              : await control.inputValue();
           options.observeVerified({
             fieldName, controlId, value: displayValue,
             ...(value === "" ? { allowEmptyValue: true } : {}),

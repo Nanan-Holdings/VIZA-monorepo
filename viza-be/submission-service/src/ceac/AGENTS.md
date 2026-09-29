@@ -109,6 +109,15 @@ diagnostics, `.dat` capture, CAPTCHA solving, and one-shot final submission.
    Explicitly empty text/date answers clear visible editable controls in a
    retrieved draft and participate in read-back and review verification.
    Missing answers and empty choice values never authorize clearing or a No.
+   Field filling reads the current eligible control before writing and skips
+   an identical value, including already-correct NA/radio choices. It still
+   re-reads the complete page after dependent fields/repeat rows and captures
+   official-review expectations. No observation is cached across postbacks.
+   `ds160-field-fill.ts` reads value, stable identity and selected display text
+   together; official select values or uniquely matching labels are resolved
+   before selection, and ambiguity still fails closed. Default postback waits,
+   gate detection and final-signature fences are unchanged. Page diagnostics
+   contain elapsed time and compared/unchanged/write-attempt counts only.
    Text filling checks the observed official `maxlength` before changing a
    control. Overlong answers fail with a value-free length error; never bypass
    the limit or accept a silently truncated answer. The live U.S. contact
@@ -139,6 +148,15 @@ diagnostics, `.dat` capture, CAPTCHA solving, and one-shot final submission.
    rows and unsupported fields remain unverified. Private applicant values
    must never be added to these catalogs or fixtures. Browser/pure regressions
    are in `__tests__/review-table.spec.ts` and `review-verification.spec.ts`.
+   A visible text/BR-only review cell may additionally preserve its DOM text
+   without layout BR separators. Only `job_duties` may use that evidence for
+   strict text comparison after ordinary visible-text comparison fails; real
+   text-node spaces, punctuation and content remain significant. Old evidence
+   without this capture stays unverified. Explicit secondary-phone/contact-email
+   NA aliases and employer/school address continuations retain exact row scopes.
+   Review mismatch/unverified errors are structured non-retryable failures:
+   retain the same draft and evidence for correction instead of automatically
+   refilling every page with unchanged data. Final-signature fences still win.
 5. `final-submit.ts` owns the irreversible CEAC Sign and Submit action and
    final CAPTCHA solving.
    `confirmation-navigation.ts` is shared by both final-signature paths. It

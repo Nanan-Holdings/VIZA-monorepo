@@ -241,3 +241,40 @@ test("rejects a wrong nonempty Review Application ID before a later DOM correcti
     rmSync(outputDir, { recursive: true, force: true });
   }
 });
+
+test("captures BR layout evidence without dropping real spaces or joining hidden/nested content", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  const outputDir = mkdtempSync(join(tmpdir(), "ceac-review-layout-"));
+  try {
+    const samples = [
+      "STUDY COMPUTER ENGI<br>NEERING.",
+      "STUDY COMPUTER <br>ENGINEERING.",
+      "STUDY COMPUTER ENGI NEERING.",
+      "STUDY COMPUTER ENGI<br style='display:none'>NEERING.",
+      "STUDY COMPUTER <span style='display:none'>WRONG</span>ENGI<br>NEERING.",
+      "STUDY COMPUTER <div>ENGI</div><div>NEERING.</div>",
+    ];
+    await openReviewFixture(page, `
+      <h2>Personal, Address, Phone, and Passport Information</h2>
+      <span id="lblAppID">Application ID ${APPLICATION_ID}</span>
+      <div class="ReviewSection">
+        <table class="title"><tr><td>Edit Present Work Information</td></tr></table>
+        <table class="mainstyle">${samples.map((sample, index) =>
+          `<tr><td>Fixture ${index}:</td><td><div class="data">${sample}</div></td></tr>`).join("")}</table>
+      </div>
+    `);
+    const captured = await captureOfficialReviewPage(page, APPLICATION_ID, outputDir, 0);
+    const rows = captured.rows ?? [];
+    assert.equal(rows.length, samples.length);
+    assert.equal(rows[0].value, "STUDY COMPUTER ENGI NEERING.");
+    assert.equal(rows[0].unwrappedValue, "STUDY COMPUTER ENGINEERING.");
+    assert.equal(rows[1].unwrappedValue, "STUDY COMPUTER ENGINEERING.");
+    for (const row of rows.slice(2)) assert.equal(row.unwrappedValue, undefined);
+    assert.equal(rows[2].value, "STUDY COMPUTER ENGI NEERING.");
+  } finally {
+    await browser.close();
+    assert.equal(outputDir.startsWith(join(tmpdir(), "ceac-review-layout-")), true);
+    rmSync(outputDir, { recursive: true, force: true });
+  }
+});

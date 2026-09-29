@@ -13,6 +13,116 @@ import { ds160ContactMappings, ds160TravelMappings, ds160WorkPreviousMappings } 
 import { deriveDS160Answers } from "../../ds160-derive-answers";
 import { createDs160BranchPolicy, ds160MappingRepeatGroup } from "../field-contract";
 
+test("warm-up uses a visible control instead of waiting ten seconds for the first hidden template", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent('<input id="template" style="display:none"><input id="visible" value="SAME">');
+    const startedAt = Date.now();
+    await fillPageFields(page, {
+      template: { selector: '#template', type: 'text', label: 'Hidden template' },
+      visible: { selector: '#visible', type: 'text', label: 'Visible field' },
+    }, { visible: 'SAME' }, {}, { requireMappedAnswers: true });
+    assert.equal(await page.locator('#visible').inputValue(), 'SAME');
+    assert.ok(Date.now() - startedAt < 5_000, 'a ready visible field must not wait for the hidden-template timeout');
+  } finally { await browser.close(); }
+});
+
+test("recovered matching fields are read back without replaying input or change events", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`<input id="name" value="SYNTHETIC"><input id="empty" value="">
+      <select id="state"><option value="NY" selected>New York</option><option value="CA">California</option></select>
+      <input id="na" type="checkbox" checked>
+      <input id="yes" name="answer" type="radio" value="Y"><input id="no" name="answer" type="radio" value="N" checked>
+      <output id="events">0</output><script>
+        for (const name of ['input','change']) document.addEventListener(name, () => {
+          const count = document.getElementById('events'); count.textContent = String(Number(count.textContent) + 1);
+        });
+      </script>`);
+    const mappings = {
+      name: { selector: '#name', type: 'text' as const, label: 'Name' },
+      empty: { selector: '#empty', type: 'text' as const, label: 'Empty text' },
+      state: { selector: '#state', type: 'select' as const, label: 'State' },
+      na: { selector: '#na', type: 'checkbox' as const, label: 'NA' },
+      answer: { selector: 'input[name="answer"]', type: 'radio' as const, label: 'Answer' },
+    };
+    const answers = { name: 'SYNTHETIC', empty: '', state: 'New York', na: 'Y', answer: 'N' };
+    await fillPageFields(page, mappings, answers, {}, { requireMappedAnswers: true });
+    const observed: Array<{ fieldName: string; controlId: string; value: string }> = [];
+    await verifyPageFieldValues(page, mappings, answers, {}, {
+      requireMappedAnswers: true, observeVerified: field => observed.push(field),
+    });
+    assert.equal(await page.locator('#events').textContent(), '0');
+    assert.deepEqual(observed.map(field => [field.fieldName, field.controlId, field.value]), [
+      ['name', 'name', 'SYNTHETIC'], ['empty', 'empty', ''], ['state', 'state', 'New York'],
+      ['na', 'na', 'Yes'], ['answer', 'no', 'No'],
+    ]);
+  } finally { await browser.close(); }
+});
+
+test("incremental fill changes stale values and preserves matching controls", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`<input id="kept" value="SAME"><input id="changed" value="OLD">
+      <select id="choice"><option value="A" selected>Alpha</option><option value="B">Beta</option></select>
+      <input id="check" type="checkbox"><input name="radio" id="rY" type="radio" value="Y" checked>
+      <input name="radio" id="rN" type="radio" value="N"><output id="kept-events">0</output>
+      <script>document.getElementById('kept').addEventListener('input',()=>document.getElementById('kept-events').textContent='1');</script>`);
+    await fillPageFields(page, {
+      kept: { selector: '#kept', type: 'text', label: 'Kept' },
+      changed: { selector: '#changed', type: 'text', label: 'Changed' },
+      choice: { selector: '#choice', type: 'select', label: 'Choice' },
+      check: { selector: '#check', type: 'checkbox', label: 'Check' },
+      radio: { selector: 'input[name="radio"]', type: 'radio', label: 'Radio' },
+    }, { kept: 'SAME', changed: 'NEW', choice: 'B', check: 'Y', radio: 'N' }, {}, { requireMappedAnswers: true });
+    assert.equal(await page.locator('#kept-events').textContent(), '0');
+    assert.equal(await page.locator('#changed').inputValue(), 'NEW');
+    assert.equal(await page.locator('#choice').inputValue(), 'B');
+    assert.equal(await page.locator('#check').isChecked(), true);
+    assert.equal(await page.locator('#rN').isChecked(), true);
+  } finally { await browser.close(); }
+});
+
+test("final verification catches a later controller overwriting a skipped matching field", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`<input id="existing" value="EXPECTED"><input id="controller" type="checkbox">
+      <script>document.getElementById('controller').addEventListener('change',()=>{
+        document.getElementById('existing').outerHTML='<input id="existing" value="WRONG">';
+      });</script>`);
+    await assert.rejects(fillPageFields(page, {
+      existing: { selector: '#existing', type: 'text', label: 'Existing field' },
+      controller: { selector: '#controller', type: 'checkbox', label: 'Controller' },
+    }, { existing: 'EXPECTED', controller: 'Y' }, {}, { requireMappedAnswers: true }), /could not be filled or verified/i);
+  } finally { await browser.close(); }
+});
+
+test("matching draft values do not bypass length limits or ambiguous selectors", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent('<input id="short" maxlength="3" value="LONG"><input class="duplicate" value="SAME"><input class="duplicate" value="SAME">');
+    await assert.rejects(fillPageFields(page, { short: { selector: '#short', type: 'text', label: 'Short' } },
+      { short: 'LONG' }, {}, { requireMappedAnswers: true }), /official maximum length of 3/);
+    await assert.rejects(fillPageFields(page, { duplicate: { selector: '.duplicate', type: 'text', label: 'Duplicate' } },
+      { duplicate: 'SAME' }, {}, { requireMappedAnswers: true }), /could not be filled or verified/i);
+  } finally { await browser.close(); }
+});
+
+test("an already selected duplicate label cannot bypass official option ambiguity", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent('<select id="choice"><option value="A" selected>Duplicate</option><option value="B">Duplicate</option></select>');
+    await assert.rejects(fillPageFields(page, { choice: { selector: '#choice', type: 'select', label: 'Choice' } },
+      { choice: 'Duplicate' }, {}, { requireMappedAnswers: true }), /could not be filled or verified/i);
+  } finally { await browser.close(); }
+});
+
 type SyntheticSetCheckedMode = "timeout-after-clear" | "timeout-still-checked" | "error";
 
 function createSyntheticNaControl(mode: SyntheticSetCheckedMode): {
