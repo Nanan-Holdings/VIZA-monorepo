@@ -565,3 +565,45 @@ finally path were not changed. Existing live leases are not cleared manually.
 An additional 44/44 integration regressions passed across ASP.NET postback
 handling, repeated-row browser filling, persisted retry planning and durable
 final-submission guards. The combined focused checks therefore passed 84/84.
+
+Release commit `4ecf47f9` was authored with the verified VIZA organization
+identity. A build-only remote Fly build compiled successfully and pushed
+`registry.fly.io/viza-prod-submission-legacy:ds160-4ecf47f9edd6196bf22d1cb03020b91bc6e935ef`
+with immutable digest
+`sha256:a49ae1de144f5e4e707023bb7e5e2973b93739b64ff23f17f209e647f1fb1a1b`.
+This did not restart or update the production machine. The 07:08 retry's first
+attempt reproduced the same stale home-state failure at 07:19:11 and its
+second bounded attempt began at 07:19:19. Installation of the prepared image
+still requires an idle worker and fresh safe-deployment checks.
+
+Post-success comparison preparation confirmed that the runner saves encrypted
+input snapshots, verified field/control observations, official Review JSON and
+screenshots, expectations and a review diff before final signing. These can
+establish the registered active mappings and Review-rule coverage. They cannot
+alone establish every printed application field: the repository currently has
+no field-by-field Print Application PDF parser. After a verified success,
+retrieve `applicationPdfStoragePath` or use the authenticated DS-160 proof
+recovery endpoint to capture Print Application without signing again. Report
+matched, differing and uncovered fields separately; a Confirmation PDF is not
+a replacement for that comparison.
+
+At 07:39:20 UTC the third old-image retry ended on the same home-state error;
+the application-wide final-attempt count remained zero. The worker stopped
+automatically when idle. With no pending/processing queue jobs, it was briefly
+started for two fresh `/deploy-ready` checks, both reporting zero active work
+and no protected sessions, then stopped again. The prepared immutable image
+was installed on the same retained machine with `--skip-start`. Read-back
+hashes confirmed identical environment, guest and service configuration;
+only the image changed. Direct U.S. Browserbase, concurrency one, two shared
+CPUs, 4 GiB memory and the 120-second idle exit remain unchanged. A cold-start
+smoke of the new image returned `/health` OK and `/deploy-ready` safe with zero
+active work. The previous failed row's lease expires at 07:53:56 UTC; no
+manual lease clearing or premature official retry was performed.
+
+The authenticated production page still displayed an old submitting state
+until an intentional refresh. After loading, it showed 127/127 required items
+complete and an enabled Submit entry. No answers were edited and no submit
+was clicked while the old lease remained. By 07:49 UTC the repaired worker
+had automatically returned to the stopped state after its cold-start smoke,
+confirming idle cost cleanup. Live validation of the repaired address sequence
+and final official submission remain pending the next guarded retry.
