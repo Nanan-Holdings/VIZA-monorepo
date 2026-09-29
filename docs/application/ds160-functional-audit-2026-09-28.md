@@ -989,3 +989,36 @@ expectation. Consular post, preparer assistance and the social-media branch
 must therefore receive additional final-PDF/signature-page verification.
 Neither 149 matched expectations nor 380 saved keys establishes complete
 official parity by itself. This audit did not modify application facts.
+
+## 2026-09-29 — Review failure recovery and image-only rollout
+
+At 14:26:06 UTC, the third attempt of the previous `d57` queue ended in a
+failed state after the official Review comparison reported the same five
+issues. Its lease was null and its final fence remained zero. At 14:26:40 and
+14:27:05 UTC, two independent readiness checks reported `safe`, zero active
+work, and zero provider sessions. The submission and runner queues had no
+pending or running jobs; the database's machine capacity slot belonged to the
+idle worker and was not a job.
+
+Between 14:27 and 14:28 UTC, the original machine was stopped and updated with
+the prepared `ad791d14` image only. The immutable image digest was
+`sha256:f8b9c22eb716057a6deac202ed958cb275e6bdbc7cdae88a9f2a47151aba8b47`.
+The `nonImageConfigHash` was unchanged before and after the update:
+`f9280f447f53b0935e07313f7ac1f25deec8669da1080d3ac71c72e1e259ec3f`.
+At 14:28:55 UTC, cold health was OK, readiness was safe, and provider sessions
+were zero. The machine shut down through the normal idle timeout at 14:30:54
+UTC, and the stopped state was confirmed at 14:31:25 UTC.
+
+At 14:31:55 UTC, the exact production Submit action created queue
+`c78db6e9-099f-4e6e-a3da-bedc7c809c49`. Attempt 1, run
+`ds160-live-mumrz75t-giaywq`, started at 14:32:07 UTC. It superseded `d57`
+and used the same captured CEAC checkpoint. Official retrieval of that draft
+was verified at 14:33:47 UTC. Before starting, the 380
+database rows and the encrypted input snapshot matched without differences,
+and the approved photo hash matched again. At 14:20 UTC, the Fly/Vercel
+organization identity and release commit author were verified exactly.
+
+This resumed run has not reached a new official Review, signature, or
+confirmation. It therefore does not establish a successful DS-160 submission;
+the result remains pending official evidence. This record contains no applicant
+answers, document numbers, recovery secrets, credentials, or private URLs.
