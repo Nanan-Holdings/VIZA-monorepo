@@ -647,6 +647,16 @@ describe("DigitalArrivalCardResultCard", () => {
     expect(screen.getByText(message!)).toBeInTheDocument();
   });
 
+  it.each([
+    "DS-160 audit evidence storage deadline expired.",
+    "DS-160 audit evidence storage remained unavailable after bounded retries.",
+  ])("classifies DS-160 audit storage failures as data-service errors: %s", (rawMessage) => {
+    const message = userFacingSubmissionRuntimeMessage(rawMessage, true);
+
+    expect(message).toBe("VIZA 数据服务暂时不可用，申请结果尚未确认。请稍后查看状态。");
+    expect(message).not.toContain("官网填写步骤超时");
+  });
+
   it("describes official photo-service failures without claiming the photo was rejected", () => {
     const message = "Automatic DS-160 submission stopped because the official photo step failed: Upload Photo flow did not return to CEAC within 90000ms (currently at [redacted-url])";
     const localized = userFacingSubmissionRuntimeMessage(message, true);
@@ -1072,7 +1082,7 @@ describe("cloud submission retry routing", () => {
   it.each(["waiting", "processing"] as const)(
     "does not show a stale DS-160 failure while a newer %s attempt is active",
     async (initialStatus) => {
-      const staleError = "The cloud browser could not start for the previous attempt.";
+      const staleError = "官网填写步骤超时，VIZA 已暂停本次执行以保护申请数据。请稍后重试；如果问题持续出现，请联系支持。";
       const staleResult = {
         country: "US" as const,
         status: "stopped_at_sign" as const,
@@ -1092,8 +1102,8 @@ describe("cloud submission retry routing", () => {
           stage: "filling_form",
           progress: 72,
           result: null,
-          error: null,
-          message: "Current stage: work_education_present.",
+          error: staleError,
+          message: staleError,
           updatedAt: new Date().toISOString(),
           applicationStatus: "processing",
           country: "united_states",
@@ -1124,7 +1134,7 @@ describe("cloud submission retry routing", () => {
       await waitFor(() => {
         expect(screen.getByText("正在填写官网表单")).toBeInTheDocument();
       });
-      expect(screen.queryByText(/云端浏览器启动失败/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/官网填写步骤超时|云端浏览器启动失败/)).not.toBeInTheDocument();
       expect(screen.queryByText(staleError)).not.toBeInTheDocument();
     },
   );

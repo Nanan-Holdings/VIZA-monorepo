@@ -661,7 +661,7 @@ export function userFacingSubmissionRuntimeMessage(
   // Playwright filling the official form and must not be presented as a portal
   // form timeout.
   if (
-    /could not query the database|schema cache|\b(?:supabase|postgrest)\b|database\s+(?:query|connection|request)|(?:database|db)\s+(?:timeout|timed out)/i.test(
+    /could not query the database|schema cache|\b(?:supabase|postgrest)\b|database\s+(?:query|connection|request)|(?:database|db)\s+(?:timeout|timed out)|DS[- ]?160\s+audit\s+evidence\s+storage\s+(?:deadline\s+expired|remained\s+unavailable\s+after\s+bounded\s+retries)/i.test(
       normalized,
     )
   ) {
@@ -718,6 +718,22 @@ export function userFacingSubmissionRuntimeMessage(
   }
 
   return normalized;
+}
+
+/**
+ * An active queue can briefly carry the diagnostic written by the attempt that
+ * preceded it. That diagnostic is useful on a terminal card, but it is
+ * misleading while a newer run is visibly processing: it tells the applicant
+ * that the run is paused even though the worker is alive. Keep ordinary stage
+ * messages (including data-service status messages) visible and suppress only
+ * messages that explicitly describe a stopped/failed portal attempt.
+ */
+function isTerminalDiagnosticForActiveSubmission(message: string | null | undefined): boolean {
+  const normalized = message?.trim();
+  if (!normalized) return false;
+  return /(?:官网填写步骤超时|official\s+form[- ]filling\s+step\s+timed\s+out|VIZA\s*(?:已暂停|暂停了)|VIZA\s+(?:paused|stopped)|(?:cloud\s+browser|云端浏览器).*(?:could not start|启动失败)|(?:official page|官网页面).*(?:connection|连接).*(?:interrupted|中断)|(?:please\s+)?retry(?:\s+the\s+submission|\s+later)?|请稍后重试|official portal needs a human action|官网需要完成必要操作|submission failed|官网提交未完成)/i.test(
+    normalized,
+  );
 }
 
 function isSnapshot(value: unknown): value is SubmissionStatusSnapshot {
@@ -1857,14 +1873,18 @@ export function SubmissionStatusStep({
   // turn that stale diagnostic into a live progress message; terminal
   // failed/needs-action statuses still retain their durable error below.
   const staleActivePropResult = activeAttemptInView && snapshot === null && !terminalPropsAvailable;
+  const activeSnapshotMessage =
+    activeAttemptInView && isTerminalDiagnosticForActiveSubmission(snapshot?.message)
+      ? undefined
+      : snapshot?.message?.trim();
   const effectiveError = userFacingSubmissionRuntimeMessage(
-    staleActivePropResult
+    staleActivePropResult || activeAttemptInView
       ? undefined
       : extractError(effectiveResult, terminalPropsAvailable ? undefined : snapshot?.error),
     isZh,
   );
   const effectiveMessage = userFacingSubmissionRuntimeMessage(
-    snapshot?.message?.trim() || effectiveError,
+    activeSnapshotMessage || effectiveError,
     isZh,
   );
   const effectiveApplicationStatus = terminalPropsAvailable
