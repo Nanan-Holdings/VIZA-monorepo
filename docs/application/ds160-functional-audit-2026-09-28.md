@@ -1460,3 +1460,21 @@ The submission/proof monitor is paused: success and the available Review
 evidence are verified, the English confirmation is delivered, and the two
 remaining evidence gaps have no permitted automated Print Application path.
 No further automatic official requests are scheduled.
+
+### User-requested official email attempt, 2026-09-29
+
+After the prior proof work, the user explicitly requested CEAC's own Email
+Confirmation action to the account mailbox. A retrieve-only session verified
+the same submitted application and English confirmation. Opening the official
+email page exposed its saved recipient; that address matched the authenticated
+application owner's account exactly. The additional-recipient choice was set
+to No and read back before one send attempt at 19:44:26 UTC.
+
+The send click timed out without a success receipt. Read-only observation did
+not recover an acknowledgement before the session ended; provider logs offered
+no subsequent receipt and replay was unavailable. A local one-attempt record
+is marked `unknown`, so no second send was attempted. This does not establish
+either successful delivery or definite non-delivery. No VIZA/Resend email,
+new application or signature was performed. The owner session was released;
+at 19:47 the provider had zero active sessions and the worker remained stopped.
+The existing submitted result and verified English PDF remain unchanged.
