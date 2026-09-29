@@ -1331,8 +1331,10 @@ no queued/running shared-pool jobs, and no provider sessions or active worker
 work. The earlier expectation of automatic retry after lease expiry was
 incorrect: the legacy worker drains only at startup or an authenticated wake.
 The immediate drain after failure exits while the old lease remains valid;
-expiry alone schedules no later drain. Pending proof work also prevents idle
-shutdown, even though deployment readiness reports no in-process activity.
+expiry alone schedules no later drain. Deployment readiness reports
+in-process activity separately from database pending/lease state. The machine
+was later observed stopped at 18:42; a pending database row alone is not proof
+that a process remains running.
 
 The existing claim RPC includes proof-pending jobs, so a repaired worker can
 claim this same job after startup without changing the queue or re-enqueuing.
@@ -1342,3 +1344,119 @@ the prepared image on the idle, lease-free worker while preserving this one
 proof job. No deployment, queue mutation or additional portal attempt was
 performed while awaiting that decision. The submitted application and
 confirmed final-submission fence remain unchanged.
+
+The user then explicitly approved installing the prepared fix on the idle
+worker while preserving the expired pending proof job. At 18:39 readiness was
+safe, active work/provider sessions were zero; at 18:42 the machine was
+already stopped. The fresh global queue check contained only that original
+proof job with an expired lease, no active shared-pool runner jobs, and the
+final-submission fence remained confirmed. The organization identity and
+release author were reverified. The prepared `fffb3ef9` image was installed
+without starting the old version. Environment, guest, services and the full
+non-image configuration hashes matched the pre-release values.
+
+At 18:44:42 the new worker's startup drain claimed the original proof queue;
+no new queue or signature was created. Health and database readiness passed.
+At 18:46:05 the proof job finished `done` / `proof_artifacts_ready`, and the
+provider had zero running/pending sessions with deployment readiness safe.
+However, the application record still lacked Print Application PDF: a done
+proof job is not evidence that every requested proof artifact exists. The
+remaining two field-evidence gaps therefore stay open. The user separately
+reported confirmation-email failure and requested an official English
+confirmation PDF; those are being diagnosed without resubmitting the form.
+
+At 18:49 the machine was automatically stopped again with zero provider
+sessions, completing the fixed proof worker's cleanup check. The existing
+confirmation PDF is valid and two pages long, but its extracted static
+content is Chinese. The capture implementation prints the current CEAC page
+directly; it does not explicitly select the English official print view.
+Retrieving an English version must use CEAC's own controls and preserve the
+existing artifact. Translating or editing a rendered PDF would not provide
+the requested official original. The new proof run has insufficient
+control-level diagnostics to attribute the absent application PDF to a
+disabled button, missing selector, or unhandled print/download behavior.
+
+### English confirmation and final proof coverage, 2026-09-29
+
+After all proof leases expired, a single retrieve-only inspection of the same
+submitted official application observed CEAC's language selector at `zh-CN`.
+Selecting its `en-US` option and waiting for the official postback produced
+the English confirmation view. The enabled Print Confirmation control invoked
+same-page printing; the Print Application control was explicitly disabled.
+No submission, signature, answer change, new application or disabled-control
+bypass was performed.
+
+The official English print view was captured as a two-page PDF (149,307 bytes,
+SHA-256 `745746d05ef643ef3f63de0ddf049f7ae71da7aab20281268b257f340e5072fe`).
+The official application identity matched in memory. Text extraction verified
+English static labels and no Chinese characters, and the rendered first page
+was visually checked. Private-storage download matched the capture hash. An
+owner/version/submitted-status/final-fence guarded update changed only the
+proof artifact references and language metadata, preserving the original
+Chinese confirmation artifact. Both authenticated production confirmation and
+email-confirmation download endpoints returned HTTP 200 with the identical
+English PDF hash. No email was sent by this acceptance test.
+
+The inspection session was released; at 19:15 the provider reported zero
+pending/running sessions and the worker machine remained automatically stopped.
+The disabled official Print Application control prevents completing the two
+remaining structured-evidence checks (`has_social_media` and
+`ds160_preparer_assistance`) through that print path. The substantiated result
+remains 149 official Review expectations matched, zero differences, 380 saved
+input rows unchanged, with those two coverage gaps explicitly open. Neither
+the English confirmation nor the local input comparison proves full official
+field or branch coverage.
+
+The email screenshot was a separate delivery failure: the provider rejected
+the configured sender domain as unverified. Production has a sender under the
+expected domain, but its sensitive production key cannot be read back; a local
+key's domain list cannot establish which account production uses. No key was
+substituted, DNS changed, or email sent. Frontend commit `a2fb4dbd` replaces
+provider/configuration text with localized email-specific errors while keeping
+the submitted state and PDF download available. Its 18 focused tests,
+type-check, lint (zero errors; existing warnings) and component browser smoke
+passed. Production release verification is recorded separately below.
+
+The frontend release `a2fb4dbd0c1a93e31e9a68115a2a57b9294e6f21` is now
+production READY with `app.viza.it.com` assigned. The Vercel API verified the
+exact commit, project and organization author. After release, authenticated
+confirmation and email-confirmation downloads again returned the English
+artifact hash. A refreshed production browser retained the submitted state
+and confirmation download button; clicking download completed without an
+error. The actual Resend domain verification remains an account-configuration
+issue and is not claimed repaired by the UI change.
+
+Permanent English confirmation capture is implemented in service commit
+`c56db45ee90752f3c158374ab2b1fc615a97193c`. Both normal submitted-result capture
+and proof-only recovery select CEAC's English option, settle the postback,
+verify the same official identity, invoke Print Confirmation once, and
+recheck language/identity/gates. A preparation failure after confirmed
+submission skips new PDF capture/upload while preserving the submitted
+result; no error/challenge page becomes a proof artifact. Ten Chromium fixture
+tests, service type-check and build passed.
+
+After fresh global checks found zero pending/processing jobs, valid leases
+or shared runner jobs, with the final fence still confirmed, the idle worker
+was briefly started for two fresh safe deployment-readiness observations.
+Both had zero active work and provider sessions. The machine was stopped and
+updated only to the prepared image digest
+`sha256:112967e404baf90edf269bd13b6f5b7091b42ad98636c6202eb6a43529b515e5`.
+Environment, guest, services and non-image configuration hashes were unchanged.
+At 19:31 the new image passed cold-start health and database/worker readiness;
+deployment readiness was safe with zero active work/provider sessions.
+No live submission or extra official retrieval was used to test this release.
+
+The user subsequently asked whether official email is automatic and said
+VIZA need not send if it is not. The State Department DS-160 FAQ describes
+selecting the optional Email Confirmation action, consistent with the live
+confirmation controls; email is not required as submission-success evidence.
+Neither CEAC nor VIZA email was triggered by this audit. Whether to remove
+VIZA's manual email entry remains an optional user preference; no further
+Resend configuration work or outbound email is being performed.
+
+At 19:33:43 the English-capture worker was automatically stopped, with zero
+pending/running provider sessions and unchanged non-image configuration.
+The submission/proof monitor is paused: success and the available Review
+evidence are verified, the English confirmation is delivered, and the two
+remaining evidence gaps have no permitted automated Print Application path.
+No further automatic official requests are scheduled.
