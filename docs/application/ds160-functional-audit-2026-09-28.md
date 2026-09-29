@@ -866,3 +866,45 @@ resumed for this run. No official confirmation was available at this checkpoint.
 At 12:31:45 UTC the worker verified retrieval of the same captured CEAC draft;
 personal-information filling began at 12:31:46. Photo processing on the official
 portal, Review comparison and final confirmation remain pending.
+
+## 2026-09-29 — Current-run latency investigation
+
+The applicant asked why the submission still had not completed. At 12:48 UTC,
+the current run was still on its first attempt, with one actively renewed lease
+and no final-submission fence. Current logs contained no timeout or out-of-memory
+markers; this does not exclude an unlogged slow operation. The actual retained
+worker configuration has both Browserbase TTL and DS-160 live duration set to
+3600 seconds, with the existing 2 shared CPUs / 4 GiB allocation.
+
+Observed phase intervals include navigation, form operations and verification;
+they are not isolated measurements of CEAC server response time:
+
+| Phase | Observed duration before next phase |
+| --- | --- |
+| Bootstrap and verified same-draft retrieval | 107 seconds |
+| Personal Information 1 | 151 seconds |
+| Personal Information 2 | 71 seconds |
+| Travel Information | 187 seconds |
+| Travel Companions | 25 seconds |
+| Previous U.S. Travel | 54 seconds |
+| Address and Phone | 205 seconds |
+| Passport | 165 seconds |
+| U.S. Contact | 105 seconds |
+
+The run reached Family Relatives at 12:47:49 UTC after passing the previously
+failing address and contact pages. Historical checkbox-order/postback failures
+and the later Identix service error were distinct causes of earlier terminal
+attempts; each ordinary recovery refills the same draft and repeats verification.
+Those historical attempts must not be confused with a retry loop in this run.
+No active session was interrupted, no answer was changed and no image was
+redeployed for the latency investigation. Official photo acceptance, Review
+verification and final confirmation still remained pending at this checkpoint.
+A read-only code audit found serial remote-browser work in the current filling
+path: per-field locator/state checks, writes, postback settlement and immediate
+read-back, followed by the full-page verification that captures official-review
+expectations. The generic field path also waits for postback after plain inputs
+and adds 750 ms after checkboxes. These waits and repeated remote calls add
+latency; the current logs do not isolate their share from CEAC server time or
+cross-region CDP latency. A future timing change must preserve field/branch
+read-back, request-error/gate detection and review expectations. No proven new
+failure in the active run justified interrupting it to release such changes.
