@@ -28,18 +28,20 @@ const SECURITY_HEADERS = [
     // Microsoft Clarity: the loader on www.clarity.ms pulls clarity.js from
     // scripts.clarity.ms and uploads to *.clarity.ms and c.bing.com, hence the
     // wildcard in both script-src and connect-src.
+    // Google preferred sources button: publisher.js and its consent iframe are
+    // served from news.google.com (connect-src is covered by *.google.com).
     value: [
       "default-src 'self'",
       "base-uri 'self'",
       "object-src 'none'",
       "frame-ancestors 'none'",
       "form-action 'self' https://app.viza.it.com",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.googleadservices.com https://*.doubleclick.net https://*.gstatic.com https://*.clarity.ms https://c.bing.com",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.googleadservices.com https://*.doubleclick.net https://*.gstatic.com https://*.clarity.ms https://c.bing.com https://news.google.com",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' data: https://fonts.gstatic.com",
       "img-src 'self' data: blob: https:",
       "connect-src 'self' https://app.viza.it.com https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.googlesyndication.com https://*.doubleclick.net https://*.google.com https://*.gstatic.com https://*.adtrafficquality.google https://*.clarity.ms https://c.bing.com",
-      "frame-src 'self' https://www.googletagmanager.com https://*.googlesyndication.com https://*.doubleclick.net https://www.google.com https://*.adtrafficquality.google",
+      "frame-src 'self' https://www.googletagmanager.com https://*.googlesyndication.com https://*.doubleclick.net https://www.google.com https://news.google.com https://*.adtrafficquality.google",
       "worker-src 'self' blob:",
       "manifest-src 'self'",
       "report-uri /api/csp-report",

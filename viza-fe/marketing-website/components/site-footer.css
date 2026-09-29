@@ -165,3 +165,9 @@
   .site-foot .foot-main { grid-template-columns: 1fr; gap: 32px; }
   .site-foot .foot-apps { grid-column: auto; }
 }
+
+/* Google "Add to Preferred Sources" button, editorial pages only (PreferredSourceButton). */
+.site-foot .foot-preferred-source {
+  margin-top: 20px;
+  min-height: 40px;
+}

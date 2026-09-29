@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import PreferredSourceButton from "./PreferredSourceButton";
 import "./site-footer.css";
 
 /**
@@ -54,6 +55,7 @@ export default function SiteFooter() {
               ))}
             </div>
           </div>
+          <PreferredSourceButton />
         </div>
 
         {/* Company */}
