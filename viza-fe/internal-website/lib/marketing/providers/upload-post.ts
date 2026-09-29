@@ -116,7 +116,11 @@ export async function checkUploadPostJob(requestId: string, platform: UploadPost
   catch { return pending; }
   const results = Array.isArray(body.results) ? body.results : [];
   const match = results.find((value) => value && typeof value === "object" && !Array.isArray(value) && (value as Record<string, unknown>).platform === platform) as Record<string, unknown> | undefined;
-  if (match?.success === false || body.status === "failed") {
+  // A job handed off to Upload-Post's worker reports each platform as
+  // `status: "queued"` with `success: false` until it runs, so `success` alone
+  // cannot tell "not yet" from "rejected". Only an explicit failed status fails.
+  const platformStatus = typeof match?.status === "string" ? match.status : null;
+  if (platformStatus === "failed" || body.status === "failed") {
     return { status: "failed", postId: null, postUrl: null, requestId, error: typeof match?.error_message === "string" ? match.error_message.slice(0, 300) : "Provider job failed" };
   }
   if (match?.success === true) return publishedResult(platform, match, requestId);

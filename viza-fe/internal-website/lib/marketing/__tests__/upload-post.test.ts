@@ -86,7 +86,7 @@ describe("Upload-Post adapter", () => {
     configured();
     const fetchSpy = vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(json({ status: "processing", results: [] }))
-      .mockResolvedValueOnce(json({ status: "failed", results: [{ platform: "instagram", success: false, error_message: "Image rejected" }] }))
+      .mockResolvedValueOnce(json({ status: "failed", results: [{ platform: "instagram", status: "failed", success: false, error_message: "Image rejected" }] }))
       .mockResolvedValueOnce(json({ status: "completed", results: [{ platform: "pinterest", success: true, platform_post_id: "987654", post_url: destinationUrl }] }));
 
     expect(await checkUploadPostJob("req-1", "instagram")).toEqual({ status: "pending", postId: null, postUrl: null, requestId: "req-1" });
@@ -94,5 +94,15 @@ describe("Upload-Post adapter", () => {
     expect(await checkUploadPostJob("req-3", "pinterest")).toEqual({ status: "published", postId: "987654", postUrl: "https://www.pinterest.com/pin/987654/", requestId: "req-3" });
     expect(fetchSpy).toHaveBeenCalledTimes(3);
     expect(fetchSpy.mock.calls.every(([url, init]) => String(url).includes("/uploadposts/status") && !init?.method)).toBe(true);
+  });
+
+  it("keeps a job queued for the worker pending instead of failing it", async () => {
+    configured();
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(json({ status: "pending", results: [{ platform: "instagram", status: "queued", success: false, attempts: 0 }] }))
+      .mockResolvedValueOnce(json({ status: "pending", results: [{ platform: "pinterest", status: "failed", success: false, error_message: "Board not found" }] }));
+
+    expect(await checkUploadPostJob("req-4", "instagram")).toEqual({ status: "pending", postId: null, postUrl: null, requestId: "req-4" });
+    expect(await checkUploadPostJob("req-5", "pinterest")).toEqual({ status: "failed", postId: null, postUrl: null, requestId: "req-5", error: "Board not found" });
   });
 });
