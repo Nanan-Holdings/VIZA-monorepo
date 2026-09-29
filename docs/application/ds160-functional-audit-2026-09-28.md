@@ -1551,3 +1551,15 @@ submitted, and the single confirmed final-submission fence was unchanged.
 At 21:21:25 the worker was automatically stopped and provider sessions were zero.
 The official mail service is the remaining blocker to live success acceptance;
 the available English confirmation PDF remains the verified submission proof.
+
+The final UI patch `5ce9c29c169ae00695c8a665ee73b965571aed9d` is READY on
+the production alias, verified against deployment
+`dpl_9EyzkTf1W1cukd2jjjgFgGAQPfEs`. Ten component tests (including the restored
+sending-to-unknown transition) and frontend type-check passed. A fresh production
+browser reload showed the unknown-result warning, no stale processing message,
+exactly one enabled account-email retry button, and an enabled PDF download.
+No retry was clicked. A scoped database read confirmed no newer queue, zero
+active siblings, a released lease, the unchanged submitted application, and one
+confirmed final-submission fence. Live official email delivery remains unverified
+because of the recorded CEAC Application Error; this UI acceptance is not a
+successful-delivery claim.
