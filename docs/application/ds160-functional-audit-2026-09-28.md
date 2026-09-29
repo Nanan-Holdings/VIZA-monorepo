@@ -974,3 +974,18 @@ previous image. No submitted-state or production performance claim is made by
 this build-only release. Follow-up must retain machine configuration, install
 only the image, verify cold-start health/readiness and idle shutdown, and then
 resume the same draft only if no final fence or active lease exists.
+
+The subsequent read-only coverage audit of the hash-verified input/review bundle
+found 380 unique saved-answer keys, including 80 Chinese/English pairs (160
+keys), and 416 derived CEAC keys. All 149 review expectations have derived
+sources: 104 directly saved fields and 45 split-date/alias/NA/composite fields.
+The contract recognises 155 saved fields, with 148 active in this application
+and seven gated off by its actual branch answers. This run has no second
+repeat records, so it cannot prove repeat-branch coverage. Seven official review
+pages contain 127 rows (five blank-label continuations); the rules cover 13
+composite groups with 37 expectation fields, plus 112 scalar expectations.
+Current Location and the empty social-presence/identifier rows have no direct
+expectation. Consular post, preparer assistance and the social-media branch
+must therefore receive additional final-PDF/signature-page verification.
+Neither 149 matched expectations nor 380 saved keys establishes complete
+official parity by itself. This audit did not modify application facts.
