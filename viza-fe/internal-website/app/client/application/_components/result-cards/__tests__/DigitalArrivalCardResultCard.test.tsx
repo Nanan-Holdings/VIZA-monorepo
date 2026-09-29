@@ -646,6 +646,17 @@ describe("DigitalArrivalCardResultCard", () => {
       .toContain("has not been submitted");
     expect(userFacingSubmissionRuntimeMessage("The official Identix photo service returned an error page.", true))
       .toContain("此错误不代表照片不合格");
+    render(<FailureCard errorMessage={localized} />);
+    expect(screen.getByText(localized!)).toBeInTheDocument();
+    expect(screen.queryByText(/云端任务未能完成，错误详情已记录/)).not.toBeInTheDocument();
+  });
+
+  it("does not expose diagnostics appended to an otherwise safe localized message", () => {
+    render(
+      <FailureCard errorMessage="官网照片上传服务未能完成处理，申请尚未提交。此错误不代表照片不合格，请稍后重试。 private-diagnostic-token" />,
+    );
+    expect(screen.getByText(/云端任务未能完成，错误详情已记录/)).toBeInTheDocument();
+    expect(screen.queryByText(/private-diagnostic-token/)).not.toBeInTheDocument();
   });
 
   it("localizes Japan and Kenya automated-submission status messages", () => {

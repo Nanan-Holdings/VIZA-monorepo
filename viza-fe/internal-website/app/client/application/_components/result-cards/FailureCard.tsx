@@ -110,6 +110,16 @@ function parseValidationError(
 
 function localizedFailureMessage(errorMessage: string, isZh: boolean): string {
   if (!isZh) return errorMessage;
+  // These exact messages have already been localized and stripped of runtime
+  // diagnostics by SubmissionStatusStep. Do not replace them with a generic
+  // failure, and do not pass through arbitrary strings with a matching prefix.
+  const safeRuntimeMessages = [
+    "云端浏览器启动失败，VIZA 已停止本次执行以保护申请数据。请重试；如果问题持续出现，请联系支持。",
+    "与官网页面的连接中断，VIZA 已暂停本次执行以保护申请数据。请稍后重试；如果问题持续出现，请联系支持。",
+    "官网填写步骤超时，VIZA 已暂停本次执行以保护申请数据。请稍后重试；如果问题持续出现，请联系支持。",
+    "官网照片上传服务未能完成处理，申请尚未提交。此错误不代表照片不合格，请稍后重试。",
+  ];
+  if (safeRuntimeMessages.includes(errorMessage)) return errorMessage;
   const normalized = errorMessage.toLowerCase();
   if (
     normalized.includes("requires an uploaded applicant photo") ||
