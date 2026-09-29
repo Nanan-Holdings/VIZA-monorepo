@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import enMessages from "@/messages/en.json";
 import zhMessages from "@/messages/zh.json";
@@ -37,6 +37,7 @@ const stoppedAtSignResult: UsSubmissionResult = {
 describe("UsResultCard", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.useRealTimers();
     push.mockReset();
   });
 
@@ -89,6 +90,48 @@ describe("UsResultCard", () => {
       expect(screen.getByRole("button", { name: "sendToAccountEmail" })).toBeDisabled();
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("resumes read-only email polling after refresh and preserves the PDF action on unknown receipt", async () => {
+    vi.useFakeTimers();
+    let readCount = 0;
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        throw new Error("refresh polling must not send email");
+      }
+      readCount += 1;
+      if (readCount === 1) {
+        return new Response(JSON.stringify({
+          ok: true,
+          status: "sending",
+          jobId: "email-job-id",
+        }), { status: 200 });
+      }
+      return new Response(JSON.stringify({
+        ok: true,
+        status: "unknown",
+        code: "ds160_proof_email_unknown",
+        error: "safe unknown receipt",
+        jobId: "email-job-id",
+      }), { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<UsResultCard applicationId="viza-application-id" result={submittedResult} />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000);
+    });
+
+    expect(screen.getByText("proofEmailUnknown")).toBeInTheDocument();
+    expect(screen.getByText("proofEmailUnknownBody")).toBeInTheDocument();
+    expect(screen.queryByText("proofEmailSending")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "printConfirmation" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "retryEmail" })).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "retryEmail" })).toBeEnabled();
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(0);
   });
 
   it("starts a download without opening a popup after proof is ready", async () => {

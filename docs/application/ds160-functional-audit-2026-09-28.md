@@ -1478,3 +1478,76 @@ either successful delivery or definite non-delivery. No VIZA/Resend email,
 new application or signature was performed. The owner session was released;
 at 19:47 the provider had zero active sessions and the worker remained stopped.
 The existing submitted result and verified English PDF remain unchanged.
+
+### Official email user-flow implementation, 2026-09-29
+
+The user reported non-receipt and explicitly requested a working official email
+flow. The new proof-only worker verifies the submitted application, account
+recipient digest, CEAC recipient, and Additional Email No before reserving one
+durable dispatch. A timeout after reservation settles as unknown, with encrypted
+official evidence; only a new explicit user request can authorize another send.
+No application result, answer, photograph, or final-submission fence is changed.
+
+Worker release `61967109` was installed image-only on the existing idle machine.
+The image digest is
+`sha256:1c5ae29305d7283aa8ded0d36672b13bc3ef475eebf8d3a10572c02f6be54aa1`.
+Two pre-update readiness checks were safe, with no queue work or provider sessions.
+Environment, guest, services, and complete non-image configuration hashes were
+unchanged. Cold-start health/readiness passed and idle shutdown was observed.
+
+Migration 0206 adds atomic email/download enqueue, exact-claim start and
+settlement, and a one-shot email-send reservation. Production transaction-only
+acceptance ran under service_role and rolled back all fixture rows: duplicate
+requests reused one job, wrong owner/digest/claim epoch were rejected, a second
+reservation returned no row, pre-send failure and post-reservation unknown stayed
+distinct, explicit retry worked, latest terminal state was reused, and concurrent
+download/email requests could not supersede one another. Submitted result and
+confirmed final fence were unchanged. All five RPCs deny anon/authenticated
+execution and permit service_role only.
+
+Local worker/browser fixtures passed 14 tests, including a slow/ambiguous final
+click, foreign-page and generic-text false receipts, pre-existing receipt,
+recipient mismatch, ownership loss, and provider cleanup failure. Backend
+migration tests passed six checks; gated local-database integration tests were
+skipped, with the separate production rollback acceptance above supplying actual
+RPC execution evidence. Backend type-check passed and lint had zero errors with
+one pre-existing warning. A production email receipt is still required before
+claiming that the new mail flow has succeeded.
+
+Frontend release `d54d7531d1b9c4239e77b299f2b57bd38c971909` is READY at
+`app.viza.it.com` (deployment `dpl_BxmTLUEm8hu341QfzaxZcohjJHig`). The organization
+CLI identity, project/team, commit author, deployment metadata, and dry upload
+manifest were checked. The route now uses official CEAC jobs instead of Resend,
+accepts only the authenticated account mailbox, restores status with GET-only
+polling, distinguishes failed/unknown/sent, and exposes only explicit retry.
+An expired processing lease is no longer displayed as permanently sending.
+Twenty-three focused frontend tests and type-check passed; frontend lint had
+zero errors and 57 existing warnings. A local component browser fixture covered
+failure/retry without a real email side effect.
+
+Production acceptance used the actual Send to account email button once.
+Refresh restored its processing status and disabled the send controls while
+leaving confirmation download enabled. The official-email worker retrieved the
+same submitted confirmation at 21:16:36 UTC and reserved dispatch at 21:16:52.
+Both authenticated PDF download variants returned HTTP 200, 149,307 bytes, valid
+PDF headers, and the already-verified English original SHA-256. Receipt and
+terminal cleanup acceptance remain pending at this point in the record.
+
+The official send did not return a receipt. At 21:18:38 UTC the encrypted,
+SHA-verified final evidence was CEAC `/GenNIV/Common/AppError.aspx`, headed
+Application Error, stating that an unexpected error occurred while processing
+the previous request. The one final click timed out; the worker observed this
+official error page and settled `unknown` at 21:18:40 rather than retrying or
+claiming delivery. This establishes an official service error after dispatch,
+not confirmed email delivery. No second send, resubmission, or proxy change was
+performed. The production card showed the unknown-result warning and enabled
+explicit retry, with PDF download still available. The restored polling path
+also exposed a stale processing message above that warning; a final UI patch
+clears this message on terminal failure/unknown and avoids duplicate retry
+controls when the email panel is open.
+
+The queue lease was cleared, active siblings were zero, the application remained
+submitted, and the single confirmed final-submission fence was unchanged.
+At 21:21:25 the worker was automatically stopped and provider sessions were zero.
+The official mail service is the remaining blocker to live success acceptance;
+the available English confirmation PDF remains the verified submission proof.

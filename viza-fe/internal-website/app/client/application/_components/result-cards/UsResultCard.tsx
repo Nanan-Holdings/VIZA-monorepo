@@ -239,6 +239,7 @@ export function UsResultCard({
           setProofBusy((prev) => ({ ...prev, "email-confirmation": false }));
           if (payload.status === "failed" || payload.status === "unknown") {
             setEmailPanelOpen(true);
+            setProofMessage(null);
             setProofError({
               code: payload.code,
               message: payload.error ?? tRef.current("proofFailed"),
@@ -579,7 +580,7 @@ export function UsResultCard({
                           ? t("proofEmailUnavailableBody")
                         : proofError.message}
                   </p>
-                  {emailRetryAvailable && (
+                  {emailRetryAvailable && !emailPanelOpen && (
                     <Button
                       type="button"
                       variant="outline"
