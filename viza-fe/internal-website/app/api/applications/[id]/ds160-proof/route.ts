@@ -1,19 +1,18 @@
 import { NextResponse } from "next/server";
+import { createHash } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { sendEmail } from "@/lib/email/resend";
 import { wakeCloudSubmissionWorker } from "@/lib/submission-worker-wake.server";
 import { isRunnerCutoverPaused } from "@/lib/runner-cutover-pause.server";
 import {
-  DS160_PROOF_QUEUE_STATUS,
-  ds160ProofEmailFailureResponse,
-  ds160ProofEmailUnavailableResponse,
-  fileNameForKind,
+  ds160ProofEmailAccountOnlyResponse,
+  ds160ProofEmailRequestInvalidResponse,
+  readDs160ProofEmailStatus,
   resolveDs160ProofAction,
   type Ds160ProofKind,
+  type Ds160ProofEmailQueueState,
+  type Ds160ProofEmailStatus,
 } from "@/lib/ds160-proof";
-
-const ARTIFACT_BUCKET = "submission-artifacts";
 
 type ApplicationRow = {
   id: string;
@@ -32,16 +31,10 @@ type ProfileRow = {
 type ProofRequest = {
   kind?: unknown;
   action?: unknown;
-  emailMode?: unknown;
-  email?: unknown;
+  recipientMode?: unknown;
+  requestId?: unknown;
+  retry?: unknown;
 };
-
-class ProofEmailDeliveryError extends Error {
-  constructor() {
-    super("DS-160 proof email delivery failed.");
-    this.name = "ProofEmailDeliveryError";
-  }
-}
 
 function readProofKind(value: unknown): Ds160ProofKind | null {
   return value === "confirmation" || value === "application" || value === "email-confirmation"
@@ -53,18 +46,15 @@ function isEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
-function normalizeArtifactPath(value: string): string | null {
-  const path = value.trim().replace(/\\/g, "/");
-  if (!path || path.startsWith("/") || path.includes("..") || /^https?:\/\//i.test(path)) return null;
-  return path;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 async function loadOwnedApplication(applicationId: string): Promise<
-  | { ok: true; admin: ReturnType<typeof createAdminClient>; application: ApplicationRow; profile: ProfileRow }
+  | {
+      ok: true;
+      admin: ReturnType<typeof createAdminClient>;
+      application: ApplicationRow;
+      profile: ProfileRow;
+      authUserId: string;
+      authUserEmail: string;
+    }
   | { ok: false; response: Response }
 > {
   const supabase = await createClient();
@@ -104,37 +94,14 @@ async function loadOwnedApplication(applicationId: string): Promise<
   if (application.applicant_id !== profile.id) {
     return { ok: false, response: NextResponse.json({ error: "Forbidden" }, { status: 403 }) };
   }
-  return { ok: true, admin, application, profile };
-}
-
-async function enqueueProofJob(
-  admin: ReturnType<typeof createAdminClient>,
-  applicationId: string,
-): Promise<{ jobId: string | null }> {
-  const now = new Date().toISOString();
-  await admin
-    .from("submission_queue")
-    .update({ status: "retry_superseded", updated_at: now })
-    .eq("application_id", applicationId)
-    .in("status", ["ds160_proof_pending", "ds160_proof_processing", "ds160_proof_failed"]);
-
-  const { data, error } = await admin
-    .from("submission_queue")
-    .insert({
-      application_id: applicationId,
-      status: DS160_PROOF_QUEUE_STATUS,
-      mode: "live_assisted",
-      provider: "ceac_proof",
-      attempts: 0,
-      last_error: null,
-      current_stage: "queued",
-      created_at: now,
-      updated_at: now,
-    })
-    .select("id")
-    .single();
-  if (error) throw new Error(error.message);
-  return { jobId: (data as { id?: string | null } | null)?.id ?? null };
+  return {
+    ok: true,
+    admin,
+    application,
+    profile,
+    authUserId: user.id,
+    authUserEmail: user.email?.trim() ?? "",
+  };
 }
 
 async function loadLatestProofQueue(
@@ -147,10 +114,113 @@ async function loadLatestProofQueue(
     .eq("application_id", applicationId)
     .in("status", ["ds160_proof_pending", "ds160_proof_processing", "ds160_proof_failed", "done"])
     .in("provider", ["ceac_proof"])
+    .or("ceac_result_payload->>action.is.null,ceac_result_payload->>action.neq.official_ceac_email")
     .order("updated_at", { ascending: false, nullsFirst: false })
     .limit(1)
     .maybeSingle();
   return data as { id?: string; status?: string; last_error?: string | null; error_message?: string | null } | null;
+}
+
+type OfficialEmailQueueRow = Ds160ProofEmailQueueState & {
+  id?: string;
+  last_error?: string | null;
+  error_message?: string | null;
+  updated_at?: string | null;
+};
+
+async function loadLatestOfficialEmailQueue(
+  admin: ReturnType<typeof createAdminClient>,
+  applicationId: string,
+  jobId?: string,
+): Promise<{ row: OfficialEmailQueueRow | null; readFailed: boolean }> {
+  let query = admin
+    .from("submission_queue")
+    .select("id,status,current_stage,locked_until,ceac_result_payload,last_error,error_message,updated_at")
+    .eq("application_id", applicationId)
+    .in("status", ["ds160_proof_pending", "ds160_proof_processing", "processing", "failed", "ds160_proof_failed", "done"])
+    .in("provider", ["ceac_proof"])
+    .order("updated_at", { ascending: false, nullsFirst: false })
+    .limit(jobId ? 20 : 50);
+  if (jobId) query = query.eq("id", jobId);
+  const { data, error } = await query;
+  if (error || !Array.isArray(data)) return { row: null, readFailed: true };
+  const rows = data as OfficialEmailQueueRow[];
+  return {
+    row: rows.find((row) => {
+      const payload = asRecord(row.ceac_result_payload);
+      return payload?.action === "official_ceac_email";
+    }) ?? null,
+    readFailed: false,
+  };
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function nestedRecord(value: unknown, key: string): Record<string, unknown> | null {
+  return asRecord(asRecord(value)?.[key]);
+}
+
+function stringValue(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function readOfficialEmailPayload(row: OfficialEmailQueueRow | null): {
+  status: Ds160ProofEmailStatus;
+  requestId?: string;
+  recipientSha256?: string;
+  errorCode?: string;
+  errorMessage?: string;
+} {
+  const payload = asRecord(row?.ceac_result_payload);
+  const email = nestedRecord(payload, "email");
+  return {
+    status: readDs160ProofEmailStatus(row),
+    requestId: stringValue(email?.request_id) ?? undefined,
+    recipientSha256: stringValue(email?.recipient_sha256) ?? undefined,
+    errorCode: stringValue(email?.code) ?? stringValue(payload?.error_code) ?? undefined,
+    errorMessage: stringValue(email?.error) ?? stringValue(row?.error_message) ?? stringValue(row?.last_error) ?? undefined,
+  };
+}
+
+function safeOfficialEmailError(status: "failed" | "unknown"): { code: string; error: string } {
+  return status === "unknown"
+    ? {
+        code: "ds160_proof_email_unknown",
+        error: "CEAC did not return a clear email receipt. Your application submission is unchanged; check your account email before retrying. A retry may send another email.",
+      }
+    : {
+        code: "ds160_proof_email_failed",
+        error: "CEAC did not send the official DS-160 confirmation email. Your application submission is unchanged; you can download the saved file or retry manually.",
+      };
+}
+
+function isUuid(value: unknown): value is string {
+  return typeof value === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(value);
+}
+
+function normalizedEmailHash(email: string): string {
+  return createHash("sha256").update(email.trim().toLowerCase(), "utf8").digest("hex");
+}
+
+function mapEmailQueueRow(value: unknown): OfficialEmailQueueRow | null {
+  const row = Array.isArray(value) ? value[0] : value;
+  const record = asRecord(row);
+  if (!record) return null;
+  return {
+    id: stringValue(record.id) ?? undefined,
+    status: stringValue(record.status) ?? undefined,
+    current_stage: stringValue(record.current_stage) ?? undefined,
+    locked_until: stringValue(record.locked_until),
+    ceac_result_payload: record.ceac_result_payload,
+    last_error: stringValue(record.last_error) ?? undefined,
+    error_message: stringValue(record.error_message) ?? undefined,
+    updated_at: stringValue(record.updated_at) ?? undefined,
+  };
 }
 
 function missingProofMessage(kind: Ds160ProofKind): string {
@@ -158,45 +228,6 @@ function missingProofMessage(kind: Ds160ProofKind): string {
     return "CEAC 当前没有返回可下载的 Print Application 官方 PDF。Print Confirmation 已保存，可直接下载或发送邮件。";
   }
   return "CEAC proof recovery completed, but the requested official PDF was not returned.";
-}
-
-async function sendProofEmail(input: {
-  admin: ReturnType<typeof createAdminClient>;
-  applicationId: string;
-  profile: ProfileRow;
-  result: Record<string, unknown>;
-  storagePath: string;
-  to: string;
-}): Promise<{ id: string }> {
-  const path = normalizeArtifactPath(input.storagePath);
-  if (!path || !path.split("/").includes(input.applicationId)) {
-    throw new Error("Invalid DS-160 proof artifact path.");
-  }
-  const { data: file, error } = await input.admin.storage.from(ARTIFACT_BUCKET).download(path);
-  if (error || !file) throw new Error(error?.message ?? "Could not download DS-160 proof PDF.");
-  const bytes = Buffer.from(await file.arrayBuffer());
-  const applicationLabel =
-    typeof input.result.applicationId === "string" ? input.result.applicationId : input.applicationId;
-  let sent: { id: string };
-  try {
-    sent = await sendEmail({
-      from: process.env.NOTIFY_FROM_EMAIL?.trim() || "VIZA <updates@viza.it.com>",
-      to: input.to,
-      subject: `DS-160 confirmation ${applicationLabel}`,
-      text:
-        `您好，\n\n您的 DS-160 确认证明已附在本邮件中。\n\nApplication ID: ${applicationLabel}\n\nVIZA`,
-      attachments: [
-        {
-          filename: fileNameForKind("email-confirmation", applicationLabel),
-          content: bytes.toString("base64"),
-          contentType: "application/pdf",
-        },
-      ],
-    });
-  } catch {
-    throw new ProofEmailDeliveryError();
-  }
-  return sent;
 }
 
 export async function GET(
@@ -211,6 +242,40 @@ export async function GET(
 
   const loaded = await loadOwnedApplication(applicationId);
   if (!loaded.ok) return loaded.response;
+  const searchParams = new URL(request.url).searchParams;
+  if (kind === "email-confirmation" && searchParams.get("action") === "email") {
+    const emailQueueResult = await loadLatestOfficialEmailQueue(
+      loaded.admin,
+      applicationId,
+      searchParams.get("jobId") ?? undefined,
+    );
+    if (emailQueueResult.readFailed) {
+      return NextResponse.json(
+        {
+          ok: false,
+          status: "unavailable",
+          code: "ds160_proof_email_unavailable",
+          error: "The official DS-160 confirmation email status is temporarily unavailable. Please refresh and try again.",
+        },
+        { status: 503, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+    const emailQueue = emailQueueResult.row;
+    const emailPayload = readOfficialEmailPayload(emailQueue);
+    const proofAction = resolveDs160ProofAction(applicationId, kind, loaded.application.submission_result);
+    const response: Record<string, unknown> = {
+      ok: true,
+      status: emailPayload.status,
+      jobId: emailQueue?.id ?? null,
+      currentStage: emailQueue?.current_stage ?? null,
+      recipient: loaded.authUserEmail,
+      ...(proofAction.status === "ready" ? { downloadUrl: proofAction.downloadUrl } : {}),
+    };
+    if (emailPayload.status === "failed" || emailPayload.status === "unknown") {
+      Object.assign(response, safeOfficialEmailError(emailPayload.status));
+    }
+    return NextResponse.json(response, { headers: { "Cache-Control": "no-store" } });
+  }
   const action = resolveDs160ProofAction(applicationId, kind, loaded.application.submission_result);
   if (action.status === "queued") {
     const proofQueue = await loadLatestProofQueue(loaded.admin, applicationId);
@@ -261,6 +326,76 @@ export async function POST(
   const loaded = await loadOwnedApplication(applicationId);
   if (!loaded.ok) return loaded.response;
 
+  if (kind === "email-confirmation" && requestedAction === "email") {
+    const rawBody = body as unknown as Record<string, unknown>;
+    if (
+      body.recipientMode !== "account" ||
+      rawBody.emailMode === "custom" ||
+      typeof rawBody.email === "string"
+    ) {
+      return NextResponse.json(ds160ProofEmailAccountOnlyResponse(), { status: 422 });
+    }
+    if (!isEmail(loaded.authUserEmail) || !isUuid(body.requestId)) {
+      return NextResponse.json(ds160ProofEmailRequestInvalidResponse(), { status: 422 });
+    }
+    const proofAction = resolveDs160ProofAction(applicationId, kind, loaded.application.submission_result);
+    if (proofAction.status === "unsupported") {
+      return NextResponse.json({ error: proofAction.reason }, { status: 400 });
+    }
+    if (isRunnerCutoverPaused()) {
+      return NextResponse.json(
+        {
+          error: "DS-160 proof recovery is temporarily paused for a controlled runner cutover.",
+          code: "runner_cutover_paused",
+        },
+        { status: 503 },
+      );
+    }
+
+    const { data: rpcData, error: rpcError } = await loaded.admin.rpc("enqueue_ds160_proof_email", {
+      p_application_id: applicationId,
+      p_auth_user_id: loaded.authUserId,
+      p_request_id: body.requestId,
+      p_recipient_sha256: normalizedEmailHash(loaded.authUserEmail),
+      p_retry: body.retry === true,
+    });
+    if (rpcError) {
+      console.error("[ds160-proof] official email enqueue failed", { code: rpcError.code ?? "rpc_error" });
+      return NextResponse.json(
+        { code: "ds160_proof_email_unavailable", error: "The official DS-160 confirmation email is temporarily unavailable. Please try again later." },
+        { status: 503 },
+      );
+    }
+
+    const emailQueue = mapEmailQueueRow(rpcData);
+    const emailPayload = readOfficialEmailPayload(emailQueue);
+    const response: Record<string, unknown> = {
+      ok: true,
+      status: emailPayload.status,
+      jobId: emailQueue?.id ?? null,
+      currentStage: emailQueue?.current_stage ?? null,
+      recipient: loaded.authUserEmail,
+      ...(proofAction.status === "ready" ? { downloadUrl: proofAction.downloadUrl } : {}),
+    };
+    if (emailPayload.status === "failed" || emailPayload.status === "unknown") {
+      Object.assign(response, safeOfficialEmailError(emailPayload.status));
+    }
+    if (emailPayload.status === "queued" && emailQueue?.id) {
+      const wake = await wakeCloudSubmissionWorker(emailQueue.id, { target: "legacy" });
+      if (!wake.ok) {
+        console.warn("[submission-queue] official DS-160 email wake failed; durable queue remains recoverable.", {
+          jobId: emailQueue.id,
+        });
+      }
+    }
+    const httpStatus = emailPayload.status === "failed" || emailPayload.status === "unknown"
+      ? 409
+      : emailPayload.status === "queued" || emailPayload.status === "sending"
+        ? 202
+        : 200;
+    return NextResponse.json(response, { status: httpStatus, headers: { "Cache-Control": "no-store" } });
+  }
+
   const proofAction = resolveDs160ProofAction(applicationId, kind, loaded.application.submission_result);
   if (proofAction.status === "unsupported") {
     return NextResponse.json({ error: proofAction.reason }, { status: 400 });
@@ -283,15 +418,21 @@ export async function POST(
       );
     }
     try {
-      const job = await enqueueProofJob(loaded.admin, applicationId);
-      const wake = await wakeCloudSubmissionWorker(job.jobId, { target: "legacy" });
+      const { data: rpcData, error: rpcError } = await loaded.admin.rpc("enqueue_ds160_proof_download", {
+        p_application_id: applicationId,
+        p_auth_user_id: loaded.authUserId,
+      });
+      if (rpcError) throw new Error("DS-160 proof recovery could not be queued.");
+      const row = mapEmailQueueRow(rpcData);
+      const jobId = row?.id ?? null;
+      const wake = await wakeCloudSubmissionWorker(jobId, { target: "legacy" });
       if (!wake.ok) {
         console.warn("[submission-queue] DS-160 proof queue wake failed; durable queue remains recoverable.", wake);
       }
       return NextResponse.json({
         ok: true,
         status: "queued",
-        jobId: job.jobId,
+        jobId,
         message: "正在从 CEAC 官方网站找回 DS-160 证明文件。",
       });
     } catch (error) {
@@ -306,44 +447,8 @@ export async function POST(
     return NextResponse.json({ ok: true, status: "ready", downloadUrl: proofAction.downloadUrl });
   }
 
-  const result = isRecord(loaded.application.submission_result) ? loaded.application.submission_result : {};
-  const emailMode = body.emailMode === "custom" ? "custom" : "account";
-  const recipient = emailMode === "custom"
-    ? (typeof body.email === "string" ? body.email.trim() : "")
-    : loaded.profile.email?.trim() ?? "";
-  if (!recipient || !isEmail(recipient)) {
-    return NextResponse.json({ error: "请输入有效的收件邮箱。" }, { status: 422 });
-  }
-
-  try {
-    const sent = await sendProofEmail({
-      admin: loaded.admin,
-      applicationId,
-      profile: loaded.profile,
-      result,
-      storagePath: proofAction.storagePath,
-      to: recipient,
-    });
-    return NextResponse.json({
-      ok: true,
-      status: "sent",
-      emailId: sent.id,
-      recipient,
-      message: "DS-160 证明文件已发送。",
-    });
-  } catch (error) {
-    console.error("[ds160-proof] email delivery failed", {
-      failure: error instanceof ProofEmailDeliveryError ? "provider_rejected" : "artifact_or_email_error",
-    });
-    if (!(error instanceof ProofEmailDeliveryError)) {
-      return NextResponse.json(
-        ds160ProofEmailUnavailableResponse(),
-        { status: 500 },
-      );
-    }
-    return NextResponse.json(
-      ds160ProofEmailFailureResponse(),
-      { status: 500 },
-    );
-  }
+  return NextResponse.json(
+    { error: "Unsupported DS-160 proof action." },
+    { status: 400 },
+  );
 }

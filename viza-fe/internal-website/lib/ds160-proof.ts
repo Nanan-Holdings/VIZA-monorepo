@@ -1,6 +1,56 @@
 export const DS160_PROOF_QUEUE_STATUS = "ds160_proof_pending" as const;
 export const DS160_PROOF_EMAIL_ERROR_CODE = "ds160_proof_email_failed" as const;
 export const DS160_PROOF_EMAIL_UNAVAILABLE_CODE = "ds160_proof_email_unavailable" as const;
+export const DS160_PROOF_EMAIL_UNKNOWN_CODE = "ds160_proof_email_unknown" as const;
+export const DS160_PROOF_EMAIL_ACCOUNT_ONLY_CODE = "ds160_proof_email_account_only" as const;
+export const DS160_PROOF_EMAIL_REQUEST_INVALID_CODE = "ds160_proof_email_request_invalid" as const;
+export const DS160_PROOF_EMAIL_PENDING_CODE = "ds160_proof_email_pending" as const;
+
+export type Ds160ProofEmailStatus = "idle" | "queued" | "sending" | "sent" | "unknown" | "failed";
+
+export type Ds160ProofEmailQueueState = {
+  status?: string;
+  current_stage?: string | null;
+  locked_until?: string | null;
+  ceac_result_payload?: unknown;
+};
+
+function recordOrNull(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+export function readDs160ProofEmailStatus(row: Ds160ProofEmailQueueState | null): Ds160ProofEmailStatus {
+  if (!row) return "idle";
+  const payload = recordOrNull(row.ceac_result_payload);
+  const email = recordOrNull(payload?.email);
+  const payloadStatus = email?.status;
+  const sendStarted = Boolean(stringOrNull(email?.send_started_at) ?? stringOrNull(payload?.send_started_at));
+  const isProcessing = row.status === "ds160_proof_processing" || row.status === "processing";
+  if (isProcessing) {
+    const leaseExpiry = stringOrNull(row.locked_until);
+    const leaseExpiresAt = leaseExpiry ? Date.parse(leaseExpiry) : Number.NaN;
+    const leaseActive = Number.isFinite(leaseExpiresAt) && leaseExpiresAt > Date.now();
+    if (!leaseActive) return sendStarted ? "unknown" : "failed";
+  }
+  if (row.status === "failed" || row.status === "ds160_proof_failed") {
+    return sendStarted ? "unknown" : "failed";
+  }
+  if (row.status === "done" && payloadStatus !== "sent") return "unknown";
+  if (isProcessing && payloadStatus === "queued") return "sending";
+  if (
+    payloadStatus === "queued" || payloadStatus === "sending" || payloadStatus === "sent" ||
+    payloadStatus === "unknown" || payloadStatus === "failed"
+  ) {
+    if (payloadStatus === "failed" && sendStarted) return "unknown";
+    return payloadStatus;
+  }
+  if (row.current_stage === "email_confirmation_sending") return "sending";
+  if (row.current_stage === "email_confirmation_unknown") return "unknown";
+  if (row.current_stage === "email_confirmation_failed") return "failed";
+  return "queued";
+}
 
 export function ds160ProofEmailFailureResponse(): {
   code: typeof DS160_PROOF_EMAIL_ERROR_CODE;
@@ -20,6 +70,37 @@ export function ds160ProofEmailUnavailableResponse(): {
   return {
     code: DS160_PROOF_EMAIL_UNAVAILABLE_CODE,
     error: "The DS-160 proof email could not be sent. Please try again later.",
+  };
+}
+
+export function ds160ProofEmailUnknownResponse(): {
+  code: typeof DS160_PROOF_EMAIL_UNKNOWN_CODE;
+  error: string;
+} {
+  return {
+    code: DS160_PROOF_EMAIL_UNKNOWN_CODE,
+    error:
+      "CEAC did not return a clear email receipt. The application submission is unchanged; you can check your account email and retry manually, but a retry may send another email.",
+  };
+}
+
+export function ds160ProofEmailAccountOnlyResponse(): {
+  code: typeof DS160_PROOF_EMAIL_ACCOUNT_ONLY_CODE;
+  error: string;
+} {
+  return {
+    code: DS160_PROOF_EMAIL_ACCOUNT_ONLY_CODE,
+    error: "Official DS-160 confirmation email can only be sent to the signed-in account email.",
+  };
+}
+
+export function ds160ProofEmailRequestInvalidResponse(): {
+  code: typeof DS160_PROOF_EMAIL_REQUEST_INVALID_CODE;
+  error: string;
+} {
+  return {
+    code: DS160_PROOF_EMAIL_REQUEST_INVALID_CODE,
+    error: "The DS-160 confirmation email request is invalid. Please try again.",
   };
 }
 

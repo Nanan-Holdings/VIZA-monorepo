@@ -42,6 +42,13 @@ persistence-only while preserving saved answers and aliases.
 backend 0205 and aligns the three conditional DS-160 explanation fields to the
 observed CEAC textarea controls. It changes form metadata only.
 
+`supabase/migrations/20260929000000_ds160_official_email_queue.sql` mirrors
+backend 0206 byte-for-byte. It installs the service-role-only DS-160 official
+confirmation-email enqueue, exact-owner start, one-shot send reservation, and
+post-cleanup settlement RPCs, plus the application-mutex download enqueue
+guard. Keep the recipient digest in queue metadata and preserve the send
+reservation as the no-replay fence.
+
 `lib/ds160-official-options.snapshot.json` contains public CEAC dropdown values
 observed on 2026-09-21. `lib/ds160-official-options.ts` keeps birthplaces,
 nationalities, other nationalities, family nationalities, passport issuers,

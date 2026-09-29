@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -23,6 +23,8 @@ import { Button } from "@/components/ui/button";
 import type { UsSubmissionResult } from "@/lib/submission-result";
 import {
   DS160_PROOF_EMAIL_ERROR_CODE,
+  DS160_PROOF_EMAIL_PENDING_CODE,
+  DS160_PROOF_EMAIL_UNKNOWN_CODE,
   DS160_PROOF_EMAIL_UNAVAILABLE_CODE,
   type Ds160ProofKind,
 } from "@/lib/ds160-proof";
@@ -105,12 +107,15 @@ type ProofBusyState = Partial<Record<Ds160ProofKind, boolean>>;
 
 type ProofActionResponse = {
   ok?: boolean;
-  status?: "ready" | "queued" | "sent" | "unsupported" | "failed";
+  status?: "idle" | "ready" | "queued" | "sending" | "sent" | "unknown" | "unsupported" | "failed";
   code?: string;
+  jobId?: string | null;
+  currentStage?: string | null;
   downloadUrl?: string;
   recipient?: string;
   message?: string;
   error?: string;
+  retryable?: boolean;
 };
 
 type ProofErrorState = {
@@ -130,6 +135,23 @@ function readProofErrorCode(error: unknown): string | undefined {
   return typeof code === "string" ? code : undefined;
 }
 
+function createEmailRequestId(): string {
+  if (typeof globalThis.crypto?.randomUUID === "function") {
+    return globalThis.crypto.randomUUID();
+  }
+  const bytes = new Uint8Array(16);
+  globalThis.crypto?.getRandomValues?.(bytes);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+type ProofRequestOptions = {
+  requestId?: string;
+  retry?: boolean;
+};
+
 export function UsResultCard({
   applicationId,
   result,
@@ -139,6 +161,8 @@ export function UsResultCard({
 }) {
   const router = useRouter();
   const t = useTranslations("usAppointment.ds160Card");
+  const tRef = useRef(t);
+  tRef.current = t;
   const nextT = useTranslations("usAppointment.nextStepCard");
   const securityAnswer = result.securityAnswer && result.securityAnswer !== "[REDACTED]"
     ? result.securityAnswer
@@ -150,9 +174,110 @@ export function UsResultCard({
   const [proofMessage, setProofMessage] = useState<string | null>(null);
   const [proofError, setProofError] = useState<ProofErrorState | null>(null);
   const [emailPanelOpen, setEmailPanelOpen] = useState(false);
-  const [customEmail, setCustomEmail] = useState("");
+  const [emailRetryAvailable, setEmailRetryAvailable] = useState(false);
+  const [emailStatusUnavailable, setEmailStatusUnavailable] = useState(false);
   const emailPanelId = `ds160-email-panel-${useId()}`;
-  const customEmailInputId = `ds160-custom-email-${useId()}`;
+  const emailRequestSequence = useRef(0);
+
+  useEffect(() => {
+    if (!applicationId || !submitted) return;
+    let active = true;
+    const requestSequence = emailRequestSequence.current;
+    const loadEmailState = async () => {
+      try {
+        let jobId: string | null = null;
+        for (let attempt = 0; attempt < 100; attempt += 1) {
+          if (!active || requestSequence !== emailRequestSequence.current) return;
+          const query = new URLSearchParams({ kind: "email-confirmation", action: "email" });
+          if (jobId) query.set("jobId", jobId);
+          const response = await fetch(`/api/applications/${applicationId}/ds160-proof?${query.toString()}`, {
+            cache: "no-store",
+          });
+          const payload = (await response.json().catch(() => null)) as ProofActionResponse | null;
+          if (!active || requestSequence !== emailRequestSequence.current) return;
+          if (!response.ok) {
+            setProofBusy((prev) => ({ ...prev, "email-confirmation": false }));
+            setProofMessage(null);
+            setEmailRetryAvailable(false);
+            setEmailStatusUnavailable(true);
+            setEmailPanelOpen(true);
+            setProofError({
+              code: payload?.code ?? DS160_PROOF_EMAIL_UNAVAILABLE_CODE,
+              message: payload?.error ?? tRef.current("proofEmailUnavailableBody"),
+            });
+            return;
+          }
+          setEmailStatusUnavailable(false);
+          if (!payload) {
+            setProofBusy((prev) => ({ ...prev, "email-confirmation": false }));
+            setProofMessage(null);
+            setEmailRetryAvailable(false);
+            setEmailPanelOpen(true);
+            setProofError({
+              code: DS160_PROOF_EMAIL_UNAVAILABLE_CODE,
+              message: tRef.current("proofEmailUnavailableBody"),
+            });
+            return;
+          }
+          jobId = payload.jobId ?? jobId;
+          if (payload.status === "sent") {
+            setProofBusy((prev) => ({ ...prev, "email-confirmation": false }));
+            setProofError(null);
+            setEmailRetryAvailable(false);
+            setProofMessage(tRef.current("proofEmailSent", { email: payload.recipient ?? "" }));
+            return;
+          }
+          if (payload.status === "queued" || payload.status === "sending") {
+            setEmailPanelOpen(true);
+            setProofBusy((prev) => ({ ...prev, "email-confirmation": true }));
+            setProofError(null);
+            setEmailRetryAvailable(false);
+            setProofMessage(tRef.current("proofEmailSending"));
+            if (attempt < 99) await new Promise((resolve) => setTimeout(resolve, 3000));
+            continue;
+          }
+          setProofBusy((prev) => ({ ...prev, "email-confirmation": false }));
+          if (payload.status === "failed" || payload.status === "unknown") {
+            setEmailPanelOpen(true);
+            setProofError({
+              code: payload.code,
+              message: payload.error ?? tRef.current("proofFailed"),
+            });
+            setEmailRetryAvailable(true);
+          }
+          return;
+        }
+        if (active && requestSequence === emailRequestSequence.current) {
+          setProofBusy((prev) => ({ ...prev, "email-confirmation": false }));
+          setProofMessage(null);
+          setProofError({
+            code: DS160_PROOF_EMAIL_PENDING_CODE,
+            message: tRef.current("proofEmailStillProcessingBody"),
+          });
+          setEmailRetryAvailable(false);
+        }
+      } catch {
+        if (!active || requestSequence !== emailRequestSequence.current) return;
+        setProofBusy((prev) => ({ ...prev, "email-confirmation": false }));
+        setProofMessage(null);
+        setEmailRetryAvailable(false);
+        setEmailStatusUnavailable(true);
+        setEmailPanelOpen(true);
+        setProofError({
+          code: DS160_PROOF_EMAIL_UNAVAILABLE_CODE,
+          message: tRef.current("proofEmailUnavailableBody"),
+        });
+      }
+    };
+    void loadEmailState();
+    return () => {
+      active = false;
+    };
+  }, [applicationId, submitted]);
+
+  useEffect(() => () => {
+    emailRequestSequence.current += 1;
+  }, []);
 
   const startNewApplication = async () => {
     if (!applicationId || startingNewApplication) return;
@@ -207,60 +332,88 @@ export function UsResultCard({
   const requestProof = async (
     kind: Ds160ProofKind,
     action: "download" | "email",
-    emailMode?: "account" | "custom",
+    options?: ProofRequestOptions,
   ) => {
     if (!applicationId || proofBusy[kind]) return;
+    const emailOptions = action === "email"
+      ? {
+          requestId: options?.requestId ?? createEmailRequestId(),
+          retry: options?.retry === true,
+        }
+      : undefined;
+    const requestSequence = action === "email" ? ++emailRequestSequence.current : emailRequestSequence.current;
     setProofBusy((prev) => ({ ...prev, [kind]: true }));
     setProofError(null);
+    if (action === "email") setEmailRetryAvailable(false);
     setProofMessage(t("proofPreparing"));
     try {
-      const payload = await postProofAction(kind, action, emailMode);
+      const payload = await postProofAction(kind, action, emailOptions);
       if (payload.status === "ready" && payload.downloadUrl) {
         triggerProofDownload(payload.downloadUrl);
         setProofMessage(t("proofReady"));
         return;
       }
+      if (action === "email" && requestSequence !== emailRequestSequence.current) return;
       if (payload.status === "sent") {
         setProofMessage(t("proofEmailSent", { email: payload.recipient ?? "" }));
         return;
       }
-      if (payload.status === "queued") {
-        setProofMessage(t("proofQueued"));
-        const ready = await waitForProofReady(kind);
-        if (action === "download") {
-          if (!ready.downloadUrl) throw new Error(t("proofFailed"));
+      if (payload.status === "queued" || payload.status === "sending") {
+        if (action === "email") {
+          setProofMessage(t("proofEmailSending"));
+          const sent = await waitForOfficialEmailStatus(payload.jobId ?? null, requestSequence);
+          if (requestSequence !== emailRequestSequence.current) return;
+          setProofMessage(t("proofEmailSent", { email: sent.recipient ?? payload.recipient ?? "" }));
+        } else {
+          setProofMessage(t("proofQueued"));
+          const ready = await waitForProofReady(kind);
+          if (!ready.downloadUrl) throw createProofRequestError(t("proofFailed"));
           triggerProofDownload(ready.downloadUrl);
           setProofMessage(t("proofReady"));
-        } else {
-          const sent = await postProofAction(kind, "email", emailMode);
-          setProofMessage(t("proofEmailSent", { email: sent.recipient ?? "" }));
         }
+      } else if (payload.status === "unknown" || payload.status === "failed") {
+        throw createProofRequestError(payload.error ?? t("proofFailed"), payload.code);
+      } else {
+        throw createProofRequestError(t("proofFailed"), payload.code);
       }
     } catch (error) {
+      if (action === "email" && requestSequence !== emailRequestSequence.current) return;
       setProofMessage(null);
       setProofError({
         code: readProofErrorCode(error),
         message: error instanceof Error ? error.message : String(error),
       });
+      const errorCode = readProofErrorCode(error);
+      if (
+        action === "email" &&
+        (errorCode === DS160_PROOF_EMAIL_ERROR_CODE ||
+          errorCode === DS160_PROOF_EMAIL_UNKNOWN_CODE ||
+          errorCode === DS160_PROOF_EMAIL_UNAVAILABLE_CODE)
+      ) {
+        setEmailRetryAvailable(true);
+      }
     } finally {
-      setProofBusy((prev) => ({ ...prev, [kind]: false }));
+      if (action !== "email" || requestSequence === emailRequestSequence.current) {
+        setProofBusy((prev) => ({ ...prev, [kind]: false }));
+      }
     }
   };
 
   const postProofAction = async (
     kind: Ds160ProofKind,
     action: "download" | "email",
-    emailMode?: "account" | "custom",
+    options?: ProofRequestOptions,
   ): Promise<ProofActionResponse> => {
+    const body: Record<string, unknown> = { kind, action };
+    if (kind === "email-confirmation" && action === "email") {
+      body.recipientMode = "account";
+      body.requestId = options?.requestId ?? createEmailRequestId();
+      body.retry = options?.retry === true;
+    }
     const response = await fetch(`/api/applications/${applicationId}/ds160-proof`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        kind,
-        action,
-        emailMode,
-        email: emailMode === "custom" ? customEmail : undefined,
-      }),
+      body: JSON.stringify(body),
     });
     const payload = (await response.json().catch(() => null)) as ProofActionResponse | null;
     if (!response.ok) {
@@ -294,6 +447,45 @@ export function UsResultCard({
       }
     }
     throw new Error(t("proofTimeout"));
+  };
+
+  const waitForOfficialEmailStatus = async (
+    jobId: string | null,
+    requestSequence: number,
+  ): Promise<ProofActionResponse> => {
+    if (!jobId) throw createProofRequestError(t("proofFailed"));
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      if (requestSequence !== emailRequestSequence.current) {
+        throw createProofRequestError(t("proofEmailStillProcessingBody"), DS160_PROOF_EMAIL_PENDING_CODE);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      const query = new URLSearchParams({
+        kind: "email-confirmation",
+        action: "email",
+        jobId,
+      });
+      const response = await fetch(`/api/applications/${applicationId}/ds160-proof?${query.toString()}`, {
+        cache: "no-store",
+      });
+      const payload = (await response.json().catch(() => null)) as ProofActionResponse | null;
+      if (!response.ok && payload?.status !== "failed" && payload?.status !== "unknown") {
+        throw createProofRequestError(
+          payload?.error ?? `${t("proofFailed")} (${response.status})`,
+          payload?.code,
+        );
+      }
+      if (payload?.status === "sent") return payload;
+      if (payload?.status === "failed" || payload?.status === "unknown") {
+        throw createProofRequestError(
+          payload.error ?? t(payload.status === "unknown" ? "proofEmailUnknownBody" : "proofEmailFailedBody"),
+          payload.code ?? (payload.status === "unknown" ? DS160_PROOF_EMAIL_UNKNOWN_CODE : DS160_PROOF_EMAIL_ERROR_CODE),
+        );
+      }
+      if (payload?.status !== "queued" && payload?.status !== "sending") {
+        throw createProofRequestError(t("proofFailed"), payload?.code);
+      }
+    }
+    throw createProofRequestError(t("proofEmailStillProcessingBody"), DS160_PROOF_EMAIL_PENDING_CODE);
   };
 
   return (
@@ -345,34 +537,17 @@ export function UsResultCard({
             </div>
             {emailPanelOpen && (
               <div id={emailPanelId} className="mt-3 rounded-md border border-input bg-muted/30 p-3">
-                <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto]">
-                  <label htmlFor={customEmailInputId} className="sr-only">
-                    {t("customEmailLabel")}
-                  </label>
-                  <input
-                    id={customEmailInputId}
-                    type="email"
-                    className="min-h-10 rounded-md border border-input bg-background px-3 text-sm outline-none"
-                    placeholder={t("customEmailPlaceholder")}
-                    value={customEmail}
-                    onChange={(event) => setCustomEmail(event.target.value)}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => void requestProof("email-confirmation", "email", "account")}
-                    disabled={Boolean(proofBusy["email-confirmation"])}
-                  >
-                    {t("sendToAccountEmail")}
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={() => void requestProof("email-confirmation", "email", "custom")}
-                    disabled={Boolean(proofBusy["email-confirmation"])}
-                  >
-                    {t("sendToCustomEmail")}
-                  </Button>
-                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => void requestProof("email-confirmation", "email", {
+                    requestId: createEmailRequestId(),
+                    retry: emailRetryAvailable,
+                  })}
+                  disabled={Boolean(proofBusy["email-confirmation"]) || emailStatusUnavailable}
+                >
+                  {emailRetryAvailable ? t("retryEmail") : t("sendToAccountEmail")}
+                </Button>
               </div>
             )}
             {proofMessage && (
@@ -384,18 +559,40 @@ export function UsResultCard({
                 <AlertTitle>
                   {proofError.code === DS160_PROOF_EMAIL_ERROR_CODE
                     ? t("proofEmailFailed")
-                    : proofError.code === DS160_PROOF_EMAIL_UNAVAILABLE_CODE
-                      ? t("proofEmailUnavailable")
+                    : proofError.code === DS160_PROOF_EMAIL_UNKNOWN_CODE
+                      ? t("proofEmailUnknown")
+                      : proofError.code === DS160_PROOF_EMAIL_PENDING_CODE
+                        ? t("proofEmailSending")
+                      : proofError.code === DS160_PROOF_EMAIL_UNAVAILABLE_CODE
+                        ? t("proofEmailUnavailable")
                     : t("proofFailed")}
                 </AlertTitle>
                 <AlertDescription>
                   <p>
                     {proofError.code === DS160_PROOF_EMAIL_ERROR_CODE
                       ? t("proofEmailFailedBody")
-                      : proofError.code === DS160_PROOF_EMAIL_UNAVAILABLE_CODE
-                        ? t("proofEmailUnavailableBody")
+                      : proofError.code === DS160_PROOF_EMAIL_UNKNOWN_CODE
+                        ? t("proofEmailUnknownBody")
+                        : proofError.code === DS160_PROOF_EMAIL_PENDING_CODE
+                          ? t("proofEmailStillProcessingBody")
+                        : proofError.code === DS160_PROOF_EMAIL_UNAVAILABLE_CODE
+                          ? t("proofEmailUnavailableBody")
                         : proofError.message}
                   </p>
+                  {emailRetryAvailable && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="mt-3"
+                      onClick={() => void requestProof("email-confirmation", "email", {
+                        requestId: createEmailRequestId(),
+                        retry: true,
+                      })}
+                      disabled={Boolean(proofBusy["email-confirmation"])}
+                    >
+                      {t("retryEmail")}
+                    </Button>
+                  )}
                 </AlertDescription>
               </Alert>
             )}
