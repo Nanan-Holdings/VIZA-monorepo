@@ -293,9 +293,8 @@ async function runTransition(
       },
     );
   }
-  const navButtonId = (await navButton.getAttribute("id")) ?? "";
-  const navButtonName = (await navButton.getAttribute("name")) ?? "";
-  const navButtonValue = (await navButton.getAttribute("value")) ?? "";
+  const [navButtonId, navButtonName, navButtonValue] = await navButton.evaluate(node =>
+    ["id", "name", "value"].map(attribute => node.getAttribute(attribute) ?? ""));
 
   // Click + wait for either the destination identity or a ValidationSummary
   // to appear. `Promise.race` is not quite right here because we want to
@@ -720,22 +719,17 @@ async function findVisiblePageCompletePrompt(page: Page): Promise<Locator | null
   // both mean continue with the requested navigation; they are the required
   // second click, not the page's primary Next button.
 
-  const candidates = page.locator(CEAC_NAV_SELECTORS.continueAfterPageComplete);
-  const count = await candidates.count();
-  for (let index = 0; index < count; index += 1) {
-    const candidate = candidates.nth(index);
-    if (!(await candidate.isVisible().catch(() => false))) continue;
-    const label = (
-      (await candidate.getAttribute("value").catch(() => null)) ??
-      (await candidate.textContent().catch(() => null)) ??
-      ""
-    ).trim();
+  const candidates = page.locator(CEAC_NAV_SELECTORS.continueAfterPageComplete).filter({ visible: true });
+  const labels = await candidates.evaluateAll(nodes => nodes.map(node =>
+    (node.getAttribute("value") ?? node.textContent ?? "").trim()));
+  for (let index = 0; index < labels.length; index += 1) {
+    const label = labels[index];
     // Keep the candidate list tolerant of CEAC's markup variants, but only
     // click the explicit continuation action.  In particular, never treat a
     // visible review/return button or an unrelated element with a similar id
     // as the answer to this prompt.
     if (!/(?:continue form|save and continue)/i.test(label)) continue;
-    return candidate;
+    return candidates.nth(index);
   }
   return null;
 }
@@ -932,17 +926,11 @@ function navSelectorFor(action: CeacNavAction): string {
 }
 
 async function collectVisibleTexts(locator: Locator): Promise<string[]> {
-  const count = await locator.count();
-  const out: string[] = [];
-  for (let i = 0; i < count; i += 1) {
-    const node = locator.nth(i);
-    // Invisible validators are spans with `display: none` until triggered;
-    // `isVisible` filters those out without a `getComputedStyle` round-trip.
-    if (!(await node.isVisible())) continue;
-    const text = (await node.textContent())?.trim() ?? "";
-    if (text.length > 0) out.push(text);
-  }
-  return out;
+  // CEAC leaves many hidden validators in every form. Filtering in the
+  // browser retains Playwright visibility semantics without one remote
+  // isVisible command for each inactive validator on every navigation poll.
+  return locator.filter({ visible: true }).evaluateAll(nodes => nodes
+    .map(node => (node.textContent ?? "").trim()).filter(text => text.length > 0));
 }
 
 function dedupe(values: string[]): string[] {

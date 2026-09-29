@@ -1,7 +1,25 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { chromium } from "@playwright/test";
-import { advance } from "../navigator";
+import { advance, readValidationMessages } from "../navigator";
+
+test("batched validators retain visible errors and observe later visibility changes", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`<div id="ValidationSummary1" hidden>Hidden summary</div>
+      ${Array.from({ length: 80 }, (_, index) => `<span id="RequiredFieldValidator${index}" hidden>Hidden ${index}</span>`).join("")}
+      <div role="alert"> Visible summary </div>
+      <span id="CustomValidatorVisible"> Visible field </span>
+      <span class="field-validation-error" style="visibility:hidden">Invisible field</span>`);
+    assert.deepEqual(await readValidationMessages(page), {
+      summary: ["Visible summary"], fieldErrors: ["Visible field"], all: ["Visible summary", "Visible field"],
+    });
+    await page.locator("#RequiredFieldValidator17").evaluate(node => node.removeAttribute("hidden"));
+    const next = await readValidationMessages(page);
+    assert.deepEqual(next.fieldErrors, ["Hidden 17", "Visible field"]);
+  } finally { await browser.close(); }
+});
 
 const PERSONAL_1_URL =
   "https://ceac.state.gov/GenNIV/General/complete/complete_personal.aspx?node=Personal1";

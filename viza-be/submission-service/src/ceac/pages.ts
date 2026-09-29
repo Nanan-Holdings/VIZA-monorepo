@@ -169,9 +169,14 @@ export async function isOfficialDs160ConfirmationPage(
   page: Page,
   expectedApplicationId?: string | null,
 ): Promise<boolean> {
-  for (const selector of CONFIRMATION_CONTROL_GROUPS) {
-    if (!(await hasVisibleLocator(page, selector))) return false;
-  }
+  // The three control groups are independent. Probe them in one batch so a
+  // cross-region Playwright connection pays one scheduling round trip instead
+  // of three sequential visibility probes. The helper retains Playwright's
+  // own visible-filter semantics.
+  const controlsPresent = await Promise.all(
+    CONFIRMATION_CONTROL_GROUPS.map((selector) => hasVisibleLocator(page, selector)),
+  );
+  if (controlsPresent.some((present) => !present)) return false;
 
   const applicationId = await readApplicationId(page);
   if (!applicationId) return false;
@@ -196,28 +201,17 @@ export async function detectPage(
   // Using the locator API (instead of `page.evaluate`) keeps this file free
   // of DOM lib dependencies in tsconfig.
   const headingLocator = page.locator(CEAC_HEADING_SELECTOR);
-  const headingCount = await headingLocator.count();
-  let heading: string | null = null;
-  for (let i = 0; i < headingCount; i += 1) {
-    const text = (await headingLocator.nth(i).textContent())?.trim() ?? "";
-    if (text.length > 0) {
-      heading = text;
-      break;
-    }
-  }
+  // allTextContents preserves DOM order and the old textContent semantics,
+  // while reducing count + N per-node reads to one browser-side operation.
+  const [headingTexts, bodyText] = await Promise.all([
+    headingLocator.allTextContents(),
+    page.locator("body").innerText({ timeout: 2_000 }).catch(() => ""),
+  ]);
+  const heading = headingTexts.map((text) => text.trim()).find((text) => text.length > 0) ?? null;
 
   // Session-expired detection takes precedence: CEAC sometimes preserves the
   // old heading but stamps an expiry banner onto the page. `innerText()` on
   // the body returns visible text only, which is what we need for markers.
-  let bodyText = "";
-  try {
-    bodyText = await page.locator("body").innerText({ timeout: 2_000 });
-  } catch {
-    // If the body is not yet attached (e.g. navigation mid-flight), treat
-    // the page as unknown rather than throwing — the caller will retry via
-    // `waitForPage` if appropriate.
-  }
-
   if (CEAC_SESSION_EXPIRED_MARKERS.some((re) => re.test(bodyText))) {
     return { id: "session_expired", heading, url };
   }
@@ -278,11 +272,9 @@ export async function detectPage(
 
 async function hasVisibleLocator(page: Page, selector: string): Promise<boolean> {
   try {
-    const locator = page.locator(selector);
-    const count = await locator.count();
-    for (let i = 0; i < count; i += 1) {
-      if (await locator.nth(i).isVisible().catch(() => false)) return true;
-    }
+    // Filter visibility in Playwright so matching nodes are checked in the
+    // browser rather than through one isVisible RPC per node.
+    return (await page.locator(selector).filter({ visible: true }).count()) > 0;
   } catch {
     // A partially-loaded document is not a verified confirmation surface.
   }
@@ -290,17 +282,20 @@ async function hasVisibleLocator(page: Page, selector: string): Promise<boolean>
 }
 
 async function readApplicationId(page: Page): Promise<string | null> {
-  for (const selector of CEAC_APPLICATION_ID_SELECTORS) {
+  // Read each selector's text in parallel, then inspect results in the
+  // original selector/DOM order. This preserves precedence while avoiding
+  // count + per-node textContent round trips.
+  const selectorTexts = await Promise.all(CEAC_APPLICATION_ID_SELECTORS.map(async (selector) => {
     try {
-      const locator = page.locator(selector);
-      const count = await locator.count();
-      for (let i = 0; i < count; i += 1) {
-        const text = (await locator.nth(i).textContent()) ?? "";
-        const match = text.match(CEAC_APPLICATION_ID_PATTERN);
-        if (match) return match[0].toUpperCase();
-      }
+      return await page.locator(selector).allTextContents();
     } catch {
-      // Continue to the next known selector or body scan.
+      return [];
+    }
+  }));
+  for (const texts of selectorTexts) {
+    for (const text of texts) {
+      const match = text.match(CEAC_APPLICATION_ID_PATTERN);
+      if (match) return match[0].toUpperCase();
     }
   }
 

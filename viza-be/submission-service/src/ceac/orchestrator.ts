@@ -95,6 +95,7 @@ import {
   observeDs160Control,
   type Ds160ControlObservation,
 } from "./ds160-field-fill";
+import { snapshotDs160Fields } from "./field-snapshot";
 import { captureOfficialReviewPage, verifyOfficialReview, type ReviewExpectation, type ReviewSnapshot } from "./review-verification";
 import { applyExplicitPreparerAnswer, fillVerifiedPassportSignature, type Ds160PreparerAnswers } from "./signature-fields";
 import { reconnectVerifiedCeacPage, RECOVERABLE_DS160_PAGE_IDS } from "./recovered-application";
@@ -744,6 +745,7 @@ export async function orchestrateFill(
         }
         const fillStartedAt = Date.now();
         const fillStats = { compared: 0, unchanged: 0, writeAttempts: 0 };
+        const phaseMs = { fields: 0, repeats: 0, readback: 0 };
         const observeStats = (stats: Ds160FillStats): void => {
           fillStats.compared += stats.compared;
           fillStats.unchanged += stats.unchanged;
@@ -751,6 +753,8 @@ export async function orchestrateFill(
         };
         try {
           await fillPageFields(page, nonRepeatMappings, answers, profile, { requireMappedAnswers: true, observeStats });
+          phaseMs.fields = Date.now() - fillStartedAt;
+          const repeatStartedAt = Date.now();
           await fillDs160RepeatGroups({
           page, pageId: currentPageId, answers: ds160RepeatAnswers(branch.values, answers), mappings,
           fillRow: async row => fillPageFields(page, row.mappings, row.answers, {}, {
@@ -760,7 +764,10 @@ export async function orchestrateFill(
             requireMappedAnswers: true, observeVerified,
           }),
           });
+          phaseMs.repeats = Date.now() - repeatStartedAt;
+          const readbackStartedAt = Date.now();
           await verifyPageFieldValues(page, nonRepeatMappings, answers, profile, { requireMappedAnswers: true, observeVerified });
+          phaseMs.readback = Date.now() - readbackStartedAt;
         } catch (fillError) {
           options.assertActive?.();
           if (currentPageId !== "unknown" && options.recoveryCredentials && resumeAttempts < maxResumeAttempts &&
@@ -774,7 +781,7 @@ export async function orchestrateFill(
         if (currentPageId === "family_relatives") {
           await assertFamilyUnknownParentBranches(page, branch.values);
         }
-        console.log(`[orchestrator] Page verified: ${currentPageId}; elapsedMs=${Date.now() - fillStartedAt}; compared=${fillStats.compared}; unchanged=${fillStats.unchanged}; writeAttempts=${fillStats.writeAttempts}`);
+        console.log(`[orchestrator] Page verified: ${currentPageId}; elapsedMs=${Date.now() - fillStartedAt}; compared=${fillStats.compared}; unchanged=${fillStats.unchanged}; writeAttempts=${fillStats.writeAttempts}; fieldsMs=${phaseMs.fields}; repeatsMs=${phaseMs.repeats}; readbackMs=${phaseMs.readback}`);
         sectionsFilled.push(currentPageId);
       } else {
         if (ageGatedWorkPage || branchGatedUsContactPage) {
@@ -1301,6 +1308,34 @@ export interface FillPageFieldsOptions {
   observeStats?: (stats: Ds160FillStats) => void;
 }
 
+/** A successful batch replaces reads only. Any uncertainty keeps the old path. */
+async function readMatchingPageSnapshot(
+  scope: Page | Locator,
+  mappings: Record<string, FormFieldMapping>,
+  answers: Record<string, string>,
+  profile: Record<string, unknown>,
+  choicesOnly = false,
+): Promise<Array<Omit<ReviewExpectation, "section">> | null> {
+  const page = "mainFrame" in scope ? scope : scope.page();
+  assertCeacPostbackHealthy(page);
+  const snapshot = await snapshotDs160Fields(scope, mappings, answers, profile, { choicesOnly });
+  assertCeacPostbackHealthy(page);
+  if (!snapshot.usedBatchedEvaluation || !snapshot.complete) return null;
+  const verified: Array<Omit<ReviewExpectation, "section">> = [];
+  for (const fieldName of snapshot.requestedFieldNames) {
+    const field = snapshot.fields[fieldName];
+    const observed = field.observation;
+    const value = answers[fieldName] ?? (profile[fieldName] as string | undefined);
+    if (field.status !== "verified" || !field.sawEligible || field.ambiguous ||
+      !observed?.canSkipWrite || !observed.controlId ||
+      ((field.type === "text" || field.type === "date") && observed.maxLength >= 0 &&
+        value !== undefined && value.length > observed.maxLength)) return null;
+    verified.push({ fieldName, controlId: observed.controlId, value: observed.displayValue,
+      ...(value === "" ? { allowEmptyValue: true } : {}) });
+  }
+  return verified;
+}
+
 export async function fillPageFields(
   page: Page,
   mappings: Record<string, FormFieldMapping>,
@@ -1315,6 +1350,15 @@ export async function fillPageFields(
   let scope = options.scope ?? page;
   mappings = Object.fromEntries(Object.entries(mappings).filter(([key]) =>
     options.isFieldActive?.(key) !== false));
+  const hasRequestedAnswer = Object.entries(mappings).some(([key, mapping]) => {
+    const value = answers[key] ?? (profile[key] as string | undefined) ?? null;
+    return value !== null && (value !== "" || (answers[key] === "" &&
+      (mapping.type === "text" || mapping.type === "date")));
+  });
+  if (!hasRequestedAnswer) {
+    options.observeStats?.(stats);
+    return;
+  }
 
   // Warm-up wait: CEAC sections rendered inside an ASP.NET FormView
   // (e.g. passport) sometimes take an extra postback cycle to bind their
@@ -1343,6 +1387,21 @@ export async function fillPageFields(
     // Give CEAC's MSAJAX one more tick to finish binding any companion
     // controls (e.g. date dropdowns siblings of a parent select).
     await waitForAspNetPostback(page, 3_000);
+  }
+
+  // A recovered page often already contains every requested value. Read it
+  // atomically once instead of making several cross-region calls per field.
+  // A single mismatch/unsupported selector falls through to the existing
+  // sequential filler, including NA clearing and controller settlement.
+  if (options.resolveScope) scope = await options.resolveScope();
+  const unchangedPage = await readMatchingPageSnapshot(scope, mappings, answers, profile);
+  if (unchangedPage !== null) {
+    if (options.resolveScope) await options.resolveScope();
+    assertCeacPostbackHealthy(page);
+    stats.compared = unchangedPage.length;
+    stats.unchanged = unchangedPage.length;
+    options.observeStats?.(stats);
+    return;
   }
 
   for (const [fieldName, mapping] of Object.entries(mappings)) {
@@ -1492,6 +1551,13 @@ export async function verifyPageFieldValues(
   } = {},
 ): Promise<void> {
   const activePage = "mainFrame" in page ? page : page.page();
+  // This is a new snapshot after the last write/repeat postback. Never reuse
+  // the pre-fill snapshot: a later controller can replace an earlier field.
+  const matching = await readMatchingPageSnapshot(page, mappings, answers, profile, options.choicesOnly);
+  if (matching !== null) {
+    for (const field of matching) options.observeVerified?.(field);
+    return;
+  }
   for (const [fieldName, mapping] of Object.entries(mappings)) {
     assertCeacPostbackHealthy(activePage);
     if (options.choicesOnly && mapping.type !== "checkbox" && mapping.type !== "radio") continue;

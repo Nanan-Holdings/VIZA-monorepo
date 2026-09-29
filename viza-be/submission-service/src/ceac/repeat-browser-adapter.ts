@@ -919,8 +919,12 @@ async function verifyScopedMappedControls(
   group: Ds160RepeatGroupName,
   pageId: string,
 ): Promise<void> {
-  for (const [key, value] of Object.entries(answers)) {
-    if (!value.trim()) continue;
+  const requested = Object.entries(answers).filter(([, value]) => value.trim());
+  // Presence checks are independent and read-only. Resolve visibility in
+  // Playwright and send them together rather than count/isVisible for each
+  // control across the remote browser connection. Row identity is still
+  // rediscovered by the caller before this check and final value verification.
+  const checks = await Promise.all(requested.map(async ([key]) => {
     const mapping = mappings[key];
     if (!mapping) {
       throw new Ds160RepeatBrowserError(
@@ -931,15 +935,12 @@ async function verifyScopedMappedControls(
         { fieldKey: key },
       );
     }
-    let visibleCount = 0;
-    for (const selector of splitSelectors(mapping.selector)) {
-      const controls = scope.locator(selector);
-      const count = await controls.count().catch(() => 0);
-      for (let index = 0; index < count; index += 1) {
-        if (await controls.nth(index).isVisible().catch(() => false)) visibleCount += 1;
-      }
-    }
-    if (visibleCount === 0) {
+    const counts = await Promise.all(splitSelectors(mapping.selector).map(selector =>
+      scope.locator(selector).filter({ visible: true }).count().catch(() => 0)));
+    return { key, visible: counts.some(count => count > 0) };
+  }));
+  for (const { key, visible } of checks) {
+    if (!visible) {
       throw new Ds160RepeatBrowserError(
         "missing_repeat_field_control",
         group,

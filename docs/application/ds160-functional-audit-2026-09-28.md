@@ -1126,3 +1126,57 @@ At 15:48:25 UTC, the new image's machine had automatically returned to
 `stopped`; provider pending/running session counts were both zero. The exact
 application queue remained blocked with an empty lease and zero final-submission
 fences. This verifies terminal resource cleanup, not submission success.
+
+## 2026-09-29 — Five-minute target and browser-control latency
+
+The user requested a five-minute submission target and asked whether detailed
+checks could be deferred to the final Review. A fresh machine listing confirmed
+the production worker is in `sin`; the configured Browserbase browser remains
+in `us-east-1`. This introduces cross-region control traffic that a local
+worker/browser pair does not have. Its exact RTT was not measured in this audit,
+so geographic separation is not a measured attribution of all elapsed time.
+
+Code inspection identified repeated per-field count/visibility/value reads,
+repeated row rediscovery and per-validator visibility reads during navigation.
+CEAC keeps inactive validators in the DOM; checking each hidden validator with
+a separate remote command adds control latency even when the portal responds
+quickly. The implementation now batches read-only native page observations,
+navigation validator text and independent page/gate/presence probes. An exact
+all-fields-match snapshot can finish a recovered page without replaying input
+events. A mismatch, ambiguity or unsupported selector keeps the existing
+sequential filler. Final row/page checks still occur after mutations, and the
+official Review comparison, persistence prerequisite and signature fence are
+unchanged. Field/repeat/read-back phase timings are now logged without values.
+
+Five minutes is an acceptance target, not an established live result. The
+previous official HTTP 403 remains a separate terminal blocker; these local
+performance changes do not establish restored portal access or authorize
+claiming an official submission. A synthetic CDP latency fixture can measure
+control-plane savings but cannot measure CEAC server latency, CAPTCHA solving,
+photo processing, final Review navigation or confirmation receipt.
+
+The completed local Chromium/CDP fixture added 200 ms synthetic round-trip
+delay (100 ms in each WebSocket direction). It used only invented form values
+and no official portal, applicant data, database or hosted browser sessions.
+
+| Fixture | Previous implementation | Batched implementation |
+| --- | --- | --- |
+| 15 recovered, matching fields; no added RTT | 683 CDP commands; 3.318 s | 14 commands; 1.110 s |
+| Same fields; 200 ms RTT | Did not finish within the 60 s case budget | 5.191 s; 15/15 verified; no input/change events |
+| One changed text field; 200 ms RTT | Did not finish within the 60 s case budget | 38.461 s; 15/15 verified; exactly one input/change event |
+| 80 hidden validators and two visible messages; 200 ms RTT | 21.819 s; 87 commands | 3.192 s; 8 commands; same two messages |
+
+Durations include fixture browser connection/setup; protocol counts start after
+setup. The timed-out baseline cases are not completed timings or correctness
+passes. The recovered matching-field command count fell by approximately 98%,
+but the changed-field fallback remains substantially slower. These synthetic
+results cannot be multiplied into a guaranteed five-minute official run.
+
+The combined targeted suite exercised 115 tests: 114 passed, with one ASP.NET
+pending-POST fixture cancelled by its 10-second timeout under concurrent
+browser load. That fixture and the entire ASP.NET/snapshot subset passed on a
+sequential rerun (16/16), including a checkbox with a matching value incorrectly
+mapped as text. Type-check and build passed. Regression coverage includes later
+postbacks overwriting earlier fields, hidden/disabled/readonly controls, radio
+No, ambiguous choices, unsupported native/ARIA semantics, official gate errors,
+Review comparison and the final-submission fence.

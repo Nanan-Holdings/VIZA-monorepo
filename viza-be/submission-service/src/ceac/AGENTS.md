@@ -126,6 +126,20 @@ diagnostics, `.dat` capture, CAPTCHA solving, and one-shot final submission.
    control. Overlong answers fail with a value-free length error; never bypass
    the limit or accept a silently truncated answer. The live U.S. contact
    organization field permits 33 characters, mirrored in the DS-160 seed.
+   `field-snapshot.ts` reads native mapped controls as one fresh, read-only
+   page/row snapshot using Playwright's visible filter. The orchestrator may
+   skip a recovered page's per-field operations only when every requested
+   control is eligible, unambiguous, within its official length limit and
+   already matches. Unsupported selectors, ARIA/custom controls or a mismatch
+   retain the sequential path. Never reuse a snapshot after a write/postback.
+   Final page/row read-back still runs after repeat mutations, and the full
+   official Review comparison and final-signature fence remain mandatory.
+   `__tests__/field-snapshot.spec.ts` covers native types, hidden/disabled
+   controls, ambiguity and fresh observations. Navigation validators are
+   filtered/read in-browser in a batch; hidden validators do not each trigger
+   a remote visibility call. Page logs split fields/repeats/read-back time
+   without including answer values. Local or latency-injected benchmarks do
+   not establish an official portal end-to-end time guarantee.
    `previous-travel-branch.ts` recognizes the observed four-question previous
    travel page without an ESTA question. Only a saved negative ESTA answer may
    be inactive, after the full page and absence of both controls and question
