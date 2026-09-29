@@ -1101,3 +1101,28 @@ A real production refresh now correctly shows the terminal paused/HTTP 403
 state without a submitting spinner. The corrected active state is covered by
 the fixture; it cannot be re-proven in production after this run has ended
 without starting another official job, which was deliberately not done.
+
+## 2026-09-29 — Recovery patch deployed after terminal cleanup
+
+Release `b3ed9a59f3884230ac57cb69f1e1a2b5233e6a19` was built and pushed as
+`registry.fly.io/viza-prod-submission-legacy:ds160-b3ed9a59` with immutable
+digest `sha256:9c2d56ad3a25790dd0b8ac4b154df5627a3b05b8a31515283ca5a163b69a44d8`.
+The organization Fly identity and commit author were verified. Before the
+readiness-only cold start, all submission/runner active counts and pool
+claimable/scheduled/running counts were zero. Fresh readiness observations at
+15:43:45 and 15:44:12 UTC were both safe with zero active work, zero protected
+sessions and zero provider sessions.
+
+The original machine was stopped and updated only to that image. At 15:45:02
+UTC, the stopped machine reported the expected immutable image. All environment,
+guest and service hashes remained identical; the non-image configuration hash
+remained `f9280f447f53b0935e07313f7ac1f25deec8669da1080d3ac71c72e1e259ec3f`.
+The fresh image's cold readiness passed at 15:45:31 UTC, `/health` returned
+`ok`, and provider sessions were zero. No official retry was enqueued by these
+release checks. The heartbeat was paused for the explicit terminal HTTP 403;
+restored official access is required before continuing the same draft.
+
+At 15:48:25 UTC, the new image's machine had automatically returned to
+`stopped`; provider pending/running session counts were both zero. The exact
+application queue remained blocked with an empty lease and zero final-submission
+fences. This verifies terminal resource cleanup, not submission success.
