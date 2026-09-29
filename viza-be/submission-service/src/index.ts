@@ -3029,7 +3029,28 @@ async function processDs160Item(
           closeSession: async () => { if (session) await session.close(); },
           stopRenewal: async () => { await queueLease?.stopRenewal(); },
           releaseRetry: async () => {
-            if (!queueLease?.isOwnershipLost()) await releaseDs160RetryLease(supabase, item);
+            if (queueLease?.isOwnershipLost()) return;
+            await releaseDs160RetryLease(supabase, item, {
+              verifyTerminal: async () => {
+                try {
+                  // Re-read the application-wide final fence and official
+                  // result after the browser has closed. A fresh/resumable
+                  // plan proves there is no final attempt or success; any
+                  // recovery/parse/read error deliberately retains the lease.
+                  const plan = await loadDs160RetryPlan(
+                    supabase,
+                    item.application_id,
+                    null,
+                    decryptSecret,
+                  );
+                  return plan.kind === "fresh" || plan.kind === "resume"
+                    ? { finalSubmissionAttemptCount: 0, officialSuccess: false }
+                    : null;
+                } catch {
+                  return null;
+                }
+              },
+            });
           },
         });
       } finally {

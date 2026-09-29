@@ -78,6 +78,101 @@ test("retry lease release preserves terminal jobs and every newer claim", async 
   }
 });
 
+test("terminal pre-final DS-160 jobs release only with clean final-submission evidence", async () => {
+  const claim = {
+    id: "00000000-0000-4000-8000-000000000004",
+    locked_by: "worker-1",
+    locked_at: "2026-09-28T17:51:32Z",
+  };
+  const row: Record<string, unknown> = {
+    ...claim,
+    status: "ds160_blocked",
+    locked_until: "2026-09-28T18:07:00Z",
+  };
+  let patchCalls = 0;
+  const client = createClient("https://unit.invalid", "unit-test-key", {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { fetch: async (input, init) => {
+      patchCalls += 1;
+      const url = new URL(String(input));
+      assert.equal(init?.method, "PATCH");
+      assert.equal(url.searchParams.get("status")?.slice(4, -1).split(",").includes("ds160_blocked"), true);
+      Object.assign(row, JSON.parse(String(init?.body)) as Record<string, unknown>);
+      return new Response(JSON.stringify({ id: row.id }), {
+        status: 200, headers: { "Content-Type": "application/json" },
+      });
+    } },
+  });
+
+  assert.equal(
+    await releaseDs160RetryLease(client, claim, {
+      verifyTerminal: async () => ({ finalSubmissionAttemptCount: 0, officialSuccess: false }),
+    }),
+    true,
+  );
+  assert.equal(patchCalls, 1);
+  assert.equal(row.locked_by, null);
+  assert.equal(row.locked_at, null);
+  assert.equal(row.locked_until, null);
+});
+
+test("terminal DS-160 lease release fails closed for final fences, unreadable checks, and missing ownership", async () => {
+  const claim = {
+    id: "00000000-0000-4000-8000-000000000005",
+    locked_by: "worker-1",
+    locked_at: "2026-09-28T17:51:32Z",
+  };
+  const makeClient = (row: Record<string, unknown>) => {
+    let patchCalls = 0;
+    const client = createClient("https://unit.invalid", "unit-test-key", {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: { fetch: async () => {
+        patchCalls += 1;
+        return new Response(JSON.stringify({ id: row.id }), {
+          status: 200, headers: { "Content-Type": "application/json" },
+        });
+      } },
+    });
+    return { client, getPatchCalls: () => patchCalls };
+  };
+
+  for (const verifyTerminal of [
+    async () => ({ finalSubmissionAttemptCount: 1, officialSuccess: false }),
+    async () => ({ finalSubmissionAttemptCount: 0, officialSuccess: true }),
+    async () => { throw new Error("final-submission read failed"); },
+  ]) {
+    const row: Record<string, unknown> = {
+      ...claim,
+      status: "ds160_live_assisted_failed",
+      locked_until: "2026-09-28T18:07:00Z",
+    };
+    const { client, getPatchCalls } = makeClient(row);
+    assert.equal(await releaseDs160RetryLease(client, claim, { verifyTerminal }), false);
+    assert.equal(getPatchCalls(), 0);
+    assert.equal(row.locked_by, claim.locked_by);
+  }
+
+  let verificationCalls = 0;
+  const row: Record<string, unknown> = {
+    ...claim,
+    status: "ds160_blocked",
+    locked_until: "2026-09-28T18:07:00Z",
+  };
+  const { client, getPatchCalls } = makeClient(row);
+  assert.equal(await releaseDs160RetryLease(client, {
+    ...claim,
+    locked_by: null,
+  }, {
+    verifyTerminal: async () => {
+      verificationCalls += 1;
+      return { finalSubmissionAttemptCount: 0, officialSuccess: false };
+    },
+  }), false);
+  assert.equal(verificationCalls, 0);
+  assert.equal(getPatchCalls(), 0);
+  assert.equal(row.locked_by, claim.locked_by);
+});
+
 const repoRoot = path.resolve(__dirname, "..", "..", "..", "..");
 const migrationPath = path.join(
   repoRoot,

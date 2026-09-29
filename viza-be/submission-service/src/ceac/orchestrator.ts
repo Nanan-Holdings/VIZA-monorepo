@@ -88,6 +88,10 @@ import { DS160_EXTENDED_MAPPING_GROUPS } from "../ds160-extended-mappings";
 import { assertDs160RequiredAnswers, createDs160BranchPolicy, ds160MappingRepeatGroup, ds160RepeatAnswers } from "./field-contract";
 import { fillDs160RepeatGroups } from "./repeat-browser-adapter";
 import { resolvePreviousTravelMappings } from "./previous-travel-branch";
+import {
+  clearDs160NaCompanionBeforeTextFill,
+  hasMeaningfulDs160TextAnswer,
+} from "./ds160-field-fill";
 import { captureOfficialReviewPage, verifyOfficialReview, type ReviewExpectation, type ReviewSnapshot } from "./review-verification";
 import { applyExplicitPreparerAnswer, fillVerifiedPassportSignature, type Ds160PreparerAnswers } from "./signature-fields";
 import { reconnectVerifiedCeacPage, RECOVERABLE_DS160_PAGE_IDS } from "./recovered-application";
@@ -1356,6 +1360,28 @@ export async function fillPageFields(
       (answers[fieldName] !== "" || (mapping.type !== "text" && mapping.type !== "date")))) continue;
 
     if (options.resolveScope) scope = await options.resolveScope();
+
+    // Retrieve restores the official draft's control state, including a
+    // checked Does Not Apply/Unknown companion. An explicit current text/date
+    // answer must first clear that companion so CEAC re-enables the field.
+    // Missing answers and explicit NA tokens intentionally leave the draft
+    // untouched.
+    if (
+      (mapping.type === "text" || mapping.type === "date") &&
+      Object.prototype.hasOwnProperty.call(answers, fieldName) &&
+      hasMeaningfulDs160TextAnswer(answers[fieldName])
+    ) {
+      await clearDs160NaCompanionBeforeTextFill({
+        page,
+        scope,
+        fieldName,
+        mappings,
+        findVisibleField,
+        resolveScope: options.resolveScope,
+        waitForPostback: currentPage => waitForAspNetPostback(currentPage, 8_000),
+      });
+      if (options.resolveScope) scope = await options.resolveScope();
+    }
 
     const selectors = mapping.selector.split(",").map((s) => s.trim());
     let filled = false;

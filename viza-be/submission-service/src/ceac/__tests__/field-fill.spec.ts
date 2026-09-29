@@ -84,6 +84,117 @@ test("official text length limits stop before truncation and accept a fitting or
   } finally { await browser.close(); }
 });
 
+test("clears stale CEAC NA companions before filling explicit address text", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <input id="state" type="text" disabled>
+      <label><input id="state-na" type="checkbox" checked>Does Not Apply</label>
+      <input id="postal" type="text" disabled>
+      <label><input id="postal-na" type="checkbox" checked>Does Not Apply</label>
+      <script>
+        for (const [checkboxId, inputId] of [["state-na", "state"], ["postal-na", "postal"]]) {
+          document.getElementById(checkboxId).addEventListener("change", event => {
+            document.getElementById(inputId).disabled = event.target.checked;
+          });
+        }
+      </script>
+    `);
+
+    const mappings = {
+      home_address_state: { selector: "#state", type: "text" as const, label: "Home State/Province" },
+      home_address_state_na: { selector: "#state-na", type: "checkbox" as const, label: "Home State Does Not Apply" },
+      home_address_postal: { selector: "#postal", type: "text" as const, label: "Home Postal Code" },
+      home_address_postal_na: { selector: "#postal-na", type: "checkbox" as const, label: "Home Postal Does Not Apply" },
+    };
+
+    const answers = deriveDS160Answers({
+      home_address_state: "BEIJING",
+      home_address_state_na: "N",
+      home_address_postal: "12345",
+      home_address_postal_na: "N",
+    });
+    assert.equal(answers.home_address_state_na, "N");
+    assert.equal(answers.home_address_postal_na, "N");
+    await fillPageFields(page, mappings, answers, {}, { requireMappedAnswers: true });
+
+    assert.equal(await page.locator("#state").inputValue(), "BEIJING");
+    assert.equal(await page.locator("#state").isDisabled(), false);
+    assert.equal(await page.locator("#state-na").isChecked(), false);
+    assert.equal(await page.locator("#postal").inputValue(), "12345");
+    assert.equal(await page.locator("#postal").isDisabled(), false);
+    assert.equal(await page.locator("#postal-na").isChecked(), false);
+
+    // Keep the standalone readback contract honest: it must verify the same
+    // derived answer map that the fill path received, without a hidden NA
+    // rewrite inside fillPageFields.
+    await verifyPageFieldValues(page, mappings, answers, {}, { requireMappedAnswers: true });
+  } finally {
+    await browser.close();
+  }
+});
+
+test("re-resolves a replaced NA row after a delayed CEAC postback", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <div id="row">
+        <input id="state" type="text" disabled>
+        <input id="state-na" type="checkbox" checked>
+      </div>
+      <script>
+        document.getElementById("state-na").addEventListener("change", () => {
+          setTimeout(() => {
+            document.getElementById("row").innerHTML =
+              '<input id="state" type="text"><input id="state-na" type="checkbox">';
+          }, 25);
+        });
+      </script>
+    `);
+
+    const mappings = {
+      synthetic_state: { selector: "#state", type: "text" as const, label: "Synthetic State" },
+      synthetic_state_na: { selector: "#state-na", type: "checkbox" as const, label: "Synthetic State Does Not Apply" },
+    };
+    const answers = { synthetic_state: "SYNTHETIC STATE", synthetic_state_na: "N" };
+    await fillPageFields(page, mappings, answers, {}, {
+      scope: page.locator("#row"),
+      resolveScope: async () => page.locator("#row"),
+      requireMappedAnswers: true,
+    });
+
+    assert.equal(await page.locator("#state").inputValue(), "SYNTHETIC STATE");
+    assert.equal(await page.locator("#state").isDisabled(), false);
+    assert.equal(await page.locator("#state-na").isChecked(), false);
+    await verifyPageFieldValues(page.locator("#row"), mappings, answers, {}, {
+      requireMappedAnswers: true,
+    });
+  } finally {
+    await browser.close();
+  }
+});
+
+test("does not infer an NA reset when the paired text answer is missing", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <input id="state" type="text" disabled>
+      <label><input id="state-na" type="checkbox" checked>Does Not Apply</label>
+    `);
+    await fillPageFields(page, {
+      home_address_state: { selector: "#state", type: "text", label: "Home State/Province" },
+      home_address_state_na: { selector: "#state-na", type: "checkbox", label: "Home State Does Not Apply" },
+    }, {}, {}, { requireMappedAnswers: false });
+    assert.equal(await page.locator("#state").isDisabled(), true);
+    assert.equal(await page.locator("#state-na").isChecked(), true);
+  } finally {
+    await browser.close();
+  }
+});
+
 test("official review expectations use verified control IDs and selected display values", async () => {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();

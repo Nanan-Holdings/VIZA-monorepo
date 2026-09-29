@@ -1,20 +1,68 @@
 import type { SubmissionQueueItem } from "./types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+export interface Ds160TerminalLeaseReleaseEvidence {
+  /** The application-wide final-submission fence was read successfully. */
+  finalSubmissionAttemptCount: number;
+  /** No official CEAC success was found in the application or queue history. */
+  officialSuccess: boolean;
+}
+
+export interface ReleaseDs160RetryLeaseOptions {
+  /**
+   * Proves that a terminal failed/blocked row has no final-submission fence
+   * or official success. A missing, rejected, or incomplete check fails
+   * closed and leaves the terminal lease in place.
+   */
+  verifyTerminal?: () => Promise<Ds160TerminalLeaseReleaseEvidence | null>;
+}
+
+const RELEASEABLE_DS160_STATUSES = [
+  "ds160_live_assisted_pending",
+  "ds160_prefill_pending",
+  "ds160_live_assisted_failed",
+  "ds160_prefill_failed",
+  "ds160_blocked",
+] as const;
+
 /** Release a settled retry only after its browser and heartbeat have stopped. */
 export async function releaseDs160RetryLease(
   client: SupabaseClient,
   item: Pick<SubmissionQueueItem, "id" | "locked_by" | "locked_at">,
+  options: ReleaseDs160RetryLeaseOptions = {},
 ): Promise<boolean> {
   // The claim timestamp also fences a later claim by a reused worker ID.
   if (!item.locked_by?.trim() || !item.locked_at) return false;
+
+  let terminalEvidence: Ds160TerminalLeaseReleaseEvidence | null = null;
+  if (options.verifyTerminal) {
+    try {
+      terminalEvidence = await options.verifyTerminal();
+    } catch {
+      // Terminal verification is deliberately fail-closed. The caller has
+      // already stopped browser work, so retaining the lease is safer than
+      // clearing it after an unreadable final-submission state.
+      return false;
+    }
+    if (
+      !terminalEvidence ||
+      terminalEvidence.finalSubmissionAttemptCount !== 0 ||
+      terminalEvidence.officialSuccess !== false
+    ) {
+      return false;
+    }
+  }
+
+  const releaseStatuses = options.verifyTerminal
+    ? RELEASEABLE_DS160_STATUSES
+    : RELEASEABLE_DS160_STATUSES.slice(0, 2);
   const { data, error } = await client
     .from("submission_queue")
     .update({ locked_by: null, locked_at: null, locked_until: null })
     .eq("id", item.id)
     .eq("locked_by", item.locked_by)
     .eq("locked_at", item.locked_at)
-    .in("status", ["ds160_live_assisted_pending", "ds160_prefill_pending"])
+    .in("status", releaseStatuses)
     .select("id")
     .abortSignal(AbortSignal.timeout(15_000))
     .maybeSingle();

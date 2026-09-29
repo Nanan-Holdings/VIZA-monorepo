@@ -68,7 +68,9 @@ cold start, sizing, readiness, leases, and cleanup settings are preserved.
 retained Fly machine is stopped or replaced; keep its focused test in sync.
 The legacy Fly worker claims DS-160 jobs. Its deployment config explicitly
 enables live-assisted CEAC with the review/final-submit guards, headless mode,
-and a bounded US Browserbase proxy session. Do not release frontend retry UI
+and a bounded US Browserbase session. CEAC uses the verified direct route;
+its proxy route returned an explicit official block on 2026-09-29. Do not
+silently re-enable the proxy during deployment. Do not release frontend retry UI
 without updating this worker image and verifying these runtime flags.
 
 Scope: this file applies to `viza-be/submission-service/**`.
@@ -287,7 +289,12 @@ and must fail closed; callers must not perform a direct table settlement.
   including provider allowlists and targeted failed retries, goes through an
   atomic service-role claim RPC. Missing/unavailable claim RPCs fail closed;
   never add a plain table-select fallback because concurrent workers could run
-  the same official submission.
+  the same official submission. DS-160 cleanup stops browser work and lease
+  renewal before releasing the exact owner/claim timestamp. Terminal failed
+  or blocked rows additionally require a fresh application-wide check proving
+  no final-submission attempt and no official success; unreadable or ambiguous
+  evidence retains the lease. Final-submission recovery is never unlocked by
+  this cleanup path.
 - `src/queue/worker.ts`: shared `runner_job` settlement must call the
   service-role-only `complete_runner_pool_job` RPC with the stable worker id.
   Failure and renewal use the service-role-only `fail_runner_pool_job` and

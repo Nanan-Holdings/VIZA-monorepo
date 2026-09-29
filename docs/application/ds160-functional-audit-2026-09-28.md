@@ -470,3 +470,98 @@ The button was not clicked while the factual question was pending. Post-smoke
 database checks still showed two historical queue rows, zero final attempts,
 and 371 answers. This verifies the repaired UI entry, not a completed official
 retry or field-by-field submission comparison.
+
+## 2026-09-29 confirmed corrections and connection recovery
+
+The applicant answered the outstanding name and factual confirmation. An
+owner-, application-status-, answer-version- and final-fence-guarded update
+synchronized 120 answer rows and their localized companions; read-back found
+no differences. The current draft contains 380 answer rows. Production browser
+review showed 127/127 required answers complete and removed the superseded
+name, address and occupation values. The intended-travel branch remains No:
+knowing the intended hotel does not establish concrete flight arrangements.
+
+The first real correction-retry click failed before queue creation because
+Supabase Data API returned `PGRST002`. PostgREST logs recorded successful schema
+cache loading at 06:07:36 UTC; a bounded REST read subsequently returned 200.
+The direct database connection remained available. The optional GitHub
+self-heal workflow was manually disabled and did not recover this incident;
+neither its settings nor the database were restarted during this investigation.
+
+The normal authenticated retry then started run
+`ds160-live-muma8gf6-9zop7v` at 06:15 UTC. CEAC's public start page explicitly
+returned `Sorry, you have been blocked`; no official form or final signature
+was reached. Its encrypted input artifact hash was verified. All 380 stored
+rows were captured, with no missing, extra or duplicate keys. Three country
+display values changed after capture, but both versions derived to the same
+416 effective CEAC keys. This is input consistency, not official field parity.
+
+The legacy runner was already using Browserbase with a U.S. proxy. A bounded
+local headless Chrome start-page check was also blocked. An isolated public
+start-page check using the existing Browserbase U.S. region with proxy disabled
+reached the real CEAC form; its provider session was closed in `finally`.
+Only `CEAC_BROWSERBASE_PROXIES` was changed to `false` on the stopped production
+legacy machine. Read-back confirmed unchanged image, CPU/memory and services,
+concurrency one, a 3,600-second session bound and 120-second idle exit. The
+checked-in deployment template still has proxy enabled; this runtime override
+must be reviewed before a later deployment replaces it.
+
+At 06:31:54 UTC the actual production Submit button created a guarded recovery
+job, and run `ds160-live-mumatukc-j1q63w` started at 06:32:04. The same VIZA and
+CEAC draft were retained, the previous queue row was superseded, and the
+existing final-action fence remained empty. No custom queue transition or
+recovery-record deletion was used. Official submission and the complete
+post-submission comparison remain pending this run's evidence.
+
+At 06:33:39 UTC the worker verified retrieval of the same captured CEAC draft;
+at 06:33:40 it began Personal Information 1. The queue remained processing
+with an actively renewed lease. This confirms the direct connection recovered
+past the previously blocked start page, not that final submission succeeded.
+The existing thread monitor was resumed for this exact queue/run and will
+notify only meaningful progress, a failure, a required fact or the final
+verified comparison.
+
+## 2026-09-29 recovered-draft checkbox failure
+
+The first two attempts of that recovery job passed Personal, Travel and
+Previous U.S. Travel but failed when filling the home state/province.
+The hash-verified encrypted official evidence showed that the recovered draft
+still had its state and postal-code Does Not Apply checkboxes selected, which
+disabled both text controls. Current stored and derived answers contained
+explicit text values with the companion flags false. Filling the text before
+clearing the restored checkbox state therefore failed before the normal later
+checkbox mapping could run. This was an ordering bug, not missing applicant
+data. The third bounded attempt stopped earlier on a CEAC postback timeout.
+All three ended before a final-signature attempt.
+
+The repair clears the uniquely mapped NA/Unknown companion before writing an
+explicit current text/date value, waits for the official postback, resolves
+replaced controls again, and verifies that the checkbox cleared. It does not
+rewrite applicant answers or infer a replacement for missing/NA answers.
+Standalone final readback still uses the original derived answer map.
+The field-fill browser fixture suite passed 20/20, including stale address
+checkboxes, delayed DOM replacement and absent answers; type-check passed.
+Deployment/readiness configuration checks passed 7/7. The checked-in legacy
+configuration now preserves the already-verified direct U.S. Browserbase route.
+
+At 07:04 UTC the prior worker had no active work or protected browser sessions;
+two deployment-readiness checks passed and the machine was stopped. A new
+ordinary retry was created at 07:08:36 before the repair was released. It woke
+the unchanged worker image and retrieved the same official draft at 07:10:46.
+Publication is deferred while this new job owns an active lease. No active
+job is interrupted or manually unlocked to deploy the fix, and no official
+success or complete field parity is claimed from the local tests.
+
+The same investigation found that ordinary failed/blocked terminal rows kept
+their previous 15-minute lease even after browser shutdown because cleanup
+only released pending retries. The repair preserves owner, claim timestamp
+and status predicates and permits terminal release only after browser close,
+renewal shutdown and a fresh application-wide retry-plan check proves zero
+final attempts and no official success. Unreadable or ambiguous evidence
+retains the lease. The focused lease suite passed 13/13 and type-check passed.
+Guard-initialization and configuration-blocked early returns outside this main
+finally path were not changed. Existing live leases are not cleared manually.
+
+An additional 44/44 integration regressions passed across ASP.NET postback
+handling, repeated-row browser filling, persisted retry planning and durable
+final-submission guards. The combined focused checks therefore passed 84/84.

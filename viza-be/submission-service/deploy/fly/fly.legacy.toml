@@ -22,7 +22,9 @@ kill_timeout = "5m"
   DS160_PLAYWRIGHT_HEADLESS = "true"
   DS160_LIVE_MAX_DURATION_SECONDS = "3600"
   CEAC_BROWSERBASE_ENABLED = "true"
-  CEAC_BROWSERBASE_PROXIES = "true"
+  # The managed US direct route was verified after the proxy route was blocked.
+  # Preserve the same-session, review and one-shot submission guards.
+  CEAC_BROWSERBASE_PROXIES = "false"
   CEAC_BROWSERBASE_REGION = "us-east-1"
   CEAC_BROWSERBASE_COUNTRY = "US"
   CEAC_BROWSERBASE_TIMEOUT_SECONDS = "3600"
