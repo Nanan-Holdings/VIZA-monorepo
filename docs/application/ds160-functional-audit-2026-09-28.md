@@ -1563,3 +1563,28 @@ active siblings, a released lease, the unchanged submitted application, and one
 confirmed final-submission fence. Live official email delivery remains unverified
 because of the recorded CEAC Application Error; this UI acceptance is not a
 successful-delivery claim.
+
+### User-authorized continuing official-email retry, 2026-09-30 local time
+
+The user explicitly requested continued email retries until success. The existing
+`ds-160` heartbeat was reactivated with a 30-minute interval, one email-only
+attempt per interval, and a stop condition requiring an official send receipt.
+It must not retry an active job, repeat an existing dispatch reservation, sign
+the application again, or enqueue while current queue state cannot be read.
+
+At 22:06-22:12 UTC on 2026-09-29 the production database intermittently rejected
+connections (`57P03`, hot standby disabled) and then timed out. One scoped read
+returned submitted / zero active siblings / one confirmed final fence, but
+subsequent queue reads and a bounded 20-second Data API read timed out. An
+authenticated production request failed and the applicant route rendered its
+shell with empty main content. The management plane still reported
+ACTIVE_HEALTHY, which did not establish data-plane health. No new email request
+was created during these checks. The existing worker remained stopped, provider
+sessions were zero, and its configuration hashes matched the verified release.
+No database restart, proxy change, new official draft, or signature was attempted.
+
+A read-only review of the email helper found no missing visible required field
+or incorrect control sequence in the captured official form. The previous CEAC
+Application Error still does not establish either successful delivery or definite
+non-delivery. The continuing workflow first waits for readable authenticated
+queue state before using the normal email-only retry path.
