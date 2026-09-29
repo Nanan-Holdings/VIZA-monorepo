@@ -752,8 +752,8 @@ Independent upload-protocol review confirmed that the selectors match dated
 official control metadata, but found two popup-path bugs: the original page's
 URL wait delays a popup handoff, and a broad CEAC photo-path predicate can treat
 the unchanged Upload Photo page as acceptance. Neither is proven to have caused
-this actual error. Popup/confirmation predicates and multipart fixtures are
-now require the exact official Confirm Photo path, watch the context during
+this actual error. The repaired popup/confirmation predicates now require the
+exact official Confirm Photo path, watch the context during
 handoff without the stale original-page navigation wait, and identify direct
 handoff service errors. The six upload browser fixtures passed, including
 multipart bytes/name/button-coordinate checks and popup rejection/confirmation
@@ -765,3 +765,14 @@ currently invalid photo. The dedicated preflight failure uses
 `photo_validation_failed`, preserves captured checkpoint fields and updates
 the displayed application error instead of incorrectly routing to final-sign
 recovery.
+
+Release `5916e02657511c6ee6e02b499d8bde214e6b9130` produced runner image
+`sha256:b619c868526c13ab1d022d72d78fd48d44882a091c30f7a5bb1d5edf0e729b58`.
+It was installed on the existing worker after two fresh safe readiness checks
+with no active work or protected sessions. Environment, guest and services
+hashes matched before and after the image-only update. Cold-start health and
+readiness passed at 10:14 UTC. No official retry or applicant-data change was
+performed. Monitoring is paused pending a compliant applicant photo; the
+same captured draft and all final-signature guards must be retained on resume.
+The worker automatically reached `stopped` after its idle grace, verified at
+10:16 UTC; no billable browser session or active worker was retained.
