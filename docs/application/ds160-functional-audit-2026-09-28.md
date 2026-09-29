@@ -1232,3 +1232,49 @@ provider sessions and the same installed image/configuration. This completes
 the previously blocked production cold-start/idle acceptance. No official
 retry or signature was triggered. It does not resolve the prior CEAC HTTP 403,
 prove an official five-minute run, or provide submission/confirmation evidence.
+
+## 2026-09-29 — Explicit retry succeeded; failed-result retry entry repaired
+
+The user explicitly requested a manual restart. Before that restart the target
+application had no active queue, lease or final-submission fence. The ordinary
+authenticated production retry endpoint accepted the request and resumed the
+same captured CEAC application. No new VIZA or CEAC draft was created.
+
+The worker started at 17:54:11 UTC, reached Confirm Photo/Review at 18:03:07,
+and persisted `ds160_submitted` at 18:06:40. The final-submission fence is
+`confirmed`; the application result is `submitted`, and its official
+confirmation PDF was downloaded and verified as a PDF (312,760 bytes).
+This was one attempt, approximately 12 minutes 29 seconds from worker start
+to persisted result. The five-minute end-to-end target is **not met**.
+
+The current run's encrypted input and official evidence hashes and all 16
+embedded-file hashes verified. Seven official Review snapshots passed all
+149 comparison expectations with no issues. The input snapshot's 380 rows
+equal the current 380 saved rows, including duplicate counts. A separate
+official Review location check also matched. These checks are distinct:
+380 saved rows include bilingual aliases and do not imply 380 independently
+verified official fields. Full Print Application PDF evidence was not yet
+available at this observation; the social-media branch marker and preparer
+assistance remain explicitly uncovered by the structured Review evidence.
+
+At 18:07:34, the worker reported safe readiness, zero active work and no
+protected sessions; the browser provider had zero pending/running sessions.
+Automatic machine idle shutdown is checked separately after the idle window.
+
+The UI dead end was independent of the backend retry capability. The result
+card only exposed ordinary retry when its text classifier identified a CEAC
+form-validation error. Other `portal_action_required` results with no pending
+manual task instead displayed a disabled Continue action. The repaired card
+exposes an explicit Retry submission action after a successful, current-job
+manual-actions read confirms no task remains. Form validation retains its
+correction wording. Pending CAPTCHA tasks, retrieval identity failures and
+unknown/malformed manual-action responses retain their existing safeguards.
+Retry still uses the parent save/validation barrier and the ordinary guarded
+same-draft retry API; failed requests re-enable the button, and pending
+requests disable it to prevent duplicate clicks. Backend final-submission
+guards remain authoritative, so this successful application cannot be signed
+again through that entry.
+
+The focused result-card suite passed 22 tests. Frontend type-check passed;
+repository ESLint completed with zero errors and 57 existing warnings.
+Browser and deployment acceptance are recorded after completion below.

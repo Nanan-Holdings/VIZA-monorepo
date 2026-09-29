@@ -122,6 +122,7 @@ describe("GenericResultCard DS-160 recovery", () => {
     expect(
       await screen.findByText("请先补齐或修正以下信息：美国社会安全号码（如适用）。"),
     ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "重试 DS-160" })).toBeEnabled();
   });
 
   it("uses the guarded ordinary retry intent when no parent review callback exists", async () => {
@@ -181,6 +182,23 @@ describe("GenericResultCard DS-160 recovery", () => {
     expect(fetchMock).toHaveBeenCalledWith("/api/submissions/blocked-job/manual-actions", { cache: "no-store" });
   });
 
+  it.each([
+    "The official portal returned HTTP 403 while continuing the DS-160.",
+    "The CEAC navigation timed out while continuing the DS-160.",
+    "The CEAC request failure stopped the DS-160 attempt.",
+  ])("offers a guarded retry for recoverable portal stops after the manual-action read (%s)", async (message) => {
+    const onResubmit = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ manualActions: [] })));
+    render(portalCard({ result: { ...portalResult, message, actionInstructions: message }, onResubmit }));
+
+    expect(await screen.findByRole("button", { name: "重试提交" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "修改后重试" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "我已完成，继续" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "重试提交" }));
+
+    await waitFor(() => expect(onResubmit).toHaveBeenCalledWith("live_assisted", undefined, "retry"));
+  });
+
   it("keeps a real pending CAPTCHA task on the manual-action path", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ manualActions: [{
       id: "captcha-task",
@@ -193,6 +211,7 @@ describe("GenericResultCard DS-160 recovery", () => {
 
     await waitFor(() => expect(screen.getByRole("button", { name: "我已完成，继续" })).toBeEnabled());
     expect(screen.queryByRole("button", { name: "修改后重试" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "重试提交" })).not.toBeInTheDocument();
   });
 
   it.each([
@@ -206,6 +225,7 @@ describe("GenericResultCard DS-160 recovery", () => {
 
     expect(await screen.findByRole("alert")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "修改后重试" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "重试提交" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "我已完成，继续" })).toBeDisabled();
   });
 
@@ -235,6 +255,7 @@ describe("GenericResultCard DS-160 recovery", () => {
     await act(async () => undefined);
 
     expect(screen.queryByRole("button", { name: "修改后重试" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "重试提交" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "我已完成，继续" })).toBeDisabled();
   });
 
@@ -247,6 +268,63 @@ describe("GenericResultCard DS-160 recovery", () => {
     expect(screen.queryByText("修改后重试")).not.toBeInTheDocument();
   });
 
+  it("localizes the ordinary portal retry in English", async () => {
+    locale.value = "en";
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ manualActions: [] })));
+    render(portalCard({ result: {
+      ...portalResult,
+      message: "The official portal returned HTTP 403 while continuing the DS-160.",
+      actionInstructions: "The official portal returned HTTP 403 while continuing the DS-160.",
+    } }));
+
+    expect(await screen.findByRole("button", { name: "Retry submission" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "Retry after corrections" })).not.toBeInTheDocument();
+  });
+
+  it("prevents duplicate ordinary retries while the guarded request is pending", async () => {
+    let resolveRetry!: () => void;
+    const onResubmit = vi.fn(() => new Promise<void>((resolve) => { resolveRetry = resolve; }));
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ manualActions: [] })));
+    render(portalCard({
+      result: {
+        ...portalResult,
+        message: "The official portal returned HTTP 403 while continuing the DS-160.",
+        actionInstructions: "The official portal returned HTTP 403 while continuing the DS-160.",
+      },
+      onResubmit,
+    }));
+
+    const retry = await screen.findByRole("button", { name: "重试提交" });
+    fireEvent.click(retry);
+    fireEvent.click(retry);
+
+    await waitFor(() => expect(onResubmit).toHaveBeenCalledTimes(1));
+    expect(retry).toBeDisabled();
+    resolveRetry();
+    await waitFor(() => expect(retry).toBeEnabled());
+  });
+
+  it("re-enables ordinary retry after a guarded request fails", async () => {
+    const onResubmit = vi.fn().mockRejectedValue(new Error("retry failed"));
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ manualActions: [] })));
+    render(portalCard({
+      result: {
+        ...portalResult,
+        message: "The official portal returned HTTP 403 while continuing the DS-160.",
+        actionInstructions: "The official portal returned HTTP 403 while continuing the DS-160.",
+      },
+      onResubmit,
+    }));
+
+    const retry = await screen.findByRole("button", { name: "重试提交" });
+    fireEvent.click(retry);
+    expect(await screen.findByRole("alert")).toHaveTextContent("retry failed");
+    await waitFor(() => expect(retry).toBeEnabled());
+
+    fireEvent.click(retry);
+    await waitFor(() => expect(onResubmit).toHaveBeenCalledTimes(2));
+  });
+
   it("permits correction of a real personal-page surname validation error", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ manualActions: [] })));
     const message = 'CEAC next rejected on page "personal1": Surname is required.';
@@ -255,14 +333,23 @@ describe("GenericResultCard DS-160 recovery", () => {
     expect(await screen.findByRole("button", { name: "修改后重试" })).toBeEnabled();
   });
 
-  it.each([
-    "Cloudflare security verification is required before continuing.",
-    "CEAC retrieve failed: Surname does not match the application ID.",
-  ])("does not present an unrelated portal gate as a form correction (%s)", async (message) => {
+  it("keeps a retrieval identity failure behind its existing safeguard", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ manualActions: [] })));
+    const message = "CEAC retrieve failed: Surname does not match the application ID.";
     render(portalCard({ result: { ...portalResult, message, actionInstructions: message } }));
     await act(async () => undefined);
 
+    expect(screen.queryByRole("button", { name: "修改后重试" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "重试提交" })).not.toBeInTheDocument();
+  });
+
+  it("offers an ordinary retry for a security gate when no manual task remains", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ manualActions: [] })));
+    const message = "Cloudflare security verification is required before continuing.";
+    render(portalCard({ result: { ...portalResult, message, actionInstructions: message } }));
+    await act(async () => undefined);
+
+    expect(await screen.findByRole("button", { name: "重试提交" })).toBeEnabled();
     expect(screen.queryByRole("button", { name: "修改后重试" })).not.toBeInTheDocument();
   });
 });

@@ -152,9 +152,9 @@ function isManualAction(value: unknown): value is ManualAction {
 
 /**
  * `portal_action_required` is also used for portal gates and runtime stops.
- * Only expose the correction retry when the persisted message carries the
- * CEAC form-validation evidence emitted by the navigator. Retrieve identity
- * failures and security gates must remain behind their existing safeguards.
+ * Keep form-validation copy separate from the ordinary retry copy so the
+ * applicant still knows when answers need correction. Retrieve identity
+ * failures remain behind the existing manual/recovery safeguards.
  */
 function hasDs160FormValidationEvidence(result: GenericSubmissionResult): boolean {
   const text = [result.actionInstructions, result.message]
@@ -172,6 +172,13 @@ function hasDs160FormValidationEvidence(result: GenericSubmissionResult): boolea
     /\b(?:CEAC|official)\s+(?:form|portal)\s+validation\b/i.test(text) ||
     /\b(?:required|missing)\s+(?:fields?|information)\b/i.test(text)
   );
+}
+
+function hasDs160RetrievalIdentityFailure(result: GenericSubmissionResult): boolean {
+  const text = [result.actionInstructions, result.message]
+    .filter((value): value is string => typeof value === "string")
+    .join(" ");
+  return /\bCEAC\s+Retrieve\b|\bretrieval\s+(?:form|identity)\b/i.test(text);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -934,6 +941,13 @@ export function GenericResultCard({
     manualActionReadKey === manualActionQueryKey &&
     !manualAction &&
     !manualActionError;
+  const ds160PortalRetryAvailable =
+    isDs160PortalActionRequired &&
+    !hasDs160RetrievalIdentityFailure(result) &&
+    manualActionReadComplete &&
+    manualActionReadKey === manualActionQueryKey &&
+    !manualAction &&
+    !manualActionError;
   const franceLiveEnabled =
     process.env.NEXT_PUBLIC_FRANCE_LIVE_SUBMISSION_ENABLED === "true" &&
     process.env.NEXT_PUBLIC_FRANCE_SUBMISSION_MODE === "live_assisted";
@@ -968,7 +982,7 @@ export function GenericResultCard({
     : unsupported
       ? (isZh ? "暂不支持自动提交" : "Automated submission unavailable")
       : (isZh ? "Dry-run 已完成" : "Dry-run submission complete");
-  const badge = isDs160FinalSubmissionRecovery || ds160ValidationRetryAvailable
+  const badge = isDs160FinalSubmissionRecovery || ds160PortalRetryAvailable
       ? (isZh ? "可重试" : "Retry available")
     : actionRequired
       ? (isZh ? "需操作" : "Action required")
@@ -983,6 +997,10 @@ export function GenericResultCard({
       ? (isZh
           ? "已保存这份申请的官网草稿。点击重试后，系统会核对提交记录，并继续可恢复的草稿。"
           : "The official draft for this application is saved. Click retry to check the submission record and continue the recoverable draft.")
+    : ds160PortalRetryAvailable && !ds160ValidationRetryAvailable
+      ? (isZh
+          ? "本次提交未完成，已保留当前草稿。你可以重试；若仍失败，页面会显示具体原因。"
+          : "This submission did not complete, and the current draft was preserved. You can retry; if it fails again, the page will show the reason.")
     : actionRequired
       ? (localizeActionText(result.actionInstructions, isZh) ??
           localizeActionText(result.message, isZh) ??
@@ -1054,7 +1072,7 @@ export function GenericResultCard({
     if (
       !applicationId ||
       resumingDs160 ||
-      (!isDs160FinalSubmissionRecovery && !ds160ValidationRetryAvailable)
+      (!isDs160FinalSubmissionRecovery && !ds160PortalRetryAvailable)
     ) return;
     setResumingDs160(true);
     setDs160RecoveryError(null);
@@ -1298,7 +1316,7 @@ export function GenericResultCard({
 
         {liveError ? <ClientErrorAlert message={liveError} /> : null}
 
-        {actionRequired && result.actionType && !isDs160FinalSubmissionRecovery && !ds160ValidationRetryAvailable && (
+        {actionRequired && result.actionType && !isDs160FinalSubmissionRecovery && !ds160PortalRetryAvailable && (
           <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
             <div className="text-xs text-amber-700">{isZh ? "检查点" : "Checkpoint"}</div>
             <div className="mt-0.5 font-mono text-sm font-medium text-foreground">
@@ -1361,7 +1379,36 @@ export function GenericResultCard({
           </div>
         )}
 
-        {requiresOfficialManualAction && !ds160ValidationRetryAvailable && (
+        {ds160PortalRetryAvailable && !ds160ValidationRetryAvailable && (
+          <div className="space-y-3 rounded-md border border-amber-200 bg-amber-50 p-3">
+            <div className="flex items-start gap-2 text-sm font-medium text-amber-900">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+              <span>
+                {isZh
+                  ? "可从当前草稿重试。若仍失败，页面会显示具体原因。"
+                  : "Retry from the current draft. If it fails again, the page will show the reason."}
+              </span>
+            </div>
+            <Button
+              type="button"
+              className="w-full"
+              onClick={resumeDs160}
+              disabled={!applicationId || resumingDs160}
+            >
+              {resumingDs160 ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RotateCw className="mr-2 h-4 w-4" />
+              )}
+              {resumingDs160
+                ? (isZh ? "正在重试 DS-160" : "Retrying DS-160")
+                : (isZh ? "重试提交" : "Retry submission")}
+            </Button>
+            {ds160RecoveryError ? <ClientErrorAlert message={ds160RecoveryError} /> : null}
+          </div>
+        )}
+
+        {requiresOfficialManualAction && !ds160PortalRetryAvailable && (
           <div className="space-y-3 rounded-md border border-amber-200 bg-amber-50 p-3">
             <div className="flex items-start gap-2">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />

@@ -93,10 +93,14 @@ Before changing this route, read:
   `Ds160RecoveryResultCard.test.tsx` verifies that a recoverable DS-160
   submission uses the parent save/validation callback with an explicit retry
   intent, while the standalone card keeps the guarded API fallback and
-  localized failure message. A blocked portal result may expose the ordinary
-  retry only after a successful manual-action read confirms there is no pending
-  task for that job. Preserve real manual checkpoints and treat unreadable or
-  malformed action responses as unknown rather than an empty list.
+  localized failure message. A `portal_action_required` result may expose the
+  ordinary retry only after a successful manual-action read confirms there is
+  no pending task for that job. This retry reuses the saved draft, does not
+  bypass an official block, and never starts an automatic retry loop. Keep
+  form-validation failures on the “修改后重试”/“Retry after corrections” copy,
+  preserve retrieval-identity failures and real manual checkpoints, and treat
+  unreadable or malformed action responses as unknown rather than an empty
+  list.
   `WaitingCardPolling.test.tsx` and `VnResultCardPolling.test.tsx` cover France
   account and Vietnam official-fee reads: each effect allows one pending request
   through response-body completion, owns its abort deadline, and cancels on
