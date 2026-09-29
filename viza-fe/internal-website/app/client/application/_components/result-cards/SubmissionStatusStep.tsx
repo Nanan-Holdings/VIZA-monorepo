@@ -668,13 +668,35 @@ export function userFacingSubmissionRuntimeMessage(
   }
 
   if (
-    /browserType\.launch|Browser logs:|Call log:|Missing X server|XServer|Executable doesn't exist|Failed to launch|Target page, context or browser has been closed/i.test(
+    /browserType\.launch|Browser logs:|Missing X server|XServer|Executable doesn't exist|Failed to launch/i.test(
       normalized,
     )
   ) {
     return isZh
       ? "云端浏览器启动失败，VIZA 已停止本次执行以保护申请数据。请重试；如果问题持续出现，请联系支持。"
       : "The cloud browser could not start, so VIZA stopped this run to protect the application data. Retry the submission; contact support if the problem continues.";
+  }
+
+  if (/IdentixPhotoServiceError|IDENTIX_PHOTO_SERVICE_ERROR|official (?:Identix )?photo service (?:returned an error|is unavailable)|Upload Photo flow did not return to CEAC/i.test(normalized)) {
+    return isZh
+      ? "官网照片上传服务未能完成处理，申请尚未提交。此错误不代表照片不合格，请稍后重试。"
+      : "The official photo upload service did not finish processing, so the application has not been submitted. This error does not establish that the photo was rejected. Retry later.";
+  }
+
+  if (/Target page, context or browser has been closed/i.test(normalized)) {
+    return isZh
+      ? "与官网页面的连接中断，VIZA 已暂停本次执行以保护申请数据。请稍后重试；如果问题持续出现，请联系支持。"
+      : "The connection to the official page was interrupted, so VIZA paused this run to protect the application data. Retry later; contact support if the problem continues.";
+  }
+
+  if (
+    /Call log:|TimeoutError|timed out|waiting for (?:locator|selector)|locator\(|\.(?:setChecked|check|click|fill|selectOption)\(/i.test(
+      normalized,
+    )
+  ) {
+    return isZh
+      ? "官网填写步骤超时，VIZA 已暂停本次执行以保护申请数据。请稍后重试；如果问题持续出现，请联系支持。"
+      : "The official form-filling step timed out, so VIZA paused this run to protect the application data. Retry later; contact support if the problem continues.";
   }
 
   return normalized;
@@ -1743,6 +1765,14 @@ export function SubmissionStatusStep({
     [status],
   );
   const snapshotIsActive = isActiveSnapshot(snapshot);
+  const isDs160Submission = isDs160VisaType(snapshot?.visaType ?? visaType);
+  // The first status poll can arrive after the server-rendered props. When
+  // those props already say queued/processing, an older terminal result must
+  // not supply an error while the current attempt is being picked up.
+  const propsIndicateActiveSubmission = ["scheduled", "waiting", "processing"].includes(
+    normalizeStatus(status),
+  );
+  const activeAttemptInView = snapshotIsActive || (!snapshot && propsIndicateActiveSubmission);
   const snapshotHasQueue = Boolean(snapshot?.queue);
   // The application row is the durable source of truth. Realtime can deliver a
   // completed result after this component has already cached a running poll;
@@ -1790,18 +1820,21 @@ export function SubmissionStatusStep({
     isDigitalArrivalCardResult(snapshot.result) &&
     snapshot.result.country === "VN" &&
     Boolean(getVietnamPrearrivalQrPath(snapshot.result));
+  const suppressParentResult = isDs160Submission && activeAttemptInView && !terminalPropsAvailable;
   const effectiveResult = polledVietnamPrearrivalHasQr
     ? snapshot?.result ?? result
     : terminalPropsAvailable
       ? result
-      : snapshot?.result ?? result;
+      : suppressParentResult
+        ? snapshot?.result ?? null
+        : snapshot?.result ?? result;
   const vietnamPrearrivalAwaitingQr = isVietnamPrearrivalAwaitingQr(effectiveResult);
   const vietnamPrearrivalMissingQrTerminal =
     vietnamPrearrivalAwaitingQr &&
     !isActiveSnapshot(snapshot) &&
     (Boolean(snapshot) || terminalPropsAvailable);
   const effectiveError = userFacingSubmissionRuntimeMessage(
-    extractError(effectiveResult, snapshot?.error),
+    extractError(effectiveResult, terminalPropsAvailable ? undefined : snapshot?.error),
     isZh,
   );
   const effectiveMessage = userFacingSubmissionRuntimeMessage(
@@ -1838,7 +1871,6 @@ export function SubmissionStatusStep({
     snapshot?.country ?? country,
     snapshot?.visaType ?? visaType,
   );
-  const isDs160Submission = isDs160VisaType(snapshot?.visaType ?? visaType);
   const isUkSubmission = isUkStandardVisitorApplication(
     snapshot?.country ?? country,
     snapshot?.visaType ?? visaType,

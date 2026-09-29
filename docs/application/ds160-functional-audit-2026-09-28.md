@@ -651,3 +651,54 @@ The slower-postback fixture deliberately accepts either prompt acknowledgement
 or Playwright timeout, since that browser timing varies; both must wait for and
 verify the same replaced official controls. No real portal traffic is generated
 by these fixtures. This repair is not yet installed into the active worker.
+
+The organization-authenticated build-only release completed for commit
+`0e114970c6d0c35fc6372c4be2e2d12c3e992a64`, producing immutable image digest
+`sha256:7a839d0277f13b1e7c6439436587fe517759f5c1847132ab46ca8df3bbdf7d0c`.
+It is prepared for installation after the current bounded attempt finishes;
+building did not restart or update the running worker. At 08:40 UTC the exact
+queue was still processing with a renewed lease, no active sibling and no
+final-attempt record. The monitor retains the pending image and requires fresh
+deployment-readiness checks, unchanged runtime configuration and normal
+same-draft recovery before using it. Final submission and official field parity
+remain unverified.
+
+The third attempt advanced through U.S. Contact to Family Relatives at
+08:48:50 UTC, Present Work/Education at 08:50:05 and Previous Work/Education
+at 08:52:58. No final-attempt record existed. Do not interrupt this live
+attempt solely to install the prepared timeout-reconciliation image.
+
+Production UI observation at 08:53 UTC reproduced a contradictory status:
+the same card showed an active submitting indicator and a cloud-browser
+startup-failure/retry message while the exact queue remained processing with
+a renewed lease. The queue still retained the previous attempt's timeout
+payload and run identifier. This UI is not evidence of terminal failure or
+official success; active-attempt status must take precedence over stale result
+details, and ordinary form-action timeouts must not be labelled as browser
+startup failures. A frontend repair and browser regression are in progress.
+
+This attempt passed all five Security pages and began photo upload at
+09:07:59 UTC. At 09:09:41 the official photo service was on its upload error
+page rather than returning to CEAC; the bounded 90-second photo wait failed.
+The queue became terminal failed at 09:09:45, with zero final-attempt records
+and its lease safely released. The photo failure is a new, distinct issue;
+neither a successful field-fill sequence nor that error page proves submission.
+
+The worker then idled to stopped. With no pending or processing queues, it was
+briefly started and checked safe twice, stopped, and updated to the prepared
+`0e114970` image without changing environment, guest or services (all three
+configuration hashes matched). Cold-start smoke at 09:15 UTC returned health
+OK and deploy-ready safe, with no active work or protected browser sessions.
+The checkbox-timeout repair is now installed. No official retry was requested
+while the new photo failure evidence is being investigated.
+
+The frontend status repair now suppresses stale parent results only for an
+active DS-160 attempt; existing partial-result behavior for other countries is
+preserved. Shared error copy distinguishes browser startup, form interaction,
+connection loss and an unfinished official photo service. Raw Playwright
+diagnostics are not displayed. Final validation passed 63/63 result-card and
+polling tests, type-check, and lint with no errors. Two Vietnam regressions
+found during review were fixed by narrowing the active-result rule to DS-160;
+they were not baseline failures. A temporary baseline worktree junction
+cleanup damaged local frontend dependencies; these were restored from the
+unchanged lockfile before the final passing checks. Production was unaffected.

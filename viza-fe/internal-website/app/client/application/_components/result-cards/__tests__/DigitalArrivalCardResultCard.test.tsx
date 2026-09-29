@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
   DigitalArrivalCardSubmissionResult,
   JpVisitJapanWebSubmissionResult,
+  SubmissionResult,
 } from "@/lib/submission-result";
 import {
   DigitalArrivalCardResultCard,
@@ -616,6 +617,37 @@ describe("DigitalArrivalCardResultCard", () => {
     ).toContain("云端浏览器启动失败");
   });
 
+  it("classifies Playwright form timeouts and closed pages without leaking diagnostics", () => {
+    const timeoutMessage =
+      'locator("#education-state").setChecked: Timeout 30000ms exceeded\nCall log:\n  - waiting for locator("#education-state")';
+
+    const localizedTimeout = userFacingSubmissionRuntimeMessage(timeoutMessage, true);
+    expect(localizedTimeout).toContain("官网填写步骤超时");
+    expect(localizedTimeout).not.toContain("云端浏览器启动失败");
+    expect(localizedTimeout).not.toContain("Call log:");
+    expect(localizedTimeout).not.toContain("#education-state");
+
+    expect(
+      userFacingSubmissionRuntimeMessage(
+        "Target page, context or browser has been closed while filling the official form.",
+        true,
+      ),
+    ).toContain("与官网页面的连接中断");
+  });
+
+  it("describes official photo-service failures without claiming the photo was rejected", () => {
+    const message = "Automatic DS-160 submission stopped because the official photo step failed: Upload Photo flow did not return to CEAC within 90000ms (currently at [redacted-url])";
+    const localized = userFacingSubmissionRuntimeMessage(message, true);
+    expect(localized).toContain("官网照片上传服务未能完成处理");
+    expect(localized).toContain("此错误不代表照片不合格");
+    expect(localized).not.toContain("云端浏览器启动失败");
+    expect(localized).not.toContain("redacted-url");
+    expect(userFacingSubmissionRuntimeMessage("IdentixPhotoServiceError: official photo service returned an error", false))
+      .toContain("has not been submitted");
+    expect(userFacingSubmissionRuntimeMessage("The official Identix photo service returned an error page.", true))
+      .toContain("此错误不代表照片不合格");
+  });
+
   it("localizes Japan and Kenya automated-submission status messages", () => {
     expect(userFacingSubmissionRuntimeMessage("Visit Japan Web QR code is ready.", true)).toBe(
       "日本入境与海关申报二维码已准备好。",
@@ -1006,6 +1038,66 @@ describe("cloud submission retry routing", () => {
     });
     expect(onResubmit).not.toHaveBeenCalled();
   });
+
+  it.each(["waiting", "processing"] as const)(
+    "does not show a stale DS-160 failure while a newer %s attempt is active",
+    async (initialStatus) => {
+      const staleError = "The cloud browser could not start for the previous attempt.";
+      const staleResult = {
+        country: "US" as const,
+        status: "stopped_at_sign" as const,
+        applicationId: "old-official-application",
+        surnameFirst5: "APPLI",
+        yearOfBirth: 2000,
+        securityQuestion: "fixture",
+        embassyOrConsulate: "Beijing",
+        retrievalUrl: "https://ceac.state.gov/GenNIV/",
+        error: staleError,
+      } as unknown as SubmissionResult;
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          status: "running",
+          stage: "filling_form",
+          progress: 72,
+          result: null,
+          error: null,
+          message: "Current stage: work_education_present.",
+          updatedAt: new Date().toISOString(),
+          applicationStatus: "processing",
+          country: "united_states",
+          visaType: "DS160",
+          queue: {
+            id: "current-ds160-queue",
+            status: "ds160_live_assisted_processing",
+            mode: "live_assisted",
+            provider: "ceac_live",
+            currentStage: "work_education_present",
+            heartbeatAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        }),
+      });
+      vi.stubGlobal("fetch", fetchMock);
+
+      render(
+        <SubmissionStatusStep
+          applicationId="application-id"
+          country="united_states"
+          visaType="DS160"
+          status={initialStatus}
+          result={staleResult}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText("正在填写官网表单")).toBeInTheDocument();
+      });
+      expect(screen.queryByText(/云端浏览器启动失败/)).not.toBeInTheDocument();
+      expect(screen.queryByText(staleError)).not.toBeInTheDocument();
+    },
+  );
 
   it("retries Japan Visit Japan Web through the live runner", async () => {
     const onResubmit = vi.fn().mockResolvedValue(undefined);
