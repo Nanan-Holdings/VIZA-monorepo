@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { isChineseLocale } from "@/lib/i18n/locale";
+import { getDs160PhotoSubmissionErrorMessage } from "@/lib/ds160-photo-contract";
 import type { SubmissionMode } from "@/lib/submission-queue";
 import { translateOfficialImagePortalError } from "@/lib/document-image-validation";
 
@@ -109,6 +110,8 @@ function parseValidationError(
 }
 
 function localizedFailureMessage(errorMessage: string, isZh: boolean): string {
+  const photoPreflightMessage = getDs160PhotoSubmissionErrorMessage(errorMessage, isZh);
+  if (photoPreflightMessage) return photoPreflightMessage;
   if (!isZh) return errorMessage;
   // These exact messages have already been localized and stripped of runtime
   // diagnostics by SubmissionStatusStep. Do not replace them with a generic

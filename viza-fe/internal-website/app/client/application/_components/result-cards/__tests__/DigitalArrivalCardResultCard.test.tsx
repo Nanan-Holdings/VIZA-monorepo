@@ -651,6 +651,13 @@ describe("DigitalArrivalCardResultCard", () => {
     expect(screen.queryByText(/云端任务未能完成，错误详情已记录/)).not.toBeInTheDocument();
   });
 
+  it("keeps DS-160 photo preflight remediation visible through both result components", () => {
+    const localized = userFacingSubmissionRuntimeMessage("DS160_PHOTO_INVALID:not_square", true);
+    expect(localized).toContain("照片必须是正方形");
+    render(<FailureCard errorMessage={localized} />);
+    expect(screen.getByText(localized!)).toBeInTheDocument();
+  });
+
   it("does not expose diagnostics appended to an otherwise safe localized message", () => {
     render(
       <FailureCard errorMessage="官网照片上传服务未能完成处理，申请尚未提交。此错误不代表照片不合格，请稍后重试。 private-diagnostic-token" />,

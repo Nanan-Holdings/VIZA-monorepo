@@ -12,6 +12,14 @@ afterEach(() => {
 });
 
 describe("FailureCard", () => {
+  it("explains invalid DS-160 photo geometry without exposing worker diagnostics", () => {
+    render(<FailureCard errorMessage="DS160_PHOTO_INVALID:not_square private-file-path" />);
+    expect(screen.getByText("照片必须是正方形（宽高相等）。 请在本申请重新上传符合要求的照片后再提交。"))
+      .toBeInTheDocument();
+    expect(screen.queryByText(/private-file-path/u)).not.toBeInTheDocument();
+    expect(screen.queryByText(/云端浏览器启动失败/u)).not.toBeInTheDocument();
+  });
+
   it("shows a precise E-Visa number error instead of the legacy trip-control cascade", () => {
     render(
       <FailureCard

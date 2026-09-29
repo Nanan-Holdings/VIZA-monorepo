@@ -110,6 +110,22 @@ export function getDs160PhotoErrorMessage(error: Ds160PhotoError, isZh: boolean)
   return isZh ? messages[error].zh : messages[error].en;
 }
 
+/** Translate only known worker preflight reasons, never its raw diagnostics. */
+export function getDs160PhotoSubmissionErrorMessage(message: string, isZh: boolean): string | null {
+  const reasons: readonly Ds160PhotoError[] = [
+    "file_too_large", "wrong_format", "corrupt_image", "dimensions_too_small",
+    "dimensions_too_large", "not_square", "invalid_color",
+  ];
+  const format = (reason: Ds160PhotoError, zh: boolean) =>
+    `${getDs160PhotoErrorMessage(reason, zh)}${zh
+      ? " 请在本申请重新上传符合要求的照片后再提交。"
+      : " Upload a compliant photo to this application before submitting again."}`;
+  const code = message.match(/\bDS160_PHOTO_INVALID:([a-z_]+)\b/u)?.[1];
+  const reason = reasons.find((item) => item === code ||
+    message === format(item, true) || message === format(item, false));
+  return reason ? format(reason, isZh) : null;
+}
+
 interface JpegFrame {
   width: number;
   height: number;

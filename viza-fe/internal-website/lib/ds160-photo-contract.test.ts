@@ -4,9 +4,23 @@ import {
   DS160_PHOTO_ACCEPT,
   DS160_PHOTO_MAX_BYTES,
   getDs160PhotoErrorMessage,
+  getDs160PhotoSubmissionErrorMessage,
   isDs160PhotoRequirement,
   validateDs160PhotoBytes,
 } from "./ds160-photo-contract";
+
+describe("DS-160 worker photo preflight messages", () => {
+  it("localizes known reasons and omits raw worker details", () => {
+    const raw = "DS160_PHOTO_INVALID:not_square private-storage-key";
+    const zh = getDs160PhotoSubmissionErrorMessage(raw, true);
+    expect(zh).toContain("照片必须是正方形");
+    expect(zh).not.toContain("private-storage-key");
+    expect(getDs160PhotoSubmissionErrorMessage(raw, false)).toContain("square with equal width and height");
+    expect(getDs160PhotoSubmissionErrorMessage(zh!, true)).toBe(zh);
+    expect(getDs160PhotoSubmissionErrorMessage(`${zh} private-storage-key`, true)).toBeNull();
+    expect(getDs160PhotoSubmissionErrorMessage("DS160_PHOTO_INVALID:unknown_reason", true)).toBeNull();
+  });
+});
 
 function jpegFixture(options: {
   width?: number;

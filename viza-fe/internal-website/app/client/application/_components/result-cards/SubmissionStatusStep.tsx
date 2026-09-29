@@ -32,6 +32,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { isChineseLocale } from "@/lib/i18n/locale";
+import { getDs160PhotoSubmissionErrorMessage } from "@/lib/ds160-photo-contract";
 import { hasDurableTerminalSubmissionResult } from "@/lib/application-submission-display";
 import { hasSuccessfulFormSubmission } from "@/lib/form-assistant/submission-readonly";
 import { hasSuccessfulArrivalCardSubmission } from "@/features/arrival-cards/application-lifecycle";
@@ -651,6 +652,9 @@ export function userFacingSubmissionRuntimeMessage(
     .replace(/\r\n?/gu, "\n")
     .trim();
   if (!normalized) return undefined;
+
+  const photoPreflightMessage = getDs160PhotoSubmissionErrorMessage(normalized, isZh);
+  if (photoPreflightMessage) return photoPreflightMessage;
 
   if (isZh) {
     const automatedProductMessagesZh: Record<string, string> = {
