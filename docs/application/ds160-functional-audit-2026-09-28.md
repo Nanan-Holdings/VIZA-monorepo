@@ -963,3 +963,14 @@ type checking and compilation passed. A further warm-up regression verifies
 that an already visible mapped field is used even when a hidden template is
 first in DOM order, avoiding the previous unnecessary ten-second timeout.
 The default postback/gate waits and all final review guards remain unchanged.
+
+Release candidate `ad791d1437de8d02708131439569e3e2b02aae5c` was built and
+pushed using the verified VIZA organization identity, without replacing the
+active worker. Prepared immutable image:
+`registry.fly.io/viza-prod-submission-legacy:ds160-ad791d14@sha256:f8b9c22eb716057a6deac202ed958cb275e6bdbc7cdae88a9f2a47151aba8b47`.
+Installation is pending the current run and all provider work ending, followed
+by two fresh safe deploy-readiness checks. The active worker still uses the
+previous image. No submitted-state or production performance claim is made by
+this build-only release. Follow-up must retain machine configuration, install
+only the image, verify cold-start health/readiness and idle shutdown, and then
+resume the same draft only if no final fence or active lease exists.
