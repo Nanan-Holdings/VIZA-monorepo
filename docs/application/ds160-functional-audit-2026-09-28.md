@@ -1588,3 +1588,13 @@ or incorrect control sequence in the captured official form. The previous CEAC
 Application Error still does not establish either successful delivery or definite
 non-delivery. The continuing workflow first waits for readable authenticated
 queue state before using the normal email-only retry path.
+
+At the 22:42 UTC follow-up, the exact queue query still timed out. No email job
+was enqueued; the worker remained stopped with zero provider sessions and the
+same configuration hashes. A separate read-only operations audit found the
+resilience health endpoint reporting 503 / circuit open: Auth and PostgREST
+probes timed out at 22:01:36 while an invalid-key control returned 401 promptly.
+The resilience worker had already requested one database restart successfully
+at 22:01:37-38, with subsequent probes still unhealthy. No manual restart or
+watchdog configuration change was made. The email monitor retains its 30-minute
+backoff and requires a fresh successful queue read before any send attempt.
