@@ -1277,4 +1277,33 @@ again through that entry.
 
 The focused result-card suite passed 22 tests. Frontend type-check passed;
 repository ESLint completed with zero errors and 57 existing warnings.
-Browser and deployment acceptance are recorded after completion below.
+The local browser acceptance mounted the actual `GenericResultCard` and
+`SubmissionStatusStep` with synthetic network responses. HTTP 403 and timeout
+cases both displayed the ordinary Retry submission action, restored it after
+the first rejected request, and entered the running component after a second
+successful request. Pending CAPTCHA exposed only its manual continuation;
+manual-actions HTTP 503 exposed no retry and kept Continue disabled. The
+initial fixture incorrectly used the pre-existing final-recovery branch; it
+was corrected to `portal_action_required` before these acceptance results were
+recorded. The temporary browser tab and local server were then closed.
+
+Release `a155e93c126d1b212e34f71ebc01acdf94eb80fc` was deployed through the
+verified VIZA organization account to `viza-internal`. Vercel deployment
+`dpl_4iSgnEhsnkhqXq5b7FmNpYV2fTru` is READY/production and aliased to
+`app.viza.it.com`; its API metadata reports the exact release commit. The
+upload dry run contained no environment files, private applicant documents or
+local browser evidence. Reloading the authenticated production page still
+showed confirmation-PDF download and the next appointment step, with no
+running indicator or Retry submission button. No additional real submission
+was triggered to test this successful record.
+
+At 18:10:18 UTC the submission machine was automatically stopped, provider
+pending/running counts were zero, and the image/configuration hashes remained
+unchanged. This verifies submission cleanup before the separate proof request.
+
+A single authorized Print Application recovery request then queued a
+proof-only job. Its first attempt stopped before CAPTCHA solving because the
+proof retrieval flow had not selected the saved consular post. This failure
+does not change the successful submission or its confirmed final fence. The
+missing proof location handoff is being repaired separately; no signature or
+new application is needed to retrieve proof.
