@@ -127,6 +127,79 @@ test("a missing optional Save-to-File control does not block passport page advan
   }
 });
 
+test("preserves an Identix photo service error through final-submit orchestration", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  const outputDir = mkdtempSync(join(tmpdir(), "ceac-photo-service-"));
+  try {
+    await page.route("https://ceac.state.gov/**", route =>
+      route.fulfill({
+        contentType: "text/html",
+        body: `<!doctype html>
+          <h2>Upload Photo</h2>
+          <form action="https://identix.state.gov/qotw/Upload.aspx?handoff=synthetic-token" method="get">
+            <input id="ctl00_cphMain_btnUploadPhoto" type="submit" value="Upload Photo">
+          </form>`,
+      }),
+    );
+    await page.route("https://identix.state.gov/**", route => {
+      if (/\/qotw\/Error\.html/i.test(route.request().url())) {
+        return route.fulfill({
+          status: 500,
+          contentType: "text/html",
+          body: "<h1>Official photo service error</h1>",
+        });
+      }
+      return route.fulfill({
+        contentType: "text/html",
+        body: `<!doctype html>
+          <form action="https://identix.state.gov/qotw/Error.html?aspxerrorpath=%2Fqotw%2FUpload.aspx&handoff=synthetic-token" method="post">
+            <input id="ctl00_cphMain_imageFileUpload" type="file">
+            <input id="ctl00_cphButtons_btnUpload" name="ctl00$cphButtons$btnUpload" type="image" class="next">
+          </form>`,
+      });
+    });
+    await page.goto(
+      "https://ceac.state.gov/GenNIV/General/photo/photo_uploadthephoto.aspx?node=UploadPhoto",
+      { waitUntil: "domcontentloaded" },
+    );
+
+    const session = {
+      browser,
+      context: page.context(),
+      page,
+      runId: "run-photo-service",
+      close: async () => browser.close(),
+    } satisfies CeacSession;
+    const result = await orchestrateFill(session, {
+      answers: {},
+      profile: {},
+      tracker: createRecoveryTracker({ runId: "run-photo-service", delegate: { async record() {} } }),
+      outputDir,
+      photo: {
+        kind: "buffer",
+        buffer: Buffer.from("synthetic-photo"),
+        filename: "synthetic.jpg",
+        mimeType: "image/jpeg",
+      },
+      finalSubmit: { passportNumber: "P1234567" },
+    });
+
+    assert.equal(result.result.status, "failed");
+    assert.equal(result.result.error?.name, "IdentixPhotoServiceError");
+    assert.equal(result.result.error?.code, "IDENTIX_PHOTO_SERVICE_ERROR");
+    assert.equal(
+      result.result.error?.message,
+      "The official Identix photo service returned an error page.",
+    );
+    assert.doesNotMatch(String(result.result.error?.message), /synthetic-token|aspxerrorpath/i);
+    assert.match(page.url(), /identix\.state\.gov\/qotw\/Error\.html/i);
+  } finally {
+    await browser.close();
+    cleanupTempOutput(outputDir, "ceac-photo-service-");
+  }
+});
+
 test("a Save-to-File postback gate still blocks orchestration", async () => {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();

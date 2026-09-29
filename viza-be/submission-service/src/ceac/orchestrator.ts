@@ -76,6 +76,7 @@ import {
 } from "./aspnet";
 import {
   handleUploadPhotoPage,
+  IdentixPhotoServiceError,
   PhotoRejectedError,
   type PhotoFile,
 } from "./upload-photo";
@@ -442,6 +443,13 @@ export async function orchestrateFill(
               `[orchestrator] Photo upload did not complete (${reason})`,
             );
             if (options.finalSubmit?.passportNumber) {
+              if (err instanceof IdentixPhotoServiceError) {
+                // Preserve the provider-specific error so the queue/UI can
+                // distinguish an official service error from photo rejection.
+                // The throw still exits before review/sign and the outer
+                // failure path keeps the upload diagnostic.
+                throw err;
+              }
               throw new PhotoRejectedError(
                 `Automatic DS-160 submission stopped because the official photo step failed: ${reason}`,
                 reason,

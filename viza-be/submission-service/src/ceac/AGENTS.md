@@ -228,6 +228,16 @@ Then follow:
 
 ## Related Files
 
+`photo-preflight.ts` validates the selected application's actual downloaded
+photo bytes before the live worker starts CEAC, including historical profile
+fallbacks. Invalid photos produce a non-retryable `DS160_PHOTO_INVALID` reason
+and preserve captured recovery data. These format checks do not certify facial
+composition or official acceptance. `upload-photo.ts` follows both same-tab and
+popup handoffs without waiting for the original page to navigate; only the
+exact official Confirm Photo path establishes upload completion. Official
+Identix error pages are distinct from explicit photo rejection. Keep the
+multipart, popup, stale-original-page and handoff-error browser fixtures.
+
 `audit-artifacts.ts` preserves the worker's exact stored-answer rows, original
 answer map, normalized map and profile fallback before official navigation,
 then retains allowlisted official review JSON/screenshots and failure evidence
@@ -260,6 +270,10 @@ claim the bounded retry without leaving a pending row permanently idle.
 - `viza-be/submission-service/src/ceac/__tests__/pages.spec.ts`
 - `viza-be/submission-service/src/ceac/photo-document.ts`
 - `viza-be/submission-service/src/ceac/__tests__/photo-document.spec.ts`
+- `viza-be/submission-service/src/ceac/photo-preflight.ts`
+- `viza-be/submission-service/src/ceac/__tests__/photo-preflight.spec.ts`
+- `viza-be/submission-service/src/ceac/upload-photo.ts`
+- `viza-be/submission-service/src/ceac/__tests__/upload-photo.spec.ts`
 - `viza-be/submission-service/src/ceac/proof-artifacts.ts`
 - `viza-be/submission-service/src/ceac/__tests__/proof-artifacts.spec.ts`
 - `viza-be/submission-service/src/ceac/__tests__/confirm-application.spec.ts`

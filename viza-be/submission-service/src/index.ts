@@ -56,7 +56,6 @@ import {
   DS160_REUSABLE_PROFILE_PHOTO_STATUSES,
   buildPhotoFileFromDownloadedDocument,
   createDs160FinalSubmissionGuard,
-  type CeacRunResult,
   type ConfirmApplicationCheckpoint,
   type ConfirmApplicationResult,
   type FinalSubmissionRpcClient,
@@ -64,6 +63,7 @@ import {
 } from "./ceac";
 import type { CapturedDs160ResumeCheckpoint } from "./ceac/captured-resume";
 import { classifyDs160RetryFailure, loadDs160RetryPlan } from "./ceac/submission-retry";
+import { assertDs160PhotoFile, Ds160PhotoPreflightError } from "./ceac/photo-preflight";
 import {
   assertRecoveredDs160Application,
   rewindRecoveredDs160ApplicationToPersonalInformation1,
@@ -2495,6 +2495,12 @@ async function processDs160Item(
       throw new Error("DS-160 live submission requires an uploaded applicant photo before CEAC submission.");
     }
 
+    if (liveAssisted && photoFile?.kind === "path") {
+      // Validate the exact downloaded application/profile file before opening
+      // CEAC. Legacy profile rows must satisfy the same contract as new uploads.
+      await assertDs160PhotoFile(photoFile.path);
+    }
+
     if (liveAssisted && !passportNumberForSignature) {
       throw new Error("DS-160 live submission requires passport_number for the final signature step.");
     }
@@ -2841,7 +2847,7 @@ async function processDs160Item(
           failureScreenshot: null,
         };
 
-    const result: CeacRunResult = buildFailureResult(recovery, {
+    const result = buildFailureResult(recovery, {
       error: serializeError(err),
       failureScreenshot: recovery.failureScreenshot,
     });
@@ -2850,6 +2856,36 @@ async function processDs160Item(
     const exceptionCaptchaTelemetry = session?.captchaSolve
       ? { captchaSolve: session.captchaSolve.telemetry }
       : {};
+
+    if (err instanceof Ds160PhotoPreflightError) {
+      const existingPayload = item.ceac_result_payload &&
+        typeof item.ceac_result_payload === "object" &&
+        !Array.isArray(item.ceac_result_payload)
+        ? item.ceac_result_payload as Record<string, unknown>
+        : {};
+      const failurePayload: Record<string, unknown> = {
+        ...existingPayload,
+        status: "failed",
+        runId,
+        error: serializeError(err),
+        failedAt: result.failedAt,
+        ...(result.applicationId ? { applicationId: result.applicationId } : {}),
+        ...(result.lastCheckpoint ? { lastCheckpoint: result.lastCheckpoint } : {}),
+        ...(result.datArtifact ? { datArtifact: result.datArtifact } : {}),
+        ...(result.failureScreenshot ? { failureScreenshot: result.failureScreenshot } : {}),
+      };
+      await updateOwnedDs160Queue(item, {
+        status: liveAssisted ? "ds160_live_assisted_failed" : "ds160_prefill_failed",
+        current_stage: "photo_validation_failed",
+        last_error: errorMsg,
+        error_code: err.code,
+        error_message: errorMsg,
+        ceac_result_payload: failurePayload,
+        updated_at: new Date().toISOString(),
+      });
+      await markSubmissionFailed(item.application_id, errorMsg);
+      return;
+    }
 
     if (err instanceof Ds160PlaceholderAnswersError ||
         err instanceof Ds160RequiredAnswersError ||

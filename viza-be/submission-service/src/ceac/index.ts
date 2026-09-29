@@ -226,3 +226,13 @@ export {
   buildPhotoFileFromDownloadedDocument,
   isDs160PhotoDocument,
 } from "./photo-document";
+
+export {
+  assertDs160PhotoFile,
+  validateDs160PhotoBytes,
+  Ds160PhotoPreflightError,
+  DS160_PHOTO_MAX_BYTES,
+  DS160_PHOTO_MIN_DIMENSION,
+  DS160_PHOTO_MAX_DIMENSION,
+  type Ds160PhotoValidationReason,
+} from "./photo-preflight";

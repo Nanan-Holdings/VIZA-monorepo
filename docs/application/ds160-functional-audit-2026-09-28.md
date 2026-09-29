@@ -702,3 +702,66 @@ found during review were fixed by narrowing the active-result rule to DS-160;
 they were not baseline failures. A temporary baseline worktree junction
 cleanup damaged local frontend dependencies; these were restored from the
 unchanged lockfile before the final passing checks. Production was unaffected.
+
+The production frontend releases `2567974c` and `88e9a442` are now ready on
+the application domain. A second correction allows only the exact known,
+localized safe error messages through the failure card; appended private
+diagnostics still fall back to generic copy. Its 41 result/failure-card tests,
+type-check and changed-file lint passed. An authenticated production browser
+check verified the terminal failure title and photo-service explanation,
+without the old submitting indicator or cloud-startup error. The same card
+was checked at a 390-pixel mobile viewport without horizontal overflow;
+the viewport was then reset. No submit/retry button was clicked in this smoke.
+
+The current private official evidence contains only a photo-error screenshot;
+its encrypted bundle, per-file hash and application/run scope were verified.
+There is no pre-sign review, official review diff or confirmation for this
+attempt. Submission and field-by-field official parity remain unverified.
+The Identix error-page handler now distinguishes this provider error from a
+photo-content rejection and preserves its type through orchestration, stopping
+before review/sign without another upload. Query data is removed from the
+new error and upload DOM diagnostic. This runner change is not yet deployed.
+
+A separate read-only check found that the currently selected reusable profile
+photo is a 643-by-849 JPEG, below the file-size limit but not square. The local
+DS-160 byte validator rejects that geometry. This does not establish the cause
+of the official error page: historical input snapshots do not retain the
+selected photo hash, so equality with the bytes used by the failed attempt
+cannot be proven. Photo selection and preflight coverage are being investigated
+before any same-draft recovery. No photo or applicant answer was modified.
+
+The selection investigation found no application-level photo and exactly one
+usable owner-scoped profile candidate; there is no alternate compliant photo.
+The worker selected the historical profile upload correctly but checked only
+that a photo existed. It did not apply the frontend upload/reuse byte checks.
+The repaired worker validates the selected downloaded bytes before opening CEAC
+and writes a non-retryable photo-validation failure with a stable reason,
+preserving captured recovery data. The profile-fallback/file-validator tests
+passed 2/2 and retry-classification tests passed 14/14, with type-check passing.
+The pre-browser order and persistence code were reviewed; there is no live
+worker/database integration test of this new failure branch yet.
+
+Frontend release `a9af00d9` maps known photo-preflight reasons to localized
+remediation without raw paths or diagnostics. Its 49 contract/result-card tests,
+type-check and lint passed; production deployment is ready and the authenticated
+route smoke still shows the correct terminal photo-service error without a
+stale active indicator or JavaScript errors. The current historical failure
+was not overwritten just to demonstrate the new preflight message.
+
+Independent upload-protocol review confirmed that the selectors match dated
+official control metadata, but found two popup-path bugs: the original page's
+URL wait delays a popup handoff, and a broad CEAC photo-path predicate can treat
+the unchanged Upload Photo page as acceptance. Neither is proven to have caused
+this actual error. Popup/confirmation predicates and multipart fixtures are
+now require the exact official Confirm Photo path, watch the context during
+handoff without the stale original-page navigation wait, and identify direct
+handoff service errors. The six upload browser fixtures passed, including
+multipart bytes/name/button-coordinate checks and popup rejection/confirmation
+with the original Upload Photo page unchanged. The two photo-preflight and
+fourteen retry tests passed, as did the focused parent-orchestration test and
+service type-check. These tests intercept portal requests; they do not establish
+live official acceptance. No further official attempt will run with the
+currently invalid photo. The dedicated preflight failure uses
+`photo_validation_failed`, preserves captured checkpoint fields and updates
+the displayed application error instead of incorrectly routing to final-sign
+recovery.

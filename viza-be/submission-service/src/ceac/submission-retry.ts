@@ -54,6 +54,7 @@ export type Ds160RetryFailureDisposition = "blocked" | "retry" | "failed";
 
 const NON_RETRYABLE_FAILURE_CODES = new Set([
   "VALIDATION_FAILED",
+  "DS160_PHOTO_INVALID",
   "GATE_DETECTED",
   "MANUAL_ACTION_REQUIRED",
 ]);
