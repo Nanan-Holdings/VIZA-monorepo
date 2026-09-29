@@ -3,39 +3,43 @@
 import { useState, useCallback } from "react";
 import Cropper from "react-easy-crop";
 import type { Area } from "react-easy-crop";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { CircleNotch as Loader2 } from "@phosphor-icons/react";
+import { isChineseLocale } from "@/lib/i18n/locale";
+import { getDs160PhotoErrorMessage } from "@/lib/ds160-photo-contract";
+import {
+  Ds160PhotoProcessingError,
+  processDs160Photo,
+} from "@/lib/ds160-photo-processing";
 
 interface PhotoCropToolProps {
   imageObjectUrl: string;
   onCropComplete: (croppedBlob: Blob) => void;
   onCancel: () => void;
+  /** Enables the strict DS-160 600×600 / ≤240 KiB output contract. */
+  ds160Mode?: boolean;
+  onCropError?: (error: Error) => void;
 }
 
-const OUTPUT_SIZE = 600;
-
-/**
- * Draw the cropped region onto a canvas at 600x600 and export as JPEG blob.
- */
-async function getCroppedBlob(
+async function getLegacyCroppedBlob(
   imageSrc: string,
   pixelCrop: Area,
 ): Promise<Blob> {
   const image = await new Promise<HTMLImageElement>((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error("Failed to load image for crop"));
+    img.onerror = () => reject(new Error("Photo could not be decoded"));
     img.src = imageSrc;
   });
 
   const canvas = document.createElement("canvas");
-  canvas.width = OUTPUT_SIZE;
-  canvas.height = OUTPUT_SIZE;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Canvas 2D context unavailable");
+  canvas.width = 600;
+  canvas.height = 600;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Photo canvas is unavailable");
 
-  ctx.drawImage(
+  context.drawImage(
     image,
     pixelCrop.x,
     pixelCrop.y,
@@ -43,32 +47,71 @@ async function getCroppedBlob(
     pixelCrop.height,
     0,
     0,
-    OUTPUT_SIZE,
-    OUTPUT_SIZE,
+    600,
+    600,
   );
 
   return new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => {
-        if (blob) resolve(blob);
-        else reject(new Error("Canvas toBlob returned null"));
-      },
-      "image/jpeg",
-      0.92,
-    );
+    try {
+      canvas.toBlob(
+        (blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error("Photo encoding returned no data"));
+        },
+        "image/jpeg",
+        0.92,
+      );
+    } catch {
+      reject(new Error("Photo encoding failed"));
+    }
   });
+}
+
+function getProcessingErrorMessage(
+  error: Error,
+  isZh: boolean,
+  fallback: string,
+): string {
+  if (!(error instanceof Ds160PhotoProcessingError)) return fallback;
+  if (error.photoReason) return getDs160PhotoErrorMessage(error.photoReason, isZh);
+
+  switch (error.code) {
+    case "image_load_failed":
+      return isZh
+        ? "无法读取照片，请重新选择有效的 JPEG 文件。"
+        : "The photo could not be decoded. Please choose another JPEG file.";
+    case "invalid_crop_region":
+      return isZh
+        ? "裁剪区域必须为至少 600×600 像素的正方形，请调整裁剪范围。"
+        : "The crop must be a square containing at least 600×600 source pixels. Adjust the crop and try again.";
+    case "jpeg_size_limit_unreachable":
+      return isZh
+        ? "这张照片无法压缩到 240 KB 以内，请选择细节较少或尺寸更大的原始照片。"
+        : "This photo cannot be compressed below 240 KB. Choose another source photo and try again.";
+    case "canvas_unavailable":
+    case "jpeg_encode_failed":
+    case "invalid_output":
+      return isZh
+        ? "照片处理失败，请调整裁剪范围或重新选择照片。"
+        : "Photo processing failed. Adjust the crop or choose another photo.";
+  }
 }
 
 export function PhotoCropTool({
   imageObjectUrl,
   onCropComplete,
   onCancel,
+  ds160Mode = false,
+  onCropError,
 }: PhotoCropToolProps) {
   const t = useTranslations("applicationSteps.photoUpload");
+  const locale = useLocale();
+  const isZh = isChineseLocale(locale);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const [processing, setProcessing] = useState(false);
+  const [processingError, setProcessingError] = useState<string | null>(null);
 
   const onCropChanged = useCallback((_croppedArea: Area, pixels: Area) => {
     setCroppedAreaPixels(pixels);
@@ -77,14 +120,25 @@ export function PhotoCropTool({
   const handleApply = async () => {
     if (!croppedAreaPixels) return;
     setProcessing(true);
+    setProcessingError(null);
     try {
-      const blob = await getCroppedBlob(imageObjectUrl, croppedAreaPixels);
-      onCropComplete(blob);
-    } catch {
-      // Fall back to using the original image if crop fails
-      const res = await fetch(imageObjectUrl);
-      const blob = await res.blob();
-      onCropComplete(blob);
+      if (ds160Mode) {
+        const result = await processDs160Photo(imageObjectUrl, croppedAreaPixels);
+        onCropComplete(result.blob);
+      } else {
+        onCropComplete(
+          await getLegacyCroppedBlob(imageObjectUrl, croppedAreaPixels),
+        );
+      }
+    } catch (error) {
+      const processingError =
+        error instanceof Error
+          ? error
+          : new Error(t("uploadError"));
+      setProcessingError(
+        getProcessingErrorMessage(processingError, isZh, t("uploadError")),
+      );
+      onCropError?.(processingError);
     } finally {
       setProcessing(false);
     }
@@ -104,6 +158,12 @@ export function PhotoCropTool({
           onCropComplete={onCropChanged}
         />
       </div>
+
+      {processingError ? (
+        <p role="alert" className="text-sm text-red-600">
+          {processingError}
+        </p>
+      ) : null}
 
       {/* Zoom slider */}
       <div className="flex items-center gap-3">

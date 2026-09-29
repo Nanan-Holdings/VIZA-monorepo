@@ -56,6 +56,9 @@ application flow.
   per-load concurrency, missing objects, request isolation, and failure cleanup.
 - `__tests__/document-center-client.test.tsx`: embedded application-step layout
   coverage for the responsive document-card grids and direct file fields.
+- `__tests__/document-center-photo-crop.test.tsx`: DS-160 non-square-photo crop,
+  cancellation, output validation, application targeting, and stale-callback
+  isolation coverage.
 - `__tests__/ds160-photo-actions.test.ts`: DS-160 photo upload/reuse byte
   validation, Storage ordering, and application ownership boundaries.
 

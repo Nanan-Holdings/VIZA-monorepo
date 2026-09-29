@@ -776,3 +776,30 @@ performed. Monitoring is paused pending a compliant applicant photo; the
 same captured draft and all final-signature guards must be retained on resume.
 The worker automatically reached `stopped` after its idle grace, verified at
 10:16 UTC; no billable browser session or active worker was retained.
+
+## 2026-09-29 — DS-160 crop/compression workflow
+
+The applicant requested in-form square JPEG processing under the 240 KiB
+limit. The active document-center file entry now opens the existing crop tool
+for non-square, oversized-dimension or oversized-byte photos. Its confirmed
+output is validated again before the existing application-scoped upload action.
+Cancellation and application switching invalidate stale crop callbacks; original
+profile files are not overwritten. The shared legacy uploader enables the
+strict rules only for DS-160. Encoding failure no longer falls back to uploading
+the original bytes.
+
+The processor uses only crop/resize and JPEG encoding: 600×600 output, an adaptive
+quality search below 240 KiB, no upscaling from a crop smaller than 600 pixels,
+and no non-square stretching. Output bytes must pass the shared validator.
+A real local Chromium fixture encoded a high-detail synthetic image to 237,830
+bytes at 600×600; the shared byte validator passed. The current applicant image
+was also processed locally to a 47,105-byte technical preview. Visual inspection
+showed that its framing is too close for a square crop to retain the full head
+and official head-size proportions. That preview has not replaced the saved
+photo or been submitted. A source image with more surrounding space is needed;
+file conformance alone must not be represented as official photo acceptance.
+
+The 31 focused processing/contract/document-action/document-center tests passed,
+as did frontend type-check and lint (zero errors, 57 existing warnings).
+Production release and authenticated route smoke are recorded below after
+completion. No CEAC retry or final-signature attempt was initiated by these tests.

@@ -14,6 +14,8 @@ review, bilingual review helpers, and status confirmation.
   legacy B211A-style form steps.
 - `document-upload-step.tsx`: supporting document uploads.
 - `photo-upload-step.tsx`: country/visa-aware photo upload guidance and storage.
+- `photo-crop-tool.tsx`: shared DS-160 crop UI; it delegates output encoding to
+  `lib/ds160-photo-processing.ts` and never falls back to the original file.
 - `dynamic-review-step.tsx`: DB-driven bilingual review with guarded editing of
   English/official values before submission.
   Repeated rows evaluate their own controllers through `getRepeatInstanceValues`;

@@ -4,6 +4,7 @@ import Link from "next/link";
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { useLocale } from "next-intl";
@@ -38,6 +39,7 @@ import {
   type DocumentUploadStatus,
 } from "@/components/ui/document-upload-field";
 import { SupportingDocumentCard } from "@/components/ui/supporting-document-card";
+import { PhotoCropTool } from "@/components/application-steps/photo-crop-tool";
 import { SmoothProgressBar } from "@/components/smooth-progress";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { cn } from "@/lib/utils";
@@ -1166,6 +1168,30 @@ export function DocumentCenterClient({
   >([]);
   const [travelPickerOpen, setTravelPickerOpen] = useState(false);
   const [faceMatch, setFaceMatch] = useState<FaceMatchActionResult | null>(null);
+  const [photoCrop, setPhotoCrop] = useState<{
+    applicationId: string;
+    requirement: DocumentRequirement;
+    objectUrl: string;
+  } | null>(null);
+  const photoSelectionVersion = useRef(0);
+  const currentApplicationId = useRef<string | null>(null);
+  currentApplicationId.current = applicationId ?? data?.selectedApplication?.id ?? null;
+
+  useEffect(() => {
+    return () => {
+      if (photoCrop) URL.revokeObjectURL(photoCrop.objectUrl);
+    };
+  }, [photoCrop]);
+
+  useEffect(() => {
+    photoSelectionVersion.current += 1;
+    setPhotoCrop(null);
+  }, [applicationId, data?.selectedApplication?.id]);
+
+  function closePhotoCrop() {
+    photoSelectionVersion.current += 1;
+    setPhotoCrop(null);
+  }
 
   useEffect(() => {
     if (!highlightRequirementKey) return;
@@ -1392,11 +1418,20 @@ export function DocumentCenterClient({
       documentType: requirement.documentType,
       requirementKey: requirement.key,
     })) {
+      const selectionVersion = ++photoSelectionVersion.current;
+      const targetApplicationId = selectedApplication?.id;
+      if (!targetApplicationId) return;
       try {
         const photoError = file.size > DS160_PHOTO_MAX_BYTES
           ? "file_too_large"
           : validateDs160PhotoBytes(new Uint8Array(await file.arrayBuffer()));
+        if (photoSelectionVersion.current !== selectionVersion || currentApplicationId.current !== targetApplicationId) return;
         if (photoError) {
+          if (["file_too_large", "dimensions_too_large", "not_square"].includes(photoError)) {
+            setError(null);
+            setPhotoCrop({ applicationId: targetApplicationId, requirement, objectUrl: URL.createObjectURL(file) });
+            return;
+          }
           setError(getDs160PhotoErrorMessage(photoError, isZh));
           return;
         }
@@ -1422,6 +1457,27 @@ export function DocumentCenterClient({
       return;
     }
     await uploadFile(requirement, file);
+  }
+
+  async function handlePhotoCropComplete(blob: Blob) {
+    const pending = photoCrop;
+    const selectionVersion = photoSelectionVersion.current;
+    if (!pending || currentApplicationId.current !== pending.applicationId) return;
+    try {
+      const photoError = validateDs160PhotoBytes(new Uint8Array(await blob.arrayBuffer()));
+      if (photoSelectionVersion.current !== selectionVersion || currentApplicationId.current !== pending.applicationId) return;
+      if (photoError) {
+        setError(getDs160PhotoErrorMessage(photoError, isZh));
+        closePhotoCrop();
+        return;
+      }
+      closePhotoCrop();
+      await uploadFile(pending.requirement, new File([blob], "ds160-photo.jpg", { type: "image/jpeg" }));
+    } catch {
+      if (photoSelectionVersion.current !== selectionVersion) return;
+      closePhotoCrop();
+      setError(isZh ? "照片处理失败，请重新选择照片。" : "Photo processing failed. Please select the photo again.");
+    }
   }
 
   async function handleRunFaceMatch() {
@@ -1788,6 +1844,28 @@ export function DocumentCenterClient({
           </section>
           )}
       </div>
+
+      <Dialog open={photoCrop !== null} onOpenChange={(open) => { if (!open) closePhotoCrop(); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{isZh ? "裁切 DS-160 照片" : "Crop DS-160 photo"}</DialogTitle>
+            <DialogDescription>
+              {isZh
+                ? "调整为正方形，保留完整头部。保存时会转换为 600×600 像素 JPEG，并压缩至不超过 240 KB。文件规格通过不代表官网已接受照片。"
+                : "Frame a square with the entire head visible. Saving produces a 600×600 JPEG up to 240 KB. Passing file checks does not mean official photo acceptance."}
+            </DialogDescription>
+          </DialogHeader>
+          {photoCrop && (
+            <PhotoCropTool
+              key={photoCrop.objectUrl}
+              imageObjectUrl={photoCrop.objectUrl}
+              ds160Mode
+              onCropComplete={handlePhotoCropComplete}
+              onCancel={closePhotoCrop}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       {travelView && (
         <TravelAiPickerDialog

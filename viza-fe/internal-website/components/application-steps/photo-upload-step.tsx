@@ -25,6 +25,7 @@ import {
 } from "@/lib/photo-validation";
 import { getPhotoGuidance } from "@/lib/photo-guidance";
 import { isChineseLocale } from "@/lib/i18n/locale";
+import { isDs160PhotoRequirement } from "@/lib/ds160-photo-contract";
 import { type VisaFormFieldRow } from "@/types/visa-form-fields";
 import { type FieldGuidanceChatMessage } from "@/types/field-guidance";
 import { PhotoCropTool } from "./photo-crop-tool";
@@ -62,6 +63,11 @@ export function PhotoUploadStep({
   const locale = useLocale();
   const isZh = isChineseLocale(locale);
   const guidance = getPhotoGuidance(country, visaType, isZh ? "zh" : "en");
+  const ds160PhotoMode = isDs160PhotoRequirement({
+    country,
+    visaType,
+    documentType: "photo",
+  });
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [screen, setScreen] = useState<Screen>(
@@ -301,6 +307,7 @@ export function PhotoUploadStep({
             </p>
             <PhotoCropTool
               imageObjectUrl={rawObjectUrl}
+              ds160Mode={ds160PhotoMode}
               onCropComplete={handleCropComplete}
               onCancel={handleCropCancel}
             />
