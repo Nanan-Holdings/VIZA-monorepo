@@ -818,3 +818,19 @@ attempts after the smoke. No live positive upload was performed because this
 source photo cannot satisfy the full-head framing requirement. The same draft
 is retained, monitoring remains paused for a wider original, and the worker
 remains stopped. The technical preview exists only outside the repository.
+
+## 2026-09-29 — Additional portrait candidates
+
+The applicant provided three additional local images. The white-background,
+no-eyeglasses portrait is the best of these candidates for further processing.
+Its source is 4264×5168; the existing crop/encode helper produced a local
+600×600 JPEG of 55,988 bytes, with byte-level validation passing. No generative
+edits, face changes or background replacement were used. The derivative remains
+a technical preview outside the repository and has not been uploaded.
+
+The source's embedded capture timestamp predates the official six-month window.
+The applicant has been asked to confirm the actual capture date because camera
+metadata alone does not conclusively establish it. The maximum-width square
+preview also leaves the head larger than the official composition range on
+visual inspection. File compliance is not full photo compliance. The same CEAC
+draft is retained; there is no new retry, official signature or submission proof.
