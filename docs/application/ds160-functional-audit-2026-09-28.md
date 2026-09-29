@@ -1317,3 +1317,10 @@ or final-signature path is changed. Eleven focused location/CAPTCHA tests and
 the submission-service type-check passed. This source fix is not yet a live
 proof-recovery acceptance: the old pending proof job and its lease must finish
 before the prepared worker can be installed safely.
+
+Release `fffb3ef9` passed the service build and was built/pushed without
+deployment as
+`registry.fly.io/viza-prod-submission-legacy:ds160-proof-fffb3ef9@sha256:fc31a91735cfd4a89d5020244034496a55d52414b80b15fbe967c4569ad8da21`.
+The verified organization identity was used. The production machine still
+runs `9f0931c2`; no active or leased proof task was interrupted. The prepared
+image needs no rebuild before the next safe release window.
