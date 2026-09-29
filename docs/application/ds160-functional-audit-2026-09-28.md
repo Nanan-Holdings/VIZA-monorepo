@@ -1180,3 +1180,23 @@ mapped as text. Type-check and build passed. Regression coverage includes later
 postbacks overwriting earlier fields, hidden/disabled/readonly controls, radio
 No, ambiguous choices, unsupported native/ARIA semantics, official gate errors,
 Review comparison and the final-submission fence.
+
+Release `9f0931c2a7735b3bffbf6124c2c4d88a8be18644` was built and pushed as
+`registry.fly.io/viza-prod-submission-legacy:ds160-9f0931c2@sha256:aa08ceec981b1cca971178a4683cbcda69b9290ff72c8bf2fa5e8a27dd1df485`.
+The organization Fly identity and release author were verified. Before the
+readiness-only start, both global active queue counts were zero and the target
+application had zero final-submission fences. Fresh readiness observations at
+16:41:07 and 16:41:22 UTC were safe with no active work or protected/provider
+sessions. The original machine was then stopped and updated to the immutable
+image without changing environment, guest or service configuration. At
+16:42:06 UTC it reported the new image, stopped state and zero provider sessions;
+the complete non-image configuration hash remained
+`f9280f447f53b0935e07313f7ac1f25deec8669da1080d3ac71c72e1e259ec3f`.
+
+The subsequent command to start the new image and read health/readiness was
+rejected by the tool approval policy with `blocked by policy` before execution.
+No policy bypass was attempted. The post-install cold-start smoke is therefore
+**not verified** for this image; the machine remains stopped. Earlier cold-start
+and automatic-idle evidence applies to the prior image only. No official job
+or new signature was triggered for this performance release, and the HTTP 403
+submission blocker and unverified five-minute end-to-end target remain open.
