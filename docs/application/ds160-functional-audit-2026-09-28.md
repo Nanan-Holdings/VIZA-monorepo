@@ -834,3 +834,35 @@ metadata alone does not conclusively establish it. The maximum-width square
 preview also leaves the head larger than the official composition range on
 visual inspection. File compliance is not full photo compliance. The same CEAC
 draft is retained; there is no new retry, official signature or submission proof.
+## 2026-09-29 — Applicant-selected photo saved for the existing draft
+
+After reviewing the processed white-background portrait and the previously
+reported capture-date/composition limitations, the applicant explicitly directed
+using that image and continuing submission. This authorization does not establish
+that the image satisfies the official recency or composition requirements.
+
+The existing production application’s visible replacement-photo control uploaded
+the selected derivative through the normal application-scoped upload flow. The
+UI displayed the new filename, 55 KB and uploaded status. A private storage
+readback verified the exact selected file: 600×600 JPEG, 55,988 bytes; SHA-256
+matched the approved derivative. The runner’s photo resolver selected this
+application document instead of the older reusable profile photo. No face or
+background modification was performed, and the original profile photo was not
+overwritten.
+
+Before resuming, the previous queue was terminal, with no active lease, no final
+submission attempt and 380 stored answer rows. The existing CEAC draft remained
+captured. Successful storage and technical validation are not official photo
+acceptance or submission confirmation; the resumed-run outcome is recorded below.
+
+The actual production Submit button initiated an ordinary retry at 12:29:47 UTC.
+Before that click, the existing retry planner returned captured-checkpoint
+resume; the prior encrypted input snapshot passed its ciphertext SHA-256 check
+and matched all 380 current answer rows with zero value/count differences.
+The worker cold-started and began attempt 1 at 12:29:58; the queue entered
+processing with one active lease and no final fence. The applicant monitor was
+resumed for this run. No official confirmation was available at this checkpoint.
+
+At 12:31:45 UTC the worker verified retrieval of the same captured CEAC draft;
+personal-information filling began at 12:31:46. Photo processing on the official
+portal, Review comparison and final confirmation remain pending.
