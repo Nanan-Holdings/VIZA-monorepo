@@ -2,7 +2,7 @@ import "dotenv/config";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import { createHash, randomBytes } from "crypto";
+import { randomBytes } from "crypto";
 import { chromium } from "@playwright/test";
 import { supabase } from "./supabase";
 import { sendFailureAlert } from "./alert";
@@ -159,8 +159,9 @@ import {
 import { generateTotp } from "./au-visitor/totp";
 import { launchStealthBrowser } from "./ceac/stealth-browser";
 import { uploadArtifact } from "./artifact-storage";
-import { artifact } from "./artifact";
 import { persistDs160InputSnapshot, persistDs160RunEvidence } from "./ceac/audit-artifacts";
+import { createDs160AuditStore } from "./ceac/audit-storage";
+import { createDs160AuditStorageTransport } from "./ceac/audit-storage-transport";
 import {
   SubmissionQueueItem,
   ApplicantProfile,
@@ -2447,26 +2448,24 @@ async function processDs160Item(
   const capturedResumeActive = capturedResumeCheckpoint !== null;
   const auditArtifacts: Record<string, { storagePath: string; sha256: string }> = {};
   let auditEvidenceFailed = false;
-  const auditStore = {
-    encrypt: encryptSecret,
-    write: async (name: string, ciphertext: string): Promise<void> => {
-      let timeout: ReturnType<typeof setTimeout> | undefined;
-      try {
-        const uploaded = await Promise.race([
-          artifact.put(item.id, `${runId}/${name}`, ciphertext, { contentType: "application/octet-stream" }),
-          new Promise<never>((_, reject) => {
-            timeout = setTimeout(() => reject(new Error("DS-160 private evidence upload timed out")), 30_000);
-          }),
-        ]);
-        auditArtifacts[name] = {
-          storagePath: uploaded.path,
-          sha256: createHash("sha256").update(ciphertext).digest("hex"),
-        };
-      } finally {
-        if (timeout) clearTimeout(timeout);
-      }
+  const auditStoreOptions = {
+    jobId: item.id,
+    runId,
+    transport: createDs160AuditStorageTransport({
+      url: process.env.SUPABASE_URL!,
+      key: process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    }),
+    onStored: ({ name, path: storagePath, sha256 }: { name: string; path: string; sha256: string }) => {
+      auditArtifacts[name] = { storagePath, sha256 };
     },
   };
+  const auditStore = createDs160AuditStore(encryptSecret, {
+    ...auditStoreOptions,
+    assertActive: assertQueueLeaseOwned,
+  });
+  // Preserve terminal diagnostics even when the queue lease was lost. The
+  // existing finally-block ownership check still fences queue-reference writes.
+  const terminalAuditStore = createDs160AuditStore(encryptSecret, auditStoreOptions);
   const diagnosticRedactions = Object.entries(process.env)
     .filter(([key]) => /SECRET|TOKEN|PASSWORD|API_KEY|SERVICE_ROLE|CONNECT_URL/i.test(key))
     .map(([, value]) => value ?? "");
@@ -3122,7 +3121,7 @@ async function processDs160Item(
 
       if (retryDisposition === "failed") {
         console.error(
-          `[ceac] Max attempts reached for application=${redactIdentifier(item.application_id)}`,
+          `[ceac] Retry policy ended the run for application=${redactIdentifier(item.application_id)}`,
         );
         await markSubmissionFailed(item.application_id, errorMsg);
         await sendDs160FailureAlertIfEnabled(item.application_id, `[CEAC] ${errorMsg}`);
@@ -3131,7 +3130,7 @@ async function processDs160Item(
   } finally {
     try {
       try {
-        await persistDs160RunEvidence(auditStore, tempDir);
+        await persistDs160RunEvidence(terminalAuditStore, tempDir);
       } catch {
         auditEvidenceFailed = true;
         console.error("[ceac] Private run evidence upload failed; comparison evidence is incomplete.");

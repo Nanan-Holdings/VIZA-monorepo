@@ -62,6 +62,10 @@ diagnostics, `.dat` capture, CAPTCHA solving, and one-shot final submission.
    form pages, including Personal Information 1, before waiting for its real
    postback. Delayed continuation clicks receive their own settlement wait;
    only explicit visible Continue Form / Save and Continue actions qualify.
+   A Playwright timeout after the click action is dispatched is ambiguous:
+   never click the continuation again; settle through the ASP.NET monitor and
+   require an expected mapped page on the same origin under `/GenNIV/`, or a
+   same mapped page with the modal gone and observed navigation evidence.
    `__tests__/navigator-page-complete.spec.ts` covers visible, hidden and
    delayed modal behavior without returning to Review or skipping filling.
    On the live Security and Background: Part 5 page, CEAC may render a
@@ -185,6 +189,10 @@ diagnostics, `.dat` capture, CAPTCHA solving, and one-shot final submission.
    orchestration. Ordinary authorized retries use this planner automatically;
    they no longer require the legacy exact-job environment override. Otherwise
    route to `action_required`; never create a new CEAC draft or repeat final click.
+   Audit evidence storage performs its own bounded retry/reconciliation. An
+   `AUDIT_STORAGE_*` terminal result must settle as `failed` immediately rather
+   than replaying the CEAC form or presenting a misleading portal-action
+   handoff; final-submission fence inspection still takes precedence.
    `submission-retry.ts` performs the read-only pre-browser decision for a
    retry: a complete, same-application encrypted checkpoint may resume a
    pre-final draft, while any final fence, official success evidence, malformed
@@ -231,6 +239,22 @@ diagnostics, `.dat` capture, CAPTCHA solving, and one-shot final submission.
     unsupported posts must stop the run; never silently default a real
     application to another embassy or consulate.
 
+### DS-160 audit evidence storage
+
+`audit-storage.ts` is the DS-160-only persistence boundary for encrypted
+input/review evidence. It uses a bounded, same-path/same-bytes protocol: a
+transient upload error or conflict is reconciled with a private download and
+SHA-256 comparison before a retry; a different object is never overwritten.
+The transport supplied by the caller must honor the `AbortSignal` passed to
+both upload and download. The current shared Supabase `StorageFileApi.upload`
+does not expose per-call cancellation, so callers must inject a
+cancellation-aware transport instead of wrapping that upload in a detached
+`Promise.race`. Pre-sign callers should inject the queue lease assertion;
+finally-block evidence may intentionally omit it when the caller owns the
+terminal-state policy. The helper does not create signed URLs, log paths or
+plaintext, or report success until the upload is acknowledged or a matching
+private object is read back.
+
 ## Validation
 
 Run from `viza-be/submission-service`:
@@ -262,6 +286,11 @@ then retains allowlisted official review JSON/screenshots and failure evidence
 before run-directory cleanup. Both artifacts are encrypted with the existing
 submission secret cipher and stored privately under the queue/run identity.
 Review evidence is pre-sign evidence and does not itself prove submission.
+`audit-storage.ts` provides the bounded same-bytes retry/reconciliation helper;
+`audit-storage-transport.ts` supplies the DS-160-specific cancellation-aware
+Supabase transport used by the worker. The latter is intentionally separate
+from the shared artifact helper and is the only place that binds per-request
+abort signals to the storage client.
 The DS-160 attempt cleanup closes its browser and stops lease renewal before
 releasing a retry's exact owner/claim-timestamp lease, so the startup drain can
 claim the bounded retry without leaving a pending row permanently idle.
@@ -269,7 +298,11 @@ claim the bounded retry without leaving a pending row permanently idle.
 - `viza-be/submission-service/src/index.ts`
 - `viza-be/submission-service/src/ceac/ds160-field-fill.ts`
 - `viza-be/submission-service/src/ceac/audit-artifacts.ts`
+- `viza-be/submission-service/src/ceac/audit-storage.ts`
+- `viza-be/submission-service/src/ceac/audit-storage-transport.ts`
 - `viza-be/submission-service/src/ceac/__tests__/audit-artifacts.spec.ts`
+- `viza-be/submission-service/src/ceac/__tests__/audit-storage.spec.ts`
+- `viza-be/submission-service/src/ceac/__tests__/audit-storage-transport.spec.ts`
 - `viza-be/submission-service/src/ds160-form-mappings.ts`
 - `viza-be/submission-service/src/ds160-coverage-audit.ts`
 - `viza-be/submission-service/src/ds160-completeness-verify.ts`

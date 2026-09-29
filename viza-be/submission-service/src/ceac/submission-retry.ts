@@ -52,6 +52,20 @@ export type Ds160RetryPlan =
 
 export type Ds160RetryFailureDisposition = "blocked" | "retry" | "failed";
 
+// Audit evidence writes already perform their own bounded, same-bytes
+// reconciliation. Retrying the whole CEAC form after one of these terminal
+// storage outcomes would only replay unchanged official work and could hide
+// the evidence gap behind a misleading portal-action handoff.
+const AUDIT_STORAGE_FAILURE_CODES = new Set([
+  "AUDIT_STORAGE_AUTHORIZATION",
+  "AUDIT_STORAGE_BUCKET_MISSING",
+  "AUDIT_STORAGE_CONFLICT",
+  "AUDIT_STORAGE_DEADLINE",
+  "AUDIT_STORAGE_OWNERSHIP",
+  "AUDIT_STORAGE_UNAVAILABLE",
+  "AUDIT_STORAGE_UNVERIFIED",
+]);
+
 const NON_RETRYABLE_FAILURE_CODES = new Set([
   "VALIDATION_FAILED",
   "DS160_PHOTO_INVALID",
@@ -132,6 +146,7 @@ export function classifyDs160RetryFailure(
   const direct = record(error);
   const nested = record(direct?.error);
   const code = text(direct?.code) ?? text(nested?.code);
+  if (code && AUDIT_STORAGE_FAILURE_CODES.has(code.toUpperCase())) return "failed";
   if (code && NON_RETRYABLE_FAILURE_CODES.has(code.toUpperCase()))
     return "blocked";
   return attempts + 1 >= Math.max(1, maxAttempts) ? "failed" : "retry";

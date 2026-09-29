@@ -572,3 +572,21 @@ test("classifies validation and official gates as blocked, then bounds runtime r
     "failed",
   );
 });
+
+test("stops after bounded audit-storage failure instead of replaying the CEAC form", () => {
+  for (const code of [
+    "AUDIT_STORAGE_AUTHORIZATION",
+    "AUDIT_STORAGE_BUCKET_MISSING",
+    "AUDIT_STORAGE_CONFLICT",
+    "AUDIT_STORAGE_DEADLINE",
+    "AUDIT_STORAGE_OWNERSHIP",
+    "AUDIT_STORAGE_UNAVAILABLE",
+    "AUDIT_STORAGE_UNVERIFIED",
+  ]) {
+    assert.equal(classifyDs160RetryFailure({ code }, 0, 3), "failed");
+    assert.equal(
+      classifyDs160RetryFailure({ error: { code: code.toLowerCase() } }, 0, 3),
+      "failed",
+    );
+  }
+});

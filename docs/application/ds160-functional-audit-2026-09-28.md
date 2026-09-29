@@ -1018,7 +1018,86 @@ database rows and the encrypted input snapshot matched without differences,
 and the approved photo hash matched again. At 14:20 UTC, the Fly/Vercel
 organization identity and release commit author were verified exactly.
 
-This resumed run has not reached a new official Review, signature, or
-confirmation. It therefore does not establish a successful DS-160 submission;
-the result remains pending official evidence. This record contains no applicant
-answers, document numbers, recovery secrets, credentials, or private URLs.
+At the time of the rollout record, this resumed run had not reached a new
+official Review, signature, or confirmation. Later results follow below. This
+record contains no applicant answers, document numbers, recovery secrets,
+credentials, or private URLs.
+
+## 2026-09-29 — Accelerated live Review passed; pre-sign storage failure
+
+The first accelerated attempt reached official Review at 14:58:01 UTC.
+Personal Information 1 to Review took 24 minutes 14 seconds, versus 33 minutes
+3 seconds for the preceding old-image attempt, approximately 27% less. This
+is a measured segment comparison, not an end-to-end submission guarantee.
+
+The encrypted official evidence and its 17 embedded files passed SHA-256
+verification. The live official comparison matched all 149 expectations with
+zero issues, including the repaired address/NA mappings and the narrowly
+captured duties text. The consular post also matched the official location
+catalog. A separate input-snapshot comparison still matched all 380 saved rows
+and duplicate counts. The coverage limits recorded above remain: the result
+does not prove inactive branches or fields outside those expectations, and
+the final application PDF is still required for further comparison.
+
+At 15:01:31 UTC, the run stopped before reserving the final-submission fence:
+the private pre-sign evidence upload received a database connection timeout.
+The terminal official-evidence upload succeeded, but no signature or official
+confirmation had occurred. The second automatic attempt started at 15:01:49
+and stopped at 15:05:36 after a completed-draft Continue Form click timed out
+while Playwright awaited scheduled navigation. Its hash-verified diagnostic
+identified Personal Information 2 after the click; that alone does not prove
+the server accepted the postback. The third attempt started at 15:05:42 and
+was still processing at 15:27 UTC, with no final fence or sibling execution.
+
+Two local fixes are being prepared without disturbing that active attempt:
+bounded same-ciphertext audit upload reconciliation, and post-click settlement
+for the completed-draft continuation. Upload recovery must verify identical
+private bytes, retain queue ownership checks, and stop on a differing object,
+authorization failure, or exhausted storage budget. It must never sign before
+the required evidence is persisted. The audit retry exhaustion must not restart
+the entire official form automatically. Release and live verification of these
+additional fixes are pending.
+
+The production status UI was also found to display a prior attempt's paused
+message while the same queue was actively retrying. The initial-props repair
+was released as `1a000c51`; a real production refresh demonstrated that the
+polling snapshot could still contain the stale error. A follow-up fix and
+fresh production smoke are required before claiming this UI issue resolved.
+
+## 2026-09-29 — Terminal official HTTP 403 and prepared recovery fixes
+
+The third accelerated attempt finished Security 5 at 15:33:00 UTC and entered
+Review at 15:33:15. At 15:36:18 the official form response returned HTTP 403.
+The queue settled as `ds160_blocked / portal_action_required`, its lease was
+released, and the application-wide final fence count remained zero. No
+official signature or submission confirmation exists. The failure is an
+official access rejection, not evidence that the applicant's answers or photo
+were rejected. Its precise server-side cause is not available from HTTP 403.
+
+The latest encrypted input and official evidence, including all 15 embedded
+files, passed SHA verification. Seven Review snapshots survived, but the run
+stopped before producing its expectations/diff files. The earlier first
+attempt's 149/149 result must not be relabeled as this attempt's completed
+Review verification. The latest 380 stored rows still match the input snapshot
+without differences. No final application or confirmation PDF is available.
+
+At 15:37 UTC, provider pending/running counts were both zero and deployment
+readiness was safe with no active work or protected sessions. At 15:40 UTC,
+the machine was automatically stopped, with provider sessions still zero.
+No new official session or retry was started after the 403.
+
+The recovery patch passed 53 focused audit/storage, retry/final-fence,
+navigation and ASP.NET tests, plus service type-check/build. Browser fixtures
+cover a continuation delayed beyond five seconds, 403, an unchanged page,
+pre-dispatch timeout and foreign-origin redirect. The SDK transport was also
+verified against real local HTTP requests, including abort and lost-response
+reconciliation. A synthetic encrypted private-storage smoke uploaded and
+hash-verified a 22,031-byte object in approximately two seconds, then removed
+that test object. It did not alter applicant records or contact CEAC.
+
+The follow-up frontend repair `fa277da2` was deployed to production after 69
+focused tests, type-check/lint and a local Chromium active-snapshot fixture.
+A real production refresh now correctly shows the terminal paused/HTTP 403
+state without a submitting spinner. The corrected active state is covered by
+the fixture; it cannot be re-proven in production after this run has ended
+without starting another official job, which was deliberately not done.
