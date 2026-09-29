@@ -1200,3 +1200,35 @@ No policy bypass was attempted. The post-install cold-start smoke is therefore
 and automatic-idle evidence applies to the prior image only. No official job
 or new signature was triggered for this performance release, and the HTTP 403
 submission blocker and unverified five-minute end-to-end target remain open.
+
+## 2026-09-29 — Production cold-start acceptance completed
+
+Following the user's renewed deployment/acceptance request, the installed image
+was re-read at 17:46:09 UTC and matched release `9f0931c2` and its immutable
+`sha256:aa08ceec981b1cca971178a4683cbcda69b9290ff72c8bf2fa5e8a27dd1df485`
+digest. It did not need rebuilding or replacement. The release author and Fly
+account matched the VIZA organization. Before startup, both global active queue
+counts and the application's final-submission fence count were zero; the exact
+target queue remained `ds160_blocked`.
+
+The explicit machine start succeeded. At 17:47:01 UTC, the new image returned
+HTTP 200 with `/health` status `ok`; `/deploy-ready` reported safe, zero active
+work and no protected sessions. A separate `/ready` request returned `ready`,
+`dbReachable=true` and `workerStarted=true`. Provider pending/running counts
+remained zero and all non-image configuration hashes were unchanged.
+
+A synthetic Chromium smoke ran the deployed compiled modules inside that
+machine, with all browser network requests aborted. It verified 15/15 recovered
+fields without a write (815 ms for fill/read-back), corrected one stale field
+with exactly one write and verified 15/15 again, read exactly two visible
+validation messages among 80 hidden validators, and rejected a checkbox mapped
+as text. The remote program printed its passing assertions; the Windows Fly SSH
+client then exited with `The handle is invalid`. This client transport error is
+retained here rather than represented as a clean command exit. Independent
+health/readiness and machine-state observations succeeded.
+
+At 17:49:10 UTC the machine had automatically returned to `stopped`, with zero
+provider sessions and the same installed image/configuration. This completes
+the previously blocked production cold-start/idle acceptance. No official
+retry or signature was triggered. It does not resolve the prior CEAC HTTP 403,
+prove an official five-minute run, or provide submission/confirmation evidence.
