@@ -49,6 +49,8 @@ import {
   retrievalUrlFor,
   mergeUsProofStoragePaths,
   waitForDs160ConfirmationPage,
+  prepareEnglishDs160ConfirmationCapture,
+  Ds160EnglishConfirmationError,
   detectPage,
   captureApplicationId,
   resolveDs160PhotoDocument,
@@ -1875,6 +1877,7 @@ async function processDs160ProofItem(
       securityAnswer,
     });
     await waitForDs160ConfirmationPage(session.page);
+    await prepareEnglishDs160ConfirmationCapture(session.page, currentResult.applicationId ?? "");
 
     const ownerId = profile.auth_user_id ?? profile.id;
     const proofStoragePaths = await uploadDs160ProofArtifacts(
@@ -2729,11 +2732,30 @@ async function processDs160Item(
       const applicationId = result.applicationId ?? recoveryIdentity.applicationId;
       const ownerId = profile.auth_user_id ?? profile.id;
       assertQueueLeaseOwned();
-      const proofStoragePaths = await uploadDs160ProofArtifacts(
-        await captureDs160ProofArtifacts(session.page, tempDir),
-        item.application_id,
-        ownerId,
-      );
+      let proofStoragePaths: Ds160ProofStoragePaths = {};
+      let englishCaptureReady = false;
+      try {
+        await prepareEnglishDs160ConfirmationCapture(session.page, applicationId);
+        assertQueueLeaseOwned();
+        englishCaptureReady = true;
+      } catch (error) {
+        // The irreversible CEAC submission is already confirmed by result.
+        // Preserve that result, but never capture an arbitrary page after the
+        // official English/gate/identity preparation fails.
+        const reason = error instanceof Ds160EnglishConfirmationError
+          ? error.code
+          : "ds160_english_confirmation_unavailable";
+        console.warn(
+          `[ceac] English confirmation capture skipped after submitted result (${reason}); preserving submission.`,
+        );
+      }
+      if (englishCaptureReady) {
+        proofStoragePaths = await uploadDs160ProofArtifacts(
+          await captureDs160ProofArtifacts(session.page, tempDir),
+          item.application_id,
+          ownerId,
+        );
+      }
       const usPayload: UsSubmissionResult = {
         country: "US",
         status: "submitted",

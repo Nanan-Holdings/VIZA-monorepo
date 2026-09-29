@@ -251,7 +251,15 @@ diagnostics, `.dat` capture, CAPTCHA solving, and one-shot final submission.
     the new-application security question page, recovery form, or generic
     "confirmation page" wording as proof; require the official Print
     Confirmation / Print Application / Email Confirmation controls before
-    storing PDFs.
+    storing PDFs. Its shared English-capture preparation is used both by
+    submitted-result capture and proof recovery: select the official English
+    option, wait for the ASP.NET postback, re-check the gate and application
+    identity after the same-page Print Confirmation action, then capture the
+    page. A language/print preparation failure after an already confirmed
+    submission is nonfatal to that submitted result; skip new PDF capture and
+    upload rather than capturing an arbitrary error/challenge page, and
+    preserve the confirmed result recovery semantics. Never sign, submit,
+    email, or create a draft from this preparation path.
 12. `start-location.ts` validates the applicant-selected CEAC Designate Location
     code against the current official option list. Missing, ambiguous, or
     unsupported posts must stop the run; never silently default a real

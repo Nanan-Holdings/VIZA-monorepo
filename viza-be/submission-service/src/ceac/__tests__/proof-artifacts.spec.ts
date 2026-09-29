@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { mergeUsProofStoragePaths, waitForDs160ConfirmationPage } from "../proof-artifacts";
+import { chromium } from "@playwright/test";
+import {
+  ensureEnglishDs160Confirmation,
+  mergeUsProofStoragePaths,
+  printOfficialDs160Confirmation,
+  waitForDs160ConfirmationPage,
+} from "../proof-artifacts";
 
 test("mergeUsProofStoragePaths preserves submitted DS-160 result fields", () => {
   const merged = mergeUsProofStoragePaths(
@@ -79,6 +85,97 @@ test("waitForDs160ConfirmationPage advances from recovery continue to official p
   assert.deepEqual(page.clicks, ["continue", "view"]);
 });
 
+test("ensureEnglishDs160Confirmation waits for a delayed language postback and reads English back", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(confirmationFixture({ delayedLanguagePostback: true }));
+
+    await ensureEnglishDs160Confirmation(page, "AA00FLSF69");
+
+    assert.equal(await page.locator("#ctl00_ddlLanguage").inputValue(), "en-US");
+    assert.equal(await page.locator("#language-marker").innerText(), "Online Nonimmigrant Visa Application");
+  } finally {
+    await browser.close();
+  }
+});
+
+test("ensureEnglishDs160Confirmation fails closed when CEAC has no English option", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(confirmationFixture({ includeEnglishOption: false }));
+
+    await assert.rejects(
+      () => ensureEnglishDs160Confirmation(page, "AA00FLSF69"),
+      /does not expose one selectable English option/,
+    );
+  } finally {
+    await browser.close();
+  }
+});
+
+test("ensureEnglishDs160Confirmation preserves CEAC gate failures", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(confirmationFixture({ gateText: "Access denied" }));
+
+    await assert.rejects(
+      () => ensureEnglishDs160Confirmation(page, "AA00FLSF69"),
+      (error: unknown) => (error as { code?: string }).code === "GATE_DETECTED",
+    );
+  } finally {
+    await browser.close();
+  }
+});
+
+test("printOfficialDs160Confirmation invokes the official same-page control once", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(confirmationFixture({ initiallyEnglish: true }));
+
+    await printOfficialDs160Confirmation(page, "AA00FLSF69");
+
+    assert.equal(await page.evaluate(() => (window as unknown as { __printClicks?: number }).__printClicks), 1);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("printOfficialDs160Confirmation rechecks the gate after the print action", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(confirmationFixture({ initiallyEnglish: true, postPrintMutation: "gate" }));
+
+    await assert.rejects(
+      () => printOfficialDs160Confirmation(page, "AA00FLSF69"),
+      (error: unknown) => (error as { code?: string }).code === "GATE_DETECTED",
+    );
+    assert.equal(await page.evaluate(() => (window as unknown as { __printClicks?: number }).__printClicks), 1);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("printOfficialDs160Confirmation rechecks application identity after the print action", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(confirmationFixture({ initiallyEnglish: true, postPrintMutation: "identity" }));
+
+    await assert.rejects(
+      () => printOfficialDs160Confirmation(page, "AA00FLSF69"),
+      /CEAC English confirmation page identity could not be verified/,
+    );
+    assert.equal(await page.evaluate(() => (window as unknown as { __printClicks?: number }).__printClicks), 1);
+  } finally {
+    await browser.close();
+  }
+});
+
 function fakeProofPage(
   states: Array<{
     body: string;
@@ -126,4 +223,57 @@ function fakeProofPage(
     waitForLoadState: async () => undefined,
     waitForTimeout: async () => undefined,
   };
+}
+
+function confirmationFixture(options: {
+  delayedLanguagePostback?: boolean;
+  includeEnglishOption?: boolean;
+  initiallyEnglish?: boolean;
+  gateText?: string;
+  postPrintMutation?: "gate" | "identity";
+} = {}): string {
+  const includeEnglishOption = options.includeEnglishOption ?? true;
+  const initiallyEnglish = options.initiallyEnglish ?? false;
+  const languageOptions = [
+    `<option value="zh-CN"${initiallyEnglish ? "" : " selected"}>中文</option>`,
+    ...(includeEnglishOption ? [`<option value="en-US"${initiallyEnglish ? " selected" : ""}>English</option>`] : []),
+  ].join("");
+  const initialMarker = initiallyEnglish ? "Online Nonimmigrant Visa Application" : "中文确认页";
+  const delay = options.delayedLanguagePostback ? 250 : 0;
+  const gateText = options.gateText ?? "";
+  const postPrintMutation = options.postPrintMutation === "gate"
+    ? "document.body.insertAdjacentText('beforeend', ' Access denied');"
+    : options.postPrintMutation === "identity"
+      ? "document.getElementById('ctl00_SiteContentPlaceHolder_lblID').textContent = 'WRONGID';"
+      : "";
+  return `<!doctype html>
+    <html><body>
+      <h2>Thank You</h2>
+      <div>${gateText}</div>
+      <select id="ctl00_ddlLanguage">${languageOptions}</select>
+      <input id="ctl00_SiteContentPlaceHolder_FormView1_btnPrintConfirm" type="button" value="Print Confirmation" onclick="window.__printClicks = (window.__printClicks || 0) + 1; ${postPrintMutation} window.print();">
+      <input id="ctl00_SiteContentPlaceHolder_FormView1_btnPrintApp" type="button" value="Print Application" disabled>
+      <input id="ctl00_SiteContentPlaceHolder_FormView1_btnEmailConfirm" type="button" value="Email Confirmation">
+      <span id="ctl00_SiteContentPlaceHolder_lblID">AA00FLSF69</span>
+      <div id="language-marker">${initialMarker}</div>
+      <script>
+        window.__mgr = {
+          busy: false,
+          handlers: [],
+          get_isInAsyncPostBack: function() { return this.busy; },
+          add_endRequest: function(handler) { this.handlers.push(handler); },
+          remove_endRequest: function(handler) { this.handlers = this.handlers.filter(function(item) { return item !== handler; }); }
+        };
+        window.Sys = { WebForms: { PageRequestManager: { getInstance: function() { return window.__mgr; } } } };
+        document.getElementById("ctl00_ddlLanguage").addEventListener("change", function() {
+          window.__mgr.busy = true;
+          window.setTimeout(function() {
+            var english = document.getElementById("ctl00_ddlLanguage").value === "en-US";
+            document.getElementById("language-marker").textContent = english ? "Online Nonimmigrant Visa Application" : "中文确认页";
+            window.__mgr.busy = false;
+            window.__mgr.handlers.slice().forEach(function(handler) { handler(null, { get_error: function() { return null; } }); });
+          }, ${delay});
+        });
+      </script>
+    </body></html>`;
 }

@@ -217,6 +217,10 @@ export {
 export {
   mergeUsProofStoragePaths,
   waitForDs160ConfirmationPage,
+  ensureEnglishDs160Confirmation,
+  printOfficialDs160Confirmation,
+  prepareEnglishDs160ConfirmationCapture,
+  Ds160EnglishConfirmationError,
   type Ds160ProofStoragePaths,
 } from "./proof-artifacts";
 
