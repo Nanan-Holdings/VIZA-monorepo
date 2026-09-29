@@ -595,3 +595,19 @@ passport-document-type OTHER, and present-occupation OTHER explanation fields
 to textareas after their live CEAC controls were observed as textareas with
 4000-character limits. It updates only field metadata, not saved answers. Keep
 its frontend mirror `20260922020000_ds160_explanation_textareas.sql` byte-identical.
+
+# Migration 0206
+
+`0206_ds160_official_email_queue.sql` adds the service-role-only,
+empty-search-path DS-160 official confirmation-email and proof-download queue
+RPCs. Enqueue locks the application and profile owner, validates the submitted
+US result and recipient digest shape, serializes active queue and runner jobs,
+and persists
+the request/send metadata in `ceac_result_payload`. Start and reserve require
+the exact live queue owner and lock timestamp; reserve is the one-shot
+database-clock send fence. Settlement accepts only sent/unknown/unsent-failed
+states after browser cleanup and clears the exact lease atomically. The
+frontend mirror
+`viza-fe/internal-website/supabase/migrations/20260929000000_ds160_official_email_queue.sql`
+must remain byte-identical. The API and worker perform the actual auth email
+digest check because the service role does not have `auth.users` SELECT access.

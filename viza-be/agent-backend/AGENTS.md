@@ -95,6 +95,13 @@ explicitly reintroduces another provider.
   portal observation to submission-service. Free Plan mode stops before slot
   selection, payment, and final booking.
 - DB schema and migrations: `src/db/schema.ts` and `drizzle/*.sql`.
+- `drizzle/0206_ds160_official_email_queue.sql` and its byte-identical
+  frontend mirror own the DS-160 official confirmation-email/download queue, exact
+  owner/lock send fence, and post-browser-close settlement. The focused
+  migration test is
+  `src/tests/ds160-official-email-queue-migration.test.ts`; its database
+  companion is explicitly gated to a marked local/test PostgreSQL transaction
+  and always rolls back synthetic fixtures.
 - Transactional notification delivery: `src/notify/templates/**` and
   `src/notify/worker.ts`; Vietnam status changes use the locale-aware
   `vietnam_status_update` template and link to the VIZA status center.
