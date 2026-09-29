@@ -1324,3 +1324,21 @@ deployment as
 The verified organization identity was used. The production machine still
 runs `9f0931c2`; no active or leased proof task was interrupted. The prepared
 image needs no rebuild before the next safe release window.
+
+At 18:38 UTC the proof job was still pending with one attempt, but its
+18:31:34 lease had expired. There were no other pending/running legacy jobs,
+no queued/running shared-pool jobs, and no provider sessions or active worker
+work. The earlier expectation of automatic retry after lease expiry was
+incorrect: the legacy worker drains only at startup or an authenticated wake.
+The immediate drain after failure exits while the old lease remains valid;
+expiry alone schedules no later drain. Pending proof work also prevents idle
+shutdown, even though deployment readiness reports no in-process activity.
+
+The existing claim RPC includes proof-pending jobs, so a repaired worker can
+claim this same job after startup without changing the queue or re-enqueuing.
+However, the current monitoring instruction additionally requires zero
+pending jobs before deployment. An explicit exception was requested to install
+the prepared image on the idle, lease-free worker while preserving this one
+proof job. No deployment, queue mutation or additional portal attempt was
+performed while awaiting that decision. The submitted application and
+confirmed final-submission fence remain unchanged.
