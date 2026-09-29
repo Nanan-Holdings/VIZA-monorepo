@@ -60,6 +60,8 @@ import {
   type ConfirmApplicationResult,
   type FinalSubmissionRpcClient,
   resolveCeacStartLocationCode,
+  Ds160ProofConsularPostRequiredError,
+  resolveDs160ProofStartLocationCode,
 } from "./ceac";
 import type { CapturedDs160ResumeCheckpoint } from "./ceac/captured-resume";
 import { classifyDs160RetryFailure, loadDs160RetryPlan } from "./ceac/submission-retry";
@@ -1848,12 +1850,19 @@ async function processDs160ProofItem(
       throw new Error("DS-160 proof recovery requires the stored security answer.");
     }
 
+    // Proof recovery uses the same applicant-selected CEAC post as the live
+    // submit flow.  Missing/invalid saved data is a typed terminal condition;
+    // it must not start a CAPTCHA session with a blank location or loop retry.
+    const branchAnswers = await loadDs160Answers(item.application_id);
+    const startLocationCode = resolveDs160ProofStartLocationCode(branchAnswers);
+
     session = await startCeacSession({
       headless: config.playwrightHeadless,
       acceptDownloads: true,
       runId,
       captchaMaxAttempts: 3,
       startAction: "retrieve",
+      startLocationCode,
     });
     await session.page.goto(retrievalUrlFor(currentResult.applicationId ?? ""), {
       waitUntil: "domcontentloaded",
@@ -1897,16 +1906,23 @@ async function processDs160ProofItem(
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
     const newAttempts = item.attempts + 1;
-    const newStatus = newAttempts >= MAX_ATTEMPTS ? "ds160_proof_failed" : "ds160_proof_pending";
+    const terminalConfigurationError = err instanceof Ds160ProofConsularPostRequiredError;
+    const newStatus = terminalConfigurationError || newAttempts >= MAX_ATTEMPTS
+      ? "ds160_proof_failed"
+      : "ds160_proof_pending";
     await supabase
       .from("submission_queue")
       .update({
         status: newStatus,
         attempts: newAttempts,
         last_error: errorMsg,
-        error_code: "ds160_proof_recovery_failed",
+        error_code: terminalConfigurationError
+          ? err.code
+          : "ds160_proof_recovery_failed",
         error_message: errorMsg,
-        current_stage: "proof_recovery_failed",
+        current_stage: terminalConfigurationError
+          ? "proof_consular_post_required"
+          : "proof_recovery_failed",
         updated_at: new Date().toISOString(),
       })
       .eq("id", item.id);

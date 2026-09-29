@@ -63,6 +63,22 @@ const CEAC_LOCATION_ALIASES = (() => {
   return aliases;
 })();
 
+/**
+ * Proof recovery cannot safely choose a consular post on its own.  Keep this
+ * as a typed terminal error so a missing/invalid saved post is surfaced to the
+ * caller instead of being retried against a blank CEAC start page.
+ */
+export class Ds160ProofConsularPostRequiredError extends Error {
+  readonly code = "ds160_proof_consular_post_required" as const;
+
+  constructor() {
+    super(
+      "DS-160 proof recovery requires the saved consular post; restore the saved application details before proof recovery.",
+    );
+    this.name = "Ds160ProofConsularPostRequiredError";
+  }
+}
+
 export function resolveCeacStartLocationCode(answers: Record<string, string>): string {
   const candidate = [
     answers.consular_post,
@@ -87,4 +103,20 @@ export function resolveCeacStartLocationCode(answers: Record<string, string>): s
   }
 
   return code;
+}
+
+/**
+ * Resolve the same saved post used by the live submit flow for proof
+ * recovery, but classify deterministic input errors as terminal.  The proof
+ * worker must never guess a location or burn retries with a blank CEAC
+ * selector.
+ */
+export function resolveDs160ProofStartLocationCode(
+  answers: Record<string, string>,
+): string {
+  try {
+    return resolveCeacStartLocationCode(answers);
+  } catch {
+    throw new Ds160ProofConsularPostRequiredError();
+  }
 }

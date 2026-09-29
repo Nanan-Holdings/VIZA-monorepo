@@ -37,7 +37,9 @@ export {
 } from "./start-page-navigation";
 
 export {
+  Ds160ProofConsularPostRequiredError,
   resolveCeacStartLocationCode,
+  resolveDs160ProofStartLocationCode,
 } from "./start-location";
 
 export {

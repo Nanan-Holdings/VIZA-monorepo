@@ -57,6 +57,10 @@ diagnostics, `.dat` capture, CAPTCHA solving, and one-shot final submission.
 2. `start-page-captcha.ts` solves the initial image CAPTCHA through 2Captcha.
    It preserves the applicant-selected post across retries and returns the
    resolved post for session recovery; never substitute a default embassy.
+   Proof-only retrieval also loads the saved consular post and passes its
+   resolved code into session bootstrap before CAPTCHA. `start-location.ts`
+   exposes a typed terminal proof error for missing/invalid saved posts; never
+   keep retrying a blank selector or alter the already-submitted application.
 3. `pages.ts` detects the current DS-160 page.
    `navigator.ts` handles CEAC's completed-draft Continue Form modal on all
    form pages, including Personal Information 1, before waiting for its real

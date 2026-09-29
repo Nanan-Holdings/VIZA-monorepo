@@ -1307,3 +1307,13 @@ proof retrieval flow had not selected the saved consular post. This failure
 does not change the successful submission or its confirmed final fence. The
 missing proof location handoff is being repaired separately; no signature or
 new application is needed to retrieve proof.
+
+The proof bootstrap now loads saved answers without CEAC derivation, resolves
+the saved consular post through the existing location catalog, and supplies
+`startLocationCode` to the retrieve-only session. Missing/invalid saved posts
+produce `ds160_proof_consular_post_required` and a terminal proof failure
+instead of repeated CAPTCHA attempts against a blank location. No form answer
+or final-signature path is changed. Eleven focused location/CAPTCHA tests and
+the submission-service type-check passed. This source fix is not yet a live
+proof-recovery acceptance: the old pending proof job and its lease must finish
+before the prepared worker can be installed safely.
