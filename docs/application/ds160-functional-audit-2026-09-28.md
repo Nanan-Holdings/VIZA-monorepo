@@ -607,3 +607,47 @@ was clicked while the old lease remained. By 07:49 UTC the repaired worker
 had automatically returned to the stopped state after its cold-start smoke,
 confirming idle cost cleanup. Live validation of the repaired address sequence
 and final official submission remain pending the next guarded retry.
+
+After the old lease naturally expired, the exact application had no active
+sibling and zero final-attempt records. The latest encrypted input snapshot's
+hash and scope were verified in memory; all 380 saved rows still matched the
+database exactly. At 07:57:33 UTC the actual production Submit button created
+the next guarded recovery queue, superseding the failed row. The repaired
+worker began run `ds160-live-mumdvzlh-ihhrwf` at 07:57:43. The UI showed the
+submitting state and the database confirmed processing; this is evidence of
+dispatch and worker pickup, not final official success. No answer or recovery
+identity was changed, and no new official draft was requested.
+
+Live repaired-run verification: `ds160-live-mumdvzlh-ihhrwf` entered
+Address and Phone at 08:07:30 UTC and advanced to Passport at 08:11:18.
+The former home-state NA failure did not recur; this is the first live proof
+that the repaired ordering passed the affected page. The same queue remained
+processing with a renewed lease and zero final-attempt records. Submission
+and the full post-submission comparison are still pending.
+
+At 08:14:16 UTC the same repaired run reached U.S. Contact. Its attempt stopped
+at 08:14:34 with a 5-second `setChecked` timeout on the organization-unknown
+control. The sanitized Playwright trace recorded a completed click and a
+re-resolved unchecked checkbox. The hash-verified private official screenshot
+likewise showed the organization checkbox clear and its text input enabled,
+with no final-signature attempt. This is a postback/action acknowledgement
+timeout after the intended checkbox change, distinct from the earlier disabled
+address input bug. The existing bounded retry recovered the same draft in a
+second run at 08:16:14; no active lease or answers were changed manually.
+Any timeout reconciliation must first run the existing gate-aware postback
+wait and read back the exact unchecked control; it must not repeat the click
+or ignore an official gate, a still-checked/missing control or another error.
+
+The second attempt reproduced the same organization-unknown click timeout at
+08:30:52 UTC, before any final attempt, and the bounded third attempt started
+at 08:30:56. The prepared repair catches only Playwright `TimeoutError`, then
+uses the existing gate-aware postback wait and exact unchecked readback without
+clicking again. Gate errors, non-timeout failures and still-checked controls
+continue to stop filling. The final field-fill, ASP.NET and repeated-row suites
+passed 51/51; type-check and diff whitespace checks passed. Coverage includes
+a fully intercepted six-second document POST in real Chromium and a separate
+deterministic acknowledgement-timeout case, including single-click assertions.
+The slower-postback fixture deliberately accepts either prompt acknowledgement
+or Playwright timeout, since that browser timing varies; both must wait for and
+verify the same replaced official controls. No real portal traffic is generated
+by these fixtures. This repair is not yet installed into the active worker.

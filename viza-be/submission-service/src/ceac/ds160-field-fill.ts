@@ -49,6 +49,10 @@ function isExplicitNaValue(value: string): boolean {
   return normalized === "DOES_NOT_APPLY" || normalized === "DO_NOT_KNOW" || normalized === "N/A";
 }
 
+function isPlaywrightTimeoutError(error: unknown): boolean {
+  return error instanceof Error && error.name === "TimeoutError";
+}
+
 export function hasMeaningfulDs160TextAnswer(value: string | undefined): boolean {
   return Boolean(value?.trim()) && !isExplicitNaValue(value!);
 }
@@ -84,7 +88,15 @@ export async function clearDs160NaCompanionBeforeTextFill(options: {
     throw new Error(`CEAC NA companion is disabled for ${options.fieldName}.`);
   }
 
-  await control.setChecked(false, { timeout: 5_000 });
+  try {
+    await control.setChecked(false, { timeout: 5_000 });
+  } catch (error) {
+    // CEAC can complete the checkbox click and begin its ASP.NET postback
+    // before Playwright observes the action/navigation.  Reconcile that
+    // state through the existing gate-aware monitor, but never click again:
+    // a second click could restore the stale NA state.
+    if (!isPlaywrightTimeoutError(error)) throw error;
+  }
   await options.waitForPostback(options.page);
   await options.page.waitForTimeout(750);
 

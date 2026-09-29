@@ -1,14 +1,49 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { chromium } from "@playwright/test";
+import { chromium, type Locator } from "@playwright/test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { assertFamilyUnknownParentBranches, fillPageFields, orchestrateFill, verifyPageFieldValues } from "../orchestrator";
 import { createRecoveryTracker } from "../artifacts";
+import { GateDetectedError } from "../errors";
+import { clearDs160NaCompanionBeforeTextFill } from "../ds160-field-fill";
+import { installCeacPostbackMonitor, waitForAspNetPostback } from "../aspnet";
 import { ds160ContactMappings, ds160TravelMappings, ds160WorkPreviousMappings } from "../../ds160-form-mappings";
 import { deriveDS160Answers } from "../../ds160-derive-answers";
 import { createDs160BranchPolicy, ds160MappingRepeatGroup } from "../field-contract";
+
+type SyntheticSetCheckedMode = "timeout-after-clear" | "timeout-still-checked" | "error";
+
+function createSyntheticNaControl(mode: SyntheticSetCheckedMode): {
+  control: Locator;
+  state: { checked: boolean; setCheckedCalls: number };
+  error?: Error;
+} {
+  const state = { checked: true, setCheckedCalls: 0 };
+  const error = new Error("synthetic CEAC interaction failure");
+  const control = {
+    isChecked: async () => state.checked,
+    isEnabled: async () => true,
+    setChecked: async (value: boolean) => {
+      state.setCheckedCalls += 1;
+      if (mode === "error") throw error;
+      if (mode === "timeout-after-clear") {
+        state.checked = value;
+        const timeout = new Error("synthetic action acknowledgement timeout");
+        timeout.name = "TimeoutError";
+        throw timeout;
+      }
+      if (mode === "timeout-still-checked") {
+        const timeout = new Error("synthetic action timeout before click");
+        timeout.name = "TimeoutError";
+        throw timeout;
+      }
+      state.checked = value;
+    },
+  } as unknown as Locator;
+  return { control, state, error: mode === "error" ? error : undefined };
+}
 
 test("verifies both-name-unknown parent branches against the official family DOM", async () => {
   const browser = await chromium.launch({ headless: true });
@@ -190,6 +225,186 @@ test("does not infer an NA reset when the paired text answer is missing", async 
     }, {}, {}, { requireMappedAnswers: false });
     assert.equal(await page.locator("#state").isDisabled(), true);
     assert.equal(await page.locator("#state-na").isChecked(), true);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("waits for a slow official NA postback and verifies the replaced controls without clicking again", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    const fixtureUrl = "https://ceac.state.gov/GenNIV/ContactFixture.aspx";
+    let postbacks = 0;
+    // All browser requests are intercepted; no real CEAC request is made.
+    await page.route("**/*", async route => {
+      const posted = route.request().method() === "POST";
+      if (posted) {
+        postbacks += 1;
+        await new Promise(resolve => setTimeout(resolve, 6_000));
+      }
+      await route.fulfill({ status: 200, contentType: "text/html", body: `
+        <form method="post" action="${fixtureUrl}">
+          <input id="synthetic-state" type="text" ${posted ? "" : "disabled"}>
+          <input id="synthetic-state-na" type="checkbox" ${posted ? "" : "checked"}
+            onchange="this.form.requestSubmit()">
+        </form>` });
+    });
+    await page.goto(fixtureUrl);
+    installCeacPostbackMonitor(page);
+    const mappings = {
+      synthetic_state: { selector: "#synthetic-state", type: "text" as const, label: "Synthetic State" },
+      synthetic_state_na: { selector: "#synthetic-state-na", type: "checkbox" as const, label: "Synthetic State Does Not Apply" },
+    };
+    const realControl = page.locator("#synthetic-state-na");
+    let setCheckedCalls = 0;
+    const control = {
+      isChecked: () => realControl.isChecked(),
+      isEnabled: () => realControl.isEnabled(),
+      setChecked: async (value: boolean) => {
+        setCheckedCalls += 1;
+        // Depending on navigation-event timing, Playwright can acknowledge
+        // this click promptly or time out waiting for its navigation. Both
+        // paths must wait for and verify the same eventual official DOM.
+        await realControl.setChecked(value, { timeout: 5_000 });
+      },
+    } as unknown as Locator;
+    let postbackCalls = 0;
+    await clearDs160NaCompanionBeforeTextFill({
+      page,
+      scope: page,
+      fieldName: "synthetic_state",
+      mappings,
+      findVisibleField: async () => control,
+      waitForPostback: async () => {
+        postbackCalls += 1;
+        await waitForAspNetPostback(page, 8_000);
+      },
+    });
+    assert.equal(setCheckedCalls, 1);
+    assert.equal(postbacks, 1);
+    assert.equal(postbackCalls, 1);
+    assert.equal(await realControl.isChecked(), false);
+    assert.equal(await page.locator("#synthetic-state").isDisabled(), false);
+    await page.locator("#synthetic-state").fill("SYNTHETIC STATE");
+    await verifyPageFieldValues(page, mappings, {
+      synthetic_state: "SYNTHETIC STATE", synthetic_state_na: "N",
+    }, {}, { requireMappedAnswers: true });
+  } finally {
+    await browser.close();
+  }
+});
+
+test("reconciles an acknowledgement timeout only after postback and unchecked readback", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    const fixture = createSyntheticNaControl("timeout-after-clear");
+    let postbackCalls = 0;
+    await clearDs160NaCompanionBeforeTextFill({
+      page, scope: page, fieldName: "synthetic_state",
+      mappings: {
+        synthetic_state_na: { selector: "#synthetic-state-na", type: "checkbox", label: "Synthetic State Does Not Apply" },
+      },
+      findVisibleField: async () => fixture.control,
+      waitForPostback: async () => { postbackCalls += 1; },
+    });
+    assert.equal(postbackCalls, 1);
+    assert.equal(fixture.state.setCheckedCalls, 1);
+    assert.equal(fixture.state.checked, false);
+  } finally { await browser.close(); }
+});
+
+test("propagates a gate raised while reconciling a timed-out NA click", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    const mappings = {
+      synthetic_state: { selector: "#synthetic-state", type: "text" as const, label: "Synthetic State" },
+      synthetic_state_na: { selector: "#synthetic-state-na", type: "checkbox" as const, label: "Synthetic State Does Not Apply" },
+    };
+    const fixture = createSyntheticNaControl("timeout-after-clear");
+    const gate = new GateDetectedError("synthetic CEAC gate", { details: { status: 403 } });
+    let postbackCalls = 0;
+    await assert.rejects(
+      clearDs160NaCompanionBeforeTextFill({
+        page,
+        scope: page,
+        fieldName: "synthetic_state",
+        mappings,
+        findVisibleField: async () => fixture.control,
+        waitForPostback: async () => {
+          postbackCalls += 1;
+          throw gate;
+        },
+      }),
+      error => error === gate,
+    );
+    assert.equal(fixture.state.setCheckedCalls, 1);
+    assert.equal(postbackCalls, 1);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("does not reconcile or retry a non-timeout NA interaction failure", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    const mappings = {
+      synthetic_state: { selector: "#synthetic-state", type: "text" as const, label: "Synthetic State" },
+      synthetic_state_na: { selector: "#synthetic-state-na", type: "checkbox" as const, label: "Synthetic State Does Not Apply" },
+    };
+    const fixture = createSyntheticNaControl("error");
+    assert.ok(fixture.error);
+    let postbackCalls = 0;
+    await assert.rejects(
+      clearDs160NaCompanionBeforeTextFill({
+        page,
+        scope: page,
+        fieldName: "synthetic_state",
+        mappings,
+        findVisibleField: async () => fixture.control,
+        waitForPostback: async () => {
+          postbackCalls += 1;
+        },
+      }),
+      error => error === fixture.error,
+    );
+    assert.equal(fixture.state.setCheckedCalls, 1);
+    assert.equal(postbackCalls, 0);
+    assert.equal(fixture.state.checked, true);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("fails closed when a timed-out NA click leaves the control checked", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    const mappings = {
+      synthetic_state: { selector: "#synthetic-state", type: "text" as const, label: "Synthetic State" },
+      synthetic_state_na: { selector: "#synthetic-state-na", type: "checkbox" as const, label: "Synthetic State Does Not Apply" },
+    };
+    const fixture = createSyntheticNaControl("timeout-still-checked");
+    let postbackCalls = 0;
+    await assert.rejects(
+      clearDs160NaCompanionBeforeTextFill({
+        page,
+        scope: page,
+        fieldName: "synthetic_state",
+        mappings,
+        findVisibleField: async () => fixture.control,
+        waitForPostback: async () => {
+          postbackCalls += 1;
+        },
+      }),
+      /could not be cleared for synthetic_state/,
+    );
+    assert.equal(fixture.state.setCheckedCalls, 1);
+    assert.equal(postbackCalls, 1);
+    assert.equal(fixture.state.checked, true);
   } finally {
     await browser.close();
   }
