@@ -803,3 +803,18 @@ The 31 focused processing/contract/document-action/document-center tests passed,
 as did frontend type-check and lint (zero errors, 57 existing warnings).
 Production release and authenticated route smoke are recorded below after
 completion. No CEAC retry or final-signature attempt was initiated by these tests.
+
+Release `05e67fe224cf6b57922517cb5a581de5ad41f361` is READY on the
+production `app.viza.it.com` alias (deployment
+`dpl_8MEyPApZF86noqEttZDnbHCfqqeu`). The exact organization CLI identity,
+release author and linked project were verified; the dry upload manifest
+contained no private photos, environment files, build caches or backend files.
+The authenticated production route loaded successfully. Selecting the original
+non-square photo opened the crop dialog; increasing zoom to 1.2 and applying
+produced the localized source-resolution error without uploading. Cancel
+returned to the form and there were no captured JavaScript errors. A scoped
+readback confirmed zero application photo rows, active queues and final-sign
+attempts after the smoke. No live positive upload was performed because this
+source photo cannot satisfy the full-head framing requirement. The same draft
+is retained, monitoring remains paused for a wider original, and the worker
+remains stopped. The technical preview exists only outside the repository.
