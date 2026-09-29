@@ -1,4 +1,4 @@
-import { act, cleanup, render } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SubmissionStatusStep } from "../SubmissionStatusStep";
 
@@ -9,7 +9,20 @@ vi.mock("next-intl", () => ({
 // The polling contract is independent of the animated progress UI. Keeping the
 // card inert makes timer assertions cover only the status request effect.
 vi.mock("../WaitingCard", () => ({
-  WaitingCard: () => <div data-testid="waiting-card" />,
+  WaitingCard: ({
+    status,
+    message,
+    error,
+  }: {
+    status?: string;
+    message?: string | null;
+    error?: string | null;
+  }) => (
+    <div data-testid="waiting-card" data-status={status}>
+      <span data-testid="waiting-message">{message ?? ""}</span>
+      <span data-testid="waiting-error">{error ?? ""}</span>
+    </div>
+  ),
 }));
 
 vi.mock("../UsResultCard", () => ({
@@ -362,6 +375,39 @@ describe("SubmissionStatusStep status polling", () => {
     await advanceAndFlush(30_000);
 
     expect(statusRequestCount(fetchMock)).toBe(1);
+  });
+
+  it("hides a previous terminal error while the server props already show an active retry", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn(() => new Promise(() => undefined));
+    vi.stubGlobal("fetch", fetchMock);
+    const staleResult = {
+      country: "US",
+      status: "stopped_at_sign",
+      applicationId: "stale-application",
+      surnameFirst5: "STALE",
+      yearOfBirth: 2000,
+      securityQuestion: "",
+      embassyOrConsulate: "BEJ",
+      retrievalUrl: "https://example.test/retrieve",
+      error: "TimeoutError: waiting for locator during the official form fill",
+    } as unknown as Parameters<typeof SubmissionStatusStep>[0]["result"];
+
+    render(
+      <SubmissionStatusStep
+        applicationId="application-id"
+        country="united_states"
+        visaType="DS160"
+        status="processing"
+        result={staleResult}
+      />,
+    );
+    await flushEffects();
+
+    expect(screen.getByTestId("waiting-card")).toHaveAttribute("data-status", "running");
+    expect(screen.getByTestId("waiting-message")).not.toHaveTextContent(/官网填写步骤超时/u);
+    expect(screen.getByTestId("waiting-message")).not.toHaveTextContent(/请稍后重试/u);
+    expect(screen.getByTestId("waiting-error")).toHaveTextContent("");
   });
 
   it("notifies the parent only for a successful polled DS-160 result, not an active queued result", async () => {

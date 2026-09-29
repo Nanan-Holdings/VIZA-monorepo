@@ -656,6 +656,20 @@ export function userFacingSubmissionRuntimeMessage(
   const photoPreflightMessage = getDs160PhotoSubmissionErrorMessage(normalized, isZh);
   if (photoPreflightMessage) return photoPreflightMessage;
 
+  // Supabase/PostgREST and schema-cache failures are VIZA data-service
+  // failures. They can include the word "timeout", but they are unrelated to
+  // Playwright filling the official form and must not be presented as a portal
+  // form timeout.
+  if (
+    /could not query the database|schema cache|\b(?:supabase|postgrest)\b|database\s+(?:query|connection|request)|(?:database|db)\s+(?:timeout|timed out)/i.test(
+      normalized,
+    )
+  ) {
+    return isZh
+      ? "VIZA 数据服务暂时不可用，申请结果尚未确认。请稍后查看状态。"
+      : "VIZA's data service is temporarily unavailable. The application result has not been confirmed; please check the status later.";
+  }
+
   if (isZh) {
     const automatedProductMessagesZh: Record<string, string> = {
       "Visit Japan Web QR evidence is not available yet.": "日本官方入境与海关申报二维码凭证暂不可用。",
@@ -1794,6 +1808,7 @@ export function SubmissionStatusStep({
     localRetryActive,
     snapshotIsActive,
     snapshotAvailable: snapshot !== null,
+    propsIndicateActiveSubmission,
   });
   const effectiveStatus = terminalPropsAvailable
     ? fallbackVisualStatus
@@ -1837,8 +1852,15 @@ export function SubmissionStatusStep({
     vietnamPrearrivalAwaitingQr &&
     !isActiveSnapshot(snapshot) &&
     (Boolean(snapshot) || terminalPropsAvailable);
+  // Server-rendered active statuses can arrive before the first poll while
+  // `submission_result` still contains the previous terminal attempt. Do not
+  // turn that stale diagnostic into a live progress message; terminal
+  // failed/needs-action statuses still retain their durable error below.
+  const staleActivePropResult = activeAttemptInView && snapshot === null && !terminalPropsAvailable;
   const effectiveError = userFacingSubmissionRuntimeMessage(
-    extractError(effectiveResult, terminalPropsAvailable ? undefined : snapshot?.error),
+    staleActivePropResult
+      ? undefined
+      : extractError(effectiveResult, terminalPropsAvailable ? undefined : snapshot?.error),
     isZh,
   );
   const effectiveMessage = userFacingSubmissionRuntimeMessage(

@@ -78,6 +78,15 @@ describe("submission status polling", () => {
         localRetryActive: false,
         snapshotIsActive: false,
         snapshotAvailable: false,
+        propsIndicateActiveSubmission: true,
+      }),
+    ).toBe(false);
+    expect(
+      shouldPreferDurableTerminalProps({
+        durableTerminalPropsAvailable: true,
+        localRetryActive: false,
+        snapshotIsActive: false,
+        snapshotAvailable: false,
       }),
     ).toBe(true);
   });

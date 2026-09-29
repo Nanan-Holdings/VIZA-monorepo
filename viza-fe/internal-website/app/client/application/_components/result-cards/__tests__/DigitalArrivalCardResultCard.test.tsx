@@ -635,6 +635,18 @@ describe("DigitalArrivalCardResultCard", () => {
     ).toContain("与官网页面的连接中断");
   });
 
+  it("keeps database/schema-cache failures out of the official form-timeout message", () => {
+    const message = userFacingSubmissionRuntimeMessage(
+      "Could not query the database for the schema cache. Retrying after database connection timed out.",
+      true,
+    );
+
+    expect(message).toBe("VIZA 数据服务暂时不可用，申请结果尚未确认。请稍后查看状态。");
+    expect(message).not.toContain("官网填写步骤超时");
+    render(<FailureCard errorMessage={message} />);
+    expect(screen.getByText(message!)).toBeInTheDocument();
+  });
+
   it("describes official photo-service failures without claiming the photo was rejected", () => {
     const message = "Automatic DS-160 submission stopped because the official photo step failed: Upload Photo flow did not return to CEAC within 90000ms (currently at [redacted-url])";
     const localized = userFacingSubmissionRuntimeMessage(message, true);

@@ -120,6 +120,7 @@ function localizedFailureMessage(errorMessage: string, isZh: boolean): string {
     "云端浏览器启动失败，VIZA 已停止本次执行以保护申请数据。请重试；如果问题持续出现，请联系支持。",
     "与官网页面的连接中断，VIZA 已暂停本次执行以保护申请数据。请稍后重试；如果问题持续出现，请联系支持。",
     "官网填写步骤超时，VIZA 已暂停本次执行以保护申请数据。请稍后重试；如果问题持续出现，请联系支持。",
+    "VIZA 数据服务暂时不可用，申请结果尚未确认。请稍后查看状态。",
     "官网照片上传服务未能完成处理，申请尚未提交。此错误不代表照片不合格，请稍后重试。",
   ];
   if (safeRuntimeMessages.includes(errorMessage)) return errorMessage;
