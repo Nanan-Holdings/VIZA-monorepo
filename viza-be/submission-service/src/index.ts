@@ -67,6 +67,7 @@ import {
 } from "./ceac";
 import type { CapturedDs160ResumeCheckpoint } from "./ceac/captured-resume";
 import { classifyDs160RetryFailure, loadDs160RetryPlan } from "./ceac/submission-retry";
+import { isDs160OfficialEmailJob, processDs160OfficialEmailJob } from "./ds160-proof-email";
 import { assertDs160PhotoFile, Ds160PhotoPreflightError } from "./ceac/photo-preflight";
 import {
   assertRecoveredDs160Application,
@@ -8587,6 +8588,17 @@ async function processPendingQueueItem(rawItem: SubmissionQueueItem): Promise<vo
   } else if (isDs160ProofJob(item)) {
     const ds160Config = loadDs160SubmissionConfig();
     const liveStartError = validateDs160LiveStart(ds160Config);
+    if (isDs160OfficialEmailJob(item)) {
+      await processDs160OfficialEmailJob(item, {
+        client: supabase,
+        headless: ds160Config.playwrightHeadless,
+        leaseSeconds: SUBMISSION_QUEUE_LEASE_SECONDS,
+        loadProfile: async applicationId => (await loadApplicantData(applicationId)).profile,
+        loadAnswers: loadDs160Answers,
+        configurationError: liveStartError,
+      });
+      return;
+    }
     if (liveStartError) {
       await supabase
         .from("submission_queue")

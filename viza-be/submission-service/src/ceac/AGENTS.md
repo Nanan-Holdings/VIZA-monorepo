@@ -260,7 +260,19 @@ diagnostics, `.dat` capture, CAPTCHA solving, and one-shot final submission.
     upload rather than capturing an arbitrary error/challenge page, and
     preserve the confirmed result recovery semantics. Never sign, submit,
     email, or create a draft from this preparation path.
-12. `start-location.ts` validates the applicant-selected CEAC Designate Location
+12. `confirmation-email.ts` may send the official confirmation email only
+    from the same verified submitted-application page and same official page
+    connection. It must verify the saved account recipient and the observed
+    Additional Email No radio choice, call the durable send-fence callback
+    exactly once immediately before the final Email Confirmation dispatch, and
+    never retry that click after a timeout. A success requires explicit official
+    email-receipt text; generic Thank You pages, a 2xx status, or a missing
+    receipt remain unconfirmed. Keep diagnostics to sanitized CEAC paths,
+    statuses, timings, and a receipt hash. Keep official page text and screenshots
+    only in the existing encrypted private audit store, never in logs or public
+    queue diagnostics. A final click may leave an ambiguous state and must be reported for
+    recovery without another send attempt.
+13. `start-location.ts` validates the applicant-selected CEAC Designate Location
     code against the current official option list. Missing, ambiguous, or
     unsupported posts must stop the run; never silently default a real
     application to another embassy or consulate.

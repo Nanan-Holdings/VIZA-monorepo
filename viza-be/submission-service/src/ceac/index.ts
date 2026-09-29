@@ -225,6 +225,16 @@ export {
 } from "./proof-artifacts";
 
 export {
+  sendOfficialDs160ConfirmationEmail,
+  Ds160ConfirmationEmailError,
+  type Ds160ConfirmationEmailCode,
+  type Ds160ConfirmationEmailDiagnostics,
+  type Ds160ConfirmationEmailNetworkEvent,
+  type Ds160ConfirmationEmailOptions,
+  type Ds160ConfirmationEmailResult,
+} from "./confirmation-email";
+
+export {
   selectDs160PhotoDocument,
   resolveDs160PhotoDocument,
   DS160_PHOTO_DOCUMENT_TYPES,

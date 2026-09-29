@@ -75,6 +75,15 @@ without updating this worker image and verifying these runtime flags.
 
 Scope: this file applies to `viza-be/submission-service/**`.
 
+`src/ds160-proof-email.ts` handles explicitly requested official CEAC confirmation
+email jobs on the existing proof queue. It retrieves an already submitted
+application, verifies the authenticated owner's email digest and official
+recipient, reserves one durable email dispatch, and preserves encrypted official
+evidence. It never writes application submission state or invokes Sign. Terminal
+settlement clears the exact claim only after provider cleanup; ambiguous email
+dispatch is `unknown` and requires a new explicit user request. Its local lifecycle
+fixtures are in `src/__tests__/ds160-proof-email.spec.ts`.
+
 `src/ds160-derive-answers.ts` treats present canonical form values as
 authoritative over persisted legacy key aliases, including explicit No and
 empty answers. Legacy target-only drafts remain supported. Keep the pure
