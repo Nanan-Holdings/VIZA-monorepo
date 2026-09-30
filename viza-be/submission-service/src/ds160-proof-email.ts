@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import type { Page } from "@playwright/test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ApplicantProfile, SubmissionQueueItem } from "./types";
 import type { UsSubmissionResult } from "./submission-result";
@@ -15,11 +16,69 @@ import {
 import {
   sendOfficialDs160ConfirmationEmail, Ds160ConfirmationEmailError,
 } from "./ceac/confirmation-email";
-import { createDs160AuditStore } from "./ceac/audit-storage";
+import { createDs160AuditStore, Ds160AuditStorageError, type Ds160AuditArtifactRef, type Ds160AuditStorageTransport } from "./ceac/audit-storage";
 import { createDs160AuditStorageTransport } from "./ceac/audit-storage-transport";
 import { decryptSecret, encryptSecret } from "./secret-cipher";
 
 type EmailOutcome = "sent" | "failed" | "unknown";
+type EmailAuditEvidence = {
+  audit?: Ds160AuditArtifactRef;
+  auditUnavailable?: true;
+  auditFailureStage?: "capture" | "encryption" | "storage";
+  auditFailureCode?: Ds160AuditStorageError["code"];
+  auditCaptureFailures?: Array<"page_closed" | "body" | "screenshot">;
+};
+
+/** Keep partial official evidence; a screenshot failure must not discard text. */
+export async function persistDs160EmailEvidence(input: {
+  page: Page;
+  jobId: string;
+  runId: string;
+  outcome: EmailOutcome;
+  reserved: boolean;
+}, dependencies: {
+  encrypt?: typeof encryptSecret;
+  transport?: Ds160AuditStorageTransport;
+} = {}): Promise<EmailAuditEvidence> {
+  const evidence: EmailAuditEvidence = {};
+  if (input.page.isClosed()) {
+    return { auditUnavailable: true, auditFailureStage: "capture", auditCaptureFailures: ["page_closed"] };
+  }
+  const captureFailures: NonNullable<EmailAuditEvidence["auditCaptureFailures"]> = [];
+  let body: string | undefined;
+  let screenshotBase64: string | undefined;
+  try { body = await input.page.locator("body").innerText({ timeout: 5_000 }); }
+  catch { captureFailures.push("body"); }
+  try { screenshotBase64 = (await input.page.screenshot({ timeout: 5_000 })).toString("base64"); }
+  catch { captureFailures.push("screenshot"); }
+  if (captureFailures.length) evidence.auditCaptureFailures = captureFailures;
+  if (!body?.trim() && !screenshotBase64) {
+    return { ...evidence, auditUnavailable: true, auditFailureStage: "capture" };
+  }
+  let stage: "encryption" | "storage" = "encryption";
+  try {
+    const encrypt = dependencies.encrypt ?? encryptSecret;
+    const ciphertext = encrypt(JSON.stringify({
+      version: 1, evidenceKind: "official_confirmation_email", capturedAt: new Date().toISOString(),
+      path: new URL(input.page.url()).pathname, body, screenshotBase64,
+      captureFailures, outcome: input.outcome, reserved: input.reserved,
+    }));
+    stage = "storage";
+    const store = createDs160AuditStore(encrypt, {
+      jobId: input.jobId, runId: input.runId,
+      transport: dependencies.transport ?? createDs160AuditStorageTransport({
+        url: process.env.SUPABASE_URL!, key: process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      }),
+      onStored: ref => { evidence.audit = { path: ref.path, sha256: ref.sha256, sizeBytes: ref.sizeBytes }; },
+    });
+    await store.write("official-evidence.enc", ciphertext);
+  } catch (error) {
+    evidence.auditUnavailable = true;
+    evidence.auditFailureStage = stage;
+    if (error instanceof Ds160AuditStorageError) evidence.auditFailureCode = error.code;
+  }
+  return evidence;
+}
 type EmailPayload = Record<string, unknown> & {
   action: "official_ceac_email";
   email: {
@@ -185,21 +244,10 @@ export async function processDs160OfficialEmailJob(
   } finally {
     // Private, encrypted official evidence allows a disputed/slow response to
     // be diagnosed without logging the applicant's confirmation or recipient.
-    if (session && !session.page.isClosed()) {
-      try {
-        const body = await session.page.locator("body").innerText({ timeout: 5_000 });
-        const screenshot = await session.page.screenshot({ timeout: 5_000 });
-        const store = createDs160AuditStore(encryptSecret, {
-          jobId: item.id, runId,
-          transport: createDs160AuditStorageTransport({ url: process.env.SUPABASE_URL!, key: process.env.SUPABASE_SERVICE_ROLE_KEY! }),
-          onStored: ref => { evidence.audit = { path: ref.path, sha256: ref.sha256, sizeBytes: ref.sizeBytes }; },
-        });
-        await store.write("official-evidence.enc", encryptSecret(JSON.stringify({
-          version: 1, evidenceKind: "official_confirmation_email", capturedAt: new Date().toISOString(),
-          path: new URL(session.page.url()).pathname, body,
-          screenshotBase64: screenshot.toString("base64"), outcome, reserved,
-        })));
-      } catch { evidence.auditUnavailable = true; }
+    if (session) {
+      Object.assign(evidence, await persistDs160EmailEvidence({
+        page: session.page, jobId: item.id, runId, outcome, reserved,
+      }));
     }
     // Do not expose a terminal/retryable row until the provider session closes.
     let closed = !session;

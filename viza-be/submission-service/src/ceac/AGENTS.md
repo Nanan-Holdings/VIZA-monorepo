@@ -270,7 +270,9 @@ diagnostics, `.dat` capture, CAPTCHA solving, and one-shot final submission.
     receipt remain unconfirmed. Keep diagnostics to sanitized CEAC paths,
     statuses, timings, and a receipt hash. Keep official page text and screenshots
     only in the existing encrypted private audit store, never in logs or public
-    queue diagnostics. A final click may leave an ambiguous state and must be reported for
+    queue diagnostics. The bounded network trace must retain final-dispatch
+    request starts and critical responses despite page asset traffic; never
+    capture request bodies, query strings, cookies or response headers. A final click may leave an ambiguous state and must be reported for
     recovery without another send attempt.
 13. `start-location.ts` validates the applicant-selected CEAC Designate Location
     code against the current official option list. Missing, ambiguous, or

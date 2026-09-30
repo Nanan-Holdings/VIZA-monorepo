@@ -1737,3 +1737,42 @@ No submission, signature, draft creation, data edit, deployment, or route change
 occurred; the minimum 30-minute email-only retry interval remains unchanged.
 At 06:18:39 UTC the worker had automatically stopped, provider sessions remained
 zero, and the recorded configuration hashes were unchanged.
+
+### 2026-09-30 requested email-failure debugging
+
+Fresh reads at 09:42–09:53 UTC again confirmed the application is submitted,
+with one confirmed final-submission fence, no active sibling or lease, and the
+same terminal unknown email job. This is a failure to obtain an official email
+receipt, not a failed DS-160 application submission. The latest saved official
+evidence was SHA-verified and displays Application Error; it does not establish
+whether the recipient's mailbox received anything.
+
+Code and retained evidence exposed two diagnostic defects. First, the first-64
+network-event cap filled with CEAC assets before the final dispatch, hiding its
+POST/response. Only opening the email page and the Additional Email postback
+were present; those 200 responses cannot prove the final send succeeded.
+Second, a screenshot capture exception discarded previously captured text,
+and a broad catch concealed whether capture, encryption or storage failed.
+
+The repair keeps bounded, sanitized network evidence with priority for the
+final dispatch and independent text/screenshot persistence. Partial capture is
+explicit; public failures contain only stage names and typed storage codes.
+An audit reference still requires acknowledged encrypted storage, and no
+diagnostic result substitutes for an official success receipt. Recipient,
+Additional Email No, ownership and single-dispatch checks are preserved.
+No code defect causing the official Application Error itself has yet been
+proven. The status remains unknown and no further application signature occurs.
+
+At 09:51 UTC the resilience health endpoint returned 503 with a cached
+unhealthy Auth/PostgREST probe (four-second timeouts); management SQL remained
+readable. The sole machine was stopped, provider sessions were zero, and all
+non-image configuration hashes were unchanged. Live email acceptance must wait
+for a healthy data plane; a readable management query alone is insufficient.
+
+The combined 30 email/browser/audit-storage regressions pass, including a
+delayed final POST returning HTTP 500 amid noisy assets, recipient mismatch,
+403 gates, one-click fencing, partial captures and unacknowledged storage.
+Type checking and compilation also pass. At 10:01 UTC the next fresh resilience
+probe returned HTTP 200 with successful Auth and PostgREST checks. The code is
+ready for an idle-window deployment and one authorized email-only acceptance;
+these local fixtures do not establish successful live email delivery.

@@ -42,6 +42,86 @@ test("sends the official email once after exact recipient and No readback", asyn
   }
 });
 
+test("keeps the final POST request evidence bounded under noisy asset responses", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await installFixture(await browser.newPage(), { noisyAssets: true });
+    const result = await sendOfficialDs160ConfirmationEmail({
+      page,
+      expectedApplicationId: APPLICATION_ID,
+      verifiedRecipient: RECIPIENT,
+      assertOwned: () => undefined,
+      beforeSend: async () => { await page.waitForTimeout(250); },
+      overallTimeoutMs: 10_000,
+    });
+
+    assert.equal(result.status, "sent");
+    assert.ok(result.diagnostics.events.length <= 64);
+    assert.ok(result.diagnostics.events.some(event =>
+      event.kind === "request"
+      && event.phase === "send"
+      && event.method === "POST"
+      && event.path === EMAIL_PATH,
+    ));
+    assert.ok(result.diagnostics.events.every(event => !event.path.includes("?")));
+    assert.equal(await page.evaluate(() => (window as unknown as { __sendClicks?: number }).__sendClicks), 1);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("retains a hanging final POST and late 500 response while noisy assets finish", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await installFixture(await browser.newPage(), {
+      noisyAssets: true,
+      delayedNoisyAssets: true,
+      receipt: "server_error",
+    });
+
+    await assert.rejects(
+      () => sendOfficialDs160ConfirmationEmail({
+        page,
+        expectedApplicationId: APPLICATION_ID,
+        verifiedRecipient: RECIPIENT,
+        assertOwned: () => undefined,
+        beforeSend: async () => { await page.waitForTimeout(50); },
+        dispatchTimeoutMs: 100,
+        postbackTimeoutMs: 100,
+        receiptTimeoutMs: 1_000,
+        overallTimeoutMs: 3_000,
+      }),
+      (error: unknown) => {
+        const typed = error as Ds160ConfirmationEmailError;
+        assert.equal(typed.code, "ds160_email_receipt_unconfirmed");
+        assert.equal(typed.diagnostics.sendAttempted, true);
+        assert.equal(typed.diagnostics.dispatchClickTimedOut, true);
+        assert.ok(typed.diagnostics.events.length <= 64);
+        assert.ok(typed.diagnostics.events.some(event =>
+          event.kind === "request"
+          && event.phase === "send"
+          && event.method === "POST"
+          && event.path === EMAIL_PATH,
+        ));
+        assert.ok(typed.diagnostics.events.some(event =>
+          event.kind === "response"
+          && event.phase === "send"
+          && event.method === "POST"
+          && event.path === EMAIL_PATH
+          && event.status === 500,
+        ));
+        assert.ok(typed.diagnostics.events
+          .filter(event => event.resourceType === "image")
+          .every(event => event.phase !== "send"));
+        return true;
+      },
+    );
+    assert.equal(await page.evaluate(() => (window as unknown as { __sendClicks?: number }).__sendClicks), 1);
+  } finally {
+    await browser.close();
+  }
+});
+
 test("rejects a recipient mismatch before reserving or dispatching", async () => {
   const browser = await chromium.launch({ headless: true });
   try {
@@ -188,7 +268,9 @@ test("does not accept a matching receipt after a foreign navigation", async () =
 
 async function installFixture(page: Page, options: {
   recipient?: string;
-  receipt?: "success" | "gate" | "timeout" | "instruction" | "foreign" | "preexisting";
+  receipt?: "success" | "gate" | "timeout" | "instruction" | "foreign" | "preexisting" | "server_error";
+  noisyAssets?: boolean;
+  delayedNoisyAssets?: boolean;
 } = {}): Promise<Page> {
   const recipient = options.recipient ?? RECIPIENT;
   const receipt = options.receipt ?? "success";
@@ -201,6 +283,11 @@ async function installFixture(page: Page, options: {
     }
     if (url.pathname === CONFIRMATION_PATH) {
       await route.fulfill({ contentType: "text/html", body: confirmationHtml() });
+      return;
+    }
+    if (url.pathname.startsWith("/GenNIV/noise/")) {
+      if (options.delayedNoisyAssets) await new Promise(resolve => setTimeout(resolve, 150));
+      await route.fulfill({ contentType: "image/gif", body: "noise" });
       return;
     }
     if (url.pathname !== EMAIL_PATH) {
@@ -216,6 +303,11 @@ async function installFixture(page: Page, options: {
       }
       if (receipt === "gate") {
         await route.fulfill({ status: 403, contentType: "text/html", body: emailResultHtml("Access denied") });
+        return;
+      }
+      if (receipt === "server_error") {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        await route.fulfill({ status: 500, contentType: "text/html", body: emailResultHtml("Application Error") });
         return;
       }
       if (receipt === "instruction") {
@@ -237,7 +329,11 @@ async function installFixture(page: Page, options: {
     }
     await route.fulfill({
       contentType: "text/html",
-      body: emailHtml(recipient, receipt === "preexisting" ? "Email confirmation has been sent." : ""),
+      body: emailHtml(
+        recipient,
+        receipt === "preexisting" ? "Email confirmation has been sent." : "",
+        options.noisyAssets === true,
+      ),
     });
   });
   await page.goto(`https://ceac.state.gov${CONFIRMATION_PATH}`, { waitUntil: "domcontentloaded" });
@@ -259,11 +355,15 @@ function confirmationHtml(): string {
   </body></html>`;
 }
 
-function emailHtml(recipient: string, receiptText = ""): string {
+function emailHtml(recipient: string, receiptText = "", noisyAssets = false): string {
+  const noise = noisyAssets
+    ? Array.from({ length: 96 }, (_, index) => `<img src="/GenNIV/noise/${index}.gif" alt="">`).join("")
+    : "";
   return `<!doctype html><html><body>
     <h2>Email Confirmation</h2>
     <div>Saved recipient: ${recipient}</div>
     ${receiptText ? `<div>${receiptText}</div>` : ""}
+    ${noise}
     <form method="post" action="${EMAIL_PATH}">
       <input name="stage" value="send" type="hidden">
       <input id="ctl00_SiteContentPlaceHolder_AdditionalEmailRadioList_0" name="AdditionalEmailRadioList" type="radio" value="Yes">Yes

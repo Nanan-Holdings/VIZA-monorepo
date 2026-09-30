@@ -83,6 +83,11 @@ evidence. It never writes application submission state or invokes Sign. Terminal
 settlement clears the exact claim only after provider cleanup; ambiguous email
 dispatch is `unknown` and requires a new explicit user request. Its local lifecycle
 fixtures are in `src/__tests__/ds160-proof-email.spec.ts`.
+The email audit captures text and screenshot independently: one capture failure
+must not discard the other. Public evidence may expose only capture-stage names
+and typed storage codes; private text/images stay encrypted. An artifact ref is
+recorded only after acknowledged storage, and partial diagnostics never turn an
+unknown email outcome into sent.
 
 `src/ds160-derive-answers.ts` treats present canonical form values as
 authoritative over persisted legacy key aliases, including explicit No and

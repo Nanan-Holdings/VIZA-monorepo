@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import type { Page } from "@playwright/test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CeacSession } from "../ceac/session";
 import type { ApplicantProfile, SubmissionQueueItem } from "../types";
 import {
-  ds160RecipientDigest, processDs160OfficialEmailJob,
+  ds160RecipientDigest, processDs160OfficialEmailJob, persistDs160EmailEvidence,
   type Ds160EmailJobDependencies,
 } from "../ds160-proof-email";
 
@@ -125,4 +126,90 @@ test("provider cleanup failure never publishes a terminal/retryable queue", asyn
   const f = fixture({ closeFails: true });
   await assert.rejects(processDs160OfficialEmailJob(makeItem(), f.dependencies), /fixture close failure/);
   assert.equal(f.settlement(), undefined);
+});
+
+function auditFixture(options: { bodyFails?: boolean; screenshotFails?: boolean; closed?: boolean } = {}) {
+  const body = "Private fixture recipient applicant@example.test: Application Error";
+  let encryptedPlaintext = "";
+  let uploaded = "";
+  const page = {
+    isClosed: () => options.closed ?? false,
+    url: () => "https://ceac.state.gov/GenNIV/Common/AppError.aspx?private=value",
+    locator: () => ({ innerText: async () => {
+      if (options.bodyFails) throw new Error("private capture error");
+      return body;
+    } }),
+    screenshot: async () => {
+      if (options.screenshotFails) throw new Error("private screenshot error");
+      return Buffer.from("fixture screenshot");
+    },
+  } as unknown as Page;
+  const input = { page, jobId: queueId, runId: "ds160-email-fixture", outcome: "unknown" as const, reserved: true };
+  const dependencies = {
+    encrypt: (plaintext: string) => { encryptedPlaintext = plaintext; return "encrypted-fixture"; },
+    transport: {
+      upload: async ({ body: bytes }: { body: Uint8Array }) => { uploaded = Buffer.from(bytes).toString(); },
+      download: async () => null,
+    },
+  };
+  return { input, dependencies, body, plaintext: () => JSON.parse(encryptedPlaintext) as Record<string, unknown>, uploaded: () => uploaded };
+}
+
+test("screenshot failure preserves encrypted official text and reports only capture stage", async () => {
+  const f = auditFixture({ screenshotFails: true });
+  const result = await persistDs160EmailEvidence(f.input, f.dependencies);
+  assert.ok(result.audit);
+  assert.equal(result.auditUnavailable, undefined);
+  assert.deepEqual(result.auditCaptureFailures, ["screenshot"]);
+  assert.equal(f.plaintext().body, f.body);
+  assert.equal(f.plaintext().screenshotBase64, undefined);
+  assert.equal(f.plaintext().path, "/GenNIV/Common/AppError.aspx");
+  assert.equal(f.uploaded(), "encrypted-fixture");
+  assert.ok(!JSON.stringify(result).includes("applicant@example.test"));
+  assert.ok(!JSON.stringify(result).includes("private"));
+});
+
+test("text failure preserves the screenshot without inventing receipt text", async () => {
+  const f = auditFixture({ bodyFails: true });
+  const result = await persistDs160EmailEvidence(f.input, f.dependencies);
+  assert.ok(result.audit);
+  assert.deepEqual(result.auditCaptureFailures, ["body"]);
+  assert.equal(f.plaintext().body, undefined);
+  assert.equal(f.plaintext().outcome, "unknown");
+  assert.equal(f.plaintext().screenshotBase64, Buffer.from("fixture screenshot").toString("base64"));
+});
+
+test("no captured evidence reports capture unavailable without uploading a fake artifact", async () => {
+  for (const options of [{ closed: true }, { bodyFails: true, screenshotFails: true }]) {
+    const f = auditFixture(options);
+    const result = await persistDs160EmailEvidence(f.input, f.dependencies);
+    assert.equal(result.audit, undefined);
+    assert.equal(result.auditFailureStage, "capture");
+    assert.equal(result.auditUnavailable, true);
+    assert.equal(f.uploaded(), "");
+  }
+});
+
+test("encryption failure is distinguished from capture and exposes no raw error", async () => {
+  const f = auditFixture();
+  const result = await persistDs160EmailEvidence(f.input, {
+    ...f.dependencies, encrypt: () => { throw new Error("secret encryption details"); },
+  });
+  assert.equal(result.auditFailureStage, "encryption");
+  assert.equal(result.auditUnavailable, true);
+  assert.equal(f.uploaded(), "");
+  assert.ok(!JSON.stringify(result).includes("secret"));
+});
+
+test("unacknowledged storage never gets an audit ref and reports sanitized storage code", async () => {
+  const f = auditFixture();
+  const result = await persistDs160EmailEvidence(f.input, {
+    ...f.dependencies,
+    transport: { upload: async () => { throw Object.assign(new Error("private provider URL"), { status: 401 }); }, download: async () => null },
+  });
+  assert.equal(result.audit, undefined);
+  assert.equal(result.auditUnavailable, true);
+  assert.equal(result.auditFailureStage, "storage");
+  assert.equal(result.auditFailureCode, "AUDIT_STORAGE_AUTHORIZATION");
+  assert.ok(!JSON.stringify(result).includes("private"));
 });

@@ -18,6 +18,14 @@ const EMAIL_SENT_MARKER = /(?:confirmation email|email confirmation)\s+(?:has be
 const EMAIL_FAILURE_MARKER = /email.{0,60}(?:failed|unable|error)|unable to.{0,30}email/i;
 const EMAIL_ADDRESS_PATTERN = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
 const MAX_NETWORK_EVENTS = 64;
+const CRITICAL_RESOURCE_TYPES = new Set(["document", "xhr", "fetch"]);
+
+export type Ds160ConfirmationEmailNetworkPhase =
+  | "confirmation"
+  | "open"
+  | "email_form"
+  | "additional_recipient"
+  | "send";
 
 export type Ds160ConfirmationEmailCode =
   | "ds160_email_request_invalid"
@@ -30,7 +38,8 @@ export type Ds160ConfirmationEmailCode =
   | "ds160_email_failed";
 
 export interface Ds160ConfirmationEmailNetworkEvent {
-  kind: "response" | "request_failed";
+  kind: "request" | "response" | "request_failed";
+  phase: Ds160ConfirmationEmailNetworkPhase;
   method: string;
   path: string;
   resourceType: string;
@@ -86,6 +95,7 @@ type MutableDiagnostics = {
   sendAttempted: boolean;
   dispatchClickTimedOut: boolean;
   finalPath: string | null;
+  phase: Ds160ConfirmationEmailNetworkPhase;
   receiptEvidenceHash?: string;
   startedAt: number;
   events: Ds160ConfirmationEmailNetworkEvent[];
@@ -130,20 +140,62 @@ function recordNetworkEvent(
   diagnostics: MutableDiagnostics,
   event: Omit<Ds160ConfirmationEmailNetworkEvent, "elapsedMs">,
 ): void {
-  if (diagnostics.events.length >= MAX_NETWORK_EVENTS) return;
-  diagnostics.events.push({
+  const nextEvent: Ds160ConfirmationEmailNetworkEvent = {
     ...event,
     elapsedMs: Math.max(0, Date.now() - diagnostics.startedAt),
-  });
+  };
+  if (diagnostics.events.length < MAX_NETWORK_EVENTS) {
+    diagnostics.events.push(nextEvent);
+    return;
+  }
+
+  // CEAC confirmation pages can load enough images/scripts that a simple
+  // first-64 cap loses the final POST. Keep the bounded list, but let
+  // document/XHR/fetch, POST and failed requests evict asset noise. A send
+  // phase only raises the priority of those critical events; delayed image or
+  // script responses remain low priority even after the click starts.
+  const priority = (candidate: Ds160ConfirmationEmailNetworkEvent): number => {
+    const method = candidate.method.toUpperCase();
+    const resourceType = candidate.resourceType.toLowerCase();
+    const isAsset = method !== "POST" && !CRITICAL_RESOURCE_TYPES.has(resourceType);
+    if (isAsset) return 1;
+    const critical = candidate.kind === "request_failed"
+      || method === "POST"
+      || CRITICAL_RESOURCE_TYPES.has(resourceType)
+      || (candidate.status !== undefined && candidate.status >= 400);
+    if (!critical) return 1;
+    return candidate.phase === "send" ? 3 : 2;
+  };
+  const nextPriority = priority(nextEvent);
+  const replaceIndex = diagnostics.events.findIndex(candidate => priority(candidate) < nextPriority);
+  if (replaceIndex >= 0) {
+    diagnostics.events.splice(replaceIndex, 1);
+    diagnostics.events.push(nextEvent);
+  }
 }
 
 function observeOfficialNetwork(page: Page, diagnostics: MutableDiagnostics): () => void {
+  const requestPhases = new WeakMap<Request, Ds160ConfirmationEmailNetworkPhase>();
+  const onRequest = (request: Request) => {
+    const path = officialPath(request.url());
+    if (!path) return;
+    const phase = diagnostics.phase;
+    requestPhases.set(request, phase);
+    recordNetworkEvent(diagnostics, {
+      kind: "request",
+      phase,
+      method: request.method(),
+      path,
+      resourceType: request.resourceType(),
+    });
+  };
   const onResponse = (response: Response) => {
     const path = officialPath(response.url());
     if (!path) return;
     const request = response.request();
     recordNetworkEvent(diagnostics, {
       kind: "response",
+      phase: requestPhases.get(request) ?? diagnostics.phase,
       method: request.method(),
       path,
       resourceType: request.resourceType(),
@@ -155,14 +207,17 @@ function observeOfficialNetwork(page: Page, diagnostics: MutableDiagnostics): ()
     if (!path) return;
     recordNetworkEvent(diagnostics, {
       kind: "request_failed",
+      phase: requestPhases.get(request) ?? diagnostics.phase,
       method: request.method(),
       path,
       resourceType: request.resourceType(),
     });
   };
+  page.on("request", onRequest);
   page.on("response", onResponse);
   page.on("requestfailed", onRequestFailed);
   return () => {
+    page.off("request", onRequest);
     page.off("response", onResponse);
     page.off("requestfailed", onRequestFailed);
   };
@@ -283,6 +338,7 @@ export async function sendOfficialDs160ConfirmationEmail(
     sendAttempted: false,
     dispatchClickTimedOut: false,
     finalPath: null,
+    phase: "confirmation",
     startedAt: Date.now(),
     events: [],
   };
@@ -335,6 +391,7 @@ export async function sendOfficialDs160ConfirmationEmail(
     if (!(await openControl.isEnabled().catch(() => false))) {
       fail("ds160_email_form_unavailable", "CEAC Email Confirmation control was disabled.");
     }
+    diagnostics.phase = "open";
     const emailPagePromise = page
       .waitForURL(url => officialPath(String(url)) === EMAIL_PAGE_PATH, {
         waitUntil: "domcontentloaded",
@@ -358,6 +415,7 @@ export async function sendOfficialDs160ConfirmationEmail(
     await assertEmailFormPage(page, diagnostics).catch(() => {
       fail("ds160_email_form_unavailable", "CEAC Email Confirmation form could not be verified.");
     });
+    diagnostics.phase = "email_form";
     await verifyRecipient(page, recipient, diagnostics, remainingBudget(controlTimeoutMs));
 
     const noAdditional = await requireVisible(
@@ -379,6 +437,7 @@ export async function sendOfficialDs160ConfirmationEmail(
     if (noType !== "radio" || yesType !== "radio") {
       fail("ds160_email_additional_recipient_unavailable", "CEAC additional-recipient controls were not radio choices.");
     }
+    diagnostics.phase = "additional_recipient";
     if (!(await noAdditional.isChecked())) {
       await noAdditional.check({ timeout: remainingBudget(controlTimeoutMs) });
       await waitForAspNetPostbackStable(page, remainingBudget(postbackTimeoutMs));
@@ -410,6 +469,7 @@ export async function sendOfficialDs160ConfirmationEmail(
 
     await options.assertOwned();
     await options.beforeSend();
+    diagnostics.phase = "send";
     diagnostics.sendAttempted = true;
 
     const finalNavigationPromise = page
