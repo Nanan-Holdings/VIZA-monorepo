@@ -103,6 +103,11 @@ must not discard the other. Public evidence may expose only capture-stage names
 and typed storage codes; private text/images stay encrypted. An artifact ref is
 recorded only after acknowledged storage, and partial diagnostics never turn an
 unknown email outcome into sent.
+Immediately before the durable dispatch reservation, capture the verified
+email form in memory, then recheck ownership. Store this pre-send capture only
+inside the final encrypted official-evidence bundle; retain it even if the
+final page capture fails. Neither capture may expose applicant text or images
+through public queue fields or logs.
 
 `src/ds160-derive-answers.ts` treats present canonical form values as
 authoritative over persisted legacy key aliases, including explicit No and

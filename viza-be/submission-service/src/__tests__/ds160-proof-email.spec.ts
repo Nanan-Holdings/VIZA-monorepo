@@ -5,7 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CeacSession } from "../ceac/session";
 import type { ApplicantProfile, SubmissionQueueItem } from "../types";
 import {
-  classifyDs160EmailFailure, ds160RecipientDigest, processDs160OfficialEmailJob,
+  captureDs160EmailPage, classifyDs160EmailFailure, ds160RecipientDigest, processDs160OfficialEmailJob,
   persistDs160EmailEvidence, type Ds160EmailFailureEvidence, type Ds160EmailJobDependencies,
 } from "../ds160-proof-email";
 import { GateDetectedError, NavigationError, SessionBootstrapError } from "../ceac/errors";
@@ -34,9 +34,17 @@ function fixture(options: {
   reserved?: boolean;
   startError?: unknown;
   retrieveError?: unknown;
+  capturePageOpen?: boolean;
+  closePageAfterSend?: boolean;
+  captureBodyFails?: boolean;
+  captureScreenshotFails?: boolean;
+  persistEvidence?: Ds160EmailJobDependencies["persistEvidence"];
 } = {}) {
   const events: string[] = [];
   let settlement: Record<string, unknown> | undefined;
+  let pageClosed = !(options.capturePageOpen ?? false);
+  let bodyCaptureCount = 0;
+  let screenshotCaptureCount = 0;
   const client = {
     rpc: async (name: string, args: Record<string, unknown>) => {
       events.push(name);
@@ -62,7 +70,21 @@ function fixture(options: {
     auth: { admin: { getUserById: async () => ({ error: null, data: { user: { email: options.recipientChanged ? "changed@example.test" : "applicant@example.test" } } }) } },
   } as unknown as SupabaseClient;
   const session = {
-    page: { goto: async () => { events.push("goto"); }, isClosed: () => true },
+    page: {
+      goto: async () => { events.push("goto"); },
+      isClosed: () => pageClosed,
+      url: () => "https://ceac.state.gov/GenNIV/common/email.aspx",
+      locator: () => ({ innerText: async () => {
+        events.push(bodyCaptureCount++ === 0 ? "pre_send_body" : "final_body");
+        if (options.captureBodyFails) throw new Error("fixture body capture failure");
+        return "private pre-send fixture body";
+      } }),
+      screenshot: async () => {
+        events.push(screenshotCaptureCount++ === 0 ? "pre_send_screenshot" : "final_screenshot");
+        if (options.captureScreenshotFails) throw new Error("fixture screenshot capture failure");
+        return Buffer.from("private pre-send fixture screenshot");
+      },
+    },
     close: async () => { events.push("close"); if (options.closeFails) throw new Error("fixture close failure"); },
   } as unknown as CeacSession;
   const dependencies: Ds160EmailJobDependencies = {
@@ -78,11 +100,13 @@ function fixture(options: {
         if (options.failBefore) throw new Error("fixture pre-send failure");
         await input.beforeSend();
         events.push("send");
+        if (options.closePageAfterSend) pageClosed = true;
         if (options.failAfter) throw new Error("fixture post-send failure");
         return { status: "sent", applicationIdVerified: true, recipientVerified: true,
           diagnostics: { sendAttempted: true, dispatchClickTimedOut: false, finalPath: "/GenNIV/common/email.aspx", elapsedMs: 1, events: [] } };
       },
     },
+    ...(options.persistEvidence ? { persistEvidence: options.persistEvidence } : {}),
   };
   return { dependencies, events, settlement: () => settlement };
 }
@@ -100,6 +124,33 @@ test("official email reserves once, closes before settlement, and never mutates 
   assert.equal(f.events.filter(x => x === "send").length, 1);
   assert.ok(f.events.indexOf("reserve_ds160_email_send") < f.events.indexOf("send"));
   assert.ok(f.events.indexOf("close") < f.events.indexOf("settle_ds160_proof_email"));
+});
+
+test("captures pre-send evidence before reserve and keeps it private when the final page closes", async () => {
+  let encryptedPlaintext = "";
+  const f = fixture({
+    capturePageOpen: true,
+    closePageAfterSend: true,
+    persistEvidence: async input => persistDs160EmailEvidence(input, {
+      encrypt: plaintext => { encryptedPlaintext = plaintext; return "encrypted-fixture"; },
+      transport: { upload: async () => undefined, download: async () => null },
+    }),
+  });
+  await processDs160OfficialEmailJob(makeItem(), f.dependencies);
+  assert.equal(f.settlement()?.p_status, "sent");
+  const reserveIndex = f.events.indexOf("reserve_ds160_email_send");
+  assert.ok(f.events.indexOf("pre_send_body") < reserveIndex);
+  assert.ok(f.events.indexOf("pre_send_screenshot") < reserveIndex);
+  const privateEvidence = JSON.parse(encryptedPlaintext) as Record<string, unknown>;
+  const preSend = privateEvidence.preSend as Record<string, unknown>;
+  assert.equal(preSend.body, "private pre-send fixture body");
+  assert.equal(preSend.screenshotBase64, Buffer.from("private pre-send fixture screenshot").toString("base64"));
+  assert.equal(preSend.path, "/GenNIV/common/email.aspx");
+  assert.equal(privateEvidence.body, undefined);
+  const publicEvidence = f.settlement()?.p_evidence as Record<string, unknown>;
+  assert.ok(publicEvidence.audit);
+  assert.deepEqual(publicEvidence.auditCaptureFailures, ["page_closed"]);
+  assert.doesNotMatch(JSON.stringify(publicEvidence), /private pre-send fixture/);
 });
 
 test("post-dispatch disconnect is unknown and never retried", async () => {
@@ -236,6 +287,27 @@ function auditFixture(options: { bodyFails?: boolean; screenshotFails?: boolean;
   };
   return { input, dependencies, body, plaintext: () => JSON.parse(encryptedPlaintext) as Record<string, unknown>, uploaded: () => uploaded };
 }
+
+test("partial pre-send screenshot capture keeps body in encrypted evidence when final capture fails", async () => {
+  const preSendPage = {
+    isClosed: () => false,
+    url: () => "https://ceac.state.gov/GenNIV/common/email.aspx",
+    locator: () => ({ innerText: async () => "private pre-send body" }),
+    screenshot: async () => { throw new Error("fixture pre-send screenshot failure"); },
+  } as unknown as Page;
+  const preSendCapture = await captureDs160EmailPage(preSendPage);
+  assert.deepEqual(preSendCapture.captureFailures, ["screenshot"]);
+  const f = auditFixture({ bodyFails: true, screenshotFails: true });
+  const result = await persistDs160EmailEvidence({ ...f.input, preSendCapture }, f.dependencies);
+  assert.ok(result.audit);
+  assert.deepEqual(result.auditCaptureFailures, ["pre_send_screenshot", "body", "screenshot"]);
+  const privateEvidence = f.plaintext();
+  const preSend = privateEvidence.preSend as Record<string, unknown>;
+  assert.equal(preSend.body, "private pre-send body");
+  assert.equal(preSend.screenshotBase64, undefined);
+  assert.deepEqual(preSend.captureFailures, ["screenshot"]);
+  assert.doesNotMatch(JSON.stringify(result), /private pre-send body/);
+});
 
 test("screenshot failure preserves encrypted official text and reports only capture stage", async () => {
   const f = auditFixture({ screenshotFails: true });

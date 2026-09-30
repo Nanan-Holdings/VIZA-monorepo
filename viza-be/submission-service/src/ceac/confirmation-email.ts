@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { Locator, Page, Request, Response } from "@playwright/test";
 import { assertCeacPostbackHealthy, waitForAspNetPostbackStable } from "./aspnet";
+import { CeacError } from "./errors";
 import { assertNoGate } from "./gates";
 import { isOfficialDs160ConfirmationPage } from "./pages";
 
@@ -19,6 +20,8 @@ const EMAIL_FAILURE_MARKER = /email.{0,60}(?:failed|unable|error)|unable to.{0,3
 const EMAIL_ADDRESS_PATTERN = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
 const MAX_NETWORK_EVENTS = 64;
 const CRITICAL_RESOURCE_TYPES = new Set(["document", "xhr", "fetch"]);
+const DEFAULT_OVERALL_TIMEOUT_MS = 180_000;
+const MAX_OVERALL_TIMEOUT_MS = 180_000;
 
 export type Ds160ConfirmationEmailNetworkPhase =
   | "confirmation"
@@ -107,8 +110,17 @@ function clampTimeout(value: number | undefined, fallback: number): number {
 }
 
 function clampOverallTimeout(value: number | undefined): number {
-  if (value === undefined || !Number.isFinite(value)) return 120_000;
-  return Math.max(1, Math.min(Math.floor(value), 120_000));
+  if (value === undefined || !Number.isFinite(value)) return DEFAULT_OVERALL_TIMEOUT_MS;
+  return Math.max(1, Math.min(Math.floor(value), MAX_OVERALL_TIMEOUT_MS));
+}
+
+function isMainDocumentNavigation(page: Page, request: Request): boolean {
+  if (!request.isNavigationRequest() || request.resourceType() !== "document") return false;
+  try {
+    return request.frame() === page.mainFrame();
+  } catch {
+    return false;
+  }
 }
 
 function officialPath(value: string): string | null {
@@ -123,6 +135,11 @@ function officialPath(value: string): string | null {
 
 function currentOfficialPath(page: Page): string | null {
   return officialPath(page.url());
+}
+
+function hasHttpFailure(error: CeacError | undefined): boolean {
+  const status = error?.context.details?.status;
+  return typeof status === "number" && Number.isInteger(status) && status >= 400 && status <= 599;
 }
 
 function diagnosticsSnapshot(diagnostics: MutableDiagnostics): Ds160ConfirmationEmailDiagnostics {
@@ -469,26 +486,89 @@ export async function sendOfficialDs160ConfirmationEmail(
 
     await options.assertOwned();
     await options.beforeSend();
+    // The fence callback may involve a bounded RPC. Recheck ownership after
+    // it returns and before the irreversible browser click; a loss here must
+    // prevent dispatch rather than being mistaken for a click timeout.
+    await options.assertOwned();
     diagnostics.phase = "send";
     diagnostics.sendAttempted = true;
 
-    const finalNavigationPromise = page
-      .waitForNavigation({
-        waitUntil: "domcontentloaded",
-        timeout: remainingBudget(dispatchTimeoutMs),
-      })
-      .then(() => true)
-      .catch(() => false);
+    let mainDocumentNavigationStarted = false;
+    let postDispatchFailure: CeacError | undefined;
+    let resolveNavigationStarted: (() => void) | null = null;
+    const navigationStarted = new Promise<void>(resolve => {
+      resolveNavigationStarted = resolve;
+    });
+    let navigationTimer: ReturnType<typeof setTimeout> | undefined;
+    let resolveNavigation: ((settled: boolean) => void) | null = null;
+    const navigationSettled = new Promise<boolean>(resolve => {
+      resolveNavigation = resolve;
+    });
+    const settleNavigation = (settled: boolean) => {
+      if (!resolveNavigation) return;
+      const resolveOnce = resolveNavigation;
+      resolveNavigation = null;
+      if (navigationTimer) clearTimeout(navigationTimer);
+      navigationTimer = undefined;
+      resolveOnce(settled);
+    };
+    const onMainDocumentRequest = (request: Request) => {
+      if (!isMainDocumentNavigation(page, request)) return;
+      mainDocumentNavigationStarted = true;
+      if (!navigationTimer) {
+        navigationTimer = setTimeout(
+          () => settleNavigation(false),
+          Math.max(1, overallDeadline - Date.now()),
+        );
+      }
+      resolveNavigationStarted?.();
+    };
+    const onDomContentLoaded = () => {
+      if (mainDocumentNavigationStarted) settleNavigation(true);
+    };
+    page.on("request", onMainDocumentRequest);
+    page.on("domcontentloaded", onDomContentLoaded);
     try {
-      await sendControl.click({ timeout: remainingBudget(dispatchTimeoutMs) });
-    } catch {
-      diagnostics.dispatchClickTimedOut = true;
-    }
-    // A timeout after dispatch is ambiguous. Settle once and inspect the
-    // official receipt; never click the final control a second time.
-    const finalNavigation = await finalNavigationPromise;
-    if (!finalNavigation) {
-      await waitForAspNetPostbackStable(page, remainingBudget(postbackTimeoutMs)).catch(() => undefined);
+      // Keep the click/actionability budget short, but let a document
+      // navigation that actually started during the click settle under the
+      // overall run budget. CEAC can take over a minute between its 302 and
+      // the final Complete_Done/AppError document.
+      try {
+        await sendControl.click({ timeout: remainingBudget(dispatchTimeoutMs) });
+      } catch {
+        diagnostics.dispatchClickTimedOut = true;
+      }
+
+      // Give a synchronous form submit one task to announce its document
+      // request. Same-page/AJAX sends skip this wait and use the bounded
+      // ASP.NET settlement path instead of paying the document-navigation
+      // timeout.
+      if (!mainDocumentNavigationStarted) {
+        await Promise.race([
+          navigationStarted,
+          page.waitForTimeout(Math.min(400, remainingBudget(postbackTimeoutMs))).catch(() => undefined),
+        ]);
+      }
+
+      // A timeout after dispatch is ambiguous. Settle once and inspect the
+      // official receipt; never click the final control a second time.
+      if (mainDocumentNavigationStarted) {
+        await navigationSettled;
+      } else {
+        await waitForAspNetPostbackStable(page, remainingBudget(postbackTimeoutMs)).catch(() => undefined);
+        // A delayed script can start a full navigation after the initial
+        // detection grace. Once observed, wait for that document rather than
+        // reading the old DOM.
+        if (mainDocumentNavigationStarted) await navigationSettled;
+      }
+    } catch (error) {
+      if ((error as { code?: string }).code === "GATE_DETECTED") throw error;
+      if (error instanceof CeacError) postDispatchFailure = error;
+      else throw error;
+    } finally {
+      if (navigationTimer) clearTimeout(navigationTimer);
+      page.off("request", onMainDocumentRequest);
+      page.off("domcontentloaded", onDomContentLoaded);
     }
     try {
       assertCeacPostbackHealthy(page);
@@ -497,11 +577,22 @@ export async function sendOfficialDs160ConfirmationEmail(
       // the one-shot fence and inspect receipt evidence instead of retrying;
       // explicit CEAC gates remain fatal and are surfaced unchanged.
       if ((error as { code?: string }).code === "GATE_DETECTED") throw error;
+      if (error instanceof CeacError) postDispatchFailure ??= error;
+      else throw error;
     }
-    await assertNoGate(page);
+    try {
+      await assertNoGate(page);
+    } catch (error) {
+      if ((error as { code?: string }).code === "GATE_DETECTED") throw error;
+      if (error instanceof CeacError) postDispatchFailure ??= error;
+      else throw error;
+    }
     const receipt = await waitForReceipt(page, remainingBudget(receiptTimeoutMs));
     diagnostics.receiptEvidenceHash = receipt.evidenceHash;
-    if (receipt.status === "sent") {
+    // A response body cannot turn an explicit HTTP failure into a success
+    // receipt. Transport timeouts without a status remain ambiguous, so a
+    // later explicit 2xx receipt is still accepted.
+    if (receipt.status === "sent" && !hasHttpFailure(postDispatchFailure)) {
       diagnostics.finalPath = currentOfficialPath(page);
       return {
         status: "sent",
@@ -510,10 +601,21 @@ export async function sendOfficialDs160ConfirmationEmail(
         diagnostics: diagnosticsSnapshot(diagnostics),
       };
     }
+    if (hasHttpFailure(postDispatchFailure)) {
+      return fail(
+        "ds160_email_receipt_unconfirmed",
+        "CEAC did not expose explicit confirmation-email receipt evidence after an HTTP failure.",
+      );
+    }
     if (receipt.status === "failed") {
       return fail("ds160_email_failed", "CEAC reported that the confirmation email was not sent.");
     }
-    return fail("ds160_email_receipt_unconfirmed", "CEAC did not expose explicit confirmation-email receipt evidence.");
+    return fail(
+      "ds160_email_receipt_unconfirmed",
+      postDispatchFailure
+        ? "CEAC did not expose explicit confirmation-email receipt evidence after a completed dispatch response."
+        : "CEAC did not expose explicit confirmation-email receipt evidence.",
+    );
   } finally {
     stopNetworkObserver();
   }

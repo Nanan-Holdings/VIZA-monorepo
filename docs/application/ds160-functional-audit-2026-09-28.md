@@ -2302,3 +2302,60 @@ lease cleared. These observations do not establish the official server's
 internal failure cause or actual inbox delivery. No second request was made
 in this monitor turn. At 22:03 provider sessions and runtime active work were
 zero; the normal idle lifecycle was allowed to stop the machine.
+At 22:05:18, the machine was verified automatically stopped with zero provider
+sessions and unchanged non-image configuration. The application still showed
+submitted with one confirmed final fence and no active work. The restored
+monitor retains the existing thirty-minute backoff and does not treat this
+unchanged external error as a new sending-success result.
+
+### 2026-10-01 00:07 Europe/Berlin: user-directed single-attempt debugging
+
+The user replaced scheduled retries with a single attempt followed by diagnosis,
+an evidence-backed correction and revalidation. The thirty-minute monitor was
+deleted. A debug-only helper preserves normal account authentication, exact
+terminal-job/recipient checks, wx prior-request fencing and one POST; only its
+minimum-age rule and local fence namespace differ from the reviewed recovery
+helper. Offline mocks verified single dispatch and refusal/no replay for active,
+sent, mismatched, existing-fence and timed-out requests. Neither prior helper
+nor any consumed fence was overwritten or replayed.
+
+Fresh checks showed the target still submitted with one confirmed final fence,
+no active job/lease, healthy database service and stopped machine/provider zero.
+One email-only POST returned 202 and created the debug task at 22:11:37 UTC.
+The run verified the same official confirmation at 22:13:33 and reserved one
+dispatch at 22:13:48. Its encrypted final evidence passed SHA verification and
+captured the official Application Error page at 22:15:34, without a sending
+success receipt. This run's POST email.aspx received 302 after 78 ms; its
+Complete_Done.aspx GET received 302 after 100,127 ms to AppError.aspx (200).
+The preserved result is unknown, not sent. No additional request followed this
+failure while diagnosis continued.
+
+The target recipient domain independently has an MX record; that establishes
+DNS mail routing only, not mailbox validity or actual delivery. At 22:17:57
+UTC the machine had automatically stopped, provider sessions were zero and
+configuration was unchanged. The application remains submitted with one
+confirmed fence and no active job. No new DS-160, signature, answer/photo
+change or production deployment was performed in this debug attempt.
+
+The scoped correction tracks the main-frame document request across the final
+click and waits under a 180-second overall bound, retaining the 30-second click
+budget and one dispatch. Same-page/AJAX receipts retain their bounded settlement
+path. An additional ownership assertion after the durable reservation callback
+prevents a newly lost claim from clicking. HTTP failure bodies cannot become a
+sent result merely by containing receipt-like text. Independent review identified
+the ownership boundary; the correction preserves the existing send fence.
+
+The worker now captures visible pre-send text and pixels in memory after the
+verified recipient/No state and before reservation, then rechecks ownership.
+The existing final encrypted artifact contains both captures. Final-page closure
+or capture failure retains available pre-send evidence; public queue metadata
+contains only artifact references and failure-stage flags. No new plaintext
+artifact, recipient value, credential or request body is logged.
+
+Validation: 15 offline Chromium confirmation-email tests and 31 proof-email/audit
+regressions passed, as did service type-check, build and diff checks. The slow
+navigation fixture covers a delayed document POST response; it does not claim
+to reproduce the official 100-second redirect chain. The separate offline 302
+fixture remains unknown and one-shot. These client-side and evidence fixes do
+not prove the official email service is repaired. Production revalidation follows
+only after the idle deployment gates and preserved-configuration checks.

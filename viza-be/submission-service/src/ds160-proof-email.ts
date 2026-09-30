@@ -40,13 +40,68 @@ export interface Ds160EmailFailureEvidence {
   status?: number;
 }
 
+export type Ds160EmailCaptureFailure = "page_closed" | "body" | "screenshot";
+
+export interface Ds160EmailPageCapture {
+  capturedAt: string;
+  path?: string;
+  body?: string;
+  screenshotBase64?: string;
+  captureFailures: Ds160EmailCaptureFailure[];
+}
+
+type PublicDs160EmailCaptureFailure =
+  | Ds160EmailCaptureFailure
+  | "pre_send_page_closed"
+  | "pre_send_body"
+  | "pre_send_screenshot";
+
 type EmailAuditEvidence = {
   audit?: Ds160AuditArtifactRef;
   auditUnavailable?: true;
   auditFailureStage?: "capture" | "encryption" | "storage";
   auditFailureCode?: Ds160AuditStorageError["code"];
-  auditCaptureFailures?: Array<"page_closed" | "body" | "screenshot">;
+  auditCaptureFailures?: PublicDs160EmailCaptureFailure[];
 };
+
+function safeOfficialPath(page: Page): string | undefined {
+  try {
+    const url = new URL(page.url());
+    return url.origin === "https://ceac.state.gov" && /^\/GenNIV\//i.test(url.pathname)
+      ? url.pathname : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Capture only visible official-page text and pixels; callers keep the result private. */
+export async function captureDs160EmailPage(page: Page): Promise<Ds160EmailPageCapture> {
+  const capturedAt = new Date().toISOString();
+  const path = safeOfficialPath(page);
+  try {
+    if (page.isClosed()) return { capturedAt, path, captureFailures: ["page_closed"] };
+  } catch {
+    return { capturedAt, path, captureFailures: ["page_closed"] };
+  }
+  const captureFailures: Ds160EmailCaptureFailure[] = [];
+  let body: string | undefined;
+  let screenshotBase64: string | undefined;
+  try { body = await page.locator("body").innerText({ timeout: 5_000 }); }
+  catch { captureFailures.push("body"); }
+  try { screenshotBase64 = (await page.screenshot({ timeout: 5_000 })).toString("base64"); }
+  catch { captureFailures.push("screenshot"); }
+  return { capturedAt, path, body, screenshotBase64, captureFailures };
+}
+
+function publicCaptureFailures(
+  preSendCapture: Ds160EmailPageCapture | undefined,
+  finalCapture: Ds160EmailPageCapture,
+): PublicDs160EmailCaptureFailure[] {
+  return [
+    ...(preSendCapture?.captureFailures.map(failure => `pre_send_${failure}` as const) ?? []),
+    ...finalCapture.captureFailures,
+  ];
+}
 
 /** Keep partial official evidence; a screenshot failure must not discard text. */
 export async function persistDs160EmailEvidence(input: {
@@ -55,32 +110,29 @@ export async function persistDs160EmailEvidence(input: {
   runId: string;
   outcome: EmailOutcome;
   reserved: boolean;
+  preSendCapture?: Ds160EmailPageCapture;
 }, dependencies: {
   encrypt?: typeof encryptSecret;
   transport?: Ds160AuditStorageTransport;
 } = {}): Promise<EmailAuditEvidence> {
   const evidence: EmailAuditEvidence = {};
-  if (input.page.isClosed()) {
-    return { auditUnavailable: true, auditFailureStage: "capture", auditCaptureFailures: ["page_closed"] };
-  }
-  const captureFailures: NonNullable<EmailAuditEvidence["auditCaptureFailures"]> = [];
-  let body: string | undefined;
-  let screenshotBase64: string | undefined;
-  try { body = await input.page.locator("body").innerText({ timeout: 5_000 }); }
-  catch { captureFailures.push("body"); }
-  try { screenshotBase64 = (await input.page.screenshot({ timeout: 5_000 })).toString("base64"); }
-  catch { captureFailures.push("screenshot"); }
+  const finalCapture = await captureDs160EmailPage(input.page);
+  const captureFailures = publicCaptureFailures(input.preSendCapture, finalCapture);
   if (captureFailures.length) evidence.auditCaptureFailures = captureFailures;
-  if (!body?.trim() && !screenshotBase64) {
+  const hasPreSendContent = Boolean(input.preSendCapture?.body?.trim() || input.preSendCapture?.screenshotBase64);
+  if (!finalCapture.body?.trim() && !finalCapture.screenshotBase64 && !hasPreSendContent) {
     return { ...evidence, auditUnavailable: true, auditFailureStage: "capture" };
   }
   let stage: "encryption" | "storage" = "encryption";
   try {
     const encrypt = dependencies.encrypt ?? encryptSecret;
     const ciphertext = encrypt(JSON.stringify({
-      version: 1, evidenceKind: "official_confirmation_email", capturedAt: new Date().toISOString(),
-      path: new URL(input.page.url()).pathname, body, screenshotBase64,
-      captureFailures, outcome: input.outcome, reserved: input.reserved,
+      version: 1, evidenceKind: "official_confirmation_email", capturedAt: finalCapture.capturedAt,
+      ...(finalCapture.path ? { path: finalCapture.path } : {}),
+      body: finalCapture.body, screenshotBase64: finalCapture.screenshotBase64,
+      captureFailures: finalCapture.captureFailures,
+      ...(input.preSendCapture ? { preSend: input.preSendCapture } : {}),
+      outcome: input.outcome, reserved: input.reserved,
     }));
     stage = "storage";
     const store = createDs160AuditStore(encrypt, {
@@ -198,6 +250,8 @@ export interface Ds160EmailJobDependencies {
     ensureEnglish: typeof ensureEnglishDs160Confirmation;
     sendEmail: typeof sendOfficialDs160ConfirmationEmail;
   }>;
+  /** Local fixtures can replace evidence persistence without changing production behavior. */
+  persistEvidence?: typeof persistDs160EmailEvidence;
 }
 
 /** Proof-only job: never writes application state and never invokes signing. */
@@ -218,6 +272,7 @@ export async function processDs160OfficialEmailJob(
   let failurePhase: Ds160EmailFailurePhase = "preflight";
   let outcome: EmailOutcome = "failed";
   let errorCode: string | null = null;
+  let preSendCapture: Ds160EmailPageCapture | undefined;
   const evidence: Record<string, unknown> = { runId };
   const claim = { p_queue_id: item.id, p_worker_id: item.locked_by, p_locked_at: item.locked_at };
   const assertOwned = (): void => {
@@ -289,6 +344,8 @@ export async function processDs160OfficialEmailJob(
       assertOwned,
       beforeSend: async () => {
         assertOwned();
+        preSendCapture = await captureDs160EmailPage(session!.page);
+        assertOwned();
         const { data, error } = await client.rpc("reserve_ds160_email_send", claim);
         if (error || !Array.isArray(data) || data.length !== 1) throw new SubmissionQueueOwnershipLostError();
         reserved = true;
@@ -309,8 +366,9 @@ export async function processDs160OfficialEmailJob(
     // Private, encrypted official evidence allows a disputed/slow response to
     // be diagnosed without logging the applicant's confirmation or recipient.
     if (session) {
-      Object.assign(evidence, await persistDs160EmailEvidence({
-        page: session.page, jobId: item.id, runId, outcome, reserved,
+      const persistEvidence = dependencies.persistEvidence ?? persistDs160EmailEvidence;
+      Object.assign(evidence, await persistEvidence({
+        page: session.page, jobId: item.id, runId, outcome, reserved, preSendCapture,
       }));
     }
     // Do not expose a terminal/retryable row until the provider session closes.

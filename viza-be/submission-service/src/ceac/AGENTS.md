@@ -273,7 +273,10 @@ diagnostics, `.dat` capture, CAPTCHA solving, and one-shot final submission.
     queue diagnostics. The bounded network trace must retain final-dispatch
     request starts and critical responses despite page asset traffic; never
     capture request bodies, query strings, cookies or response headers. A final click may leave an ambiguous state and must be reported for
-    recovery without another send attempt.
+    recovery without another send attempt. The final click retains its short
+    actionability timeout, but an observed main-frame document navigation must
+    settle within the bounded overall budget before receipt inspection. An
+    AJAX/same-page receipt must not wait for an absent document navigation.
 13. `start-location.ts` validates the applicant-selected CEAC Designate Location
     code against the current official option list. Missing, ambiguous, or
     unsupported posts must stop the run; never silently default a real
