@@ -190,11 +190,11 @@ function safeOfficialEmailError(status: "failed" | "unknown"): { code: string; e
   return status === "unknown"
     ? {
         code: "ds160_proof_email_unknown",
-        error: "CEAC did not return a clear email receipt. Your application submission is unchanged; check your account email before retrying. A retry may send another email.",
+        error: "CEAC did not return a clear email receipt. Your application remains submitted and the saved confirmation PDF is available. Email delivery has not been confirmed.",
       }
     : {
         code: "ds160_proof_email_failed",
-        error: "CEAC did not send the official DS-160 confirmation email. Your application submission is unchanged; you can download the saved file or retry manually.",
+        error: "The automatic CEAC confirmation email could not be completed. Your application remains submitted and the saved confirmation PDF is available.",
       };
 }
 

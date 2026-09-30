@@ -12,6 +12,8 @@ import {
   startCeacSession, fillRetrieveApplicationForm, retrievalUrlFor,
   waitForDs160ConfirmationPage, ensureEnglishDs160Confirmation,
   resolveDs160ProofStartLocationCode,
+  CeacError, GateDetectedError, NavigationError, SessionBootstrapError,
+  type CeacErrorCode,
 } from "./ceac";
 import {
   sendOfficialDs160ConfirmationEmail, Ds160ConfirmationEmailError,
@@ -21,6 +23,23 @@ import { createDs160AuditStorageTransport } from "./ceac/audit-storage-transport
 import { decryptSecret, encryptSecret } from "./secret-cipher";
 
 type EmailOutcome = "sent" | "failed" | "unknown";
+export type Ds160EmailFailurePhase =
+  | "preflight"
+  | "bootstrap"
+  | "retrieve"
+  | "confirmation"
+  | "send";
+
+export type Ds160EmailFailureCause = "unknown" | "gate" | "navigation" | "bootstrap" | "ceac";
+
+/** Public-safe failure metadata; never copy CEAC messages, URLs or context details. */
+export interface Ds160EmailFailureEvidence {
+  phase: Ds160EmailFailurePhase;
+  cause: Ds160EmailFailureCause;
+  ceacCode?: CeacErrorCode;
+  status?: number;
+}
+
 type EmailAuditEvidence = {
   audit?: Ds160AuditArtifactRef;
   auditUnavailable?: true;
@@ -110,18 +129,57 @@ export function ds160RecipientDigest(email: string): string {
   return createHash("sha256").update(email.trim().toLowerCase(), "utf8").digest("hex");
 }
 
-export function classifyDs160EmailFailure(error: unknown, reserved: boolean): {
-  status: EmailOutcome; code: string;
+const DS160_EMAIL_CEAC_CODES: Partial<Record<CeacErrorCode, string>> = {
+  UNEXPECTED_PAGE: "ds160_email_unexpected_page",
+  SESSION_EXPIRED: "ds160_email_session_expired",
+  NAVIGATION_FAILED: "ds160_email_navigation_failed",
+  VALIDATION_FAILED: "ds160_email_validation_failed",
+  SESSION_BOOTSTRAP_FAILED: "ds160_email_session_bootstrap_failed",
+  GATE_DETECTED: "ds160_email_gate_detected",
+  MANUAL_ACTION_REQUIRED: "ds160_email_manual_action_required",
+  DS160_REVIEW_UNVERIFIED: "ds160_email_review_unverified",
+  DS160_REVIEW_MISMATCH: "ds160_email_review_mismatch",
+};
+
+function safeCeacStatus(error: CeacError): number | undefined {
+  const status = error.context.details?.status;
+  return typeof status === "number" && Number.isInteger(status) && status >= 400 && status <= 599
+    ? status : undefined;
+}
+
+function ceacFailureCause(error: CeacError): Ds160EmailFailureCause {
+  if (error instanceof GateDetectedError) return "gate";
+  if (error instanceof NavigationError) return "navigation";
+  if (error instanceof SessionBootstrapError) return "bootstrap";
+  return "ceac";
+}
+
+export function classifyDs160EmailFailure(
+  error: unknown,
+  reserved: boolean,
+  phase: Ds160EmailFailurePhase = "preflight",
+): {
+  status: EmailOutcome; code: string; failure?: Ds160EmailFailureEvidence;
 } {
   // A persisted reservation is conservative: even a failed click could have
   // dispatched the POST. Only a fresh, explicit user request can authorize more.
+  const ceacError = !reserved && error instanceof CeacError ? error : null;
+  const classifiedCeacCode = ceacError ? DS160_EMAIL_CEAC_CODES[ceacError.code] : undefined;
+  const failure: Ds160EmailFailureEvidence | undefined = reserved ? undefined : {
+    phase,
+    cause: ceacError ? ceacFailureCause(ceacError) : "unknown",
+    ...(classifiedCeacCode ? { ceacCode: ceacError!.code } : {}),
+    ...(ceacError && safeCeacStatus(ceacError) !== undefined ? { status: safeCeacStatus(ceacError) } : {}),
+  };
   return {
     status: reserved ? "unknown" : "failed",
     code: error instanceof Ds160ConfirmationEmailError
       ? error.code
       : reserved ? "ds160_email_receipt_unconfirmed"
-        : error instanceof Error && /^ds160_email_(?:recipient_changed|submitted_identity_required|retrieval_data_required|config_blocked)$/.test(error.message)
-          ? error.message : "ds160_email_retrieval_failed",
+        : classifiedCeacCode
+          ?? (error instanceof Error && /^ds160_email_(?:recipient_changed|submitted_identity_required|retrieval_data_required|config_blocked)$/.test(error.message)
+            ? error.message : "ds160_email_retrieval_failed"),
+    ...(failure ? { failure } : {}),
   };
 }
 
@@ -157,6 +215,7 @@ export async function processDs160OfficialEmailJob(
   let session: Awaited<ReturnType<typeof startCeacSession>> | null = null;
   let lease: SubmissionQueueLeaseHeartbeat | null = null;
   let reserved = false;
+  let failurePhase: Ds160EmailFailurePhase = "preflight";
   let outcome: EmailOutcome = "failed";
   let errorCode: string | null = null;
   const evidence: Record<string, unknown> = { runId };
@@ -207,20 +266,24 @@ export async function processDs160OfficialEmailJob(
       (result.securityAnswerCipher ? decryptSecret(result.securityAnswerCipher) : null);
     if (!securityAnswer || !result.surnameFirst5 || !result.yearOfBirth) throw new Error("ds160_email_retrieval_data_required");
     assertOwned();
+    failurePhase = "bootstrap";
     session = await runtime.startSession({
       headless: dependencies.headless, acceptDownloads: true, runId,
       startAction: "retrieve", startLocationCode: location, captchaMaxAttempts: 3,
     });
     assertOwned();
+    failurePhase = "retrieve";
     await session.page.goto(retrievalUrlFor(result.applicationId), { waitUntil: "domcontentloaded", timeout: 60_000 });
     await runtime.retrieve(session.page, {
       applicationId: result.applicationId, surnameFirstFive: result.surnameFirst5,
       yearOfBirth: String(result.yearOfBirth), securityAnswer,
     });
+    failurePhase = "confirmation";
     await runtime.waitForConfirmation(session.page);
     await runtime.ensureEnglish(session.page, result.applicationId);
     assertOwned();
     console.log(`[ceac-email] ${runId} official_confirmation_verified`);
+    failurePhase = "send";
     const receipt = await runtime.sendEmail({
       page: session.page, expectedApplicationId: result.applicationId, verifiedRecipient: recipient,
       assertOwned,
@@ -236,9 +299,10 @@ export async function processDs160OfficialEmailJob(
     evidence.diagnostics = receipt.diagnostics;
     outcome = "sent";
   } catch (error) {
-    const failure = classifyDs160EmailFailure(error, reserved);
+    const failure = classifyDs160EmailFailure(error, reserved, failurePhase);
     outcome = failure.status;
     errorCode = failure.code;
+    if (failure.failure) evidence.failure = failure.failure;
     if (error instanceof Ds160ConfirmationEmailError) evidence.diagnostics = error.diagnostics;
     evidence.ownershipLost = error instanceof SubmissionQueueOwnershipLostError || lease?.isOwnershipLost() === true;
   } finally {

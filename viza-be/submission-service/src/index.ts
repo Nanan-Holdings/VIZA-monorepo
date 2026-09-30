@@ -168,6 +168,11 @@ import { persistDs160InputSnapshot, persistDs160RunEvidence } from "./ceac/audit
 import { createDs160AuditStore } from "./ceac/audit-storage";
 import { createDs160AuditStorageTransport } from "./ceac/audit-storage-transport";
 import {
+  createDs160AutomaticEmailIntent,
+  markDs160AutomaticEmailReady,
+  dispatchDs160AutomaticEmails,
+} from "./ds160-auto-email";
+import {
   SubmissionQueueItem,
   ApplicantProfile,
   Application,
@@ -2468,6 +2473,7 @@ async function processDs160Item(
   const capturedResumeActive = capturedResumeCheckpoint !== null;
   const auditArtifacts: Record<string, { storagePath: string; sha256: string }> = {};
   let auditEvidenceFailed = false;
+  let automaticEmailRequested = false;
   const auditStoreOptions = {
     jobId: item.id,
     runId,
@@ -2794,10 +2800,14 @@ async function processDs160Item(
       await updateOwnedDs160Queue(item, {
         status: "ds160_submitted",
         current_stage: "submitted",
-        ceac_result_payload: { ...result, sectionCoverage, ...captchaTelemetry } as unknown as Record<string, unknown>,
+        ceac_result_payload: {
+          ...result, sectionCoverage, ...captchaTelemetry,
+          automaticEmail: createDs160AutomaticEmailIntent(),
+        } as unknown as Record<string, unknown>,
         live_submitted_at: result.submittedAt,
         updated_at: new Date().toISOString(),
       });
+      automaticEmailRequested = true;
 
       console.log(
         `[ceac] Run ${runId} submitted for application=${redactIdentifier(item.application_id)} ceac=${redactIdentifier(applicationId)}`,
@@ -3230,6 +3240,15 @@ async function processDs160Item(
             });
           },
         });
+        // Browser cleanup must finish before the submitted row can hand off
+        // to its automatic email job. A mail failure never changes success.
+        if (automaticEmailRequested && !queueLease?.isOwnershipLost()) {
+          try {
+            await markDs160AutomaticEmailReady(supabase, item);
+          } catch {
+            console.warn("[ceac-email] Automatic email handoff needs recovery; submission is preserved.");
+          }
+        }
       } finally {
         if (process.env.DS160_KEEP_TEMP === "1" || auditEvidenceFailed) {
           console.warn(`[ceac] Keeping temp dir for diagnostics: ${tempDir}`);
@@ -8749,6 +8768,18 @@ async function pollOnce(runMaintenance = true): Promise<boolean> {
   let items: SubmissionQueueItem[];
   legacyQueueWorkInFlight = true;
   try {
+    if (LEGACY_SUBMISSION_QUEUE_ENABLED && !targetJobId) {
+      idleExitController?.workStarted();
+      try {
+        // Only durable ready intents created by successful new submissions
+        // qualify. Refreshing a result page never enqueues or replays mail.
+        await dispatchDs160AutomaticEmails(supabase);
+      } catch {
+        console.warn("[ceac-email] Automatic email queue temporarily unavailable; intent is retained.");
+      } finally {
+        idleExitController?.workFinished();
+      }
+    }
     items = await fetchPendingItems({ concurrency, targetJobId });
   } catch (err) {
     legacyQueueWorkInFlight = false;

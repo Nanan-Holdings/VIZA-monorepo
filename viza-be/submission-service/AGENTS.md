@@ -75,14 +75,29 @@ without updating this worker image and verifying these runtime flags.
 
 Scope: this file applies to `viza-be/submission-service/**`.
 
-`src/ds160-proof-email.ts` handles explicitly requested official CEAC confirmation
-email jobs on the existing proof queue. It retrieves an already submitted
+`src/ds160-auto-email.ts` records an automatic confirmation-email intent in a
+new successful submission's queue payload. Only after its browser and heartbeat
+have closed may the exact completed claim become ready and release its lease.
+The legacy startup/drain dispatches ready intents through the existing email
+enqueue RPC with the source queue UUID as the stable request ID and retry=false.
+The recipient comes from the authenticated owner's current account. Existing
+applications without an intent are not backfilled. Failed/unknown/sent emails
+are never automatically replayed by this handoff; a ready intent survives an
+enqueue outage, while uncertain browser cleanup remains blocked for recovery.
+Tests live in `src/__tests__/ds160-auto-email.spec.ts`.
+
+`src/ds160-proof-email.ts` handles automatic post-submission and explicitly
+authorized recovery email jobs on the existing proof queue. It retrieves an already submitted
 application, verifies the authenticated owner's email digest and official
 recipient, reserves one durable email dispatch, and preserves encrypted official
 evidence. It never writes application submission state or invokes Sign. Terminal
 settlement clears the exact claim only after provider cleanup; ambiguous email
 dispatch is `unknown` and requires a new explicit user request. Its local lifecycle
 fixtures are in `src/__tests__/ds160-proof-email.spec.ts`.
+Pre-send failures retain a sanitized phase and typed CEAC error/status even
+when session bootstrap fails before returning a browser. No raw error message,
+URL or applicant value belongs in this public evidence; reserved sends remain
+unknown unless the official receipt is verified.
 The email audit captures text and screenshot independently: one capture failure
 must not discard the other. Public evidence may expose only capture-stage names
 and typed storage codes; private text/images stay encrypted. An artifact ref is

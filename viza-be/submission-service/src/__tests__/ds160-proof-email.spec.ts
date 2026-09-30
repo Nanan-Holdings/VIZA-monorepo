@@ -5,9 +5,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CeacSession } from "../ceac/session";
 import type { ApplicantProfile, SubmissionQueueItem } from "../types";
 import {
-  ds160RecipientDigest, processDs160OfficialEmailJob, persistDs160EmailEvidence,
-  type Ds160EmailJobDependencies,
+  classifyDs160EmailFailure, ds160RecipientDigest, processDs160OfficialEmailJob,
+  persistDs160EmailEvidence, type Ds160EmailFailureEvidence, type Ds160EmailJobDependencies,
 } from "../ds160-proof-email";
+import { GateDetectedError, NavigationError, SessionBootstrapError } from "../ceac/errors";
 
 const queueId = "00000000-0000-4000-8000-000000000001";
 const makeItem = (): SubmissionQueueItem => ({
@@ -24,7 +25,16 @@ const makeItem = (): SubmissionQueueItem => ({
   } },
 });
 
-function fixture(options: { failBefore?: boolean; failAfter?: boolean; denyReserve?: boolean; closeFails?: boolean; recipientChanged?: boolean; reserved?: boolean } = {}) {
+function fixture(options: {
+  failBefore?: boolean;
+  failAfter?: boolean;
+  denyReserve?: boolean;
+  closeFails?: boolean;
+  recipientChanged?: boolean;
+  reserved?: boolean;
+  startError?: unknown;
+  retrieveError?: unknown;
+} = {}) {
   const events: string[] = [];
   let settlement: Record<string, unknown> | undefined;
   const client = {
@@ -60,8 +70,8 @@ function fixture(options: { failBefore?: boolean; failAfter?: boolean; denyReser
     loadProfile: async () => ({ auth_user_id: "fixture-user" } as ApplicantProfile),
     loadAnswers: async () => ({ consular_post: "SHG" }),
     runtime: {
-      startSession: async () => { events.push("open"); return session; },
-      retrieve: async () => { events.push("retrieve"); },
+      startSession: async () => { events.push("open"); if (options.startError) throw options.startError; return session; },
+      retrieve: async () => { events.push("retrieve"); if (options.retrieveError) throw options.retrieveError; },
       waitForConfirmation: async () => undefined,
       ensureEnglish: async () => undefined,
       sendEmail: async input => {
@@ -75,6 +85,12 @@ function fixture(options: { failBefore?: boolean; failAfter?: boolean; denyReser
     },
   };
   return { dependencies, events, settlement: () => settlement };
+}
+
+function failureEvidence(f: ReturnType<typeof fixture>): Ds160EmailFailureEvidence | undefined {
+  const evidence = f.settlement()?.p_evidence;
+  if (!evidence || typeof evidence !== "object" || Array.isArray(evidence)) return undefined;
+  return (evidence as { failure?: Ds160EmailFailureEvidence }).failure;
 }
 
 test("official email reserves once, closes before settlement, and never mutates submitted application", async () => {
@@ -98,6 +114,72 @@ test("pre-dispatch failure settles failed without reserving or sending", async (
   await processDs160OfficialEmailJob(makeItem(), f.dependencies);
   assert.equal(f.settlement()?.p_status, "failed");
   assert.ok(!f.events.includes("reserve_ds160_email_send"));
+});
+
+test("typed bootstrap gate preserves safe phase, status, and classified code", async () => {
+  const f = fixture({
+    startError: new GateDetectedError("private gate details", {
+      url: "https://ceac.state.gov/GenNIV/Default.aspx?private=secret",
+      details: { status: 403, visibleTextSnippet: "private applicant text" },
+    }),
+  });
+  await processDs160OfficialEmailJob(makeItem(), f.dependencies);
+  assert.equal(f.settlement()?.p_status, "failed");
+  assert.equal(f.settlement()?.p_error_code, "ds160_email_gate_detected");
+  assert.deepEqual(failureEvidence(f), {
+    phase: "bootstrap", cause: "gate", ceacCode: "GATE_DETECTED", status: 403,
+  });
+  assert.doesNotMatch(JSON.stringify(f.settlement()), /private|secret|applicant/);
+});
+
+test("typed bootstrap error before session assignment preserves bootstrap phase without private context", async () => {
+  const f = fixture({
+    startError: new SessionBootstrapError("private bootstrap details", {
+      url: "https://ceac.state.gov/GenNIV/Default.aspx?private=secret",
+      details: { cause: "private applicant text", runId: "private-run" },
+    }),
+  });
+  await processDs160OfficialEmailJob(makeItem(), f.dependencies);
+  assert.equal(f.settlement()?.p_status, "failed");
+  assert.equal(f.settlement()?.p_error_code, "ds160_email_session_bootstrap_failed");
+  assert.deepEqual(failureEvidence(f), {
+    phase: "bootstrap", cause: "bootstrap", ceacCode: "SESSION_BOOTSTRAP_FAILED",
+  });
+  assert.doesNotMatch(JSON.stringify(f.settlement()), /private|secret|applicant/);
+});
+
+test("typed retrieval navigation timeout keeps a missing HTTP status and never copies its context", async () => {
+  const f = fixture({
+    retrieveError: new NavigationError("private navigation timeout", {
+      url: "https://ceac.state.gov/GenNIV/Common/Retrieve.aspx?private=secret",
+      details: { phase: "aspnet_postback", timeoutMs: 10_000 },
+    }),
+  });
+  await processDs160OfficialEmailJob(makeItem(), f.dependencies);
+  assert.equal(f.settlement()?.p_status, "failed");
+  assert.equal(f.settlement()?.p_error_code, "ds160_email_navigation_failed");
+  assert.deepEqual(failureEvidence(f), {
+    phase: "retrieve", cause: "navigation", ceacCode: "NAVIGATION_FAILED",
+  });
+  assert.doesNotMatch(JSON.stringify(f.settlement()), /private|secret|applicant/);
+});
+
+test("a typed failure after the send fence remains unknown without exposing a typed retry cause", () => {
+  const result = classifyDs160EmailFailure(
+    new GateDetectedError("private gate details", { details: { status: 403 } }),
+    true,
+    "send",
+  );
+  assert.deepEqual(result, { status: "unknown", code: "ds160_email_receipt_unconfirmed" });
+});
+
+test("untyped HTTP-looking bootstrap errors remain an unknown cause", async () => {
+  const f = fixture({ startError: new Error("HTTP 403 from a private CEAC URL") });
+  await processDs160OfficialEmailJob(makeItem(), f.dependencies);
+  assert.equal(f.settlement()?.p_status, "failed");
+  assert.equal(f.settlement()?.p_error_code, "ds160_email_retrieval_failed");
+  assert.deepEqual(failureEvidence(f), { phase: "bootstrap", cause: "unknown" });
+  assert.doesNotMatch(JSON.stringify(f.settlement()), /HTTP 403|private|CEAC URL/);
 });
 
 test("fresh dispatch fence stops a stale claim before browser startup", async () => {

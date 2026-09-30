@@ -90,6 +90,13 @@ Before changing this route, read:
   and confirmation PDF artifacts are rendered as authenticated downloads.
   `UsResultCard.test.tsx` verifies that the completed DS-160 action requests a
   fresh application instead of being swallowed by completed-result idempotency.
+  `UsResultCard.tsx` keeps official confirmation email delivery automatic after
+  a successful submission: it retains the confirmation PDF download, reads the
+  email-only status endpoint with GET, and renders `none`/`idle`,
+  `queued`/`sending`, `sent`, `failed`, `unknown`, and `unsupported` separately
+  from the submission result. It must not render manual email send/retry
+  controls or issue an email POST during render; the backend success flow owns
+  the initial enqueue and any explicitly authorized retry.
   `Ds160RecoveryResultCard.test.tsx` verifies that a recoverable DS-160
   submission uses the parent save/validation callback with an explicit retry
   intent, while the standalone card keeps the guarded API fallback and

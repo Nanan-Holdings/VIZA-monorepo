@@ -52,31 +52,40 @@ describe("UsResultCard", () => {
       expect(card.proofEmailSending).toBeTruthy();
       expect(card.proofEmailUnknown).toBeTruthy();
       expect(card.proofEmailUnknownBody).toBeTruthy();
-      expect(card.retryEmail).toBeTruthy();
       expect(card.proofEmailUnavailable).toBeTruthy();
       expect(card.proofEmailUnavailableBody).toBeTruthy();
+      expect(card.automaticEmailTitle).toBeTruthy();
+      expect(card.automaticEmailPreparing).toBeTruthy();
+      expect(card.automaticEmailPreparingBody).toBeTruthy();
+      expect(card.automaticEmailPending).toBeTruthy();
+      expect(card.automaticEmailPendingBody).toBeTruthy();
+      expect(card.automaticEmailSent).toBeTruthy();
+      expect(card.automaticEmailSentBody).toBeTruthy();
+      expect(card.automaticEmailFailed).toBeTruthy();
+      expect(card.automaticEmailFailedBody).toBeTruthy();
+      expect(card.automaticEmailUnknown).toBeTruthy();
+      expect(card.automaticEmailUnknownBody).toBeTruthy();
+      expect(card.automaticEmailUnavailable).toBeTruthy();
+      expect(card.automaticEmailUnavailableBody).toBeTruthy();
     }
   });
 
-  it("keeps result actions accessible and limits email delivery to the account email", () => {
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ok: true, status: "idle" }), { status: 200 })));
+  it("keeps the PDF action and shows automatic email status without email controls", async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({ ok: true, status: "none" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
     render(<UsResultCard applicationId="viza-application-id" result={submittedResult} />);
 
     expect(screen.getAllByRole("button", { name: "copyValue" })).toHaveLength(3);
-    const emailButton = screen.getByRole("button", { name: "emailConfirmation" });
-    expect(emailButton).toHaveAttribute("aria-expanded", "false");
-    expect(emailButton).toHaveAttribute("aria-controls");
-
-    fireEvent.click(emailButton);
-
-    expect(emailButton).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByRole("button", { name: "sendToAccountEmail" })).toBeEnabled();
-    expect(screen.queryByLabelText("customEmailLabel")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "sendToCustomEmail" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "printConfirmation" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "emailConfirmation" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "sendToAccountEmail" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "retryEmail" })).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("automaticEmailPreparing")).toBeInTheDocument());
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(0);
   });
 
   it("fails closed when the persisted email status cannot be read", async () => {
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({
       ok: false,
       status: "unavailable",
       code: "ds160_proof_email_unavailable",
@@ -84,12 +93,12 @@ describe("UsResultCard", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<UsResultCard applicationId="viza-application-id" result={submittedResult} />);
-    fireEvent.click(screen.getByRole("button", { name: "emailConfirmation" }));
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "sendToAccountEmail" })).toBeDisabled();
+      expect(screen.getByText("automaticEmailUnavailable")).toBeInTheDocument();
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: "retryEmail" })).not.toBeInTheDocument();
   });
 
   it("resumes read-only email polling after refresh and preserves the PDF action on unknown receipt", async () => {
@@ -125,17 +134,16 @@ describe("UsResultCard", () => {
       await vi.advanceTimersByTimeAsync(3000);
     });
 
-    expect(screen.getByText("proofEmailUnknown")).toBeInTheDocument();
-    expect(screen.getByText("proofEmailUnknownBody")).toBeInTheDocument();
-    expect(screen.queryByText("proofEmailSending")).not.toBeInTheDocument();
+    expect(screen.getByText("automaticEmailUnknown")).toBeInTheDocument();
+    expect(screen.getByText("automaticEmailUnknownBody")).toBeInTheDocument();
+    expect(screen.queryByText("automaticEmailPending")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "printConfirmation" })).toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: "retryEmail" })).toHaveLength(1);
-    expect(screen.getByRole("button", { name: "retryEmail" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "retryEmail" })).not.toBeInTheDocument();
     expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(0);
   });
 
   it("starts a download without opening a popup after proof is ready", async () => {
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({
       ok: true,
       status: "ready",
       downloadUrl: "/api/applications/viza-application-id/submission-artifact?download=confirmation.pdf",
@@ -157,76 +165,44 @@ describe("UsResultCard", () => {
     anchorClick.mockRestore();
   });
 
-  it("keeps an email delivery failure separate from the saved proof and submission", async () => {
-    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
-      if (init?.method === "POST") {
-        const body = JSON.parse(String(init.body)) as Record<string, unknown>;
-        if (body.retry === true) {
-          return new Response(JSON.stringify({
-            ok: true,
-            status: "sent",
-            recipient: "account@example.com",
-          }), { status: 200 });
-        }
-        return new Response(JSON.stringify({
-          ok: true,
-          status: "failed",
-          code: "ds160_proof_email_failed",
-          error: "provider details must never be shown",
-        }), { status: 200 });
-      }
-      return new Response(JSON.stringify({ ok: true, status: "idle" }), { status: 200 });
-    });
+  it("keeps an automatic email failure separate from the saved proof and submission", async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({
+      ok: true,
+      status: "failed",
+      code: "ds160_proof_email_failed",
+      error: "provider details must never be shown",
+    }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
     render(<UsResultCard applicationId="viza-application-id" result={submittedResult} />);
-    fireEvent.click(screen.getByRole("button", { name: "emailConfirmation" }));
-    fireEvent.click(screen.getByRole("button", { name: "sendToAccountEmail" }));
 
     await waitFor(() => {
-      expect(screen.getByText("proofEmailFailed")).toBeInTheDocument();
-      expect(screen.getByText("proofEmailFailedBody")).toBeInTheDocument();
+      expect(screen.getByText("automaticEmailFailed")).toBeInTheDocument();
+      expect(screen.getByText("automaticEmailFailedBody")).toBeInTheDocument();
     });
     expect(screen.queryByText(/provider details/u)).not.toBeInTheDocument();
     expect(screen.getByText("submitted")).toBeInTheDocument();
-    const postCalls = () => fetchMock.mock.calls.filter(([, init]) => init?.method === "POST");
-    const firstRequest = JSON.parse(String(postCalls()[0]?.[1]?.body)) as Record<string, unknown>;
-    expect(firstRequest.recipientMode).toBe("account");
-    expect(firstRequest.retry).toBe(false);
-    expect(firstRequest.requestId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu);
-    const retryButtons = screen.getAllByRole("button", { name: "retryEmail" });
-    expect(retryButtons.at(-1)).toBeEnabled();
-    fireEvent.click(retryButtons.at(-1)!);
-    await waitFor(() => expect(screen.getByText("proofEmailSent")).toBeInTheDocument());
-    expect(postCalls()).toHaveLength(2);
-    const retryRequest = JSON.parse(String(postCalls()[1]?.[1]?.body)) as Record<string, unknown>;
-    expect(retryRequest.recipientMode).toBe("account");
-    expect(retryRequest.retry).toBe(true);
-    expect(retryRequest.requestId).not.toBe(firstRequest.requestId);
+    expect(screen.queryByRole("button", { name: "emailConfirmation" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "retryEmail" })).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(0);
   });
 
-  it("does not automatically resend when CEAC receipt is unknown", async () => {
-    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
-      if (init?.method === "POST") {
-        return new Response(JSON.stringify({
-          ok: true,
-          status: "unknown",
-          code: "ds160_proof_email_unknown",
-          error: "receipt details must not be shown",
-        }), { status: 200 });
-      }
-      return new Response(JSON.stringify({ ok: true, status: "idle" }), { status: 200 });
-    });
+  it("keeps an unknown CEAC receipt read-only", async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({
+      ok: true,
+      status: "unknown",
+      code: "ds160_proof_email_unknown",
+      error: "receipt details must not be shown",
+    }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
     render(<UsResultCard applicationId="viza-application-id" result={submittedResult} />);
-    fireEvent.click(screen.getByRole("button", { name: "emailConfirmation" }));
-    fireEvent.click(screen.getByRole("button", { name: "sendToAccountEmail" }));
 
-    await waitFor(() => expect(screen.getByText("proofEmailUnknown")).toBeInTheDocument());
-    expect(screen.getByText("proofEmailUnknownBody")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("automaticEmailUnknown")).toBeInTheDocument());
+    expect(screen.getByText("automaticEmailUnknownBody")).toBeInTheDocument();
     expect(screen.queryByText(/receipt details/u)).not.toBeInTheDocument();
-    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(1);
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(0);
+    expect(screen.queryByRole("button", { name: "retryEmail" })).not.toBeInTheDocument();
   });
 
   it("does not promise CEAC retrieval when the security answer is hidden", () => {

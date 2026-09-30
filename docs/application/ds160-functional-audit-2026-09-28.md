@@ -1947,3 +1947,42 @@ PDF header and the exact hash of the previously validated English official
 PDF. The separate email endpoint returned unknown for the latest dispatch.
 No official email success receipt is claimed. Production UI acceptance and
 release verification follow separately.
+
+Production release `f6b30ef1` was verified READY with the production alias and
+matching Git commit. The authenticated status API now returns completed and
+the original submitted queue. The real browser showed confirmation PDF and
+appointment next steps; its download button returned the same validated
+English PDF hash. The next authorized browser email request created exactly
+one proof job at 12:16:48 UTC. It ended with `ds160_email_retrieval_failed`
+before reserving a send, with no official audit artifact. This is not the
+previous run's SHA-verified Application Error and does not prove an email was
+dispatched. The application remained submitted with one confirmed fence, no
+active sibling, and the provider/machine were zero/stopped at 12:21:53 UTC.
+
+### 2026-09-30 automatic email product flow
+
+The applicant clarified that no email-send button should be needed. The new
+flow starts an official confirmation-email job after a new DS-160 submission
+has been verified and its browser released. It uses the account recipient,
+the existing proof queue and durable one-shot dispatch fence. A persisted
+source intent and stable request ID make enqueue recovery idempotent; a page
+refresh only reads status. Email failure remains separate from official
+submission success and the downloadable English confirmation.
+
+The result card removes email-send, recipient selection and retry buttons;
+it retains the PDF download and displays queued/sending/sent/failed/unknown
+email states in the chosen language. A sent receipt describes what CEAC
+reported and does not assert inbox delivery. Old submitted applications are
+not mass-enrolled or re-signed by this release. The current applicant's
+separate authorized recovery monitor remains scoped to their existing email
+task. Validation and release evidence for this change are recorded below.
+
+Validation: 48 submission-service tests passed serially, including nine
+automatic-handoff cases, 17 email-worker cases, lease handling and Chromium
+one-shot-send fixtures. The first parallel run had one timing-sensitive
+100 ms postback fixture fail while the compiler was running; the isolated
+serial run passed all 48. Service type-check/build passed. Frontend validation
+passed 10 result-card tests, three catalog-alignment tests, 61 status/proof
+tests, three proof-route tests and type-check. Full lint had zero errors and
+57 existing warnings. No additional official submit or send was used for these
+tests. Production release acceptance is recorded separately below.
