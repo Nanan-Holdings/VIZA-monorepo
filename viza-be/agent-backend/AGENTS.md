@@ -102,6 +102,16 @@ explicitly reintroduces another provider.
   `src/tests/ds160-official-email-queue-migration.test.ts`; its database
   companion is explicitly gated to a marked local/test PostgreSQL transaction
   and always rolls back synthetic fixtures.
+- `drizzle/0207_preserve_ds160_proof_stale_results.sql` isolates CEAC proof
+  work from generic stale maintenance and protects valid leases. Its mirror
+  contract is in `src/tests/stale-queue-maintenance-migration.test.ts`.
+  `src/tests/stale-queue-maintenance.fixture.sql` executes the old failure
+  and corrected behavior in an empty disposable PostgreSQL database and
+  rolls everything back; run with `psql -v ON_ERROR_STOP=1 -f <fixture>`.
+  Never run this fixture against production or an existing application DB.
+  `src/tests/stale-queue-maintenance-db.integration.test.ts` additionally
+  covers explicit 0206 retry of expired queued/sending jobs. It requires a
+  marked local/test database and rolls its transaction back.
 - Transactional notification delivery: `src/notify/templates/**` and
   `src/notify/worker.ts`; Vietnam status changes use the locale-aware
   `vietnam_status_update` template and link to the VIZA status center.

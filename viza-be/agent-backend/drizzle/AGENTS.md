@@ -611,3 +611,15 @@ frontend mirror
 `viza-fe/internal-website/supabase/migrations/20260929000000_ds160_official_email_queue.sql`
 must remain byte-identical. The API and worker perform the actual auth email
 digest check because the service role does not have `auth.users` SELECT access.
+
+# Migration 0207
+
+`0207_preserve_ds160_proof_stale_results.sql` excludes `ceac_proof` from
+generic stale maintenance so proof failures cannot overwrite a submitted
+application result. Expired email jobs use 0206's explicit authenticated retry
+path, preserving the pre-send versus reserved-send distinction. Other stale
+jobs are eligible only after their lease expires. Preserve the later Korea
+status additions, service-only ACL and existing non-proof terminal behavior.
+Keep `20260930102445_preserve_ds160_proof_stale_results.sql` byte-identical.
+The synthetic PostgreSQL fixture under `src/tests/` verifies behavior and
+rolls back; it is not a production maintenance command.

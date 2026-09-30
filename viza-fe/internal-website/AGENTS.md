@@ -49,6 +49,12 @@ post-cleanup settlement RPCs, plus the application-mutex download enqueue
 guard. Keep the recipient digest in queue metadata and preserve the send
 reservation as the no-replay fence.
 
+`supabase/migrations/20260930102445_preserve_ds160_proof_stale_results.sql`
+mirrors backend 0207 byte-for-byte. It keeps CEAC proof work out of generic
+stale cleanup and preserves active leases, so email/proof failures cannot
+replace an application's submitted result. Existing proof GET and explicit
+retry handle expired leases; this migration does not enqueue or send mail.
+
 `lib/ds160-official-options.snapshot.json` contains public CEAC dropdown values
 observed on 2026-09-21. `lib/ds160-official-options.ts` keeps birthplaces,
 nationalities, other nationalities, family nationalities, passport issuers,

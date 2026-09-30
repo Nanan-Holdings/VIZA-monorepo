@@ -1823,3 +1823,55 @@ explicit-retry transaction must first retire that row; direct machine restart
 is not evidence of resumed delivery. Recovery must re-read the exact row and
 reservation before using an existing path, and cannot run while DB ownership
 is unobservable. This is distinct from the earlier official Application Error.
+
+Further inspection found a critical legacy cleanup hazard: the checked-in
+`mark_stale_submission_queue_batch` definition from migration 0138 overwrites
+`applications.submission_result` and its result status for every timed-out row,
+including proof-only work. Its staleness predicate does not check for a valid
+lease. The later 0151 dynamic patch only extends country cases and does not
+add proof isolation. The production function definition could not be read
+during the ongoing connection timeout, so production exposure and whether any
+application data was affected remain unverified.
+
+Do not start the worker merely to run generic stale cleanup for this email.
+The heartbeat now performs read-only checks until the effective function can
+be verified and proof-only protection installed. A new migration and isolated
+SQL regression are being prepared; no production schema or applicant data has
+been changed for this cleanup finding. Official submitted evidence/final fence
+must remain authoritative, and any needed data restoration would require a
+separate evidence-based recovery rather than another DS-160 signature.
+
+At 10:31 UTC a fresh resilience probe confirmed HTTP 503/circuit open:
+both Auth and PostgREST timed out at approximately four seconds. The earlier
+cached healthy probe is no longer relevant. No production migration or
+queue mutation is attempted while the data plane is unavailable. The machine
+was independently rechecked stopped with zero provider sessions at 10:30:36.
+
+The existing proof GET status reader already maps expired processing leases
+to failed before dispatch, or unknown after a recorded send reservation. Its
+explicit authenticated retry RPC can retire that prior row and create the
+next email-only request atomically. Therefore proof rows can safely remain
+outside generic stale maintenance; no new automatic send or lease-clearing
+path is needed. Recovery still requires fresh readable ownership/state and
+the installed proof-isolation migration before waking this worker.
+
+The proposed 0207 migration was executed against an isolated PGlite PostgreSQL
+fixture using synthetic rows. The old 0138 function reproduced the proof-only
+overwrite of a submitted application result. With 0207, queued and sending
+proof rows and their complete application result remained unchanged; an active
+lease was protected; ordinary and Korea stale tasks retained their existing
+terminal behavior. Fresh-heartbeat exclusion, bounded batches, repeated
+migration/sweep execution, and unchanged service-role-only function ACLs also
+passed. This is local SQL execution evidence, not production verification.
+No repository package dependency was added. Production application state and
+the effective function definition still require a fresh successful read.
+
+The checked-in `stale-queue-maintenance.fixture.sql` repeats these behavioral
+assertions and refuses an existing application database; its complete rollback
+was verified in PGlite 0.5.8. The release mirror test, backend type check and
+lint pass (one existing Sentry lint warning). The separate marked-local-DB
+integration test, including the existing 0206 queued/sending retry transaction,
+is retained but was skipped because no eligible full-schema local PostgreSQL
+server was available. No production test or successful email delivery is
+claimed. Migration 0207 and its timestamped frontend mirror remain unapplied
+while the production data plane is unhealthy; the worker remains stopped.
