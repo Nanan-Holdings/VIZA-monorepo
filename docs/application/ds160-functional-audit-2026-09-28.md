@@ -1670,3 +1670,18 @@ submission, signature, draft creation, answer edit, deployment, or route change
 occurred. The retry interval remains at least 30 minutes from queue creation.
 At 03:19:15 UTC the worker had automatically stopped with zero provider sessions
 and unchanged configuration hashes; no idle machine was left running.
+
+The 03:41 UTC monitor verified healthy services, a stopped worker with no
+provider sessions, and the latest terminal unknown email job. After the
+30-minute interval elapsed, a fresh scoped read again confirmed no lease,
+active sibling, or sent email, with the original submitted result and confirmed
+fence intact. One authenticated email-only request created a queue at 03:44:07.
+The run started at 03:44:20, verified the same official confirmation at 03:45:53,
+and reserved its sole dispatch at 03:46:10. SHA-verified evidence captured at
+03:47:55 again showed the official Application Error page without a receipt.
+The job settled unknown at 03:47:58, released its lease, and retained zero active
+siblings, submitted state, and one confirmed submission fence. No submission,
+signature, draft creation, data edit, route change, or deployment occurred.
+At 03:49:19 UTC provider sessions and active work were zero and readiness was
+safe. At 03:50:33 the worker had automatically stopped, with provider sessions
+still zero and all recorded configuration hashes unchanged.
