@@ -2291,3 +2291,14 @@ retrieval with a valid lease. The prior request fence is consumed and is not
 replayed. This is an explicitly authorized recovery attempt, distinct from
 the successful automatic handoff already verified at 16:12. No formal DS-160
 submission, answer/photo change, deployment or route change was performed.
+
+The 21:58 task verified the same official confirmation at 21:59:58 and
+reserved its single send at 22:00:14. Its own encrypted evidence passed SHA
+verification, capturing Application Error at 22:02:00 without a success
+receipt. The bounded send document trace shows POST email.aspx returning
+302 after 73 ms and Complete_Done.aspx returning 302 after 100,130 ms to
+AppError.aspx (HTTP 200). The task terminated unknown at 22:02:03 with its
+lease cleared. These observations do not establish the official server's
+internal failure cause or actual inbox delivery. No second request was made
+in this monitor turn. At 22:03 provider sessions and runtime active work were
+zero; the normal idle lifecycle was allowed to stop the machine.
