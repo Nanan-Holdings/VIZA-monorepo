@@ -1986,3 +1986,34 @@ passed 10 result-card tests, three catalog-alignment tests, 61 status/proof
 tests, three proof-route tests and type-check. Full lint had zero errors and
 57 existing warnings. No additional official submit or send was used for these
 tests. Production release acceptance is recorded separately below.
+
+Release `c433e325af9c082825f80311e9fef4fb58810604` was authored with the
+verified VIZA identity. The worker image
+`ds160-auto-email-c433e325@sha256:27b20c7c463a78344ed3f6c6fffde0cdd565f96edb0dc78d0558bcc12da24086`
+was installed on the existing legacy machine only after global queues were
+idle, provider sessions were zero and two fresh readiness checks were safe.
+The non-image configuration hash remained
+`f9280f447f53b0935e07313f7ac1f25deec8669da1080d3ac71c72e1e259ec3f`.
+Cold-start health/ready/deploy-ready passed with DB reachable and zero work.
+Readback showed no automatic backfill, no new current-application job, and the
+original submitted result unchanged. Final idle and frontend acceptance follow.
+
+At 12:55:47 UTC the new worker had automatically stopped, with zero provider
+sessions and the same configuration hashes. Frontend deployment
+`dpl_BnP2CSpBDSv1sUrCaUPSh8kMdrQ4` was READY on `app.viza.it.com`, with the
+exact `c433e325` release commit. The authenticated production browser then
+showed zero email-send/recipient/retry buttons, an enabled confirmation-PDF
+download and a separate honest automatic-email failure state for the existing
+email job. Submission-status remained completed on the original submitted
+queue. The real download button again returned the verified English official
+PDF (149,307 bytes; SHA256
+`745746d05ef643ef3f63de0ddf049f7ae71da7aab20281268b257f340e5072fe`).
+Page refresh and GET checks created no new job. A cropped screenshot attempt
+timed out; the production acceptance is supported by the DOM, authenticated
+API responses and downloaded-file hash, not a screenshot claim.
+
+The new automatic handoff was validated with local lifecycle/Chromium fixtures
+and production cold-start checks. It was deliberately not exercised by signing
+this already-submitted application again. The current application's official
+email still has no verified success receipt; its separately authorized monitor
+continues recovery without changing the submitted result.
