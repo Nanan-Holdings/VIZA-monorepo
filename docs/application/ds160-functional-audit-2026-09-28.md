@@ -1700,3 +1700,22 @@ No signature, application submission, draft creation, data change, route change,
 or deployment occurred; the 30-minute minimum retry interval remains in force.
 At 04:49:50 UTC the worker had automatically stopped with zero provider sessions
 and unchanged configuration hashes.
+
+The 05:11 UTC monitor verified healthy service state, a stopped worker with zero
+provider sessions, and the exact terminal unknown email job. After backoff
+elapsed, a fresh read confirmed no lease, active sibling, or sent email and the
+unchanged submitted result with one confirmed fence. One authenticated email-only
+request created a queue at 05:13:04; the run began at 05:13:13, verified the same
+official confirmation at 05:14:51, and reserved its sole dispatch at 05:15:09.
+The job settled unknown at 05:16:59, released its lease, and left zero active
+siblings and the submission result unchanged.
+
+This attempt has a different evidence limitation: its audit snapshot was not
+saved (`auditUnavailable: true`, no audit reference). Persisted diagnostics
+record a single attempted send, a timed-out click, 120,020 ms elapsed, the path
+`/GenNIV/common/email.aspx`, no receipt hash, and no ownership loss. These
+diagnostics do not establish an Application Error page or successful delivery;
+the previous attempts' SHA-verified pages must not be substituted. At 05:20:10
+the worker had automatically stopped with zero provider sessions and unchanged
+configuration hashes. The existing 30-minute retry rule remains in force, and
+no signature, submission, draft creation, data change, or deployment occurred.
