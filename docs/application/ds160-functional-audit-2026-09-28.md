@@ -1685,3 +1685,18 @@ signature, draft creation, data edit, route change, or deployment occurred.
 At 03:49:19 UTC provider sessions and active work were zero and readiness was
 safe. At 03:50:33 the worker had automatically stopped, with provider sessions
 still zero and all recorded configuration hashes unchanged.
+
+The 04:41 UTC monitor confirmed healthy services, the latest terminal unknown
+email job, elapsed backoff, no lease or active sibling, zero sent emails, and
+the unchanged submitted result with one confirmed fence. A stopped worker and
+zero provider sessions were verified before one authenticated email-only retry
+created a queue at 04:42:20. The run started at 04:42:29, verified the same
+official confirmation at 04:45:03, and reserved its sole dispatch at 04:45:21.
+SHA-verified evidence at 04:47:06 again showed the official Application Error
+page without a success receipt. The job settled unknown at 04:47:08, released
+its lease, and retained zero active siblings and the submitted result. At
+04:47:59 provider sessions and active work were zero and readiness was safe.
+No signature, application submission, draft creation, data change, route change,
+or deployment occurred; the 30-minute minimum retry interval remains in force.
+At 04:49:50 UTC the worker had automatically stopped with zero provider sessions
+and unchanged configuration hashes.
