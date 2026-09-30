@@ -2359,3 +2359,49 @@ to reproduce the official 100-second redirect chain. The separate offline 302
 fixture remains unknown and one-shot. These client-side and evidence fixes do
 not prove the official email service is repaired. Production revalidation follows
 only after the idle deployment gates and preserved-configuration checks.
+
+Release `8a6d67be` was authored by the verified VIZA identity. A build-only push
+produced image `ds160-email-8a6d67be` with immutable digest
+`sha256:b0dae92c2b2f9c0649a774852721cc26637e65e43dfe1f3ad93b209e254a4fbf`.
+Global submission/runner active counts were zero; two fresh readiness checks
+at 22:44 UTC were safe with provider zero. The original machine was stopped
+and updated image-only. Environment, guest, services and full non-image hashes
+were unchanged. At 22:46 UTC cold-start health, database reachability, worker
+startup and deployment readiness passed. Frontend and database schema were not
+deployed or altered.
+
+Fresh target state still showed submitted, one confirmed final fence, no active
+sibling or lease, and no sent email result. The normal authenticated debug helper
+issued exactly one post-fix email request at 22:46:55 UTC (HTTP 202); its new
+worker began at 22:46:58. No timed retry was restored and no application
+submission endpoint was invoked. The request's final outcome remains subject
+to current-run official evidence verification.
+
+Post-fix acceptance: the same official confirmation was verified at 22:48:32;
+the pre-send capture completed at 22:48:47 and one dispatch was reserved at
+22:48:49. The current encrypted artifact passed SHA verification. Both pre-send
+text and screenshot are present with no capture failure, the bound recipient
+matches the account digest, and the pre-send text has no Application Error.
+No raw recipient or applicant values were emitted. The captured form passed
+the sender's visible recipient, exact enabled control and Additional Email No
+readback guards before reaching reservation.
+
+The current-run document trace contains one email.aspx POST, returning 302 in
+82 ms. Complete_Done.aspx then returned 302 after 100,599 ms to AppError.aspx
+(200). The new waiter remained active through that final document. The final
+capture at 22:51:04 contains Application Error and no explicit sent receipt;
+the full sender observation took 152,901 ms. The result is still unknown and
+the exact claim was released. Thus early client waiting is no longer a viable
+explanation for this observed completion-page error. The trace does not expose
+the official server's internal mail/SMTP cause or prove inbox delivery, and no
+unsupported client change or further send is justified by this result.
+
+Authenticated read-only acceptance returned completed submission, ready English
+confirmation PDF (149,537 bytes, unchanged SHA), and unknown email with the
+bound account recipient. Fresh raw application status and result remain
+submitted, with the original 16:12:07 update timestamp and one confirmed final
+fence; active target work and sent-email counts are zero. The read-only refresh
+created no additional email job. Runtime and provider active work were zero at
+22:51 and again 22:53. The scheduled monitor remains deleted.
+At 22:54:20 the normal idle lifecycle had stopped the machine. Provider sessions
+were zero and every non-image configuration hash remained unchanged.
