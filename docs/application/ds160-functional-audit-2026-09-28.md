@@ -2017,3 +2017,19 @@ and production cold-start checks. It was deliberately not exercised by signing
 this already-submitted application again. The current application's official
 email still has no verified success receipt; its separately authorized monitor
 continues recovery without changing the submitted result.
+
+### 2026-09-30 13:00 UTC authorized email-only retry
+
+Fresh service health, exact submitted result/confirmed fence, terminal prior
+email, expired cooldown and zero queue/provider activity were verified before
+one authenticated recovery request. The new job reached the same official
+confirmation at 13:02:06 UTC and reserved a single send at 13:02:23. Its
+encrypted official evidence passed SHA verification: email POST returned 302
+after about 75 ms, then Complete_Done returned 302 after about 100 seconds to
+the official Application Error page. No success receipt was present. The
+result settled unknown at 13:04:11, cleared its lease, and preserved submitted
+application/confirmed fence with zero active sibling. This run's evidence is
+distinct from the prior retrieval failure without an artifact. It cannot
+establish an SMTP cause or actual mailbox delivery. Provider/readiness were
+zero/safe at 13:05:11. At 13:07:10 the machine was automatically stopped,
+provider sessions remained zero and all configuration hashes were unchanged.
