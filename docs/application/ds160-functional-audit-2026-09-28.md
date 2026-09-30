@@ -1776,3 +1776,38 @@ Type checking and compilation also pass. At 10:01 UTC the next fresh resilience
 probe returned HTTP 200 with successful Auth and PostgREST checks. The code is
 ready for an idle-window deployment and one authorized email-only acceptance;
 these local fixtures do not establish successful live email delivery.
+
+Release `99b7050b` was built and pushed as immutable digest
+`sha256:a8cc892807e160e957391389931e9d564cd67de4bb9683af6fc49426f9ae861a`.
+The VIZA organization identity and commit author were verified. All queue work
+was idle, provider sessions were zero, and two fresh readiness checks were safe
+before the original machine was stopped and only its image was replaced.
+At 10:05:43 the environment, guest, services and complete non-image config
+hashes matched the pre-release values. At 10:06:25 the new image returned healthy,
+ready with reachable DB and started worker, and safe deployment readiness.
+
+After re-reading the latest terminal email, no active lease/sibling or prior
+sent receipt, and the unchanged submitted application/final fence, one ordinary
+authenticated email-only request returned HTTP 202. The task was created at
+10:06:49 and began at 10:06:55, retrieving the same official confirmation.
+The earlier retry's local one-shot fence is retained. This request performs no
+application submission or signature; live email acceptance is still pending.
+
+This acceptance did not reach the email dispatch. At 10:08:27 the worker logged
+`ownership_lost_no_replay`, before any official-confirmation-verified or
+dispatch-reserved phase. Three subsequent exact management queries failed with
+connection timeouts. The last readable row was processing with a lease ending
+10:21:56; its current persisted state cannot be inferred while DB reads fail.
+The heartbeat's fail-closed renewal path stops and closes the browser when it
+cannot establish continued ownership. The timing and simultaneous DB failures
+are consistent with renewal failure, but the old heartbeat does not retain a
+specific RPC failure reason, so a more precise database root cause is unproven.
+
+Provider sessions were zero. Fresh readiness checks at 10:12:25 and afterward
+reported safe, no active work and no protected sessions. Automatic idle exit
+could not be accepted during the database outage because its authoritative DB
+work check fails closed. After repeated safe runtime checks the idle machine
+was stopped for cost cleanup, leaving the database queue/lease untouched. No
+new request, lease clearing, resend, endpoint change or application signature
+followed the lost ownership. The latest cached resilience health was still 200;
+that earlier probe must not override fresh connection failures.
