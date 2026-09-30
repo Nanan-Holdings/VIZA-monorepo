@@ -1640,3 +1640,19 @@ production during its tests; this round used the separately reviewed one-shot
 authenticated request.
 At 01:53:11 UTC the worker had automatically stopped with zero provider sessions
 and unchanged non-image configuration hashes. The 30-minute monitor remains active.
+
+The 02:41 UTC monitor again verified healthy service state, the exact terminal
+unknown email job, no lease or active sibling, the submitted application and its
+confirmed fence, and a stopped worker with zero provider sessions. One
+authenticated email-only retry created a queue at 02:42:17 after the required
+backoff. Its run began at 02:42:26, verified the same official confirmation at
+02:44:01, and reserved its sole dispatch at 02:44:21. SHA-verified evidence at
+02:46:07 again showed the official Application Error page without a success
+receipt. At 02:46:08 the job settled unknown with its lease released, zero active
+siblings, and the original submitted result and confirmed fence intact. At
+02:46:31 provider sessions and active work were zero, readiness was safe, and
+the machine was awaiting its normal idle stop. No application submission,
+signature, answer edit, new draft, proxy change, or deployment occurred.
+At 02:48:23 UTC the machine had automatically stopped, with zero provider
+sessions and unchanged non-image configuration hashes. The next monitor must
+check the latest queue again and preserve the minimum 30-minute retry interval.
