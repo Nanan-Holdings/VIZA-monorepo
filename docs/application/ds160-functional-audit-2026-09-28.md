@@ -1719,3 +1719,21 @@ the previous attempts' SHA-verified pages must not be substituted. At 05:20:10
 the worker had automatically stopped with zero provider sessions and unchanged
 configuration hashes. The existing 30-minute retry rule remains in force, and
 no signature, submission, draft creation, data change, or deployment occurred.
+
+The 06:11 UTC monitor verified healthy service state, the exact terminal unknown
+email job, elapsed backoff, no lease or active sibling, zero sent emails, and
+the unchanged submitted result with one confirmed fence. A stopped worker and
+zero provider sessions were verified before one authenticated email-only retry
+created a queue at 06:12:22. The run began at 06:12:31, verified the same official
+confirmation at 06:14:03, and reserved its sole dispatch at 06:14:19.
+
+Encrypted evidence was successfully saved and SHA-verified for this run. At
+06:16:05 it showed the official Application Error page without a success receipt.
+The job settled unknown at 06:16:07 with its lease released, no active siblings,
+and the submitted result and confirmed fence unchanged. At 06:16:40 provider
+sessions and active work were zero and readiness was safe. This observation is
+specific to this run and does not fill the previous run's missing audit snapshot.
+No submission, signature, draft creation, data edit, deployment, or route change
+occurred; the minimum 30-minute email-only retry interval remains unchanged.
+At 06:18:39 UTC the worker had automatically stopped, provider sessions remained
+zero, and the recorded configuration hashes were unchanged.
