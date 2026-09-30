@@ -1656,3 +1656,17 @@ signature, answer edit, new draft, proxy change, or deployment occurred.
 At 02:48:23 UTC the machine had automatically stopped, with zero provider
 sessions and unchanged non-image configuration hashes. The next monitor must
 check the latest queue again and preserve the minimum 30-minute retry interval.
+
+The 03:11 UTC monitor found healthy services, the same terminal unknown email
+job, no active lease or sibling, and the submitted application with one confirmed
+fence. After the prior queue reached 30 minutes of age, a second fresh scoped
+read verified eligibility. One authenticated email-only request created a queue
+at 03:12:47; its run began at 03:12:57, verified the same official confirmation at
+03:14:29, and reserved its sole dispatch at 03:14:45. SHA-verified evidence at
+03:16:31 again showed the official Application Error page without a success
+receipt. The job settled unknown at 03:16:33, released its lease, and left zero
+active siblings and the submitted result and confirmed fence unchanged. No
+submission, signature, draft creation, answer edit, deployment, or route change
+occurred. The retry interval remains at least 30 minutes from queue creation.
+At 03:19:15 UTC the worker had automatically stopped with zero provider sessions
+and unchanged configuration hashes; no idle machine was left running.
