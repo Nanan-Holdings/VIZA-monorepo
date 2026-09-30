@@ -117,6 +117,10 @@ const RUNNING_STALE_AFTER_MS = 3 * 60 * 1000;
 
 const COMPLETED_APPLICATION_STATUSES = new Set([
   "completed",
+  // DS-160 and other official submission workers persist the durable
+  // application result as `submitted`. Keep that terminal result authoritative
+  // even when a newer proof/email queue is the latest queue row.
+  "submitted",
   "submitted_mock",
   "form_ready_for_agency",
 ]);
@@ -1181,6 +1185,10 @@ async function getSubmissionStatus(
     .from("submission_queue")
     .select(SUBMISSION_QUEUE_STATUS_SELECT)
     .eq("application_id", applicationId)
+    // Filter before LIMIT: arbitrarily many later email/download jobs must
+    // never hide the actual submission. Preserve legacy NULL providers.
+    .or("provider.is.null,provider.neq.ceac_proof")
+    .or("status.is.null,status.not.like.ds160\\_proof\\_%")
     .order("updated_at", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false, nullsFirst: false })
     .limit(1);

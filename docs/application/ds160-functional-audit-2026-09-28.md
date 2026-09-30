@@ -1924,3 +1924,26 @@ separately. No second email or application signature was attempted this round.
 
 At 11:33:40 automatic idle shutdown was verified: the sole machine was stopped,
 provider sessions were zero, and all non-image configuration hashes matched.
+
+### 2026-09-30 submission-to-email flow regression
+
+The explicit submitted-application URL reproduced an incorrect failure card:
+the authenticated submission-status API returned `stalled` while its own
+result remained `submitted`. The database application and confirmed final
+fence were intact. Two read-side defects combined: `submitted` was missing
+from terminal application-status mapping, and the query limited to the newest
+queue before excluding proof/email rows, hiding the real submission queue.
+
+The status route now recognizes persisted submitted results and excludes both
+proof providers and proof statuses in the database before LIMIT, retaining
+legacy NULL providers/statuses. A production read-only query with those exact
+filters returned the original successful submission queue. This changes no
+application data and never enqueues work. Terminal-result and authenticated
+GET regressions plus existing proof/result-card tests passed: 71 tests; frontend
+type check passed, with lint reporting zero errors and 57 existing warnings.
+
+The authenticated confirmation download returned 149,307 bytes with a valid
+PDF header and the exact hash of the previously validated English official
+PDF. The separate email endpoint returned unknown for the latest dispatch.
+No official email success receipt is claimed. Production UI acceptance and
+release verification follow separately.

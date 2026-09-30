@@ -33,6 +33,7 @@ type QueryState = {
 type QueryBuilder = {
   select: (columns: string) => QueryBuilder;
   eq: (column: string, value: unknown) => QueryBuilder;
+  or: (filters: string) => QueryBuilder;
   order: (column: string, options: Record<string, unknown>) => QueryBuilder;
   limit: (value: number) => QueryBuilder;
   maybeSingle: () => Promise<QueryResult>;
@@ -112,6 +113,10 @@ function makeBuilder(
     return builder;
   });
   builder.order = vi.fn(() => builder);
+  builder.or = vi.fn((filters: string) => {
+    state.filters.push(["or", filters]);
+    return builder;
+  });
   builder.limit = vi.fn(() => builder);
   builder.maybeSingle = vi.fn(() => resultPromise);
   builder.then = ((onFulfilled, onRejected) =>
@@ -469,6 +474,34 @@ describe("submission status request lifecycle", () => {
       "applicant_profiles",
       "applications",
       "submission_queue",
+    ]);
+  });
+
+  it("returns completed for submitted DS-160 and excludes proof jobs before limiting the query", async () => {
+    const admin = installAdminMock({
+      applicant_profiles: resultPlan({ id: PROFILE_ID }),
+      applications: resultPlan({
+        ...baseApplication,
+        country: "united_states",
+        visa_type: "DS160",
+        submission_result_status: "submitted",
+        submission_result: { country: "US", status: "submitted" },
+        submitted_at: "2026-09-29T18:06:40.000Z",
+      }),
+      // No surviving submission queue is also valid after archival; the
+      // persisted successful result must not turn into a stalled task.
+      submission_queue: resultPlan([]),
+    });
+    const response = await GET(makeRequest(APPLICATION_ID, new AbortController().signal), routeContext());
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      status: "completed", progress: 100, error: null,
+      result: { country: "US", status: "submitted" },
+    });
+    expect(admin.states.find((state) => state.table === "submission_queue")?.filters).toEqual([
+      ["application_id", APPLICATION_ID],
+      ["or", "provider.is.null,provider.neq.ceac_proof"],
+      ["or", "status.is.null,status.not.like.ds160\\_proof\\_%"],
     ]);
   });
 });

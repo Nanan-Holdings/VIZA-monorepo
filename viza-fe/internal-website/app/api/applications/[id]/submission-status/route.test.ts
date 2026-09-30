@@ -699,6 +699,35 @@ describe("deriveNonTerminalStatus", () => {
 });
 
 describe("deriveSubmissionStatus", () => {
+  it("keeps a submitted DS-160 completed when the latest queue is proof-only", () => {
+    const status = deriveSubmissionStatus(
+      {
+        id: "ds160-application-id",
+        applicant_id: "applicant-id",
+        country: "United States",
+        visa_type: "DS160",
+        submitted_at: "2026-09-29T18:06:40.000Z",
+        submission_result: {
+          country: "US",
+          status: "submitted",
+          applicationId: "AA00EXAMPLE",
+        },
+        submission_result_status: "submitted",
+        submission_result_updated_at: "2026-09-29T18:06:40.000Z",
+        updated_at: "2026-09-30T11:30:00.000Z",
+      },
+      null,
+      false,
+    );
+
+    expect(status).toMatchObject({
+      status: "completed",
+      stage: "completed",
+      progress: 100,
+      error: null,
+    });
+  });
+
   it("lets a newer completed queue replace an older stalled application result", () => {
     const status = deriveSubmissionStatus(
       {
