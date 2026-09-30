@@ -1598,3 +1598,23 @@ The resilience worker had already requested one database restart successfully
 at 22:01:37-38, with subsequent probes still unhealthy. No manual restart or
 watchdog configuration change was made. The email monitor retains its 30-minute
 backoff and requires a fresh successful queue read before any send attempt.
+
+At 01:11 UTC on 2026-09-30, the resilience probe recovered to HTTP 200 / circuit
+closed. A fresh scoped database query verified the submitted result, one
+confirmed submission fence, zero active siblings, and the previous terminal
+unknown email job with no lease. The existing worker was stopped with zero
+provider sessions. One authenticated production email-only retry returned 202;
+no application-submit endpoint was called. The new worker run began at 01:13:50,
+verified the same official confirmation at 01:15:25, and reserved its sole email
+dispatch at 01:15:42.
+
+The retry again returned no official receipt. SHA-verified encrypted evidence
+captured at 01:17:27 showed `/GenNIV/Common/AppError.aspx` with the official
+Application Error message. The helper recorded one attempted send, a timed-out
+click, and a bounded 120-second observation; the job settled unknown with its
+lease cleared. At 01:18, provider sessions and active work were zero and readiness
+was safe. This is another observed CEAC processing error, not delivery evidence.
+The monitor retains the user-authorized 30-minute email-only retry interval.
+At 01:20:07 UTC the worker had automatically stopped; provider sessions remained
+zero and all recorded non-image configuration hashes were unchanged. A final
+scoped read retained submitted / one confirmed fence / zero active siblings.
