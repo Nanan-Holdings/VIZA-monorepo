@@ -1811,3 +1811,15 @@ was stopped for cost cleanup, leaving the database queue/lease untouched. No
 new request, lease clearing, resend, endpoint change or application signature
 followed the lost ownership. The latest cached resilience health was still 200;
 that earlier probe must not override fresh connection failures.
+
+At 10:17:47 the original machine was confirmed stopped with zero provider
+sessions and unchanged non-image configuration. The stop completed through the
+normal shutdown path; no force kill or database lock mutation was used.
+
+The recovery audit confirms an expired lease alone does not make a
+`ds160_proof_processing` row claimable. The old owner deliberately skips
+settlement after ownership loss. Existing stale maintenance or the guarded
+explicit-retry transaction must first retire that row; direct machine restart
+is not evidence of resumed delivery. Recovery must re-read the exact row and
+reservation before using an existing path, and cannot run while DB ownership
+is unobservable. This is distinct from the earlier official Application Error.
