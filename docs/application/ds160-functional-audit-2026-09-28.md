@@ -2405,3 +2405,13 @@ created no additional email job. Runtime and provider active work were zero at
 22:51 and again 22:53. The scheduled monitor remains deleted.
 At 22:54:20 the normal idle lifecycle had stopped the machine. Provider sessions
 were zero and every non-image configuration hash remained unchanged.
+
+Status-read nuance: the submission-status response also contains a secondary
+`applicationStatus: action_required`. Read-only source tracing found this is a
+timestamp-based API derivation when the successful source queue was updated by
+automatic-email intent/dispatch after the application result timestamp. It is
+not the raw application status or an email-worker application mutation. Primary
+status remains completed, the source queue remains ds160_submitted and the raw
+application/result remain submitted. This derived-label inconsistency was not
+changed in the scoped worker release and must not be mistaken for a failed
+DS-160 or used to authorize another submission.
