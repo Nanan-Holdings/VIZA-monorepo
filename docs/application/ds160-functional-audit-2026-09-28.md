@@ -2063,3 +2063,43 @@ were zero and readiness safe at 14:06:18. No re-signing, application creation,
 answer/photo edits or connection-route changes occurred.
 At 14:07:56 the machine was automatically stopped; provider sessions remained
 zero and all non-image configuration hashes matched the deployed baseline.
+
+### 2026-09-30 14:31 UTC user-requested manual email retry and diagnosis
+
+The user explicitly requested a manual start and debugging. Fresh service,
+database, lease, confirmed-fence and provider checks passed, and the full
+30-minute interval elapsed before one authenticated email-only request. No
+application resubmission or signature was attempted. The official confirmation
+was verified at 14:34:22 UTC and a single dispatch reserved at 14:34:40.
+
+This run's encrypted evidence passed SHA verification. The email POST returned
+302 after 87 ms; the subsequent Complete_Done GET took 100,130 ms before
+redirecting to AppError, whose body reported Application Error. No official
+success receipt was present. The job settled unknown at 14:36:27 and released
+its lease. Independent code review found one final button click, no manual
+redirect, request abort or second dispatch, and observation-only waits after
+dispatch. The local 30-second navigation/click timeout explains the diagnostic
+flag but does not mean the POST was absent. The server's error response does
+not identify an SMTP cause or establish actual inbox delivery.
+
+At 14:37:34 provider activity was zero and readiness safe. At 14:38:47 the
+machine was automatically stopped with unchanged configuration hashes. A
+fresh authenticated production flow read returned the original submission as
+completed/submitted, the new email job as unknown with the correct bound
+recipient, and the English confirmation PDF as ready. The downloaded PDF was
+149,307 bytes and matched the previously verified English-file SHA. These GET
+checks created no new email job. The authorized monitor retains its 30-minute
+backoff and cannot replay this turn's consumed prior-job fence.
+
+The first local redirect-chain fixture was not safely isolated: Chromium's
+follow-up GET bypassed the Playwright route handler and reached the public
+official completion page, which returned 403. No applicant credentials or
+real email dispatch were involved in that synthetic fixture, and its result
+is not evidence about this production job. That fixture was removed. The
+confirmation-email suite now explicitly sets its browser context offline,
+including redirected traffic. A new real-Chromium regression verifies that a
+302 whose destination cannot complete preserves the POST evidence, invokes
+one send fence and one final POST, and reports unconfirmed rather than sent.
+All 10 focused browser tests and the service type-check passed. This covers unavailable redirect
+handling; it does not claim to reproduce the complete 100-second official
+AppError chain or fix the external official email service.

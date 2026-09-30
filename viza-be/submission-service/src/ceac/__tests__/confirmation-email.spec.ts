@@ -122,6 +122,52 @@ test("retains a hanging final POST and late 500 response while noisy assets fini
   }
 });
 
+test("keeps a send one-shot when its redirect cannot complete offline", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await installFixture(await browser.newPage(), { receipt: "redirect_unavailable" });
+    let fenceCalls = 0;
+    let sendRequests = 0;
+    page.on("request", request => {
+      if (request.method() === "POST" && request.postData()?.includes("stage=send")) {
+        sendRequests += 1;
+      }
+    });
+
+    await assert.rejects(
+      () => sendOfficialDs160ConfirmationEmail({
+        page,
+        expectedApplicationId: APPLICATION_ID,
+        verifiedRecipient: RECIPIENT,
+        assertOwned: () => undefined,
+        beforeSend: () => { fenceCalls += 1; },
+        controlTimeoutMs: 1_000,
+        postbackTimeoutMs: 100,
+        dispatchTimeoutMs: 100,
+        receiptTimeoutMs: 250,
+        overallTimeoutMs: 2_000,
+      }),
+      (error: unknown) => {
+        const typed = error as Ds160ConfirmationEmailError;
+        assert.equal(typed.code, "ds160_email_receipt_unconfirmed");
+        assert.equal(typed.diagnostics.sendAttempted, true);
+        assert.ok(typed.diagnostics.events.some(event =>
+          event.kind === "response"
+          && event.phase === "send"
+          && event.method === "POST"
+          && event.path === EMAIL_PATH
+          && event.status === 302,
+        ));
+        return true;
+      },
+    );
+    assert.equal(fenceCalls, 1);
+    assert.equal(sendRequests, 1);
+  } finally {
+    await browser.close();
+  }
+});
+
 test("rejects a recipient mismatch before reserving or dispatching", async () => {
   const browser = await chromium.launch({ headless: true });
   try {
@@ -268,12 +314,15 @@ test("does not accept a matching receipt after a foreign navigation", async () =
 
 async function installFixture(page: Page, options: {
   recipient?: string;
-  receipt?: "success" | "gate" | "timeout" | "instruction" | "foreign" | "preexisting" | "server_error";
+  receipt?: "success" | "gate" | "timeout" | "instruction" | "foreign" | "preexisting" | "server_error" | "redirect_unavailable";
   noisyAssets?: boolean;
   delayedNoisyAssets?: boolean;
 } = {}): Promise<Page> {
   const recipient = options.recipient ?? RECIPIENT;
   const receipt = options.receipt ?? "success";
+  // Browser-followed redirects may bypass route handlers. Keep every fixture
+  // offline so an unhandled redirect can never contact the official portal.
+  await page.context().setOffline(true);
   await page.route("**/*", async (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -308,6 +357,15 @@ async function installFixture(page: Page, options: {
       if (receipt === "server_error") {
         await new Promise(resolve => setTimeout(resolve, 500));
         await route.fulfill({ status: 500, contentType: "text/html", body: emailResultHtml("Application Error") });
+        return;
+      }
+      if (receipt === "redirect_unavailable") {
+        await route.fulfill({
+          status: 302,
+          headers: { location: "https://ceac.state.gov/GenNIV/General/ESign/Complete_Done.aspx" },
+          contentType: "text/html",
+          body: "",
+        });
         return;
       }
       if (receipt === "instruction") {
