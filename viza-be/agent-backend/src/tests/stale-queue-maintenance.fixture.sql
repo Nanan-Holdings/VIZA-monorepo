@@ -49,11 +49,12 @@ TRUNCATE public.submission_queue, public.applications;
 INSERT INTO public.applications (id, submission_result, submission_result_status)
 SELECT ('00000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
        '{"status":"submitted","country":"US","proof":"synthetic-only"}', 'submitted'
-FROM generate_series(1, 6) AS n;
+FROM generate_series(1, 7) AS n;
 INSERT INTO public.submission_queue (id, application_id, provider, status, locked_until, heartbeat_at, ceac_result_payload)
 SELECT id, id,
-       CASE WHEN right(id::text, 1)::int IN (1, 2) THEN 'ceac_proof' ELSE 'ordinary' END,
-       CASE WHEN right(id::text, 1)::int IN (1, 2) THEN 'ds160_proof_processing'
+       CASE WHEN right(id::text, 1)::int IN (1, 2) THEN 'ceac_proof'
+            WHEN right(id::text, 1)::int = 7 THEN 'ceac_live' ELSE 'ordinary' END,
+       CASE WHEN right(id::text, 1)::int IN (1, 2, 7) THEN 'ds160_proof_processing'
             WHEN right(id::text, 1)::int = 5 THEN 'kr_eac_live_assisted_processing' ELSE 'processing' END,
        CASE WHEN right(id::text, 1)::int = 3 THEN NOW()+INTERVAL '10 minutes' ELSE NOW()-INTERVAL '1 minute' END,
        CASE WHEN right(id::text, 1)::int = 6 THEN NOW() ELSE NOW()-INTERVAL '2 hours' END,
@@ -70,10 +71,10 @@ BEGIN
   IF touched <> 0 THEN RAISE EXCEPTION 'Maintenance not idempotent'; END IF;
   IF EXISTS (
     SELECT 1 FROM public.submission_queue q JOIN public.applications a ON a.id=q.application_id
-    WHERE right(q.id::text,1)::int IN (1,2,3,6)
+    WHERE right(q.id::text,1)::int IN (1,2,3,6,7)
       AND (a.submission_result <> '{"status":"submitted","country":"US","proof":"synthetic-only"}'::jsonb
            OR a.submission_result_status <> 'submitted'
-           OR q.status <> CASE WHEN right(q.id::text,1)::int IN (1,2) THEN 'ds160_proof_processing' ELSE 'processing' END)
+           OR q.status <> CASE WHEN right(q.id::text,1)::int IN (1,2,7) THEN 'ds160_proof_processing' ELSE 'processing' END)
   ) THEN RAISE EXCEPTION 'Proof result, active lease or fresh heartbeat was overwritten'; END IF;
   IF EXISTS (SELECT 1 FROM public.submission_queue WHERE provider='ceac_proof'
       AND ceac_result_payload->'email'->>'status' <> CASE WHEN right(id::text,1)::int=2 THEN 'sending' ELSE 'queued' END)

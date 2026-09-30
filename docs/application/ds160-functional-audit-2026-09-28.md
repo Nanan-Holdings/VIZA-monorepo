@@ -1875,3 +1875,8 @@ is retained but was skipped because no eligible full-schema local PostgreSQL
 server was available. No production test or successful email delivery is
 claimed. Migration 0207 and its timestamped frontend mirror remain unapplied
 while the production data plane is unhealthy; the worker remains stopped.
+
+Independent review identified an additional legacy recovery shape: proof
+status with the original `ceac_live` provider. The migration now excludes both
+the proof provider and every `ds160_proof_*` status. The SQL fixture includes
+this legacy row and verifies its submitted result is preserved as well.

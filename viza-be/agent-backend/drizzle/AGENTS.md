@@ -616,7 +616,9 @@ digest check because the service role does not have `auth.users` SELECT access.
 
 `0207_preserve_ds160_proof_stale_results.sql` excludes `ceac_proof` from
 generic stale maintenance so proof failures cannot overwrite a submitted
-application result. Expired email jobs use 0206's explicit authenticated retry
+application result. It also excludes every `ds160_proof_*` status, covering
+legacy recovery rows whose original provider remains `ceac_live`.
+Expired email jobs use 0206's explicit authenticated retry
 path, preserving the pre-send versus reserved-send distinction. Other stale
 jobs are eligible only after their lease expires. Preserve the later Korea
 status additions, service-only ACL and existing non-proof terminal behavior.

@@ -77,6 +77,7 @@ BEGIN
       COALESCE(queue.heartbeat_at, queue.updated_at, queue.created_at) AS last_touched
     FROM public.submission_queue AS queue
     WHERE queue.provider IS DISTINCT FROM 'ceac_proof'
+      AND queue.status NOT LIKE 'ds160_proof_%'
       AND queue.status IN (
         'processing',
         'ds160_prefill_processing', 'ds160_live_assisted_processing', 'ds160_proof_processing',
@@ -132,6 +133,7 @@ BEGIN
     FROM updated
     WHERE app.id = updated.application_id
       AND updated.provider IS DISTINCT FROM 'ceac_proof'
+      AND updated.status NOT LIKE 'ds160_proof_%'
     RETURNING updated.id
   )
   SELECT updated.id, updated.application_id, updated.status,
