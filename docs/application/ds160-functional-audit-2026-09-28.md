@@ -2048,3 +2048,18 @@ Provider sessions were zero and readiness safe at 13:35:28. No application
 submission/signature, answer/photo change or route change occurred.
 At 13:37:13 the machine was automatically stopped, with provider sessions zero
 and all non-image configuration hashes unchanged.
+
+### 2026-09-30 14:01 UTC authorized email-only retry
+
+Fresh health, queue/fence/lease checks and the full 30-minute interval preceded
+one authenticated email-only request. The same official confirmation was
+verified at 14:03:15 and one send reserved at 14:03:31. This run's encrypted
+official evidence passed SHA verification: email POST returned 302 after
+149 ms, then Complete_Done redirected after approximately 100 seconds to the
+official Application Error page. No success receipt was found. At 14:05:19 the
+job settled unknown and cleared its lease; application success, the confirmed
+fence and zero active siblings were independently read back. Provider sessions
+were zero and readiness safe at 14:06:18. No re-signing, application creation,
+answer/photo edits or connection-route changes occurred.
+At 14:07:56 the machine was automatically stopped; provider sessions remained
+zero and all non-image configuration hashes matched the deployed baseline.
