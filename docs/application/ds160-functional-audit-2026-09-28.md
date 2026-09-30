@@ -1880,3 +1880,47 @@ Independent review identified an additional legacy recovery shape: proof
 status with the original `ceac_live` provider. The migration now excludes both
 the proof provider and every `ds160_proof_*` status. The SQL fixture includes
 this legacy row and verifies its submitted result is preserved as well.
+
+### 2026-09-30 recovery after the database outage
+
+At 11:23 UTC the newer resilience probe was healthy and exact database reads
+resumed. The application result still read submitted with one confirmed final
+fence. The interrupted email was processing with an expired lease, queued
+email payload and no send reservation; there were no other active queues or
+valid leases, and the worker/provider were stopped/zero. No result restoration
+was necessary.
+
+The effective production maintenance body matched the reviewed 0138+0151
+predecessor after whitespace normalization, with no additional behavior to
+overwrite. Hash-verified migration 0207 was applied once at 11:25 UTC as
+production migration `20260930112547`. Readback verified both proof exclusions,
+the valid-lease guard, both application-update guards, invoker semantics and
+unchanged service-only execution permissions. The submitted result and final
+fence remained intact. No production maintenance function was invoked as a
+test, and no applicant answer, photo or submission state was manually changed.
+
+One ordinary authenticated email-only retry returned HTTP 202 at 11:27 UTC.
+The existing retry transaction retired the interrupted row as
+`ds160_email_lease_expired_before_send`, cleared its old lease, and created a
+new email task. The new worker began at 11:27:21 retrieving the same submitted
+confirmation. This verifies the existing recovery path on the real queue;
+it is not an email success receipt or another application submission.
+
+The run verified the same official confirmation at 11:28:54 and reserved its
+single send at 11:29:10. At 11:30:56 the new diagnostics retained SHA-verified
+official evidence and the previously missing final network chain: the email
+POST received a 302 after approximately 90 ms, followed by a GET of CEAC's
+`Complete_Done.aspx` that waited approximately 100 seconds before redirecting
+to `AppError.aspx`. The official page explicitly displayed Application Error.
+This locates the observed failure after dispatch in CEAC's completion flow;
+it does not identify an internal SMTP/database cause or prove whether a mail
+was actually delivered. No success receipt was observed.
+
+At 11:30:58 the task settled unknown with its lease cleared. Readback confirmed
+no active sibling, the application result still submitted, and one confirmed
+final-submission fence. At 11:32:19 runtime readiness was safe with zero active
+work and zero provider sessions; automatic machine idle shutdown is checked
+separately. No second email or application signature was attempted this round.
+
+At 11:33:40 automatic idle shutdown was verified: the sole machine was stopped,
+provider sessions were zero, and all non-image configuration hashes matched.
