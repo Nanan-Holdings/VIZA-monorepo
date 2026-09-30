@@ -2033,3 +2033,18 @@ distinct from the prior retrieval failure without an artifact. It cannot
 establish an SMTP cause or actual mailbox delivery. Provider/readiness were
 zero/safe at 13:05:11. At 13:07:10 the machine was automatically stopped,
 provider sessions remained zero and all configuration hashes were unchanged.
+
+### 2026-09-30 13:30 UTC authorized email-only retry
+
+After the 30-minute interval and a fresh terminal/lease/identity check, one
+authenticated request created an email-only recovery job. The same official
+confirmation was verified at 13:32:41 and a single send reserved at 13:32:57.
+This run's encrypted official evidence passed SHA verification: POST email
+returned 302 after 89 ms, then Complete_Done returned 302 after approximately
+100 seconds to the official Application Error page. No success receipt was
+present. The task settled unknown at 13:34:53, released its lease and left the
+application submitted with one confirmed fence and zero active sibling.
+Provider sessions were zero and readiness safe at 13:35:28. No application
+submission/signature, answer/photo change or route change occurred.
+At 13:37:13 the machine was automatically stopped, with provider sessions zero
+and all non-image configuration hashes unchanged.
