@@ -1618,3 +1618,25 @@ The monitor retains the user-authorized 30-minute email-only retry interval.
 At 01:20:07 UTC the worker had automatically stopped; provider sessions remained
 zero and all recorded non-image configuration hashes were unchanged. A final
 scoped read retained submitted / one confirmed fence / zero active siblings.
+
+The 01:41 UTC monitor read a terminal unknown email job with no lease, zero
+active siblings, and the unchanged submitted result. After more than 30 minutes
+from the prior queue creation, one authenticated email-only POST created the
+next queue at 01:46:51. The run started at 01:47:03, verified the same official
+confirmation at 01:48:38, and reserved its sole dispatch at 01:48:54. SHA-verified
+evidence at 01:50:40 again captured the official Application Error page; the job
+settled unknown at 01:50:42, released its lease, and retained zero active siblings,
+submitted state, and one confirmed submission fence. No repeated click, new draft,
+signature, proxy change, or deployment occurred.
+
+A local operations helper outside the repository now supports subsequent
+explicitly authorized retries with an exact prior queue UUID and its fresh
+database creation timestamp, a 30-minute minimum age, account and latest-state
+checks, and a UUID-scoped exclusive local attempt record. Its syntax check and
+network-free mocks passed: one email POST on success, no POST replay on timeout,
+and rejection before sending for stale identity, an active job, an existing
+attempt record, or insufficient backoff. The helper was not executed against
+production during its tests; this round used the separately reviewed one-shot
+authenticated request.
+At 01:53:11 UTC the worker had automatically stopped with zero provider sessions
+and unchanged non-image configuration hashes. The 30-minute monitor remains active.
