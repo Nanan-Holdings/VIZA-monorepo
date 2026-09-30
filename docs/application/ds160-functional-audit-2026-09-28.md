@@ -2103,3 +2103,191 @@ one send fence and one final POST, and reports unconfirmed rather than sent.
 All 10 focused browser tests and the service type-check passed. This covers unavailable redirect
 handling; it does not claim to reproduce the complete 100-second official
 AppError chain or fix the external official email service.
+
+### 2026-09-30 15:22 UTC explicitly authorized new DS-160
+
+The user explicitly confirmed creating and submitting one additional real
+DS-160 to validate automatic official email after submission. The old email
+monitor was deleted; the previous successful application remains intact.
+The production "apply again and fill form" action created one separate draft.
+Its 380 saved answers matched the previously confirmed source as a multiset,
+with zero differences, and all official identity/recovery/result fields,
+queue history and final-signature fences were empty.
+
+The new-application route does not copy application documents. The approved
+600-square JPEG (55,988 bytes) was therefore uploaded to the new application
+through the normal authenticated `/api/document-upload` endpoint. Private
+Storage readback matched the approved SHA256 exactly; profile documents were
+unchanged. The production form initially displayed 127/127 required answers,
+but subsequent browser operations repeatedly stalled. No successful browser
+upload or submit click is claimed. The authenticated completeness endpoint
+independently returned questionnaire/document/overall complete and zero
+missing items. Read-only retry planning returned `fresh` with reason
+`no_prior_official_application`.
+
+After fresh health, zero global active/leased work, stopped machine and zero
+provider-session checks, one authenticated request to the same protected
+submission endpoint returned HTTP 200 at 15:22 UTC and woke the worker.
+The new queue was created at 15:22:42 and its official run started at 15:22:51.
+The first readback was processing, with a renewing lease, no active sibling
+and zero final fences. A local single-use request fence prevents replay of
+the API helper. No manual email request has been made for this new draft.
+Official submission, review parity and the automatic mail handoff/receipt
+remain to be verified from this new run's evidence.
+
+At 15:24:08 the run reached Personal Information 1. At 15:25:36 the page
+readback verified 13 fields. The persisted official identity was independently
+confirmed present and different from the previous successful application;
+only that boolean comparison was exposed. The new queue remained processing
+on its first attempt, with no final signature fence. A new monitor now tracks
+this application exclusively; its reused display ID does not restore the old
+application's deleted retry prompt.
+
+At 15:32:41 address/phone passed; passport passed at 15:34:14 and U.S.
+Contact began at 15:34:26. This remains the first run with no retry. The
+separate frontend read-only audit found whole-form rendering hotspots but no
+evidence of an infinite React initialization loop; the browser debugger
+connection failure is not an official-run failure. No live worker or frontend
+deployment was changed during this run.
+
+### 2026-09-30 15:50 UTC new-run photo service failure
+
+The first new-application run completed all five Security and Background
+pages, then entered photo upload at 15:50:10. The failed run's encrypted
+official-evidence bundle and its single embedded screenshot both passed SHA
+verification. The official screenshot displays a generic request-processing
+error; the persisted error identifies Identix. This is evidence of an official
+photo-service failure, not evidence that the image failed photo requirements.
+No Review/signature/confirmation was reached and the final-fence table remained
+empty. The bundle did not contain a photo DOM JSON or network trace, so the
+underlying server cause cannot be established from this capture.
+
+The existing worker automatically began a second attempt at 15:50:26 and
+resumed the same captured official application. At 15:51:53 it reached
+Personal Information 1. Fresh reads showed processing, attempts=1, a valid
+renewing lease, zero active siblings and zero final fences. No operator retry,
+new draft, answer/photo change, deployment or route change was performed.
+The active attempt is preserved while its result is observed.
+
+At 15:59:08 the second attempt reached photo upload and failed at 15:59:20
+with the same Identix classification. Its own encrypted evidence and embedded
+screenshot passed SHA checks; the screenshot again shows the generic official
+request-processing error. No photo-content rejection or HTTP 403 was evidenced.
+The existing bounded worker started attempt three at 15:59:24, resuming the
+same draft; at 16:01 the queue remained processing with attempts=2, a valid
+lease, no active sibling and no final fence. No additional manual enqueue was
+issued. Automatic email has not been reached.
+
+A read-only retry-classification audit confirmed that Identix service errors
+are currently bounded transient failures. It also found that the untyped
+PhotoRejectedError conflates explicit content rejection with timeout/handoff
+failures; those cases need separate classification in a later scoped fix.
+The 29 existing focused photo/orchestrator/retry fixtures passed. No code or
+runtime configuration changed during the active official attempt.
+
+### 2026-09-30 16:12 UTC new submission confirmed and automatic email started
+
+Attempt three passed photo upload and Confirm Photo at 16:08:48, then reached
+official Review. The official submission timestamp is 16:12:07 UTC. The new
+application and queue are submitted with one confirmed final fence, and its
+official identity is different from the old application's identity. The old
+application independently remains submitted. No further signature is permitted
+for either confirmed application.
+
+For this successful third run, both encrypted input/official artifacts and all
+16 embedded files passed SHA verification. Seven official Review snapshots
+yielded 149 matched expectations and zero issues, including a replay against
+the current comparison code. The 380-row input snapshot exactly matches the
+current 380 saved answers. The official confirmation PDF downloaded with a
+valid PDF header (149,537 bytes). The separate location comparison also passed.
+These checks do not establish exhaustive 380-field official parity: social
+media branch state and preparer-assistance still lack structured official
+evidence, and a complete Print Application PDF is not stored.
+
+The source result initially recorded `automaticEmail.waiting_for_cleanup`.
+After browser/claim cleanup, its lease was null and the intent became `queued`,
+linked to one new `official_ceac_email` task created at 16:12:49. The new task
+was picked up automatically for confirmation retrieval. No operator email
+POST was issued for this application. This verifies the production automatic
+handoff; official email sending/receipt remains a separate pending acceptance.
+
+### 2026-09-30 16:19 UTC automatic email acceptance result and cleanup
+
+The new application's automatic email task verified the same official
+confirmation at 16:14:23 and reserved its single dispatch at 16:14:39. Its
+nested email request ID equals the successful source submission queue ID,
+confirming the automatic handoff. No manual email request or additional
+signature was issued. The authenticated proof GET also confirmed that the
+recipient matches the current authenticated account.
+
+This new email run's encrypted official evidence passed SHA verification and
+captured the official Application Error page at 16:16:25. The send-phase
+document trace contains one POST to email.aspx, a 302 response after 88 ms,
+then a GET to Complete_Done.aspx which returned 302 after 100,123 ms to
+AppError.aspx (HTTP 200). No explicit email-success receipt was present.
+The task therefore correctly terminated as email_confirmation_unknown at
+16:16:27, rather than claiming delivery. The diagnostics receiptEvidenceHash
+also hashes non-success observations; its presence alone is not proof of
+successful sending. These are this new run's observations, independently of
+the older application's similar failures. The server's internal cause and
+actual inbox delivery remain unknown.
+
+Independent authenticated read-only acceptance returned submission completed,
+result submitted, and confirmation proof ready. The downloaded confirmation
+PDF is 149,537 bytes, SHA256
+e23b0b9e0f3f24b659dd12679ea2d76bb8d5720d8ba0b8de1ae35ee5b63922a8.
+PDF parsing found two pages with English confirmation content and no CJK text.
+It is an official English confirmation PDF, not an email receipt or a complete
+Print Application field audit. The two structured coverage gaps above remain.
+
+Fresh final state retained the submitted application and one confirmed final
+fence, with zero active application jobs and no email lease. At 16:19 the
+provider had zero pending/running sessions and the machine had automatically
+stopped; all non-image configuration hashes were unchanged. The monitored
+submission and automatic-trigger checks passed, while official email success
+remains blocked by the observed CEAC completion-page error. This monitor is
+ended at that external terminal result; no further application creation,
+signature, manual resend loop or deployment is used to mask the failed email
+acceptance. A later email-only retry can use the existing submitted application
+after the official service recovers, without another DS-160 submission.
+
+### 2026-09-30 21:27 UTC user-authorized email recovery resumed
+
+The user explicitly asked to resume. Fresh health and database reads confirmed
+the new application remains submitted with one confirmed final fence, the
+previous automatic email is terminal unknown, no sent task exists, and there
+are no active jobs or leases. The provider had zero sessions and the machine
+was stopped with unchanged configuration. More than thirty minutes had elapsed.
+
+A separately scoped copy of the single-use authenticated email retry helper
+retains the existing account check, exact latest-job check, wx request fence,
+and no-replay behavior. Only its application ID and local fence prefix differ
+from the reviewed helper; the old-application helper was not executed. One
+email-only POST returned HTTP 202 and created a task at 21:27:22 UTC. The
+worker started at 21:27:44 and readback confirmed confirmation retrieval with
+a valid lease. The submitted result and confirmed fence remain intact. No
+formal application submission, draft creation, answer or photo change occurred.
+
+The user-authorized recovery monitor has been restored at thirty-minute
+intervals. Active work is only observed; another email attempt requires a
+terminal result, released lease/provider session, fresh state verification,
+and the minimum interval. Sending success remains unverified for this attempt.
+
+### 2026-09-30 21:58 UTC bounded email-only recovery
+
+The 21:27 recovery attempt verified the official confirmation at 21:29:16,
+reserved dispatch at 21:29:32, and terminated unknown at 21:31:25. Its own
+encrypted evidence passed SHA verification and again showed the official
+Application Error page, with no explicit sending-success marker or new 403
+signal. Fresh reads at 21:56 confirmed lease cleared, no active sibling,
+no sent task, application submitted and one confirmed fence. Health was
+healthy; the machine was stopped with zero provider sessions and unchanged
+configuration.
+
+After a second fresh read confirmed the thirty-minute interval, one normal
+authenticated email-only request returned HTTP 202 and created a task at
+21:58:03. The worker started at 21:58:27; its first readback showed confirmation
+retrieval with a valid lease. The prior request fence is consumed and is not
+replayed. This is an explicitly authorized recovery attempt, distinct from
+the successful automatic handoff already verified at 16:12. No formal DS-160
+submission, answer/photo change, deployment or route change was performed.
