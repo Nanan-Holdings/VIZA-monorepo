@@ -164,6 +164,57 @@ function normalizeStatus(value: string | null | undefined): string {
   return (value ?? "").trim().toLowerCase();
 }
 
+function hasStoredSubmittedResult(application: ApplicationForStatus): boolean {
+  const result = isRecord(application.submission_result) ? application.submission_result : null;
+  return (
+    normalizeStatus(application.submission_result_status) === "submitted" &&
+    normalizeStatus(typeof result?.status === "string" ? result.status : null) === "submitted"
+  );
+}
+
+function shouldPreserveSubmittedApplicationStatus(
+  application: ApplicationForStatus,
+  queue: QueueRow | null,
+  terminalQueueOverridesApplication: boolean,
+): boolean {
+  return (
+    terminalQueueOverridesApplication &&
+    hasStoredSubmittedResult(application) &&
+    normalizeStatus(application.visa_type) === "ds160" &&
+    normalizeStatus(queue?.provider) === "ceac_live" &&
+    normalizeStatus(queue?.status) === "ds160_submitted"
+  );
+}
+
+export function deriveApplicationStatus(
+  application: ApplicationForStatus,
+  queue: QueueRow | null,
+  queueResult: unknown,
+  queueOverridesApplication: boolean,
+  terminalQueueOverridesApplication: boolean,
+): string | null {
+  if (queueResult) return "action_required";
+
+  if (!queueOverridesApplication) {
+    return application.submission_result_status ?? null;
+  }
+
+  if (queue?.status?.endsWith("_scheduled")) return "scheduled";
+  if (queue?.status?.endsWith("_pending")) return "waiting";
+
+  if (terminalQueueOverridesApplication) {
+    return shouldPreserveSubmittedApplicationStatus(
+      application,
+      queue,
+      terminalQueueOverridesApplication,
+    )
+      ? application.submission_result_status ?? "submitted"
+      : "action_required";
+  }
+
+  return "processing";
+}
+
 function readPayloadString(payload: Record<string, unknown>, key: string): string | null {
   const value = payload[key];
   return typeof value === "string" && value.trim() ? value.trim() : null;
@@ -1279,17 +1330,13 @@ async function getSubmissionStatus(
       result: sanitizeCustomerSubmissionResult(resolvedResult),
       error: derived.error,
       updatedAt,
-      applicationStatus: queueResult
-        ? "action_required"
-        : queueOverridesApplication
-        ? queue?.status?.endsWith("_scheduled")
-          ? "scheduled"
-          : queue?.status?.endsWith("_pending")
-          ? "waiting"
-          : terminalQueueOverridesApplication
-            ? "action_required"
-            : "processing"
-        : application.submission_result_status ?? null,
+      applicationStatus: deriveApplicationStatus(
+        application,
+        queue,
+        queueResult,
+        queueOverridesApplication,
+        terminalQueueOverridesApplication,
+      ),
       queue: queue
         ? {
             id: queue.id,

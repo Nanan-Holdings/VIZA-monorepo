@@ -2415,3 +2415,28 @@ status remains completed, the source queue remains ds160_submitted and the raw
 application/result remain submitted. This derived-label inconsistency was not
 changed in the scoped worker release and must not be mistaken for a failed
 DS-160 or used to authorize another submission.
+
+### 2026-10-01: continued email diagnosis and submitted-status correction
+
+The same post-fix email evidence was inspected further without another send.
+The Additional Email No selection produced a document POST to email.aspx with
+HTTP 200 in 112 ms. The final email POST began 11.36 seconds after that response.
+This rules out a missing or overlapping No postback for this observed run.
+The private pre-send text describes an additional recipient, matches the bound
+account digest, and contains no visible form-error keywords. No raw form text,
+recipient, hidden field value, request body or screenshot was published.
+
+Read-only code review found one native final click, no injected form submission
+or navigation, and a language-change postback followed by confirmation identity
+verification. Fifteen offline sender tests passed again. These checks do not
+reveal the official server's internal cause of the subsequent Complete_Done
+timeout/AppError. No unsupported workaround, new official request, or timed
+retry was introduced during this investigation.
+
+The secondary applicationStatus derivation has a scoped correction: a stored
+submitted DS-160 result with a successful ceac_live/ds160_submitted queue stays
+submitted when automatic-email metadata makes the queue timestamp newer.
+Actual submission failure, active retry, manual action and missing-result cases
+retain their previous precedence. This corrects an API label; it does not mark
+email as sent, rewrite application data, or change the official-email runner.
+Production verification is recorded below after release.

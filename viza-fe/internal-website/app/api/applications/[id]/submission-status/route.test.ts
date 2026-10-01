@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  deriveApplicationStatus,
   deriveNonTerminalStatus,
   deriveSubmissionStatus,
   hasTaiwanApplicantHandoffReady,
@@ -765,6 +766,185 @@ describe("deriveSubmissionStatus", () => {
 
     expect(status.status).toBe("completed");
     expect(status.progress).toBe(100);
+  });
+});
+
+describe("deriveApplicationStatus", () => {
+  it("keeps a submitted result when automatic email metadata only refreshes a completed queue", () => {
+    const application = {
+      id: "ds160-application-id",
+      applicant_id: "applicant-id",
+      country: "United States",
+      visa_type: "DS160",
+      submitted_at: "2026-09-30T16:12:07.000Z",
+      submission_result: {
+        country: "US",
+        status: "submitted",
+        applicationId: "AA00EXAMPLE",
+      },
+      submission_result_status: "submitted",
+      submission_result_updated_at: "2026-09-30T16:12:07.000Z",
+      updated_at: "2026-09-30T16:14:39.000Z",
+    };
+    const queue = {
+      id: "ds160-submitted-queue",
+      status: "ds160_submitted",
+      attempts: 1,
+      mode: "live_assisted",
+      provider: "ceac_live",
+      last_error: null,
+      error_code: null,
+      error_message: null,
+      current_stage: "submitted",
+      heartbeat_at: "2026-09-30T16:14:39.000Z",
+      manual_action_status: null,
+      official_status: "submitted",
+      ceac_result_payload: { automaticEmail: { status: "queued", version: 1 } },
+      created_at: "2026-09-30T16:12:07.000Z",
+      updated_at: "2026-09-30T16:14:39.000Z",
+    };
+
+    expect(deriveSubmissionStatus(application, queue, true)).toMatchObject({
+      status: "completed",
+      stage: "completed",
+      progress: 100,
+    });
+    expect(deriveApplicationStatus(application, queue, null, true, true)).toBe("submitted");
+  });
+
+  it("keeps a newer terminal failure actionable even when the stored result was submitted", () => {
+    const application = {
+      id: "ds160-application-id",
+      applicant_id: "applicant-id",
+      country: "United States",
+      visa_type: "DS160",
+      submitted_at: "2026-09-30T16:12:07.000Z",
+      submission_result: {
+        country: "US",
+        status: "submitted",
+        applicationId: "AA00EXAMPLE",
+      },
+      submission_result_status: "submitted",
+      submission_result_updated_at: "2026-09-30T16:12:07.000Z",
+      updated_at: "2026-09-30T16:15:00.000Z",
+    };
+    const queue = {
+      id: "ds160-failed-queue",
+      status: "ds160_failed",
+      attempts: 1,
+      mode: "live_assisted",
+      provider: "ceac_live",
+      last_error: "Official submission failed.",
+      error_code: "official_submission_failed",
+      error_message: "Official submission failed.",
+      current_stage: "failed",
+      heartbeat_at: "2026-09-30T16:15:00.000Z",
+      manual_action_status: null,
+      official_status: null,
+      created_at: "2026-09-30T16:14:00.000Z",
+      updated_at: "2026-09-30T16:15:00.000Z",
+    };
+
+    expect(deriveApplicationStatus(application, queue, null, true, true)).toBe("action_required");
+  });
+
+  it("does not preserve submitted while a live retry is still active", () => {
+    const application = {
+      id: "ds160-application-id",
+      applicant_id: "applicant-id",
+      country: "United States",
+      visa_type: "DS160",
+      submitted_at: "2026-09-30T16:12:07.000Z",
+      submission_result: { country: "US", status: "submitted" },
+      submission_result_status: "submitted",
+      submission_result_updated_at: "2026-09-30T16:12:07.000Z",
+      updated_at: "2026-09-30T16:15:00.000Z",
+    };
+    const queue = {
+      id: "ds160-retry-queue",
+      status: "ds160_live_assisted_processing",
+      attempts: 1,
+      mode: "live_assisted",
+      provider: "ceac_live",
+      last_error: null,
+      error_code: null,
+      error_message: null,
+      current_stage: "filling_form",
+      heartbeat_at: "2026-09-30T16:15:00.000Z",
+      manual_action_status: null,
+      official_status: null,
+      created_at: "2026-09-30T16:14:00.000Z",
+      updated_at: "2026-09-30T16:15:00.000Z",
+    };
+
+    expect(deriveApplicationStatus(application, queue, null, true, false)).toBe("processing");
+  });
+
+  it("keeps a manual queue result actionable", () => {
+    const application = {
+      id: "ds160-application-id",
+      applicant_id: "applicant-id",
+      country: "United States",
+      visa_type: "DS160",
+      submitted_at: "2026-09-30T16:12:07.000Z",
+      submission_result: { country: "US", status: "submitted" },
+      submission_result_status: "submitted",
+      submission_result_updated_at: "2026-09-30T16:12:07.000Z",
+      updated_at: "2026-09-30T16:15:00.000Z",
+    };
+    const queue = {
+      id: "ds160-manual-queue",
+      status: "action_required",
+      attempts: 1,
+      mode: "live_assisted",
+      provider: "ceac_live",
+      last_error: null,
+      error_code: "manual_action_required",
+      error_message: "The official portal needs a manual action.",
+      current_stage: "review",
+      heartbeat_at: "2026-09-30T16:15:00.000Z",
+      manual_action_status: "pending",
+      official_status: null,
+      created_at: "2026-09-30T16:14:00.000Z",
+      updated_at: "2026-09-30T16:15:00.000Z",
+    };
+
+    expect(deriveApplicationStatus(application, queue, null, true, true)).toBe("action_required");
+    expect(deriveApplicationStatus(application, queue, { actionRequired: true }, true, true)).toBe(
+      "action_required",
+    );
+  });
+
+  it("does not preserve submitted when the stored result is missing", () => {
+    const application = {
+      id: "ds160-application-id",
+      applicant_id: "applicant-id",
+      country: "United States",
+      visa_type: "DS160",
+      submitted_at: "2026-09-30T16:12:07.000Z",
+      submission_result: null,
+      submission_result_status: "submitted",
+      submission_result_updated_at: "2026-09-30T16:12:07.000Z",
+      updated_at: "2026-09-30T16:15:00.000Z",
+    };
+    const queue = {
+      id: "ds160-submitted-queue",
+      status: "ds160_submitted",
+      attempts: 1,
+      mode: "live_assisted",
+      provider: "ceac_live",
+      last_error: null,
+      error_code: null,
+      error_message: null,
+      current_stage: "submitted",
+      heartbeat_at: "2026-09-30T16:15:00.000Z",
+      manual_action_status: null,
+      official_status: "submitted",
+      created_at: "2026-09-30T16:12:07.000Z",
+      updated_at: "2026-09-30T16:15:00.000Z",
+    };
+
+    expect(deriveApplicationStatus(application, queue, null, true, true)).toBe("action_required");
   });
 });
 
