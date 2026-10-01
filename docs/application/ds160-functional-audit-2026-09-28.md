@@ -2550,3 +2550,34 @@ The application/result remain submitted and the final fence remains confirmed.
 At 20:39:55 the normal idle lifecycle had stopped the worker; provider sessions
 were zero and all non-image configuration hashes were unchanged. No scheduled
 monitor was recreated.
+
+### 2026-10-01: user-specified recipient reconfirmation
+
+The user reported no inbox receipt and explicitly requested another send to
+their bound account address. Readback of the previous job's recipient digest
+matches that requested address; the previous attempt did not target another
+recipient. Fresh database checks retain submitted/result submitted, one
+confirmed final fence, no sent result, no active work/lease and provider zero
+with the machine stopped. No sender or infrastructure configuration changed.
+One ordinary authenticated email-only request was accepted at 20:45:34 UTC
+(HTTP 202). The new worker run began at 20:45:58, and the new queue's recipient
+digest again matches the user's requested address. It reserved one dispatch
+at 20:47:48; no parallel sibling or second request was created. Final receipt
+and cleanup acceptance are recorded after settlement below.
+
+This new run verified the official confirmation at 20:47:30. Its private
+pre-send and final artifact passed ciphertext SHA verification; body,
+screenshot and redacted form metadata were present with no capture failure.
+The requested account recipient was visible, No/Yes/group/form/send states
+matched and all ten native controls plus the ASP.NET validator were valid.
+The one final email POST returned 302 in 87 ms; Complete_Done returned 302
+after 100,119 ms to AppError (200). The 20:50:02 final capture contains
+Application Error, no explicit sent marker and no receipt hash. This is new-run
+evidence, not reuse of the preceding attempt's artifact. At 20:50:05 it settled
+unknown with the claim released. Application/result remain submitted, the one
+confirmed final fence remains, and active target work is zero. At 20:51:22 the
+provider was zero and worker readiness was safe/activeWork zero while awaiting
+normal idle exit. No code, sender configuration, proxy or endpoint was changed.
+At 20:53:24 the machine had automatically stopped and provider sessions were
+zero. Fresh readback confirms exactly one new job for this user request, no
+active target work and zero sent results; all configuration hashes are unchanged.
