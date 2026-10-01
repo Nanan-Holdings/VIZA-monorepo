@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { Page } from "@playwright/test";
+import { chromium, type Page } from "@playwright/test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CeacSession } from "../ceac/session";
 import type { ApplicantProfile, SubmissionQueueItem } from "../types";
@@ -149,8 +149,148 @@ test("captures pre-send evidence before reserve and keeps it private when the fi
   assert.equal(privateEvidence.body, undefined);
   const publicEvidence = f.settlement()?.p_evidence as Record<string, unknown>;
   assert.ok(publicEvidence.audit);
-  assert.deepEqual(publicEvidence.auditCaptureFailures, ["page_closed"]);
+  assert.deepEqual(publicEvidence.auditCaptureFailures, ["pre_send_form_metadata", "page_closed"]);
   assert.doesNotMatch(JSON.stringify(publicEvidence), /private pre-send fixture/);
+});
+
+test("captures redacted native and ASP.NET form metadata only in the encrypted pre-send bundle", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.context().setOffline(true);
+    await page.route("**/*", async route => {
+      await route.fulfill({
+        contentType: "text/html",
+        body: `<!doctype html><html><body>
+          <form method="post" action="https://evil.example/steal?private-token=secret#fragment" onsubmit="return false;">
+            <input type="hidden" name="__VIEWSTATE" value="private-viewstate">
+            <input type="hidden" name="__EVENTVALIDATION" value="">
+            <input id="ctl00_SiteContentPlaceHolder_AdditionalEmailRadioList_1" name="AdditionalEmailRadioList" type="radio" value="No">
+            <input id="ctl00_SiteContentPlaceHolder_AdditionalEmailRadioList_0" name="AdditionalEmailRadioList" type="radio" value="Yes" checked>
+            <input id="native-invalid" name="required-control" type="text" required value="">
+            <button id="ctl00_SiteContentPlaceHolder_EmailButton" type="submit" value="Email Confirmation">Email Confirmation</button>
+          </form>
+          <script>
+            window.__pageClientValidateCalls = 0;
+            window.__captureEvents = [];
+            ['invalid', 'input', 'change', 'submit'].forEach(function (name) {
+              document.addEventListener(name, function () { window.__captureEvents.push(name); }, true);
+            });
+            window.Page_IsValid = false;
+            window.Page_Validators = [{isvalid:false, validationSummary:'private validator'}, {isvalid:true}];
+            window.Page_ClientValidate = function () { window.__pageClientValidateCalls += 1; throw new Error('must not call'); };
+          </script>
+        </body></html>`,
+      });
+    });
+    await page.goto("https://ceac.state.gov/GenNIV/common/email.aspx", { waitUntil: "domcontentloaded" });
+    const preSendCapture = await captureDs160EmailPage(page, { captureFormMetadata: true });
+    assert.ok(preSendCapture.formMetadata);
+    const metadata = preSendCapture.formMetadata;
+    assert.deepEqual(metadata.controls.no, {
+      count: 1,
+      states: [{ checked: false, disabled: false, type: "radio", namePresent: true, valuePresent: true }],
+      statesTruncated: false,
+    });
+    assert.deepEqual(metadata.controls.yes, {
+      count: 1,
+      states: [{ checked: true, disabled: false, type: "radio", namePresent: true, valuePresent: true }],
+      statesTruncated: false,
+    });
+    assert.deepEqual(metadata.controls.send, {
+      count: 1,
+      states: [{ checked: null, disabled: false, type: "submit", namePresent: false, valuePresent: true }],
+      statesTruncated: false,
+    });
+    assert.equal(metadata.noYesSameGroup, true);
+    assert.equal(metadata.noYesSameForm, true);
+    assert.equal(metadata.sendSameForm, true);
+    assert.equal(metadata.formCount, 1);
+    assert.deepEqual(metadata.form, {
+      method: "post",
+      actionSafe: false,
+      onsubmitHandlerPresent: true,
+    });
+    assert.deepEqual(metadata.nativeValidity, {
+      eligibleCount: 4,
+      validCount: 3,
+      invalidCount: 1,
+      allEligibleValid: false,
+      anyInvalid: true,
+    });
+    assert.deepEqual(metadata.aspNetValidation, {
+      pageIsValidAvailable: true,
+      pageIsValid: false,
+      validatorsAvailable: true,
+      validatorCount: 2,
+      validatorStatuses: [false, true],
+      validValidatorCount: 1,
+      invalidValidatorCount: 1,
+      validatorStatusesTruncated: false,
+    });
+    assert.deepEqual(metadata.aspNetHiddenFields, {
+      viewStatePresent: true,
+      viewStateNonEmpty: true,
+      eventValidationPresent: true,
+      eventValidationNonEmpty: false,
+    });
+    assert.equal(await page.evaluate(() => (window as unknown as { __pageClientValidateCalls: number }).__pageClientValidateCalls), 0);
+    assert.deepEqual(await page.evaluate(() => (window as unknown as { __captureEvents: string[] }).__captureEvents), []);
+
+    let encryptedPlaintext = "";
+    const result = await persistDs160EmailEvidence({
+      page, jobId: queueId, runId: "ds160-email-metadata-fixture", outcome: "unknown", reserved: true,
+      preSendCapture,
+    }, {
+      encrypt: plaintext => { encryptedPlaintext = plaintext; return "encrypted-metadata-fixture"; },
+      transport: { upload: async () => undefined, download: async () => null },
+    });
+    assert.ok(result.audit);
+    assert.doesNotMatch(JSON.stringify(result), /formMetadata|evil\.example|private-token|Page_Validators|AdditionalEmailRadioList/);
+    const encrypted = JSON.parse(encryptedPlaintext) as Record<string, unknown>;
+    const encryptedPreSend = encrypted.preSend as Record<string, unknown>;
+    assert.deepEqual(encryptedPreSend.formMetadata, metadata);
+    assert.doesNotMatch(encryptedPlaintext, /evil\.example|private-token|fragment|private-viewstate|AdditionalEmailRadioList/);
+
+    await page.locator('form').evaluate(form => {
+      form.setAttribute('action', 'https://ceac.state.gov/GenNIV/private-applicant-path?token=secret#fragment');
+    });
+    const redactedAction = await captureDs160EmailPage(page, { captureFormMetadata: true });
+    assert.equal(redactedAction.formMetadata?.form?.actionSafe, false);
+    assert.equal(redactedAction.formMetadata?.form?.actionPath, undefined);
+    assert.doesNotMatch(JSON.stringify(redactedAction.formMetadata), /private-applicant-path|secret|fragment/);
+
+    await page.locator('form').evaluate(form => {
+      form.setAttribute('action', '/GenNIV/common/email.aspx?token=secret#fragment');
+    });
+    await page.evaluate(() => {
+      const pageWindow = window as unknown as { Page_IsValid?: boolean; Page_Validators?: unknown };
+      delete pageWindow.Page_IsValid;
+      delete pageWindow.Page_Validators;
+    });
+    const uncomputedValidation = await captureDs160EmailPage(page, { captureFormMetadata: true });
+    assert.equal(uncomputedValidation.formMetadata?.form?.actionPath, '/GenNIV/common/email.aspx');
+    assert.deepEqual(uncomputedValidation.formMetadata?.aspNetValidation, {
+      pageIsValidAvailable: false, validatorsAvailable: false,
+    });
+    assert.doesNotMatch(JSON.stringify(uncomputedValidation.formMetadata), /secret|fragment/);
+
+    await page.goto('https://ceac.state.gov/GenNIV/Common/AppError.aspx', { waitUntil: 'domcontentloaded' });
+    const wrongPageCapture = await captureDs160EmailPage(page, { captureFormMetadata: true });
+    assert.equal(wrongPageCapture.formMetadata, undefined);
+    const changedPage = {
+      isClosed: () => false,
+      url: () => 'https://ceac.state.gov/GenNIV/common/email.aspx',
+      locator: page.locator.bind(page),
+      screenshot: page.screenshot.bind(page),
+      evaluate: page.evaluate.bind(page),
+    } as unknown as Page;
+    const racedCapture = await captureDs160EmailPage(changedPage, { captureFormMetadata: true });
+    assert.equal(racedCapture.formMetadata, undefined);
+    assert.deepEqual(racedCapture.captureFailures, ['form_metadata']);
+  } finally {
+    await browser.close();
+  }
 });
 
 test("post-dispatch disconnect is unknown and never retried", async () => {

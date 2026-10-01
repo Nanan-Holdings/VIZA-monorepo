@@ -40,13 +40,69 @@ export interface Ds160EmailFailureEvidence {
   status?: number;
 }
 
-export type Ds160EmailCaptureFailure = "page_closed" | "body" | "screenshot";
+export type Ds160EmailCaptureFailure = "page_closed" | "body" | "screenshot" | "form_metadata";
+
+export interface Ds160EmailControlState {
+  checked: boolean | null;
+  disabled: boolean;
+  type: string;
+  namePresent: boolean;
+  valuePresent: boolean;
+}
+
+export interface Ds160EmailControlMetadata {
+  count: number;
+  states: Ds160EmailControlState[];
+  statesTruncated: boolean;
+}
+
+export interface Ds160EmailFormMetadata {
+  controls: {
+    no: Ds160EmailControlMetadata;
+    yes: Ds160EmailControlMetadata;
+    send: Ds160EmailControlMetadata;
+  };
+  noYesSameGroup: boolean;
+  noYesSameForm: boolean;
+  sendSameForm: boolean;
+  formCount: number;
+  form?: {
+    method: "get" | "post" | "dialog" | "other";
+    actionSafe: boolean;
+    actionPath?: string;
+    onsubmitHandlerPresent: boolean;
+  };
+  nativeValidity: {
+    eligibleCount: number;
+    validCount: number;
+    invalidCount: number;
+    allEligibleValid: boolean | null;
+    anyInvalid: boolean;
+  };
+  aspNetValidation: {
+    pageIsValidAvailable: boolean;
+    pageIsValid?: boolean;
+    validatorsAvailable: boolean;
+    validatorCount?: number;
+    validatorStatuses?: Array<boolean | null>;
+    validValidatorCount?: number;
+    invalidValidatorCount?: number;
+    validatorStatusesTruncated?: boolean;
+  };
+  aspNetHiddenFields: {
+    viewStatePresent: boolean;
+    viewStateNonEmpty: boolean;
+    eventValidationPresent: boolean;
+    eventValidationNonEmpty: boolean;
+  };
+}
 
 export interface Ds160EmailPageCapture {
   capturedAt: string;
   path?: string;
   body?: string;
   screenshotBase64?: string;
+  formMetadata?: Ds160EmailFormMetadata;
   captureFailures: Ds160EmailCaptureFailure[];
 }
 
@@ -54,7 +110,8 @@ type PublicDs160EmailCaptureFailure =
   | Ds160EmailCaptureFailure
   | "pre_send_page_closed"
   | "pre_send_body"
-  | "pre_send_screenshot";
+  | "pre_send_screenshot"
+  | "pre_send_form_metadata";
 
 type EmailAuditEvidence = {
   audit?: Ds160AuditArtifactRef;
@@ -74,8 +131,166 @@ function safeOfficialPath(page: Page): string | undefined {
   }
 }
 
-/** Capture only visible official-page text and pixels; callers keep the result private. */
-export async function captureDs160EmailPage(page: Page): Promise<Ds160EmailPageCapture> {
+const EMAIL_FORM_PATH = "/GenNIV/common/email.aspx";
+const FORM_METADATA_TIMEOUT_MS = 2_000;
+const MAX_CONTROL_STATES = 32;
+const MAX_VALIDATOR_STATES = 64;
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("form_metadata_timeout")), timeoutMs);
+    promise.then(
+      value => { clearTimeout(timer); resolve(value); },
+      error => { clearTimeout(timer); reject(error); },
+    );
+  });
+}
+
+async function captureDs160EmailFormMetadata(page: Page): Promise<Ds160EmailFormMetadata> {
+  return withTimeout(page.evaluate((selectors) => {
+    if (window.location.origin !== "https://ceac.state.gov" ||
+      window.location.pathname.toLowerCase() !== selectors.emailPath.toLowerCase()) {
+      throw new Error("form_metadata_page_changed");
+    }
+    type FormControl = HTMLInputElement | HTMLButtonElement | HTMLSelectElement | HTMLTextAreaElement;
+    type Validator = { isvalid?: unknown };
+
+    const read = {
+      safeType(element: Element): string {
+        const raw = (element.getAttribute("type") ?? "").trim().toLowerCase();
+        return /^(?:button|checkbox|email|file|hidden|image|number|password|radio|reset|search|submit|tel|text|url)$/.test(raw)
+          ? raw : raw ? "other" : "missing";
+      },
+      controlMetadata(selector: string) {
+        const elements = Array.from(document.querySelectorAll(selector));
+        const states = elements.slice(0, selectors.maxControlStates).map(element => {
+          const formControl = element as Partial<FormControl>;
+          const isCheckable = element instanceof HTMLInputElement &&
+            (element.type === "radio" || element.type === "checkbox");
+          return {
+            checked: isCheckable ? Boolean((element as HTMLInputElement).checked) : null,
+            disabled: "disabled" in formControl ? Boolean(formControl.disabled) : element.hasAttribute("disabled"),
+            type: read.safeType(element),
+            namePresent: element.hasAttribute("name"),
+            valuePresent: element.hasAttribute("value"),
+          };
+        });
+        return { count: elements.length, states, statesTruncated: elements.length > selectors.maxControlStates };
+      },
+      sameForm(left: HTMLFormElement | null | undefined, right: HTMLFormElement | null | undefined): boolean {
+        return Boolean(left && right && left === right);
+      },
+      hiddenField(name: string): { present: boolean; nonEmpty: boolean } {
+        const input = document.querySelector(`input[type="hidden"][name="${name}"]`) as HTMLInputElement | null;
+        return { present: Boolean(input), nonEmpty: Boolean(input?.value) };
+      },
+    };
+
+    const noElements = Array.from(document.querySelectorAll(selectors.no));
+    const yesElements = Array.from(document.querySelectorAll(selectors.yes));
+    const sendElements = Array.from(document.querySelectorAll(selectors.send));
+    const no = noElements.length === 1 ? noElements[0] : undefined;
+    const yes = yesElements.length === 1 ? yesElements[0] : undefined;
+    const send = sendElements.length === 1 ? sendElements[0] : undefined;
+    const noForm = no instanceof HTMLInputElement ? no.form : undefined;
+    const yesForm = yes instanceof HTMLInputElement ? yes.form : undefined;
+    const sendForm = send instanceof HTMLInputElement || send instanceof HTMLButtonElement ? send.form : undefined;
+    const form = sendForm ?? noForm ?? yesForm;
+    const noName = no?.getAttribute("name");
+    const yesName = yes?.getAttribute("name");
+    const rawMethod = (form?.getAttribute("method") ?? form?.method ?? "").trim().toLowerCase();
+    const method: "get" | "post" | "dialog" | "other" =
+      rawMethod === "get" || rawMethod === "post" || rawMethod === "dialog" ? rawMethod : "other";
+    let actionSafe = false;
+    let actionPath: string | undefined;
+    if (form) {
+      try {
+        const action = new URL(form.getAttribute("action") || window.location.href, window.location.href);
+        actionSafe = action.origin === "https://ceac.state.gov" &&
+          action.pathname.toLowerCase() === selectors.emailPath.toLowerCase();
+        if (actionSafe) actionPath = action.pathname;
+      } catch { /* metadata remains redacted */ }
+    }
+    const formControls = form ? Array.from(form.elements) : [];
+    const eligibleControls = formControls.filter(control => {
+      const candidate = control as unknown as { willValidate?: unknown };
+      return candidate.willValidate === true;
+    });
+    const invalidCount = eligibleControls.filter(control => {
+      const candidate = control as unknown as { validity?: ValidityState };
+      return candidate.validity?.valid === false;
+    }).length;
+    const validCount = eligibleControls.length - invalidCount;
+    const pageWindow = window as unknown as { Page_IsValid?: unknown; Page_Validators?: unknown };
+    const rawValidators = pageWindow.Page_Validators;
+    const validators: unknown[] = Array.isArray(rawValidators) ? rawValidators : [];
+    const validatorStatuses = validators.slice(0, selectors.maxValidatorStates).map(value => {
+      if (!value || typeof value !== "object" || !("isvalid" in value)) return null;
+      const status = (value as Validator).isvalid;
+      return typeof status === "boolean" ? status : null;
+    });
+    const knownValidatorStatuses = validatorStatuses.filter((value): value is boolean => typeof value === "boolean");
+    const viewState = read.hiddenField("__VIEWSTATE");
+    const eventValidation = read.hiddenField("__EVENTVALIDATION");
+    return {
+      controls: {
+        no: read.controlMetadata(selectors.no),
+        yes: read.controlMetadata(selectors.yes),
+        send: read.controlMetadata(selectors.send),
+      },
+      noYesSameGroup: Boolean(no && yes && noName && yesName && noName === yesName),
+      noYesSameForm: read.sameForm(noForm, yesForm),
+      sendSameForm: read.sameForm(sendForm, noForm) && read.sameForm(sendForm, yesForm),
+      formCount: document.forms.length,
+      ...(form ? {
+        form: {
+          method,
+          actionSafe,
+          ...(actionPath ? { actionPath } : {}),
+          onsubmitHandlerPresent: typeof form.onsubmit === "function" || form.hasAttribute("onsubmit"),
+        },
+      } : {}),
+      nativeValidity: {
+        eligibleCount: eligibleControls.length,
+        validCount,
+        invalidCount,
+        allEligibleValid: eligibleControls.length > 0 ? invalidCount === 0 : null,
+        anyInvalid: invalidCount > 0,
+      },
+      aspNetValidation: {
+        pageIsValidAvailable: typeof pageWindow.Page_IsValid === "boolean",
+        ...(typeof pageWindow.Page_IsValid === "boolean" ? { pageIsValid: pageWindow.Page_IsValid } : {}),
+        validatorsAvailable: Array.isArray(rawValidators),
+        ...(Array.isArray(rawValidators) ? {
+          validatorCount: validators.length,
+          validatorStatuses,
+          validValidatorCount: knownValidatorStatuses.filter(Boolean).length,
+          invalidValidatorCount: knownValidatorStatuses.filter(value => !value).length,
+          validatorStatusesTruncated: validators.length > selectors.maxValidatorStates,
+        } : {}),
+      },
+      aspNetHiddenFields: {
+        viewStatePresent: viewState.present,
+        viewStateNonEmpty: viewState.nonEmpty,
+        eventValidationPresent: eventValidation.present,
+        eventValidationNonEmpty: eventValidation.nonEmpty,
+      },
+    };
+  }, {
+    no: "#ctl00_SiteContentPlaceHolder_AdditionalEmailRadioList_1",
+    yes: "#ctl00_SiteContentPlaceHolder_AdditionalEmailRadioList_0",
+    send: "#ctl00_SiteContentPlaceHolder_EmailButton",
+    emailPath: EMAIL_FORM_PATH,
+    maxControlStates: MAX_CONTROL_STATES,
+    maxValidatorStates: MAX_VALIDATOR_STATES,
+  }), FORM_METADATA_TIMEOUT_MS);
+}
+
+/** Capture visible official evidence and optional redacted form state; keep the result private. */
+export async function captureDs160EmailPage(
+  page: Page,
+  options: { captureFormMetadata?: boolean } = {},
+): Promise<Ds160EmailPageCapture> {
   const capturedAt = new Date().toISOString();
   const path = safeOfficialPath(page);
   try {
@@ -90,7 +305,12 @@ export async function captureDs160EmailPage(page: Page): Promise<Ds160EmailPageC
   catch { captureFailures.push("body"); }
   try { screenshotBase64 = (await page.screenshot({ timeout: 5_000 })).toString("base64"); }
   catch { captureFailures.push("screenshot"); }
-  return { capturedAt, path, body, screenshotBase64, captureFailures };
+  let formMetadata: Ds160EmailFormMetadata | undefined;
+  if (options.captureFormMetadata && path?.toLowerCase() === EMAIL_FORM_PATH.toLowerCase()) {
+    try { formMetadata = await captureDs160EmailFormMetadata(page); }
+    catch { captureFailures.push("form_metadata"); }
+  }
+  return { capturedAt, path, body, screenshotBase64, ...(formMetadata ? { formMetadata } : {}), captureFailures };
 }
 
 function publicCaptureFailures(
@@ -344,7 +564,7 @@ export async function processDs160OfficialEmailJob(
       assertOwned,
       beforeSend: async () => {
         assertOwned();
-        preSendCapture = await captureDs160EmailPage(session!.page);
+        preSendCapture = await captureDs160EmailPage(session!.page, { captureFormMetadata: true });
         assertOwned();
         const { data, error } = await client.rpc("reserve_ds160_email_send", claim);
         if (error || !Array.isArray(data) || data.length !== 1) throw new SubmissionQueueOwnershipLostError();

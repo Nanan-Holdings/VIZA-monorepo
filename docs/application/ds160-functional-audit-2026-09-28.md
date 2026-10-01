@@ -2462,3 +2462,31 @@ confirmed final fence, zero active jobs and zero sent-email results. At 00:21
 UTC the worker was still stopped, provider zero, with unchanged configuration;
 this release did not deploy or wake the worker. The official email completion
 error remains unresolved and must not be described as a completed send flow.
+
+### 2026-10-01: private email-form state diagnosis
+
+The next investigation is scoped to a remaining evidence gap: the pre-send
+artifact had visible text and pixels but no native/ASP.NET validity or control
+group/form relationship metadata. The diagnostic addition reads exact email
+controls, check state, enabled/type/presence flags, same-group/form booleans,
+native validity, ASP.NET boolean validation state, and hidden-state presence
+without recording hidden values. It does not trigger validation, dispatch DOM
+events, modify controls, or change sending behavior. Form metadata is optional
+and confined to the encrypted private artifact, never the public queue payload.
+Only the exact official email page and safe action pathname are eligible.
+
+Fresh pre-release checks retain the existing submitted application/result and
+one confirmed final fence. There are no active target/global queues, runner
+slots or provider sessions. The production machine is stopped with unchanged
+configuration. The previous email remains unknown with no sent result. This
+diagnostic addition is not evidence that the CEAC mail service has been fixed;
+validation, release and the next controlled attempt are recorded below.
+
+Validation: all 32 worker/private-audit storage tests passed, including real
+offline Chromium metadata capture, missing ASP.NET state, same-origin and
+foreign action redaction, navigation-race rejection and zero validation/form
+events. Service type-check and build passed. The unchanged sender suite had
+14 passing cases and one pre-send recipient/deadline failure under parallel
+local browser load; that short-deadline late-receipt case passed on its isolated
+rerun. The initial diagnostic evaluator issues were repaired and the complete
+modified worker suite rerun before release. No fixture made a live CEAC request.
