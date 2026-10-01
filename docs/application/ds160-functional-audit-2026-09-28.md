@@ -2490,3 +2490,63 @@ events. Service type-check and build passed. The unchanged sender suite had
 local browser load; that short-deadline late-receipt case passed on its isolated
 rerun. The initial diagnostic evaluator issues were repaired and the complete
 modified worker suite rerun before release. No fixture made a live CEAC request.
+
+Release `09c0fe4d` was built and pushed without changing the running worker,
+then installed as immutable image
+`ds160-email-09c0fe4d@sha256:2b8ea2981ddead64efc1de9d8bc9ea98980723c474eb22a1ae5a0569f1a718a5`.
+Organization Fly identity and release author were verified. Global job queues
+were empty; two fresh deployment checks reported safe/activeWork zero with no
+protected/provider sessions. The only infrastructure slot belonged to the idle
+machine started for readiness and was released by its normal stop before the
+image-only update. Environment, guest, services and full non-image configuration
+hashes remained unchanged. At 20:32 UTC cold-start health was ok, database-ready
+and worker-started were true, and deployment readiness remained safe with no
+provider sessions. The stored application/result remained submitted with one
+confirmed final fence and zero sent email results before the controlled retry.
+
+At 20:32:46 UTC the ordinary authenticated email-only recovery API accepted
+one request (HTTP 202). The new job began at 20:32:55 and entered confirmation
+retrieval; no DS-160 submission, signature, answer/photo change,
+draft creation, recipient substitution or timed retry was performed. The local
+prior-job attempt fence remains consumed and will not be deleted or replayed.
+
+Current-run outcome: the same official confirmation was verified at 20:34:34.
+The pre-send private capture at 20:34:49 passed ciphertext SHA verification and
+contains body, screenshot and form metadata with no capture failures. The bound
+recipient digest matched. Exact No/Yes/send control counts were one each; No was
+checked and Yes unchecked, all enabled, and the send control was a submit input.
+Radio group and form relationships matched. The single form used POST to the
+exact official email path. All ten eligible native controls were valid;
+Page_IsValid was true and the one ASP.NET validator was true. VIEWSTATE was
+present/nonempty. EVENTVALIDATION was absent; no server-required-state conclusion
+or token injection is justified by that observation. No hidden values, control
+names/values or applicant data were emitted. Raw public payload readback confirms
+formMetadata is absent; it remains inside the encrypted private artifact only.
+
+One dispatch was reserved at 20:34:52. The email POST returned 302 in 73 ms.
+The following Complete_Done GET returned 302 after 100,112 ms to AppError (200).
+The final 20:37:05 SHA-verified capture contains Application Error and no explicit
+sent receipt. Sender elapsed time was 151,208 ms. At 20:37:09 the job settled
+unknown with lease cleared, no active sibling and zero sent results. Exactly
+one new job exists for this controlled attempt. The latest run's evidence, not
+an earlier error screenshot, supports these observations.
+
+The diagnostic evidence further excludes invalid native/ASP.NET form state,
+wrong No selection and wrong button/form association for this attempt. The
+blocking response is the official completion page after the accepted POST;
+the server's internal mail result remains unavailable. Its approximately
+100-second duration matches the [documented default .NET SMTP timeout](https://learn.microsoft.com/en-us/dotnet/api/system.net.mail.smtpclient.timeout?view=netframework-4.8.1),
+but this is only a possible explanation: CEAC implementation/configuration and
+SMTP logs have not been obtained, so an SMTP cause is not established. The
+[official FAQ](https://travel.state.gov/content/travel/en/us-visas/visa-information-resources/forms/ds-160-online-nonimmigrant-visa-application/ds-160-faqs.html)
+describes a Thank You page after Email Confirmation; that successful completion
+was not observed here. No further unsupported client patch or blind retry was
+performed. Actual inbox delivery was queried separately and is not inferred.
+
+Authenticated production GET acceptance still returns completed/submitted,
+ready English confirmation proof, unknown email and an account-matching recipient.
+The two-page PDF remains 149,537 bytes with the unchanged SHA and no CJK text.
+The application/result remain submitted and the final fence remains confirmed.
+At 20:39:55 the normal idle lifecycle had stopped the worker; provider sessions
+were zero and all non-image configuration hashes were unchanged. No scheduled
+monitor was recreated.
