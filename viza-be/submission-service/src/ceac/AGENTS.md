@@ -272,7 +272,13 @@ diagnostics, `.dat` capture, CAPTCHA solving, and one-shot final submission.
     only in the existing encrypted private audit store, never in logs or public
     queue diagnostics. The bounded network trace must retain final-dispatch
     request starts and critical responses despite page asset traffic; never
-    capture request bodies, query strings, cookies or response headers. A final click may leave an ambiguous state and must be reported for
+    persist request bodies, query strings, cookies or response headers. An optional
+    submitted-form audit may compare the native successful-control snapshot to
+    the single final main-frame POST transiently in memory. Retain only bounded
+    booleans/counts for submitter, No radio, ASP.NET state, missing/unexpected
+    pairs and duplicate keys inside encrypted official evidence. Never retain
+    field names/values or the raw payload, mutate the form, or change dispatch
+    behavior based on this diagnostic. A final click may leave an ambiguous state and must be reported for
     recovery without another send attempt. The final click retains its short
     actionability timeout, but an observed main-frame document navigation must
     settle within the bounded overall budget before receipt inspection. An

@@ -17,6 +17,7 @@ import {
 } from "./ceac";
 import {
   sendOfficialDs160ConfirmationEmail, Ds160ConfirmationEmailError,
+  type Ds160EmailSubmittedFormMetadata,
 } from "./ceac/confirmation-email";
 import { createDs160AuditStore, Ds160AuditStorageError, type Ds160AuditArtifactRef, type Ds160AuditStorageTransport } from "./ceac/audit-storage";
 import { createDs160AuditStorageTransport } from "./ceac/audit-storage-transport";
@@ -331,6 +332,7 @@ export async function persistDs160EmailEvidence(input: {
   outcome: EmailOutcome;
   reserved: boolean;
   preSendCapture?: Ds160EmailPageCapture;
+  submittedFormMetadata?: Ds160EmailSubmittedFormMetadata;
 }, dependencies: {
   encrypt?: typeof encryptSecret;
   transport?: Ds160AuditStorageTransport;
@@ -352,6 +354,7 @@ export async function persistDs160EmailEvidence(input: {
       body: finalCapture.body, screenshotBase64: finalCapture.screenshotBase64,
       captureFailures: finalCapture.captureFailures,
       ...(input.preSendCapture ? { preSend: input.preSendCapture } : {}),
+      ...(input.submittedFormMetadata ? { submittedFormMetadata: input.submittedFormMetadata } : {}),
       outcome: input.outcome, reserved: input.reserved,
     }));
     stage = "storage";
@@ -493,6 +496,7 @@ export async function processDs160OfficialEmailJob(
   let outcome: EmailOutcome = "failed";
   let errorCode: string | null = null;
   let preSendCapture: Ds160EmailPageCapture | undefined;
+  let submittedFormMetadata: Ds160EmailSubmittedFormMetadata | undefined;
   const evidence: Record<string, unknown> = { runId };
   const claim = { p_queue_id: item.id, p_worker_id: item.locked_by, p_locked_at: item.locked_at };
   const assertOwned = (): void => {
@@ -560,6 +564,7 @@ export async function processDs160OfficialEmailJob(
     console.log(`[ceac-email] ${runId} official_confirmation_verified`);
     failurePhase = "send";
     const receipt = await runtime.sendEmail({
+      onSubmittedFormMetadata: metadata => { submittedFormMetadata = metadata; },
       page: session.page, expectedApplicationId: result.applicationId, verifiedRecipient: recipient,
       assertOwned,
       beforeSend: async () => {
@@ -588,7 +593,7 @@ export async function processDs160OfficialEmailJob(
     if (session) {
       const persistEvidence = dependencies.persistEvidence ?? persistDs160EmailEvidence;
       Object.assign(evidence, await persistEvidence({
-        page: session.page, jobId: item.id, runId, outcome, reserved, preSendCapture,
+        page: session.page, jobId: item.id, runId, outcome, reserved, preSendCapture, submittedFormMetadata,
       }));
     }
     // Do not expose a terminal/retryable row until the provider session closes.

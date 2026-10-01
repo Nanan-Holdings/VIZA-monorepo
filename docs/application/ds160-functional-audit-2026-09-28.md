@@ -2581,3 +2581,30 @@ normal idle exit. No code, sender configuration, proxy or endpoint was changed.
 At 20:53:24 the machine had automatically stopped and provider sessions were
 zero. Fresh readback confirms exactly one new job for this user request, no
 active target work and zero sent results; all configuration hashes are unchanged.
+
+### 2026-10-01 native email POST comparison gap
+
+The user reported no delivery and requested cause analysis and repair. Fresh
+readback still confirms the new application/result submitted, one confirmed
+final fence, no active work and no sent email receipt. The sender uses a native
+click; its prior fixture verified only a stage marker, omitted a named
+submitter and ASP.NET state, and could not establish equivalence of the actual
+POST to the visible form. This is a test/diagnostic gap, not proof of a malformed
+live request or of a CEAC SMTP failure.
+
+An optional, read-only audit now snapshots native successful controls after
+the reservation callback, rechecks ownership, and compares the single final
+main-frame email POST transiently in memory. Only bounded booleans/counts enter
+the encrypted bundle as submittedFormMetadata; raw payload, field names,
+values, hidden state, cookies and headers are not persisted. The observer does
+not mutate the form, invoke FormData events, change dispatch, or replay a click.
+The native send/No pairs, VIEWSTATE family, EVENTVALIDATION, missing/unexpected
+pairs and unexpected duplicate keys are compared; unsupported control shapes
+remain unverified. An absent hidden field is not asserted to be required.
+
+The 18 offline Chromium sender tests passed, including the named native POST,
+post-fence value changes, omitted submitter and duplicate unexpected keys.
+All 21 worker lifecycle/private-evidence tests passed, as did service type
+checking/build and diff checking. No new official request was made during
+implementation. Production installation and a single authorized diagnostic
+attempt remain to be recorded separately.

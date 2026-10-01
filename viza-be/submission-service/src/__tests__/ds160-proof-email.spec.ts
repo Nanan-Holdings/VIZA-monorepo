@@ -9,6 +9,7 @@ import {
   persistDs160EmailEvidence, type Ds160EmailFailureEvidence, type Ds160EmailJobDependencies,
 } from "../ds160-proof-email";
 import { GateDetectedError, NavigationError, SessionBootstrapError } from "../ceac/errors";
+import type { Ds160EmailSubmittedFormMetadata } from "../ceac/confirmation-email";
 
 const queueId = "00000000-0000-4000-8000-000000000001";
 const makeItem = (): SubmissionQueueItem => ({
@@ -39,6 +40,7 @@ function fixture(options: {
   captureBodyFails?: boolean;
   captureScreenshotFails?: boolean;
   persistEvidence?: Ds160EmailJobDependencies["persistEvidence"];
+  submittedFormMetadata?: Ds160EmailSubmittedFormMetadata;
 } = {}) {
   const events: string[] = [];
   let settlement: Record<string, unknown> | undefined;
@@ -100,6 +102,7 @@ function fixture(options: {
         if (options.failBefore) throw new Error("fixture pre-send failure");
         await input.beforeSend();
         events.push("send");
+        if (options.submittedFormMetadata) input.onSubmittedFormMetadata?.(options.submittedFormMetadata);
         if (options.closePageAfterSend) pageClosed = true;
         if (options.failAfter) throw new Error("fixture post-send failure");
         return { status: "sent", applicationIdVerified: true, recipientVerified: true,
@@ -124,6 +127,29 @@ test("official email reserves once, closes before settlement, and never mutates 
   assert.equal(f.events.filter(x => x === "send").length, 1);
   assert.ok(f.events.indexOf("reserve_ds160_email_send") < f.events.indexOf("send"));
   assert.ok(f.events.indexOf("close") < f.events.indexOf("settle_ds160_proof_email"));
+});
+
+test("keeps submitted form comparison out of public settlement evidence", async () => {
+  const metadata: Ds160EmailSubmittedFormMetadata = {
+    bodyAvailable: true, urlEncoded: true, bounded: true, pageFormObserved: true,
+    submitterPairCount: 1, submitterPairMatches: true, noRadioPairCount: 1, noRadioPairMatches: true,
+    yesRadioPairPresent: false, viewstatePairsMatch: true, eventValidationPairsMatch: true,
+    successfulControlsMatch: true, missingPairCount: 0, unexpectedPairCount: 0,
+    unexpectedDuplicateKeyCount: 0, unsupportedControlCount: 0,
+  };
+  let encryptedPlaintext = "";
+  const f = fixture({
+    capturePageOpen: true, submittedFormMetadata: metadata,
+    persistEvidence: async input => persistDs160EmailEvidence(input, {
+      encrypt: plaintext => { encryptedPlaintext = plaintext; return "encrypted-fixture"; },
+      transport: { upload: async () => undefined, download: async () => null },
+    }),
+  });
+  await processDs160OfficialEmailJob(makeItem(), f.dependencies);
+  const privateEvidence = JSON.parse(encryptedPlaintext) as Record<string, unknown>;
+  assert.deepEqual(privateEvidence.submittedFormMetadata, metadata);
+  assert.doesNotMatch(JSON.stringify(f.settlement()?.p_evidence), /submittedFormMetadata|submitterPair|noRadioPair/);
+  assert.equal(f.events.filter(event => event === "send").length, 1);
 });
 
 test("captures pre-send evidence before reserve and keeps it private when the final page closes", async () => {

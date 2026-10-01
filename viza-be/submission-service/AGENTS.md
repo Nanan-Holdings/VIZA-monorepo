@@ -108,6 +108,10 @@ email form in memory, then recheck ownership. Store this pre-send capture only
 inside the final encrypted official-evidence bundle; retain it even if the
 final page capture fails. Neither capture may expose applicant text or images
 through public queue fields or logs.
+The optional final-POST comparison is also private: only bounded booleans/counts
+are encrypted as `submittedFormMetadata`. Transient native form names, values
+and request payloads must never enter artifacts, public diagnostics or logs;
+the comparison cannot mutate the form or replay the final click.
 
 `src/ds160-derive-answers.ts` treats present canonical form values as
 authoritative over persisted legacy key aliases, including explicit No and

@@ -22,6 +22,38 @@ const MAX_NETWORK_EVENTS = 64;
 const CRITICAL_RESOURCE_TYPES = new Set(["document", "xhr", "fetch"]);
 const DEFAULT_OVERALL_TIMEOUT_MS = 180_000;
 const MAX_OVERALL_TIMEOUT_MS = 180_000;
+const MAX_FORM_CONTROLS = 256;
+const MAX_FORM_PAIRS = 2_048;
+const MAX_FORM_BODY_BYTES = 1_048_576;
+
+/** Comparison results only. Never retain or expose form names, values or request bodies. */
+export interface Ds160EmailSubmittedFormMetadata {
+  bodyAvailable: boolean;
+  urlEncoded: boolean;
+  bounded: boolean;
+  pageFormObserved: boolean;
+  submitterPairCount: number;
+  submitterPairMatches: boolean | null;
+  noRadioPairCount: number;
+  noRadioPairMatches: boolean | null;
+  yesRadioPairPresent: boolean | null;
+  viewstatePairsMatch: boolean | null;
+  eventValidationPairsMatch: boolean | null;
+  successfulControlsMatch: boolean | null;
+  missingPairCount: number;
+  unexpectedPairCount: number;
+  unexpectedDuplicateKeyCount: number;
+  unsupportedControlCount: number;
+}
+
+type NativeFormSnapshot = {
+  pairs: Array<[string, string]>;
+  submitter: [string, string] | null;
+  noRadio: [string, string] | null;
+  yesRadio: [string, string] | null;
+  unsupportedControlCount: number;
+  bounded: boolean;
+};
 
 export type Ds160ConfirmationEmailNetworkPhase =
   | "confirmation"
@@ -85,6 +117,8 @@ export interface Ds160ConfirmationEmailOptions {
   dispatchTimeoutMs?: number;
   receiptTimeoutMs?: number;
   overallTimeoutMs?: number;
+  /** Optional private audit sink; receives only bounded comparison booleans/counts. */
+  onSubmittedFormMetadata?: (metadata: Ds160EmailSubmittedFormMetadata) => void;
 }
 
 export interface Ds160ConfirmationEmailResult {
@@ -191,13 +225,21 @@ function recordNetworkEvent(
   }
 }
 
-function observeOfficialNetwork(page: Page, diagnostics: MutableDiagnostics): () => void {
+function observeOfficialNetwork(
+  page: Page,
+  diagnostics: MutableDiagnostics,
+  onSendRequest: (request: Request) => void,
+): () => void {
   const requestPhases = new WeakMap<Request, Ds160ConfirmationEmailNetworkPhase>();
   const onRequest = (request: Request) => {
     const path = officialPath(request.url());
     if (!path) return;
     const phase = diagnostics.phase;
     requestPhases.set(request, phase);
+    if (phase === "send" && request.method() === "POST" &&
+      path.toLowerCase() === EMAIL_PAGE_PATH.toLowerCase() && isMainDocumentNavigation(page, request)) {
+      onSendRequest(request);
+    }
     recordNetworkEvent(diagnostics, {
       kind: "request",
       phase,
@@ -308,6 +350,140 @@ async function controlValue(control: Locator): Promise<string> {
   });
 }
 
+// A read-only snapshot of native successful controls. Do not use FormData(form):
+// its constructor can dispatch a formdata event and change the official flow.
+async function readNativeFormSnapshot(sendControl: Locator): Promise<NativeFormSnapshot | undefined> {
+  return sendControl.evaluate((element, limits) => {
+    if (window.location.origin !== "https://ceac.state.gov" ||
+      window.location.pathname.toLowerCase() !== limits.emailPath.toLowerCase()) return undefined;
+    if (!(element instanceof HTMLInputElement || element instanceof HTMLButtonElement)) return undefined;
+    const form = element.form;
+    if (!form) return undefined;
+    const action = new URL(form.action, window.location.href);
+    if (form.method.toLowerCase() !== "post" || action.origin !== window.location.origin ||
+      action.pathname.toLowerCase() !== limits.emailPath.toLowerCase()) return undefined;
+    const pairs: Array<[string, string]> = [];
+    let unsupportedControlCount = 0;
+    let bounded = form.elements.length <= limits.controls;
+    let characterCount = 0;
+    // Object methods remain self-contained when the evaluator is serialized
+    // by both the production compiler and the offline TS browser fixture.
+    const helpers = {
+      add(name: string, value: string) {
+        characterCount += name.length + value.length;
+        if (pairs.length >= limits.pairs || characterCount > limits.characters) { bounded = false; return; }
+        pairs.push([name, value]);
+      },
+      radioPair(selector: string): [string, string] | null {
+        const radio = document.querySelector(selector);
+        return radio instanceof HTMLInputElement && radio.form === form && radio.name && !radio.matches(":disabled")
+          ? [radio.name, radio.value] : null;
+      },
+    };
+    for (let index = 0; index < Math.min(form.elements.length, limits.controls); index += 1) {
+      const control = form.elements.item(index);
+      if (!(control instanceof HTMLInputElement || control instanceof HTMLButtonElement ||
+        control instanceof HTMLSelectElement || control instanceof HTMLTextAreaElement)) {
+        if (control?.tagName !== "FIELDSET") unsupportedControlCount += 1;
+        continue;
+      }
+      if (!control.name || control.matches(":disabled")) continue;
+      if (control instanceof HTMLInputElement) {
+        if (control.type === "file" || control.type === "image") { unsupportedControlCount += 1; continue; }
+        if (["button", "reset"].includes(control.type) || (control.type === "submit" && control !== element)) continue;
+        if (["checkbox", "radio"].includes(control.type) && !control.checked) continue;
+        if (control.name === "_charset_" || control.hasAttribute("dirname")) unsupportedControlCount += 1;
+        helpers.add(control.name, control.value);
+      } else if (control instanceof HTMLButtonElement) {
+        if (control.type === "submit" && control === element) helpers.add(control.name, control.value);
+      } else if (control instanceof HTMLSelectElement) {
+        for (let optionIndex = 0; optionIndex < control.selectedOptions.length; optionIndex += 1) {
+          const option = control.selectedOptions.item(optionIndex)!;
+          if (!option.disabled && !(option.parentElement instanceof HTMLOptGroupElement && option.parentElement.disabled)) {
+            helpers.add(control.name, option.value);
+          }
+        }
+      } else {
+        if (control.hasAttribute("dirname")) unsupportedControlCount += 1;
+        helpers.add(control.name, control.value);
+      }
+    }
+    return {
+      pairs,
+      submitter: element.name && element.type === "submit" && !element.matches(":disabled")
+        ? [element.name, element.value] as [string, string] : null,
+      noRadio: helpers.radioPair(limits.no), yesRadio: helpers.radioPair(limits.yes),
+      unsupportedControlCount, bounded,
+    };
+  }, {
+    emailPath: EMAIL_PAGE_PATH, no: ADDITIONAL_EMAIL_NO_SELECTOR, yes: ADDITIONAL_EMAIL_YES_SELECTOR,
+    controls: MAX_FORM_CONTROLS, pairs: MAX_FORM_PAIRS, characters: MAX_FORM_BODY_BYTES,
+  }, { timeout: 2_000 }).catch(() => undefined);
+}
+
+function compareSubmittedForm(request: Request, snapshot: NativeFormSnapshot | undefined): Ds160EmailSubmittedFormMetadata {
+  const metadata: Ds160EmailSubmittedFormMetadata = {
+    bodyAvailable: false, urlEncoded: false, bounded: false, pageFormObserved: Boolean(snapshot),
+    submitterPairCount: 0, submitterPairMatches: null, noRadioPairCount: 0, noRadioPairMatches: null,
+    yesRadioPairPresent: null, viewstatePairsMatch: null, eventValidationPairsMatch: null,
+    successfulControlsMatch: null, missingPairCount: 0, unexpectedPairCount: 0,
+    unexpectedDuplicateKeyCount: 0, unsupportedControlCount: snapshot?.unsupportedControlCount ?? 0,
+  };
+  // Read transiently for comparison only. Neither this string nor parsed values
+  // are attached to diagnostics, errors, logs or the encrypted evidence bundle.
+  const body = request.postData();
+  metadata.bodyAvailable = body !== null;
+  metadata.urlEncoded = /^application\/x-www-form-urlencoded(?:;|$)/i.test(request.headers()["content-type"] ?? "");
+  if (body === null || !metadata.urlEncoded || Buffer.byteLength(body, "utf8") > MAX_FORM_BODY_BYTES) return metadata;
+  const posted = [...new URLSearchParams(body)];
+  metadata.bounded = posted.length <= MAX_FORM_PAIRS && snapshot?.bounded === true;
+  if (!snapshot || !metadata.bounded) return metadata;
+  const normalized = (value: string) => value.replace(/\r\n|\r|\n/g, "\r\n");
+  const pairKey = (pair: [string, string]) => JSON.stringify(pair.map(normalized));
+  const expectedCounts = new Map<string, number>();
+  const postedCounts = new Map<string, number>();
+  const expectedKeys = new Map<string, number>();
+  const postedKeys = new Map<string, number>();
+  for (const pair of snapshot.pairs) {
+    const key = pairKey(pair);
+    expectedCounts.set(key, (expectedCounts.get(key) ?? 0) + 1);
+    expectedKeys.set(pair[0], (expectedKeys.get(pair[0]) ?? 0) + 1);
+  }
+  for (const pair of posted) {
+    const key = pairKey(pair);
+    postedCounts.set(key, (postedCounts.get(key) ?? 0) + 1);
+    postedKeys.set(pair[0], (postedKeys.get(pair[0]) ?? 0) + 1);
+  }
+  for (const [key, count] of expectedCounts) metadata.missingPairCount += Math.max(0, count - (postedCounts.get(key) ?? 0));
+  for (const [key, count] of postedCounts) metadata.unexpectedPairCount += Math.max(0, count - (expectedCounts.get(key) ?? 0));
+  for (const [key, count] of postedKeys) {
+    if (count > 1 && count > (expectedKeys.get(key) ?? 0)) metadata.unexpectedDuplicateKeyCount += 1;
+  }
+  const pairMatch = (pair: [string, string] | null): { count: number; matches: boolean | null } => {
+    if (!pair) return { count: 0, matches: null };
+    const count = postedKeys.get(pair[0]) ?? 0;
+    return { count, matches: count === 1 && postedCounts.get(pairKey(pair)) === 1 };
+  };
+  const submitter = pairMatch(snapshot.submitter);
+  const no = pairMatch(snapshot.noRadio);
+  metadata.submitterPairCount = submitter.count;
+  metadata.submitterPairMatches = submitter.matches;
+  metadata.noRadioPairCount = no.count;
+  metadata.noRadioPairMatches = no.matches;
+  metadata.yesRadioPairPresent = snapshot.yesRadio ? (postedCounts.get(pairKey(snapshot.yesRadio)) ?? 0) > 0 : null;
+  const fieldGroupMatches = (pattern: RegExp) => {
+    const expected = snapshot.pairs.filter(pair => pattern.test(pair[0]));
+    const actual = posted.filter(pair => pattern.test(pair[0]));
+    if (expected.length !== actual.length) return false;
+    return expected.every(pair => expectedCounts.get(pairKey(pair)) === postedCounts.get(pairKey(pair)));
+  };
+  metadata.viewstatePairsMatch = fieldGroupMatches(/^__VIEWSTATE(?:\d+|FIELDCOUNT|GENERATOR)?$/);
+  metadata.eventValidationPairsMatch = fieldGroupMatches(/^__EVENTVALIDATION$/);
+  metadata.successfulControlsMatch = snapshot.unsupportedControlCount === 0
+    ? metadata.missingPairCount === 0 && metadata.unexpectedPairCount === 0 : null;
+  return metadata;
+}
+
 async function readReceipt(
   page: Page,
   timeoutMs = 5_000,
@@ -368,7 +544,15 @@ export async function sendOfficialDs160ConfirmationEmail(
   const receiptTimeoutMs = clampTimeout(options.receiptTimeoutMs, 30_000);
   const overallDeadline = Date.now() + clampOverallTimeout(options.overallTimeoutMs);
   const remainingBudget = (phaseTimeoutMs: number): number => Math.max(1, Math.min(phaseTimeoutMs, overallDeadline - Date.now()));
-  const stopNetworkObserver = observeOfficialNetwork(page, diagnostics);
+  let nativeFormSnapshot: NativeFormSnapshot | undefined;
+  let submittedFormObserved = false;
+  const stopNetworkObserver = observeOfficialNetwork(page, diagnostics, request => {
+    if (submittedFormObserved || !options.onSubmittedFormMetadata) return;
+    submittedFormObserved = true;
+    try { options.onSubmittedFormMetadata(compareSubmittedForm(request, nativeFormSnapshot)); }
+    catch { /* An optional evidence sink must never alter or repeat the official request. */ }
+    nativeFormSnapshot = undefined;
+  });
 
   const fail = (code: Ds160ConfirmationEmailCode, message: string): never => {
     diagnostics.finalPath = currentOfficialPath(page);
@@ -490,6 +674,10 @@ export async function sendOfficialDs160ConfirmationEmail(
     // it returns and before the irreversible browser click; a loss here must
     // prevent dispatch rather than being mistaken for a click timeout.
     await options.assertOwned();
+    if (options.onSubmittedFormMetadata) {
+      nativeFormSnapshot = await readNativeFormSnapshot(sendControl);
+      await options.assertOwned();
+    }
     diagnostics.phase = "send";
     diagnostics.sendAttempted = true;
 
@@ -618,5 +806,6 @@ export async function sendOfficialDs160ConfirmationEmail(
     );
   } finally {
     stopNetworkObserver();
+    nativeFormSnapshot = undefined;
   }
 }

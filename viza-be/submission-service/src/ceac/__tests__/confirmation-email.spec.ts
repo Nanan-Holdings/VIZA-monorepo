@@ -10,6 +10,86 @@ const APPLICATION_ID = "AA00FLSF69";
 const RECIPIENT = "verified@example.invalid";
 const CONFIRMATION_PATH = "/GenNIV/General/ESign/Complete_Done_Confirmation.aspx";
 const EMAIL_PATH = "/GenNIV/common/email.aspx";
+const FIXTURE_STAGE_NAME = "stage";
+const FIXTURE_STAGE_VALUE = "send";
+const FIXTURE_SUBMITTER_NAME = "fixtureEmailButton";
+const FIXTURE_SUBMITTER_VALUE = "Email Confirmation";
+const FIXTURE_RADIO_NAME = "fixtureAdditionalEmailChoice";
+const FIXTURE_NO_VALUE = "No";
+const FIXTURE_YES_VALUE = "Yes";
+const FIXTURE_VIEWSTATE_NAME = "__VIEWSTATE";
+const FIXTURE_VIEWSTATE_VALUE = "fixture-view-state-token";
+const FIXTURE_EVENT_VALIDATION_NAME = "__EVENTVALIDATION";
+const FIXTURE_EVENT_VALIDATION_VALUE = "fixture-event-validation-token";
+const MUTATED_NO_VALUE = "No-after-fence";
+const MUTATED_VIEWSTATE_VALUE = "fixture-view-state-after-fence";
+const MUTATED_EVENT_VALIDATION_VALUE = "fixture-event-validation-after-fence";
+const FIXTURE_UNEXPECTED_NAME = "fixtureUnexpectedKey";
+
+type FixtureFormVariant = "native" | "mutated" | "omit_submitter" | "duplicate_unexpected";
+
+interface FixtureNativePostShape {
+  exactExpectedPairs: boolean;
+  submitterPairCount: number;
+  noRadioPairCount: number;
+  yesRadioPairPresent: boolean;
+  viewstatePairCount: number;
+  eventValidationPairCount: number;
+  unexpectedPairCount: number;
+  unexpectedDuplicateKeyCount: number;
+}
+
+interface FixturePostObservation {
+  nativeFinalPostCount: number;
+  lastNativePost?: FixtureNativePostShape;
+}
+
+const fixturePostObservations = new WeakMap<Page, FixturePostObservation>();
+
+function fixturePostObservation(page: Page): FixturePostObservation {
+  const observation = fixturePostObservations.get(page);
+  assert.ok(observation);
+  return observation;
+}
+
+function summarizeNativePost(postData: string, variant: FixtureFormVariant): FixtureNativePostShape {
+  const params = new URLSearchParams(postData);
+  const pairs = [...params.entries()];
+  const count = (name: string): number => params.getAll(name).length;
+  const hasExactPair = (name: string, value: string): boolean => {
+    const values = params.getAll(name);
+    return values.length === 1 && values[0] === value;
+  };
+  const expectedNoValue = variant === "mutated" ? MUTATED_NO_VALUE : FIXTURE_NO_VALUE;
+  const expectedViewstateValue = variant === "mutated" ? MUTATED_VIEWSTATE_VALUE : FIXTURE_VIEWSTATE_VALUE;
+  const expectedEventValidationValue = variant === "mutated"
+    ? MUTATED_EVENT_VALIDATION_VALUE : FIXTURE_EVENT_VALIDATION_VALUE;
+  const knownNames = new Set([
+    FIXTURE_STAGE_NAME, FIXTURE_SUBMITTER_NAME, FIXTURE_RADIO_NAME,
+    FIXTURE_VIEWSTATE_NAME, FIXTURE_EVENT_VALIDATION_NAME,
+  ]);
+  const keyCounts = new Map<string, number>();
+  for (const [name] of pairs) keyCounts.set(name, (keyCounts.get(name) ?? 0) + 1);
+  const unexpectedEntries = pairs.filter(([name]) => !knownNames.has(name));
+  const unexpectedKeys = [...keyCounts].filter(([name]) => !knownNames.has(name));
+  const unexpectedPairCount = unexpectedEntries.length;
+  const unexpectedDuplicateKeyCount = unexpectedKeys.filter(([, keyCount]) => keyCount > 1).length;
+  const expectedPairsMatch = hasExactPair(FIXTURE_STAGE_NAME, FIXTURE_STAGE_VALUE)
+    && hasExactPair(FIXTURE_SUBMITTER_NAME, FIXTURE_SUBMITTER_VALUE)
+    && hasExactPair(FIXTURE_RADIO_NAME, expectedNoValue)
+    && hasExactPair(FIXTURE_VIEWSTATE_NAME, expectedViewstateValue)
+    && hasExactPair(FIXTURE_EVENT_VALIDATION_NAME, expectedEventValidationValue);
+  return {
+    exactExpectedPairs: expectedPairsMatch && unexpectedPairCount === 0,
+    submitterPairCount: count(FIXTURE_SUBMITTER_NAME),
+    noRadioPairCount: count(FIXTURE_RADIO_NAME),
+    yesRadioPairPresent: params.getAll(FIXTURE_RADIO_NAME).includes(FIXTURE_YES_VALUE),
+    viewstatePairCount: count(FIXTURE_VIEWSTATE_NAME),
+    eventValidationPairCount: count(FIXTURE_EVENT_VALIDATION_NAME),
+    unexpectedPairCount,
+    unexpectedDuplicateKeyCount,
+  };
+}
 
 test("sends the official email once after exact recipient and No readback", async () => {
   const browser = await chromium.launch({ headless: true });
@@ -17,6 +97,7 @@ test("sends the official email once after exact recipient and No readback", asyn
     const page = await installFixture(await browser.newPage(), { receipt: "success" });
     let ownershipChecks = 0;
     let fenceCalls = 0;
+    let submittedFormMetadata: unknown;
 
     const result = await sendOfficialDs160ConfirmationEmail({
       page,
@@ -24,6 +105,7 @@ test("sends the official email once after exact recipient and No readback", asyn
       verifiedRecipient: RECIPIENT,
       assertOwned: () => { ownershipChecks += 1; },
       beforeSend: () => { fenceCalls += 1; },
+      onSubmittedFormMetadata: metadata => { submittedFormMetadata = metadata; },
       overallTimeoutMs: 10_000,
     });
 
@@ -31,12 +113,199 @@ test("sends the official email once after exact recipient and No readback", asyn
     assert.equal(result.applicationIdVerified, true);
     assert.equal(result.recipientVerified, true);
     assert.equal(fenceCalls, 1);
-    assert.equal(ownershipChecks, 3);
+    assert.equal(ownershipChecks, 4);
     assert.equal(result.diagnostics.sendAttempted, true);
     assert.match(result.diagnostics.receiptEvidenceHash ?? "", /^[a-f0-9]{64}$/);
     assert.ok(result.diagnostics.events.some(event => event.path === EMAIL_PATH && event.status === 200));
     assert.equal(await page.evaluate(() => (window as unknown as { __sendClicks?: number }).__sendClicks), 1);
     assert.equal(await page.locator("#ctl00_SiteContentPlaceHolder_AdditionalEmailRadioList_1").isChecked({ timeout: 100 }).catch(() => false), false);
+    assert.deepEqual(fixturePostObservation(page), {
+      nativeFinalPostCount: 1,
+      lastNativePost: {
+        exactExpectedPairs: true,
+        submitterPairCount: 1,
+        noRadioPairCount: 1,
+        yesRadioPairPresent: false,
+        viewstatePairCount: 1,
+        eventValidationPairCount: 1,
+        unexpectedPairCount: 0,
+        unexpectedDuplicateKeyCount: 0,
+      },
+    });
+    assert.deepEqual(submittedFormMetadata, {
+      bodyAvailable: true,
+      urlEncoded: true,
+      bounded: true,
+      pageFormObserved: true,
+      submitterPairCount: 1,
+      submitterPairMatches: true,
+      noRadioPairCount: 1,
+      noRadioPairMatches: true,
+      yesRadioPairPresent: false,
+      viewstatePairsMatch: true,
+      eventValidationPairsMatch: true,
+      successfulControlsMatch: true,
+      missingPairCount: 0,
+      unexpectedPairCount: 0,
+      unexpectedDuplicateKeyCount: 0,
+      unsupportedControlCount: 0,
+    });
+    assert.doesNotMatch(JSON.stringify(submittedFormMetadata), /fixtureEmailButton|fixtureAdditionalEmailChoice|fixture-view-state|fixture-event-validation|Email Confirmation|No|Yes/);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("captures the post shape after the fence mutates the current native form", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await installFixture(await browser.newPage(), { receipt: "success", formVariant: "mutated" });
+    let submittedFormMetadata: unknown;
+    const result = await sendOfficialDs160ConfirmationEmail({
+      page,
+      expectedApplicationId: APPLICATION_ID,
+      verifiedRecipient: RECIPIENT,
+      assertOwned: () => undefined,
+      beforeSend: async () => {
+        await page.locator(`#${"ctl00_SiteContentPlaceHolder_AdditionalEmailRadioList_1"}`).evaluate((element, values) => {
+          const radio = element as HTMLInputElement;
+          radio.value = values.noValue;
+        }, { noValue: MUTATED_NO_VALUE });
+        await page.locator(`input[name="${FIXTURE_VIEWSTATE_NAME}"]`).evaluate((element, value) => {
+          (element as HTMLInputElement).value = value;
+        }, MUTATED_VIEWSTATE_VALUE);
+        await page.locator(`input[name="${FIXTURE_EVENT_VALIDATION_NAME}"]`).evaluate((element, value) => {
+          (element as HTMLInputElement).value = value;
+        }, MUTATED_EVENT_VALIDATION_VALUE);
+      },
+      onSubmittedFormMetadata: metadata => { submittedFormMetadata = metadata; },
+      overallTimeoutMs: 10_000,
+    });
+
+    assert.equal(result.status, "sent");
+    assert.equal(await page.evaluate(() => (window as unknown as { __sendClicks?: number }).__sendClicks), 1);
+    assert.deepEqual(fixturePostObservation(page), {
+      nativeFinalPostCount: 1,
+      lastNativePost: {
+        exactExpectedPairs: true,
+        submitterPairCount: 1,
+        noRadioPairCount: 1,
+        yesRadioPairPresent: false,
+        viewstatePairCount: 1,
+        eventValidationPairCount: 1,
+        unexpectedPairCount: 0,
+        unexpectedDuplicateKeyCount: 0,
+      },
+    });
+    assert.deepEqual(submittedFormMetadata, {
+      bodyAvailable: true,
+      urlEncoded: true,
+      bounded: true,
+      pageFormObserved: true,
+      submitterPairCount: 1,
+      submitterPairMatches: true,
+      noRadioPairCount: 1,
+      noRadioPairMatches: true,
+      yesRadioPairPresent: false,
+      viewstatePairsMatch: true,
+      eventValidationPairsMatch: true,
+      successfulControlsMatch: true,
+      missingPairCount: 0,
+      unexpectedPairCount: 0,
+      unexpectedDuplicateKeyCount: 0,
+      unsupportedControlCount: 0,
+    });
+    assert.doesNotMatch(JSON.stringify(submittedFormMetadata), /fixtureEmailButton|fixtureAdditionalEmailChoice|fixture-view-state|fixture-event-validation|Email Confirmation|No-after-fence/);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("reports an omitted submitter pair without changing one-shot send behavior", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await installFixture(await browser.newPage(), { receipt: "success", formVariant: "omit_submitter" });
+    let submittedFormMetadata: unknown;
+    const result = await sendOfficialDs160ConfirmationEmail({
+      page,
+      expectedApplicationId: APPLICATION_ID,
+      verifiedRecipient: RECIPIENT,
+      assertOwned: () => undefined,
+      beforeSend: () => undefined,
+      onSubmittedFormMetadata: metadata => { submittedFormMetadata = metadata; },
+      overallTimeoutMs: 10_000,
+    });
+
+    assert.equal(result.status, "sent");
+    assert.equal(await page.evaluate(() => (window as unknown as { __sendClicks?: number }).__sendClicks), 1);
+    const observation = fixturePostObservation(page);
+    assert.equal(observation.nativeFinalPostCount, 1);
+    assert.equal(observation.lastNativePost?.submitterPairCount, 0);
+    assert.equal(observation.lastNativePost?.exactExpectedPairs, false);
+    assert.deepEqual(submittedFormMetadata, {
+      bodyAvailable: true,
+      urlEncoded: true,
+      bounded: true,
+      pageFormObserved: true,
+      submitterPairCount: 0,
+      submitterPairMatches: false,
+      noRadioPairCount: 1,
+      noRadioPairMatches: true,
+      yesRadioPairPresent: false,
+      viewstatePairsMatch: true,
+      eventValidationPairsMatch: true,
+      successfulControlsMatch: false,
+      missingPairCount: 1,
+      unexpectedPairCount: 0,
+      unexpectedDuplicateKeyCount: 0,
+      unsupportedControlCount: 0,
+    });
+    assert.doesNotMatch(JSON.stringify(submittedFormMetadata), /fixtureEmailButton|fixtureAdditionalEmailChoice|fixture-view-state|fixture-event-validation|Email Confirmation/);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("reports duplicate unexpected native keys without creating another send", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await installFixture(await browser.newPage(), { receipt: "success", formVariant: "duplicate_unexpected" });
+    let submittedFormMetadata: unknown;
+    const result = await sendOfficialDs160ConfirmationEmail({
+      page,
+      expectedApplicationId: APPLICATION_ID,
+      verifiedRecipient: RECIPIENT,
+      assertOwned: () => undefined,
+      beforeSend: () => undefined,
+      onSubmittedFormMetadata: metadata => { submittedFormMetadata = metadata; },
+      overallTimeoutMs: 10_000,
+    });
+
+    assert.equal(result.status, "sent");
+    assert.equal(await page.evaluate(() => (window as unknown as { __sendClicks?: number }).__sendClicks), 1);
+    const observation = fixturePostObservation(page);
+    assert.equal(observation.nativeFinalPostCount, 1);
+    assert.equal(observation.lastNativePost?.unexpectedPairCount, 2);
+    assert.equal(observation.lastNativePost?.unexpectedDuplicateKeyCount, 1);
+    assert.deepEqual(submittedFormMetadata, {
+      bodyAvailable: true,
+      urlEncoded: true,
+      bounded: true,
+      pageFormObserved: true,
+      submitterPairCount: 1,
+      submitterPairMatches: true,
+      noRadioPairCount: 1,
+      noRadioPairMatches: true,
+      yesRadioPairPresent: false,
+      viewstatePairsMatch: true,
+      eventValidationPairsMatch: true,
+      successfulControlsMatch: false,
+      missingPairCount: 0,
+      unexpectedPairCount: 2,
+      unexpectedDuplicateKeyCount: 1,
+      unsupportedControlCount: 0,
+    });
+    assert.doesNotMatch(JSON.stringify(submittedFormMetadata), /fixtureEmailButton|fixtureAdditionalEmailChoice|fixture-view-state|fixture-event-validation|fixtureUnexpectedKey|unexpected-one|unexpected-two/);
   } finally {
     await browser.close();
   }
@@ -472,9 +741,13 @@ async function installFixture(page: Page, options: {
   receipt?: "success" | "gate" | "timeout" | "instruction" | "foreign" | "preexisting" | "server_error" | "server_error_success" | "redirect_unavailable" | "delayed_app_error" | "delayed_success" | "ajax_success";
   noisyAssets?: boolean;
   delayedNoisyAssets?: boolean;
+  formVariant?: FixtureFormVariant;
 } = {}): Promise<Page> {
   const recipient = options.recipient ?? RECIPIENT;
   const receipt = options.receipt ?? "success";
+  const formVariant = options.formVariant ?? "native";
+  const postObservation: FixturePostObservation = { nativeFinalPostCount: 0 };
+  fixturePostObservations.set(page, postObservation);
   // Browser-followed redirects may bypass route handlers. Keep every fixture
   // offline so an unhandled redirect can never contact the official portal.
   await page.context().setOffline(true);
@@ -499,7 +772,13 @@ async function installFixture(page: Page, options: {
       return;
     }
     const postData = request.postData() ?? "";
-    if (request.method() === "POST" && postData.includes("stage=send")) {
+    const isFinalPost = request.method() === "POST"
+      && new URLSearchParams(postData).get(FIXTURE_STAGE_NAME) === FIXTURE_STAGE_VALUE;
+    if (isFinalPost) {
+      if (receipt !== "ajax_success") {
+        postObservation.nativeFinalPostCount += 1;
+        postObservation.lastNativePost = summarizeNativePost(postData, formVariant);
+      }
       if (receipt === "timeout") {
         await new Promise(resolve => setTimeout(resolve, 500));
         await route.fulfill({ contentType: "text/html", body: emailResultHtml(emailHtml(recipient)) });
@@ -564,6 +843,7 @@ async function installFixture(page: Page, options: {
         receipt === "preexisting" ? "Email confirmation has been sent." : "",
         options.noisyAssets === true,
         receipt === "ajax_success",
+        formVariant,
       ),
     });
   });
@@ -586,13 +866,24 @@ function confirmationHtml(): string {
   </body></html>`;
 }
 
-function emailHtml(recipient: string, receiptText = "", noisyAssets = false, ajaxSubmit = false): string {
+function emailHtml(
+  recipient: string,
+  receiptText = "",
+  noisyAssets = false,
+  ajaxSubmit = false,
+  formVariant: FixtureFormVariant = "native",
+): string {
   const noise = noisyAssets
     ? Array.from({ length: 96 }, (_, index) => `<img src="/GenNIV/noise/${index}.gif" alt="">`).join("")
     : "";
   const sendButtonAction = ajaxSubmit
     ? `event.preventDefault(); window.__sendClicks = (window.__sendClicks || 0) + 1; fetch('${EMAIL_PATH}', { method: 'POST', body: 'stage=send' }).then(() => document.body.insertAdjacentHTML('beforeend', '<div>Email confirmation has been sent.</div>'));`
     : "window.__sendClicks = (window.__sendClicks || 0) + 1;";
+  const formVariantScript = formVariant === "omit_submitter"
+    ? `<script>document.querySelector('form').addEventListener('formdata', event => event.formData.delete('${FIXTURE_SUBMITTER_NAME}'));</script>`
+    : formVariant === "duplicate_unexpected"
+      ? `<script>document.querySelector('form').addEventListener('formdata', event => { event.formData.append('${FIXTURE_UNEXPECTED_NAME}', 'unexpected-one'); event.formData.append('${FIXTURE_UNEXPECTED_NAME}', 'unexpected-two'); });</script>`
+      : "";
   return `<!doctype html><html><body>
     <h2>Email Confirmation</h2>
     <div>Saved recipient: ${recipient}</div>
@@ -600,10 +891,13 @@ function emailHtml(recipient: string, receiptText = "", noisyAssets = false, aja
     ${noise}
     <form method="post" action="${EMAIL_PATH}">
       <input name="stage" value="send" type="hidden">
-      <input id="ctl00_SiteContentPlaceHolder_AdditionalEmailRadioList_0" name="AdditionalEmailRadioList" type="radio" value="Yes">Yes
-      <input id="ctl00_SiteContentPlaceHolder_AdditionalEmailRadioList_1" name="AdditionalEmailRadioList" type="radio" value="No">No
-    <input id="ctl00_SiteContentPlaceHolder_EmailButton" type="submit" value="Email Confirmation" onclick="${sendButtonAction}">
+      <input type="hidden" name="${FIXTURE_VIEWSTATE_NAME}" value="${FIXTURE_VIEWSTATE_VALUE}">
+      <input type="hidden" name="${FIXTURE_EVENT_VALIDATION_NAME}" value="${FIXTURE_EVENT_VALIDATION_VALUE}">
+      <input id="ctl00_SiteContentPlaceHolder_AdditionalEmailRadioList_0" name="${FIXTURE_RADIO_NAME}" type="radio" value="${FIXTURE_YES_VALUE}">Yes
+      <input id="ctl00_SiteContentPlaceHolder_AdditionalEmailRadioList_1" name="${FIXTURE_RADIO_NAME}" type="radio" value="${FIXTURE_NO_VALUE}">No
+    <input id="ctl00_SiteContentPlaceHolder_EmailButton" name="${FIXTURE_SUBMITTER_NAME}" type="submit" value="${FIXTURE_SUBMITTER_VALUE}" onclick="${sendButtonAction}">
     </form>
+    ${formVariantScript}
     <script>window.__sendClicks = window.__sendClicks || 0;</script>
   </body></html>`;
 }
