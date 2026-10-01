@@ -47,6 +47,8 @@ export interface Ds160EmailSubmittedFormMetadata {
   changedPairKinds?: { lastFocus: number; eventTarget: number; eventArgument: number; scrollPosition: number; other: number };
   lastFocusMatchesSubmitter?: boolean;
   onlyVerifiedNativeFocusChanged?: boolean;
+  postClickFormObserved?: boolean;
+  postClickSuccessfulControlsMatch?: boolean | null;
 }
 
 type NativeFormSnapshot = {
@@ -357,7 +359,7 @@ async function controlValue(control: Locator): Promise<string> {
 // A read-only snapshot of native successful controls. Do not use FormData(form):
 // its constructor can dispatch a formdata event and change the official flow.
 async function readNativeFormSnapshot(sendControl: Locator): Promise<NativeFormSnapshot | undefined> {
-  return sendControl.evaluate((element, limits) => {
+  const read = sendControl.evaluate((element, limits) => {
     if (window.location.origin !== "https://ceac.state.gov" ||
       window.location.pathname.toLowerCase() !== limits.emailPath.toLowerCase()) return undefined;
     if (!(element instanceof HTMLInputElement || element instanceof HTMLButtonElement)) return undefined;
@@ -401,7 +403,8 @@ async function readNativeFormSnapshot(sendControl: Locator): Promise<NativeFormS
       } else if (control instanceof HTMLButtonElement) {
         if (control.type === "submit" && control === element) helpers.add(control.name, control.value);
       } else if (control instanceof HTMLSelectElement) {
-        for (let optionIndex = 0; optionIndex < control.selectedOptions.length; optionIndex += 1) {
+        if (control.selectedOptions.length > limits.pairs) bounded = false;
+        for (let optionIndex = 0; optionIndex < Math.min(control.selectedOptions.length, limits.pairs); optionIndex += 1) {
           const option = control.selectedOptions.item(optionIndex)!;
           if (!option.disabled && !(option.parentElement instanceof HTMLOptGroupElement && option.parentElement.disabled)) {
             helpers.add(control.name, option.value);
@@ -424,6 +427,17 @@ async function readNativeFormSnapshot(sendControl: Locator): Promise<NativeFormS
     emailPath: EMAIL_PAGE_PATH, no: ADDITIONAL_EMAIL_NO_SELECTOR, yes: ADDITIONAL_EMAIL_YES_SELECTOR,
     controls: MAX_FORM_CONTROLS, pairs: MAX_FORM_PAIRS, characters: MAX_FORM_BODY_BYTES,
   }, { timeout: 2_000 }).catch(() => undefined);
+  // Locator's timeout bounds resolution, not evaluation/CDP completion.
+  // Keep this optional read inside a separate wall-clock budget as well.
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      read,
+      new Promise<undefined>(resolve => { timer = setTimeout(() => resolve(undefined), 2_000); }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 function compareSubmittedForm(request: Request, snapshot: NativeFormSnapshot | undefined): Ds160EmailSubmittedFormMetadata {
@@ -576,13 +590,29 @@ export async function sendOfficialDs160ConfirmationEmail(
   const overallDeadline = Date.now() + clampOverallTimeout(options.overallTimeoutMs);
   const remainingBudget = (phaseTimeoutMs: number): number => Math.max(1, Math.min(phaseTimeoutMs, overallDeadline - Date.now()));
   let nativeFormSnapshot: NativeFormSnapshot | undefined;
+  let nativeSendControl: Locator | undefined;
   let submittedFormObserved = false;
+  let submittedMetadataTask: Promise<void> | undefined;
   const stopNetworkObserver = observeOfficialNetwork(page, diagnostics, request => {
     if (submittedFormObserved || !options.onSubmittedFormMetadata) return;
     submittedFormObserved = true;
-    try { options.onSubmittedFormMetadata(compareSubmittedForm(request, nativeFormSnapshot)); }
-    catch { /* An optional evidence sink must never alter or repeat the official request. */ }
+    let metadata: Ds160EmailSubmittedFormMetadata;
+    try { metadata = compareSubmittedForm(request, nativeFormSnapshot); }
+    catch { nativeFormSnapshot = undefined; return; }
     nativeFormSnapshot = undefined;
+    submittedMetadataTask = (async () => {
+      // The outgoing native request may follow official onclick/onsubmit state
+      // changes. Compare again while the old verified form remains observable;
+      // a committed navigation makes this optional read unverified, never false.
+      if (metadata.successfulControlsMatch === false && nativeSendControl) {
+        const afterClick = await readNativeFormSnapshot(nativeSendControl);
+        metadata.postClickFormObserved = Boolean(afterClick);
+        metadata.postClickSuccessfulControlsMatch = afterClick
+          ? compareSubmittedForm(request, afterClick).successfulControlsMatch : null;
+      }
+      try { options.onSubmittedFormMetadata?.(metadata); }
+      catch { /* An optional evidence sink must never alter or repeat the official request. */ }
+    })().catch(() => undefined);
   });
 
   const fail = (code: Ds160ConfirmationEmailCode, message: string): never => {
@@ -706,6 +736,7 @@ export async function sendOfficialDs160ConfirmationEmail(
     // prevent dispatch rather than being mistaken for a click timeout.
     await options.assertOwned();
     if (options.onSubmittedFormMetadata) {
+      nativeSendControl = sendControl;
       nativeFormSnapshot = await readNativeFormSnapshot(sendControl);
       await options.assertOwned();
     }
@@ -837,6 +868,8 @@ export async function sendOfficialDs160ConfirmationEmail(
     );
   } finally {
     stopNetworkObserver();
+    await submittedMetadataTask;
     nativeFormSnapshot = undefined;
+    nativeSendControl = undefined;
   }
 }
