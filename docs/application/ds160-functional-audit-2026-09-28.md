@@ -2440,3 +2440,25 @@ Actual submission failure, active retry, manual action and missing-result cases
 retain their previous precedence. This corrects an API label; it does not mark
 email as sent, rewrite application data, or change the official-email runner.
 Production verification is recorded below after release.
+
+Release acceptance: 46 focused route tests, frontend type-check and local
+production build passed. Full lint had zero errors and 57 existing warnings.
+The organization CLI account, exact linked project/team/root and release author
+were verified. The dry upload manifest excluded credentials, local evidence,
+build caches and backend services. Frontend-only release `1a36a1d6` produced
+deployment `dpl_2ptEnJ7tnVq3nQFW9rtM61F47mqV`; its READY state and exact commit
+were verified before promotion. The alias API independently confirmed
+app.viza.it.com points to that deployment (the deployment's own alias list
+did not include the custom domain).
+
+Authenticated production GET now returns status completed and applicationStatus
+submitted. Confirmation proof is ready; the English PDF remains 149,537 bytes
+with SHA e23b0b9e0f3f24b659dd12679ea2d76bb8d5720d8ba0b8de1ae35ee5b63922a8.
+The separate email GET remains unknown and the recipient matches the account.
+Real Chrome refresh shows submitted confirmation and the PDF control alongside
+the email-unknown notice, with no submit or email-send/retry button. No new
+official request was made for acceptance. Fresh database checks retain one
+confirmed final fence, zero active jobs and zero sent-email results. At 00:21
+UTC the worker was still stopped, provider zero, with unchanged configuration;
+this release did not deploy or wake the worker. The official email completion
+error remains unresolved and must not be described as a completed send flow.
