@@ -2608,3 +2608,39 @@ All 21 worker lifecycle/private-evidence tests passed, as did service type
 checking/build and diff checking. No new official request was made during
 implementation. Production installation and a single authorized diagnostic
 attempt remain to be recorded separately.
+
+Release eab7fd9d was installed image-only after organization identity/author,
+global empty queues, provider zero and two fresh safe readiness observations.
+Immutable image digest is 00fb3bb70803c49ffd0dec54fc1ed2c9c56c43272bab9844213364fcdd28ca0b;
+all non-image configuration hashes remained unchanged. Cold-start health and
+readiness passed. One normal authenticated email-only request at 21:24:56 UTC
+created queue [redacted-production-id], run
+ds160-email-[redacted-production-id]. The same official confirmation
+was verified at 21:26:30 and a single dispatch reserved at 21:26:48.
+
+The SHA-verified private bundle establishes exact single native submitter and
+No radio pairs, Yes absent, VIEWSTATE family unchanged and EVENTVALIDATION
+absent in both DOM and POST. No duplicate key or unsupported control appeared.
+One expected pair was missing and one unexpected pair appeared in the POST;
+this may be a value change or a removed/added pair. The identity was not retained by this first
+audit and cannot be inferred from the old artifact. Native focus/scroll state
+can legitimately change during a click, so this is not evidence of a malformed
+request. The final POST returned 302 in 95 ms; Complete_Done returned 302 after
+100,152 ms to AppError (200). The final 21:29:03 capture shows Application Error,
+no explicit email success marker. A hash of the error body is not a receipt.
+The queue settled unknown at 21:29:08 and released its claim. Fresh application
+status/result remain submitted, confirmed fence one, active zero and sent zero.
+At 21:32:37 provider sessions were zero and the machine had automatically stopped.
+
+A bounded follow-up categorizes changed standard ASP.NET event/focus/scroll
+keys without retaining names or values. Only a single __LASTFOCUS change whose
+posted value matches the clicked native submitter's DOM ID may be classified
+as a verified native focus transition; strict byte/pair mismatch remains
+visible. Other changes stay unexplained. This additional diagnostic must be
+tested and installed before another authorized attempt; it does not repair or
+claim to repair CEAC's mail service.
+The 19 offline sender tests now pass, including a native __LASTFOCUS transition
+that produces strict pair mismatch while matching the clicked control's ID.
+Type checking/build and diff checks passed. Primary Microsoft reference-source
+review confirms that focus, scroll and postback event state can be mutated by
+native ASP.NET handlers; that does not identify the actual changed live pair.

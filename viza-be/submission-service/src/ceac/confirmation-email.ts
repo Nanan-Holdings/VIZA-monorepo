@@ -44,11 +44,15 @@ export interface Ds160EmailSubmittedFormMetadata {
   unexpectedPairCount: number;
   unexpectedDuplicateKeyCount: number;
   unsupportedControlCount: number;
+  changedPairKinds?: { lastFocus: number; eventTarget: number; eventArgument: number; scrollPosition: number; other: number };
+  lastFocusMatchesSubmitter?: boolean;
+  onlyVerifiedNativeFocusChanged?: boolean;
 }
 
 type NativeFormSnapshot = {
   pairs: Array<[string, string]>;
   submitter: [string, string] | null;
+  submitterId: string;
   noRadio: [string, string] | null;
   yesRadio: [string, string] | null;
   unsupportedControlCount: number;
@@ -412,6 +416,7 @@ async function readNativeFormSnapshot(sendControl: Locator): Promise<NativeFormS
       pairs,
       submitter: element.name && element.type === "submit" && !element.matches(":disabled")
         ? [element.name, element.value] as [string, string] : null,
+      submitterId: element.id,
       noRadio: helpers.radioPair(limits.no), yesRadio: helpers.radioPair(limits.yes),
       unsupportedControlCount, bounded,
     };
@@ -481,6 +486,32 @@ function compareSubmittedForm(request: Request, snapshot: NativeFormSnapshot | u
   metadata.eventValidationPairsMatch = fieldGroupMatches(/^__EVENTVALIDATION$/);
   metadata.successfulControlsMatch = snapshot.unsupportedControlCount === 0
     ? metadata.missingPairCount === 0 && metadata.unexpectedPairCount === 0 : null;
+  const changedKeys = [...expectedKeys.keys()].filter(key => {
+    if (expectedKeys.get(key) !== postedKeys.get(key)) return false;
+    return snapshot.pairs.filter(pair => pair[0] === key)
+      .some(pair => expectedCounts.get(pairKey(pair)) !== postedCounts.get(pairKey(pair)));
+  });
+  if (changedKeys.length) {
+    // Focus and scroll hidden inputs may legitimately change during a native
+    // click. Classify their changes without keeping names or either value.
+    const kinds = { lastFocus: 0, eventTarget: 0, eventArgument: 0, scrollPosition: 0, other: 0 };
+    for (const key of changedKeys) {
+      if (key === "__LASTFOCUS") kinds.lastFocus += 1;
+      else if (key === "__EVENTTARGET") kinds.eventTarget += 1;
+      else if (key === "__EVENTARGUMENT") kinds.eventArgument += 1;
+      else if (/^__SCROLLPOSITION[XY]$/.test(key)) kinds.scrollPosition += 1;
+      else kinds.other += 1;
+    }
+    metadata.changedPairKinds = kinds;
+    if (kinds.lastFocus) {
+      const values = posted.filter(pair => pair[0] === "__LASTFOCUS");
+      metadata.lastFocusMatchesSubmitter = Boolean(snapshot.submitterId)
+        && values.length === 1 && values[0][1] === snapshot.submitterId;
+    }
+    metadata.onlyVerifiedNativeFocusChanged = changedKeys.length === 1 && kinds.lastFocus === 1
+      && metadata.lastFocusMatchesSubmitter === true && metadata.missingPairCount === 1
+      && metadata.unexpectedPairCount === 1 && metadata.unsupportedControlCount === 0;
+  }
   return metadata;
 }
 

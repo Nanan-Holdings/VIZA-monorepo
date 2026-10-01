@@ -21,12 +21,15 @@ const FIXTURE_VIEWSTATE_NAME = "__VIEWSTATE";
 const FIXTURE_VIEWSTATE_VALUE = "fixture-view-state-token";
 const FIXTURE_EVENT_VALIDATION_NAME = "__EVENTVALIDATION";
 const FIXTURE_EVENT_VALIDATION_VALUE = "fixture-event-validation-token";
+const FIXTURE_LASTFOCUS_NAME = "__LASTFOCUS";
+const FIXTURE_LASTFOCUS_VALUE = "fixture-last-focus-token";
+const FIXTURE_SUBMITTER_ID = "ctl00_SiteContentPlaceHolder_EmailButton";
 const MUTATED_NO_VALUE = "No-after-fence";
 const MUTATED_VIEWSTATE_VALUE = "fixture-view-state-after-fence";
 const MUTATED_EVENT_VALIDATION_VALUE = "fixture-event-validation-after-fence";
 const FIXTURE_UNEXPECTED_NAME = "fixtureUnexpectedKey";
 
-type FixtureFormVariant = "native" | "mutated" | "omit_submitter" | "duplicate_unexpected";
+type FixtureFormVariant = "native" | "mutated" | "native_focus" | "omit_submitter" | "duplicate_unexpected";
 
 interface FixtureNativePostShape {
   exactExpectedPairs: boolean;
@@ -35,6 +38,7 @@ interface FixtureNativePostShape {
   yesRadioPairPresent: boolean;
   viewstatePairCount: number;
   eventValidationPairCount: number;
+  lastFocusPairCount: number;
   unexpectedPairCount: number;
   unexpectedDuplicateKeyCount: number;
 }
@@ -64,9 +68,10 @@ function summarizeNativePost(postData: string, variant: FixtureFormVariant): Fix
   const expectedViewstateValue = variant === "mutated" ? MUTATED_VIEWSTATE_VALUE : FIXTURE_VIEWSTATE_VALUE;
   const expectedEventValidationValue = variant === "mutated"
     ? MUTATED_EVENT_VALIDATION_VALUE : FIXTURE_EVENT_VALIDATION_VALUE;
+  const expectedLastFocusValue = variant === "native_focus" ? FIXTURE_SUBMITTER_ID : FIXTURE_LASTFOCUS_VALUE;
   const knownNames = new Set([
     FIXTURE_STAGE_NAME, FIXTURE_SUBMITTER_NAME, FIXTURE_RADIO_NAME,
-    FIXTURE_VIEWSTATE_NAME, FIXTURE_EVENT_VALIDATION_NAME,
+    FIXTURE_VIEWSTATE_NAME, FIXTURE_EVENT_VALIDATION_NAME, FIXTURE_LASTFOCUS_NAME,
   ]);
   const keyCounts = new Map<string, number>();
   for (const [name] of pairs) keyCounts.set(name, (keyCounts.get(name) ?? 0) + 1);
@@ -78,7 +83,10 @@ function summarizeNativePost(postData: string, variant: FixtureFormVariant): Fix
     && hasExactPair(FIXTURE_SUBMITTER_NAME, FIXTURE_SUBMITTER_VALUE)
     && hasExactPair(FIXTURE_RADIO_NAME, expectedNoValue)
     && hasExactPair(FIXTURE_VIEWSTATE_NAME, expectedViewstateValue)
-    && hasExactPair(FIXTURE_EVENT_VALIDATION_NAME, expectedEventValidationValue);
+    && hasExactPair(FIXTURE_EVENT_VALIDATION_NAME, expectedEventValidationValue)
+    && (variant === "native_focus"
+      ? hasExactPair(FIXTURE_LASTFOCUS_NAME, expectedLastFocusValue)
+      : count(FIXTURE_LASTFOCUS_NAME) === 0);
   return {
     exactExpectedPairs: expectedPairsMatch && unexpectedPairCount === 0,
     submitterPairCount: count(FIXTURE_SUBMITTER_NAME),
@@ -86,6 +94,7 @@ function summarizeNativePost(postData: string, variant: FixtureFormVariant): Fix
     yesRadioPairPresent: params.getAll(FIXTURE_RADIO_NAME).includes(FIXTURE_YES_VALUE),
     viewstatePairCount: count(FIXTURE_VIEWSTATE_NAME),
     eventValidationPairCount: count(FIXTURE_EVENT_VALIDATION_NAME),
+    lastFocusPairCount: count(FIXTURE_LASTFOCUS_NAME),
     unexpectedPairCount,
     unexpectedDuplicateKeyCount,
   };
@@ -128,6 +137,7 @@ test("sends the official email once after exact recipient and No readback", asyn
         yesRadioPairPresent: false,
         viewstatePairCount: 1,
         eventValidationPairCount: 1,
+        lastFocusPairCount: 0,
         unexpectedPairCount: 0,
         unexpectedDuplicateKeyCount: 0,
       },
@@ -193,6 +203,7 @@ test("captures the post shape after the fence mutates the current native form", 
         yesRadioPairPresent: false,
         viewstatePairCount: 1,
         eventValidationPairCount: 1,
+        lastFocusPairCount: 0,
         unexpectedPairCount: 0,
         unexpectedDuplicateKeyCount: 0,
       },
@@ -216,6 +227,55 @@ test("captures the post shape after the fence mutates the current native form", 
       unsupportedControlCount: 0,
     });
     assert.doesNotMatch(JSON.stringify(submittedFormMetadata), /fixtureEmailButton|fixtureAdditionalEmailChoice|fixture-view-state|fixture-event-validation|Email Confirmation|No-after-fence/);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("classifies a native focus-only changed pair without treating it as a second send", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await installFixture(await browser.newPage(), { receipt: "success", formVariant: "native_focus" });
+    let submittedFormMetadata: unknown;
+    const result = await sendOfficialDs160ConfirmationEmail({
+      page,
+      expectedApplicationId: APPLICATION_ID,
+      verifiedRecipient: RECIPIENT,
+      assertOwned: () => undefined,
+      beforeSend: () => undefined,
+      onSubmittedFormMetadata: metadata => { submittedFormMetadata = metadata; },
+      overallTimeoutMs: 10_000,
+    });
+
+    assert.equal(result.status, "sent");
+    assert.equal(await page.evaluate(() => (window as unknown as { __sendClicks?: number }).__sendClicks), 1);
+    assert.deepEqual(fixturePostObservation(page), {
+      nativeFinalPostCount: 1,
+      lastNativePost: {
+        exactExpectedPairs: true,
+        submitterPairCount: 1,
+        noRadioPairCount: 1,
+        yesRadioPairPresent: false,
+        viewstatePairCount: 1,
+        eventValidationPairCount: 1,
+        lastFocusPairCount: 1,
+        unexpectedPairCount: 0,
+        unexpectedDuplicateKeyCount: 0,
+      },
+    });
+    assert.ok(submittedFormMetadata && typeof submittedFormMetadata === "object");
+    const metadata = submittedFormMetadata as Record<string, unknown>;
+    assert.equal(metadata.successfulControlsMatch, false);
+    assert.deepEqual(metadata.changedPairKinds, {
+      lastFocus: 1,
+      eventTarget: 0,
+      eventArgument: 0,
+      scrollPosition: 0,
+      other: 0,
+    });
+    assert.equal(metadata.lastFocusMatchesSubmitter, true);
+    assert.equal(metadata.onlyVerifiedNativeFocusChanged, true);
+    assert.doesNotMatch(JSON.stringify(metadata), /fixtureEmailButton|fixtureAdditionalEmailChoice|fixture-view-state|fixture-event-validation|fixture-last-focus|Email Confirmation|No|Yes/);
   } finally {
     await browser.close();
   }
@@ -879,10 +939,15 @@ function emailHtml(
   const sendButtonAction = ajaxSubmit
     ? `event.preventDefault(); window.__sendClicks = (window.__sendClicks || 0) + 1; fetch('${EMAIL_PATH}', { method: 'POST', body: 'stage=send' }).then(() => document.body.insertAdjacentHTML('beforeend', '<div>Email confirmation has been sent.</div>'));`
     : "window.__sendClicks = (window.__sendClicks || 0) + 1;";
+  const lastFocusField = formVariant === "native_focus"
+    ? `<input type="hidden" name="${FIXTURE_LASTFOCUS_NAME}" value="${FIXTURE_LASTFOCUS_VALUE}">`
+    : "";
   const formVariantScript = formVariant === "omit_submitter"
     ? `<script>document.querySelector('form').addEventListener('formdata', event => event.formData.delete('${FIXTURE_SUBMITTER_NAME}'));</script>`
     : formVariant === "duplicate_unexpected"
       ? `<script>document.querySelector('form').addEventListener('formdata', event => { event.formData.append('${FIXTURE_UNEXPECTED_NAME}', 'unexpected-one'); event.formData.append('${FIXTURE_UNEXPECTED_NAME}', 'unexpected-two'); });</script>`
+      : formVariant === "native_focus"
+        ? `<script>document.getElementById('${FIXTURE_SUBMITTER_ID}').addEventListener('focus', function () { document.querySelector('input[name="${FIXTURE_LASTFOCUS_NAME}"]').value = this.id; });</script>`
       : "";
   return `<!doctype html><html><body>
     <h2>Email Confirmation</h2>
@@ -893,6 +958,7 @@ function emailHtml(
       <input name="stage" value="send" type="hidden">
       <input type="hidden" name="${FIXTURE_VIEWSTATE_NAME}" value="${FIXTURE_VIEWSTATE_VALUE}">
       <input type="hidden" name="${FIXTURE_EVENT_VALIDATION_NAME}" value="${FIXTURE_EVENT_VALIDATION_VALUE}">
+      ${lastFocusField}
       <input id="ctl00_SiteContentPlaceHolder_AdditionalEmailRadioList_0" name="${FIXTURE_RADIO_NAME}" type="radio" value="${FIXTURE_YES_VALUE}">Yes
       <input id="ctl00_SiteContentPlaceHolder_AdditionalEmailRadioList_1" name="${FIXTURE_RADIO_NAME}" type="radio" value="${FIXTURE_NO_VALUE}">No
     <input id="ctl00_SiteContentPlaceHolder_EmailButton" name="${FIXTURE_SUBMITTER_NAME}" type="submit" value="${FIXTURE_SUBMITTER_VALUE}" onclick="${sendButtonAction}">
