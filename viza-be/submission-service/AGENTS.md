@@ -75,31 +75,26 @@ without updating this worker image and verifying these runtime flags.
 
 Scope: this file applies to `viza-be/submission-service/**`.
 
-`src/ds160-auto-email.ts` records an automatic confirmation-email intent in a
-new successful submission's queue payload. Only after its browser and heartbeat
-have closed may the exact completed claim become ready and release its lease.
-Its post-cleanup readiness handoff may retry bounded database transport
-failures while preserving the original claim; claim conflicts and identity
-mismatches fail closed. `src/ds160-submitted-artifacts.ts` contains the
-failure-contained capture/storage wrapper for optional post-confirmation proof,
-so a private artifact outage cannot replace a confirmed result. The queue
-payload records unavailable artifact stages without exposing storage details.
-The legacy startup/drain dispatches ready intents through the existing email
-enqueue RPC with the source queue UUID as the stable request ID and retry=false.
-The recipient comes from the authenticated owner's current account. Existing
-applications without an intent are not backfilled. Failed/unknown/sent emails
-are never automatically replayed by this handoff; a ready intent survives an
-enqueue outage, while uncertain browser cleanup remains blocked for recovery.
-Tests live in `src/__tests__/ds160-auto-email.spec.ts`.
+Automatic DS-160 confirmation-email intents are retired. New successful
+submissions preserve the official submitted state, final-submission fence, and
+failure-contained confirmation/PDF artifacts, then release the exact queue
+claim only after browser close and heartbeat shutdown, with a short bounded
+retry for transport failures. Historical
+`automaticEmail` payloads are left untouched: the worker performs no startup
+scan, drain, backfill, or automatic enqueue for them. The explicit,
+authenticated proof/recovery API remains available through
+`src/ds160-proof-email.ts`; this retirement does not remove that compatibility
+surface. The retirement and cleanup contract lives in
+`src/__tests__/ds160-auto-email.spec.ts`.
 
-`src/ds160-proof-email.ts` handles automatic post-submission and explicitly
-authorized recovery email jobs on the existing proof queue. It retrieves an already submitted
-application, verifies the authenticated owner's email digest and official
-recipient, reserves one durable email dispatch, and preserves encrypted official
-evidence. It never writes application submission state or invokes Sign. Terminal
+`src/ds160-proof-email.ts` handles explicitly authorized recovery email jobs on
+the existing proof queue. It retrieves an already submitted application,
+verifies the authenticated owner's email digest and official recipient,
+reserves one durable email dispatch, and preserves encrypted official evidence.
+It never writes application submission state or invokes Sign. Terminal
 settlement clears the exact claim only after provider cleanup; ambiguous email
-dispatch is `unknown` and requires a new explicit user request. Its local lifecycle
-fixtures are in `src/__tests__/ds160-proof-email.spec.ts`.
+dispatch is `unknown` and requires a new explicit user request. Its local
+lifecycle fixtures are in `src/__tests__/ds160-proof-email.spec.ts`.
 Pre-send failures retain a sanitized phase and typed CEAC error/status even
 when session bootstrap fails before returning a browser. No raw error message,
 URL or applicant value belongs in this public evidence; reserved sends remain
@@ -1090,10 +1085,10 @@ and must fail closed; callers must not perform a direct table settlement.
   authoritative queue check, and confirmation that no protected in-memory
   payment or Korea browser session remains. Future-window arrival-card rows do
   not count as runnable work until their persisted `scheduledFor` date.
-  Empty automatic DS-160 email drains must not reset the idle grace. The
-  surrounding poll/in-flight guard protects a running drain; record idle
-  activity only when it reports queued work. Keep both authoritative exit
-  checks and the protected-session checks intact.
+  Reading submitted DS-160 results or serving an already saved PDF must not
+  reset the idle grace. Active proof jobs remain protected by the surrounding
+  poll/in-flight guard and authoritative queue checks; keep both exit checks
+  and protected-session checks intact.
   Health and one-time-card endpoints must listen before Machine slot
   reservation completes. A transient Supabase/Cloudflare outage keeps the
   process alive with bounded retry and no queue claims until a slot is acquired;
@@ -1275,8 +1270,8 @@ the France-Visas account after confirming the run.
   `src/__tests__/ds160-submitted-artifacts.spec.ts` own the failure-contained
   optional DS-160 proof capture/storage boundary.
 - `viza-be/submission-service/src/__tests__/ds160-auto-email.spec.ts` covers
-  bounded post-cleanup readiness retries, exact-claim preservation and stable
-  one-send dispatch.
+  retirement of automatic intent creation/drain, submitted-claim release after
+  browser cleanup, and preservation of the official result/PDF artifact payload.
 - `viza-be/submission-service/src/result-writer.ts`
 - `viza-be/submission-service/src/__tests__/result-writer.spec.ts`
 - `viza-be/submission-service/src/queue/__tests__/pool-result-writes.spec.ts`

@@ -88,7 +88,7 @@ import { runUkHalt } from "./queue/halt-runners";
 import { NeedsHumanError } from "./queue/types";
 import { validateEnv } from "./config/validate-env";
 import { startHealthServer } from "./health-server";
-import { IdleExitController, runIdleTrackedDrain } from "./idle-exit-controller.js";
+import { IdleExitController } from "./idle-exit-controller.js";
 import {
   acquireRunnerSlotWithRetry,
   RunnerSlotLease,
@@ -174,11 +174,6 @@ import {
   type Ds160ProofStoragePaths,
 } from "./ds160-submitted-artifacts";
 import {
-  createDs160AutomaticEmailIntent,
-  markDs160AutomaticEmailReadyWithRetry,
-  dispatchDs160AutomaticEmails,
-} from "./ds160-auto-email";
-import {
   SubmissionQueueItem,
   ApplicantProfile,
   Application,
@@ -198,6 +193,7 @@ import {
   claimPendingSubmissionQueueItems,
   claimPendingVietnamCloudQueueItems,
   finishDs160Attempt,
+  releaseDs160SubmittedLeaseWithRetry,
   releaseDs160RetryLease,
   startSubmissionQueueLeaseHeartbeat,
   SubmissionQueueOwnershipLostError,
@@ -2474,7 +2470,7 @@ async function processDs160Item(
   const capturedResumeActive = capturedResumeCheckpoint !== null;
   const auditArtifacts: Record<string, { storagePath: string; sha256: string }> = {};
   let auditEvidenceFailed = false;
-  let automaticEmailRequested = false;
+  let submittedResultPersisted = false;
   const auditStoreOptions = {
     jobId: item.id,
     runId,
@@ -2857,12 +2853,11 @@ async function processDs160Item(
             ? { applicationMetadata: { status: "unavailable", failureStage: "persistence" } }
             : {}),
           proofArtifacts: proofArtifactStatus,
-          automaticEmail: createDs160AutomaticEmailIntent(),
         } as unknown as Record<string, unknown>,
         live_submitted_at: result.submittedAt,
         updated_at: new Date().toISOString(),
       });
-      automaticEmailRequested = true;
+      submittedResultPersisted = true;
 
       console.log(
         `[ceac] Run ${runId} submitted for application=${redactIdentifier(item.application_id)} ceac=${redactIdentifier(applicationId)}`,
@@ -3295,17 +3290,20 @@ async function processDs160Item(
             });
           },
         });
-        // Browser cleanup must finish before the submitted row can hand off
-        // to its automatic email job. A mail failure never changes success.
-        if (automaticEmailRequested && !queueLease?.isOwnershipLost()) {
+        // Browser cleanup and heartbeat shutdown must finish before releasing
+        // the exact submitted claim. A lease-release failure never changes
+        // the confirmed official result.
+        if (submittedResultPersisted && !queueLease?.isOwnershipLost()) {
           try {
             // finishDs160Attempt above has already closed CEAC and stopped the
-            // heartbeat. Retry only this transient handoff while the same
-            // exact claim is still fenced; a replacement/dead claim returns
-            // false and is never released by this path.
-            await markDs160AutomaticEmailReadyWithRetry(supabase, item);
+            // heartbeat. Release only the exact submitted claim; a
+            // replacement/dead claim returns false and is never released.
+            const released = await releaseDs160SubmittedLeaseWithRetry(supabase, item);
+            if (!released) {
+              console.warn("[ceac] Submitted DS-160 lease was not released; preserving submission.");
+            }
           } catch {
-            console.warn("[ceac-email] Automatic email handoff needs recovery; submission is preserved.");
+            console.warn("[ceac] Submitted DS-160 lease release needs recovery; submission is preserved.");
           }
         }
       } finally {
@@ -8827,21 +8825,6 @@ async function pollOnce(runMaintenance = true): Promise<boolean> {
   let items: SubmissionQueueItem[];
   legacyQueueWorkInFlight = true;
   try {
-    if (LEGACY_SUBMISSION_QUEUE_ENABLED && !targetJobId) {
-      try {
-        // Only durable ready intents created by successful new submissions
-        // qualify. Refreshing a result page never enqueues or replays mail.
-        const queuedAutomaticEmails = await runIdleTrackedDrain(
-          () => dispatchDs160AutomaticEmails(supabase),
-          () => idleExitController?.noteActivity(),
-        );
-        if (queuedAutomaticEmails > 0) {
-          console.log(`[poll] Queued ${queuedAutomaticEmails} automatic DS-160 email job(s).`);
-        }
-      } catch {
-        console.warn("[ceac-email] Automatic email queue temporarily unavailable; intent is retained.");
-      }
-    }
     items = await fetchPendingItems({ concurrency, targetJobId });
   } catch (err) {
     legacyQueueWorkInFlight = false;

@@ -5,6 +5,7 @@ import {
   Ds160ConfirmationEmailError,
   sendOfficialDs160ConfirmationEmail,
 } from "../confirmation-email";
+import { SessionExpiredError } from "../errors";
 
 const APPLICATION_ID = "AA00FLSF69";
 const RECIPIENT = "verified@example.invalid";
@@ -33,6 +34,7 @@ const MUTATED_EVENT_VALIDATION_VALUE = "fixture-event-validation-after-fence";
 const FIXTURE_UNEXPECTED_NAME = "fixtureUnexpectedKey";
 
 type FixtureFormVariant = "native" | "mutated" | "native_focus" | "native_other" | "omit_submitter" | "duplicate_unexpected";
+type FixtureSessionState = "active" | "visible_expired" | "hidden_expired" | "expires_after_no";
 
 interface FixtureNativePostShape {
   exactExpectedPairs: boolean;
@@ -757,6 +759,128 @@ test("rejects a recipient mismatch before reserving or dispatching", async () =>
   }
 });
 
+test("rejects a visible session-expiry banner before the send fence", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await installFixture(await browser.newPage(), { sessionState: "visible_expired" });
+    let fenceCalls = 0;
+    let sendRequests = 0;
+    page.on("request", request => {
+      if (request.method() === "POST" && new URL(request.url()).pathname === EMAIL_PATH
+        && new URLSearchParams(request.postData() ?? "").get(FIXTURE_STAGE_NAME) === FIXTURE_STAGE_VALUE) sendRequests += 1;
+    });
+
+    await assert.rejects(
+      () => sendOfficialDs160ConfirmationEmail({
+        page,
+        expectedApplicationId: APPLICATION_ID,
+        verifiedRecipient: RECIPIENT,
+        assertOwned: () => undefined,
+        beforeSend: () => { fenceCalls += 1; },
+        overallTimeoutMs: 2_000,
+      }),
+      (error: unknown) => error instanceof SessionExpiredError && error.code === "SESSION_EXPIRED",
+    );
+    assert.equal(fenceCalls, 0);
+    assert.equal(sendRequests, 0);
+    assert.equal(await page.evaluate(() => (window as unknown as { __sendClicks?: number }).__sendClicks), 0);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("ignores a hidden session-expiry panel on an active email form", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await installFixture(await browser.newPage(), { sessionState: "hidden_expired" });
+    let fenceCalls = 0;
+    let sendRequests = 0;
+    page.on("request", request => {
+      if (request.method() === "POST" && new URL(request.url()).pathname === EMAIL_PATH
+        && new URLSearchParams(request.postData() ?? "").get(FIXTURE_STAGE_NAME) === FIXTURE_STAGE_VALUE) sendRequests += 1;
+    });
+
+    const result = await sendOfficialDs160ConfirmationEmail({
+      page,
+      expectedApplicationId: APPLICATION_ID,
+      verifiedRecipient: RECIPIENT,
+      assertOwned: () => undefined,
+      beforeSend: () => { fenceCalls += 1; },
+      overallTimeoutMs: 2_000,
+    });
+    assert.equal(result.status, "sent");
+    assert.equal(fenceCalls, 1);
+    assert.equal(sendRequests, 1);
+    assert.equal(await page.evaluate(() => (window as unknown as { __sendClicks?: number }).__sendClicks), 1);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("rechecks a session expiry that appears after initial form validation", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await installFixture(await browser.newPage(), { sessionState: "expires_after_no" });
+    let fenceCalls = 0;
+    let sendRequests = 0;
+    page.on("request", request => {
+      if (request.method() === "POST" && new URL(request.url()).pathname === EMAIL_PATH
+        && new URLSearchParams(request.postData() ?? "").get(FIXTURE_STAGE_NAME) === FIXTURE_STAGE_VALUE) sendRequests += 1;
+    });
+
+    await assert.rejects(
+      () => sendOfficialDs160ConfirmationEmail({
+        page,
+        expectedApplicationId: APPLICATION_ID,
+        verifiedRecipient: RECIPIENT,
+        assertOwned: () => undefined,
+        beforeSend: () => { fenceCalls += 1; },
+        overallTimeoutMs: 2_000,
+      }),
+      (error: unknown) => error instanceof SessionExpiredError && error.code === "SESSION_EXPIRED",
+    );
+    assert.equal(fenceCalls, 0);
+    assert.equal(sendRequests, 0);
+    assert.equal(await page.evaluate(() => (window as unknown as { __sendClicks?: number }).__sendClicks), 0);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("fails closed when the pre-fence visible-body read cannot settle", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await installFixture(await browser.newPage());
+    let ownershipChecks = 0;
+    let fenceCalls = 0;
+    let sendRequests = 0;
+    page.on("request", request => {
+      if (request.method() === "POST" && new URL(request.url()).pathname === EMAIL_PATH
+        && new URLSearchParams(request.postData() ?? "").get(FIXTURE_STAGE_NAME) === FIXTURE_STAGE_VALUE) sendRequests += 1;
+    });
+
+    await assert.rejects(
+      () => sendOfficialDs160ConfirmationEmail({
+        page,
+        expectedApplicationId: APPLICATION_ID,
+        verifiedRecipient: RECIPIENT,
+        assertOwned: async () => {
+          ownershipChecks += 1;
+          if (ownershipChecks === 2) await page.evaluate(() => document.body?.remove());
+        },
+        beforeSend: () => { fenceCalls += 1; },
+        overallTimeoutMs: 2_000,
+      }),
+      (error: unknown) => error instanceof Error && !(error instanceof SessionExpiredError),
+    );
+    assert.equal(fenceCalls, 0);
+    assert.equal(sendRequests, 0);
+    assert.equal(await page.evaluate(() => (window as unknown as { __sendClicks?: number }).__sendClicks), 0);
+  } finally {
+    await browser.close();
+  }
+});
+
 test("keeps the final click one-shot when CEAC returns a gate", async () => {
   const browser = await chromium.launch({ headless: true });
   try {
@@ -883,10 +1007,12 @@ async function installFixture(page: Page, options: {
   noisyAssets?: boolean;
   delayedNoisyAssets?: boolean;
   formVariant?: FixtureFormVariant;
+  sessionState?: FixtureSessionState;
 } = {}): Promise<Page> {
   const recipient = options.recipient ?? RECIPIENT;
   const receipt = options.receipt ?? "success";
   const formVariant = options.formVariant ?? "native";
+  const sessionState = options.sessionState ?? "active";
   const postObservation: FixturePostObservation = { nativeFinalPostCount: 0 };
   fixturePostObservations.set(page, postObservation);
   // Browser-followed redirects may bypass route handlers. Keep every fixture
@@ -988,6 +1114,7 @@ async function installFixture(page: Page, options: {
         options.noisyAssets === true,
         receipt === "ajax_success",
         formVariant,
+        sessionState,
       ),
     });
   });
@@ -1016,6 +1143,7 @@ function emailHtml(
   noisyAssets = false,
   ajaxSubmit = false,
   formVariant: FixtureFormVariant = "native",
+  sessionState: FixtureSessionState = "active",
 ): string {
   const noise = noisyAssets
     ? Array.from({ length: 96 }, (_, index) => `<img src="/GenNIV/noise/${index}.gif" alt="">`).join("")
@@ -1038,8 +1166,17 @@ function emailHtml(
       : formVariant === "native_focus"
         ? `<script>document.getElementById('${FIXTURE_SUBMITTER_ID}').addEventListener('focus', function () { document.querySelector('input[name="${FIXTURE_LASTFOCUS_NAME}"]').value = this.id; });</script>`
       : "";
+  const sessionMarker = sessionState === "visible_expired"
+    ? "<div id=\"session-expired-banner\">Your session has timed out. Please start over.</div>"
+    : sessionState === "hidden_expired"
+      ? "<div id=\"ctl00_pnlTimeout\" style=\"display:none\">Your session has timed out. Please start over.</div>"
+      : "";
+  const sessionExpiryScript = sessionState === "expires_after_no"
+    ? `<script>document.getElementById('ctl00_SiteContentPlaceHolder_AdditionalEmailRadioList_1').addEventListener('change', function () { const banner = document.createElement('div'); banner.id = 'session-expired-after-no'; banner.textContent = 'Your session has timed out. Please start over.'; document.body.prepend(banner); });</script>`
+    : "";
   return `<!doctype html><html><body>
     <h2>Email Confirmation</h2>
+    ${sessionMarker}
     <div>Saved recipient: ${recipient}</div>
     ${receiptText ? `<div>${receiptText}</div>` : ""}
     ${noise}
@@ -1054,6 +1191,7 @@ function emailHtml(
     <input id="ctl00_SiteContentPlaceHolder_EmailButton" name="${FIXTURE_SUBMITTER_NAME}" type="submit" value="${FIXTURE_SUBMITTER_VALUE}" onclick="${sendButtonAction}">
     </form>
     ${formVariantScript}
+    ${sessionExpiryScript}
     <script>window.__sendClicks = window.__sendClicks || 0;</script>
   </body></html>`;
 }

@@ -1,9 +1,10 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { Locator, Page, Request, Response } from "@playwright/test";
 import { assertCeacPostbackHealthy, waitForAspNetPostbackStable } from "./aspnet";
-import { CeacError } from "./errors";
+import { CeacError, SessionExpiredError } from "./errors";
 import { assertNoGate } from "./gates";
 import { isOfficialDs160ConfirmationPage } from "./pages";
+import { CEAC_SESSION_EXPIRED_MARKERS } from "./selectors";
 
 const CEAC_ORIGIN = "https://ceac.state.gov";
 const EMAIL_PAGE_PATH = "/GenNIV/common/email.aspx";
@@ -319,12 +320,34 @@ async function assertEmailFormPage(page: Page, diagnostics: MutableDiagnostics):
   }
   assertCeacPostbackHealthy(page);
   await assertNoGate(page);
+  await assertEmailSessionActive(page);
   diagnostics.finalPath = currentOfficialPath(page);
 }
 
 async function readVisibleBody(page: Page, timeoutMs = 5_000): Promise<string> {
-  const timeout = Number.isFinite(timeoutMs) ? Math.max(1, Math.min(Math.floor(timeoutMs), 5_000)) : 5_000;
+  const timeout = clampBodyReadTimeout(timeoutMs);
   return page.locator("body").innerText({ timeout }).catch(() => "");
+}
+
+function clampBodyReadTimeout(timeoutMs: number): number {
+  return Number.isFinite(timeoutMs) ? Math.max(1, Math.min(Math.floor(timeoutMs), 5_000)) : 5_000;
+}
+
+async function readVisibleBodyStrict(page: Page, timeoutMs = 5_000): Promise<string> {
+  return page.locator("body").innerText({ timeout: clampBodyReadTimeout(timeoutMs) });
+}
+
+/**
+ * CEAC can keep the email-page URL and stale controls while showing a visible
+ * timeout banner. Read only rendered text so hidden/template copies of the
+ * marker cannot invalidate an otherwise active email form.
+ */
+async function assertEmailSessionActive(page: Page, timeoutMs = 5_000): Promise<void> {
+  const body = await readVisibleBodyStrict(page, timeoutMs);
+  if (!CEAC_SESSION_EXPIRED_MARKERS.some(marker => marker.test(body))) return;
+  throw new SessionExpiredError("CEAC email confirmation session expired before dispatch.", {
+    detected: "session_expired",
+  });
 }
 
 function hashReceiptEvidence(body: string): string | undefined {
@@ -723,7 +746,8 @@ export async function sendOfficialDs160ConfirmationEmail(
     if (!opened) {
       await waitForAspNetPostbackStable(page, remainingBudget(postbackTimeoutMs)).catch(() => undefined);
     }
-    await assertEmailFormPage(page, diagnostics).catch(() => {
+    await assertEmailFormPage(page, diagnostics).catch((error: unknown) => {
+      if (error instanceof SessionExpiredError) throw error;
       fail("ds160_email_form_unavailable", "CEAC Email Confirmation form could not be verified.");
     });
     diagnostics.phase = "email_form";
@@ -779,6 +803,10 @@ export async function sendOfficialDs160ConfirmationEmail(
     }
 
     await options.assertOwned();
+    // Re-check immediately before the durable fence. CEAC can add a visible
+    // timeout banner after the initial email-page validation while retaining
+    // the old form controls in the DOM.
+    await assertEmailSessionActive(page, remainingBudget(controlTimeoutMs));
     await options.beforeSend();
     // The fence callback may involve a bounded RPC. Recheck ownership after
     // it returns and before the irreversible browser click; a loss here must

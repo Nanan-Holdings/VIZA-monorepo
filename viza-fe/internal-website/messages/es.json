@@ -3225,22 +3225,5 @@
       "pisa": "[ES] Pisa",
       "singapore": "[ES] Singapore"
     }
-  },
-  "usAppointment": {
-    "ds160Card": {
-      "automaticEmailTitle": "Correo de confirmación oficial",
-      "automaticEmailPreparing": "Esperando el estado del correo",
-      "automaticEmailPreparingBody": "Después del envío correcto, VIZA enviará automáticamente el correo de confirmación a tu correo de cuenta. Puedes salir de esta página; el estado se actualizará aquí.",
-      "automaticEmailPending": "Procesando automáticamente",
-      "automaticEmailPendingBody": "VIZA está procesando automáticamente el correo de confirmación oficial. El estado se actualizará aquí; esto no cambia el estado enviado.",
-      "automaticEmailSent": "CEAC confirmó el envío",
-      "automaticEmailSentBody": "CEAC confirmó que el correo oficial se envió a tu correo de cuenta. Este acuse no demuestra que haya llegado a la bandeja; revisa también el correo no deseado.",
-      "automaticEmailFailed": "Correo automático incompleto",
-      "automaticEmailFailedBody": "El sistema no pudo confirmar que se envió el correo oficial. El estado de envío del DS-160 no cambia; todavía puedes descargar el PDF de confirmación si está disponible.",
-      "automaticEmailUnknown": "No se pudo confirmar el resultado del correo oficial",
-      "automaticEmailUnknownBody": "CEAC no devolvió un acuse de envío claro. El estado de envío del DS-160 no cambia; revisa tu correo de cuenta y actualizar la página no volverá a enviarlo.",
-      "automaticEmailUnavailable": "Estado del correo temporalmente no disponible",
-      "automaticEmailUnavailableBody": "Ahora no se puede leer el estado del correo oficial de confirmación. El estado de envío del DS-160 no cambia; actualiza la página más tarde."
-    }
   }
 }

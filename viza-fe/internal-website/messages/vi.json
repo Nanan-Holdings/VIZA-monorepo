@@ -3225,22 +3225,5 @@
       "pisa": "[VI] Pisa",
       "singapore": "[VI] Singapore"
     }
-  },
-  "usAppointment": {
-    "ds160Card": {
-      "automaticEmailTitle": "Email xác nhận chính thức",
-      "automaticEmailPreparing": "Đang chờ trạng thái email",
-      "automaticEmailPreparingBody": "Sau khi nộp thành công, VIZA sẽ tự động gửi email xác nhận đến email tài khoản của bạn. Bạn có thể rời trang này; trạng thái email sẽ cập nhật tại đây.",
-      "automaticEmailPending": "Đang xử lý tự động",
-      "automaticEmailPendingBody": "VIZA đang tự động xử lý email xác nhận chính thức. Trạng thái email sẽ cập nhật tại đây; việc này không thay đổi trạng thái đã nộp.",
-      "automaticEmailSent": "CEAC đã xác nhận gửi",
-      "automaticEmailSentBody": "CEAC đã xác nhận email xác nhận chính thức được gửi đến email tài khoản của bạn. Xác nhận này không chứng minh email đã vào hộp thư; hãy kiểm tra cả thư rác.",
-      "automaticEmailFailed": "Email tự động chưa hoàn tất",
-      "automaticEmailFailedBody": "Hệ thống chưa thể xác nhận email chính thức đã được gửi. Trạng thái nộp DS-160 không thay đổi; bạn vẫn có thể tải PDF xác nhận nếu có.",
-      "automaticEmailUnknown": "Không thể xác nhận kết quả email chính thức",
-      "automaticEmailUnknownBody": "CEAC không trả về xác nhận gửi rõ ràng. Trạng thái nộp DS-160 không thay đổi; hãy kiểm tra email tài khoản và việc làm mới trang sẽ không gửi lại.",
-      "automaticEmailUnavailable": "Tạm thời không đọc được trạng thái email",
-      "automaticEmailUnavailableBody": "Hiện không thể đọc trạng thái email xác nhận chính thức. Trạng thái nộp DS-160 không thay đổi; hãy làm mới trang sau."
-    }
   }
 }

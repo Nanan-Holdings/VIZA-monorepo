@@ -1,6 +1,9 @@
 import type { SubmissionQueueItem } from "./types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+const SUBMITTED_LEASE_RELEASE_MAX_ATTEMPTS = 3;
+const SUBMITTED_LEASE_RELEASE_RETRY_DELAYS_MS = [250, 500] as const;
+
 export interface Ds160TerminalLeaseReleaseEvidence {
   /** The application-wide final-submission fence was read successfully. */
   finalSubmissionAttemptCount: number;
@@ -68,6 +71,51 @@ export async function releaseDs160RetryLease(
     .maybeSingle();
   if (error) throw new Error(`Failed to release DS-160 retry lease: ${error.message}`);
   return data !== null;
+}
+
+/**
+ * Release a successfully submitted DS-160 row after browser cleanup. Submitted
+ * rows are not retryable, so they deliberately use a separate status fence
+ * from the pre-final retry release above.
+ */
+export async function releaseDs160SubmittedLease(
+  client: SupabaseClient,
+  item: Pick<SubmissionQueueItem, "id" | "application_id" | "locked_by" | "locked_at">,
+): Promise<boolean> {
+  if (!item.locked_by?.trim() || !item.locked_at) return false;
+
+  const { data, error } = await client
+    .from("submission_queue")
+    .update({ locked_by: null, locked_at: null, locked_until: null })
+    .eq("id", item.id)
+    .eq("application_id", item.application_id)
+    .eq("locked_by", item.locked_by)
+    .eq("locked_at", item.locked_at)
+    .eq("status", "ds160_submitted")
+    .gt("locked_until", new Date().toISOString())
+    .select("id")
+    .abortSignal(AbortSignal.timeout(15_000))
+    .maybeSingle();
+  if (error) throw new Error(`Failed to release submitted DS-160 lease: ${error.message}`);
+  return data !== null;
+}
+
+/** Retry only transport failures; an ownership conflict returns false once. */
+export async function releaseDs160SubmittedLeaseWithRetry(
+  client: SupabaseClient,
+  item: Pick<SubmissionQueueItem, "id" | "application_id" | "locked_by" | "locked_at">,
+): Promise<boolean> {
+  for (let attempt = 1; attempt <= SUBMITTED_LEASE_RELEASE_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      return await releaseDs160SubmittedLease(client, item);
+    } catch (error) {
+      if (attempt === SUBMITTED_LEASE_RELEASE_MAX_ATTEMPTS) throw error;
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, SUBMITTED_LEASE_RELEASE_RETRY_DELAYS_MS[attempt - 1] ?? 500);
+      });
+    }
+  }
+  return false;
 }
 
 /** Keep the old claim until official browser work has completely ended. */

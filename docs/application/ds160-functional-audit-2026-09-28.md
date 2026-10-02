@@ -2887,3 +2887,117 @@ submitted, one confirmed fence and exactly the original two target jobs
 (submission and automatic mail). No further live submit/email action or data
 repair was used to test this release. CEAC's AppError mail outcome remains an
 external unconfirmed transaction; there is no new success receipt.
+
+### 2026-10-02: direct computer-use official email comparison
+
+At the user's request, the same already submitted application was retrieved
+through CEAC's visible interface in an ordinary in-app browser, independently
+of the production email worker. View Confirmation Page was selected; no new
+application or final signing action was used. The official identity matched
+the submitted target. An inactivity timeout occurred before the final send;
+that expired form was not sent. After action-time CAPTCHA authorization, the
+same application was recovered again.
+
+The refreshed email form verified the requested recipient, Additional Email
+No, an enabled Email Confirmation control, ten valid native controls and no
+visible timeout panel. A native accessibility-index click was performed once
+at 18:00:24 UTC. A local exclusive-create one-shot record remains outside the
+repository. The pre-send screenshot's SHA256 is
+9fab180f32d110161d9ac8052321f3a1f45aba51eaa06d4d7735dbaeddb6a9e2;
+this image proves the prepared form, not mail delivery.
+
+After that click, the browser observation connection became unresponsive.
+Accessibility, read-only network-event and screenshot reads timed out; a
+fresh binding, dialog check and browser-tool recovery did not yield an
+official result. No dialog was reported. The observed tab metadata still
+reported the email-page path, but metadata alone does not establish that no
+request was sent. The tab was retained for recovery without refreshing,
+re-clicking or creating a VIZA mail job. This direct test's result is unknown:
+there is no success receipt or usable response trace, and the production
+AppError evidence must not be attributed to this independent click. It does
+not establish that the official button succeeds or that Playwright is the
+cause of the mail failure.
+
+At 18:08 UTC, fresh database readback still verified the application as
+submitted, one confirmed final fence, zero active target jobs and exactly the
+original submission and automatic-email jobs. The production worker remained
+stopped with provider sessions zero and its non-image configuration unchanged.
+
+The code review found a separate pre-dispatch safety gap: an email-page URL
+and stale controls could survive a visible CEAC timeout banner. The local
+sender now checks bounded rendered body text on entry and immediately before
+the durable send callback, preserving typed SESSION_EXPIRED classification.
+An unreadable body fails closed without being mislabeled as expiry. The
+realistic hidden ctl00_pnlTimeout div is ignored. Offline Chromium fixtures
+verify visible expiry, expiry appearing after initial validation, hidden
+timeout controls and unreadable-body behavior; expired/unreadable cases have
+zero reservations, final clicks and send POSTs. The complete email-browser
+regression passed 24/24, and independent targeted review passed 45/45 with
+type-check and whitespace checks clean. This source change is not installed
+in production and is not established as the cause or repair of the valid
+production POST/Complete_Done AppError or the unreadable direct UI result.
+
+### 2026-10-02: ordinary Chrome one-shot email comparison
+
+The user explicitly authorized one direct send in ordinary Chrome. After
+action-time CAPTCHA confirmation, the same submitted application was retrieved
+with its saved recovery data. The initial control handle became unresponsive;
+fresh Chrome inventory located the surviving official tab. Its actual
+confirmation page displayed the same official application identity. No new
+application, signing action or backend email enqueue was performed.
+
+A user-provided screenshot separately showed Additional Email Yes with both
+additional address fields blank. That is an incomplete additional-recipient
+form, but it is not evidence for the earlier production No-branch AppError.
+For this Chrome test, the visible official form independently matched the
+requested recipient, selected Additional Email No, exposed an enabled final
+control, and had valid native controls with no visible session-expiry message.
+
+One native accessibility-index Email Confirmation click was attempted at
+20:19:57 UTC and returned successfully. The exclusive-create local one-shot record remains
+outside the repository and was not replayed. Browser reads then stalled during
+navigation. The same Chrome tab subsequently resolved to the official
+/GenNIV/Common/AppError.aspx page, whose rendered heading was Application Error
+and whose body reported an unexpected error processing the previous request.
+There was no successful-email receipt. A crop containing only the public error
+heading/body has SHA256
+496da083fc166c3454be03e5d3722367a8478c0b11a87f6e79c9af14b1465449.
+
+The Chrome CDP event buffer was truncated during the stalled navigation and
+returned no usable document events. Consequently, this test establishes the
+native click and rendered official error, not a new exact POST/redirect timing
+trace. It does not reuse the production worker's network chain as this run's
+evidence. Reproducing an official error in ordinary Chrome means the problem
+is not established as specific to the production Playwright sender. CEAC's
+internal failing component and actual mailbox delivery remain unverified.
+
+Fresh readback at 20:27:15 UTC still verified application/result submitted,
+one confirmed final fence, zero active submission/runner siblings, and exactly
+the existing backend email job with unknown status. No new backend job was
+created. At 20:27:27 UTC, the observation helper verified the production
+machine stopped, provider pending/running sessions zero, and the complete
+non-image configuration hash unchanged. No source release, state repair or
+second send click was used for this comparison.
+
+### 2026-10-02: PDF-only submitted workflow
+
+The user explicitly retired automatic official confirmation email and retained
+English official PDF download. New successful DS-160 submissions no longer
+create an automaticEmail intent or drain historical intents. Submitted results,
+official confirmation artifacts and final-submission fences remain intact.
+Browser cleanup and heartbeat shutdown precede exact submitted-claim lease
+release; a short transport retry cannot release a replacement claim or change
+the official result. Historical email/proof records and the explicit authenticated
+recovery API remain available for compatibility, without automatic replay.
+
+The submitted applicant card no longer polls or displays email status. It keeps
+the English official confirmation download and appointment next step; refreshing
+or remounting the card makes no email request. English and Chinese copy explicitly
+identify the PDF as English. The earlier session-expiry guard is retained only
+in the compatible explicit email recovery path; it does not claim to repair
+CEAC's official Application Error.
+
+Local validation includes the submitted-card and catalog regressions, proof
+compatibility checks, and backend submission-cleanup/lease regressions. Release
+acceptance uses the existing submitted application and saved PDF only, with no
+new signing, submission, official email request, or historical-data rewrite.

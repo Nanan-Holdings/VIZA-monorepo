@@ -1,269 +1,146 @@
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
 import test from "node:test";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
 import {
-  createDs160AutomaticEmailIntent,
-  markDs160AutomaticEmailReady,
-  markDs160AutomaticEmailReadyWithRetry,
-  dispatchDs160AutomaticEmails,
-} from "../ds160-auto-email";
-import { finishDs160Attempt } from "../submission-queue-claim";
+  finishDs160Attempt,
+  releaseDs160SubmittedLeaseWithRetry,
+} from "../submission-queue-claim";
 
-type Row = Record<string, unknown>;
-const appId = "11111111-1111-4111-8111-111111111111";
-const sourceId = "22222222-2222-4222-8222-222222222222";
-const userId = "33333333-3333-4333-8333-333333333333";
-const claim = { id: sourceId, application_id: appId, locked_by: "worker-test", locked_at: "2026-09-30T00:00:00Z" };
-const hash = (value: string) => createHash("sha256").update(value).digest("hex");
-function fixture() {
-  const source: Row = {
-    ...claim, status: "ds160_submitted", provider: "ceac_live", mode: "live_assisted", locked_until: "2099-01-01T00:00:00Z",
-    ceac_result_payload: { applicationId: "AA00FIXTURE", audit: { retained: true }, automaticEmail: createDs160AutomaticEmailIntent() },
-  };
-  const tables: Record<string, Row[]> = {
-    submission_queue: [source],
-    applications: [{ id: appId, applicant_id: "profile", ds160_application_id: "AA00FIXTURE", submission_result: { country: "US", status: "submitted", applicationId: "AA00FIXTURE" } }],
-    ds160_final_submission_attempts: [{ id: "fence", application_id: appId, state: "confirmed", official_application_id_hash: hash("AA00FIXTURE") }],
-    applicant_profiles: [{ id: "profile", auth_user_id: userId }],
-  };
-  const rpcCalls: Array<{ name: string; args: Row }> = [];
-  const writes: string[] = [];
-  const emails = new Map<string, Row>();
-  let ambiguousRpcOnce = false;
-  let sourceUnavailableRemaining = 0;
-  let applicationUnavailableOnce = false;
-  let replaceClaimOnSourceFailure = false;
-  let authError = false;
-  let renewOnFenceRead = false;
-  function read(row: Row, column: string): unknown {
-    const value = column.split(/->>?/).reduce<unknown>((value, key) => (value as Row | null)?.[key], row);
-    return column.includes("->>") && value != null ? String(value) : value;
-  }
-  function from(table: string) {
-    const filters: Array<(row: Row) => boolean> = [];
-    let patch: Row | null = null;
-    let limit = Infinity;
-    const execute = (single = false) => {
-      if (table === "submission_queue" && sourceUnavailableRemaining > 0) {
-        sourceUnavailableRemaining -= 1;
-        if (replaceClaimOnSourceFailure) source.locked_by = "replacement-worker";
-        return { data: null, error: { message: "transient source outage" } };
-      }
-      if (table === "applications" && applicationUnavailableOnce) {
-        applicationUnavailableOnce = false;
-        return { data: null, error: { message: "transient application outage" } };
-      }
-      if (table === "ds160_final_submission_attempts" && renewOnFenceRead) {
-        source.locked_until = "2099-01-02T00:00:00Z";
-        renewOnFenceRead = false;
-      }
-      const rows = (tables[table] ?? []).filter(row => filters.every(predicate => predicate(row))).slice(0, limit);
-      if (patch) {
-        writes.push(table);
-        for (const row of rows) Object.assign(row, structuredClone(patch));
-      }
-      return { data: structuredClone(single ? rows[0] ?? null : rows), error: null };
-    };
-    const query = {
-      select() { return query; },
-      eq(column: string, value: unknown) { filters.push(row => read(row, column) === value); return query; },
-      is(column: string, value: unknown) { filters.push(row => read(row, column) === value); return query; },
-      gt(column: string, value: string) { filters.push(row => typeof row[column] === "string" && row[column] > value); return query; },
-      order() { return query; },
-      limit(value: number) { limit = value; return query; },
-      abortSignal() { return query; },
-      update(value: Row) { patch = value; return query; },
-      maybeSingle: async () => execute(true),
-      then(resolve: (value: ReturnType<typeof execute>) => unknown) { return Promise.resolve(execute()).then(resolve); },
-    };
-    return query;
-  }
-  const client = {
-    from,
-    auth: { admin: { getUserById: async (id: string) => {
-      assert.equal(id, userId);
-      return { data: { user: { email: " Account@Example.test " } }, error: authError ? { message: "unavailable" } : null };
-    } } },
-    rpc: async (name: string, args: Row) => {
-      rpcCalls.push({ name, args });
-      assert.equal(name, "enqueue_ds160_proof_email");
-      assert.equal(args.p_retry, false);
-      assert.equal(args.p_auth_user_id, userId);
-      assert.equal(args.p_recipient_sha256, hash("account@example.test"));
-      const key = String(args.p_request_id);
-      if (!emails.has(key)) emails.set(key, { id: "mail-job", application_id: appId, ceac_result_payload: { action: "official_ceac_email", email: { status: "queued" } } });
-      if (ambiguousRpcOnce) { ambiguousRpcOnce = false; return { data: null, error: { message: "lost response" } }; }
-      return { data: [emails.get(key)], error: null };
-    },
-  } as unknown as SupabaseClient;
-  return { client, source, tables, rpcCalls, writes, emails,
-    ambiguousRpc: () => { ambiguousRpcOnce = true; }, failAuth: () => { authError = true; },
-    renewDuringHandoff: () => { renewOnFenceRead = true; },
-    failSourceOnce: (replaceClaim = false) => {
-      sourceUnavailableRemaining = 1;
-      replaceClaimOnSourceFailure = replaceClaim;
-    },
-    failSourceAttempts: (attempts: number) => {
-      sourceUnavailableRemaining = attempts;
-      replaceClaimOnSourceFailure = false;
-    },
-    failApplicationOnce: () => { applicationUnavailableOnce = true; },
-  };
-}
+const indexPath = path.resolve(__dirname, "..", "index.ts");
+const retiredHelperPath = path.resolve(__dirname, "..", "ds160-auto-email.ts");
 
-test("confirmed submission closes browser before handing off one automatic account email", async () => {
-  const f = fixture();
+test("successful DS-160 submissions do not create or drain automatic email intents", () => {
+  const source = readFileSync(indexPath, "utf8");
+
+  assert.equal(existsSync(retiredHelperPath), false);
+  assert.doesNotMatch(source, /ds160-auto-email/);
+  assert.doesNotMatch(source, /automaticEmail/);
+  assert.doesNotMatch(source, /dispatchDs160AutomaticEmails/);
+  assert.doesNotMatch(source, /enqueue_ds160_proof_email/);
+  assert.match(source, /status: "ds160_submitted"/);
+  assert.match(source, /persistDs160SubmittedArtifacts/);
+  assert.match(source, /proofArtifacts:/);
+  assert.match(source, /releaseDs160SubmittedLease/);
+  assert.match(source, /finishDs160Attempt/);
+});
+
+test("submitted lease release follows browser cleanup and preserves the official result", async () => {
+  const claim = {
+    id: "00000000-0000-4000-8000-000000000001",
+    application_id: "00000000-0000-4000-8000-000000000002",
+    locked_by: "worker-test",
+    locked_at: "2026-10-02T00:00:00Z",
+  };
+  const row: Record<string, unknown> = {
+    ...claim,
+    status: "ds160_submitted",
+    locked_until: "2099-01-01T00:00:00Z",
+    ceac_result_payload: {
+      applicationId: "AA00FIXTURE",
+      proofArtifacts: { status: "available", confirmationPdfStoragePath: "private/confirmation.pdf" },
+    },
+  };
   const events: string[] = [];
+  let patchCalls = 0;
+  let transientFailure = true;
+  const client = createClient("https://unit.invalid", "unit-test-key", {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: {
+      fetch: async (input, init) => {
+        patchCalls += 1;
+        const url = new URL(String(input));
+        assert.equal(init?.method, "PATCH");
+        assert.equal(url.pathname, "/rest/v1/submission_queue");
+        if (transientFailure) {
+          transientFailure = false;
+          return new Response(JSON.stringify({ message: "temporary transport failure" }), {
+            status: 503,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        const matches = ["id", "application_id", "locked_by", "locked_at"]
+          .every((key) => url.searchParams.get(key) === `eq.${row[key]}`)
+          && url.searchParams.get("status") === "eq.ds160_submitted"
+          && url.searchParams.get("locked_until")?.startsWith("gt.");
+        if (matches) Object.assign(row, JSON.parse(String(init?.body)) as Record<string, unknown>);
+        return new Response(JSON.stringify(matches ? { id: row.id } : null), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      },
+    },
+  });
+
   await finishDs160Attempt({
-    closeSession: async () => { events.push("closed"); },
+    closeSession: async () => { events.push("browser-closed"); },
     stopRenewal: async () => { events.push("heartbeat-stopped"); },
-    releaseRetry: async () => undefined,
+    releaseRetry: async () => { events.push("pre-final-release-checked"); },
   });
-  assert.equal(await markDs160AutomaticEmailReady(f.client, claim), true);
-  assert.deepEqual(events, ["closed", "heartbeat-stopped"]);
-  assert.equal(f.source.locked_until, null);
-  assert.equal(await dispatchDs160AutomaticEmails(f.client), 1);
-  assert.equal(await dispatchDs160AutomaticEmails(f.client), 0);
-  assert.equal(f.rpcCalls.length, 1);
-  assert.equal(f.rpcCalls[0].args.p_request_id, sourceId);
-  assert.deepEqual((f.source.ceac_result_payload as Row).audit, { retained: true });
-  assert.ok(f.writes.every(table => table === "submission_queue"));
-  assert.equal((f.tables.applications[0].submission_result as Row).status, "submitted");
-});
+  assert.deepEqual(events, ["browser-closed", "heartbeat-stopped", "pre-final-release-checked"]);
 
-test("cleanup failure leaves the intent unready and cannot enqueue", async () => {
-  const f = fixture();
-  await assert.rejects(async () => {
-    await finishDs160Attempt({ closeSession: async () => { throw new Error("close failed"); }, stopRenewal: async () => undefined, releaseRetry: async () => undefined });
-    await markDs160AutomaticEmailReady(f.client, claim);
+  events.push("submitted-release-started");
+  assert.equal(await releaseDs160SubmittedLeaseWithRetry(client, claim), true);
+  events.push("submitted-release-finished");
+
+  assert.deepEqual(events, [
+    "browser-closed",
+    "heartbeat-stopped",
+    "pre-final-release-checked",
+    "submitted-release-started",
+    "submitted-release-finished",
+  ]);
+  assert.equal(patchCalls, 2);
+  assert.equal(row.status, "ds160_submitted");
+  assert.equal(row.locked_by, null);
+  assert.equal(row.locked_at, null);
+  assert.equal(row.locked_until, null);
+  assert.deepEqual(row.ceac_result_payload, {
+    applicationId: "AA00FIXTURE",
+    proofArtifacts: { status: "available", confirmationPdfStoragePath: "private/confirmation.pdf" },
   });
-  assert.equal(await dispatchDs160AutomaticEmails(f.client), 0);
-  assert.equal(f.rpcCalls.length, 0);
-  assert.equal(f.source.locked_by, claim.locked_by);
+
+  const callsAfterRelease = patchCalls;
+  row.locked_by = "replacement-worker";
+  row.locked_at = "2026-10-02T00:01:00Z";
+  row.locked_until = "2099-01-01T00:00:00Z";
+  assert.equal(
+    await releaseDs160SubmittedLeaseWithRetry(client, claim),
+    false,
+  );
+  assert.equal(patchCalls, callsAfterRelease + 1);
+  assert.equal(row.locked_by, "replacement-worker");
+  assert.equal(row.locked_at, "2026-10-02T00:01:00Z");
+  assert.equal(row.locked_until, "2099-01-01T00:00:00Z");
 });
 
-test("renewed lease during handoff is preserved rather than cleared", async () => {
-  const f = fixture();
-  f.renewDuringHandoff();
-  assert.equal(await markDs160AutomaticEmailReady(f.client, claim), false);
-  assert.equal(f.source.locked_until, "2099-01-02T00:00:00Z");
-  assert.equal(f.source.locked_by, claim.locked_by);
-  assert.equal(await dispatchDs160AutomaticEmails(f.client), 0);
-});
+test("failed browser cleanup retains the submitted claim and cannot release it", async () => {
+  const claim = {
+    id: "00000000-0000-4000-8000-000000000003",
+    application_id: "00000000-0000-4000-8000-000000000004",
+    locked_by: "worker-test",
+    locked_at: "2026-10-02T00:00:00Z",
+  };
+  const events: string[] = [];
 
-test("transient ready handoff retries the exact claim and still dispatches once", async () => {
-  const f = fixture();
-  f.failSourceOnce();
-  assert.equal(await markDs160AutomaticEmailReadyWithRetry(f.client, claim), true);
-  assert.equal(f.source.locked_by, null);
-  assert.equal(((f.source.ceac_result_payload as Row).automaticEmail as Row).status, "ready");
-  assert.equal(await dispatchDs160AutomaticEmails(f.client), 1);
-  assert.equal(await dispatchDs160AutomaticEmails(f.client), 0);
-  assert.equal(f.rpcCalls.length, 1);
-});
+  await assert.rejects(
+    finishDs160Attempt({
+      closeSession: async () => {
+        events.push("browser-close-failed");
+        throw new Error("close failed");
+      },
+      stopRenewal: async () => { events.push("heartbeat-stopped"); },
+      releaseRetry: async () => { events.push("release-must-not-run"); },
+    }),
+    /close failed/,
+  );
 
-test("missing optional metadata keeps the intent waiting instead of creating a doomed email job", async () => {
-  const f = fixture();
-  f.tables.applications[0].ds160_application_id = null;
-  await assert.rejects(markDs160AutomaticEmailReady(f.client, claim));
-  assert.equal(((f.source.ceac_result_payload as Row).automaticEmail as Row).status, "waiting_for_cleanup");
-  assert.equal(f.source.locked_by, claim.locked_by);
-});
-
-test("transient owner verification lookup is retried before the exact handoff", async () => {
-  const f = fixture();
-  f.failApplicationOnce();
-  assert.equal(await markDs160AutomaticEmailReadyWithRetry(f.client, claim), true);
-  assert.equal(((f.source.ceac_result_payload as Row).automaticEmail as Row).status, "ready");
-});
-
-test("ready handoff retry never releases a replacement claim", async () => {
-  const f = fixture();
-  f.failSourceOnce(true);
-  assert.equal(await markDs160AutomaticEmailReadyWithRetry(f.client, claim), false);
-  assert.equal(f.source.locked_by, "replacement-worker");
-  assert.equal(((f.source.ceac_result_payload as Row).automaticEmail as Row).status, "waiting_for_cleanup");
-  assert.equal(f.rpcCalls.length, 0);
-});
-
-test("bounded ready handoff retry leaves the original waiting claim after exhaustion", async () => {
-  const f = fixture();
-  f.failSourceAttempts(3);
-  await assert.rejects(markDs160AutomaticEmailReadyWithRetry(f.client, claim));
-  assert.equal(f.source.locked_by, claim.locked_by);
-  assert.equal(((f.source.ceac_result_payload as Row).automaticEmail as Row).status, "waiting_for_cleanup");
-  assert.equal(await dispatchDs160AutomaticEmails(f.client), 0);
-});
-
-test("ready scans exclude non-source, unsupported-version and partially locked intents", async () => {
-  for (const variation of ["provider", "mode", "version", "locked-at"] as const) {
-    const f = fixture();
-    await markDs160AutomaticEmailReady(f.client, claim);
-    if (variation === "provider") f.source.provider = "ceac_proof";
-    if (variation === "mode") f.source.mode = "prefill";
-    if (variation === "version") ((f.source.ceac_result_payload as Row).automaticEmail as Row).version = 2;
-    if (variation === "locked-at") f.source.locked_at = claim.locked_at;
-    assert.equal(await dispatchDs160AutomaticEmails(f.client), 0, variation);
-    assert.equal(f.rpcCalls.length, 0, variation);
-  }
-});
-
-test("processing, expired, replaced and legacy claims never release or enqueue", async () => {
-  for (const variation of ["processing", "expired", "other-owner", "legacy"] as const) {
-    const f = fixture();
-    if (variation === "processing") f.source.status = "ds160_live_assisted_processing";
-    if (variation === "expired") f.source.locked_until = "2000-01-01T00:00:00Z";
-    if (variation === "other-owner") f.source.locked_at = "2026-09-30T01:00:00Z";
-    if (variation === "legacy") delete (f.source.ceac_result_payload as Row).automaticEmail;
-    assert.equal(await markDs160AutomaticEmailReady(f.client, claim), false, variation);
-    assert.equal(await dispatchDs160AutomaticEmails(f.client), 0, variation);
-    assert.equal(f.rpcCalls.length, 0);
-  }
-});
-
-test("a mismatching result or unconfirmed/different-application fence fails closed", async () => {
-  for (const variation of ["result", "fence", "identity"] as const) {
-    const f = fixture();
-    if (variation === "result") (f.tables.applications[0].submission_result as Row).status = "failed";
-    if (variation === "fence") f.tables.ds160_final_submission_attempts[0].state = "unknown";
-    if (variation === "identity") f.tables.ds160_final_submission_attempts[0].official_application_id_hash = hash("AA00OTHER");
-    await assert.rejects(markDs160AutomaticEmailReady(f.client, claim));
-    assert.equal(f.source.locked_by, claim.locked_by);
-    assert.equal(f.rpcCalls.length, 0);
-  }
-});
-
-test("ambiguous enqueue is reconciled with the same request id, not another send", async () => {
-  const f = fixture();
-  await markDs160AutomaticEmailReady(f.client, claim);
-  f.ambiguousRpc();
-  assert.equal(await dispatchDs160AutomaticEmails(f.client), 0);
-  assert.equal(await dispatchDs160AutomaticEmails(f.client), 1);
-  assert.equal(f.rpcCalls.length, 2);
-  assert.equal(f.emails.size, 1);
-  assert.ok(f.rpcCalls.every(call => call.args.p_request_id === sourceId && call.args.p_retry === false));
-  assert.ok(f.writes.every(table => table === "submission_queue"));
-});
-
-test("account outage retains a ready intent without changing application success", async () => {
-  const f = fixture();
-  await markDs160AutomaticEmailReady(f.client, claim);
-  f.failAuth();
-  assert.equal(await dispatchDs160AutomaticEmails(f.client), 0);
-  assert.equal(f.rpcCalls.length, 0);
-  assert.equal(((f.source.ceac_result_payload as Row).automaticEmail as Row).status, "ready");
-  assert.equal((f.tables.applications[0].submission_result as Row).status, "submitted");
-});
-
-test("existing terminal email is reused without replaying it", async () => {
-  for (const status of ["sent", "unknown", "failed"]) {
-    const f = fixture();
-    f.emails.set(sourceId, { id: "prior-email", application_id: appId, ceac_result_payload: { action: "official_ceac_email", email: { status } } });
-    await markDs160AutomaticEmailReady(f.client, claim);
-    assert.equal(await dispatchDs160AutomaticEmails(f.client), 1);
-    assert.equal(await dispatchDs160AutomaticEmails(f.client), 0);
-    assert.equal(f.emails.size, 1);
-    assert.equal(((f.source.ceac_result_payload as Row).automaticEmail as Row).jobId, "prior-email");
-  }
+  assert.deepEqual(events, ["browser-close-failed", "heartbeat-stopped"]);
+  assert.deepEqual(claim, {
+    id: "00000000-0000-4000-8000-000000000003",
+    application_id: "00000000-0000-4000-8000-000000000004",
+    locked_by: "worker-test",
+    locked_at: "2026-10-02T00:00:00Z",
+  });
 });

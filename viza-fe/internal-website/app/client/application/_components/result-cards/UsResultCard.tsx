@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -99,16 +99,10 @@ function triggerProofDownload(downloadUrl: string): void {
 type ProofBusyState = Partial<Record<Ds160ProofKind, boolean>>;
 
 type ProofActionResponse = {
-  ok?: boolean;
-  status?: "none" | "idle" | "ready" | "queued" | "sending" | "sent" | "unknown" | "unsupported" | "failed";
+  status?: "ready" | "queued" | "unsupported" | "failed";
   code?: string;
-  jobId?: string | null;
-  currentStage?: string | null;
   downloadUrl?: string;
-  recipient?: string;
-  message?: string;
   error?: string;
-  retryable?: boolean;
 };
 
 function createProofRequestError(message: string, code?: string): Error & { code?: string } {
@@ -126,8 +120,6 @@ export function UsResultCard({
 }) {
   const router = useRouter();
   const t = useTranslations("usAppointment.ds160Card");
-  const tRef = useRef(t);
-  tRef.current = t;
   const nextT = useTranslations("usAppointment.nextStepCard");
   const securityAnswer = result.securityAnswer && result.securityAnswer !== "[REDACTED]"
     ? result.securityAnswer
@@ -137,64 +129,6 @@ export function UsResultCard({
   const [newApplicationError, setNewApplicationError] = useState<string | null>(null);
   const [proofBusy, setProofBusy] = useState<ProofBusyState>({});
   const [proofMessage, setProofMessage] = useState<string | null>(null);
-  const [emailStatus, setEmailStatus] = useState<ProofActionResponse | null>(null);
-
-  useEffect(() => {
-    if (!applicationId || !submitted) return;
-    let active = true;
-    const loadEmailState = async () => {
-      try {
-        let jobId: string | null = null;
-        for (let attempt = 0; attempt < 100; attempt += 1) {
-          if (!active) return;
-          const query = new URLSearchParams({ kind: "email-confirmation", action: "email" });
-          if (jobId) query.set("jobId", jobId);
-          const response = await fetch(`/api/applications/${applicationId}/ds160-proof?${query.toString()}`, {
-            cache: "no-store",
-          });
-          const payload = (await response.json().catch(() => null)) as ProofActionResponse | null;
-          if (!active) return;
-          if (!response.ok) {
-            setEmailStatus({
-              status: "unsupported",
-              code: payload?.code,
-              error: payload?.error ?? tRef.current("automaticEmailUnavailableBody"),
-            });
-            return;
-          }
-          if (!payload) {
-            setEmailStatus({
-              status: "unsupported",
-              error: tRef.current("automaticEmailUnavailableBody"),
-            });
-            return;
-          }
-          jobId = payload.jobId ?? jobId;
-          setEmailStatus(payload);
-          if (
-            payload.status === "none" ||
-            payload.status === "idle" ||
-            payload.status === "queued" ||
-            payload.status === "sending"
-          ) {
-            if (attempt < 99) await new Promise((resolve) => setTimeout(resolve, 3000));
-            continue;
-          }
-          return;
-        }
-      } catch {
-        if (!active) return;
-        setEmailStatus({
-          status: "unsupported",
-          error: tRef.current("automaticEmailUnavailableBody"),
-        });
-      }
-    };
-    void loadEmailState();
-    return () => {
-      active = false;
-    };
-  }, [applicationId, submitted]);
 
   const startNewApplication = async () => {
     if (!applicationId || startingNewApplication) return;
@@ -341,79 +275,23 @@ export function UsResultCard({
         </div>
 
         {submitted && (
-          <>
-            <div className="rounded-md border border-input bg-background p-3">
-              <div className="text-xs font-medium text-muted-foreground">
-                {t("officialActions")}
-              </div>
-              <div className="mt-3">
-                <ProofActionButton
-                  busy={Boolean(proofBusy.confirmation)}
-                  label={t("printConfirmation")}
-                  onClick={() => void requestProof("confirmation", "download")}
-                >
-                  <Printer className="h-4 w-4 shrink-0" />
-                </ProofActionButton>
-              </div>
-              {proofMessage && (
-                <p className="mt-3 text-sm text-muted-foreground">{proofMessage}</p>
-              )}
+          <div className="rounded-md border border-input bg-background p-3">
+            <div className="text-xs font-medium text-muted-foreground">
+              {t("officialActions")}
             </div>
-
-            {(() => {
-              const status = emailStatus?.status ?? "idle";
-              const preparing = status === "none" || status === "idle";
-              const pending = preparing || status === "queued" || status === "sending";
-              const failed = status === "failed" || status === "unknown" || status === "unsupported";
-              const title = status === "sent"
-                ? t("automaticEmailSent")
-                : status === "failed"
-                  ? t("automaticEmailFailed")
-                  : status === "unknown"
-                    ? t("automaticEmailUnknown")
-                    : failed
-                      ? t("automaticEmailUnavailable")
-                      : preparing
-                        ? t("automaticEmailPreparing")
-                        : t("automaticEmailPending");
-              const body = status === "sent"
-                ? t("automaticEmailSentBody")
-                : status === "failed"
-                  ? t("automaticEmailFailedBody")
-                  : status === "unknown"
-                    ? t("automaticEmailUnknownBody")
-                    : failed
-                      ? t("automaticEmailUnavailableBody")
-                      : preparing
-                        ? t("automaticEmailPreparingBody")
-                        : pending
-                        ? t("automaticEmailPendingBody")
-                        : t("automaticEmailPendingBody");
-              if (failed) {
-                return (
-                  <Alert variant="destructive" className="mt-4" data-testid="ds160-automatic-email-status">
-                    <AlertIcon variant="destructive" />
-                    <AlertTitle>{title}</AlertTitle>
-                    <AlertDescription>{body}</AlertDescription>
-                  </Alert>
-                );
-              }
-              return (
-                <div
-                  className="rounded-md border border-input bg-muted/30 p-3"
-                  data-testid="ds160-automatic-email-status"
-                  aria-live="polite"
-                >
-                  <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                    {pending && <Loader2 className="h-4 w-4 animate-spin" />}
-                    <span>{t("automaticEmailTitle")}</span>
-                  </div>
-                  <div className="mt-1 text-sm text-foreground">{title}</div>
-                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{body}</p>
-                </div>
-              );
-            })()}
-          </>
+            <div className="mt-3">
+              <ProofActionButton
+                busy={Boolean(proofBusy.confirmation)}
+                label={t("printConfirmation")}
+                onClick={() => void requestProof("confirmation", "download")}
+              >
+                <Printer className="h-4 w-4 shrink-0" />
+              </ProofActionButton>
+            </div>
+            {proofMessage && (
+              <p className="mt-3 text-sm text-muted-foreground">{proofMessage}</p>
+            )}
+          </div>
         )}
 
         <div className="rounded-md border border-brand-100 bg-brand-50 p-3">
