@@ -3001,3 +3001,41 @@ Local validation includes the submitted-card and catalog regressions, proof
 compatibility checks, and backend submission-cleanup/lease regressions. Release
 acceptance uses the existing submitted application and saved PDF only, with no
 new signing, submission, official email request, or historical-data rewrite.
+
+Release commit b1982570221715268cd2212c5b7c1d6b2563c098 was authored with the
+verified VIZA organization identity. Backend retirement, lease, artifact,
+explicit-recovery compatibility, idle and readiness checks passed 45/45;
+the independent offline browser expiry checks passed 24/24. Frontend submitted
+card/catalog and proof checks passed, both packages passed type-check/build,
+and frontend lint had zero errors with its existing warnings. The Vercel dry
+upload listed 1,981 files with zero forbidden credential, cache, browser-evidence
+or backend-service paths.
+
+Fresh global pending/processing, effective lease and runner counts were zero;
+historical ready/waiting automatic-email intents and provider sessions were
+also zero. Two fresh deploy-readiness observations were safe before an
+image-only update of the retained machine. Installed immutable image is
+registry.fly.io/viza-prod-submission-legacy:ds160-pdf-only-b1982570@sha256:bbf23e4071ab0c3dc055920400c8ac57b9d3858dfb800cfb438e3f631c52cdb0.
+The complete non-image configuration hash remains
+f9280f447f53b0935e07313f7ac1f25deec8669da1080d3ac71c72e1e259ec3f.
+At 21:07 UTC cold-start health/ready were 200, dbReachable and workerStarted
+were true, and deploy readiness was safe with active work zero. By 21:09:58
+UTC the machine had automatically stopped with provider sessions zero.
+
+Vercel deployment dpl_C5QL2BS9wG2ywNCCaybS8czL4egu is READY in production
+under app.viza.it.com with the exact release commit. The authenticated status
+read returned completed/applicationStatus submitted. Confirmation proof was
+ready; the two-page official English PDF downloaded as 149,203 bytes, with no
+CJK text and SHA256
+87cf4f69537c5df49c86d2e95400747b31dd1167496409a573b8be6aef73be47.
+An actual production-page refresh displayed the English PDF button and
+appointment next step without mail controls/status. Clicking that button
+downloaded the same byte count and SHA, and displayed the ready message.
+A crop of this public download panel is retained outside the repository.
+
+Final database readback at 21:10:01 UTC still showed submitted, one confirmed
+final fence and exactly the original two target jobs. Global pending/processing,
+effective leases and runner work remained zero. No new application, final
+signature, email job or data rewrite was used for this acceptance. This release
+retires automatic mail; it does not convert any historical unknown send into
+a successful or delivered email.
