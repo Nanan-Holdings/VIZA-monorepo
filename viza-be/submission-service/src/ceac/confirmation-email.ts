@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type { Locator, Page, Request, Response } from "@playwright/test";
 import { assertCeacPostbackHealthy, waitForAspNetPostbackStable } from "./aspnet";
 import { CeacError } from "./errors";
@@ -358,7 +358,7 @@ async function controlValue(control: Locator): Promise<string> {
 
 // A read-only snapshot of native successful controls. Do not use FormData(form):
 // its constructor can dispatch a formdata event and change the official flow.
-async function readNativeFormSnapshot(sendControl: Locator): Promise<NativeFormSnapshot | undefined> {
+async function readNativeFormSnapshot(sendControl: Locator, bindingName?: string): Promise<NativeFormSnapshot | undefined> {
   const read = sendControl.evaluate((element, limits) => {
     if (window.location.origin !== "https://ceac.state.gov" ||
       window.location.pathname.toLowerCase() !== limits.emailPath.toLowerCase()) return undefined;
@@ -368,6 +368,7 @@ async function readNativeFormSnapshot(sendControl: Locator): Promise<NativeFormS
     const action = new URL(form.action, window.location.href);
     if (form.method.toLowerCase() !== "post" || action.origin !== window.location.origin ||
       action.pathname.toLowerCase() !== limits.emailPath.toLowerCase()) return undefined;
+    const capture = { snapshot() {
     const pairs: Array<[string, string]> = [];
     let unsupportedControlCount = 0;
     let bounded = form.elements.length <= limits.controls;
@@ -423,9 +424,22 @@ async function readNativeFormSnapshot(sendControl: Locator): Promise<NativeFormS
       noRadio: helpers.radioPair(limits.no), yesRadio: helpers.radioPair(limits.yes),
       unsupportedControlCount, bounded,
     };
+    } };
+    if (limits.bindingName) {
+      // Observe the browser's existing native submission, never construct or
+      // modify FormData. Capture before navigation destroys the old context.
+      form.addEventListener("formdata", () => {
+        const sink = (window as unknown as Record<string, unknown>)[limits.bindingName!];
+        if (typeof sink !== "function") return;
+        try { void Promise.resolve(sink(capture.snapshot())).catch(() => undefined); }
+        catch { /* Optional evidence must not alter the native submission. */ }
+      }, { once: true });
+    }
+    return capture.snapshot();
   }, {
     emailPath: EMAIL_PAGE_PATH, no: ADDITIONAL_EMAIL_NO_SELECTOR, yes: ADDITIONAL_EMAIL_YES_SELECTOR,
     controls: MAX_FORM_CONTROLS, pairs: MAX_FORM_PAIRS, characters: MAX_FORM_BODY_BYTES,
+    bindingName,
   }, { timeout: 2_000 }).catch(() => undefined);
   // Locator's timeout bounds resolution, not evaluation/CDP completion.
   // Keep this optional read inside a separate wall-clock budget as well.
@@ -438,6 +452,25 @@ async function readNativeFormSnapshot(sendControl: Locator): Promise<NativeFormS
   } finally {
     if (timer) clearTimeout(timer);
   }
+}
+
+function isBoundedNativeFormSnapshot(value: unknown): value is NativeFormSnapshot {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<NativeFormSnapshot>;
+  let characters = 0;
+  const pair = (entry: unknown): entry is [string, string] => {
+    if (!Array.isArray(entry) || entry.length !== 2 || entry.some(item => typeof item !== "string")) return false;
+    characters += entry[0].length + entry[1].length;
+    return characters <= MAX_FORM_BODY_BYTES;
+  };
+  return Array.isArray(candidate.pairs) && candidate.pairs.length <= MAX_FORM_PAIRS && candidate.pairs.every(pair)
+    && (candidate.submitter === null || pair(candidate.submitter))
+    && (candidate.noRadio === null || pair(candidate.noRadio))
+    && (candidate.yesRadio === null || pair(candidate.yesRadio))
+    && typeof candidate.submitterId === "string" && candidate.submitterId.length <= MAX_FORM_BODY_BYTES
+    && typeof candidate.bounded === "boolean"
+    && Number.isInteger(candidate.unsupportedControlCount) && candidate.unsupportedControlCount! >= 0
+    && candidate.unsupportedControlCount! <= MAX_FORM_CONTROLS;
 }
 
 function compareSubmittedForm(request: Request, snapshot: NativeFormSnapshot | undefined): Ds160EmailSubmittedFormMetadata {
@@ -590,7 +623,11 @@ export async function sendOfficialDs160ConfirmationEmail(
   const overallDeadline = Date.now() + clampOverallTimeout(options.overallTimeoutMs);
   const remainingBudget = (phaseTimeoutMs: number): number => Math.max(1, Math.min(phaseTimeoutMs, overallDeadline - Date.now()));
   let nativeFormSnapshot: NativeFormSnapshot | undefined;
-  let nativeSendControl: Locator | undefined;
+  let postClickSnapshot: NativeFormSnapshot | undefined;
+  let resolvePostClickSnapshot: (() => void) | undefined;
+  const postClickSnapshotReady = new Promise<void>(resolve => { resolvePostClickSnapshot = resolve; });
+  let nativeSnapshotBinding: string | undefined;
+  let nativeSnapshotActive = true;
   let submittedFormObserved = false;
   let submittedMetadataTask: Promise<void> | undefined;
   const stopNetworkObserver = observeOfficialNetwork(page, diagnostics, request => {
@@ -601,18 +638,30 @@ export async function sendOfficialDs160ConfirmationEmail(
     catch { nativeFormSnapshot = undefined; return; }
     nativeFormSnapshot = undefined;
     submittedMetadataTask = (async () => {
-      // The outgoing native request may follow official onclick/onsubmit state
-      // changes. Compare again while the old verified form remains observable;
-      // a committed navigation makes this optional read unverified, never false.
-      if (metadata.successfulControlsMatch === false && nativeSendControl) {
-        const afterClick = await readNativeFormSnapshot(nativeSendControl);
+      // The native request may follow official onclick/onsubmit state changes.
+      // Compare to the formdata-time snapshot captured before context loss;
+      // missing observation stays unverified, never a false mismatch.
+      if (metadata.successfulControlsMatch === false && nativeSnapshotBinding) {
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        let afterClick: NativeFormSnapshot | undefined;
+        try {
+          if (!postClickSnapshot) await Promise.race([
+            postClickSnapshotReady,
+            new Promise<void>(resolve => { timer = setTimeout(resolve, 2_000); }),
+          ]);
+          afterClick = postClickSnapshot;
+        } finally { if (timer) clearTimeout(timer); }
         metadata.postClickFormObserved = Boolean(afterClick);
         metadata.postClickSuccessfulControlsMatch = afterClick
           ? compareSubmittedForm(request, afterClick).successfulControlsMatch : null;
       }
       try { options.onSubmittedFormMetadata?.(metadata); }
       catch { /* An optional evidence sink must never alter or repeat the official request. */ }
-    })().catch(() => undefined);
+    })().catch(() => undefined).finally(() => {
+      nativeSnapshotActive = false;
+      postClickSnapshot = undefined;
+      resolvePostClickSnapshot = undefined;
+    });
   });
 
   const fail = (code: Ds160ConfirmationEmailCode, message: string): never => {
@@ -736,8 +785,21 @@ export async function sendOfficialDs160ConfirmationEmail(
     // prevent dispatch rather than being mistaken for a click timeout.
     await options.assertOwned();
     if (options.onSubmittedFormMetadata) {
-      nativeSendControl = sendControl;
-      nativeFormSnapshot = await readNativeFormSnapshot(sendControl);
+      const bindingName = "__vizaNativeEmailSnapshot_" + randomUUID().replace(/-/g, "");
+      let bindingTimer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const installed = await Promise.race([
+          page.exposeBinding(bindingName, (source, value: unknown) => {
+            if (!nativeSnapshotActive || source.page !== page || source.frame !== page.mainFrame()
+              || postClickSnapshot || !isBoundedNativeFormSnapshot(value)) return;
+            postClickSnapshot = value;
+            resolvePostClickSnapshot?.();
+          }).then(() => true).catch(() => false),
+          new Promise<false>(resolve => { bindingTimer = setTimeout(() => resolve(false), 2_000); }),
+        ]);
+        if (installed) nativeSnapshotBinding = bindingName;
+      } finally { if (bindingTimer) clearTimeout(bindingTimer); }
+      nativeFormSnapshot = await readNativeFormSnapshot(sendControl, nativeSnapshotBinding);
       await options.assertOwned();
     }
     diagnostics.phase = "send";
@@ -868,8 +930,11 @@ export async function sendOfficialDs160ConfirmationEmail(
     );
   } finally {
     stopNetworkObserver();
+    nativeSnapshotActive = false;
+    resolvePostClickSnapshot?.();
     await submittedMetadataTask;
     nativeFormSnapshot = undefined;
-    nativeSendControl = undefined;
+    postClickSnapshot = undefined;
+    resolvePostClickSnapshot = undefined;
   }
 }

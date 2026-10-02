@@ -276,9 +276,14 @@ diagnostics, `.dat` capture, CAPTCHA solving, and one-shot final submission.
     submitted-form audit may compare the native successful-control snapshot to
     the single final main-frame POST transiently in memory. Retain only bounded
     booleans/counts for submitter, No radio, ASP.NET state, missing/unexpected
-    pairs and duplicate keys inside encrypted official evidence. Never retain
-    field names/values or the raw payload, mutate the form, or change dispatch
-    behavior based on this diagnostic. A final click may leave an ambiguous state and must be reported for
+    pairs and duplicate keys inside encrypted official evidence. An optional
+    native formdata-event observer may snapshot current controls before navigation
+    destroys the old page context, through a bounded private binding. Never
+    construct, modify or cancel FormData for this audit. Disable the binding sink
+    and discard transient snapshots during cleanup; missing capture stays unverified.
+    Never persist field names/values or the raw payload, mutate the form, or change
+    dispatch behavior based on this diagnostic. A final click may leave an
+    ambiguous state and must be reported for
     recovery without another send attempt. The final click retains its short
     actionability timeout, but an observed main-frame document navigation must
     settle within the bounded overall budget before receipt inspection. An

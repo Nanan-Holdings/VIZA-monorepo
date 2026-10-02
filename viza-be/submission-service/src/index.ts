@@ -88,7 +88,7 @@ import { runUkHalt } from "./queue/halt-runners";
 import { NeedsHumanError } from "./queue/types";
 import { validateEnv } from "./config/validate-env";
 import { startHealthServer } from "./health-server";
-import { IdleExitController } from "./idle-exit-controller.js";
+import { IdleExitController, runIdleTrackedDrain } from "./idle-exit-controller.js";
 import {
   acquireRunnerSlotWithRetry,
   RunnerSlotLease,
@@ -8769,15 +8769,18 @@ async function pollOnce(runMaintenance = true): Promise<boolean> {
   legacyQueueWorkInFlight = true;
   try {
     if (LEGACY_SUBMISSION_QUEUE_ENABLED && !targetJobId) {
-      idleExitController?.workStarted();
       try {
         // Only durable ready intents created by successful new submissions
         // qualify. Refreshing a result page never enqueues or replays mail.
-        await dispatchDs160AutomaticEmails(supabase);
+        const queuedAutomaticEmails = await runIdleTrackedDrain(
+          () => dispatchDs160AutomaticEmails(supabase),
+          () => idleExitController?.noteActivity(),
+        );
+        if (queuedAutomaticEmails > 0) {
+          console.log(`[poll] Queued ${queuedAutomaticEmails} automatic DS-160 email job(s).`);
+        }
       } catch {
         console.warn("[ceac-email] Automatic email queue temporarily unavailable; intent is retained.");
-      } finally {
-        idleExitController?.workFinished();
       }
     }
     items = await fetchPendingItems({ concurrency, targetJobId });

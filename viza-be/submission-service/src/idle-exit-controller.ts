@@ -21,6 +21,19 @@ export interface IdleLifecycleSnapshot {
   idleSince: string | null;
 }
 
+/**
+ * Run a bounded queue drain and refresh idle activity only when it reports
+ * actual queued work. The caller owns the surrounding in-flight/busy guard.
+ */
+export async function runIdleTrackedDrain(
+  drain: () => Promise<number>,
+  noteActivity: () => void,
+): Promise<number> {
+  const queued = await drain();
+  if (queued > 0) noteActivity();
+  return queued;
+}
+
 export class IdleExitController {
   private readonly enabled: boolean;
   private readonly idleMs: number;
@@ -155,4 +168,3 @@ export class IdleExitController {
     this.recheckTimer = null;
   }
 }
-

@@ -2644,3 +2644,64 @@ that produces strict pair mismatch while matching the clicked control's ID.
 Type checking/build and diff checks passed. Primary Microsoft reference-source
 review confirms that focus, scroll and postback event state can be mutated by
 native ASP.NET handlers; that does not identify the actual changed live pair.
+
+Release c3b0b4e9 was installed image-only with unchanged non-image configuration,
+fresh empty global queues, provider zero and two safe readiness observations.
+Cold-start health/readiness passed. One authenticated email-only request at
+21:41:41 UTC created queue [redacted-production-id], run
+ds160-email-[redacted-production-id]. The same submitted confirmation
+was verified at 21:43:15; one dispatch was reserved at 21:43:33. This run's
+SHA-verified private evidence retains the exact submitter/No pairs and unchanged
+VIEWSTATE family, with no duplicate or unsupported controls. The one changed
+same-key pair is categorized as other; focus, scroll and standard event fields
+did not change. This excludes the prior focus hypothesis but does not establish
+that the other change is incorrect.
+
+Its POST returned 302 in 74 ms. Complete_Done returned 302 after 100,133 ms to
+AppError (200). The 21:45:47 final capture contains Application Error and no
+explicit sent receipt. At 21:45:51 the queue settled unknown with lease cleared.
+Fresh application/result remain submitted, one confirmed fence, active zero
+and sent zero. At 22:01 the machine was still started despite repeated safe
+runtime/provider-zero and fresh global empty-queue checks. Normal stop completed
+at 22:02; 22:07 metadata confirms stopped/provider zero and unchanged hashes.
+This was explicit cost cleanup, not verified automatic idle exit.
+
+The next offline test exposed a diagnostic defect: reading the old form after
+the outgoing native request starts loses its execution context during navigation.
+It remained strict and failed, so that implementation was not installed or used
+for another official request. A read-only observer now captures current controls
+at the browser's native formdata event, before context loss, through a unique
+private binding. It does not construct, modify or cancel FormData and does not
+change the native click. Only a bounded in-memory snapshot is compared to the
+one actual POST; exported evidence retains boolean/count results only. Binding
+setup, DOM read and optional evidence wait have separate wall-clock bounds;
+cleanup disables the sink and drops transient values. Missing observation remains
+unverified. The event timing follows the
+[HTML entry-list construction algorithm](https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#constructing-the-form-data-set).
+
+All 20 offline Chromium sender tests passed, including a nonstandard hidden
+pair changed by native onclick with strict post-click match, and the omitted/
+duplicate negative cases. All 21 worker/private-evidence tests passed. Type
+checking, build and diff checks passed. This repairs the observation gap;
+it does not establish a CEAC mail-server fix. A new installed-run outcome must
+be recorded independently below before claiming a successful email.
+
+### 2026-10-02: empty automatic-email drain idle lifecycle
+
+Read-only diagnosis identified a local idle defect: pollOnce called idle work
+start/finish around every automatic-email drain, even when the drain returned
+zero. Those empty polls repeatedly reset the grace clock. The drain now uses
+the existing poll/in-flight safety guard and records activity only for a
+positive queued-work count. It does not change admission, email retries,
+recipient selection, dispatch fences or submitted results. All 14 automatic
+email/idle tests passed, including repeated empty polls reaching two safe
+exit checks, an in-flight drain preventing exit, new queued work recording
+activity and an unsafe authoritative check keeping the worker alive. This
+fix explains the local non-idle machine, not the CEAC completion-page error.
+
+Fresh readback on 2026-10-02 07:19 UTC still confirms application/result
+submitted, one confirmed fence, no active target work, latest email unknown
+and zero sent results. The machine is stopped/provider zero with unchanged
+configuration. Normal authenticated proof GET returns the ready two-page
+English PDF with the unchanged 149,537-byte SHA. No new email request has
+been made since the latest terminal queue.

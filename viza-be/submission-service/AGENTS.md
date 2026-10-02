@@ -1084,6 +1084,10 @@ and must fail closed; callers must not perform a direct table settlement.
   authoritative queue check, and confirmation that no protected in-memory
   payment or Korea browser session remains. Future-window arrival-card rows do
   not count as runnable work until their persisted `scheduledFor` date.
+  Empty automatic DS-160 email drains must not reset the idle grace. The
+  surrounding poll/in-flight guard protects a running drain; record idle
+  activity only when it reports queued work. Keep both authoritative exit
+  checks and the protected-session checks intact.
   Health and one-time-card endpoints must listen before Machine slot
   reservation completes. A transient Supabase/Cloudflare outage keeps the
   process alive with bounded retry and no queue claims until a slot is acquired;
