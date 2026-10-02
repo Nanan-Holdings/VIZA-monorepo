@@ -2859,3 +2859,31 @@ passed; both package type checks/builds and frontend lint passed with 57
 existing warnings and zero errors. These local fixes do not establish that
 CEAC's completion-page mail transaction is repaired. Production installation
 and readback are recorded separately below once verified.
+
+Release 918b4f44ccf3255e4e5ff90e6cd1a1e039aed8a7 is installed in production.
+The VIZA organization CLI identity, linked team/project/root and commit author
+were verified before release. The Vercel dry-run manifest contained no local
+credentials, applicant downloads, browser evidence, caches or backend services;
+the three retained PDFs are tracked public form templates. Deployment
+dpl_HttwZ8B8cZuLhNJ2iLP1Do1HqK4k is READY under app.viza.it.com with the exact
+release commit. Authenticated production readback now returns completed and
+applicationStatus submitted, correcting the former action_required display;
+mail remains unknown. An actual post-release UI Download click retrieves the
+same 149,203-byte English confirmation with the hash recorded above. The
+refreshed page has no manual email/send-to-account button and retains the PDF,
+appointment next step and honest mail-result warning.
+
+The existing Fly machine was image-only updated after fresh global work/lease
+counts were zero, provider sessions zero and two fresh readiness checks were
+safe. Installed immutable image is
+registry.fly.io/viza-prod-submission-legacy:ds160-recovery-918b4f44@sha256:0ccc0934d68eebee251b4b6ff96553bc3ea36735f1b4a9e4a69174d901fcdfd4.
+The complete non-image configuration hash remains
+f9280f447f53b0935e07313f7ac1f25deec8669da1080d3ac71c72e1e259ec3f,
+including the direct route, shared sizing, concurrency, TTL and idle timeout.
+Cold-start health/ready returned 200 with dbReachable and workerStarted true;
+deploy readiness was safe with active work zero. By 12:33:15 UTC it had
+automatically stopped with provider sessions zero. Final DB readback confirms
+submitted, one confirmed fence and exactly the original two target jobs
+(submission and automatic mail). No further live submit/email action or data
+repair was used to test this release. CEAC's AppError mail outcome remains an
+external unconfirmed transaction; there is no new success receipt.
