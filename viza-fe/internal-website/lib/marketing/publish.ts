@@ -1,6 +1,7 @@
 import { asMarketingDb, mapBlogAdminRecord, mapSocialComposition } from "./db";
 import { createZernioPosts, findZernioCompositionPosts } from "./providers/zernio";
 import { publishUploadPostImage } from "./providers/upload-post";
+import { fillLinkPlaceholders } from "./captions";
 import { assertLiveMarketingUrl } from "./publish-check";
 import { marketingCategorySlug, revalidatePublicMarketingBlog } from "./revalidate";
 import { validatePublishableBlog } from "./validation";
@@ -143,6 +144,7 @@ export async function publishSocialCompositionById(input: {
     await assertLiveMarketingUrl(destinationUrl);
   }
 
+  const captions = fillLinkPlaceholders(composition.platformContent, destinationUrl);
   const uploadPlatforms = composition.platforms.filter((platform): platform is "instagram" | "pinterest" => platform === "instagram" || platform === "pinterest");
   if (composition.scheduledFor && uploadPlatforms.length) throw new Error("Upload-Post image channels do not support scheduling here; publish them when ready");
   const zernioPlatforms = composition.platforms.filter((platform) => platform !== "instagram" && platform !== "pinterest");
@@ -152,7 +154,7 @@ export async function publishSocialCompositionById(input: {
   const provider = platformsToCreate.length
     ? await createZernioPosts({
         compositionId: composition.id, title: composition.title, platforms: platformsToCreate,
-        platformContent: composition.platformContent, scheduledFor: composition.scheduledFor ?? undefined,
+        platformContent: captions, scheduledFor: composition.scheduledFor ?? undefined,
         publishNow: !composition.scheduledFor, destinationUrl,
         mediaUrl: composition.mediaUrl ?? undefined, documentUrl: composition.documentUrl ?? undefined,
       })
@@ -165,7 +167,7 @@ export async function publishSocialCompositionById(input: {
     try {
       if (!composition.mediaUrl) throw new Error("A reviewed cover image is required for image channels");
       const result = await publishUploadPostImage({
-        platform, caption: composition.platformContent[platform] ?? "", title: composition.title,
+        platform, caption: captions[platform] ?? "", title: composition.title,
         imageUrl: composition.mediaUrl, destinationUrl,
       });
       uploadPosts[platform] = { status: result.status, requestId: result.requestId, postId: result.postId, postUrl: result.postUrl };
