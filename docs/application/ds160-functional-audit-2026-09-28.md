@@ -2705,3 +2705,87 @@ and zero sent results. The machine is stopped/provider zero with unchanged
 configuration. Normal authenticated proof GET returns the ready two-page
 English PDF with the unchanged 149,537-byte SHA. No new email request has
 been made since the latest terminal queue.
+
+### 2026-10-02: installed native-state audit and official completion failure
+
+Release fc6390a7b80ccac92ff49a948ed2d63075b0a49f was installed image-only
+after fresh organization identity/author checks, global empty queues/provider
+zero and two safe readiness observations at 07:25:28 and 07:26:23 UTC. Its
+immutable image digest is
+b04d5548f49be238d9b2f52a5de3ae82796ba1c184219fb7741e4974b3e2af8c.
+The non-image configuration hash remains
+f9280f447f53b0935e07313f7ac1f25deec8669da1080d3ac71c72e1e259ec3f.
+Cold-start health/readiness passed at 07:28:45, including reachable database,
+started worker, active work zero and no protected browser sessions.
+
+One normal authenticated email-only POST at 07:29:12 UTC created queue
+[redacted-production-id], run
+ds160-email-[redacted-production-id]. The same submitted official
+confirmation was verified at 07:30:51 and one dispatch reserved at 07:31:09.
+The private encrypted artifact SHA was verified as
+3c5ad1ada4fcc52ef4e250a0f5af555c663b9496a89b3a568db7152a6959b4da.
+The verified account recipient was visible on the official email form; native
+validity was 10/10 and its single ASP.NET validator was valid. The actual POST
+retained one exact submitter/No pair, no Yes pair, unchanged VIEWSTATE family
+and no duplicate or unsupported controls. A pre-click other pair changed,
+but the native formdata-time observation was present and the actual POST
+matched that submission-time form exactly. The earlier pair difference is
+therefore not evidence of a malformed request.
+
+The one email.aspx POST returned 302 in 231 ms. Its native redirect GET to
+Complete_Done.aspx returned 302 after 99,753 ms to AppError (200). The final
+07:33:26 capture contains Application Error and no explicit email-sent receipt.
+The retained body hash belongs to this error response, not a success receipt.
+At 07:33:30 the task settled unknown and released its lease. Fresh 07:53 UTC
+readback still confirms application/result submitted, one confirmed final fence,
+active/leased target work zero and sent results zero. No further official
+send, submission, signature or applicant-data change occurred after this attempt.
+
+The machine automatically exited on its idle timeout at 07:35:38 UTC. Both
+07:35:41 and 07:51:51 observations confirm stopped/provider zero and unchanged
+configuration. This is production evidence for the empty-drain idle fix;
+it does not establish that CEAC's email service is repaired. The local release
+checks were 20 offline Chromium sender, 21 worker/private-evidence and 14
+automatic-email/idle tests, plus service type checking/build.
+
+An independent authenticated submission-status GET returned completed with
+applicationStatus action_required although fresh stored column/JSON results
+are submitted. Current checked source cannot explain that combination for
+this canonical DS160 queue. The linked Vercel organization account API and
+deployment connector both returned 403, so the currently deployed frontend
+source/version cannot be established. No personal account fallback, frontend
+release or application-data repair was performed; this presentation discrepancy
+remains separate from the official completion-page failure.
+
+The user explicitly accepts only CEAC-origin email and declined a VIZA-origin
+PDF copy. No alternative sender was used. The observed blocker remains the
+official completion page after the single native request; CEAC's internal
+cause and actual mailbox delivery remain unverified. The official
+[DS-160 FAQ](https://travel.state.gov/content/travel/en/us-visas/visa-information-resources/forms/ds-160-online-nonimmigrant-visa-application/ds-160-faqs.html)
+describes a Thank You page after Email Confirmation. The captured AppError
+cannot be promoted to that expected result. A different public CEAC outage
+notice about immigrant-visa Cloudflare blocks is not evidence for this run.
+
+The final read-only session audit found no production request interception,
+cookie mutation, context replacement or page close during dispatch. The 30-second
+click timeout records uncertainty but does not cancel navigation; the same page
+waits under the 180-second overall budget and cleanup follows evidence capture.
+Ownership loss is the only asynchronous close path and was not reported for
+this run. Browserbase reconnect/replacement belongs to recovery and is not
+invoked by the proof-email path. These code/trace observations do not prove
+server cookie continuity: raw cookies, Set-Cookie and headers are intentionally
+absent from the diagnostic bundle. The recipient domain has an MX record, which
+does not prove mailbox existence, acceptance or delivery. No new local defect
+was established and no unchanged live retry was dispatched.
+
+Operator investigation summary, ready for a secure official support channel:
+the already submitted DS-160 confirmation is retrievable; its native Email
+Confirmation form verifies the intended recipient and passes validation; the
+single POST at 2026-10-02 07:31 UTC matches the submit-time form, receives 302,
+and its Complete_Done GET returns AppError after 99,753 ms. Please investigate
+the corresponding CEAC completion transaction and mail-dispatch result using
+the applicant's official identifier supplied privately through that channel.
+Do not reset the application or sign again to diagnose this proof-only failure.
+No support message was sent. The State Department's
+[nonimmigrant visa contact guidance](https://travel.state.gov/content/travel/en/contact-us/us-visas.html)
+is the official starting point; this is not an NVC immigrant-visa incident.
