@@ -78,6 +78,12 @@ Scope: this file applies to `viza-be/submission-service/**`.
 `src/ds160-auto-email.ts` records an automatic confirmation-email intent in a
 new successful submission's queue payload. Only after its browser and heartbeat
 have closed may the exact completed claim become ready and release its lease.
+Its post-cleanup readiness handoff may retry bounded database transport
+failures while preserving the original claim; claim conflicts and identity
+mismatches fail closed. `src/ds160-submitted-artifacts.ts` contains the
+failure-contained capture/storage wrapper for optional post-confirmation proof,
+so a private artifact outage cannot replace a confirmed result. The queue
+payload records unavailable artifact stages without exposing storage details.
 The legacy startup/drain dispatches ready intents through the existing email
 enqueue RPC with the source queue UUID as the stable request ID and retry=false.
 The recipient comes from the authenticated owner's current account. Existing
@@ -1265,6 +1271,12 @@ the France-Visas account after confirming the run.
 - `viza-be/submission-service/README.md`
 - `viza-be/submission-service/.env.example`
 - `viza-be/submission-service/src/index.ts`
+- `viza-be/submission-service/src/ds160-submitted-artifacts.ts` and
+  `src/__tests__/ds160-submitted-artifacts.spec.ts` own the failure-contained
+  optional DS-160 proof capture/storage boundary.
+- `viza-be/submission-service/src/__tests__/ds160-auto-email.spec.ts` covers
+  bounded post-cleanup readiness retries, exact-claim preservation and stable
+  one-send dispatch.
 - `viza-be/submission-service/src/result-writer.ts`
 - `viza-be/submission-service/src/__tests__/result-writer.spec.ts`
 - `viza-be/submission-service/src/queue/__tests__/pool-result-writes.spec.ts`

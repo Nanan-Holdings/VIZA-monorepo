@@ -92,6 +92,11 @@ function localizedSubmissionAccessError(
       ? "此申请需要进一步人工确认后才能提交，请联系客服。"
       : "This application needs attention before submission can continue. Contact support for next steps.";
   }
+  if (code === "already_submitted_result_invalid") {
+    return isZh
+      ? "已提交申请的结果暂时无法验证，请刷新申请状态后再试。"
+      : "The existing submission result could not be verified. Refresh the application status before retrying.";
+  }
   if (!isZh) return rawError;
   if (code === "authentication_required" || /^unauthorized$/i.test(rawError.trim())) {
     return "登录状态已失效，请重新登录后再提交。";
@@ -1496,6 +1501,39 @@ type SubmissionQueueJobResult = {
   submissionResult: SubmissionResult | null;
 };
 
+function isRecordValue(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isVerifiedStoredSubmittedResult(
+  value: unknown,
+  input: Pick<SubmissionQueueJobInput, "country" | "visaType">,
+): value is SubmissionResult {
+  if (!isRecordValue(value)) return false;
+  const status = typeof value.status === "string" ? value.status.trim().toLowerCase() : "";
+  const country = typeof value.country === "string" ? value.country.trim() : "";
+  if (!status || !country) return false;
+
+  if (isDs160VisaType(input.visaType)) {
+    const applicationId = value.applicationId;
+    if (
+      status !== "submitted" ||
+      country.toUpperCase() !== "US" ||
+      typeof applicationId !== "string" ||
+      !applicationId.trim()
+    ) {
+      return false;
+    }
+  }
+
+  return hasSuccessfulFormSubmission({
+    country: input.country,
+    visaType: input.visaType,
+    submissionResultStatus: status,
+    submissionResult: value,
+  });
+}
+
 async function insertSubmissionQueueJob(
   input: SubmissionQueueJobInput,
 ): Promise<SubmissionQueueJobResult> {
@@ -1572,8 +1610,32 @@ async function insertSubmissionQueueJob(
     jobId?: unknown;
     queueStatus?: unknown;
     provider?: unknown;
+    alreadySubmitted?: unknown;
     result?: SubmissionResult | null;
   } | null;
+  if (payload?.alreadySubmitted === true) {
+    const result = sanitizeCustomerSubmissionResult(payload.result);
+    if (!isVerifiedStoredSubmittedResult(result, input)) {
+      const requestError = new Error(
+        localizedSubmissionAccessError(
+          "already_submitted_result_invalid",
+          "The existing submission result could not be verified.",
+          input.locale.toLowerCase().startsWith("zh"),
+        ),
+      ) as SubmissionQueueRequestError;
+      requestError.code = "already_submitted_result_invalid";
+      throw requestError;
+    }
+    return {
+      scheduled: false,
+      scheduledFor: null,
+      jobId: null,
+      queueStatus: null,
+      provider: typeof payload?.provider === "string" ? payload.provider : null,
+      submissionResultStatus: "submitted",
+      submissionResult: result,
+    };
+  }
   return {
     scheduled: Boolean(payload?.scheduled),
     scheduledFor: payload?.scheduledFor ?? null,

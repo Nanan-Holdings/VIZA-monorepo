@@ -770,47 +770,50 @@ describe("deriveSubmissionStatus", () => {
 });
 
 describe("deriveApplicationStatus", () => {
-  it("keeps a submitted result when automatic email metadata only refreshes a completed queue", () => {
-    const application = {
-      id: "ds160-application-id",
-      applicant_id: "applicant-id",
-      country: "United States",
-      visa_type: "DS160",
-      submitted_at: "2026-09-30T16:12:07.000Z",
-      submission_result: {
-        country: "US",
-        status: "submitted",
-        applicationId: "AA00EXAMPLE",
-      },
-      submission_result_status: "submitted",
-      submission_result_updated_at: "2026-09-30T16:12:07.000Z",
-      updated_at: "2026-09-30T16:14:39.000Z",
-    };
-    const queue = {
-      id: "ds160-submitted-queue",
-      status: "ds160_submitted",
-      attempts: 1,
-      mode: "live_assisted",
-      provider: "ceac_live",
-      last_error: null,
-      error_code: null,
-      error_message: null,
-      current_stage: "submitted",
-      heartbeat_at: "2026-09-30T16:14:39.000Z",
-      manual_action_status: null,
-      official_status: "submitted",
-      ceac_result_payload: { automaticEmail: { status: "queued", version: 1 } },
-      created_at: "2026-09-30T16:12:07.000Z",
-      updated_at: "2026-09-30T16:14:39.000Z",
-    };
+  it.each(["DS160", "DS_160", "B1_B2", "B_1_B_2", "US_B1_B2", "US_DS160"])(
+    "keeps a submitted result when automatic email metadata only refreshes a completed queue (%s)",
+    (visaType) => {
+      const application = {
+        id: "ds160-application-id",
+        applicant_id: "applicant-id",
+        country: "United States",
+        visa_type: visaType,
+        submitted_at: "2026-09-30T16:12:07.000Z",
+        submission_result: {
+          country: "US",
+          status: "submitted",
+          applicationId: "AA00EXAMPLE",
+        },
+        submission_result_status: "submitted",
+        submission_result_updated_at: "2026-09-30T16:12:07.000Z",
+        updated_at: "2026-09-30T16:14:39.000Z",
+      };
+      const queue = {
+        id: "ds160-submitted-queue",
+        status: "ds160_submitted",
+        attempts: 1,
+        mode: "live_assisted",
+        provider: "ceac_live",
+        last_error: null,
+        error_code: null,
+        error_message: null,
+        current_stage: "submitted",
+        heartbeat_at: "2026-09-30T16:14:39.000Z",
+        manual_action_status: null,
+        official_status: "submitted",
+        ceac_result_payload: { automaticEmail: { status: "queued", version: 1 } },
+        created_at: "2026-09-30T16:12:07.000Z",
+        updated_at: "2026-09-30T16:14:39.000Z",
+      };
 
-    expect(deriveSubmissionStatus(application, queue, true)).toMatchObject({
-      status: "completed",
-      stage: "completed",
-      progress: 100,
-    });
-    expect(deriveApplicationStatus(application, queue, null, true, true)).toBe("submitted");
-  });
+      expect(deriveSubmissionStatus(application, queue, true)).toMatchObject({
+        status: "completed",
+        stage: "completed",
+        progress: 100,
+      });
+      expect(deriveApplicationStatus(application, queue, null, true, true)).toBe("submitted");
+    },
+  );
 
   it("keeps a newer terminal failure actionable even when the stored result was submitted", () => {
     const application = {

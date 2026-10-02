@@ -168,8 +168,14 @@ import { persistDs160InputSnapshot, persistDs160RunEvidence } from "./ceac/audit
 import { createDs160AuditStore } from "./ceac/audit-storage";
 import { createDs160AuditStorageTransport } from "./ceac/audit-storage-transport";
 import {
+  persistDs160SubmittedArtifacts,
+  type Ds160ProofArtifactStatus,
+  type Ds160ProofLocalPaths,
+  type Ds160ProofStoragePaths,
+} from "./ds160-submitted-artifacts";
+import {
   createDs160AutomaticEmailIntent,
-  markDs160AutomaticEmailReady,
+  markDs160AutomaticEmailReadyWithRetry,
   dispatchDs160AutomaticEmails,
 } from "./ds160-auto-email";
 import {
@@ -1662,17 +1668,9 @@ async function uploadDs160Dat(
   return storagePath;
 }
 
-type Ds160ProofLocalPaths = {
-  confirmationPdfPath?: string;
-  applicationPdfPath?: string;
-  emailConfirmationPdfPath?: string;
-};
-
-type Ds160ProofStoragePaths = {
-  confirmationPdfStoragePath?: string;
-  applicationPdfStoragePath?: string;
-  emailConfirmationPdfStoragePath?: string;
-};
+type Ds160DatArtifactStatus =
+  | { status: "available" }
+  | { status: "unavailable"; failureStages: Array<"storage" | "metadata"> };
 
 async function captureDs160ProofArtifacts(
   page: import("@playwright/test").Page,
@@ -1954,8 +1952,8 @@ async function updateDs160Metadata(
   ds160AppId: string,
   retrievalUrl: string,
   storagePath: string
-): Promise<void> {
-  await supabase
+): Promise<boolean> {
+  const { data, error } = await supabase
     .from("applications")
     .update({
       ds160_application_id: ds160AppId,
@@ -1963,7 +1961,10 @@ async function updateDs160Metadata(
       ds160_dat_storage_path: storagePath,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", dbApplicationId);
+    .eq("id", dbApplicationId)
+    .select("id")
+    .maybeSingle();
+  return !error && data !== null;
 }
 
 async function persistDs160RecoveryCheckpoint(
@@ -2717,17 +2718,45 @@ async function processDs160Item(
     // user-prefixed for RLS — fall back to applicantId if the profile has
     // no auth_user_id (legacy rows from before Supabase Auth was wired).
     let storagePath = "";
+    const datArtifactFailureStages: Array<"storage" | "metadata"> = [];
+    let applicationMetadataFailure = false;
     if (datArtifact) {
       assertQueueLeaseOwned();
       const ownerId = profile.auth_user_id ?? profile.id;
-      storagePath = await uploadDs160Dat(datArtifact.path, item.application_id, ownerId);
+      try {
+        storagePath = await uploadDs160Dat(datArtifact.path, item.application_id, ownerId);
+      } catch {
+        if (!isSubmittedResult(result)) throw new Error("DS-160 .dat artifact storage failed.");
+        datArtifactFailureStages.push("storage");
+        console.warn(
+          "[ceac] Optional .dat artifact storage failed after submitted result; preserving submission.",
+        );
+      }
     }
 
     // Persist Application ID and .dat metadata
     if (result.applicationId) {
       assertQueueLeaseOwned();
       const retrievalUrl = `https://ceac.state.gov/GenNIV/Default.aspx?ApplicationID=${result.applicationId}`;
-      await updateDs160Metadata(item.application_id, result.applicationId, retrievalUrl, storagePath);
+      let metadataPersisted = false;
+      try {
+        metadataPersisted = await updateDs160Metadata(
+          item.application_id,
+          result.applicationId,
+          retrievalUrl,
+          storagePath,
+        );
+      } catch {
+        metadataPersisted = false;
+      }
+      if (!metadataPersisted) {
+        if (!isSubmittedResult(result)) throw new Error("DS-160 application metadata persistence failed.");
+        if (datArtifact) datArtifactFailureStages.push("metadata");
+        applicationMetadataFailure = true;
+        console.warn(
+          "[ceac] DS-160 application metadata persistence failed after submitted result; preserving submission.",
+        );
+      }
     }
 
     // Capture CAPTCHA solve telemetry from session bootstrap (if a CAPTCHA was solved)
@@ -2740,6 +2769,10 @@ async function processDs160Item(
       const ownerId = profile.auth_user_id ?? profile.id;
       assertQueueLeaseOwned();
       let proofStoragePaths: Ds160ProofStoragePaths = {};
+      let proofArtifactStatus: Ds160ProofArtifactStatus = {
+        status: "unavailable",
+        failureStage: "confirmation_preparation",
+      };
       let englishCaptureReady = false;
       try {
         await prepareEnglishDs160ConfirmationCapture(session.page, applicationId);
@@ -2757,11 +2790,21 @@ async function processDs160Item(
         );
       }
       if (englishCaptureReady) {
-        proofStoragePaths = await uploadDs160ProofArtifacts(
-          await captureDs160ProofArtifacts(session.page, tempDir),
-          item.application_id,
-          ownerId,
-        );
+        const artifactResult = await persistDs160SubmittedArtifacts({
+          capture: () => captureDs160ProofArtifacts(session!.page, tempDir),
+          upload: (localPaths) => uploadDs160ProofArtifacts(
+            localPaths,
+            item.application_id,
+            ownerId,
+          ),
+        });
+        proofStoragePaths = artifactResult.storagePaths;
+        proofArtifactStatus = artifactResult.status;
+        if (proofArtifactStatus.status === "unavailable") {
+          console.warn(
+            `[ceac] Optional confirmation artifacts unavailable (${proofArtifactStatus.failureStage}) after submitted result; preserving submission.`,
+          );
+        }
       }
       const usPayload: UsSubmissionResult = {
         country: "US",
@@ -2802,6 +2845,18 @@ async function processDs160Item(
         current_stage: "submitted",
         ceac_result_payload: {
           ...result, sectionCoverage, ...captchaTelemetry,
+          ...(datArtifact && datArtifactFailureStages.length > 0
+            ? {
+                datArtifact: {
+                  status: "unavailable",
+                  failureStages: datArtifactFailureStages,
+                } satisfies Ds160DatArtifactStatus,
+              }
+            : {}),
+          ...(applicationMetadataFailure
+            ? { applicationMetadata: { status: "unavailable", failureStage: "persistence" } }
+            : {}),
+          proofArtifacts: proofArtifactStatus,
           automaticEmail: createDs160AutomaticEmailIntent(),
         } as unknown as Record<string, unknown>,
         live_submitted_at: result.submittedAt,
@@ -3244,7 +3299,11 @@ async function processDs160Item(
         // to its automatic email job. A mail failure never changes success.
         if (automaticEmailRequested && !queueLease?.isOwnershipLost()) {
           try {
-            await markDs160AutomaticEmailReady(supabase, item);
+            // finishDs160Attempt above has already closed CEAC and stopped the
+            // heartbeat. Retry only this transient handoff while the same
+            // exact claim is still fenced; a replacement/dead claim returns
+            // false and is never released by this path.
+            await markDs160AutomaticEmailReadyWithRetry(supabase, item);
           } catch {
             console.warn("[ceac-email] Automatic email handoff needs recovery; submission is preserved.");
           }

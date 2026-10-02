@@ -12,6 +12,11 @@ type SourceRow = {
 const DEADLINE_MS = 15_000;
 const INTENT_STATUS = "ceac_result_payload->automaticEmail->>status";
 const INTENT_VERSION = "ceac_result_payload->automaticEmail->>version";
+// The handoff runs only after browser/heartbeat cleanup. Keep this retry short
+// so the original claim remains valid and never turn a dead process into an
+// inferred cleanup/release path.
+const READY_HANDOFF_MAX_ATTEMPTS = 3;
+const READY_HANDOFF_RETRY_DELAYS_MS = [250, 500] as const;
 function record(value: unknown): RecordValue | null {
   return value !== null && typeof value === "object" && !Array.isArray(value)
     ? value as RecordValue : null;
@@ -30,8 +35,9 @@ async function verifiedOwner(client: SupabaseClient, source: SourceRow): Promise
     .select("applicant_id,submission_result,ds160_application_id")
     .eq("id", source.application_id).abortSignal(AbortSignal.timeout(DEADLINE_MS)).maybeSingle();
   const result = record(application?.submission_result);
+  if (error) throw new Error("ds160_auto_email_submission_lookup_unavailable");
   const officialId = application?.ds160_application_id;
-  if (error || !application || result?.country !== "US" || result.status !== "submitted"
+  if (!application || result?.country !== "US" || result.status !== "submitted"
     || typeof officialId !== "string" || !officialId.trim()
     || result.applicationId !== officialId || source.ceac_result_payload.applicationId !== officialId) {
     throw new Error("ds160_auto_email_submission_unverified");
@@ -40,13 +46,15 @@ async function verifiedOwner(client: SupabaseClient, source: SourceRow): Promise
     .select("id").eq("application_id", source.application_id).eq("state", "confirmed")
     .eq("official_application_id_hash", digest(officialId.trim()))
     .limit(1).abortSignal(AbortSignal.timeout(DEADLINE_MS));
-  if (fenceError || !Array.isArray(fences) || fences.length !== 1) {
+  if (fenceError) throw new Error("ds160_auto_email_confirmation_lookup_unavailable");
+  if (!Array.isArray(fences) || fences.length !== 1) {
     throw new Error("ds160_auto_email_confirmation_unverified");
   }
   const { data: profile, error: profileError } = await client.from("applicant_profiles")
     .select("auth_user_id").eq("id", application.applicant_id)
     .abortSignal(AbortSignal.timeout(DEADLINE_MS)).maybeSingle();
-  if (profileError || !profile || typeof profile.auth_user_id !== "string" || !profile.auth_user_id) {
+  if (profileError) throw new Error("ds160_auto_email_owner_lookup_unavailable");
+  if (!profile || typeof profile.auth_user_id !== "string" || !profile.auth_user_id) {
     throw new Error("ds160_auto_email_owner_unavailable");
   }
   return profile.auth_user_id;
@@ -88,6 +96,39 @@ export async function markDs160AutomaticEmailReady(
     .select("id").abortSignal(AbortSignal.timeout(DEADLINE_MS)).maybeSingle();
   if (updateError) throw new Error("ds160_auto_email_cleanup_handoff_unavailable");
   return updated !== null;
+}
+
+function isTransientReadyHandoffError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  return error.message === "ds160_auto_email_source_unavailable"
+    || error.message === "ds160_auto_email_cleanup_handoff_unavailable"
+    || error.message === "ds160_auto_email_submission_lookup_unavailable"
+    || error.message === "ds160_auto_email_confirmation_lookup_unavailable"
+    || error.message === "ds160_auto_email_owner_lookup_unavailable";
+}
+
+/**
+ * Retry only transport/read-write failures after cleanup has completed. A
+ * false result is a claim conflict or an already-completed handoff and must
+ * stop immediately; the exact original claim is passed on every attempt.
+ */
+export async function markDs160AutomaticEmailReadyWithRetry(
+  client: SupabaseClient,
+  item: Pick<SubmissionQueueItem, "id" | "application_id" | "locked_by" | "locked_at">,
+): Promise<boolean> {
+  for (let attempt = 1; attempt <= READY_HANDOFF_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      return await markDs160AutomaticEmailReady(client, item);
+    } catch (error) {
+      if (!isTransientReadyHandoffError(error) || attempt === READY_HANDOFF_MAX_ATTEMPTS) {
+        throw error;
+      }
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, READY_HANDOFF_RETRY_DELAYS_MS[attempt - 1] ?? 500);
+      });
+    }
+  }
+  return false;
 }
 
 /**

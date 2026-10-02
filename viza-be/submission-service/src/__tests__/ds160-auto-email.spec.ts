@@ -2,7 +2,12 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { createDs160AutomaticEmailIntent, markDs160AutomaticEmailReady, dispatchDs160AutomaticEmails } from "../ds160-auto-email";
+import {
+  createDs160AutomaticEmailIntent,
+  markDs160AutomaticEmailReady,
+  markDs160AutomaticEmailReadyWithRetry,
+  dispatchDs160AutomaticEmails,
+} from "../ds160-auto-email";
 import { finishDs160Attempt } from "../submission-queue-claim";
 
 type Row = Record<string, unknown>;
@@ -26,6 +31,9 @@ function fixture() {
   const writes: string[] = [];
   const emails = new Map<string, Row>();
   let ambiguousRpcOnce = false;
+  let sourceUnavailableRemaining = 0;
+  let applicationUnavailableOnce = false;
+  let replaceClaimOnSourceFailure = false;
   let authError = false;
   let renewOnFenceRead = false;
   function read(row: Row, column: string): unknown {
@@ -37,6 +45,15 @@ function fixture() {
     let patch: Row | null = null;
     let limit = Infinity;
     const execute = (single = false) => {
+      if (table === "submission_queue" && sourceUnavailableRemaining > 0) {
+        sourceUnavailableRemaining -= 1;
+        if (replaceClaimOnSourceFailure) source.locked_by = "replacement-worker";
+        return { data: null, error: { message: "transient source outage" } };
+      }
+      if (table === "applications" && applicationUnavailableOnce) {
+        applicationUnavailableOnce = false;
+        return { data: null, error: { message: "transient application outage" } };
+      }
       if (table === "ds160_final_submission_attempts" && renewOnFenceRead) {
         source.locked_until = "2099-01-02T00:00:00Z";
         renewOnFenceRead = false;
@@ -82,7 +99,17 @@ function fixture() {
   } as unknown as SupabaseClient;
   return { client, source, tables, rpcCalls, writes, emails,
     ambiguousRpc: () => { ambiguousRpcOnce = true; }, failAuth: () => { authError = true; },
-    renewDuringHandoff: () => { renewOnFenceRead = true; } };
+    renewDuringHandoff: () => { renewOnFenceRead = true; },
+    failSourceOnce: (replaceClaim = false) => {
+      sourceUnavailableRemaining = 1;
+      replaceClaimOnSourceFailure = replaceClaim;
+    },
+    failSourceAttempts: (attempts: number) => {
+      sourceUnavailableRemaining = attempts;
+      replaceClaimOnSourceFailure = false;
+    },
+    failApplicationOnce: () => { applicationUnavailableOnce = true; },
+  };
 }
 
 test("confirmed submission closes browser before handing off one automatic account email", async () => {
@@ -122,6 +149,50 @@ test("renewed lease during handoff is preserved rather than cleared", async () =
   assert.equal(await markDs160AutomaticEmailReady(f.client, claim), false);
   assert.equal(f.source.locked_until, "2099-01-02T00:00:00Z");
   assert.equal(f.source.locked_by, claim.locked_by);
+  assert.equal(await dispatchDs160AutomaticEmails(f.client), 0);
+});
+
+test("transient ready handoff retries the exact claim and still dispatches once", async () => {
+  const f = fixture();
+  f.failSourceOnce();
+  assert.equal(await markDs160AutomaticEmailReadyWithRetry(f.client, claim), true);
+  assert.equal(f.source.locked_by, null);
+  assert.equal(((f.source.ceac_result_payload as Row).automaticEmail as Row).status, "ready");
+  assert.equal(await dispatchDs160AutomaticEmails(f.client), 1);
+  assert.equal(await dispatchDs160AutomaticEmails(f.client), 0);
+  assert.equal(f.rpcCalls.length, 1);
+});
+
+test("missing optional metadata keeps the intent waiting instead of creating a doomed email job", async () => {
+  const f = fixture();
+  f.tables.applications[0].ds160_application_id = null;
+  await assert.rejects(markDs160AutomaticEmailReady(f.client, claim));
+  assert.equal(((f.source.ceac_result_payload as Row).automaticEmail as Row).status, "waiting_for_cleanup");
+  assert.equal(f.source.locked_by, claim.locked_by);
+});
+
+test("transient owner verification lookup is retried before the exact handoff", async () => {
+  const f = fixture();
+  f.failApplicationOnce();
+  assert.equal(await markDs160AutomaticEmailReadyWithRetry(f.client, claim), true);
+  assert.equal(((f.source.ceac_result_payload as Row).automaticEmail as Row).status, "ready");
+});
+
+test("ready handoff retry never releases a replacement claim", async () => {
+  const f = fixture();
+  f.failSourceOnce(true);
+  assert.equal(await markDs160AutomaticEmailReadyWithRetry(f.client, claim), false);
+  assert.equal(f.source.locked_by, "replacement-worker");
+  assert.equal(((f.source.ceac_result_payload as Row).automaticEmail as Row).status, "waiting_for_cleanup");
+  assert.equal(f.rpcCalls.length, 0);
+});
+
+test("bounded ready handoff retry leaves the original waiting claim after exhaustion", async () => {
+  const f = fixture();
+  f.failSourceAttempts(3);
+  await assert.rejects(markDs160AutomaticEmailReadyWithRetry(f.client, claim));
+  assert.equal(f.source.locked_by, claim.locked_by);
+  assert.equal(((f.source.ceac_result_payload as Row).automaticEmail as Row).status, "waiting_for_cleanup");
   assert.equal(await dispatchDs160AutomaticEmails(f.client), 0);
 });
 

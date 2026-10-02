@@ -5,7 +5,9 @@ const testState = vi.hoisted(() => ({
   submitted: false,
   saveBarrier: null as Promise<void> | null,
   saveError: null as string | null,
+  locale: "en",
   submissionPosts: [] as string[],
+  submissionResponse: null as Record<string, unknown> | null,
   statusPropsHistory: [] as Array<Record<string, unknown>>,
   dynamicPropsHistory: [] as Array<Record<string, unknown>>,
   reviewPropsHistory: [] as Array<Record<string, unknown>>,
@@ -82,7 +84,7 @@ vi.mock("next-intl", () => {
     return key;
   }, { has: () => false });
   return {
-    useLocale: () => "en",
+    useLocale: () => testState.locale,
     useTranslations: () => translate,
   };
 });
@@ -447,7 +449,9 @@ beforeEach(() => {
   testState.submitted = false;
   testState.saveBarrier = null;
   testState.saveError = null;
+  testState.locale = "en";
   testState.submissionPosts.length = 0;
+  testState.submissionResponse = null;
   testState.statusPropsHistory.length = 0;
   testState.dynamicPropsHistory.length = 0;
   testState.reviewPropsHistory.length = 0;
@@ -482,7 +486,7 @@ beforeEach(() => {
     const url = String(input);
     if (url.endsWith("/retry-submission")) {
       testState.submissionPosts.push(String(init?.body));
-      return response({ jobId: "mock-job", queueStatus: "queued" }) as Response;
+      return response(testState.submissionResponse ?? { jobId: "mock-job", queueStatus: "queued" }) as Response;
     }
     if (url.includes("/form-assistant/turn")) {
       return response({
@@ -550,6 +554,52 @@ describe("long form page orchestration", () => {
     }));
     await waitFor(() => expect(screen.getByTestId("dynamic-edit")).toBeDisabled());
     expect(screen.getByRole("button", { name: "Download confirmation" })).toBeEnabled();
+  });
+
+  it("maps an already-submitted retry response to the stored terminal result", async () => {
+    testState.submissionResponse = {
+      alreadySubmitted: true,
+      result: { country: "US", status: "submitted", applicationId: "AA00ALREADY" },
+    };
+    const { default: ApplicationPage } = await import("../page");
+    render(<ApplicationPage />);
+
+    await waitFor(() => expect(screen.getByRole("button", { name: /^Submit$/ })).toBeEnabled());
+    await waitFor(() => expect(testState.assistantPropsHistory.at(-1)?.loading).toBe(false));
+    fireEvent.click(screen.getByRole("button", { name: /^Submit$/ }));
+
+    await waitFor(() => {
+      expect(testState.statusPropsHistory.at(-1)).toMatchObject({
+        status: "submitted",
+        result: { country: "US", status: "submitted", applicationId: "AA00ALREADY" },
+      });
+    });
+    expect(testState.submissionPosts).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: /^Submit$/ })).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["wrong status", { country: "US", status: "action_required", applicationId: "AA00INVALID" }],
+    ["missing application identifier", { country: "US", status: "submitted" }],
+    ["wrong country", { country: "CA", status: "submitted", applicationId: "AA00INVALID" }],
+  ])("fails closed when an already-submitted retry response has an invalid result (%s)", async (_case, result) => {
+    testState.locale = "zh";
+    testState.submissionResponse = {
+      alreadySubmitted: true,
+      result,
+    };
+    const { default: ApplicationPage } = await import("../page");
+    render(<ApplicationPage />);
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "提交" })).toBeEnabled());
+    await waitFor(() => expect(testState.assistantPropsHistory.at(-1)?.loading).toBe(false));
+    fireEvent.click(screen.getByRole("button", { name: "提交" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("已提交申请的结果暂时无法验证，请刷新申请状态后再试。")).toBeInTheDocument();
+    });
+    expect(testState.statusPropsHistory.at(-1)?.status).not.toBe("submitted");
+    expect(screen.getByRole("button", { name: "提交" })).toBeEnabled();
   });
 
   it("keeps the draft editable and never enqueues when saving fails", async () => {

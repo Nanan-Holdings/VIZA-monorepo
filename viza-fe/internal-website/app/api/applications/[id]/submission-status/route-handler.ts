@@ -2,6 +2,7 @@ import { after, NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
+  isDs160VisaType,
   isUkMisroutedDryRunError,
   isUkPrefillSubmissionResult,
   ukPrefillProgressPercent,
@@ -180,7 +181,7 @@ function shouldPreserveSubmittedApplicationStatus(
   return (
     terminalQueueOverridesApplication &&
     hasStoredSubmittedResult(application) &&
-    normalizeStatus(application.visa_type) === "ds160" &&
+    isDs160VisaType(application.visa_type) &&
     normalizeStatus(queue?.provider) === "ceac_live" &&
     normalizeStatus(queue?.status) === "ds160_submitted"
   );

@@ -2789,3 +2789,73 @@ Do not reset the application or sign again to diagnose this proof-only failure.
 No support message was sent. The State Department's
 [nonimmigrant visa contact guidance](https://travel.state.gov/content/travel/en/contact-us/us-visas.html)
 is the official starting point; this is not an NVC immigrant-visa incident.
+
+### 2026-10-02: explicitly authorized new application, actual UI Submit
+
+The user explicitly selected another formal DS-160 and a real production
+Submit click. The production New Application control created draft
+[redacted-production-id] at 08:10:50 UTC. Its 380 saved answer
+rows match the previously confirmed source as a multiset, including repeat
+multiplicities. No answers or factual branches were inferred. The normal UI
+file chooser uploaded the approved JPEG to this application; private storage
+readback confirms 55,988 bytes and SHA
+62ed3aed9560eb55bc2afccadbe8105075aaf37e180dafbdcc0a15c4315de6b6.
+The authenticated completeness endpoint reported complete questionnaire and
+document collection with zero missing items. Before the click, this draft had
+no official identity, queue, final fence or active lease; the worker was stopped
+and provider active-session counts were zero.
+
+The production Submit button was actually clicked once through CUA. The page
+first showed validation, then submission progress; queue
+[redacted-production-id] was created at 08:25:01 UTC and picked
+up at 08:25:11 as run ds160-live-[redacted-run]. No API enqueue script
+substituted for this UI click. A private cropped progress screenshot was saved
+outside the repository; its 72% display is not submission success evidence.
+At 08:47 UTC the first attempt was still processing with a valid renewing
+lease, zero active siblings/final fences/errors, and had reached additional
+work/education after verified previous work/education. Neither an official
+confirmation nor an automatic email result had yet been obtained for this run.
+Older successful applications remain preserved and were not re-signed.
+
+This UI-created queue reached official submission at 08:55:34 UTC on its first
+attempt. Queue and application column/JSON results are submitted; exactly one
+confirmed final fence matches the new official identity, which differs from
+the preserved source application. Queue creation to official success took
+approximately 30 minutes 32 seconds; the five-minute target was not met.
+
+The encrypted input and official evidence hashes, and all 16 embedded-file
+hashes, were verified in memory. Seven official Review pages match 149/149
+expectations with no issues; the 380 input rows match current saved answers as
+a multiset. The consular post also independently matches. Structured official
+evidence still does not cover has_social_media and ds160_preparer_assistance,
+and Print Application PDF is absent. These checks do not prove every official
+field or branch. The production Download Confirmation PDF button retrieved
+the same English official file as the authenticated proof endpoint: 149,203
+bytes, SHA256 87cf4f69537c5df49c86d2e95400747b31dd1167496409a573b8be6aef73be47.
+
+After browser/heartbeat cleanup the automatic-email intent created queue
+[redacted-production-id] at 08:56:12 UTC, with request_id equal
+to the source submission queue. No manual email POST was used. The recipient
+digest matches the user-requested authenticated account. The verified native
+form passed its validation and the actual POST matched its formdata-time
+controls exactly. A single dispatch reservation at 08:58:10 led to email.aspx
+POST 302 in approximately 69 ms, then Complete_Done GET 302 after 100,120 ms
+to AppError (200). SHA-verified official evidence captured at 09:00:26 contains
+Application Error and no email-sent receipt. The mail task is unknown; no
+delivery or SMTP diagnosis is claimed. Application submission remains intact.
+Provider sessions were released and the machine automatically stopped by
+09:04:45 UTC, with its non-image configuration hash unchanged.
+
+The scoped recovery fixes contain optional post-confirmation proof/.dat
+storage failures, preserve honest artifact-unavailable diagnostics, and retry
+only short transient failures in the exact-claim post-cleanup handoff. Identity
+and confirmed-fence checks remain strict; exhausted handoff retries remain
+blocked for recovery. Frontend submission-status mapping now recognizes all
+supported DS-160 aliases and a verified alreadySubmitted API result immediately
+renders the submitted state instead of fictitious running progress. Invalid
+results fail closed. Seventy focused frontend tests and 86 relevant service
+tests (including offline Chromium final-submit/email, leases and idle cleanup)
+passed; both package type checks/builds and frontend lint passed with 57
+existing warnings and zero errors. These local fixes do not establish that
+CEAC's completion-page mail transaction is repaired. Production installation
+and readback are recorded separately below once verified.
