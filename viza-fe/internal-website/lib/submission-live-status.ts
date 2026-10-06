@@ -240,6 +240,12 @@ function isSchemaMissingError(error: QueryErrorLike | null | undefined): boolean
 }
 
 function isLiveQueue(row: QueueRow): boolean {
+  // DS-160 proof recovery is a post-submission artifact job. It deliberately
+  // uses live_assisted mode for the shared queue, but must never replace the
+  // official submission row in client/admin live status summaries.
+  if (row.provider === "ceac_proof" || normalizeStatus(row.status).startsWith("ds160_proof_")) {
+    return false;
+  }
   return row.mode === "live_assisted" || (row.provider ? LIVE_PROVIDERS.has(row.provider) : false);
 }
 

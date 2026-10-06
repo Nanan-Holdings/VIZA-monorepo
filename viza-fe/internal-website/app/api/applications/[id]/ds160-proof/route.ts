@@ -107,8 +107,11 @@ async function loadOwnedApplication(applicationId: string): Promise<
 async function loadLatestProofQueue(
   admin: ReturnType<typeof createAdminClient>,
   applicationId: string,
-): Promise<{ id?: string; status?: string; last_error?: string | null; error_message?: string | null } | null> {
-  const { data } = await admin
+): Promise<{
+  row: { id?: string; status?: string; last_error?: string | null; error_message?: string | null } | null;
+  readFailed: boolean;
+}> {
+  const { data, error } = await admin
     .from("submission_queue")
     .select("id,status,last_error,error_message,updated_at")
     .eq("application_id", applicationId)
@@ -118,7 +121,11 @@ async function loadLatestProofQueue(
     .order("updated_at", { ascending: false, nullsFirst: false })
     .limit(1)
     .maybeSingle();
-  return data as { id?: string; status?: string; last_error?: string | null; error_message?: string | null } | null;
+  if (error) return { row: null, readFailed: true };
+  return {
+    row: data as { id?: string; status?: string; last_error?: string | null; error_message?: string | null } | null,
+    readFailed: false,
+  };
 }
 
 type OfficialEmailQueueRow = Ds160ProofEmailQueueState & {
@@ -278,7 +285,19 @@ export async function GET(
   }
   const action = resolveDs160ProofAction(applicationId, kind, loaded.application.submission_result);
   if (action.status === "queued") {
-    const proofQueue = await loadLatestProofQueue(loaded.admin, applicationId);
+    const proofQueueResult = await loadLatestProofQueue(loaded.admin, applicationId);
+    if (proofQueueResult.readFailed) {
+      return NextResponse.json(
+        {
+          ok: false,
+          status: "unavailable",
+          code: "ds160_proof_unavailable",
+          error: "The official DS-160 proof status is temporarily unavailable. Please refresh and try again.",
+        },
+        { status: 503, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+    const proofQueue = proofQueueResult.row;
     if (proofQueue?.status === "ds160_proof_failed") {
       return NextResponse.json(
         {
@@ -410,7 +429,17 @@ export async function POST(
         { status: 503 },
       );
     }
-    const latestProofQueue = await loadLatestProofQueue(loaded.admin, applicationId);
+    const latestProofQueueResult = await loadLatestProofQueue(loaded.admin, applicationId);
+    if (latestProofQueueResult.readFailed) {
+      return NextResponse.json(
+        {
+          error: "The official DS-160 proof status is temporarily unavailable. Please refresh and try again.",
+          code: "ds160_proof_unavailable",
+        },
+        { status: 503, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+    const latestProofQueue = latestProofQueueResult.row;
     if (latestProofQueue?.status === "done") {
       return NextResponse.json(
         { ok: false, status: "failed", jobId: latestProofQueue.id ?? null, error: missingProofMessage(kind) },

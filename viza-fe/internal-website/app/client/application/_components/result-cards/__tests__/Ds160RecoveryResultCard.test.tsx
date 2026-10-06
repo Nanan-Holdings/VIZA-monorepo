@@ -1,7 +1,10 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { GenericSubmissionResult } from "@/lib/submission-result";
-import { GenericResultCard } from "../SubmissionStatusStep";
+import {
+  GenericResultCard,
+  SUBMISSION_STATUS_REQUEST_TIMEOUT_MS,
+} from "../SubmissionStatusStep";
 
 const locale = vi.hoisted(() => ({ value: "zh" }));
 vi.mock("next-intl", () => ({ useLocale: () => locale.value }));
@@ -55,6 +58,7 @@ function jsonResponse(payload: unknown, status = 200) {
 describe("GenericResultCard DS-160 recovery", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.useRealTimers();
     locale.value = "zh";
   });
 
@@ -179,7 +183,10 @@ describe("GenericResultCard DS-160 recovery", () => {
 
     await waitFor(() => expect(onResubmit).toHaveBeenCalledWith("live_assisted", undefined, "retry"));
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock).toHaveBeenCalledWith("/api/submissions/blocked-job/manual-actions", { cache: "no-store" });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/submissions/blocked-job/manual-actions",
+      expect.objectContaining({ cache: "no-store", signal: expect.any(AbortSignal) }),
+    );
   });
 
   it.each([
@@ -224,6 +231,28 @@ describe("GenericResultCard DS-160 recovery", () => {
     render(portalCard());
 
     expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "修改后重试" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "重试提交" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "我已完成，继续" })).toBeDisabled();
+  });
+
+  it("keeps the manual-action branch fail-closed after a hung read times out", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn((_input: RequestInfo | URL, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => {
+          reject(new DOMException("Aborted", "AbortError"));
+        });
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    render(portalCard());
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(SUBMISSION_STATUS_REQUEST_TIMEOUT_MS);
+    });
+
+    expect(screen.getByRole("alert")).toHaveTextContent("无法读取官网操作状态，请刷新后重试。");
     expect(screen.queryByRole("button", { name: "修改后重试" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "重试提交" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "我已完成，继续" })).toBeDisabled();

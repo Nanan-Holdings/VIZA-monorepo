@@ -1308,7 +1308,7 @@ function FinalConfirmationPanel({
   // the control against duplicate requests.
   const taiwanTermsReady =
     !isTaiwan || (taiwanEntryPromptAccepted && taiwanTermsModalAccepted);
-  const submitDisabled = isSubmitting || isChecking || !taiwanTermsReady ||
+  const submitDisabled = requirementsLoading || isSubmitting || isChecking || !taiwanTermsReady ||
     (isKoreaEArrivalCard && !koreaPreflightTrusted) ||
     (hasLiveAssistedTarget && !liveAssistedEnabled);
   const submitCopy = forceDryRun

@@ -2433,18 +2433,6 @@ export async function POST(
     return NextResponse.json({ error: queueResult.error }, { status: 500 });
   }
   if (queueResult.reusedExisting) {
-    const stickyWake = isIndonesiaEVisaApplication(
-      ownedApplication.country,
-      ownedApplication.visa_type,
-    )
-      ? await ensureFlyMachineStarted("indonesia")
-      : null;
-    const ds160Wake =
-      isDs160VisaType(ownedApplication.visa_type) &&
-      isWakeableDs160QueueStatus(queueResult.queueStatus) &&
-      queueResult.jobId
-        ? await wakeDs160SubmissionWorker(queueResult.jobId)
-        : null;
     if (freshDs160Submission) {
       const { error: appUpdateError } = await admin
         .from("applications")
@@ -2462,6 +2450,18 @@ export async function POST(
         return NextResponse.json({ error: appUpdateError.message }, { status: 500 });
       }
     }
+    const stickyWake = isIndonesiaEVisaApplication(
+      ownedApplication.country,
+      ownedApplication.visa_type,
+    )
+      ? await ensureFlyMachineStarted("indonesia")
+      : null;
+    const ds160Wake =
+      isDs160VisaType(ownedApplication.visa_type) &&
+      isWakeableDs160QueueStatus(queueResult.queueStatus) &&
+      queueResult.jobId
+        ? await wakeDs160SubmissionWorker(queueResult.jobId)
+        : null;
     return NextResponse.json({
       ok: true,
       applicationId,

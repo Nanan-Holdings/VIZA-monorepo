@@ -105,6 +105,52 @@ type ProofActionResponse = {
   error?: string;
 };
 
+const DS160_PROOF_REQUEST_TIMEOUT_MS = 30_000;
+
+class ProofRequestTimeoutError extends Error {
+  constructor() {
+    super("DS-160 proof request timed out");
+    this.name = "ProofRequestTimeoutError";
+  }
+}
+
+async function requestProofJson<T>(
+  input: RequestInfo | URL,
+  init: RequestInit,
+): Promise<{ response: Response; payload: T | null }> {
+  const controller = new AbortController();
+  let timedOut = false;
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  const request = (async () => {
+    const response = await fetch(input, {
+      ...init,
+      signal: controller.signal,
+    });
+    let payload: T | null = null;
+    try {
+      payload = await response.json() as T;
+    } catch (error) {
+      if (timedOut) throw error;
+    }
+    return { response, payload };
+  })();
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      timedOut = true;
+      reject(new ProofRequestTimeoutError());
+      controller.abort();
+    }, DS160_PROOF_REQUEST_TIMEOUT_MS);
+  });
+
+  try {
+    return await Promise.race([request, timeout]);
+  } finally {
+    if (timeoutId !== null) clearTimeout(timeoutId);
+    if (timedOut) controller.abort();
+  }
+}
+
 function createProofRequestError(message: string, code?: string): Error & { code?: string } {
   const error = new Error(message) as Error & { code?: string };
   if (code) error.code = code;
@@ -200,7 +246,13 @@ export function UsResultCard({
       triggerProofDownload(ready.downloadUrl);
       setProofMessage(t("proofReady"));
     } catch (error) {
-      setProofMessage(error instanceof Error ? error.message : t("proofFailed"));
+      setProofMessage(
+        error instanceof ProofRequestTimeoutError
+          ? t("proofTimeout")
+          : error instanceof Error
+            ? error.message
+            : t("proofFailed"),
+      );
     } finally {
       setProofBusy((prev) => ({ ...prev, [kind]: false }));
     }
@@ -211,12 +263,14 @@ export function UsResultCard({
     action: "download",
   ): Promise<ProofActionResponse> => {
     const body: Record<string, unknown> = { kind, action };
-    const response = await fetch(`/api/applications/${applicationId}/ds160-proof`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const payload = (await response.json().catch(() => null)) as ProofActionResponse | null;
+    const { response, payload } = await requestProofJson<ProofActionResponse>(
+      `/api/applications/${applicationId}/ds160-proof`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      },
+    );
     if (!response.ok) {
       throw createProofRequestError(
         payload?.error ?? `${t("proofFailed")} (${response.status})`,
@@ -229,10 +283,10 @@ export function UsResultCard({
   const waitForProofReady = async (kind: Ds160ProofKind): Promise<ProofActionResponse> => {
     for (let attempt = 0; attempt < 60; attempt += 1) {
       await new Promise((resolve) => setTimeout(resolve, 3000));
-      const response = await fetch(`/api/applications/${applicationId}/ds160-proof?kind=${encodeURIComponent(kind)}`, {
-        cache: "no-store",
-      });
-      const payload = (await response.json().catch(() => null)) as ProofActionResponse | null;
+      const { response, payload } = await requestProofJson<ProofActionResponse>(
+        `/api/applications/${applicationId}/ds160-proof?kind=${encodeURIComponent(kind)}`,
+        { cache: "no-store" },
+      );
       if (!response.ok) {
         throw createProofRequestError(
           payload?.error ?? `${t("proofFailed")} (${response.status})`,

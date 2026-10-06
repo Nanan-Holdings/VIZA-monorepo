@@ -1,6 +1,9 @@
 import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { SubmissionStatusStep } from "../SubmissionStatusStep";
+import {
+  SUBMISSION_STATUS_REQUEST_TIMEOUT_MS,
+  SubmissionStatusStep,
+} from "../SubmissionStatusStep";
 
 vi.mock("next-intl", () => ({
   useLocale: () => "zh",
@@ -91,6 +94,14 @@ function createResponse(body: unknown, status = 200) {
     status,
     json: async () => body,
   };
+}
+
+function responseWithHangingBody(): Response {
+  return {
+    ok: true,
+    status: 200,
+    json: () => new Promise<never>(() => undefined),
+  } as unknown as Response;
 }
 
 function statusRequestCount(fetchMock: ReturnType<typeof vi.fn>): number {
@@ -301,6 +312,24 @@ describe("SubmissionStatusStep status polling", () => {
     await advanceAndFlush(5_000);
     expect(statusRequestCount(fetchMock)).toBe(2);
     await advanceAndFlush(60_000);
+    expect(statusRequestCount(fetchMock)).toBe(2);
+  });
+
+  it("retries after a hung status request times out", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) =>
+      Promise.resolve(responseWithHangingBody()),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderActiveSubmission();
+    await flushEffects();
+    expect(statusRequestCount(fetchMock)).toBe(1);
+
+    await advanceAndFlush(SUBMISSION_STATUS_REQUEST_TIMEOUT_MS);
+    expect(statusRequestCount(fetchMock)).toBe(1);
+
+    await advanceAndFlush(5_000);
     expect(statusRequestCount(fetchMock)).toBe(2);
   });
 

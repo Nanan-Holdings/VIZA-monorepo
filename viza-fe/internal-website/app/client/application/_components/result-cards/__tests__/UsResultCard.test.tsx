@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import enMessages from "@/messages/en.json";
 import zhMessages from "@/messages/zh.json";
@@ -33,6 +33,14 @@ const stoppedAtSignResult: UsSubmissionResult = {
   ...submittedResult,
   status: "stopped_at_sign",
 };
+
+function responseWithHangingBody(): Response {
+  return {
+    ok: true,
+    status: 200,
+    json: () => new Promise<never>(() => undefined),
+  } as unknown as Response;
+}
 
 describe("UsResultCard", () => {
   afterEach(() => {
@@ -100,6 +108,69 @@ describe("UsResultCard", () => {
     const downloadCalls = fetchMock.mock.calls as unknown as Array<[RequestInfo | URL, RequestInit | undefined]>;
     expect(downloadCalls.filter(([, init]) => init?.method === "POST")).toHaveLength(1);
     anchorClick.mockRestore();
+  });
+
+  it("releases the PDF action after a hung proof POST without replaying it", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn(async () => responseWithHangingBody());
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<UsResultCard applicationId="viza-application-id" result={submittedResult} />);
+    const downloadButton = screen.getByRole("button", { name: "printConfirmation" });
+    fireEvent.click(downloadButton);
+    expect(downloadButton).toBeDisabled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(downloadButton).toBeEnabled();
+    expect(screen.getByText("proofTimeout")).toBeInTheDocument();
+  });
+
+  it("releases the PDF action after the proof transport never resolves", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn(() => new Promise<Response>(() => undefined));
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<UsResultCard applicationId="viza-application-id" result={submittedResult} />);
+    const downloadButton = screen.getByRole("button", { name: "printConfirmation" });
+    fireEvent.click(downloadButton);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(downloadButton).toBeEnabled();
+    expect(screen.getByText("proofTimeout")).toBeInTheDocument();
+  });
+
+  it("releases the PDF action after a hung proof status read without replaying the POST", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        return Promise.resolve(new Response(JSON.stringify({ status: "queued" }), { status: 200 }));
+      }
+      expect(String(input)).toContain("/ds160-proof?kind=confirmation");
+      return Promise.resolve(responseWithHangingBody());
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<UsResultCard applicationId="viza-application-id" result={submittedResult} />);
+    const downloadButton = screen.getByRole("button", { name: "printConfirmation" });
+    fireEvent.click(downloadButton);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3_000);
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+
+    expect(fetchMock.mock.calls.filter(([, request]) => request?.method === "POST")).toHaveLength(1);
+    expect(fetchMock.mock.calls.filter(([, request]) => request?.method !== "POST")).toHaveLength(1);
+    expect(downloadButton).toBeEnabled();
+    expect(screen.getByText("proofTimeout")).toBeInTheDocument();
   });
 
   it("does not promise CEAC retrieval when the security answer is hidden", () => {

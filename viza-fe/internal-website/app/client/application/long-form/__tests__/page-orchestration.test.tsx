@@ -5,6 +5,7 @@ const testState = vi.hoisted(() => ({
   submitted: false,
   saveBarrier: null as Promise<void> | null,
   saveError: null as string | null,
+  documentCenterResponse: null as Promise<unknown> | null,
   locale: "en",
   submissionPosts: [] as string[],
   submissionResponse: null as Record<string, unknown> | null,
@@ -256,10 +257,10 @@ vi.mock("@/app/actions/visa-form-fields", () => ({
 }));
 
 vi.mock("@/app/client/documents/actions", () => ({
-  loadDocumentCenterData: vi.fn(async () => ({
+  loadDocumentCenterData: vi.fn(async () => testState.documentCenterResponse ?? {
     ok: true,
     data: { documents: [], selectedApplication: { id: "application-1" } },
-  })),
+  }),
 }));
 
 vi.mock("@/app/actions/application-group", () => ({
@@ -449,6 +450,7 @@ beforeEach(() => {
   testState.submitted = false;
   testState.saveBarrier = null;
   testState.saveError = null;
+  testState.documentCenterResponse = null;
   testState.locale = "en";
   testState.submissionPosts.length = 0;
   testState.submissionResponse = null;
@@ -524,6 +526,25 @@ beforeEach(() => {
 });
 
 describe("long form page orchestration", () => {
+  it("disables submit while supporting documents are still loading", async () => {
+    const pending = Promise.withResolvers<unknown>();
+    testState.documentCenterResponse = pending.promise;
+    const { default: ApplicationPage } = await import("../page");
+    render(<ApplicationPage />);
+
+    const submit = await screen.findByRole("button", { name: /^Submit$/ });
+    expect(submit).toBeDisabled();
+    expect(testState.submissionPosts).toHaveLength(0);
+
+    await act(async () => {
+      pending.resolve({
+        ok: true,
+        data: { documents: [], selectedApplication: { id: "application-1" } },
+      });
+    });
+    await waitFor(() => expect(submit).toBeEnabled());
+  });
+
   it("waits for the latest save before enqueueing once and advancing to status", async () => {
     const barrier = Promise.withResolvers<void>();
     testState.saveBarrier = barrier.promise;

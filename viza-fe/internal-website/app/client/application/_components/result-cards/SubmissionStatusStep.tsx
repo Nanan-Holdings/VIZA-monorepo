@@ -84,6 +84,90 @@ import {
   shouldStopSubmissionStatusPolling,
 } from "./submission-status-poll";
 
+export const SUBMISSION_STATUS_REQUEST_TIMEOUT_MS = 30_000;
+
+class ClientRequestTimeoutError extends Error {
+  constructor() {
+    super("Client request timed out");
+    this.name = "ClientRequestTimeoutError";
+  }
+}
+
+function createRequestAbortError(): Error {
+  const error = new Error("The operation was aborted.");
+  error.name = "AbortError";
+  return error;
+}
+
+async function requestJsonWithTimeout<T>(
+  input: RequestInfo | URL,
+  init: RequestInit,
+  options: {
+    signal?: AbortSignal;
+    readBodyOnError?: boolean;
+    tolerateInvalidJson?: boolean;
+  } = {},
+): Promise<{ response: Response; payload: T | null }> {
+  const controller = new AbortController();
+  const upstreamSignal = options.signal;
+  let timedOut = false;
+  let upstreamAborted = false;
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  let rejectUpstreamAbort: ((reason?: unknown) => void) | null = null;
+
+  const abortFromUpstream = () => {
+    upstreamAborted = true;
+    controller.abort();
+    rejectUpstreamAbort?.(createRequestAbortError());
+  };
+  if (upstreamSignal?.aborted) {
+    abortFromUpstream();
+  } else {
+    upstreamSignal?.addEventListener("abort", abortFromUpstream, { once: true });
+  }
+
+  const request = (async () => {
+    const response = await fetch(input, {
+      ...init,
+      signal: controller.signal,
+    });
+    let payload: T | null = null;
+    if (response.ok || options.readBodyOnError) {
+      try {
+        payload = await response.json() as T;
+      } catch (error) {
+        if (timedOut || upstreamAborted || !options.tolerateInvalidJson) throw error;
+      }
+    }
+    return { response, payload };
+  })();
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      timedOut = true;
+      reject(new ClientRequestTimeoutError());
+      controller.abort();
+    }, SUBMISSION_STATUS_REQUEST_TIMEOUT_MS);
+  });
+  const upstreamAbort = upstreamSignal
+    ? new Promise<never>((_, reject) => {
+        rejectUpstreamAbort = reject;
+        if (upstreamSignal.aborted) {
+          reject(createRequestAbortError());
+        }
+      })
+    : null;
+
+  try {
+    return await Promise.race(
+      upstreamAbort ? [request, timeout, upstreamAbort] : [request, timeout],
+    );
+  } finally {
+    if (timeoutId !== null) clearTimeout(timeoutId);
+    upstreamSignal?.removeEventListener("abort", abortFromUpstream);
+    if (timedOut || upstreamAborted) controller.abort();
+  }
+}
+
 interface SubmissionStatusStepProps {
   applicationId: string | null;
   country: string | null;
@@ -1017,6 +1101,7 @@ export function GenericResultCard({
       return;
     }
     let cancelled = false;
+    const controller = new AbortController();
     setManualAction(null);
     setManualActionReadComplete(false);
     setManualActionReadKey(null);
@@ -1024,13 +1109,18 @@ export function GenericResultCard({
 
     const loadManualActions = async () => {
       try {
-        const response = await fetch(`/api/submissions/${jobId}/manual-actions`, {
-          cache: "no-store",
-        });
-        const payload = (await response.json().catch(() => null)) as {
+        const { response, payload } = await requestJsonWithTimeout<{
           error?: unknown;
           manualActions?: ManualAction[];
-        } | null;
+        }>(
+          `/api/submissions/${jobId}/manual-actions`,
+          { cache: "no-store" },
+          {
+            signal: controller.signal,
+            readBodyOnError: true,
+            tolerateInvalidJson: true,
+          },
+        );
         if (!response.ok) {
           throw new Error(
             typeof payload?.error === "string"
@@ -1057,7 +1147,15 @@ export function GenericResultCard({
         if (!cancelled) {
           setManualActionReadComplete(false);
           setManualActionReadKey(null);
-          setManualActionError(error instanceof Error ? error.message : String(error));
+          setManualActionError(
+            error instanceof ClientRequestTimeoutError
+              ? (isZh
+                  ? "无法读取官网操作状态，请刷新后重试。"
+                  : "Could not read the official action status. Refresh and try again.")
+              : error instanceof Error
+                ? error.message
+                : String(error),
+          );
         }
       }
     };
@@ -1065,6 +1163,7 @@ export function GenericResultCard({
     void loadManualActions();
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [isZh, jobId, manualActionQueryKey, requiresOfficialManualAction, result.actionType]);
 
@@ -2052,11 +2151,14 @@ export function SubmissionStatusStep({
       pollInFlight = true;
 
       try {
-        const response = await fetch(`/api/applications/${applicationId}/submission-status`, {
-          cache: "no-store",
-          credentials: "same-origin",
-          signal: controller.signal,
-        });
+        const { response, payload } = await requestJsonWithTimeout<unknown>(
+          `/api/applications/${applicationId}/submission-status`,
+          {
+            cache: "no-store",
+            credentials: "same-origin",
+          },
+          { signal: controller.signal },
+        );
         // Country switching may briefly render the outgoing application after its
         // auth cookie has been refreshed. Do not turn that transient 401 into a
         // failed submission for the application the user is leaving.
@@ -2083,7 +2185,7 @@ export function SubmissionStatusStep({
           }
           throw new Error(`submission-status returned ${response.status}`);
         }
-        const body: unknown = await response.json();
+        const body: unknown = payload;
         if (!isSnapshot(body)) return;
         consecutiveFailures = 0;
         const polledQueueId =
