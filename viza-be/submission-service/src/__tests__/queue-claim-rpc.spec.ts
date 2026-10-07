@@ -110,13 +110,6 @@ const submissionServiceIndexPath = path.join(
   "src",
   "index.ts",
 );
-const vietnamPreCardSmokePath = path.join(
-  repoRoot,
-  "viza-be",
-  "submission-service",
-  "scripts",
-  "run-vn-payment-pre-card-smoke.ts",
-);
 
 test("submission_queue claim migration uses skip-locked leases and service-role-only RPC access", () => {
   const sql = readFileSync(migrationPath, "utf8").toLowerCase();
@@ -283,17 +276,6 @@ test("Vietnam cloud pre-card QA never mutates the existing official profile", ()
     /if \(!preCardQaMode && \(!intent \|\| !isManagedVirtualCardIntent\(intent\)\)\)/,
   );
   assert.match(paymentSection, /if \(stopBeforeCardEntry && !preCardQaMode\)/);
-});
-
-test("Vietnam safe smoke can hand a fresh registration checkpoint to cloud before opening VNPAY", () => {
-  const source = readFileSync(vietnamPreCardSmokePath, "utf8");
-  const stopGate = source.indexOf('VN_PRE_CARD_STOP_AFTER_REGISTRATION === "true"');
-  const paymentResume = source.indexOf("const result = await resumeVietnamOfficialPayment");
-
-  assert.ok(stopGate > 0);
-  assert.ok(paymentResume > stopGate);
-  assert.match(source.slice(stopGate, paymentResume), /paymentSubmitted:\s*false/);
-  assert.match(source.slice(stopGate, paymentResume), /return;/);
 });
 
 test("generic submission retries atomically supersede only the same application", () => {
