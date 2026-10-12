@@ -26,6 +26,15 @@ sequence, schema, routine, and default privilege entry. Statement metrics
 include the statistics reset timestamp and observation-window length so a
 short or reset sample is never mistaken for a stable workload baseline.
 
+The scheduled passive-capacity observer is a separate, read-only diagnostic.
+Its v3 report groups current-database client backends into the fixed labels
+`agent_backend`, `maintenance`, and `other`, using exact matches only for the
+two VIZA-owned application names. It never emits the raw application name,
+database user, address, PID, SQL, parameters, or session identity. Because
+Supavisor transaction pooling reuses Postgres backends, these counts are
+best-effort snapshots for connection attribution; they are not user/request
+counts and do not independently authorize scaling or schema changes.
+
 ## Migration pull-request gate
 
 `database-migration-governance.yml` compares the pull request to its target

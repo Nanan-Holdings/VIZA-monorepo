@@ -195,9 +195,80 @@
       "drizzle": "viza-be/agent-backend/drizzle/0183_notification_preferences_policy_dedupe.sql",
       "supabase": "viza-fe/internal-website/supabase/migrations/20260824061117_notification_preferences_policy_dedupe.sql",
       "sha256": "fbbaa13c9cde71289d4b22103bd33e11c87e61620e9d65f78d17c41d63968cde"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0185_admin_access_entitlements.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20260824090000_admin_access_entitlements.sql",
+      "sha256": "9432919ed89fbb0f7017cfa2ac42ffd3861d84f0d42b53c7771474f409cba36e"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0186_jp_vjw_official_control_parity.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20260824163030_jp_vjw_official_control_parity.sql",
+      "sha256": "f41f3fe52fe01c721cca261473f87a0b643ab0bfe87bd72a1a1a6a63b696e922"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0187_jp_vjw_chinese_option_labels.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20260824170000_jp_vjw_chinese_option_labels.sql",
+      "sha256": "b1db1a687934c182505ac45bfc6da137c42a3dcdd76c667567b43fe288fe59ae"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0188_jp_vjw_simplified_chinese_admin_labels.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20260824173000_jp_vjw_simplified_chinese_admin_labels.sql",
+      "sha256": "620607722f5554f3bf0c1eda69b0d768d6455ed372a3dc0a993c4e7d85bd39b4"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0190_public_status_aggregate_once.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20260907001027_public_status_aggregate_once.sql",
+      "sha256": "5e1f5cf6cbf9e17df73d409e900b56440ad6ed95f9d610e3508ca8b067d64de1"
     }
   ],
-  "no_mirror": [],
+  "no_mirror": [
+    {
+      "path": "viza-fe/internal-website/supabase/migrations/20260828170732_marketing_content_operations.sql",
+      "sha256": "5eced238d459263673efac33079eae6e3b2f6c207d79eb0bdcfa454e2ae412cb",
+      "reason": "Portal-owned marketing content tables and RLS have no agent-backend Drizzle mirror."
+    },
+    {
+      "path": "viza-fe/internal-website/supabase/migrations/20260828171409_marketing_short_link_click_rpc.sql",
+      "sha256": "cc8c047be17f839da2b660f45e559b706e42a5ed17e741835d2a9ce01fc4ac0d",
+      "reason": "Portal-owned public short-link click RPC has no agent-backend Drizzle mirror."
+    },
+    {
+      "path": "viza-fe/internal-website/supabase/migrations/20260828173609_marketing_public_assets.sql",
+      "sha256": "1b8068e754553a513ae8716fafd9735ac7dd46e74df9d676a248cc3c2e185a7b",
+      "reason": "Portal-owned public marketing asset storage policy has no Drizzle mirror."
+    },
+    {
+      "path": "viza-fe/internal-website/supabase/migrations/20260828174521_marketing_automation_runs.sql",
+      "sha256": "f05d440a09fccd10e1c6b386e1fd3b51f2121cccc2cbea3c667fc878fe797ad6",
+      "reason": "Portal-owned editorial automation run history has no Drizzle mirror."
+    },
+    {
+      "path": "viza-fe/internal-website/supabase/migrations/20260828174939_marketing_automation_actor_index.sql",
+      "sha256": "9f4e877ca90289fa84e3178c4add6d9af0e77da9c5984653934646441165d46e",
+      "reason": "Portal-owned marketing audit actor index has no Drizzle mirror."
+    },
+    {
+      "path": "viza-fe/internal-website/supabase/migrations/20260923103000_marketing_deepseek_provider.sql",
+      "sha256": "a45a3347e060166ce9f09ad92792a973f8d762a6acfe53ba0674355e826fc920",
+      "reason": "Portal-owned DeepSeek provider audit enum extension has no Drizzle mirror."
+    },
+    {
+      "path": "viza-fe/internal-website/supabase/migrations/20260923110000_marketing_upload_post_delivery.sql",
+      "sha256": "f6d876dfc0aae50b074cab0e460b3e7c749ca7b07af9ccdeddc03284c035b4a3",
+      "reason": "Portal-owned Upload-Post delivery metadata has no Drizzle mirror."
+    },
+    {
+      "path": "viza-fe/internal-website/supabase/migrations/20260923120000_marketing_short_link_search_path.sql",
+      "sha256": "1d4c75c4b1e07db40e5fd3e193583a5ae9d52181a1324dfd8cf4238b6c338226",
+      "reason": "Portal-owned short-link function hardening has no agent-backend Drizzle mirror."
+    },
+    {
+      "path": "viza-fe/internal-website/supabase/migrations/20261012000000_scope_application_answers_profile_fields_rls.sql",
+      "sha256": "72c5ba8663f6cb6515a7e999b15df1198d0e08dc1798603d30c6f847d6cd6dcb",
+      "reason": "Portal-owned RLS fix scoping visa_application_answers and shared_profile_fields SELECT to the owning applicant; no Drizzle mirror."
+    }
+  ],
   "unapplied_migration_renames": [
     {
       "from": "viza-be/agent-backend/drizzle/0149_uae_tourist_document_contract.sql",
@@ -227,6 +298,45 @@
       "verified_unapplied_at": "2026-08-23T03:57:56Z",
       "production_ledger_versions_absent": [
         "20260818140000"
+      ]
+    },
+    {
+      "from": "viza-be/agent-backend/drizzle/0185_jp_vjw_official_control_parity.sql",
+      "to": "viza-be/agent-backend/drizzle/0186_jp_vjw_official_control_parity.sql",
+      "sha256": "f41f3fe52fe01c721cca261473f87a0b643ab0bfe87bd72a1a1a6a63b696e922",
+      "reason": "Repair the Japan VJW migration numbering collision before its first production apply while preserving execution order.",
+      "verified_unapplied_at": "2026-08-26T22:06:44Z",
+      "production_ledger_versions_absent": [
+        "20260824090000",
+        "20260824163030",
+        "20260824170000",
+        "20260824173000"
+      ]
+    },
+    {
+      "from": "viza-be/agent-backend/drizzle/0186_jp_vjw_chinese_option_labels.sql",
+      "to": "viza-be/agent-backend/drizzle/0187_jp_vjw_chinese_option_labels.sql",
+      "sha256": "b1db1a687934c182505ac45bfc6da137c42a3dcdd76c667567b43fe288fe59ae",
+      "reason": "Shift the unapplied Japan VJW label migration with its prerequisite so repository execution order stays unchanged.",
+      "verified_unapplied_at": "2026-08-26T22:06:44Z",
+      "production_ledger_versions_absent": [
+        "20260824090000",
+        "20260824163030",
+        "20260824170000",
+        "20260824173000"
+      ]
+    },
+    {
+      "from": "viza-be/agent-backend/drizzle/0187_jp_vjw_simplified_chinese_admin_labels.sql",
+      "to": "viza-be/agent-backend/drizzle/0188_jp_vjw_simplified_chinese_admin_labels.sql",
+      "sha256": "620607722f5554f3bf0c1eda69b0d768d6455ed372a3dc0a993c4e7d85bd39b4",
+      "reason": "Shift the unapplied Japan VJW municipality-label migration with its prerequisites so execution order stays unchanged.",
+      "verified_unapplied_at": "2026-08-26T22:06:44Z",
+      "production_ledger_versions_absent": [
+        "20260824090000",
+        "20260824163030",
+        "20260824170000",
+        "20260824173000"
       ]
     }
   ],

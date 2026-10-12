@@ -58,6 +58,14 @@ Smoke at least one route that uses the changed primitive.
 
 ## Related Files
 
+- `region-select.tsx` accepts an optional display-name formatter while
+  preserving official region codes. `__tests__/region-select.test.tsx` covers
+  localized labels, unchanged codes and selection stability. Keep its default
+  filter arrays stable so an internal selection does not reset to a placeholder.
+- `__tests__/radix-presence-ref-stability.test.tsx` covers the real transitive
+  Slot/Presence composition, FocusScope ref attachment, and repeated calendar
+  opening/closing without changing the saved date. Keep it alongside the Select
+  test; checking only the directly installed Select misses other primitives.
 - `viza-fe/internal-website/components.json`
 - `viza-fe/internal-website/tailwind.config.ts`
 - `viza-fe/internal-website/app/globals.css`
@@ -68,6 +76,9 @@ Smoke at least one route that uses the changed primitive.
   controls sharing the `.application-form-control` CSS contract. The select
   primitive owns regular, searchable single-select, and searchable multi-select
   behavior used by both `/ui-components` and `/client/application`.
+  `components/ui/__tests__/application-form-select-ref-stability.test.tsx`
+  protects the filled canonical Select trigger from React 19 ref detaches
+  during parent and option updates.
 - `application-conditional-fields-panel.tsx`: the single nested panel for all
   fields revealed by one parent answer, including dropdown-controlled branches,
   radio-controlled branches, and the closely coupled repeat-group add action.
@@ -103,12 +114,6 @@ Smoke at least one route that uses the changed primitive.
 - `review-edit-button.tsx`: canonical icon-only edit action for application
   review sections. Like the field AI robot trigger, its background remains
   transparent on hover and only the brand-colored icon darkens.
-- `submission-result-panel.tsx`: canonical presentation-only composition for
-  application submission states. Use `SubmissionStatePanel` for pending,
-  action-required, and failed states, and `TerminalSuccessPanel` only after
-  verified official success. Consumers supply all localized copy, official
-  evidence, and `ActionButton` slots; this primitive must not add
-  country-specific logic or duplicate status/next-step facts.
 - `animated-tab-pill.tsx`: shared desktop text tabs and mobile pill tabs. Dark
   mobile headers use a white active pill with brand-colored text so the current
   destination remains visible; focused coverage lives in

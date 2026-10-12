@@ -12,6 +12,10 @@ import {
 } from "../services/portal-health.service.js";
 import { Logger } from "../utils/logger.js";
 import { getLatestChatCapacityStats } from "../socket/chat-concurrency.js";
+import { getSocketScalingStatus } from "../socket/socket-scaling.js";
+import { getLatestProviderCapacityStats } from "../utils/provider-capacity.js";
+import { getRuntimeCapacityMetrics } from "../observability/runtime-capacity.js";
+import { getVisaKnowledgeCapacityMetrics } from "../services/visa-knowledge-capacity.js";
 
 export const publicStatusRouter = Router();
 export const statusOperationsRouter = Router();
@@ -100,6 +104,10 @@ statusOperationsRouter.get("/capacity", requireCapacityStatusSecret, (_req, res)
       ok: true,
       instanceId: capacityInstanceId,
       chat: getLatestChatCapacityStats(),
+      provider: getLatestProviderCapacityStats(),
+      rag: getVisaKnowledgeCapacityMetrics(),
+      runtime: getRuntimeCapacityMetrics(),
+      socket: getSocketScalingStatus(),
       database: {
         pool: getDatabasePoolMetrics(),
         queries: getDatabaseQueryMetrics(),

@@ -31,20 +31,7 @@
  *                            CAPTCHA, final review, or applicant submit
  */
 
-export interface OfficialCheckpointEvidence {
-  kind: "official_success" | "pre_payment" | "review_handoff" | "failure";
-  screenshotStoragePath: string;
-  capturedAt: string;
-  portalUrl?: string;
-  amount?: {
-    value: string;
-    currency: string;
-  };
-  /** Only official_success evidence may be authoritative. */
-  authoritative: boolean;
-}
-
-export type SubmissionResult = (
+export type SubmissionResult =
   | UsSubmissionResult
   | FrSubmissionResult
   | UkSubmissionResult
@@ -56,10 +43,7 @@ export type SubmissionResult = (
   | TwSubmissionResult
   | KrSubmissionResult
   | GenericEvisaSubmissionResult
-  | GenericSubmissionResult
-) & {
-  checkpointEvidence?: OfficialCheckpointEvidence[];
-};
+  | GenericSubmissionResult;
 
 export interface GenericEvisaSubmissionResult {
   country: "ID" | "EG" | "SA" | "MY" | "TH" | "AE" | "CA" | "TR" | "IT" | "IN";
@@ -67,13 +51,6 @@ export interface GenericEvisaSubmissionResult {
   reference?: string;
   portalUrl?: string;
   artifactStoragePath?: string;
-  /** Application-scoped evidence captured by the official runner. */
-  artifacts?: {
-    screenshots?: string[];
-    pdfs?: string[];
-    logs?: string[];
-    traces?: string[];
-  };
 }
 
 export interface UsSubmissionResult {
@@ -279,20 +256,6 @@ export interface DigitalArrivalCardSubmissionResult {
   portalUrl: string;
   portalResponseSummary: string;
   confirmationPdfStoragePath?: string | null;
-  resultEvidence?: {
-    authoritativeRead?: {
-      postSubmitRead: true;
-      stableReference: true;
-      referenceNumber: string;
-      source?: string;
-    } | null;
-    qrRender?: {
-      rendered: true;
-      renderedForReference: string;
-      renderer?: string;
-      referenceValueValidated?: true;
-    } | null;
-  };
   errorDetails?: {
     code: string;
     message: string;

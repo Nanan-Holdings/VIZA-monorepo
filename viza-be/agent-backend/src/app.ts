@@ -2,7 +2,6 @@
 import cors from 'cors';
 import type { ErrorRequestHandler } from 'express';
 import { errorHandler } from './middleware/errorHandler.js';
-import { createRateLimiter } from './middleware/rate-limit.js';
 import adminRemindersRouter from './routes/admin-reminders.routes.js';
 import telegramWebhookRouter from './routes/telegram-webhook.js';
 import validateApplicationRouter from './routes/validate-application.js';
@@ -15,11 +14,8 @@ import chatSaveBlockRouter from './routes/chat-save-block.routes.js';
 import internalAutomationRouter from './routes/internal-automation/index.js';
 import submissionResultRouter from './routes/submission-result.routes.js';
 import passportScanRouter from './routes/passport-scan.routes.js';
+import { createPassportScanAdmission } from './routes/passport-scan-admission.js';
 import ukAccountRouter from './routes/uk-account.routes.js';
-import {
-  officialFeeApplicationRouter,
-  officialFeeOperationsRouter,
-} from './routes/official-fee.routes.js';
 import {
   usAppointmentApplicationRouter,
   usAppointmentOperationsRouter,
@@ -37,10 +33,12 @@ import {
   statusOperationsRouter,
 } from './routes/public-status.routes.js';
 import {
+  KNOWLEDGE_RELEASE_HEALTH_CACHE_MAX_AGE_MS,
   testActiveKnowledgeRelease,
   testSupabaseConnection,
 } from './db/supabase-client.js';
 import { readOnlineCapacityTargetMarker } from './online-capacity-target.js';
+import { getSocketScalingStatus } from './socket/socket-scaling.js';
 
 const allowedOrigins = (
   process.env.CORS_ORIGINS || 'http://localhost:3000,http://127.0.0.1:3000'
@@ -67,31 +65,20 @@ function getReadinessTimeoutMs(): number {
 // Middleware
 app.use(cors({ origin: allowedOrigins, credentials: true }));
 
-// Per-IP sliding-window rate limiters for AI / unauthenticated routes. These
-// are a first-line abuse brake, generous by default (60/min/IP) and overridable
-// via RATE_LIMIT_WINDOW_MS / RATE_LIMIT_MAX. NOTE: in-memory and per-instance —
-// with multiple instances the effective global limit is limit * instanceCount.
-// Each group gets an independent bucket so heavy use of one endpoint does not
-// starve another.
-const passportScanRateLimiter = createRateLimiter({ bucket: 'passport-scan' });
-const chatSaveBlockRateLimiter = createRateLimiter({ bucket: 'chat-save-block' });
-const fieldGuidanceRateLimiter = createRateLimiter({ bucket: 'field-guidance' });
-const validateApplicationRateLimiter = createRateLimiter({ bucket: 'validate-application' });
-
 // Passport scan / OCR receives a base64 image and therefore needs a larger
 // parser than ordinary API requests. Mount this before the 1 MB global parser
-// and retain the route's own ~8 MB base64 validation cap. Rate-limit first so
-// an abusive caller is rejected before a 15 MB body is parsed.
+// and retain the route's own ~8 MB base64 validation cap. Admission must run
+// before either parser so rejected uploads do not enter the large-body parser.
 app.use(
   '/api/passport-scan',
-  passportScanRateLimiter,
+  createPassportScanAdmission(),
   express.json({ limit: '15mb' }),
   express.urlencoded({ extended: true, limit: '15mb' }),
   passportScanRouter,
 );
 
 // Keep normal API payloads small. The passport OCR endpoint is mounted with
-// its own parser below, before this global parser can reject its larger image.
+// its own parser above, before this global parser can reject its larger image.
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
@@ -121,24 +108,41 @@ app.get('/api/health/online-capacity-target', (_req, res) => {
 // from waiting on a stalled network connection.
 app.get('/ready', async (_req, res) => {
   const check = await testSupabaseConnection(getReadinessTimeoutMs());
-  res.status(check.success ? 200 : 503).json({
-    status: check.success ? 'ready' : 'not_ready',
+  const socket = getSocketScalingStatus();
+  const ready = check.success && socket.adapterReady;
+  res.status(ready ? 200 : 503).json({
+    status: ready ? 'ready' : 'not_ready',
     dependency: 'supabase',
     dependencyStatus: check.success ? 'ok' : 'unavailable',
-    error: check.success ? null : check.error ?? check.message,
+    error: check.success
+      ? socket.adapterReady ? null : 'socket_adapter_unavailable'
+      : check.error ?? check.message,
     latencyMs: check.latencyMs,
+    socket: {
+      mode: socket.mode,
+      multiReplicaEnabled: socket.multiReplicaEnabled,
+      adapterStatus: socket.adapterReady ? 'ok' : 'unavailable',
+      transports: socket.transports,
+    },
   });
 });
 
 // Legacy health endpoint. Keep the 200 response contract used by existing
 // Render probes, but report dependency degradation truthfully in the body.
 app.get('/health', async (_req, res) => {
-  const check = await testActiveKnowledgeRelease(getReadinessTimeoutMs());
-  res.status(200).json({
-    status: check.success ? 'ok' : 'degraded',
+  const check = await testActiveKnowledgeRelease(
+    getReadinessTimeoutMs(),
+    KNOWLEDGE_RELEASE_HEALTH_CACHE_MAX_AGE_MS,
+  );
+  const socket = getSocketScalingStatus();
+  const adapterHealthy = !socket.multiReplicaEnabled || socket.adapterReady;
+  res.status(adapterHealthy ? 200 : 503).json({
+    status: check.success && adapterHealthy ? 'ok' : 'degraded',
     dependency: 'supabase',
     dependencyStatus: check.success ? 'ok' : 'unavailable',
-    error: check.success ? null : check.error ?? check.message,
+    error: adapterHealthy
+      ? check.success ? null : check.error ?? check.message
+      : 'socket_adapter_unavailable',
     latencyMs: check.latencyMs,
     gitSha:
       process.env.RENDER_GIT_COMMIT ??
@@ -148,6 +152,12 @@ app.get('/health', async (_req, res) => {
     memorySchemaVersion: 1,
     knowledgeReleaseId: check.releaseId,
     knowledgeReleaseKey: check.releaseKey,
+    socket: {
+      mode: socket.mode,
+      multiReplicaEnabled: socket.multiReplicaEnabled,
+      adapterStatus: socket.adapterReady ? 'ok' : 'unavailable',
+      transports: socket.transports,
+    },
   });
 });
 
@@ -162,13 +172,13 @@ app.use('/api/admin/reminders', adminRemindersRouter);
 app.use('/webhook/telegram', telegramWebhookRouter);
 
 // AI validation endpoint
-app.use('/api/validate-application', validateApplicationRateLimiter, validateApplicationRouter);
+app.use('/api/validate-application', validateApplicationRouter);
 
 // Field-level form guidance endpoint
-app.use('/api/field-guidance', fieldGuidanceRateLimiter, fieldGuidanceRouter);
+app.use('/api/field-guidance', fieldGuidanceRouter);
 
 // Chat block save endpoint
-app.use('/api/chat/save-block', chatSaveBlockRateLimiter, chatSaveBlockRouter);
+app.use('/api/chat/save-block', chatSaveBlockRouter);
 
 // User package routes
 app.use('/api/user/package', userPackagesRouter);
@@ -184,10 +194,6 @@ app.use('/api/profile/prefill', profilePrefillRouter);
 
 // Application translation routes
 app.use('/api/applications', translationRouter);
-
-// Official visa fee quote/consent/payment dry-run framework
-app.use('/api/applications', officialFeeApplicationRouter);
-app.use('/api/official-fee', officialFeeOperationsRouter);
 
 // U.S. appointment assistance dry-run/manual checkpoint framework
 app.use('/api/applications', usAppointmentApplicationRouter);

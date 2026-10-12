@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getClientSessionWithFallback } from "@/lib/client-session";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isChineseLocale, LOCALE_COOKIE } from "@/lib/i18n/locale";
+import { tryAcquirePassportOcrCapacity } from "./capacity";
 import {
   extractPassportOcr,
   getPassportOcrProviderName,
@@ -53,9 +55,9 @@ interface OcrAttemptMetadata {
   documentKind?: IdentityOcrDocumentKind;
 }
 
-function jsonFailure(error: PassportOcrError, status: number) {
+function jsonFailure(error: PassportOcrError, status: number, headers?: Record<string, string>) {
   const body: PassportOcrFailureResponse = { success: false, error };
-  return NextResponse.json(body, { status });
+  return NextResponse.json(body, { status, headers: { "Cache-Control": "private, no-store", ...headers } });
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -229,6 +231,7 @@ async function loadOwnedDocument(params: {
 async function downloadPassportFile(params: {
   adminClient: ReturnType<typeof createAdminClient>;
   document: DocumentRow;
+  signal: AbortSignal;
 }): Promise<{ file?: PassportOcrFile; failure?: { error: PassportOcrError; status: number } }> {
   const storagePath = params.document.storage_path;
   if (!storagePath) {
@@ -244,6 +247,7 @@ async function downloadPassportFile(params: {
   }
 
   const { data, error } = await params.adminClient.storage.from(STORAGE_BUCKET).download(storagePath);
+  params.signal.throwIfAborted();
   if (error || !data) {
     return {
       failure: {
@@ -256,8 +260,8 @@ async function downloadPassportFile(params: {
     };
   }
 
-  const bytes = Buffer.from(await data.arrayBuffer());
-  if (bytes.length === 0) {
+  // Reject before allocating another full copy of the downloaded Blob.
+  if (data.size === 0) {
     return {
       failure: {
         status: 422,
@@ -269,7 +273,7 @@ async function downloadPassportFile(params: {
     };
   }
 
-  if (bytes.length > maxFileBytes()) {
+  if (data.size > maxFileBytes()) {
     return {
       failure: {
         status: 413,
@@ -295,6 +299,8 @@ async function downloadPassportFile(params: {
     };
   }
 
+  const bytes = Buffer.from(await data.arrayBuffer());
+  params.signal.throwIfAborted();
   return {
     file: {
       bytes,
@@ -355,12 +361,47 @@ export async function POST(request: NextRequest): Promise<NextResponse<PassportO
     );
   }
 
+  const release = tryAcquirePassportOcrCapacity();
+  if (!release) {
+    return jsonFailure({
+      code: "provider_unavailable",
+      message: isChineseLocale(request.cookies.get(LOCALE_COOKIE)?.value)
+        ? "证件识别服务繁忙，请稍后重试。"
+        : "Document OCR is busy. Please retry shortly.",
+      retryable: true,
+    }, 503, { "Retry-After": "2" });
+  }
+
+  try {
+    request.signal.throwIfAborted();
+    return await processPassportOcr(request, parsedBody, session.userId);
+  } catch (error) {
+    if (!request.signal.aborted) throw error;
+    return jsonFailure({
+      code: "provider_unavailable",
+      message: isChineseLocale(request.cookies.get(LOCALE_COOKIE)?.value)
+        ? "证件识别请求已取消。"
+        : "Document OCR request was cancelled.",
+      retryable: false,
+    }, 499);
+  } finally {
+    // Cancellation alone does not release work still using Storage/provider.
+    release();
+  }
+}
+
+async function processPassportOcr(
+  request: NextRequest,
+  parsedBody: PassportOcrRequestBody,
+  applicantId: string,
+): Promise<NextResponse<PassportOcrResponse>> {
   const adminClient = createAdminClient();
   const application = await loadOwnedApplication({
     adminClient,
-    applicationId: parsedBody.applicationId,
-    applicantId: session.userId,
+    applicationId: parsedBody.applicationId!,
+    applicantId,
   });
+  request.signal.throwIfAborted();
 
   if (!application) {
     return jsonFailure(
@@ -378,6 +419,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<PassportO
     documentId: parsedBody.documentId,
     storagePath: parsedBody.storagePath,
   });
+  request.signal.throwIfAborted();
 
   if (!document) {
     return jsonFailure(
@@ -400,7 +442,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<PassportO
     );
   }
 
-  const downloaded = await downloadPassportFile({ adminClient, document });
+  const downloaded = await downloadPassportFile({ adminClient, document, signal: request.signal });
   if (downloaded.failure) {
     return jsonFailure(downloaded.failure.error, downloaded.failure.status);
   }
@@ -420,13 +462,15 @@ export async function POST(request: NextRequest): Promise<NextResponse<PassportO
   const extractionId = await createOcrAttempt({
     adminClient,
     applicationId: application.id,
-    applicantId: session.userId,
+    applicantId,
     documentId: document.id,
     provider,
   });
 
   try {
-    const result = await extractPassportOcr(file, { documentKind });
+    request.signal.throwIfAborted();
+    const result = await extractPassportOcr(file, { documentKind, signal: request.signal });
+    request.signal.throwIfAborted();
     const metadata: OcrAttemptMetadata = {
       sourceMimeType: file.mimeType,
       sourceBytes: file.bytes.length,
@@ -477,7 +521,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<PassportO
       documentKind,
     };
 
-    return NextResponse.json(body);
+    return NextResponse.json(body, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     const providerError =
       error instanceof PassportOcrProviderError
@@ -495,6 +539,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<PassportO
       },
       errorMessage: providerError.message,
     });
+
+    request.signal.throwIfAborted();
 
     return jsonFailure(
       {

@@ -1,4 +1,9 @@
 import { getCuratedCityLabel } from "@/lib/travel/locations";
+import { countries } from "country-data-list";
+import {
+  normalizeTravelLocale,
+  type TravelLocale,
+} from "@/lib/travel/travel-locale";
 
 export const FORM_PAYLOAD_PREFIX = "__TRAVEL_FORM__:";
 export const DEFAULT_CITY_DAYS = 2;
@@ -47,10 +52,6 @@ export type FlightOptionResult = {
 
 export type HotelOptionResult = {
   provider?: string;
-  estimated?: boolean;
-  provider_status?: string;
-  provider_reason?: string;
-  provider_message?: string;
   city?: string;
   name?: string;
   hotel_id?: string | number;
@@ -92,9 +93,6 @@ export type HotelStayResult = {
   nights: number;
   adults?: number;
   options: HotelOptionResult[];
-  provider_unavailable?: boolean;
-  estimated?: boolean;
-  provider_message?: string;
 };
 
 export type SelectedFlightOption = {
@@ -158,6 +156,7 @@ export type TravelPlanningPayload = {
   origin_city: string;
   return_country: string;
   return_city: string;
+  locale?: TravelLocale;
 };
 
 export type TravelPayload = TravelPlanningPayload & {
@@ -182,6 +181,7 @@ export type ChatLikeMessage = {
 };
 
 export type TravelFormDisplayPayload = {
+  locale?: TravelLocale;
   seed_country?: string;
   seed_city?: string;
   country?: string;
@@ -203,6 +203,7 @@ export type TravelFormDisplayPayload = {
 };
 
 export type TravelFormPayload = Partial<TravelPayload> & {
+  locale?: TravelLocale;
   reset?: boolean;
   country?: string;
   countries?: string[];
@@ -245,19 +246,41 @@ export const FIELD_QUESTIONS: Record<TravelField, string> = {
     "最后一步：可填写备注并附上文件说明（可留空），然后生成最终行程。",
 };
 
+const FIELD_QUESTIONS_EN: Record<TravelField, string> = {
+  country: "Which countries would you like to visit? You can search and select more than one.",
+  cities: "Which cities would you like to visit? You can search and select more than one.",
+  destination_confirmation: "Would you like to add another country or city?",
+  departure_date: "What are your travel dates? You can keep them flexible or choose a specific date.",
+  travel_days: "How many days will this trip last? You can keep the duration flexible for now.",
+  travelers: "How many people are travelling? You can keep this flexible for now.",
+  budget: "What is your total budget in RMB? You can keep this flexible for now.",
+  origin: "Please confirm your departure and return cities.",
+  travel_order: "Please adjust the order of your destinations.",
+  flight_selection:
+    "Choose a flight for each leg in travel order (or skip a leg if you will use another form of transport).",
+  hotel_selection: "Choose a hotel for each city in travel order.",
+  final_note:
+    "Final step: add any notes or file references (optional), then generate your itinerary.",
+};
+
 export function getFieldQuestionForState(
   state: Pick<TravelState, "seed_country" | "seed_city">,
-  field: TravelField
+  field: TravelField,
+  locale: TravelLocale = "zh"
 ): string {
   if (field === "country" && state.seed_country) {
-    return "还有哪些国家想去吗？请选择国家（可搜索、可多选）。如果没有别的国家，可点击“没有别的国家了”。";
+    return locale === "en"
+      ? "Which other countries would you like to visit? Search and select them, or choose ‘No other countries’ if you are done."
+      : "还有哪些国家想去吗？请选择国家（可搜索、可多选）。如果没有别的国家，可点击“没有别的国家了”。";
   }
 
   if (field === "cities" && state.seed_city) {
-    return "还有哪些城市想去吗？请选择城市（可搜索、可多选）。如果没有别的城市，可点击“没有别的城市了”。";
+    return locale === "en"
+      ? "Which other cities would you like to visit? Search and select them, or choose ‘No other cities’ if you are done."
+      : "还有哪些城市想去吗？请选择城市（可搜索、可多选）。如果没有别的城市，可点击“没有别的城市了”。";
   }
 
-  return FIELD_QUESTIONS[field];
+  return locale === "en" ? FIELD_QUESTIONS_EN[field] : FIELD_QUESTIONS[field];
 }
 
 function normalizeString(value: unknown): string | null {
@@ -266,15 +289,116 @@ function normalizeString(value: unknown): string | null {
   return normalized ? normalized : null;
 }
 
-function normalizeStringArray(value: unknown): string[] {
+function comparableLabel(value: string): string {
+  return value
+    .normalize("NFKD")
+    .replace(/\p{M}/gu, "")
+    .toLocaleLowerCase()
+    .replace(/[^\p{L}\p{N}]/gu, "");
+}
+
+export function getTravelTextKey(value: string): string {
+  return comparableLabel(value);
+}
+
+const COUNTRY_CANONICAL_BY_KEY = new Map<string, string>();
+const COUNTRY_DISPLAY_NAMES = new Intl.DisplayNames(["zh-CN"], {
+  type: "region",
+});
+
+for (const item of countries.all as unknown[]) {
+  if (!item || typeof item !== "object") continue;
+  const record = item as {
+    name?: unknown;
+    alpha2?: unknown;
+    alpha3?: unknown;
+  };
+  const canonical = typeof record.name === "string" ? record.name.trim() : "";
+  const alpha2 =
+    typeof record.alpha2 === "string"
+      ? record.alpha2.trim().toUpperCase()
+      : "";
+  const alpha3 =
+    typeof record.alpha3 === "string"
+      ? record.alpha3.trim().toUpperCase()
+      : "";
+  if (!canonical) continue;
+
+  const aliases = [canonical, alpha2, alpha3];
+  if (alpha2) {
+    try {
+      const localized = COUNTRY_DISPLAY_NAMES.of(alpha2);
+      if (localized) aliases.push(localized);
+    } catch {
+      // Ignore malformed metadata from the dependency; exact names/codes remain valid.
+    }
+  }
+  for (const alias of aliases) {
+    const key = comparableLabel(alias);
+    if (key) COUNTRY_CANONICAL_BY_KEY.set(key, canonical);
+  }
+}
+
+export function getTravelCountryKey(value: string): string {
+  const normalized = value.trim();
+  return comparableLabel(
+    COUNTRY_CANONICAL_BY_KEY.get(comparableLabel(normalized)) ?? normalized
+  );
+}
+
+export function getTravelDestinationKey(value: string): string {
+  const normalized = value.trim();
+  const curatedEnglish = getCuratedCityLabel(normalized, "en");
+  return getTravelTextKey(curatedEnglish ?? normalized);
+}
+
+function normalizeStringArray(
+  value: unknown,
+  keyForValue: (value: string) => string = (value) => value
+): string[] {
   if (!Array.isArray(value)) return [];
   const seen = new Set<string>();
   const result: string[] = [];
 
   for (const entry of value) {
     const normalized = normalizeString(entry);
-    if (!normalized || seen.has(normalized)) continue;
-    seen.add(normalized);
+    const key = normalized ? keyForValue(normalized) : "";
+    if (!normalized || !key || seen.has(key)) continue;
+    seen.add(key);
+    result.push(normalized);
+  }
+
+  return result;
+}
+
+function normalizeDestinationArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  for (const entry of value) {
+    const normalized = normalizeString(entry);
+    if (!normalized) continue;
+    const key = getTravelDestinationKey(normalized);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    result.push(normalized);
+  }
+
+  return result;
+}
+
+function normalizeCountryArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  for (const entry of value) {
+    const normalized = normalizeString(entry);
+    if (!normalized) continue;
+    const key = getTravelCountryKey(normalized);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
     result.push(normalized);
   }
 
@@ -327,7 +451,7 @@ export function getDefaultFlexibleDepartureDate(baseDate = new Date()): string {
   return toIsoDate(addCalendarMonths(baseDate, 2));
 }
 
-function normalizeIsoDate(value: unknown): string | null {
+export function normalizeIsoDate(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const normalized = value.trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) return null;
@@ -358,11 +482,14 @@ function normalizeCityDays(
 ): Record<string, number> {
   if (!value || typeof value !== "object") return {};
 
-  const citySet = new Set(allowedCities);
+  const cityByKey = new Map(
+    allowedCities.map((city) => [getTravelDestinationKey(city), city])
+  );
   const result: Record<string, number> = {};
 
-  for (const [city, raw] of Object.entries(value)) {
-    if (!citySet.has(city)) continue;
+  for (const [rawCity, raw] of Object.entries(value)) {
+    const city = cityByKey.get(getTravelDestinationKey(rawCity));
+    if (!city) continue;
     const normalized = normalizePositiveInt(raw);
     if (!normalized) continue;
     result[city] = normalized;
@@ -375,10 +502,22 @@ function normalizeTravelOrder(value: unknown, cities: string[]): string[] {
   const order = normalizeStringArray(value);
   if (!order.length) return [];
 
-  const citySet = new Set(cities);
   if (order.length !== cities.length) return [];
-  if (order.some((city) => !citySet.has(city))) return [];
-  return order;
+  const cityByKey = new Map(
+    cities.map((city) => [getTravelDestinationKey(city), city])
+  );
+  const canonicalOrder = order.flatMap((city) => {
+    const canonical = cityByKey.get(getTravelDestinationKey(city));
+    return canonical ? [canonical] : [];
+  });
+  if (canonicalOrder.length !== order.length) return [];
+  if (
+    new Set(canonicalOrder.map(getTravelDestinationKey)).size !==
+    canonicalOrder.length
+  ) {
+    return [];
+  }
+  return canonicalOrder;
 }
 
 function normalizeFlightOption(value: unknown): FlightOptionResult | null {
@@ -413,7 +552,7 @@ function normalizeFlightOption(value: unknown): FlightOptionResult | null {
   return result;
 }
 
-function normalizeSelectedFlights(value: unknown): SelectedFlightOption[] {
+export function normalizeSelectedFlights(value: unknown): SelectedFlightOption[] {
   if (!Array.isArray(value)) return [];
   const byIndex = new Map<number, SelectedFlightOption>();
 
@@ -496,7 +635,7 @@ function normalizeHotelOption(value: unknown): HotelOptionResult | null {
   return result;
 }
 
-function normalizeSelectedHotels(value: unknown): SelectedHotelOption[] {
+export function normalizeSelectedHotels(value: unknown): SelectedHotelOption[] {
   if (!Array.isArray(value)) return [];
   const byIndex = new Map<string, SelectedHotelOption>();
 
@@ -610,77 +749,214 @@ function parseTravelFormMessage(message: ChatLikeMessage): TravelFormPayload | n
   return null;
 }
 
-export function describeTravelFormPayload(payload: TravelFormPayload): string {
+const COUNTRY_EN_DISPLAY_NAMES = new Intl.DisplayNames(["en"], {
+  type: "region",
+});
+const COUNTRY_ZH_DISPLAY_NAMES = new Intl.DisplayNames(["zh-CN"], {
+  type: "region",
+});
+
+function localizedCountryLabel(value: string, locale: TravelLocale): string {
+  const normalized = value.trim();
+  if (!normalized) return normalized;
+  const record = (countries.all as unknown[]).find((item) => {
+    if (!item || typeof item !== "object") return false;
+    const candidate = item as {
+      name?: unknown;
+      alpha2?: unknown;
+      alpha3?: unknown;
+    };
+    return [candidate.name, candidate.alpha2, candidate.alpha3].some(
+      (entry) =>
+        typeof entry === "string" &&
+        comparableLabel(entry) === comparableLabel(normalized)
+    );
+  }) as
+    | {
+        name?: unknown;
+        alpha2?: unknown;
+        alpha3?: unknown;
+      }
+    | undefined;
+  if (!record) return normalized;
+
+  const englishName = typeof record.name === "string" ? record.name : normalized;
+  const alpha2 =
+    typeof record.alpha2 === "string" ? record.alpha2.trim().toUpperCase() : "";
+  if (!alpha2) return englishName;
+  try {
+    const displayNames =
+      locale === "en" ? COUNTRY_EN_DISPLAY_NAMES : COUNTRY_ZH_DISPLAY_NAMES;
+    return displayNames.of(alpha2) ?? englishName;
+  } catch {
+    return englishName;
+  }
+}
+
+function localizedCityLabel(value: string, locale: TravelLocale): string {
+  return getCuratedCityLabel(value, locale) ?? value.trim();
+}
+
+function displayTextForLocale(
+  value: unknown,
+  locale: TravelLocale
+): string | null {
+  if (typeof value !== "string" || !value.trim()) return null;
+  const hasCjk = /[\u3400-\u4dbf\u4e00-\u9fff]/u.test(value);
+  if (locale === "en" && hasCjk) return null;
+  if (locale === "zh" && !hasCjk) return null;
+  return value.trim();
+}
+
+function displayListForLocale(
+  values: unknown,
+  locale: TravelLocale
+): string[] | null {
+  if (!Array.isArray(values) || values.length === 0) return null;
+  const localized = values.map((value) => displayTextForLocale(value, locale));
+  return localized.every((value): value is string => Boolean(value))
+    ? localized
+    : null;
+}
+
+function localizedList(
+  values: string[],
+  locale: TravelLocale,
+  kind: "country" | "city"
+): string[] {
+  return values.map((value) =>
+    kind === "country"
+      ? localizedCountryLabel(value, locale)
+      : localizedCityLabel(value, locale)
+  );
+}
+
+export function describeTravelFormPayload(
+  payload: TravelFormPayload,
+  requestedLocale?: TravelLocale
+): string {
+  const locale = normalizeTravelLocale(
+    requestedLocale ?? payload.locale ?? payload.display?.locale
+  );
+  const isEnglish = locale === "en";
   const display = payload.display;
   const seedCountry = normalizeString(payload.seed_country);
   const seedCity = normalizeString(payload.seed_city);
-  const seedCountryLabel = display?.seed_country ?? seedCountry;
-  const seedCityLabel = display?.seed_city ?? seedCity;
+  const seedCountryLabel =
+    displayTextForLocale(display?.seed_country, locale) ??
+    (seedCountry ? localizedCountryLabel(seedCountry, locale) : seedCountry);
+  const seedCityLabel =
+    displayTextForLocale(display?.seed_city, locale) ??
+    (seedCity ? localizedCityLabel(seedCity, locale) : seedCity);
   if (seedCity || seedCountry) {
     if (seedCountryLabel && seedCityLabel) {
-      return `我想从 ${seedCountryLabel} 的 ${seedCityLabel} 开始规划旅行。`;
+      return isEnglish
+        ? `I’d like to start planning from ${seedCityLabel}, ${seedCountryLabel}.`
+        : `我想从 ${seedCountryLabel} 的 ${seedCityLabel} 开始规划旅行。`;
     }
     if (seedCityLabel) {
-      return `我想把 ${seedCityLabel} 加入旅行计划。`;
+      return isEnglish
+        ? `I’d like to add ${seedCityLabel} to the trip.`
+        : `我想把 ${seedCityLabel} 加入旅行计划。`;
     }
-    return `我想先去 ${seedCountryLabel} 旅行。`;
+    return isEnglish
+      ? `I’d like to visit ${seedCountryLabel} first.`
+      : `我想先去 ${seedCountryLabel} 旅行。`;
   }
 
   if (payload.countries?.length && payload.cities?.length) {
-    const countries = display?.countries?.length
-      ? display.countries
-      : payload.countries;
-    const cities = display?.cities?.length ? display.cities : payload.cities;
-    return `我更新了目的地：城市 ${cities.join("、")}；国家 ${countries.join("、")}。`;
+    const countries = displayListForLocale(display?.countries, locale) ??
+      localizedList(payload.countries, locale, "country");
+    const cities = displayListForLocale(display?.cities, locale) ??
+      localizedList(payload.cities, locale, "city");
+    return isEnglish
+      ? `I updated the destinations: cities ${cities.join(", ")}; countries ${countries.join(", ")}.`
+      : `我更新了目的地：城市 ${cities.join("、")}；国家 ${countries.join("、")}。`;
   }
 
   if (payload.destination_confirmed === true) {
-    return "目的地就这些，继续规划后面的行程信息。";
+    return isEnglish
+      ? "Those are all my destinations. Continue with the rest of the trip details."
+      : "目的地就这些，继续规划后面的行程信息。";
   }
 
   if (payload.destination_confirmed === false) {
-    return "我还想继续添加其他国家或城市。";
+    return isEnglish
+      ? "I’d like to add another country or city."
+      : "我还想继续添加其他国家或城市。";
   }
 
   if (payload.countries?.length) {
-    const countries = display?.countries?.length
-      ? display.countries
-      : payload.countries;
-    return `我选择了国家：${countries.join("、")}。`;
+    const countries =
+      displayListForLocale(display?.countries, locale) ??
+      localizedList(payload.countries, locale, "country");
+    return isEnglish
+      ? `I selected these countries: ${countries.join(", ")}.`
+      : `我选择了国家：${countries.join("、")}。`;
   }
   if (payload.cities?.length) {
-    const cities = display?.cities?.length ? display.cities : payload.cities;
-    return `我选择了城市：${cities.join("、")}。`;
+    const cities =
+      displayListForLocale(display?.cities, locale) ??
+      localizedList(payload.cities, locale, "city");
+    return isEnglish
+      ? `I selected these cities: ${cities.join(", ")}.`
+      : `我选择了城市：${cities.join("、")}。`;
   }
   if (payload.departure_date) {
     if (payload.date_flexibility === "flexible") {
-      return `出行日期先按灵活出行：${payload.departure_date}（默认两个月后）。`;
+      return isEnglish
+        ? `I’ll keep the travel dates flexible, starting around ${payload.departure_date}.`
+        : `出行日期先按灵活出行：${payload.departure_date}（默认两个月后）。`;
     }
-    return `出行日期是 ${payload.departure_date}。`;
+    return isEnglish
+      ? `The travel date is ${payload.departure_date}.`
+      : `出行日期是 ${payload.departure_date}。`;
   }
   if (typeof payload.travel_days === "number") {
-    if (display?.travel_days_label) {
-      return display.travel_days_label;
+    const travelDaysLabel = displayTextForLocale(
+      display?.travel_days_label,
+      locale
+    );
+    if (travelDaysLabel) {
+      return travelDaysLabel;
     }
-    return `出行天数是 ${payload.travel_days} 天。`;
+    return isEnglish
+      ? `The trip will last ${payload.travel_days} days.`
+      : `出行天数是 ${payload.travel_days} 天。`;
   }
   if (payload.city_days && Object.keys(payload.city_days).length > 0) {
     const summary = Object.entries(payload.city_days)
-      .map(([city, days]) => `${display?.city_labels?.[city] ?? city}${days}天`)
-      .join("，");
-    return `我设置了停留天数：${summary}。`;
+      .map(([city, days]) => {
+        const label =
+          displayTextForLocale(display?.city_labels?.[city], locale) ??
+          localizedCityLabel(city, locale);
+        return isEnglish ? `${label}: ${days} days` : `${label}${days}天`;
+      })
+      .join(isEnglish ? ", " : "，");
+    return isEnglish
+      ? `I set the stay length: ${summary}.`
+      : `我设置了停留天数：${summary}。`;
   }
   if (typeof payload.travelers === "number") {
-    if (display?.travelers_label) {
-      return display.travelers_label;
+    const travelersLabel = displayTextForLocale(
+      display?.travelers_label,
+      locale
+    );
+    if (travelersLabel) {
+      return travelersLabel;
     }
-    return `出行人数是 ${payload.travelers} 人。`;
+    return isEnglish
+      ? `There will be ${payload.travelers} travellers.`
+      : `出行人数是 ${payload.travelers} 人。`;
   }
   if (typeof payload.budget === "number") {
-    if (display?.budget_label) {
-      return display.budget_label;
+    const budgetLabel = displayTextForLocale(display?.budget_label, locale);
+    if (budgetLabel) {
+      return budgetLabel;
     }
-    return `预算是 ${payload.budget} RMB。`;
+    return isEnglish
+      ? `The budget is RMB ${payload.budget}.`
+      : `预算是 ${payload.budget} RMB。`;
   }
   if (
     payload.origin_country ||
@@ -688,59 +964,94 @@ export function describeTravelFormPayload(payload: TravelFormPayload): string {
     payload.return_country ||
     payload.return_city
   ) {
-    const originCountry = display?.origin_country ?? payload.origin_country ?? "-";
-    const originCity = display?.origin_city ?? payload.origin_city ?? "-";
-    const returnCountry = display?.return_country ?? payload.return_country ?? "-";
-    const returnCity = display?.return_city ?? payload.return_city ?? "-";
-    const localizedOriginCity = getCuratedCityLabel(originCity, "zh") ?? originCity;
-    const localizedReturnCity = getCuratedCityLabel(returnCity, "zh") ?? returnCity;
-    return `出发地设为 ${originCountry}｜${localizedOriginCity}；返程地设为 ${returnCountry}｜${localizedReturnCity}。`.trim();
+    const originCountry =
+      displayTextForLocale(display?.origin_country, locale) ??
+      (payload.origin_country
+        ? localizedCountryLabel(payload.origin_country, locale)
+        : "-");
+    const originCity =
+      displayTextForLocale(display?.origin_city, locale) ??
+      (payload.origin_city
+        ? localizedCityLabel(payload.origin_city, locale)
+        : "-");
+    const returnCountry =
+      displayTextForLocale(display?.return_country, locale) ??
+      (payload.return_country
+        ? localizedCountryLabel(payload.return_country, locale)
+        : "-");
+    const returnCity =
+      displayTextForLocale(display?.return_city, locale) ??
+      (payload.return_city
+        ? localizedCityLabel(payload.return_city, locale)
+        : "-");
+    return isEnglish
+      ? `Departure: ${originCountry} | ${originCity}; Return: ${returnCountry} | ${returnCity}.`
+      : `出发地设为 ${originCountry}｜${originCity}；返程地设为 ${returnCountry}｜${returnCity}。`;
   }
   if (payload.travel_order?.length) {
-    const travelOrder = display?.travel_order?.length
-      ? display.travel_order
-      : payload.travel_order;
-    return `游玩顺序：${travelOrder.join(" → ")}。`;
+    const travelOrder =
+      displayListForLocale(display?.travel_order, locale) ??
+      localizedList(payload.travel_order, locale, "city");
+    return isEnglish
+      ? `Travel order: ${travelOrder.join(" → ")}.`
+      : `游玩顺序：${travelOrder.join(" → ")}。`;
   }
   if (payload.selected_flights?.length) {
-    return "我已确认航班选择。";
+    return isEnglish ? "I confirmed the flight selections." : "我已确认航班选择。";
   }
   if (payload.selected_hotels?.length) {
-    return "我已确认酒店选择。";
+    return isEnglish ? "I confirmed the hotel selections." : "我已确认酒店选择。";
   }
   if ("final_note" in payload || "attached_files" in payload) {
     const note = payload.final_note?.trim();
     const files = payload.attached_files ?? [];
     if (note && files.length) {
-      return `备注：${note}（附 ${files.length} 个文件）`;
+      return isEnglish
+        ? `Note: ${note} (${files.length} file${files.length === 1 ? "" : "s"} attached).`
+        : `备注：${note}（附 ${files.length} 个文件）`;
     }
-    if (note) return `备注：${note}`;
-    if (files.length) return `我附上了 ${files.length} 个文件供参考。`;
-    return "我没有额外备注，直接生成行程。";
+    if (note) return isEnglish ? `Note: ${note}` : `备注：${note}`;
+    if (files.length) {
+      return isEnglish
+        ? `I attached ${files.length} file${files.length === 1 ? "" : "s"} for reference.`
+        : `我附上了 ${files.length} 个文件供参考。`;
+    }
+    return isEnglish
+      ? "I have no extra notes. Generate the itinerary directly."
+      : "我没有额外备注，直接生成行程。";
   }
 
-  return "我更新了旅行信息。";
+  return isEnglish ? "I updated my travel information." : "我更新了旅行信息。";
 }
 
-export function createTravelFormMessage(payload: TravelFormPayload): string {
-  return describeTravelFormPayload(payload);
+export function createTravelFormMessage(
+  payload: TravelFormPayload,
+  requestedLocale?: TravelLocale
+): string {
+  return describeTravelFormPayload(payload, requestedLocale);
 }
 
 function isTravelOrderComplete(cities: string[], order: string[]): boolean {
   if (cities.length === 0) return false;
   if (order.length !== cities.length) return false;
 
-  const citySet = new Set(cities);
-  const orderSet = new Set(order);
+  const citySet = new Set(cities.map(getTravelDestinationKey));
+  const orderKeys = order.map(getTravelDestinationKey);
+  const orderSet = new Set(orderKeys);
 
   return (
-    orderSet.size === order.length && order.every((city) => citySet.has(city))
+    orderSet.size === order.length && orderKeys.every((city) => citySet.has(city))
   );
 }
 
 function getOrderedCities(state: TravelState): string[] {
   if (isTravelOrderComplete(state.cities, state.travel_order)) {
-    return state.travel_order;
+    const cityByKey = new Map(
+      state.cities.map((city) => [getTravelDestinationKey(city), city])
+    );
+    return state.travel_order.map(
+      (city) => cityByKey.get(getTravelDestinationKey(city)) ?? city
+    );
   }
   return state.cities;
 }
@@ -750,6 +1061,8 @@ function applyFormPayload(state: TravelState, payload: TravelFormPayload): void 
     Object.assign(state, createInitialTravelState());
     return;
   }
+
+  let invalidateSelections = false;
 
   const seedCountry = normalizeString(payload.seed_country);
   if (seedCountry) {
@@ -761,50 +1074,51 @@ function applyFormPayload(state: TravelState, payload: TravelFormPayload): void 
     state.seed_city = seedCity;
   }
 
-  const countries = normalizeStringArray(payload.countries);
-  if (countries.length > 0) {
+  const hasCountriesPayload = Array.isArray(payload.countries);
+  const countries = normalizeCountryArray(payload.countries);
+  if (hasCountriesPayload) {
     const previousCountryKey = state.countries
-      .map((item) => item.trim().toLowerCase())
+      .map(getTravelCountryKey)
       .join("|");
     const nextCountryKey = countries
-      .map((item) => item.trim().toLowerCase())
+      .map(getTravelCountryKey)
       .join("|");
+    const countriesChanged = previousCountryKey !== nextCountryKey;
     state.countries = countries;
-    if (!state.country) {
-      state.country = countries.join("、");
-    }
+    state.country = countries.length ? countries.join("、") : null;
     state.seed_country = null;
-    if (previousCountryKey !== nextCountryKey) {
+    if (countriesChanged) {
       state.destination_confirmed = false;
+      invalidateSelections = true;
     }
   }
 
   const country = normalizeString(payload.country);
-  if (country) {
+  if (country && !hasCountriesPayload) {
     state.country = country;
     state.seed_country = null;
   }
 
-  const cities = normalizeStringArray(payload.cities);
-  if (cities.length > 0) {
+  const hasCitiesPayload = Array.isArray(payload.cities);
+  const cities = normalizeDestinationArray(payload.cities);
+  if (hasCitiesPayload) {
     const previousCityKey = state.cities
-      .map((item) => item.trim().toLowerCase())
+      .map(getTravelDestinationKey)
       .join("|");
     const nextCityKey = cities
-      .map((item) => item.trim().toLowerCase())
+      .map(getTravelDestinationKey)
       .join("|");
-    state.cities = cities;
+    const citiesChanged = previousCityKey !== nextCityKey;
+    if (citiesChanged) state.cities = cities;
     state.seed_city = null;
 
-    const citySet = new Set(cities);
-    state.city_days = state.travel_days
-      ? distributeTravelDays(cities, state.travel_days)
-      : Object.fromEntries(cities.map((city) => [city, DEFAULT_CITY_DAYS]));
-    state.travel_order = state.travel_order.filter((city) => citySet.has(city));
-    state.selected_flights = [];
-    state.selected_hotels = [];
-    if (previousCityKey !== nextCityKey) {
+    if (citiesChanged) {
+      state.city_days = state.travel_days
+        ? distributeTravelDays(cities, state.travel_days)
+        : Object.fromEntries(cities.map((city) => [city, DEFAULT_CITY_DAYS]));
+      state.travel_order = normalizeTravelOrder(state.travel_order, cities);
       state.destination_confirmed = false;
+      invalidateSelections = true;
     }
   }
 
@@ -814,40 +1128,64 @@ function applyFormPayload(state: TravelState, payload: TravelFormPayload): void 
 
   const cityDays = normalizeCityDays(payload.city_days, state.cities);
   if (Object.keys(cityDays).length > 0) {
-    state.city_days = {
+    const mergedCityDays = {
       ...state.city_days,
       ...cityDays,
     };
-    state.travel_days = Object.values(state.city_days).reduce(
+    const completeCityDays = Object.fromEntries(
+      state.cities.map((city) => [
+        city,
+        mergedCityDays[city] ?? DEFAULT_CITY_DAYS,
+      ])
+    );
+    const previousCityDays = JSON.stringify(state.city_days);
+    state.city_days = completeCityDays;
+    state.travel_days = Object.values(completeCityDays).reduce(
       (total, days) => total + days,
       0
     );
+    if (previousCityDays !== JSON.stringify(completeCityDays)) {
+      invalidateSelections = true;
+    }
   }
 
   const dateFlexibility = normalizeDateFlexibility(payload.date_flexibility);
   const departureDate = normalizeIsoDate(payload.departure_date);
   if (dateFlexibility || departureDate) {
-    state.date_flexibility =
+    const nextDateFlexibility =
       dateFlexibility ?? (departureDate ? "fixed" : state.date_flexibility);
-    state.departure_date =
+    const nextDepartureDate =
       departureDate ??
       (dateFlexibility === "flexible"
         ? getDefaultFlexibleDepartureDate()
         : state.departure_date);
-    state.selected_flights = [];
-    state.selected_hotels = [];
+    if (
+      state.date_flexibility !== nextDateFlexibility ||
+      state.departure_date !== nextDepartureDate
+    ) {
+      invalidateSelections = true;
+    }
+    state.date_flexibility = nextDateFlexibility;
+    state.departure_date = nextDepartureDate;
   }
 
   const travelDays = normalizePositiveInt(payload.travel_days);
   if (travelDays !== null) {
-    state.travel_days = Math.max(travelDays, state.cities.length || 1);
+    const nextTravelDays = Math.max(travelDays, state.cities.length || 1);
+    const previousCityDays = JSON.stringify(state.city_days);
+    if (state.travel_days !== nextTravelDays) {
+      invalidateSelections = true;
+    }
+    state.travel_days = nextTravelDays;
     state.city_days = distributeTravelDays(state.cities, state.travel_days);
-    state.selected_flights = [];
-    state.selected_hotels = [];
+    if (previousCityDays !== JSON.stringify(state.city_days)) {
+      invalidateSelections = true;
+    }
   }
 
   const travelers = normalizePositiveInt(payload.travelers);
   if (travelers !== null) {
+    if (state.travelers !== travelers) invalidateSelections = true;
     state.travelers = travelers;
   }
 
@@ -858,39 +1196,52 @@ function applyFormPayload(state: TravelState, payload: TravelFormPayload): void 
 
   const originCountry = normalizeString(payload.origin_country);
   if (originCountry) {
+    if (state.origin_country !== originCountry) invalidateSelections = true;
     state.origin_country = originCountry;
   }
   const originCity = normalizeString(payload.origin_city);
   if (originCity) {
+    if (state.origin_city !== originCity) invalidateSelections = true;
     state.origin_city = originCity;
-    state.selected_flights = [];
   }
 
   const returnCountry = normalizeString(payload.return_country);
   if (returnCountry) {
+    if (state.return_country !== returnCountry) invalidateSelections = true;
     state.return_country = returnCountry;
   }
   const returnCity = normalizeString(payload.return_city);
   if (returnCity) {
+    if (state.return_city !== returnCity) invalidateSelections = true;
     state.return_city = returnCity;
-    state.selected_flights = [];
   }
 
-  const travelOrder = normalizeTravelOrder(payload.travel_order, state.cities);
-  if (travelOrder.length > 0) {
-    state.travel_order = travelOrder;
-    state.selected_flights = [];
-    state.selected_hotels = [];
+  if (Array.isArray(payload.travel_order)) {
+    const travelOrder = normalizeTravelOrder(payload.travel_order, state.cities);
+    if (payload.travel_order.length === 0) {
+      if (state.travel_order.length > 0) invalidateSelections = true;
+      state.travel_order = [];
+    } else if (travelOrder.length > 0) {
+      if (JSON.stringify(state.travel_order) !== JSON.stringify(travelOrder)) {
+        invalidateSelections = true;
+      }
+      state.travel_order = travelOrder;
+    }
   }
 
-  const selectedFlights = normalizeSelectedFlights(payload.selected_flights);
-  if (selectedFlights.length > 0) {
+  if (Array.isArray(payload.selected_flights) && !invalidateSelections) {
+    const selectedFlights = normalizeSelectedFlights(payload.selected_flights);
     state.selected_flights = selectedFlights;
   }
 
-  const selectedHotels = normalizeSelectedHotels(payload.selected_hotels);
-  if (selectedHotels.length > 0) {
+  if (Array.isArray(payload.selected_hotels) && !invalidateSelections) {
+    const selectedHotels = normalizeSelectedHotels(payload.selected_hotels);
     state.selected_hotels = selectedHotels;
+  }
+
+  if (invalidateSelections) {
+    state.selected_flights = [];
+    state.selected_hotels = [];
   }
 
   if ("final_note" in payload) {
@@ -931,10 +1282,20 @@ function hasCompleteDepartureDate(state: TravelState): boolean {
 }
 
 function hasCompleteTravelDays(state: TravelState): boolean {
-  return Boolean(
-    state.travel_days &&
-      Number.isInteger(state.travel_days) &&
-      state.travel_days >= Math.max(1, state.cities.length)
+  if (
+    !state.travel_days ||
+    !Number.isInteger(state.travel_days) ||
+    state.travel_days < Math.max(1, state.cities.length)
+  ) {
+    return false;
+  }
+
+  const cityDays = state.cities.map(
+    (city) => state.city_days[city] ?? DEFAULT_CITY_DAYS
+  );
+  return (
+    cityDays.every((days) => Number.isInteger(days) && days > 0) &&
+    cityDays.reduce((total, days) => total + days, 0) === state.travel_days
   );
 }
 
@@ -965,7 +1326,8 @@ export function nextMissingField(state: TravelState): TravelField | null {
 }
 
 export function toTravelPlanningPayload(
-  state: TravelState
+  state: TravelState,
+  requestedLocale?: TravelLocale
 ): TravelPlanningPayload | null {
   if (!state.cities.length) return null;
   if (!hasCompleteCityDays(state)) return null;
@@ -996,6 +1358,9 @@ export function toTravelPlanningPayload(
   const travelDays = state.travel_days;
   if (!originCountry || !originCity || !returnCountry || !returnCity) return null;
   if (!travelDays) return null;
+  if (Object.values(cityDays).reduce((total, days) => total + days, 0) !== travelDays) {
+    return null;
+  }
 
   return {
     country,
@@ -1012,13 +1377,17 @@ export function toTravelPlanningPayload(
     origin_city: originCity,
     return_country: returnCountry,
     return_city: returnCity,
+    ...(requestedLocale ? { locale: requestedLocale } : {}),
   };
 }
 
-export function toTravelPayload(state: TravelState): TravelPayload | null {
+export function toTravelPayload(
+  state: TravelState,
+  requestedLocale?: TravelLocale
+): TravelPayload | null {
   if (nextMissingField(state) !== null) return null;
 
-  const basePayload = toTravelPlanningPayload(state);
+  const basePayload = toTravelPlanningPayload(state, requestedLocale);
   if (!basePayload) return null;
 
   return {

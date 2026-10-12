@@ -9,14 +9,13 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react";
-import { ArrowUp, Robot as Bot, Microphone as Mic, Square } from "@phosphor-icons/react";
+import { ArrowUp, Robot as Bot, Microphone as Mic, Square, Warning as TriangleAlert } from "@phosphor-icons/react";
 import { useTranslations } from "next-intl";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { ChatMessage } from "@/components/client/companion/chat-message";
 import { ScrollToBottomFab } from "@/components/client/companion/scroll-to-bottom-fab";
 import { ApplicationCheckbox } from "@/components/ui/application-checkbox";
-import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -70,6 +69,7 @@ export interface FormFillingAssistantProps {
   messages: FormAssistantMessage[];
   missingFields: FormAssistantMissingField[];
   loading?: boolean;
+  readOnly?: boolean;
   validationResult?: FormAssistantValidationResult | null;
   showReviewAction?: boolean;
   onSend: (text: string) => void | Promise<void>;
@@ -119,6 +119,7 @@ export function FormFillingAssistant({
   messages,
   missingFields,
   loading = false,
+  readOnly = false,
   validationResult = null,
   showReviewAction,
   onSend,
@@ -245,7 +246,7 @@ export function FormFillingAssistant({
   );
 
   const startRecording = useCallback(async () => {
-    if (loading || recordingState !== "idle") return;
+    if (readOnly || loading || recordingState !== "idle") return;
     setRecordingError(null);
     cancelRequestedRef.current = false;
 
@@ -317,7 +318,7 @@ export function FormFillingAssistant({
       setRecordingSeconds((current) => Math.min(current + 1, MAX_RECORDING_MS / 1000));
     }, 1000);
     timeoutRef.current = window.setTimeout(() => stopRecording(), MAX_RECORDING_MS);
-  }, [loading, recordingState, resetRecordingUi, stopRecording, stopTracks, t, transcribeRecordedAudio]);
+  }, [loading, readOnly, recordingState, resetRecordingUi, stopRecording, stopTracks, t, transcribeRecordedAudio]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -331,6 +332,10 @@ export function FormFillingAssistant({
       recorderRef.current = null;
     };
   }, [clearRecordingTimers, stopTracks]);
+
+  useEffect(() => {
+    if (readOnly) stopRecording(true);
+  }, [readOnly, stopRecording]);
 
   useEffect(() => {
     if (!window.localStorage) return;
@@ -371,7 +376,7 @@ export function FormFillingAssistant({
 
   const handleSend = useCallback(() => {
     const trimmed = draft.trim();
-    if (!trimmed || loading || recordingState !== "idle") return;
+    if (readOnly || !trimmed || loading || recordingState !== "idle") return;
     setRecordingError(null);
     setDraft("");
     const result = onSend(trimmed);
@@ -387,10 +392,11 @@ export function FormFillingAssistant({
           : "errors.sendFailed",
       ));
     });
-  }, [draft, loading, onSend, recordingState, t]);
+  }, [draft, loading, onSend, readOnly, recordingState, t]);
 
   const handleComposerKeyDown = useCallback(
     (event: KeyboardEvent<HTMLTextAreaElement>) => {
+      if (readOnly) return;
       if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
       if (event.key === "Escape" && draft) {
         event.preventDefault();
@@ -402,11 +408,11 @@ export function FormFillingAssistant({
         handleSend();
       }
     },
-    [draft, handleSend],
+    [draft, handleSend, readOnly],
   );
 
   const handleConfirmationCheck = useCallback((checked: boolean) => {
-    if (!checked || !currentConfirmationField || currentConfirmationPending || loading) return;
+    if (readOnly || !checked || !currentConfirmationField || currentConfirmationPending || loading) return;
     // The checkbox is replaced/disabled as soon as its answer is submitted.
     // Leaving that disappearing input focused can make the browser scroll the
     // outer application page to keep the stale focus target in view.
@@ -429,7 +435,7 @@ export function FormFillingAssistant({
             : "errors.confirmationFailed",
         ));
       });
-  }, [currentConfirmationField, currentConfirmationPending, loading, onConfirm, t]);
+  }, [currentConfirmationField, currentConfirmationPending, loading, onConfirm, readOnly, t]);
 
   const completed = Math.max(0, Math.min(progress.completed, progress.total));
   const progressPercent = progress.total > 0 ? Math.round((completed / progress.total) * 100) : 0;
@@ -443,7 +449,7 @@ export function FormFillingAssistant({
     (warnings.length === 0 || warningsAcknowledged),
   );
   const handleReviewAction = useCallback(async () => {
-    if (reviewActionPending || loading) return;
+    if (readOnly || reviewActionPending || loading) return;
     setReviewActionPending(true);
     setReviewActionError(null);
     try {
@@ -471,6 +477,7 @@ export function FormFillingAssistant({
     onAcknowledgeWarnings,
     onGoToReview,
     onValidate,
+    readOnly,
     reviewActionPending,
     t,
     validationIsClean,
@@ -484,6 +491,7 @@ export function FormFillingAssistant({
       data-application-id={applicationId}
       data-locale={locale}
       data-is-zh={resolvedIsZh ? "true" : "false"}
+      data-read-only={readOnly ? "true" : "false"}
       lang={locale}
       role="region"
       aria-labelledby={titleId}
@@ -497,7 +505,9 @@ export function FormFillingAssistant({
             <CardTitle id={titleId} className="text-lg text-brand-600">
               {t("title")}
             </CardTitle>
-            <CardDescription className="mt-2 leading-6">{t("description")}</CardDescription>
+            <CardDescription className="mt-2 leading-6">
+              {t(readOnly ? "readOnly.description" : "description")}
+            </CardDescription>
           </div>
         </div>
         <div className="space-y-2" aria-label={t("progressLabel")}>
@@ -530,7 +540,11 @@ export function FormFillingAssistant({
             onScroll={handleConversationScroll}
           >
             {messages.length === 0 ? (
-              <ChatMessage role="agent" content={t("emptyConversation")} density="compact" />
+              <ChatMessage
+                role="agent"
+                content={t(readOnly ? "readOnly.emptyConversation" : "emptyConversation")}
+                density="compact"
+              />
             ) : (
               messages.map((message, index) => {
                 const previousMessage = messages[index - 1];
@@ -567,7 +581,7 @@ export function FormFillingAssistant({
                     {confirmationLabel ? (
                       <ApplicationCheckbox
                         checked={Boolean(persistedConfirmation) || currentConfirmationPending}
-                        disabled={Boolean(persistedConfirmation) || currentConfirmationPending}
+                        disabled={readOnly || Boolean(persistedConfirmation) || currentConfirmationPending}
                         required={pendingConfirmation?.required}
                         label={confirmationLabel}
                         onCheckedChange={persistedConfirmation ? undefined : handleConfirmationCheck}
@@ -589,12 +603,12 @@ export function FormFillingAssistant({
                 ))}
               </div>
             ) : null}
-            {!loading && requiredDocumentUploader ? (
+            {!readOnly && !loading && requiredDocumentUploader ? (
               <div data-testid="form-assistant-required-document-uploader">
                 {requiredDocumentUploader}
               </div>
             ) : null}
-            {validationResult ? (
+            {!readOnly && validationResult ? (
               <section className="space-y-3" aria-labelledby={validationTitleId} aria-live="polite">
                 <h3 id={validationTitleId} className="text-sm font-semibold text-brand-700">
                   {t("validation.title")}
@@ -628,10 +642,11 @@ export function FormFillingAssistant({
                   />
                 ) : null}
                 {warnings.length > 0 ? (
-                  <Alert variant="warning">
-                    <AlertIcon variant="warning" />
-                    <AlertTitle>{t("validation.warnings", { count: warnings.length })}</AlertTitle>
-                    <AlertDescription>
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                    <div className="mb-2 flex items-center gap-2 text-amber-900">
+                      <TriangleAlert className="h-4 w-4" aria-hidden="true" />
+                      <p className="text-sm font-semibold">{t("validation.warnings", { count: warnings.length })}</p>
+                    </div>
                     <ul className="space-y-3">
                       {warnings.map((issue, index) => (
                         <li
@@ -655,19 +670,15 @@ export function FormFillingAssistant({
                         </li>
                       ))}
                     </ul>
-                    </AlertDescription>
-                  </Alert>
+                  </div>
                 ) : null}
                 {errors.length === 0 && warnings.length === 0 ? (
-                  <Alert variant="success">
-                    <AlertIcon variant="success" />
-                    <AlertDescription>{t("validation.pass")}</AlertDescription>
-                  </Alert>
+                  <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-800">{t("validation.pass")}</p>
                 ) : null}
               </section>
             ) : null}
             {reviewActionError ? <ClientErrorAlert message={reviewActionError} /> : null}
-            {(showReviewAction ?? (missingFields.length === 0 && progress.total > 0)) && !loading ? (
+            {!readOnly && (showReviewAction ?? (missingFields.length === 0 && progress.total > 0)) && !loading ? (
               <div
                 className="flex justify-start pb-1"
                 data-testid="form-assistant-review-action"
@@ -703,15 +714,24 @@ export function FormFillingAssistant({
         {recordingError ? <ClientErrorAlert message={recordingError} /> : null}
 
         <div className="mx-auto w-full max-w-[760px]">
+          {readOnly ? (
+            <p
+              className="mb-3 rounded-xl border border-brand-100 bg-brand-50 px-4 py-3 text-sm leading-6 text-brand-700"
+              data-testid="form-assistant-read-only-notice"
+              role="status"
+            >
+              {t("readOnly.notice")}
+            </p>
+          ) : null}
           <div className="flex items-center gap-2 rounded-[26px] border border-gray-200 bg-white px-3 py-2 shadow-none transition-all duration-200 hover:border-gray-300 focus-within:border-brand-500">
             <Textarea
               ref={composerRef}
-              value={draft}
+              value={readOnly ? "" : draft}
               onChange={(event) => setDraft(event.target.value)}
               onKeyDown={handleComposerKeyDown}
-              placeholder={t("composer.placeholder")}
+              placeholder={t(readOnly ? "readOnly.composerPlaceholder" : "composer.placeholder")}
               aria-label={t("composer.label")}
-              disabled={recordingState === "transcribing"}
+              disabled={readOnly || recordingState === "transcribing"}
               rows={1}
               className="min-h-11 max-h-[168px] flex-1 resize-none overflow-y-auto border-0 bg-transparent px-2 py-2 text-base leading-7 shadow-none outline-none placeholder:text-gray-400 focus-visible:ring-0"
             />
@@ -725,13 +745,13 @@ export function FormFillingAssistant({
                   aria-label={recordingState === "recording" ? t("composer.stopRecording") : t("composer.startRecording")}
                   aria-pressed={recordingState === "recording"}
                   onClick={() => (recordingState === "recording" ? stopRecording() : void startRecording())}
-                  disabled={loading || recordingState === "transcribing"}
+                  disabled={readOnly || loading || recordingState === "transcribing"}
                 >
                   {recordingState === "recording" ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                 </Button>
                 {recordingState === "recording" ? <span aria-live="polite">{t("composer.recording", { seconds: recordingSeconds })}</span> : null}
                 {recordingState === "transcribing" ? <span aria-live="polite">{t("composer.transcribing")}</span> : null}
-                {recordingState === "recording" ? (
+                {!readOnly && recordingState === "recording" ? (
                   <Button
                     type="button"
                     variant="ghost"
@@ -749,7 +769,7 @@ export function FormFillingAssistant({
                 className="h-11 w-11 rounded-full bg-brand-500 text-white hover:bg-brand-600"
                 aria-label={t("composer.send")}
                 onClick={handleSend}
-                disabled={!draft.trim() || loading || recordingState !== "idle"}
+                disabled={readOnly || !draft.trim() || loading || recordingState !== "idle"}
               >
                 <ArrowUp className="size-5" weight="bold" />
               </Button>

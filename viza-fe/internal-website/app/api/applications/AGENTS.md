@@ -2,6 +2,11 @@
 
 Scope: this file applies to `viza-fe/internal-website/app/api/applications/**`.
 
+Current product policy (2026-09-15): application checkout and official-fee
+routes are retired. The `submission-checkout` and `official-fee/**` routes
+return HTTP 410 with `code: "payment_removed"` before authentication,
+database access, card handoff, queue enqueue, or provider calls.
+
 ## Purpose
 
 Application API routes expose same-origin helpers for application-specific
@@ -40,11 +45,11 @@ ports directly.
 
 - `viza-fe/internal-website/app/api/applications/[id]/retry-submission/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/submission-access/route.ts`
-  performs the final-review payment preflight and returns a stable `402`
-  `application_payment_required` response with an application-scoped quote.
+  is retired with the rest of submission payment gating; the owning lifecycle
+  boundary decides access without collecting payment.
 - `viza-fe/internal-website/app/api/applications/[id]/submission-checkout/route.ts`
-  creates or reuses the exact outstanding order and redirects to the verified
-  payment provider. Its return target is restricted to the application flow.
+  is a retired compatibility route and returns HTTP 410 before creating an
+  order, redirecting to a provider, or reading payment state.
 - `viza-fe/internal-website/app/api/applications/[id]/taiwan-handoff/route.ts`
   claims the authoritative Taiwan handoff through
   `claim_tw_applicant_handoff` with the exact application, applicant, and
@@ -54,22 +59,10 @@ ports directly.
 - `viza-fe/internal-website/app/api/applications/[id]/cancel-submission/route.ts`
   resolves exact shared-runner flow/country tuples before using the atomic
   cancellation RPC, while unmapped arrival-card flows remain on legacy queue.
-- `viza-fe/internal-website/app/api/applications/[id]/official-fee/auth.ts`
-  centralizes the signed `client_session` and Supabase session policy shared by
-  the official-fee routes; its focused regression coverage lives in the
-  adjacent `auth.test.ts`.
-- `viza-fe/internal-website/app/api/applications/[id]/official-fee/authorize/route.ts`
-- `viza-fe/internal-website/app/api/applications/[id]/official-fee/pay/route.ts`
-- `viza-fe/internal-website/app/api/applications/[id]/official-fee/pay/managed-payment.ts`
-  resolves the typed country/visa official-fee policy, pricing fallback, and
-  eligible treasury-allocation boundary before a managed-card job is queued.
-- `viza-fe/internal-website/app/api/applications/[id]/official-fee/pay/cloud-worker-ready.ts`
-  owns the cold-start readiness boundary and keeps its focused regression tests
-  in the adjacent `cloud-worker-ready.test.ts`.
-- `viza-fe/internal-website/app/api/applications/[id]/official-fee/status/route.ts`
-  keeps its implementation and test helpers in the adjacent `route-handler.ts`
-  module so the Next route exports only HTTP methods/configuration.
-- `viza-fe/internal-website/app/api/applications/[id]/official-fee/status/route.test.ts`
+- `viza-fe/internal-website/app/api/applications/[id]/official-fee/**`
+  exposes only retired 410 route handlers; the former auth, managed-payment,
+  cloud-worker handoff, status-loader, and focused payment tests were removed
+  with the payment flow.
 - `viza-fe/internal-website/app/api/applications/[id]/official-status/refresh/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/artifact-url/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/ds160-proof/route.ts`
@@ -83,17 +76,43 @@ ports directly.
   guards shared-runner artifact access without allowing unrelated job paths or
   strings found only in runner logs.
 - `viza-fe/internal-website/app/api/applications/[id]/arrival-card-new-application/route.ts`
+- `viza-fe/internal-website/app/api/applications/[id]/jp-vjw-portal-credentials/route.ts`
+  is a POST-only, owner-session proxy for an explicit Visit Japan Web account
+  reveal. It must forward a bearer token to the agent backend, return no-store
+  responses, and never place credentials in URLs, logs, or status projections.
 - `viza-fe/internal-website/app/api/applications/[id]/new-application/route.ts`
-  creates a new blank U.S. DS-160 VIZA draft from a submitted application and
-  returns the explicit form URL; its implementation/test helpers live in the
-  adjacent `route-handler.ts`; it must not copy answers or enqueue official
-  submission work.
+  starts the next U.S. DS-160 VIZA flow from an owner-authorized application
+  with an authoritative official submitted result and returns the explicit
+  form URL. Its implementation/test helpers live in the adjacent
+  `route-handler.ts`; it copies saved answers into a new or owner-scoped empty
+  draft, reuses a non-empty draft without overwriting it, and handles the
+  ongoing-draft unique-constraint race. It must not enqueue official
+  submission work. Real-draft reuse excludes `VIZA_PLACEHOLDER_DRY_RUN`, matching
+  the ongoing-draft index; never remove a QA marker to make a live retry pass.
+  An explicit JSON body of `{ "intent": "restart_unsigned" }` is the only
+  supported path for a same-owner DS-160 blocked/failed terminal source whose
+  official submission has not succeeded. It fails closed when active queue/job
+  work or a `ds160_final_submission_attempts` fence exists, then creates or
+  reuses the owner draft, copies only applicant answers and
+  `application_documents` references, and never copies CEAC identifiers,
+  recovery metadata, or secrets. Both paths return `{ applicationId, href }`;
+  copied drafts use HTTP 201 and non-empty owner drafts use HTTP 200.
 - `viza-fe/internal-website/app/api/applications/[id]/sgac-new-application/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/submission-status/route.ts`
   returns a retryable `503` response when its database dependency times out so
   the client can keep polling without losing the durable submission state. Its
   status derivation helpers live in the adjacent `route-handler.ts` module so
   the Next route exports only HTTP methods/configuration.
+  A persisted `submitted` result is terminal success. Exclude proof providers
+  and `ds160_proof_*` statuses in the database query before limiting queue
+  history, so later email/download jobs cannot hide the submission result.
+  The 8-second request deadline and client disconnect share one abort signal
+  across Auth, database fetches and retries. Stop between read stages after
+  cancellation; do not restore a response-only `Promise.race` timeout. The
+  Next `after` hook keeps the already-started aborted operation alive only
+  until its fetch/permit cleanup settles when Vercel reclaims the request.
+  Adjacent `request-lifecycle.test.ts` covers GET cancellation, ownership,
+  deadline and normal response behavior with local dependencies.
 - `viza-fe/internal-website/app/api/applications/customer-submission-result.ts`
   creates the browser-safe submission-result projection. UK portal credentials,
   ciphertext, usernames, and force-resume URLs must never cross the customer

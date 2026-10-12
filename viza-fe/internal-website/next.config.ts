@@ -6,6 +6,11 @@ import createNextIntlPlugin from "next-intl/plugin";
 const withNextIntl = createNextIntlPlugin();
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 
+// Loom's Chrome extension hosts its permission check and camera bubble in
+// extension-origin iframes. Keep this scoped to Loom's published extension ID.
+const LOOM_EXTENSION_ORIGIN =
+  "chrome-extension://liecbddmkiiihnedobmlmillhodjkdmb";
+
 /** Best-effort origin ("https://host:port") from a possibly-empty env URL. */
 function originFromEnv(value: string | undefined): string | null {
   if (!value) return null;
@@ -19,14 +24,12 @@ function originFromEnv(value: string | undefined): string | null {
 /**
  * Baseline Content-Security-Policy for the portal (ARCH-HEADERS-01).
  *
- * Shipped as report-only on purpose: the App Router injects inline bootstrap
- * scripts/styles and the app talks to several third parties (Supabase, Stripe,
- * Google Maps/Places), so an over-tight enforced policy would break the app and
- * could block a concurrent deploy. Report-only surfaces violations without
- * enforcing; ops can promote it to `Content-Security-Policy` once the reported
- * set is confirmed. connect-src is derived from the configured backend origins.
+ * Enforced and mirrored in the reporting policy. The App Router injects inline
+ * bootstrap scripts/styles and the app talks to several third parties
+ * (Supabase, Stripe Identity, Google Maps/Places). Keep frame exceptions origin-scoped;
+ * connect-src is derived from the configured backend origins.
  */
-function buildContentSecurityPolicy(): string {
+function buildContentSecurityPolicy(allowSameOriginFrame = false): string {
   const supabaseOrigin = originFromEnv(process.env.NEXT_PUBLIC_SUPABASE_URL);
   const agentBackendOrigin = originFromEnv(process.env.NEXT_PUBLIC_AGENT_BACKEND_URL);
   const supabaseWs = supabaseOrigin ? supabaseOrigin.replace(/^https:/, "wss:") : null;
@@ -47,7 +50,7 @@ function buildContentSecurityPolicy(): string {
     "default-src": ["'self'"],
     "base-uri": ["'self'"],
     "object-src": ["'none'"],
-    "frame-ancestors": ["'none'"],
+    "frame-ancestors": [allowSameOriginFrame ? "'self'" : "'none'"],
     "form-action": ["'self'"],
     // App Router hydration relies on inline scripts; dev additionally needs eval.
     "script-src": [
@@ -64,12 +67,14 @@ function buildContentSecurityPolicy(): string {
     "connect-src": Array.from(new Set(connectSrc)),
     "frame-src": [
       "'self'",
+      LOOM_EXTENSION_ORIGIN,
       "https://js.stripe.com",
-      "https://checkout.stripe.com",
       "https://hooks.stripe.com",
     ],
     "worker-src": ["'self'", "blob:"],
     "manifest-src": ["'self'"],
+    "report-uri": ["/api/csp-report"],
+    "report-to": ["csp-endpoint"],
   };
 
   return Object.entries(directives)
@@ -87,21 +92,24 @@ const SECURITY_HEADERS = [
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   {
     key: "Permissions-Policy",
-    // Camera + microphone are used by passport/photo capture and interview
-    // practice, so allow them for our own origin; disable the rest by default.
+    // Preserve first-party capture and allow Loom's user-invoked recorder.
+    // Browser camera/microphone permission is still required; other embedded
+    // origins cannot receive media access through an iframe's allow attribute.
     value: [
       "accelerometer=()",
-      "camera=(self)",
-      "microphone=(self)",
+      `camera=(self "${LOOM_EXTENSION_ORIGIN}")`,
+      `microphone=(self "${LOOM_EXTENSION_ORIGIN}")`,
       "geolocation=()",
       "gyroscope=()",
       "magnetometer=()",
-      "payment=(self)",
+      "payment=()",
       "usb=()",
       "interest-cohort=()",
     ].join(", "),
   },
+  { key: "Content-Security-Policy", value: buildContentSecurityPolicy() },
   { key: "Content-Security-Policy-Report-Only", value: buildContentSecurityPolicy() },
+  { key: "Reporting-Endpoints", value: 'csp-endpoint="/api/csp-report"' },
 ];
 
 const nextConfig: NextConfig = {
@@ -143,6 +151,15 @@ const nextConfig: NextConfig = {
         source: "/:path*",
         headers: SECURITY_HEADERS,
       },
+      {
+        // Only the data-free map shell can be framed, and only by this site.
+        source: "/travel-map",
+        headers: [
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "Content-Security-Policy", value: buildContentSecurityPolicy(true) },
+          { key: "Content-Security-Policy-Report-Only", value: buildContentSecurityPolicy(true) },
+        ],
+      },
     ];
   },
   async rewrites() {
@@ -161,6 +178,8 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: projectRoot,
   },
+  // Preserve the current production build policy in this narrowly scoped
+  // public-safety release. Type validation remains a separate release gate.
   typescript: {
     ignoreBuildErrors: true,
   },

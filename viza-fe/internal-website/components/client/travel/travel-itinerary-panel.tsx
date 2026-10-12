@@ -9,7 +9,7 @@ import {
   WalletIcon,
 } from "@phosphor-icons/react";
 import { useEffect, useMemo, useState } from "react";
-import { alertToast } from "@/components/ui/alert-toast";
+import { toast } from "sonner";
 import { type ItineraryDay } from "@/lib/travel/planner";
 import type { TravelChatMessage } from "@/lib/travel/chat-types";
 import { Button } from "@/components/ui/button";
@@ -185,7 +185,7 @@ export function TravelItineraryPanel({
               disabled={!exportPayload || isDownloadingWord}
               onClick={async () => {
                 if (!exportPayload) {
-                  alertToast("Please complete trip information before exporting.", { variant: "destructive" });
+                  toast.error("Please complete trip information before exporting.");
                   return;
                 }
                 setIsDownloadingWord(true);
@@ -200,7 +200,7 @@ export function TravelItineraryPanel({
                     error instanceof Error
                       ? error.message
                       : "Failed to download Word file.";
-                  alertToast(message, { variant: "destructive" });
+                  toast.error(message);
                 } finally {
                   setIsDownloadingWord(false);
                 }
@@ -216,7 +216,7 @@ export function TravelItineraryPanel({
               disabled={!exportPayload || isDownloadingPdf}
               onClick={async () => {
                 if (!exportPayload) {
-                  alertToast("Please complete trip information before exporting.", { variant: "destructive" });
+                  toast.error("Please complete trip information before exporting.");
                   return;
                 }
                 setIsDownloadingPdf(true);
@@ -231,7 +231,7 @@ export function TravelItineraryPanel({
                     error instanceof Error
                       ? error.message
                       : "Failed to download PDF file.";
-                  alertToast(message, { variant: "destructive" });
+                  toast.error(message);
                 } finally {
                   setIsDownloadingPdf(false);
                 }

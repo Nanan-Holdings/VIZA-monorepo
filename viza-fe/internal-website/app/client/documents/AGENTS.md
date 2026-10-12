@@ -15,6 +15,15 @@ application flow.
   `visa_packages.metadata.document_checklist`.
 - Use a conservative fallback checklist only when package-specific requirements
   are missing.
+- For US DS-160, the fallback requires the digital photo and keeps generic
+  interview supporting documents optional, so it cannot block the questionnaire
+  on bank statements or booked travel. Explicit package requirements retain
+  precedence; applicant answers and the runner still validate the official data.
+- U.S. DS-160 photo uploads and saved-file reuse share
+  `lib/ds160-photo-contract.ts`. Validate bytes before upload and before recording
+  a reused private file; use the owned application's country and visa type on
+  the server. Show the same constraints through canonical upload-field props.
+  Technical file checks must not mark a photo officially approved.
 - Persist uploads to Supabase Storage bucket `application-documents`.
 - Confirm passport OCR into reusable profile columns and confirm national
   identity-card OCR into `universal_profile_answers`; keep identity-card
@@ -34,10 +43,24 @@ application flow.
 - `page.tsx`: server route entry that redirects to `/client/application`.
 - `actions.ts`: documents-local server actions for authorized checklist reads,
   upload record upserts, and applicant-confirmed passport OCR persistence.
+- `document-preview-urls.ts`: batches unique private Storage paths into one
+  signed-URL request and keeps per-object signing failures isolated.
+- `reusable-document-existence.ts`: checks each exact reusable Storage path
+  once per load, with at most four concurrent checks; stops queued work and
+  drains in-flight checks before propagating an unexpected failure.
 - `document-center-client.tsx`: embeddable checklist UI, upload/re-upload
   controls, and the integrated Travel AI itinerary picker/upload entry.
+- `__tests__/document-preview-urls.test.ts`: signed-URL batching, de-duplication,
+  empty-input, and partial/whole-request failure coverage.
+- `__tests__/reusable-document-existence.test.ts`: exact-path de-duplication,
+  per-load concurrency, missing objects, request isolation, and failure cleanup.
 - `__tests__/document-center-client.test.tsx`: embedded application-step layout
   coverage for the responsive document-card grids and direct file fields.
+- `__tests__/document-center-photo-crop.test.tsx`: DS-160 non-square-photo crop,
+  cancellation, output validation, application targeting, and stale-callback
+  isolation coverage.
+- `__tests__/ds160-photo-actions.test.ts`: DS-160 photo upload/reuse byte
+  validation, Storage ordering, and application ownership boundaries.
 
 ## Data Sources
 
@@ -47,6 +70,7 @@ application flow.
 - `application_documents`
 - `ocr_extractions`
 - `visa_application_answers`
+- Supabase Storage bucket `application-documents`
 
 ## Guardrails
 
@@ -73,12 +97,19 @@ application flow.
   `document_requirements`.
 - Do not mark a document approved automatically unless the rule is explicitly
   deterministic. The default upload state is `uploaded`.
+- Generate document preview links with one `createSignedUrls` batch per loaded
+  document set. Do not return to one Storage request per document, cache signed
+  URLs, or let one missing object hide previews that signed successfully.
 - Keep ordinary application uploads application-scoped. Promote a file to
   Universal Profile only when the applicant explicitly selects that scope;
   never infer promotion from a reusable document type.
 - Reuse only explicitly usable source statuses. Any application replacement or
   reuse returns the row to `uploaded` and clears prior review, rejection,
   reviewer, hash, and evidence metadata so stale approval cannot carry over.
+- Reusable-material list reads must retain applicant/status filters, candidate
+  order, and per-row metadata while bounding Storage existence checks. Do not
+  cache existence across requests or replace the explicit reuse action's fresh
+  Storage validation with the list result.
 - Do not put full application status timelines here; keep the embedded form
   experience focused on document completion.
 - Do not touch `viza-be/submission-service` or official portal automation.

@@ -3,8 +3,17 @@ import { basename, isAbsolute, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const PRODUCTION_PROJECT_REF = "oyjxdzsoejraedqghndi";
-const REPORT_SCHEMA = "viza-passive-capacity-metadata-only-v1";
-const TREND_SCHEMA = "viza-passive-capacity-trend-metadata-only-v1";
+const REPORT_SCHEMAS = new Set([
+  "viza-passive-capacity-metadata-only-v1",
+  "viza-passive-capacity-metadata-only-v2",
+  "viza-passive-capacity-metadata-only-v3",
+]);
+const TABLE_ACTIVITY_REPORT_SCHEMAS = new Set([
+  "viza-passive-capacity-metadata-only-v2",
+  "viza-passive-capacity-metadata-only-v3",
+]);
+const CONNECTION_SOURCE_REPORT_SCHEMA = "viza-passive-capacity-metadata-only-v3";
+const TREND_SCHEMA = "viza-passive-capacity-trend-metadata-only-v2";
 const LOOKBACK_HOURS = 30;
 const MINIMUM_OBSERVATIONS = 5;
 const MINIMUM_SPAN_HOURS = 22;
@@ -12,20 +21,43 @@ const MAXIMUM_EVIDENCE_DELAY_MS = 15 * 60 * 1_000;
 const CLOCK_SKEW_MS = 60 * 1_000;
 const FORBIDDEN_METADATA_KEYS = new Set([
   "application_id",
+  "application_name",
   "applicant_id",
+  "client_addr",
+  "client_hostname",
   "email",
   "leased_by",
   "parameters",
   "params",
   "passport_number",
+  "pid",
   "query",
   "query_text",
   "session_id",
   "sql",
   "statement_text",
+  "usename",
   "user_id",
   "worker_id",
 ]);
+const TABLE_ACTIVITY_COUNTERS = [
+  "seq_scan",
+  "seq_tup_read",
+  "idx_scan",
+  "idx_tup_fetch",
+  "n_tup_ins",
+  "n_tup_upd",
+  "n_tup_del",
+  "n_tup_hot_upd",
+];
+const CONNECTION_SOURCE_LABELS = ["agent_backend", "maintenance", "other"];
+const CONNECTION_SOURCE_METRICS = [
+  "total",
+  "active",
+  "idle",
+  "idle_in_transaction",
+  "other",
+];
 
 function finiteMetric(value, path) {
   if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
@@ -111,12 +143,81 @@ function validateAdvisor(performanceAdvisor) {
   });
 }
 
+function tableCounter(value, path) {
+  if (typeof value !== "string" || !/^\d+$/u.test(value)) {
+    throw new Error(`Passive capacity table activity counter ${path} is invalid`);
+  }
+  return BigInt(value);
+}
+
+function validateTableActivity(snapshot, path) {
+  if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot) ||
+      (snapshot.stats_reset !== null &&
+        !Number.isFinite(Date.parse(snapshot.stats_reset))) ||
+      !Array.isArray(snapshot.tables)) {
+    throw new Error(`Passive capacity table activity ${path} is invalid`);
+  }
+  const expectedKeys = ["table", ...TABLE_ACTIVITY_COUNTERS].sort();
+  const tables = new Map();
+  let previous = "";
+  for (const [index, table] of snapshot.tables.entries()) {
+    if (!table || typeof table !== "object" || Array.isArray(table) ||
+        typeof table.table !== "string" ||
+        !/^[A-Za-z_][A-Za-z0-9_$]{0,62}$/u.test(table.table) ||
+        tables.has(table.table) || table.table.localeCompare(previous) < 0 ||
+        JSON.stringify(Object.keys(table).sort()) !== JSON.stringify(expectedKeys)) {
+      throw new Error(`Passive capacity table activity ${path}.tables[${index}] is invalid`);
+    }
+    const counters = {};
+    for (const key of TABLE_ACTIVITY_COUNTERS) {
+      counters[key] = tableCounter(table[key], `${path}.tables[${index}].${key}`);
+    }
+    tables.set(table.table, counters);
+    previous = table.table;
+  }
+  return { statsReset: snapshot.stats_reset, tables };
+}
+
+function validateConnectionSources(sources, currentDatabaseConnections, path) {
+  if (!Array.isArray(sources) || sources.length !== CONNECTION_SOURCE_LABELS.length) {
+    throw new Error(`Passive capacity connection sources ${path} are invalid`);
+  }
+  const expectedKeys = ["source", ...CONNECTION_SOURCE_METRICS].sort();
+  let totalConnections = 0;
+  const validatedSources = sources.map((source, index) => {
+    if (!source || typeof source !== "object" || Array.isArray(source) ||
+        source.source !== CONNECTION_SOURCE_LABELS[index] ||
+        JSON.stringify(Object.keys(source).sort()) !== JSON.stringify(expectedKeys)) {
+      throw new Error(`Passive capacity connection sources ${path}[${index}] are invalid`);
+    }
+    const validated = { source: source.source };
+    for (const metric of CONNECTION_SOURCE_METRICS) {
+      const value = finiteMetric(source[metric], `${path}[${index}].${metric}`);
+      if (!Number.isInteger(value)) {
+        throw new Error(`Passive capacity connection sources ${path}[${index}] are invalid`);
+      }
+      validated[metric] = value;
+    }
+    if (validated.active + validated.idle + validated.idle_in_transaction +
+        validated.other !== validated.total) {
+      throw new Error(`Passive capacity connection sources ${path}[${index}] are inconsistent`);
+    }
+    totalConnections += validated.total;
+    return validated;
+  });
+  if (!Number.isInteger(currentDatabaseConnections) || currentDatabaseConnections < 0 ||
+      totalConnections !== currentDatabaseConnections) {
+    throw new Error(`Passive capacity connection sources ${path} are inconsistent`);
+  }
+  return validatedSources;
+}
+
 function validateReport(report) {
   assertNoForbiddenMetadataKeys(report);
   if (!report || typeof report !== "object" || Array.isArray(report)) {
     throw new Error("Passive capacity report is invalid");
   }
-  if (report.schema_version !== 1 || report.sanitization_schema !== REPORT_SCHEMA) {
+  if (report.schema_version !== 1 || !REPORT_SCHEMAS.has(report.sanitization_schema)) {
     throw new Error("Passive capacity report sanitization schema is invalid");
   }
   if (report.project_ref !== PRODUCTION_PROJECT_REF) {
@@ -127,6 +228,23 @@ function validateReport(report) {
   }
   const sampleTimes = report.samples.map((sample, index) =>
     timestamp(sample?.sample_at, `samples[${index}].sample_at`));
+  const tableActivity = TABLE_ACTIVITY_REPORT_SCHEMAS.has(report.sanitization_schema)
+    ? report.samples.map((sample, index) =>
+      validateTableActivity(sample?.table_activity, `samples[${index}].table_activity`))
+    : [];
+  const connectionSources = report.sanitization_schema === CONNECTION_SOURCE_REPORT_SCHEMA
+    ? report.samples.map((sample, index) => {
+      const currentDatabaseConnections = finiteMetric(
+        sample?.connections?.current_database,
+        `samples[${index}].connections.current_database`,
+      );
+      return validateConnectionSources(
+        sample?.connection_sources,
+        currentDatabaseConnections,
+        `samples[${index}].connection_sources`,
+      );
+    })
+    : [];
   if (sampleTimes.some((value, index) => index > 0 && value < sampleTimes[index - 1])) {
     throw new Error("Passive capacity report samples are not ordered");
   }
@@ -160,6 +278,26 @@ function validateReport(report) {
   ]) {
     metrics[key] = finiteMetric(summary[key], `assessment.summary.${key}`);
   }
+  if (report.sanitization_schema === CONNECTION_SOURCE_REPORT_SCHEMA) {
+    const peaks = summary.connection_source_peaks;
+    if (!peaks || typeof peaks !== "object" || Array.isArray(peaks) ||
+        JSON.stringify(Object.keys(peaks).sort()) !==
+          JSON.stringify([...CONNECTION_SOURCE_LABELS].sort())) {
+      throw new Error("Passive capacity connection sources assessment summary is invalid");
+    }
+    metrics.connection_source_peaks = {};
+    for (const [index, source] of CONNECTION_SOURCE_LABELS.entries()) {
+      const value = finiteMetric(
+        peaks[source],
+        `assessment.summary.connection_source_peaks.${source}`,
+      );
+      const expected = Math.max(...connectionSources.map((sample) => sample[index].total));
+      if (!Number.isInteger(value) || value !== expected) {
+        throw new Error("Passive capacity connection sources assessment summary is inconsistent");
+      }
+      metrics.connection_source_peaks[source] = value;
+    }
+  }
 
   const blockers = stringArray(assessment.blockers, "assessment.blockers");
   const warnings = stringArray(assessment.warnings, "assessment.warnings");
@@ -183,6 +321,7 @@ function validateReport(report) {
       ? assessment.optimization_candidates.map(validateCandidate)
       : (() => { throw new Error("Passive capacity optimization candidates are invalid"); })(),
     advisor: validateAdvisor(report.performance_advisor),
+    tableActivity: tableActivity.at(-1) ?? null,
   };
 }
 
@@ -204,6 +343,96 @@ function countBy(values) {
   for (const value of values) counts[value] = (counts[value] ?? 0) + 1;
   return Object.fromEntries(Object.entries(counts).sort(([left], [right]) =>
     left.localeCompare(right)));
+}
+
+function emptyTableActivityTotals() {
+  return Object.fromEntries(TABLE_ACTIVITY_COUNTERS.map((key) => [key, 0n]));
+}
+
+function tableActivityTrend(observations, complete24h) {
+  const snapshots = observations.filter(({ tableActivity }) => tableActivity !== null);
+  const totals = new Map();
+  let validSegmentCount = 0;
+  let resetSegmentCount = 0;
+  for (let index = 1; index < snapshots.length; index += 1) {
+    const previous = snapshots[index - 1].tableActivity;
+    const current = snapshots[index].tableActivity;
+    if (previous.statsReset === null || current.statsReset === null ||
+        previous.statsReset !== current.statsReset) {
+      resetSegmentCount += 1;
+      continue;
+    }
+    let segmentValid = false;
+    let segmentReset = false;
+    for (const [table, currentCounters] of current.tables) {
+      const previousCounters = previous.tables.get(table);
+      if (!previousCounters) continue;
+      if (TABLE_ACTIVITY_COUNTERS.some((key) => currentCounters[key] < previousCounters[key])) {
+        segmentReset = true;
+        continue;
+      }
+      const aggregate = totals.get(table) ?? {
+        counters: emptyTableActivityTotals(),
+        segmentCount: 0,
+      };
+      for (const key of TABLE_ACTIVITY_COUNTERS) {
+        aggregate.counters[key] += currentCounters[key] - previousCounters[key];
+      }
+      aggregate.segmentCount += 1;
+      totals.set(table, aggregate);
+      segmentValid = true;
+    }
+    if (segmentReset) resetSegmentCount += 1;
+    if (segmentValid) validSegmentCount += 1;
+  }
+  const requiredSegments = observations.length - 1;
+  const activityComplete = complete24h && snapshots.length === observations.length &&
+    snapshots.length >= MINIMUM_OBSERVATIONS && validSegmentCount >= requiredSegments;
+  const candidates = activityComplete
+    ? [...totals.entries()].filter(([, { segmentCount }]) =>
+      segmentCount >= requiredSegments)
+      .map(([table, { counters }]) => {
+        const writeDelta = counters.n_tup_ins + counters.n_tup_upd + counters.n_tup_del;
+        return {
+          table,
+          counters,
+          writeDelta,
+          averageSeqTuplesPerScan: counters.seq_scan > 0n
+            ? round(Number(counters.seq_tup_read) / Number(counters.seq_scan))
+            : 0,
+        };
+      }).filter(({ counters, writeDelta }) =>
+      (counters.seq_scan >= 100n && counters.seq_tup_read >= 10_000n) ||
+      writeDelta >= 1_000n)
+      .sort((left, right) => {
+        if (left.counters.seq_tup_read !== right.counters.seq_tup_read) {
+          return left.counters.seq_tup_read > right.counters.seq_tup_read ? -1 : 1;
+        }
+        if (left.writeDelta !== right.writeDelta) {
+          return left.writeDelta > right.writeDelta ? -1 : 1;
+        }
+        return left.table.localeCompare(right.table);
+      })
+      .slice(0, 20)
+      .map(({ table, counters, writeDelta, averageSeqTuplesPerScan }) => ({
+        table,
+        seq_scan_delta: counters.seq_scan.toString(),
+        seq_tup_read_delta: counters.seq_tup_read.toString(),
+        idx_scan_delta: counters.idx_scan.toString(),
+        idx_tup_fetch_delta: counters.idx_tup_fetch.toString(),
+        write_delta: writeDelta.toString(),
+        average_seq_tuples_per_scan: averageSeqTuplesPerScan,
+      }))
+    : [];
+  return {
+    window: {
+      observation_count: snapshots.length,
+      valid_segment_count: validSegmentCount,
+      reset_segment_count: resetSegmentCount,
+      complete_24h: activityComplete,
+    },
+    candidates,
+  };
 }
 
 export function assessPassiveCapacityTrend(reports) {
@@ -294,6 +523,7 @@ export function assessPassiveCapacityTrend(reports) {
   const utilization = unique.map(({ summary }) =>
     summary.max_connection_utilization_percent);
   const latestAdvisor = last.advisor;
+  const activity = tableActivityTrend(unique, complete24h);
   return {
     schema_version: 1,
     project_ref: PRODUCTION_PROJECT_REF,
@@ -341,6 +571,8 @@ export function assessPassiveCapacityTrend(reports) {
       latest_names: countBy(latestAdvisor.map(({ name }) => name)),
     },
     review_candidates: reviewCandidates,
+    table_activity_window: activity.window,
+    table_activity_review_candidates: activity.candidates,
   };
 }
 

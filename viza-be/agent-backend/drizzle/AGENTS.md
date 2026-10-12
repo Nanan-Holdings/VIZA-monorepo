@@ -4,8 +4,64 @@ Scope: this file applies to `viza-be/agent-backend/drizzle/**`.
 
 ## Purpose
 
+`0192_ds160_local_payment_deferral.sql` provides service-role-only, expiring
+authorization for one local CEAC queue. It preserves financial entitlements,
+never authorizes the shared runner or appointments, and must be revoked after
+the test. The local frontend requires an exact application-id environment gate.
+
 This directory owns sequential SQL migrations for the agent backend Supabase
 database.
+
+`0193_us_appointment_runner_claims.sql` owns service-role-only RPCs and a
+private, RLS-protected claim history for mainland-China USVisaScheduling jobs.
+Claim creation locks the exact eligible appointment job and permits one active
+owner. Active claims never expire or transfer automatically; reconcile any
+official side effects before settling a lost worker. These RPCs do not change
+the shared `runner_job` claim/cutover contract or authorize payment/booking.
+
+`0194_disable_payment_execution.sql` disables database-side checkout, payment
+confirmation, official-fee queueing, and managed-card issuance while retaining
+historical payment tables and rows. It releases payment-only submission
+defaults/gates, removes payment risk/fence triggers and fee cron scheduling,
+and preserves consent, authorization, QA, queue ownership, and runner cutover
+checks. Keep the timestamped frontend Supabase mirror byte-identical; do not
+apply this migration to a remote database from local development.
+
+`0195_ds160_submission_queue_lease_renewal.sql` adds the service-role-only
+DS-160 legacy queue lease renewal RPC. It locks the exact queue row before
+sampling `clock_timestamp()`, requires the current owner, an unexpired lease,
+and a DS-160 processing status, and caps the renewed lease at one hour. An
+expired or reclaimed worker receives no row and cannot renew the replacement
+worker's lease through this RPC.
+
+`0196_ds160_preparer_fields.sql` publishes the eleven `ds160_preparer_*`
+schema rows already defined by the DS-160 seed. It upserts only those stable
+`visa_type`/`field_name` keys, preserves existing field IDs, and does not
+modify applicant answers or reseed the rest of the catalog. Keep the
+timestamped frontend Supabase mirror byte-identical.
+
+`0197_ds160_personal_identity_required_fields.sql` aligns DS-160 Personal
+Information 1 and 2 controls that CEAC validates on Next:
+`full_name_native_alphabet`, `state_of_birth`, `national_id_number`,
+`us_social_security_number`, `us_taxpayer_id`,
+`other_nationality_has_passport`, and
+`other_nationality_passport_number`. It changes required metadata, preserves
+the existing explicit Does Not Apply validation rules, and records the current
+20-character CEAC passport-number limit plus the verified Personal Information
+1 text limits (native name 100; other names 33; birth city/state 20). Keep the
+timestamped frontend Supabase mirror byte-identical.
+
+`0198_ds160_travel_required_fields.sql` aligns the confirmed B1/B2 Travel
+Information, payer, and companion branches: required controls, verified text
+limits, and the companion relationship option set. It preserves conditional
+logic, repeat groups, and existing Does Not Apply rules. Keep the timestamped
+frontend Supabase mirror byte-identical.
+
+`0201_ds160_remaining_live_parity.sql` aligns the live Passport, family,
+U.S. Contact, Work/Education, Additional Work, Security, age-gate, repeat-group,
+and CEAC option-source metadata. It preserves applicant answers and the legacy
+passport-issuance-state clearing behavior. Keep the timestamped frontend
+Supabase mirror byte-identical.
 
 ## Key Responsibilities
 
@@ -430,17 +486,58 @@ The current internal automation migrations are:
   bootstraps existing administrators, hardens `handle_new_user`, and installs
   fail-closed queue/application payment fences plus refund/dispute review
   events. Keep the frontend Supabase migration byte-identical.
-- `0188_inbound_email_client_state.sql`: client mailbox state for
-  `/client/settings/inbox` — read/star/archive columns plus cached `ai_meta`,
-  `translations`, and `attachments_meta` jsonb on `inbound_email` (still
-  SELECT-only for `authenticated`; all writes go through server actions), and
-  the service-role-only `inbound_email_replies` table for staff-reviewed
-  applicant replies and consultant flags. Keep the frontend Supabase migration
-  byte-identical. Both tables stay `rest-service-only`; add
-  `inbound_email_replies` to `schema-ownership.manifest.json` only after the
-  next production architecture audit captures it.
+- `0186_jp_vjw_official_control_parity.sql`: publishes the reviewed VJW 3.16
+  dropdown/autocomplete masters and exact visible control types. It is ordered
+  before the two label-only Japan migrations and remains byte-identical to its
+  timestamped frontend Supabase mirror.
+- `0187_jp_vjw_chinese_option_labels.sql`: adds Simplified Chinese display
+  labels without changing official stored codes or English values. Keep its
+  timestamped frontend Supabase mirror byte-identical.
+- `0188_jp_vjw_simplified_chinese_admin_labels.sql`: removes residual Japanese
+  kana from municipality display labels without changing official romanized
+  values. Keep its timestamped frontend Supabase mirror byte-identical.
+- `0194_disable_payment_execution.sql`: disables all database payment execution
+  entrypoints and payment-only submission fences without deleting historical
+  payment data. Legacy RPC identities remain as fail-closed
+  `payments_disabled` stubs; ordinary consent/QA/queue/runner checks remain.
+  Keep the timestamped frontend Supabase mirror byte-identical.
+- `0195_ds160_submission_queue_lease_renewal.sql`: renews a live DS-160 legacy
+  `submission_queue` lease only for its current service worker and only while
+  the row remains in a DS-160 processing state; stale or reclaimed workers
+  receive an empty result.
+- `0196_ds160_preparer_fields.sql`: publishes the eleven DS-160 Sign and
+  Submit preparer fields from the existing seed contract through a stable-key
+  upsert; it preserves field IDs and never changes applicant answer rows.
+- `0197_ds160_personal_identity_required_fields.sql`: aligns CEAC-required
+  Personal Information 1 and 2 identity controls, preserves explicit Does Not
+  Apply rules, and records the verified text-length limits. Keep its frontend
+  Supabase migration mirror byte-identical.
+- `0198_ds160_travel_required_fields.sql`: aligns the confirmed Travel
+  Information, payer, and companion branch metadata and preserves all
+  conditional/repeat contracts. Keep its frontend Supabase migration mirror
+  byte-identical.
+- `0199_ds160_previous_travel_contact_required_fields.sql`: aligns the
+  confirmed Previous U.S. Travel, Address and Phone, parent, and spouse
+  branches with CEAC-required flags, lengths, date precision, social-platform
+  options, and explicit Does Not Apply/Do Not Know conditions. Keep its
+  timestamped frontend Supabase migration mirror byte-identical.
+- `0200_ds160_telecode_validation.sql`: aligns the Personal Information 1
+  telecode controls with CEAC's four-digit-group format and 20-character
+  limit; the surname remains required while given names are optional. Keep
+  its timestamped frontend Supabase migration mirror byte-identical.
+- `0201_ds160_remaining_live_parity.sql`: aligns the remaining live Passport,
+  family, U.S. Contact, Work/Education, Additional Work, Security, age-gate,
+  repeat-group, and CEAC option-source metadata. Keep its timestamped frontend
+  Supabase migration mirror byte-identical.
 
 ## Guardrails
+
+- `0190_public_status_aggregate_once.sql`: groups visible portal history once
+  before building daily, per-monitor, and overall uptime JSON. Preserve the
+  calendar-day versus rolling-time windows, future observations, weighted
+  ratios, public field whitelist, and service-only RPC ACL/OID. Its preflight
+  rejects a missing or drifted function; keep the timestamped mirror and
+  migration-governance SHA-256 byte-identical.
 
 - Do not add final official-site payment/booking/submission automation to this
   automation scope. DS-160 live assisted tables may store audited handoff,
@@ -459,3 +556,72 @@ Run from `viza-be/agent-backend` when database access is available:
 npm run db:migrate
 npm run type-check
 ```
+# Migration 0202
+
+`0202_ds160_live_catalog_reconciliation.sql` corrects fourteen metadata differences
+found by comparing production after 0197–0201 with the B1/B2 seed: companion
+lengths, petition order, spouse visibility, partner requiredness, the contact
+hours branch, and the preparer NA label. It does not modify applicant answers.
+Its frontend mirror is `20260921060000_ds160_live_catalog_reconciliation.sql`.
+Production applied 0197–0201 atomically as `20260921185118` and 0202 as
+`20260921185319`. The resulting 337 DS-160 rows matched the seed for field type,
+requiredness, step/order, conditional logic, and all non-copy validation rules.
+
+# Migration 0203
+
+`0203_ds160_specific_travel_single_block.sql` removes repeat metadata from the
+six conditional arrival/departure fields. CEAC exposes one such block; the
+`planned_locations` and `trip_purpose` groups remain repeatable. The migration
+changes metadata only and preserves existing applicant answer rows, including
+historical suffixed keys. Keep its frontend mirror
+`20260922000000_ds160_specific_travel_single_block.sql` byte-identical.
+
+# Migration 0204
+
+`0204_ds160_form_control_types.sql` aligns the CEAC `sex` select control while
+preserving its male/female options, aligns the former-spouse count with CEAC's
+text control (`maxLength` 2 plus the numeric UI pattern), aligns the
+marriage-ended explanation with CEAC's 4000-character textarea, and marks the
+duplicate present-employer `job_title` as `legacy_compatibility_only`. It is
+metadata-only and preserves existing applicant answers and aliases. The count
+pattern is a local numeric input guard; it does not claim an independently
+verified CEAC server-side range. Keep its frontend mirror
+`20260922010000_ds160_form_control_types.sql` byte-identical.
+
+# Migration 0205
+
+`0205_ds160_explanation_textareas.sql` changes the marital-status OTHER,
+passport-document-type OTHER, and present-occupation OTHER explanation fields
+to textareas after their live CEAC controls were observed as textareas with
+4000-character limits. It updates only field metadata, not saved answers. Keep
+its frontend mirror `20260922020000_ds160_explanation_textareas.sql` byte-identical.
+
+# Migration 0206
+
+`0206_ds160_official_email_queue.sql` adds the service-role-only,
+empty-search-path DS-160 official confirmation-email and proof-download queue
+RPCs. Enqueue locks the application and profile owner, validates the submitted
+US result and recipient digest shape, serializes active queue and runner jobs,
+and persists
+the request/send metadata in `ceac_result_payload`. Start and reserve require
+the exact live queue owner and lock timestamp; reserve is the one-shot
+database-clock send fence. Settlement accepts only sent/unknown/unsent-failed
+states after browser cleanup and clears the exact lease atomically. The
+frontend mirror
+`viza-fe/internal-website/supabase/migrations/20260929000000_ds160_official_email_queue.sql`
+must remain byte-identical. The API and worker perform the actual auth email
+digest check because the service role does not have `auth.users` SELECT access.
+
+# Migration 0207
+
+`0207_preserve_ds160_proof_stale_results.sql` excludes `ceac_proof` from
+generic stale maintenance so proof failures cannot overwrite a submitted
+application result. It also excludes every `ds160_proof_*` status, covering
+legacy recovery rows whose original provider remains `ceac_live`.
+Expired email jobs use 0206's explicit authenticated retry
+path, preserving the pre-send versus reserved-send distinction. Other stale
+jobs are eligible only after their lease expires. Preserve the later Korea
+status additions, service-only ACL and existing non-proof terminal behavior.
+Keep `20260930102445_preserve_ds160_proof_stale_results.sql` byte-identical.
+The synthetic PostgreSQL fixture under `src/tests/` verifies behavior and
+rolls back; it is not a production maintenance command.

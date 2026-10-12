@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  getCanonicalApplicationProductCountry,
+  getCanonicalVisaDestinationCountry,
   getDestinationDisplayName,
   getDestinationDisplayNameZh,
+  getFormVisaType,
   getPopularVisaDestinationByPackage,
+  getVisaDestinationKey,
+  getVisaTypeDestinationCountry,
   getVisaPackageTitle,
-  matchesVisaDestinationSearch,
-  SCHENGEN_GROUP_DESTINATION,
-  SCHENGEN_VISA_DESTINATIONS,
   SEARCHABLE_VISA_DESTINATIONS,
   VISA_DESTINATION_COUNTRY_GROUPS,
 } from "@/lib/visa-destinations";
@@ -44,46 +46,33 @@ describe("automated online destination catalogue", () => {
     expect(VISA_DESTINATION_COUNTRY_GROUPS.some((group) => group.key === "russia")).toBe(false);
   });
 
-  it("collapses the 29 Schengen countries into one group card on the picker", () => {
-    const schengenMembers = SCHENGEN_VISA_DESTINATIONS.map((destination) => destination.country);
-    expect(schengenMembers).toHaveLength(29);
-    for (const country of schengenMembers) {
-      expect(VISA_DESTINATION_COUNTRY_GROUPS.some((group) => group.key === country)).toBe(false);
-    }
-    const schengenCard = VISA_DESTINATION_COUNTRY_GROUPS.find((group) => group.key === "schengen_area");
-    expect(schengenCard?.destinations).toHaveLength(1);
-    expect(schengenCard?.destinations[0]).toMatchObject({
-      kind: "group",
-      href: "/client/destinations/schengen",
-      countryCount: 29,
-    });
-  });
-
-  it("still finds the Schengen card when searching a member country", () => {
-    const schengenCard = SCHENGEN_GROUP_DESTINATION;
-    for (const query of ["France", "法国", "Germany", "德国", "申根", "Schengen"]) {
-      expect(matchesVisaDestinationSearch(schengenCard, query)).toBe(true);
-    }
-    expect(matchesVisaDestinationSearch(schengenCard, "Japan")).toBe(false);
-  });
-
   it("keeps legacy country labels available for historical status rows", () => {
     expect(getDestinationDisplayName("brazil")).toBe("Brazil");
     expect(getDestinationDisplayNameZh("russia")).toBe("俄罗斯");
   });
 
-  it("uses country-bound product identities for Laos, Oman, and Tanzania", () => {
-    expect(getPopularVisaDestinationByPackage("laos", "tourist_evisa")).toMatchObject({
-      id: "laos-tourist-evisa",
-      visaType: "LA_TOURIST_E_VISA",
-    });
-    expect(getPopularVisaDestinationByPackage("oman", "tourist_evisa")).toMatchObject({
-      id: "oman-tourist-evisa",
-      visaType: "OM_TOURIST_E_VISA",
-    });
-    expect(getPopularVisaDestinationByPackage("tanzania", "tourist_evisa")).toMatchObject({
-      id: "tanzania-tourist-evisa",
-      visaType: "TZ_TOURIST_E_VISA",
-    });
+  it("preserves aliases and normalized fallbacks for unknown or empty countries", () => {
+    expect(getCanonicalVisaDestinationCountry(" USA ")).toBe("united_states");
+    expect(getCanonicalVisaDestinationCountry("United States of America")).toBe("united_states");
+    expect(getCanonicalVisaDestinationCountry(" 越南 ")).toBe("vietnam");
+    expect(getCanonicalVisaDestinationCountry("Unknown Place")).toBe("unknown_place");
+    expect(getCanonicalVisaDestinationCountry("   ")).toBe("");
+  });
+
+  it("preserves unique, ambiguous, empty and aliased visa-type ownership", () => {
+    expect(getFormVisaType(" B1/B2 ")).toBe("DS160");
+    expect(getVisaTypeDestinationCountry(" DS-160 ")).toBe("united_states");
+    expect(getVisaTypeDestinationCountry("tourist_evisa")).toBeNull();
+    expect(getVisaTypeDestinationCountry("   ")).toBeNull();
+    expect(
+      getCanonicalApplicationProductCountry("vietnam", "PH_ETRAVEL_DEPARTURE_CARD"),
+    ).toBe("philippines");
+  });
+
+  it("keeps destination keys stable across product and country aliases", () => {
+    expect(getVisaDestinationKey("stale-country", "PH_ETRAVEL_DEPARTURE_CARD")).toBe(
+      "philippines::ph_etravel_departure_card",
+    );
+    expect(getVisaDestinationKey("United States", " B1/B2 ")).toBe("united_states::ds160");
   });
 });

@@ -29,6 +29,8 @@ If behavior conflicts, prefer the authenticated route and Socket.IO contract doc
 
 - `page.tsx`: server route entry; resolves the user, creates/loads the chat session, and passes latest application context.
 - `chat-client.tsx`: main client UI; owns tab switching, Socket.IO connection, streaming state, scroll behavior, and embedded Travel AI.
+- `chat-client.test.tsx`: Socket.IO response lifecycle regression coverage for
+  hidden token fragments, immediate finalized text, failures, and queued turns.
 - `legacy-application-blocks.ts`: upgrades pre-block historical Singapore
   arrival-card handoffs into the same VIZA form card used by current messages.
 - `components/client/companion/chat-input.tsx`: shared bottom composer used by the VIZA AI chat surface.
@@ -60,6 +62,17 @@ If behavior conflicts, prefer the authenticated route and Socket.IO contract doc
 21. Mixed Schengen + non-Schengen itineraries must preserve separate routes. For example, France + Iceland + UK should choose the correct Schengen main destination from Schengen day counts while still reminding the user that the UK needs a separate visitor visa/application link.
 22. Structured session state may continue to support backend reasoning, but `/client/chat` must not render a user-facing memory summary or memory editor.
 23. Historical assistant messages that contain a Singapore arrival-card application link but no persisted block must render one deduplicated VIZA `SG_ARRIVAL_CARD` application card; suppress the prose link because the card owns the CTA.
+24. Both Socket.IO client entry points use `lib/socket-transports.ts`. Keep the
+    single-replica default as polling plus WebSocket; when
+    `NEXT_PUBLIC_SOCKET_IO_MULTI_REPLICA_ENABLED=true`, use WebSocket-only and
+    keep that flag synchronized with the backend topology flag. Preserve
+    `tryAllTransports` so a rolling deployment can recover from a brief flag
+    mismatch by trying WebSocket after polling is rejected.
+25. While a VIZA reply is generating, show only `ThinkingIndicator`. Do not
+    render or replay `token` fragments: their whitespace/formatting may be
+    incomplete. Render `response_complete.fullResponse` immediately through
+    `ChatMessage`; errors must replace the placeholder with a localized failure
+    message and must never expose partial response text. Preserve queued turns.
 
 ## Session Model
 
@@ -68,6 +81,18 @@ If behavior conflicts, prefer the authenticated route and Socket.IO contract doc
 New empty VIZA chats render a localized centered start state from `messages/*/chat.emptyPromptTitle` plus starter prompts. This is display-only and must not be written to `visa_chat_messages`; the first persisted message should still be the user's first real prompt.
 
 Session rename uses hidden system marker rows instead of a `visa_chat_sessions.title` column. `getUserSessions()` turns the latest marker into `Session.title`; `getSessionMessages()` and history helpers must keep those markers hidden.
+
+Sidebar history limits first-user-message previews to one per owned session via
+an aliased left embedding. Keep 30 recent session candidates and the final 10
+non-empty results; do not replace the title read with a naive latest-row limit,
+because invalid/blank title markers must be skipped. Action and SDK loopback
+coverage lives in `app/actions/companion-sessions.test.ts` and
+`lib/supabase/companion-session-preview.integration.test.ts`.
+
+Loading or switching a conversation uses one ownership-filtered message query
+in `getSessionMessages()`. Keep the inner session join and applicant filter
+together with the requested session ID; the latest 50 non-system messages must
+remain chronological in the returned DTO and preserve application block data.
 
 ## Validation Checklist
 
@@ -78,7 +103,8 @@ For frontend-only changes:
 3. Manually verify `/client/chat`:
    - unauthenticated users redirect to login
    - `VIZA AI` tab connects and sends a message
-   - streamed tokens become one finalized assistant message
+   - loading dots stay visible during token events; only the finalized response
+     becomes one assistant message, without a character-reveal delay
    - the VIZA session panel can start a new chat and switch back to an older chat
    - the last selected VIZA process survives a page refresh
    - process rename persists after Save and exits cleanly on Cancel
@@ -89,10 +115,13 @@ For backend Socket.IO or agent changes:
 
 1. `cd viza-be/agent-backend && npm run type-check`
 2. Verify the frontend still connects to `NEXT_PUBLIC_AGENT_BACKEND_URL/visa`.
-3. Confirm `token`, `response_complete`, `error`, and `application_block` event payloads still match `viza-fe/internal-website/types/agent-test.ts`.
-4. Confirm locale-driven responses: when UI locale is Chinese and the user sends English text, the Socket payload includes `locale: "zh"` and the backend prompt requires Simplified Chinese.
-5. Confirm mixed itinerary handoff: France 4 days + Iceland 5 days + UK 6 days should produce Iceland Schengen as the Schengen form route and keep the UK separate route visible.
-6. Run a Playwright smoke check against `/client/chat`; if no authenticated test session is available, verify the unauthenticated login redirect and backend `/health`.
+3. Verify a multi-replica build uses WebSocket-only and a default build keeps
+   the polling fallback; do not scale the backend until the Redis adapter is
+   ready.
+4. Confirm `token`, `response_complete`, `error`, and `application_block` event payloads still match `viza-fe/internal-website/types/agent-test.ts`.
+5. Confirm locale-driven responses: when UI locale is Chinese and the user sends English text, the Socket payload includes `locale: "zh"` and the backend prompt requires Simplified Chinese.
+6. Confirm mixed itinerary handoff: France 4 days + Iceland 5 days + UK 6 days should produce Iceland Schengen as the Schengen form route and keep the UK separate route visible.
+7. Run a Playwright smoke check against `/client/chat`; if no authenticated test session is available, verify the unauthenticated login redirect and backend `/health`.
 
 ## Current RAG Routing Scope
 

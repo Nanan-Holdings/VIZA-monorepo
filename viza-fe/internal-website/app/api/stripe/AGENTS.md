@@ -2,6 +2,11 @@
 
 Scope: this file applies to `viza-fe/internal-website/app/api/stripe/**`.
 
+Current product policy (2026-09-15): Stripe checkout, webhook, and payout
+routes are retired. They return HTTP 410 with `code: "payment_removed"` and
+perform no signature verification, provider calls, database writes, or
+lifecycle advancement, even when Stripe credentials are configured.
+
 ## Purpose
 
 This module owns Stripe route handlers for agency-fee checkout and webhook
@@ -29,8 +34,8 @@ ingestion.
 - `payout-webhook/route.ts`: separately configured, signature-verified Stripe
   payout evidence receiver. It records redacted payout state only; it never
   configures or initiates payouts.
-- `_shared.ts`: server-only Stripe/Supabase helpers for payment-record
-  idempotency, application advancement, and event/notification inserts.
+- The former `_shared.ts` Stripe/Supabase helper was removed with the retired
+  payment routes; no provider helper is available from this boundary.
 
 ## Environment
 

@@ -2,11 +2,13 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { normalizeSupabaseEnvValue } from "./env";
 import { createFetchWithTransientRetry } from "./fetch-with-timeout";
+import { observePortalFetch } from "../observability/portal-read";
 
 export type SupabaseClientOptions = {
   requestTimeoutMs?: number;
   retryDelaysMs?: readonly number[];
   circuitBreakerScope?: string;
+  requestSignal?: AbortSignal;
 };
 
 export async function createClient(options: SupabaseClientOptions = {}) {
@@ -27,6 +29,8 @@ export async function createClient(options: SupabaseClientOptions = {}) {
           requestTimeoutMs: options.requestTimeoutMs,
           retryDelaysMs: options.retryDelaysMs,
           circuitBreakerScope: options.circuitBreakerScope,
+          requestSignal: options.requestSignal,
+          fetchImplementation: observePortalFetch(),
         }),
       },
       cookies: {

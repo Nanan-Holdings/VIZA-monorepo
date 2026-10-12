@@ -86,9 +86,11 @@ export interface CreateFranceAppointmentJobPayload {
 
 export function getFranceAppointmentStatus(
   applicationId: string,
+  signal?: AbortSignal,
 ): Promise<FranceAppointmentStatusSnapshot> {
   return requestFranceAppointment<FranceAppointmentStatusSnapshot>(
     `/api/applications/${applicationId}/france-appointment/status`,
+    signal ? { signal } : {},
   );
 }
 
@@ -152,28 +154,6 @@ export function selectFranceAppointmentSlot(
   return requestFranceAppointment<FranceAppointmentStatusSnapshot>(
     `/api/france-appointment/jobs/${jobId}/slots/${slotId}/select`,
     { method: "POST" },
-  );
-}
-
-export function recordFrancePaymentSession(
-  jobId: string,
-  payload: {
-    sessionId: string;
-    redacted: {
-      last4: string;
-      expMonth: string;
-      expYear: string;
-      brand?: string;
-      holderNamePresent?: boolean;
-    };
-  },
-): Promise<FranceAppointmentStatusSnapshot> {
-  return requestFranceAppointment<FranceAppointmentStatusSnapshot>(
-    `/api/france-appointment/jobs/${jobId}/payment-session`,
-    {
-      method: "POST",
-      body: JSON.stringify(payload),
-    },
   );
 }
 

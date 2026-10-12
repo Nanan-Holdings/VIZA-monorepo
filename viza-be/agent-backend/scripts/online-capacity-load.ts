@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import {
 	evaluateOnlineCapacityRun,
 	ONLINE_CAPACITY_RELEASE_DURATION_MS,
+	ONLINE_CAPACITY_RELEASE_PACING_MS,
 	ONLINE_CAPACITY_RELEASE_RAMP_MS,
 	ONLINE_CAPACITY_RELEASE_USERS,
 	percentile,
@@ -64,6 +65,26 @@ interface CapacityTargetMarker {
 
 interface DatabaseCapacitySnapshot {
 	instanceId: string;
+	runtime: {
+		monitoring: boolean;
+		uptimeSeconds: number;
+		eventLoop: {
+			delayMeanMs: number;
+			delayP95Ms: number;
+			delayP99Ms: number;
+			delayMaxMs: number;
+			utilizationPercent: number;
+		};
+		memory: {
+			rssBytes: number;
+			heapUsedBytes: number;
+			heapTotalBytes: number;
+			heapLimitBytes: number;
+			externalBytes: number;
+			arrayBuffersBytes: number;
+			heapUtilizationPercent: number;
+		};
+	};
 	pool: {
 		state: "open" | "closing" | "closed" | "error";
 		maxConnections: number;
@@ -237,7 +258,7 @@ export function validateOnlineCapacityGuards(
 	const pacingMs = parseBoundedInteger(
 		envValue(env, "ONLINE_CAPACITY_PACING_MS"),
 		"ONLINE_CAPACITY_PACING_MS",
-		authenticated ? 5_000 : 0,
+		authenticated ? ONLINE_CAPACITY_RELEASE_PACING_MS : 0,
 		0,
 		10_000,
 	);
@@ -491,6 +512,9 @@ async function readDatabaseCapacitySnapshot(
 		throw new Error("Database capacity telemetry response is malformed");
 	}
 	const root = recordValue(value);
+	const runtime = recordValue(root?.runtime);
+	const eventLoop = recordValue(runtime?.eventLoop);
+	const memory = recordValue(runtime?.memory);
 	const database = recordValue(root?.database);
 	const pool = recordValue(database?.pool);
 	const queries = recordValue(database?.queries);
@@ -508,6 +532,19 @@ async function readDatabaseCapacitySnapshot(
 	const failedQueries = nonNegativeInteger(queries?.failedQueries);
 	const slowQueries = nonNegativeInteger(queries?.slowQueries);
 	const rawFingerprints = queries?.topSlowFingerprints;
+	const uptimeSeconds = nonNegativeFinite(runtime?.uptimeSeconds);
+	const delayMeanMs = nonNegativeFinite(eventLoop?.delayMeanMs);
+	const delayP95Ms = nonNegativeFinite(eventLoop?.delayP95Ms);
+	const delayP99Ms = nonNegativeFinite(eventLoop?.delayP99Ms);
+	const delayMaxMs = nonNegativeFinite(eventLoop?.delayMaxMs);
+	const eventLoopUtilizationPercent = nonNegativeFinite(eventLoop?.utilizationPercent);
+	const rssBytes = nonNegativeInteger(memory?.rssBytes);
+	const heapUsedBytes = nonNegativeInteger(memory?.heapUsedBytes);
+	const heapTotalBytes = nonNegativeInteger(memory?.heapTotalBytes);
+	const heapLimitBytes = nonNegativeInteger(memory?.heapLimitBytes);
+	const externalBytes = nonNegativeInteger(memory?.externalBytes);
+	const arrayBuffersBytes = nonNegativeInteger(memory?.arrayBuffersBytes);
+	const heapUtilizationPercent = nonNegativeFinite(memory?.heapUtilizationPercent);
 	if (
 		root?.ok !== true ||
 		typeof root.instanceId !== "string" ||
@@ -527,6 +564,25 @@ async function readDatabaseCapacitySnapshot(
 		Math.abs(peakUtilizationPercent - Math.round((peakActiveConnections / maxConnections) * 10_000) / 100) > 0.01 ||
 		totalQueries === null || failedQueries === null || slowQueries === null ||
 		failedQueries > totalQueries || slowQueries > totalQueries ||
+		typeof runtime?.monitoring !== "boolean" ||
+		uptimeSeconds === null ||
+		delayMeanMs === null ||
+		delayP95Ms === null ||
+		delayP99Ms === null ||
+		delayMaxMs === null ||
+		delayP95Ms > delayP99Ms ||
+		delayP99Ms > delayMaxMs ||
+		eventLoopUtilizationPercent === null || eventLoopUtilizationPercent > 100 ||
+		rssBytes === null ||
+		heapUsedBytes === null ||
+		heapTotalBytes === null ||
+		heapLimitBytes === null || heapLimitBytes < 1 ||
+		heapUsedBytes > heapTotalBytes || heapTotalBytes > heapLimitBytes ||
+		externalBytes === null || arrayBuffersBytes === null ||
+		heapUtilizationPercent === null || heapUtilizationPercent > 100 ||
+		Math.abs(
+			heapUtilizationPercent - Math.round((heapUsedBytes / heapLimitBytes) * 10_000) / 100,
+		) > 0.01 ||
 		!Array.isArray(rawFingerprints) || rawFingerprints.length > 10
 	) {
 		throw new Error("Database capacity telemetry response is malformed");
@@ -550,6 +606,26 @@ async function readDatabaseCapacitySnapshot(
 
 	return {
 		instanceId: root.instanceId,
+		runtime: {
+			monitoring: runtime.monitoring as boolean,
+			uptimeSeconds,
+			eventLoop: {
+				delayMeanMs,
+				delayP95Ms,
+				delayP99Ms,
+				delayMaxMs,
+				utilizationPercent: eventLoopUtilizationPercent,
+			},
+			memory: {
+				rssBytes,
+				heapUsedBytes,
+				heapTotalBytes,
+				heapLimitBytes,
+				externalBytes,
+				arrayBuffersBytes,
+				heapUtilizationPercent,
+			},
+		},
 		pool: {
 			state: state as DatabaseCapacitySnapshot["pool"]["state"],
 			maxConnections,
@@ -579,6 +655,7 @@ function summarizeDatabaseCapacity(
 	const final = samples.at(-1);
 	if (!baseline || !final) throw new Error("Database capacity telemetry is incomplete");
 	let metricResetDetected = false;
+	let runtimeMetricResetDetected = false;
 	for (let index = 1; index < samples.length; index += 1) {
 		const previous = samples[index - 1];
 		const current = samples[index];
@@ -590,6 +667,9 @@ function summarizeDatabaseCapacity(
 			current.queries.slowQueries < previous.queries.slowQueries
 		) {
 			metricResetDetected = true;
+		}
+		if (previous && current && current.runtime.uptimeSeconds < previous.runtime.uptimeSeconds) {
+			runtimeMetricResetDetected = true;
 		}
 	}
 	return {
@@ -610,6 +690,21 @@ function summarizeDatabaseCapacity(
 		failedQueryDelta: Math.max(0, final.queries.failedQueries - baseline.queries.failedQueries),
 		slowQueryDelta: Math.max(0, final.queries.slowQueries - baseline.queries.slowQueries),
 		metricResetDetected,
+		allRuntimeMonitorsEnabled: samples.every(({ runtime }) => runtime.monitoring),
+		runtimeMetricResetDetected,
+		peakEventLoopDelayP95Ms: Math.max(
+			...samples.map(({ runtime }) => runtime.eventLoop.delayP95Ms),
+		),
+		peakEventLoopDelayMaxMs: Math.max(
+			...samples.map(({ runtime }) => runtime.eventLoop.delayMaxMs),
+		),
+		peakEventLoopUtilizationPercent: Math.max(
+			...samples.map(({ runtime }) => runtime.eventLoop.utilizationPercent),
+		),
+		peakHeapUtilizationPercent: Math.max(
+			...samples.map(({ runtime }) => runtime.memory.heapUtilizationPercent),
+		),
+		peakRssBytes: Math.max(...samples.map(({ runtime }) => runtime.memory.rssBytes)),
 		topSlowFingerprints: final.queries.topSlowFingerprints,
 	};
 }
@@ -834,6 +929,7 @@ export async function executeOnlineCapacityRun(
 		users: config.users,
 		sustainedForMs,
 		rampUpMs: config.rampUpMs,
+		pacingMs: config.pacingMs,
 		completedUsers,
 		scenarios: scenarios.map(({ name }) => summarizeScenario(name, observations)),
 		...(databaseTelemetry ? { databaseTelemetry } : {}),
@@ -878,6 +974,7 @@ async function main(): Promise<void> {
 		JSON.stringify({
 			runId: summary.runId,
 			users: summary.users,
+			pacingMs: summary.pacingMs,
 			totalRequests: summary.totalRequests,
 			failedRequests: summary.failedRequests,
 			passed: summary.passed,

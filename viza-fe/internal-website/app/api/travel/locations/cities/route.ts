@@ -1,7 +1,11 @@
 import { getCitiesForCountries } from "@/lib/travel/locations-provider";
+import {
+  resolveRequestLocale,
+} from "@/lib/travel/travel-locale";
 
 type CitiesRequestBody = {
   countries?: unknown;
+  locale?: unknown;
 };
 
 function coerceCountries(value: unknown): string[] {
@@ -22,6 +26,7 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json()) as CitiesRequestBody;
     const countries = coerceCountries(body.countries);
+    const locale = resolveRequestLocale(request, body.locale);
 
     if (!countries.length) {
       return Response.json(
@@ -30,7 +35,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const citiesByCountry = await getCitiesForCountries(countries);
+    const citiesByCountry = await getCitiesForCountries(countries, locale);
     const cityCountByCountry = Object.fromEntries(
       Object.entries(citiesByCountry).map(([country, cities]) => [
         country,

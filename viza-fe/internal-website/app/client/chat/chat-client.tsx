@@ -18,10 +18,10 @@ import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import dynamic from "next/dynamic";
-import { alertToast } from "@/components/ui/alert-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { io, Socket } from "socket.io-client";
+import { resolveSocketTransports } from "@/lib/socket-transports";
 
 import { useContinuousChat } from "@/hooks/use-continuous-chat";
 import { ChatMessage } from "@/components/client/companion/chat-message";
@@ -48,7 +48,6 @@ import type {
   ChatMessage as SocketChatMessage,
   ConnectionStatus,
   VisaChatRequest,
-  TokenEvent,
   ToolCallEvent,
   ToolResultEvent,
   EscalationEvent,
@@ -131,7 +130,6 @@ interface ChatClientProps {
 const AGENT_BACKEND_URL =
   process.env.NEXT_PUBLIC_AGENT_BACKEND_URL || "http://localhost:3002";
 
-const CHARACTER_REVEAL_INTERVAL = 18;
 const ACTIVE_VIZA_SESSION_STORAGE_KEY = "viza_chat_session_id";
 const CONNECTION_TOAST_ID = "viza-agent-connection";
 
@@ -706,9 +704,6 @@ export function ChatClient({
   const [socketMessages, setSocketMessages] = useState<SocketChatMessage[]>([]);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const socketRef = useRef<Socket | null>(null);
-  const tokenBufferRef = useRef<string>("");
-  const tokenRevealIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const pendingResponseCompleteRef = useRef<ResponseCompleteEvent | null>(null);
   const currentMessageIdRef = useRef<string | null>(null);
   const chatContextRef = useRef<SocketChatMessage[]>([]);
 
@@ -773,70 +768,6 @@ export function ChatClient({
     [ensureMessagePersisted]
   );
 
-  const stopTokenReveal = useCallback(() => {
-    if (tokenRevealIntervalRef.current) {
-      clearInterval(tokenRevealIntervalRef.current);
-      tokenRevealIntervalRef.current = null;
-    }
-  }, []);
-
-  const flushTokenBuffer = useCallback(() => {
-    if (tokenBufferRef.current) {
-      const buffered = tokenBufferRef.current;
-      tokenBufferRef.current = "";
-
-      if (currentMessageIdRef.current) {
-        const msgId = currentMessageIdRef.current;
-        setSocketMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === msgId
-              ? { ...msg, content: (msg.content || "") + buffered }
-              : msg
-          )
-        );
-      }
-    }
-    stopTokenReveal();
-    if (pendingResponseCompleteRef.current) {
-      const completed = pendingResponseCompleteRef.current;
-      pendingResponseCompleteRef.current = null;
-      finishResponseComplete(completed);
-    }
-  }, [finishResponseComplete, stopTokenReveal]);
-
-  const scheduleTokenReveal = useCallback(() => {
-    if (tokenRevealIntervalRef.current) return;
-
-    tokenRevealIntervalRef.current = setInterval(() => {
-      const buffered = tokenBufferRef.current;
-      if (!buffered) {
-        stopTokenReveal();
-        if (pendingResponseCompleteRef.current) {
-          const completed = pendingResponseCompleteRef.current;
-          pendingResponseCompleteRef.current = null;
-          finishResponseComplete(completed);
-        }
-        return;
-      }
-
-      const codePoint = buffered.codePointAt(0);
-      if (codePoint === undefined) return;
-      const nextCharacter = String.fromCodePoint(codePoint);
-      tokenBufferRef.current = buffered.slice(nextCharacter.length);
-
-      if (currentMessageIdRef.current) {
-        const msgId = currentMessageIdRef.current;
-        setSocketMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === msgId
-              ? { ...msg, content: (msg.content || "") + nextCharacter }
-              : msg
-          )
-        );
-      }
-    }, CHARACTER_REVEAL_INTERVAL);
-  }, [finishResponseComplete, stopTokenReveal]);
-
   const connect = useCallback(() => {
     if (socketRef.current?.connected) return;
 
@@ -844,7 +775,8 @@ export function ChatClient({
 
     const socket = io(`${AGENT_BACKEND_URL}/visa`, {
       path: "/socket.io",
-      transports: ["polling", "websocket"],
+      transports: resolveSocketTransports(),
+      tryAllTransports: true,
       upgrade: true,
       reconnection: true,
       // Render can need more than a minute to wake a sleeping instance. Keep
@@ -868,7 +800,6 @@ export function ChatClient({
     socket.on("disconnect", (reason) => {
       setStatus(socket.active ? "connecting" : "disconnected");
       addLog("disconnected", { reason });
-      flushTokenBuffer();
     });
 
     socket.on("connect_error", (error) => {
@@ -887,13 +818,10 @@ export function ChatClient({
       setStatus("error");
     });
 
-    socket.on("token", (event: TokenEvent) => {
-      tokenBufferRef.current += event.payload;
-      scheduleTokenReveal();
-    });
+    // Token fragments are not display-ready. Keep the loading placeholder until
+    // response_complete supplies the full, sanitized response.
 
     socket.on("tool_call", (event: ToolCallEvent) => {
-      flushTokenBuffer();
       addLog("tool_call", { toolName: event.toolName, args: event.args });
     });
 
@@ -902,7 +830,6 @@ export function ChatClient({
     });
 
     socket.on("escalation", (event: EscalationEvent) => {
-      flushTokenBuffer();
       addLog("escalation", {
         intent: event.intent,
         riskLevel: event.riskLevel,
@@ -918,27 +845,21 @@ export function ChatClient({
         responseLength: event.fullResponse?.length || 0,
       });
 
-      pendingResponseCompleteRef.current = event;
-      if (tokenBufferRef.current) {
-        scheduleTokenReveal();
-      } else {
-        pendingResponseCompleteRef.current = null;
-        finishResponseComplete(event);
-      }
+      finishResponseComplete(event);
     });
 
     socket.on("error", (event: ErrorEvent) => {
-      flushTokenBuffer();
       addLog("error", { message: event.message, code: event.code });
 
       if (currentMessageIdRef.current) {
+        const messageId = currentMessageIdRef.current;
         setSocketMessages((prev) =>
           prev.map((msg) =>
-            msg.id === currentMessageIdRef.current
+            msg.id === messageId
               ? {
                   ...msg,
                   isStreaming: false,
-                  content: msg.content || `Error: ${event.message}`,
+                  content: t("connectionUnavailable"),
                 }
               : msg
           )
@@ -1001,18 +922,16 @@ export function ChatClient({
     userId,
     addLog,
     finishResponseComplete,
-    flushTokenBuffer,
-    scheduleTokenReveal,
+    t,
   ]);
 
   const disconnect = useCallback(() => {
-    flushTokenBuffer();
     if (socketRef.current) {
       socketRef.current.disconnect();
       socketRef.current = null;
     }
     setStatus("disconnected");
-  }, [flushTokenBuffer]);
+  }, []);
 
   const socketSendMessage = useCallback(
     (message: string, sessionIdOverride?: string) => {
@@ -1142,10 +1061,6 @@ export function ChatClient({
   const prevSocketMessagesRef = useRef<typeof socketMessages>([]);
 
   const resetRuntimeMessages = useCallback(() => {
-    flushTokenBuffer();
-    tokenBufferRef.current = "";
-    pendingResponseCompleteRef.current = null;
-    stopTokenReveal();
     currentMessageIdRef.current = null;
     queuedMessageRef.current = null;
     prevSocketMessagesRef.current = [];
@@ -1156,7 +1071,7 @@ export function ChatClient({
     setBlockMessages([]);
     setShowNewMessageButton(false);
     setShowScrollToBottom(false);
-  }, [flushTokenBuffer, setShowNewMessageButton, setShowScrollToBottom, stopTokenReveal]);
+  }, [setShowNewMessageButton, setShowScrollToBottom]);
 
   useEffect(() => {
     const prev = prevSocketMessagesRef.current;
@@ -1353,16 +1268,16 @@ export function ChatClient({
         socketSendMessage(pending.message, pending.sessionId);
       }
       setPendingMessages([]);
-      alertToast(t("connectedSending"), { variant: "success" });
+      toast.success(t("connectedSending"));
     }
-  }, [status, pendingMessages, socketSendMessage]);
+  }, [status, pendingMessages, socketSendMessage, t]);
 
   useEffect(() => {
     const lastLog = logs[logs.length - 1];
     if (lastLog?.eventType === "escalation") {
-      alertToast(t("agentNotified"), { variant: "info" });
+      toast.info(t("agentNotified"));
     }
-  }, [logs]);
+  }, [logs, t]);
 
   // ==========================================================================
   // Handlers
@@ -1389,7 +1304,7 @@ export function ChatClient({
 
   const handleNewVizaSession = useCallback(() => {
     if (isStreaming) {
-      alertToast("Please wait for the current response to finish.", { variant: "info" });
+      toast.info(t("sessionWaitForResponse"));
       return;
     }
 
@@ -1403,7 +1318,7 @@ export function ChatClient({
     setChatMode("viza");
     setSessionPanelOpen(false);
     sessionStorage.setItem("viza_chat_active", "true");
-  }, [isStreaming, resetHistoryState, resetRuntimeMessages, setChatMessages]);
+  }, [isStreaming, resetHistoryState, resetRuntimeMessages, setChatMessages, t]);
 
   const handleSessionSelect = useCallback(
     async (nextSessionId: string) => {
@@ -1416,7 +1331,7 @@ export function ChatClient({
       }
 
       if (isStreaming) {
-        alertToast("Please wait for the current response to finish.", { variant: "info" });
+        toast.info(t("sessionWaitForResponse"));
         return;
       }
 
@@ -1437,7 +1352,7 @@ export function ChatClient({
         resetHistoryState(messages.length >= 50);
       } catch (error) {
         console.error("Error loading VIZA session:", error);
-        alertToast("Failed to load conversation", { variant: "destructive" });
+        toast.error(t("sessionDeleteFailed"));
       } finally {
         setIsLoadingMessages(false);
       }
@@ -1448,6 +1363,7 @@ export function ChatClient({
       resetRuntimeMessages,
       sessionId,
       setChatMessages,
+      t,
       userId,
     ]
   );
@@ -1478,7 +1394,7 @@ export function ChatClient({
       const result = await renameSession(userId, targetSessionId, nextTitle);
 
       if (!result.success) {
-        alertToast(result.error || t("sessionRenameFailed"), { variant: "destructive" });
+        toast.error(t("sessionRenameFailed"));
         return false;
       }
 
@@ -1494,9 +1410,7 @@ export function ChatClient({
           return nextSession;
         })
       );
-      alertToast(result.title ? t("sessionRenamed") : t("sessionTitleCleared"), {
-        variant: "success",
-      });
+      toast.success(result.title ? t("sessionRenamed") : t("sessionTitleCleared"));
       return true;
     },
     [t, userId]
@@ -1505,14 +1419,14 @@ export function ChatClient({
   const handleDeleteVizaSession = useCallback(
     async (targetSessionId: string) => {
       if (isStreaming) {
-        alertToast(t("sessionWaitForResponse"), { variant: "info" });
+        toast.info(t("sessionWaitForResponse"));
         return false;
       }
 
       const result = await deleteSession(userId, targetSessionId);
 
       if (!result.success) {
-        alertToast(result.error || t("sessionDeleteFailed"), { variant: "destructive" });
+        toast.error(t("sessionDeleteFailed"));
         return false;
       }
 
@@ -1536,7 +1450,7 @@ export function ChatClient({
         }
       }
 
-      alertToast(t("sessionDeleted"), { variant: "success" });
+      toast.success(t("sessionDeleted"));
       return true;
     },
     [
@@ -1560,7 +1474,7 @@ export function ChatClient({
       if (!effectiveSessionId) {
         const newSession = await createSession(userId, travelApplicationId);
         if (!newSession) {
-          alertToast(t("failedToStart"), { variant: "destructive" });
+          toast.error(t("failedToStart"));
           return;
         }
 
@@ -1580,7 +1494,7 @@ export function ChatClient({
           { message, sessionId: effectiveSessionId },
         ]);
         markSessionUsed(effectiveSessionId, message);
-        alertToast(t("willSendWhenConnected"), { variant: "info" });
+        toast.info(t("willSendWhenConnected"));
         return;
       }
 
@@ -1685,11 +1599,12 @@ export function ChatClient({
           <DateDivider
             key={`date-${msg.id}`}
             date={new Date(msg.timestamp)}
+            locale={locale}
           />
         );
       }
 
-      if (msg.isStreaming && msg.content === "") {
+      if (msg.isStreaming) {
         lastTimestamp = msg.timestamp;
         return;
       }
@@ -1717,7 +1632,7 @@ export function ChatClient({
     });
 
     return elements;
-  }, [chatMessages, jumpTargetId]);
+  }, [chatMessages, jumpTargetId, locale]);
 
   // ==========================================================================
   // Render
@@ -2032,7 +1947,7 @@ export function ChatClient({
                         <button
                           onClick={handleWelcomeInputSend}
                           className="flex-shrink-0 rounded-full hover:opacity-80 transition-opacity active:opacity-60"
-                          aria-label="Send message"
+                          aria-label={locale.toLowerCase().startsWith("zh") ? "发送消息" : "Send message"}
                         >
                           <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-brand-500 flex items-center justify-center">
                             <ArrowUp className="size-4 text-white" weight="bold" />
@@ -2091,7 +2006,7 @@ export function ChatClient({
                   )}
 
                   {continuousChat.reachedHistoryBoundary && (
-                    <HistoryBoundaryMessage />
+                    <HistoryBoundaryMessage locale={locale} />
                   )}
 
                   {isLoadingMessages && (
@@ -2121,6 +2036,7 @@ export function ChatClient({
                         className="w-full flex-row items-end gap-2 rounded-2xl px-4 py-2 shadow-[0_1px_5px_rgba(15,23,42,0.08)]"
                         disabled={isLoadingMessages}
                         isConnecting={status === "connecting"}
+                        locale={locale}
                         onSend={handleSendMessage}
                         placeholder={t("inputPlaceholder")}
                         textareaClassName="min-h-11 py-2 text-base leading-7"
@@ -2142,10 +2058,7 @@ export function ChatClient({
 
                   {!isLoadingMessages && renderMessagesWithDividers()}
 
-                  {isStreaming &&
-                    continuousChat.messages[
-                      continuousChat.messages.length - 1
-                    ]?.content === "" && <ThinkingIndicator />}
+                  {isStreaming && <ThinkingIndicator locale={locale} />}
 
                   {pendingComponents.map((comp) => (
                     <motion.div
@@ -2183,6 +2096,7 @@ export function ChatClient({
                         show={continuousChat.showScrollToBottom}
                         onClick={scrollToBottom}
                         hasNewMessage={continuousChat.showNewMessageButton}
+                        locale={locale}
                         className="-top-24 right-2 sm:-top-16"
                       />
 
@@ -2192,6 +2106,7 @@ export function ChatClient({
                         onSend={handleSendMessage}
                         disabled={isLoadingMessages}
                         isConnecting={status === "connecting"}
+                        locale={locale}
                         placeholder={t("inputPlaceholder")}
                         textareaClassName="min-h-11 py-2 text-base leading-7"
                       />

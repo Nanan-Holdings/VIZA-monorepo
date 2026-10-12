@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
+import { resolveSocketTransports } from "@/lib/socket-transports";
 import type {
   ChatMessage,
   LogEntry,
@@ -121,7 +122,8 @@ export function useAgentSocket({
 
     const visaSocket = io(`${serverUrl}/visa`, {
       path: "/socket.io",
-      transports: ["polling", "websocket"],
+      transports: resolveSocketTransports(),
+      tryAllTransports: true,
       upgrade: true,
       reconnection: true,
       // A sleeping production instance can take over a minute to wake. Keep

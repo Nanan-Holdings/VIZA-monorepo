@@ -49,6 +49,9 @@ describe("arrival-card new-application route", () => {
     expect(
       createNewArrivalCardApplicationForApplicantMock
     ).toHaveBeenCalledWith("profile-1", "source-1");
+    expect(getApplicationApiApplicantProfileIdMock).toHaveBeenCalledWith({
+      supabaseRequestTimeoutMs: 8_000,
+    });
   });
 
   it("returns 401 when neither VIZA nor Supabase identity is available", async () => {

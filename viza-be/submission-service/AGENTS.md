@@ -1,16 +1,142 @@
 # Submission Service Agent Guide
 
+`docs/ds160-item-parity-2026-09-22.md` records the second, per-control B1/B2
+audit and fixes. Its `ds160-field-control-audit-2026-09-22.json`, CSV checklist,
+and `ds160-branch-control-audit-2026-09-22.json` retain audit snapshots and
+distinguish exact selector evidence from page/catalog associations. Never
+promote aggregate evidence or HTML required=false to verified server behavior.
+The fresh unsigned QA delta is recorded separately in
+`docs/ds160-live-evidence-delta-2026-09-22.json` and
+`docs/ds160-live-evidence-delta-2026-09-22.csv`. These files contain only
+public CEAC control metadata and state/error summaries, exclude applicant
+answers and identifiers, keep `officialParityVerified=false`, and preserve
+unknown or grouped evidence until mapping reconciliation is complete. They do
+not replace the older audit snapshots or authorize a new official submission.
+The companion 143-row selector reconciliation is in
+`docs/ds160-live-reconciliation-delta-2026-09-22.json` and
+`docs/ds160-live-reconciliation-delta-2026-09-22.csv`. Its current snapshot
+has 126 observed states, 143 fields with direct-ID candidates, zero label-only
+rows, and zero missing runtime bindings after the mapping-worker repair. These
+are finalized selector-reconciliation counts for that snapshot; selector
+evidence is never official server verification, and later raw point checks
+must produce a new snapshot rather than silently changing these counts.
+The 331-row consolidated checklist is in
+`docs/ds160-consolidated-field-checklist-2026-09-22.json` and
+`docs/ds160-consolidated-field-checklist-2026-09-22.csv`. It is an auditable
+effective merge of 187 historical exact rows, 143 fresh reconciliation rows,
+and the repaired `sex` row. It preserves the historical audit files, has
+`countsFinalized=true` for the current 126-state selector snapshot, and keeps
+`officialVerification=false`; the row partition must not be read as 331
+independent official server proofs.
+The independent Part 5 navigation supplement is in
+`docs/ds160-security5-navigation-proof-2026-09-22.json`. It records six public
+control states, disabled `Next: PHOTO` observations, Back/save acceptance, and
+successful top `PHOTO` link navigation. It does not prove the disabled Next
+button can submit, and it contains no uploaded photo, signature, or applicant
+answer.
+Related public-control supplements are
+`docs/ds160-security5-saved-readback-2026-09-22.json`,
+`docs/ds160-security-exact-id-proof-2026-09-22.json`, and
+`docs/ds160-other-occupation-accepted-2026-09-22.json`. They preserve only
+boolean/control-ID/navigation evidence and do not contain entered answer text.
+The current Security Part 5 PHOTO fallback implementation is commit
+`c9371000`: it uses same-origin PHOTO-link navigation only after an explicit
+disabled `Next: PHOTO` state, with Back/save/readback and lease/gate checks;
+normal enabled Next navigation remains the preferred path. Keep the focused
+security5/navigation regression covered by the final combined 121-test run,
+and keep the final runner-image digest aligned with this boundary.
+The frontend/runtime branch audit is recorded in
+`docs/ds160-b1-b2-branch-audit-2026-09-28.md`; it uses the dated live
+337-row metadata export and must remain separate from official CEAC server
+verification claims.
+
+Product policy (2026-09-15): payment execution has been removed.
+`src/payment-removed.ts` defines the unconditional retirement boundary.
+Card-session HTTP routes return 410; issuer and portal payment functions cannot
+spend or acquire cards, regardless of environment flags. Official fee checkpoints
+remain needs-attention states, never fabricated paid/submitted outcomes.
+Existing form filling, ownership/lease fences, consent, and browser cleanup remain.
+This supersedes historical payment pilot instructions below.
+Payment regression coverage lives in `src/__tests__/payment-removal.spec.ts`;
+old issuer, card-session, and successful-payment-only tests have been removed.
+Payment-only npm scripts and credential templates are retired. The old PhotonPay
+issuance/smoke, paid-order backfill, and Vietnam card-profile/autopay scripts are
+removed. Fly configs and secret sync no longer enable or require payment sessions;
+cold start, sizing, readiness, leases, and cleanup settings are preserved.
+
 `src/deploy-readiness.ts` contains the pure safety decision used before a
 retained Fly machine is stopped or replaced; keep its focused test in sync.
+The legacy Fly worker claims DS-160 jobs. Its deployment config explicitly
+enables live-assisted CEAC with the review/final-submit guards, headless mode,
+and a bounded US Browserbase session. CEAC uses the verified direct route;
+its proxy route returned an explicit official block on 2026-09-29. Do not
+silently re-enable the proxy during deployment. Do not release frontend retry UI
+without updating this worker image and verifying these runtime flags.
 
 Scope: this file applies to `viza-be/submission-service/**`.
 
+Automatic DS-160 confirmation-email intents are retired. New successful
+submissions preserve the official submitted state, final-submission fence, and
+failure-contained confirmation/PDF artifacts, then release the exact queue
+claim only after browser close and heartbeat shutdown, with a short bounded
+retry for transport failures. Historical
+`automaticEmail` payloads are left untouched: the worker performs no startup
+scan, drain, backfill, or automatic enqueue for them. The explicit,
+authenticated proof/recovery API remains available through
+`src/ds160-proof-email.ts`; this retirement does not remove that compatibility
+surface. The retirement and cleanup contract lives in
+`src/__tests__/ds160-auto-email.spec.ts`.
+
+`src/ds160-proof-email.ts` handles explicitly authorized recovery email jobs on
+the existing proof queue. It retrieves an already submitted application,
+verifies the authenticated owner's email digest and official recipient,
+reserves one durable email dispatch, and preserves encrypted official evidence.
+It never writes application submission state or invokes Sign. Terminal
+settlement clears the exact claim only after provider cleanup; ambiguous email
+dispatch is `unknown` and requires a new explicit user request. Its local
+lifecycle fixtures are in `src/__tests__/ds160-proof-email.spec.ts`.
+Pre-send failures retain a sanitized phase and typed CEAC error/status even
+when session bootstrap fails before returning a browser. No raw error message,
+URL or applicant value belongs in this public evidence; reserved sends remain
+unknown unless the official receipt is verified.
+The email audit captures text and screenshot independently: one capture failure
+must not discard the other. Public evidence may expose only capture-stage names
+and typed storage codes; private text/images stay encrypted. An artifact ref is
+recorded only after acknowledged storage, and partial diagnostics never turn an
+unknown email outcome into sent.
+Immediately before the durable dispatch reservation, capture the verified
+email form in memory, then recheck ownership. Store this pre-send capture only
+inside the final encrypted official-evidence bundle; retain it even if the
+final page capture fails. Neither capture may expose applicant text or images
+through public queue fields or logs.
+The optional final-POST comparison is also private: only bounded booleans/counts
+are encrypted as `submittedFormMetadata`. Transient native form names, values
+and request payloads must never enter artifacts, public diagnostics or logs;
+the comparison cannot mutate the form or replay the final click.
+
+`src/ds160-derive-answers.ts` treats present canonical form values as
+authoritative over persisted legacy key aliases, including explicit No and
+empty answers. Legacy target-only drafts remain supported. Keep the pure
+derivation and CEAC field-fill regressions together so branch visibility,
+the official radio, its read-back and the input audit agree.
+
+The U.S. appointment exact-job endpoint `/internal/us-appointment/wake` uses
+`src/us-appointment/dispatch.ts` and `claim-repository.ts` with migration 0193.
+It is separate from the shared runner RPC cutover, requires the internal bearer
+token, and rejects work before runner startup/capacity-lease readiness. Include
+appointment admission, queued work, and browser cleanup in idle, readiness,
+deployment and shutdown decisions. Unresponsive cleanup must terminate the
+worker without enabling automatic replay of an ambiguous official action.
+
 ## Purpose
 
-The submission service is a long-running Node/TypeScript worker that polls
-`submission_queue` and drives official portal automation with Playwright. Its
-product contract is reliable official-portal automation that completes form
-filling and one-shot submission for the applicant.
+The submission service is a Node/TypeScript worker with two explicit transports:
+the shared `runner_job` pool, drained at startup and after an authenticated
+enqueue wake, and separately enabled legacy/country `submission_queue` workers.
+It drives country-specific official-portal automation with Playwright. Its
+product contract is persisted, ownership-fenced form filling and one logical
+one-shot submission when the applicant's explicit action and provider gates are
+satisfied, followed by official result/evidence verification.
 
 ## Concurrency phase-two strict cutover
 
@@ -75,12 +201,107 @@ and must fail closed; callers must not perform a direct table settlement.
   API/CDP，其次是显式允许的全局 Browser API。不得静默降级，必须保留官方阻断与
   放行证据。端点凭证不得入日志。
 
+## Current runtime and browser contract
+
+- `runner_job` is the normal shared-pool transport. Startup performs one
+  explicit drain; later enqueues use authenticated `/internal/runner-job/wake`.
+  The compatibility `/internal/submission-queue/wake` invokes both configured
+  drain callbacks. Legacy `submission_queue` polling,
+  Vietnam cloud polling, and Indonesia polling are separate environment-gated
+  consumers; there is no fixed 30-second polling contract.
+- Code defaults are fail-closed for live work: DS-160 mode is `dry_run` and
+  `DS160_LIVE_SUBMISSION_ENABLED` is false; US appointment assisted-live and
+  real Playwright are both false; France mode is `dry_run`, with live payment and
+  appointment flags false. These are repository defaults, not proof of any
+  production runtime value. `.env.example` is illustrative and currently has a
+  legacy-queue value that differs from the `src/index.ts` code default.
+- The important default bounds are 3 ordinary queue attempts, a 900-second
+  submission lease with a 60-second minimum, a 10-minute generic stale cutoff,
+  a 35-minute default DS-160 live cutoff (`1800 + 300` seconds), 30-minute stale
+  maintenance with a batch of 100 capped at 500, and a 120-second Fly idle
+  grace when idle exit is enabled. Runner machine slots use a 30-minute lease
+  renewed every 60 seconds. The active DS-160 heartbeat renews the legacy
+  `submission_queue` lease through the service-role-only
+  `renew_submission_queue_lease` RPC every 60 seconds. The RPC uses a
+  server-clock owner/status/expiry fence; an empty/error renewal aborts and
+  closes CEAC, and the stale worker skips queue/application settlement writes.
+- DS-160 browser state is an ephemeral CEAC Browserbase or Chromium context.
+  A dropped Browserbase control connection may reconnect to the same provider
+  session only after the official origin, Application ID and allowed page are
+  verified. CEAC defaults to a 1,800-second provider TTL; its validated
+  deployment override is bounded at 3,600 seconds and the legacy deployment
+  sets both provider TTL and DS-160 stale-duration configuration to 3,600.
+  It explicitly releases the
+  provider session on close; final signing is never replayed by reconnect logic.
+  Mid-flow expiry creates a fresh context and retrieves the application with
+  the persisted Application ID, surname prefix, birth year, and security answer.
+  Captured `.dat` Save-to-File artifacts, checkpoints, screenshots and result
+  metadata support operator-driven recovery; the trace flag alone does not
+  establish trace capture. The current module does not replay
+  `.dat` into a new CEAC session. `DS160_KEEP_TEMP=1` is the explicit diagnostic
+  retention switch.
+- DS-160 selectors, page identities, field mappings, conditional navigation,
+  retry limits, and success classification are deterministic; the browser
+  runner does not call an LLM. A missing mapping/value must surface as a data or
+  schema issue. The final CEAC click is fenced by the persistent
+  `ds160_final_submission_attempts` authorization row and ownership-checked
+  RPCs. Each retry reads that fence, the application-scoped
+  `ds160_application_id`/submission result, and the queue's encrypted
+  recovery checkpoint before CEAC bootstrap. A complete, identity-matched
+  checkpoint with no final attempt resumes the same draft automatically,
+  including when an explicit frontend retry created a new queue row. The
+  checkpoint is copied onto the owned retry row before CEAC Retrieve. Missing
+  or mismatched checkpoints and `started`, `unknown`, or `confirmed` final
+  attempts route to result recovery or an explained stop, never a new draft
+  or replayed final click. A click whose
+  confirmation remains unknown is permanently reviewable for that authorization;
+  a new explicit resubmission must use a new authorization id.
+- `src/queue/captured-resume-recovery.ts` and
+  `scripts/queue/recover-ds160-captured-resume.ts` are the operator-only
+  diagnostic/continuation tool for a captured DS-160 queue row. Normal customer
+  retries now use `src/ceac/submission-retry.ts` and do not require an operator
+  or the former `DS160_RESUME_CAPTURED_JOB_ID` environment override. The command is read-only
+  by default and requires exact application/job UUIDs plus `--execute` for the
+  conditional status transition. It must preserve all encrypted recovery
+  fields and never replace the captured queue row with a new retry job.
+  Preflight rejects active sibling work, official success evidence, and any
+  final-submission fence. The transition repeats the checkpoint/lease/status
+  predicates in its `WHERE` clause and treats zero-row or constraint errors as
+  concurrent conflicts. The existing
+  `submission_queue_one_active_job_per_application_idx` partial unique index
+  protects the pending-status transition against a concurrent active sibling;
+  the worker's captured-resume preflight and durable final-submission guard
+  remain the final cross-table fence before official work or a final click.
+- US appointment browser selection is Browserbase, authorized CDP, or local
+  Playwright. An explicit storage-state path may load/save cookies. A persisted
+  job fixture or `playwrightEnabled=false` blocks live processing; local tests
+  must inject the fixture client explicitly. The real client is restricted to the configured
+  provider/country allowlist, retries only retryable Cloudflare Browser API
+  sessions, and closes the browser in `finally`.
+- US appointment state remains persisted and user-gated: consent/review,
+  account or verification checkpoint, observed slots, selected slot, final
+  approval, booking, confirmation, and status check. The official confirmation
+  number is required; the real Playwright client currently returns null PDF and
+  screenshot fields, so consumers must not claim artifact evidence that was not
+  captured.
+- Production flags, Browser API endpoints, cookies, tokens, and provider
+  credentials cannot be inferred from this file, startup logs, Fly templates, or
+  the frontend readiness probe. Verify deployment state through the authorized
+  release/runbook process before claiming a live flow is enabled.
+
 ## Key Flows
 
 - `src/kr-arrival-card/confirmation.ts`: pure Korea e-Arrival Card issue-number parsing. It rejects unloaded completion-table labels such as `country/region`; keep runner success and PDF evidence gated on a digit-bearing official issue token after the portal loading overlay has cleared.
 - `src/korea-vfs-shenyang/runner.ts`: Browserbase-backed Shenyang VFS account FSM. It requires explicit portal-term authorization, stores only an encrypted portal password, uses the managed alias for official activation email, preserves a five-minute SMS OTP session, records only current official slot observations, revalidates the exact user-selected slot, and requires a real confirmation number plus stored screenshot before success. The South Korea Fly machine and `/deploy-ready` protect active OTP sessions. `src/korea-vfs-shenyang/applicant-details.ts` is fail-closed: validate the complete required answer set before any Browserbase call; the runner then uses typed field mappings and visible duplicate-selector/evidence checks without retaining raw applicant data. Only the selected Shenyang center may invoke this helper; other centers must not fall through to it.
-- `src/index.ts`: polling loop, Supabase data loading, document download,
-  per-country dispatch, retry/failure handling, queue status transitions.
+- `src/index.ts`: startup/wake queue consumers, optional legacy polling,
+  Supabase data loading, document download, per-country dispatch, retry/failure
+  handling, stale maintenance, and queue status transitions.
+- `src/ceac/submission-retry.ts`: read-only application-wide final-attempt and
+  official-result checks, encrypted checkpoint selection across retry queue
+  rows, and bounded runtime-failure classification. Validation and official
+  gates stop for correction; transient pre-final failures retain their draft
+  and use the existing attempt limit. Keep its focused tests alongside the
+  final-submission guard, lease, and captured-resume tests.
 - `src/documents/reusable-document-aliases.ts` and
   `src/documents/resolve-application-documents.ts`: map private Universal
   Profile passport, portrait, bank-statement, insurance, signature, and
@@ -107,7 +328,12 @@ and must fail closed; callers must not perform a direct table settlement.
   including provider allowlists and targeted failed retries, goes through an
   atomic service-role claim RPC. Missing/unavailable claim RPCs fail closed;
   never add a plain table-select fallback because concurrent workers could run
-  the same official submission.
+  the same official submission. DS-160 cleanup stops browser work and lease
+  renewal before releasing the exact owner/claim timestamp. Terminal failed
+  or blocked rows additionally require a fresh application-wide check proving
+  no final-submission attempt and no official success; unreadable or ambiguous
+  evidence retains the lease. Final-submission recovery is never unlocked by
+  this cleanup path.
 - `src/queue/worker.ts`: shared `runner_job` settlement must call the
   service-role-only `complete_runner_pool_job` RPC with the stable worker id.
   Failure and renewal use the service-role-only `fail_runner_pool_job` and
@@ -256,11 +482,61 @@ and must fail closed; callers must not perform a direct table settlement.
   assisted is visible-browser only and blocks final validation/payment/booking;
   TLS appointment/payment require separate explicit
   `FRANCE_TLS_APPOINTMENT_ENABLED` and `FRANCE_TLS_PAYMENT_ENABLED` gates.
-- `src/form-mappings.ts`: Indonesian e-visa portal selectors.
+- `src/form-mappings.ts`: Indonesia-specific legacy e-visa selectors. Do not
+  treat this file as the generic submission schema; DS-160, appointment, and
+  France mappings remain package-specific.
 - `src/ds160-form-mappings.ts`: DS-160 field selector mappings.
+- `src/ds160-parity.ts` and `src/__tests__/ds160-parity.spec.ts`: side-effect-free
+  seed AST inventory and bidirectional derivation coverage. The
+  `audit:ds160-parity` command treats unconsumed fields (including inactive
+  branches) as gaps; `-- --json` exports branch/repeater inventory. Passing
+  this internal contract audit never proves live CEAC field/option parity.
+- `docs/ds160-field-parity-2026-09-14.md`: reproducible DS-160 branch/repeater
+  gap inventory. Keep its internal-contract status separate from historical
+  submitted records and live CEAC verification evidence.
+- `docs/ds160-field-parity-2026-09-21.md`: no-PII audit for the current 337-field,
+  83-condition, 22-active-repeat internal contract and the separate current-live
+  evidence index. It explicitly keeps official full parity unverified.
+- The current DS-160 contract also follows migration 0204 for the CEAC sex
+  select, former-spouse count text control, and marriage-ended textarea.
+  `job_title` remains a persistence-only compatibility alias and must not
+  become a new CEAC question. Migration 0205 aligns the marital-status OTHER,
+  passport-document OTHER, and present-occupation OTHER explanation fields to
+  CEAC textarea controls; selectors live in `src/ds160-extended-mappings.ts`.
+- `docs/ds160-field-parity-evidence-template.json`: generated B1/B2 evidence
+  manifest for every seeded field, both directions of each conditional branch,
+  and repeat-row add/delete controls. Empty slots are fail-closed; published
+  or historical evidence never counts as current live-DOM verification.
+- `docs/ds160-live-audit-2026-09-21.json`: sanitized journal of current-live
+  CEAC observations for the scoped B1/B2 pages, photo recovery, e-Sign
+  structure, database readback, and cross-field checks. It records proven
+  findings separately from pending checks and must keep `officialParityVerified`
+  false until the full B1/B2 scope, including any seed-external controls after
+  contract reconciliation, is reviewed.
+- `docs/ds160-current-live-evidence-manifest-2026-09-21.json`: generated
+  no-PII evidence index that maps the current-live journal into the field,
+  branch, and repeat evidence slots. It is intentionally incomplete and must
+  remain separate from the empty evidence template.
+- `docs/ds160-live-browser-raw-evidence-2026-09-21.json` preserves sanitized
+  control metadata and dated observation states, with no applicant answers.
+  `scripts/index-ds160-live-browser-evidence.mjs` creates the aggregate
+  `docs/ds160-live-evidence-index-2026-09-21.json` trace index. Its covers and
+  parentFindingIds associate records with raw page/control observations; they
+  do not establish independent server-side validation for each field.
+  HTML required attributes must never be treated as CEAC server requiredness.
+- Evidence slots expose `liveDomObserved` and `contractComparison`, not a
+  per-field officialVerified claim. The two singleton explanation contracts
+  are `structure_not_applicable`, excluded from actual Add/Remove counts.
+  Evidence-slot totals include scope gaps; preserve the overall fail-closed
+  officialParityVerified result while those gaps remain.
 - `src/ds160-coverage-audit.ts` and `src/ds160-completeness-verify.ts`:
-  coverage/verification utilities.
-- `src/ceac/**`: CEAC runtime pipeline for DS-160 prefill.
+  coverage/verification utilities. `src/__tests__/ds160-evidence-manifest.spec.ts`
+  protects the evidence manifest counts and fail-closed semantics; use
+  `scripts/audit-ds160-field-parity.ts --write-template <path>` to regenerate
+  the no-PII template.
+- `src/ceac/**`: CEAC runtime pipeline for DS-160 prefill and live-assisted
+  one-shot submission, including page identity, deterministic mappings,
+  CAPTCHA, session recovery, `.dat` checkpoints, and official proof handling.
 - `src/france-visas/**`: France-Visas sign-in, five fill steps, dashboard
   reference capture, optional CERFA PDF finalization, Browserbase-only launch,
   VIZA-alias account registration,
@@ -452,21 +728,30 @@ and must fail closed; callers must not perform a direct table settlement.
 - `src/uk/**`: UKVI saved-application resume and allocation-bound managed-card
   official-fee flow. It verifies the displayed portal amount/currency before
   card acquisition or PAN entry and sends unsupported/uncertain outcomes to
-  staff review without exposing an applicant portal handoff. Boundary-only
-  runs reach the verified official pay page, capture redacted local evidence,
-  and return before invoking any card-acquisition or payment hook; keep the
-  focused contract in `src/uk/payment-boundary.spec.ts`.
+  staff review without exposing an applicant portal handoff.
 - `src/us-appointment/**`: China `CN/usvisascheduling` assisted-live
-  appointment runner. Polls `appointment_assistance_jobs` when
+  appointment runner. It processes `appointment_assistance_jobs` only when
   `US_APPOINTMENT_ASSISTED_LIVE_ENABLED=true`, reads VIZA-created
-  `appointment_accounts` credentials, uses the Cloudflare-backed
+  `appointment_accounts` credentials, uses the managed alias/
   `inbound_email` path for verification mail helpers, automates supported
-  official login/account-prep steps, writes official slot observations to
-  `appointment_slots`, books only after a user-selected slot and payment/final
-  VIZA approval, captures confirmation artifacts in `appointment_confirmations`,
-  and writes follow-up checks to `appointment_status_checks`. Keep the DB state
-  machine in `runner.ts` and official-page selectors/page interactions in
-  `usvisascheduling-portal.ts`.
+  official login/account-prep steps, and writes only current official slot
+  observations to `appointment_slots`. Booking requires the applicant's exact
+  selected slot and a separate persisted final VIZA approval. The real
+  Playwright client currently requires a confirmation number but may return
+  null PDF/screenshot fields; never claim an artifact that was not captured.
+  Keep the DB state machine in `runner.ts` and official-page selectors/page
+  interactions in `usvisascheduling-portal.ts`. When `portalFixture` is present
+  or `US_APPOINTMENT_PLAYWRIGHT_ENABLED` is not exactly `true`, persisted live
+  jobs stop at a configuration checkpoint and never write simulated evidence.
+  Account registration must use the applicant's actual stored name; missing
+  names remain null and must not be replaced with placeholder identities.
+- `scripts/run-us-appointment-login-smoke.ts`: one-account login diagnostic for
+  an explicitly selected existing China application. It only reads database
+  state, uses stored encrypted credentials, writes masked screenshots/redacted
+  reports under ignored `output/playwright`, and stops before registration,
+  policy acceptance, profile submission, payment, or booking. It does not save
+  cookies or change the appointment job. `--browserbase` explicitly selects the
+  configured Browserbase session; all browsers close in `finally`.
 - `scripts/run-us-appointment-registration-recon.ts`: Browserbase Developer
   single-session registration-entry recon. It clicks the official B2C
   `Sign up now` control, verifies the empty registration form, saves masked
@@ -583,6 +868,13 @@ and must fail closed; callers must not perform a direct table settlement.
   registration/login, profile/reference, calendar, slot, and review screens,
   saves screenshots with the final official-style control visible, asserts
   zero final-submit clicks, and never sends a request to an official portal.
+- `scripts/run-us-appointment-placeholder-flow.ts` / `npm run
+  us-appointment:placeholder-flow`: local full U.S. appointment regression using
+  the production browser client and runner with `src/us-appointment/testing/**`.
+  It intercepts all browser HTTP into a loopback server, blocks other origins,
+  and uses only synthetic data/in-memory persistence. It covers approval denial,
+  simulated booking, duplicate prevention and status capture. Unobserved
+  visa/delivery/payment pages are fixture-only, never official-site evidence.
 - `src/vn-prearrival/**`: Vietnam Pre-Arrival Information Declaration runner,
   including its pure OTP response classifier and official result capture.
   Normalizes `VN_PREARRIVAL_DECLARATION` answers only, keeps pre-arrival
@@ -770,10 +1062,6 @@ and must fail closed; callers must not perform a direct table settlement.
 - Vietnam and Indonesia may acquire a managed issuer card only after the
   official payment page is visible. An uncertain provider or portal result must enter
   `review_required`; never issue a second card while that state is unresolved.
-- `VIZA_FORCE_STOP_BEFORE_PAYMENT` defaults to `true` for boundary-evidence
-  runs. While enabled, Vietnam and Indonesia must capture and persist a
-  redacted official payment-page screenshot without consuming a one-time card,
-  acquiring an issuer card, entering card data, or submitting payment.
 - `src/indonesia/card-session.ts` supports the same one-consumption, short-TTL
   memory contract for Indonesia C1/B1 official-fee payments. Local development
   uses `POST /local/indonesia/card-session`; production may use
@@ -797,18 +1085,24 @@ and must fail closed; callers must not perform a direct table settlement.
   authoritative queue check, and confirmation that no protected in-memory
   payment or Korea browser session remains. Future-window arrival-card rows do
   not count as runnable work until their persisted `scheduledFor` date.
+  Reading submitted DS-160 results or serving an already saved PDF must not
+  reset the idle grace. Active proof jobs remain protected by the surrounding
+  poll/in-flight guard and authoritative queue checks; keep both exit checks
+  and protected-session checks intact.
   Health and one-time-card endpoints must listen before Machine slot
   reservation completes. A transient Supabase/Cloudflare outage keeps the
   process alive with bounded retry and no queue claims until a slot is acquired;
   it must not cause a Fly restart loop or dump gateway HTML into logs.
-- `scripts/run-us-appointment-register.ts`: local USVisaScheduling account
-  registration helper. It requires a configured `US_APPOINTMENT_BROWSER_API_ENDPOINT`
-  or `US_APPOINTMENT_CDP_ENDPOINT` unless explicitly run with `--local-browser`,
-  uses the applicant inbox alias when `--applicant-id` is provided without an
-  explicit email, can consume USVisaScheduling verification mail from
-  `inbound_email`, types account fields with the US appointment typing-delay
-  range, and must not print passwords, Browser API endpoints, verification
-  codes, or links.
+- `scripts/run-us-appointment-register.ts`: application-bound USVisaScheduling
+  registration command. Requires `--application-id`, a consented China live job,
+  its existing encrypted pending account, and actual applicant names. It reuses
+  credentials, refuses created/active/verified accounts, and never overwrites
+  passwords. `--browserbase` selects managed sessions; `--local-browser` is for
+  intentional local debugging. It consumes current verification mail addressed
+  to the immutable account alias and persists active status only with verified
+  creation evidence. `--credential-config` loads only the existing writer's
+  encryption key into this process. All sessions close in `finally`; logs must
+  not contain passwords, endpoints, codes, links, or raw provider errors.
 - Vietnam runner note/acknowledgement handling must never auto-check
   "Agree to create account by email" or similar account-creation checkboxes.
   It may auto-check required official declarations needed to continue the
@@ -950,9 +1244,34 @@ the France-Visas account after confirming the run.
 
 ## Related Files
 
+- `src/ds160-extended-mappings.ts` and `src/ds160-extended-derivations.ts`
+  cover the additional conditional fields without inventing applicant values.
+- `src/ds160-field-contract.ts` is the checked-in seed shape, verified against
+  the AST parser by `src/__tests__/ds160-field-contract.spec.ts`.
+- `src/__tests__/ds160-travel-contract.spec.ts` verifies the confirmed
+  B1/B2 Travel Information, payer and companion required branches, hidden
+  optional controls, explicit Does Not Apply choices and checked-in lengths.
+- `src/__tests__/ds160-previous-contact-contract.spec.ts` verifies the
+  confirmed Previous U.S. Travel, Address and Phone, parent, and spouse
+  required branches, date precision metadata, explicit unknown/NA choices,
+  social-platform options, and checked-in lengths.
+- `src/__tests__/ds160-remaining-live-contract.spec.ts` verifies the proven
+  Passport, family, U.S. Contact, Work/Education, Additional Work, Security,
+  age-gate, repeat-group, and CEAC option-source metadata.
+- `src/ds160-conditions.ts`, `src/ds160-repeat-contract.ts`, and
+  `src/ceac/field-contract.ts` own branch/repeat applicability in the runner.
+- `src/ceac/repeat-browser-adapter.ts` and its adjacent browser tests own
+  observed row scopes, Add/Remove controls, and final row read-back.
+
 - `viza-be/submission-service/README.md`
 - `viza-be/submission-service/.env.example`
 - `viza-be/submission-service/src/index.ts`
+- `viza-be/submission-service/src/ds160-submitted-artifacts.ts` and
+  `src/__tests__/ds160-submitted-artifacts.spec.ts` own the failure-contained
+  optional DS-160 proof capture/storage boundary.
+- `viza-be/submission-service/src/__tests__/ds160-auto-email.spec.ts` covers
+  retirement of automatic intent creation/drain, submitted-claim release after
+  browser cleanup, and preservation of the official result/PDF artifact payload.
 - `viza-be/submission-service/src/result-writer.ts`
 - `viza-be/submission-service/src/__tests__/result-writer.spec.ts`
 - `viza-be/submission-service/src/queue/__tests__/pool-result-writes.spec.ts`
@@ -962,6 +1281,11 @@ the France-Visas account after confirming the run.
   `requeue_runner_job` RPC adapter. It returns success only for an explicit
   `true`; a false result is a concurrent conflict and must not be counted as
   requeued.
+- `viza-be/submission-service/src/queue/captured-resume-recovery.ts`,
+  `scripts/queue/recover-ds160-captured-resume.ts`, and
+  `src/queue/__tests__/recover-ds160-captured-resume.spec.ts` own the guarded
+  DS-160 captured-resume operator transition. Its usage and exact safety gates
+  are documented in `docs/ds160-captured-resume-recovery.md`.
 - `viza-be/submission-service/src/queue/__tests__/takeover.spec.ts`
 - `viza-be/submission-service/src/queue-scheduler.ts`
 - `viza-be/submission-service/src/submission-queue-claim.ts`

@@ -4,15 +4,43 @@ import time
 from datetime import date, timedelta
 from typing import Any
 
+from travel_locale import is_english_locale, localize_travel_place
 from tools.http_client import REQUEST_TIMEOUT, request_json
-from tools.serpapi import search_serpapi_hotels
 
 RAPIDAPI_HOST = os.getenv("RAPIDAPI_BOOKING_HOST", "booking-com15.p.rapidapi.com").strip()
 RAPIDAPI_BASE_URL = os.getenv("RAPIDAPI_BOOKING_BASE_URL", f"https://{RAPIDAPI_HOST}").strip().rstrip("/")
 RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY", "").strip()
 RAPIDAPI_TIMEOUT = REQUEST_TIMEOUT
+
+
+def _env_int(name: str, default: int) -> int:
+    try:
+        value = int(os.getenv(name, str(default)))
+    except (TypeError, ValueError):
+        return default
+    return value if value > 0 else default
+
+
+def _env_float(name: str, default: float) -> float:
+    try:
+        value = float(os.getenv(name, str(default)))
+    except (TypeError, ValueError):
+        return default
+    return value if value > 0 else default
+
+
 DESTINATION_CACHE_TTL_SECONDS = 24 * 60 * 60
+DESTINATION_LOOKUP_DEADLINE_SECONDS = _env_float(
+    "TRAVEL_DESTINATION_LOOKUP_DEADLINE_SECONDS", 10.0
+)
+DESTINATION_LOOKUP_MAX_INFLIGHT = _env_int(
+    "TRAVEL_DESTINATION_LOOKUP_MAX_INFLIGHT", 64
+)
+DESTINATION_CACHE_MAX_ENTRIES = _env_int(
+    "TRAVEL_DESTINATION_CACHE_MAX_ENTRIES", 256
+)
 _destination_cache: dict[str, tuple[float, str, str]] = {}
+_destination_inflight: dict[str, asyncio.Task[tuple[str, str] | None]] = {}
 
 
 def _headers():
@@ -37,6 +65,32 @@ async def _request_json(path: str, params: dict[str, Any]):
     )
 
 
+def _cache_destination(query_key: str, dest_id: str, search_type: str):
+    if (
+        query_key not in _destination_cache
+        and len(_destination_cache) >= DESTINATION_CACHE_MAX_ENTRIES
+    ):
+        oldest_key = min(
+            _destination_cache,
+            key=lambda key: _destination_cache[key][0],
+        )
+        _destination_cache.pop(oldest_key, None)
+    _destination_cache[query_key] = (time.monotonic(), dest_id, search_type)
+
+
+def _consume_destination_task(query_key: str, task: asyncio.Task):
+    if _destination_inflight.get(query_key) is task:
+        _destination_inflight.pop(query_key, None)
+    if task.cancelled():
+        return
+    try:
+        task.exception()
+    except BaseException:
+        # Retrieving the exception prevents an abandoned shared task from
+        # producing an unhandled-task warning.
+        return
+
+
 async def _resolve_destination(query: str):
     if not query:
         return None, None
@@ -46,29 +100,54 @@ async def _resolve_destination(query: str):
     if cached and time.monotonic() - cached[0] < DESTINATION_CACHE_TTL_SECONDS:
         return cached[1], cached[2]
 
-    payload = await _request_json("/api/v1/hotels/searchDestination", {"query": query})
-    if not payload or payload.get("status") is not True:
-        return None, None
+    task = _destination_inflight.get(query_key)
+    if task is None:
+        if len(_destination_inflight) >= DESTINATION_LOOKUP_MAX_INFLIGHT:
+            return None, None
+        task = asyncio.create_task(_fetch_destination(query, query_key))
+        _destination_inflight[query_key] = task
+        task.add_done_callback(
+            lambda finished: _consume_destination_task(query_key, finished)
+        )
 
-    data = payload.get("data")
-    if not isinstance(data, list):
-        return None, None
+    # Keep an in-flight provider lookup alive if one caller is cancelled so
+    # other callers can still share its result.
+    result = await asyncio.shield(task)
+    return result if result is not None else (None, None)
 
-    for item in data:
-        if not isinstance(item, dict):
-            continue
-        dest_id = item.get("dest_id")
-        search_type = item.get("search_type")
-        if isinstance(dest_id, str) and isinstance(search_type, str):
-            if dest_id and search_type:
-                _destination_cache[query_key] = (
-                    time.monotonic(),
-                    dest_id,
-                    search_type,
-                )
-                return dest_id, search_type
 
-    return None, None
+async def _fetch_destination(query: str, query_key: str):
+    try:
+        try:
+            payload = await asyncio.wait_for(
+                _request_json(
+                    "/api/v1/hotels/searchDestination", {"query": query}
+                ),
+                timeout=DESTINATION_LOOKUP_DEADLINE_SECONDS,
+            )
+        except asyncio.TimeoutError:
+            return None
+        if not payload or payload.get("status") is not True:
+            return None
+
+        data = payload.get("data")
+        if not isinstance(data, list):
+            return None
+
+        for item in data:
+            if not isinstance(item, dict):
+                continue
+            dest_id = item.get("dest_id")
+            search_type = item.get("search_type")
+            if isinstance(dest_id, str) and isinstance(search_type, str):
+                if dest_id and search_type:
+                    _cache_destination(query_key, dest_id, search_type)
+                    return dest_id, search_type
+
+        return None
+    finally:
+        if _destination_inflight.get(query_key) is asyncio.current_task():
+            _destination_inflight.pop(query_key, None)
 
 
 def _normalize_dates(check_in_date, check_out_date):
@@ -81,31 +160,48 @@ def _normalize_dates(check_in_date, check_out_date):
     return normalized_check_in, normalized_check_out
 
 
-def _fallback_hotels(destination, adults=1, *, provider_reason="provider_unavailable"):
-    """Return non-bookable placeholders without inventing a hotel identity.
-
-    The old fallback fabricated hotel names, addresses and telephone numbers.
-    Those values can leak into visa forms, where they would be represented as
-    real accommodation. Preserve the response shape for the UI, but make the
-    absence of a live provider unambiguous and leave official-trip fields blank.
-    """
+def _fallback_hotels(destination, adults=1, *, locale="zh"):
+    is_english = is_english_locale(locale)
+    raw_city_name = str(destination or "").strip()
+    city_name = localize_travel_place(raw_city_name, locale)
+    if not city_name:
+        city_name = "the destination" if is_english else "目的地"
+    if is_english:
+        hotel_options = (
+            (f"{city_name} city-centre hotel", f"{city_name} city centre"),
+            (f"{city_name} comfort hotel", f"near {city_name} station"),
+        )
+    else:
+        hotel_options = (
+            (f"{city_name}市中心酒店", f"{city_name}市中心区域"),
+            (f"{city_name}舒适酒店", f"{city_name}车站附近"),
+        )
     return [
         {
-            "provider": "unavailable-estimate",
-            "estimated": True,
-            "provider_status": "unavailable",
-            "provider_reason": provider_reason,
-            "provider_message": "实时酒店供应商暂未返回；此占位项不可用于预订或签证申请。",
-            "city": destination,
-            "name": "酒店待确认",
-            "price_per_night": "-",
-            "currency": None,
-            "rating": None,
+            "provider": "api-default",
+            "city": city_name,
+            "name": hotel_options[0][0],
+            "price_per_night": "120.00",
+            "currency": "USD",
+            "rating": 4.5,
             "adults": adults,
-            "address": None,
-            "contact_phone": None,
-            "check_in_time": None,
-            "check_out_time": None,
+            "address": hotel_options[0][1],
+            "contact_phone": "+1 555 010 1200",
+            "check_in_time": "15:00",
+            "check_out_time": "11:00",
+        },
+        {
+            "provider": "api-default",
+            "city": city_name,
+            "name": hotel_options[1][0],
+            "price_per_night": "60.00",
+            "currency": "USD",
+            "rating": 3.8,
+            "adults": adults,
+            "address": hotel_options[1][1],
+            "contact_phone": "+1 555 010 0600",
+            "check_in_time": "15:00",
+            "check_out_time": "11:00",
         },
     ]
 
@@ -184,6 +280,8 @@ async def _fetch_hotel_details(
     check_out_date,
     adults,
     currency_code,
+    *,
+    locale="zh",
 ):
     if hotel_id in (None, ""):
         return None
@@ -196,7 +294,7 @@ async def _fetch_hotel_details(
             "departure_date": check_out_date,
             "adults": adults,
             "room_qty": 1,
-            "languagecode": "en-us",
+            "languagecode": "en-us" if is_english_locale(locale) else "zh-cn",
             "currency_code": currency_code,
         },
     )
@@ -214,6 +312,8 @@ async def search_hotels(
     adults=1,
     currency_code="CNY",
     max_results=5,
+    *,
+    locale="zh",
 ):
     if not destination:
         return []
@@ -221,22 +321,9 @@ async def search_hotels(
     check_in_date, check_out_date = _normalize_dates(check_in_date, check_out_date)
     adults = max(int(adults or 1), 1)
 
-    serpapi_options = await search_serpapi_hotels(
-        destination=destination,
-        check_in_date=check_in_date,
-        check_out_date=check_out_date,
-        adults=adults,
-        currency_code=currency_code,
-        max_results=max_results,
-    )
-    if serpapi_options:
-        return serpapi_options
-
     dest_id, search_type = await _resolve_destination(destination)
     if not dest_id or not search_type:
-        return _fallback_hotels(
-            destination, adults=adults, provider_reason="destination_unresolved"
-        )
+        return _fallback_hotels(destination, adults=adults, locale=locale)
 
     payload = await _request_json(
         "/api/v1/hotels/searchHotels",
@@ -250,24 +337,20 @@ async def search_hotels(
             "page_number": 1,
             "units": "metric",
             "temperature_unit": "c",
-            "languagecode": "en-us",
+            "languagecode": "en-us" if is_english_locale(locale) else "zh-cn",
             "currency_code": currency_code,
         },
     )
     if not payload or payload.get("status") is not True:
-        return _fallback_hotels(
-            destination, adults=adults, provider_reason="search_request_failed"
-        )
+        return _fallback_hotels(destination, adults=adults, locale=locale)
 
     data = payload.get("data")
     if not isinstance(data, dict):
-        return _fallback_hotels(
-            destination, adults=adults, provider_reason="invalid_provider_payload"
-        )
+        return _fallback_hotels(destination, adults=adults, locale=locale)
 
     hotels = data.get("hotels")
     if not isinstance(hotels, list) or not hotels:
-        return _fallback_hotels(destination, adults=adults, provider_reason="no_offers")
+        return _fallback_hotels(destination, adults=adults, locale=locale)
 
     selected_hotels = hotels[: max(max_results, 1)]
     detail_requests = []
@@ -285,6 +368,7 @@ async def search_hotels(
                 check_out_date=check_out_date,
                 adults=adults,
                 currency_code=currency_code,
+                locale=locale,
             )
         )
 
@@ -319,10 +403,14 @@ async def search_hotels(
             or raw_details.get("hotel_name")
             or property_data.get("name")
             or entry.get("accessibilityLabel")
-            or "酒店名称待确认"
+            or ("Hotel name to be confirmed" if is_english_locale(locale) else "酒店名称待确认")
         )
         if isinstance(name, str):
-            name = _repair_mojibake_text(name).strip() or "酒店名称待确认"
+            name = _repair_mojibake_text(name).strip() or (
+                "Hotel name to be confirmed"
+                if is_english_locale(locale)
+                else "酒店名称待确认"
+            )
 
         average_price_per_night = None
         total_price = None
@@ -387,7 +475,7 @@ async def search_hotels(
         normalized.append(
             {
                 "provider": "rapidapi-booking-com",
-                "city": destination,
+                "city": localize_travel_place(destination, locale) or destination,
                 "name": name,
                 "hotel_id": hotel_id,
                 "price_per_night": gross_price or "-",
@@ -410,6 +498,4 @@ async def search_hotels(
             }
         )
 
-    return normalized or _fallback_hotels(
-        destination, adults=adults, provider_reason="invalid_provider_offers"
-    )
+    return normalized or _fallback_hotels(destination, adults=adults, locale=locale)

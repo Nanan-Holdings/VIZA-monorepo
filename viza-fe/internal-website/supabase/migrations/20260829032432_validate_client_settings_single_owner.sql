@@ -1,2 +1,0 @@
-ALTER TABLE public.applicant_profiles
-  VALIDATE CONSTRAINT applicant_profiles_single_owner_check;

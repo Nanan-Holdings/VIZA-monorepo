@@ -1,10 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useLocale } from "next-intl";
 import { renderHelpMarkdown } from "@/lib/help/render";
 import type { LoadedArticle } from "@/lib/help";
 
 export function HelpClient({ articles }: { articles: LoadedArticle[] }) {
+  const locale = useLocale();
+  const isZh = locale.toLowerCase().startsWith("zh");
+  const copy = isZh
+    ? { search: "搜索常见问题", noResults: "没有匹配的文章。" }
+    : { search: "Search FAQs", noResults: "No matching articles." };
   const [query, setQuery] = useState("");
   const [activeKey, setActiveKey] = useState<string>(
     articles[0] ? `${articles[0].country}|${articles[0].visaType ?? ""}` : "",
@@ -31,7 +37,7 @@ export function HelpClient({ articles }: { articles: LoadedArticle[] }) {
         type="search"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search FAQs"
+        placeholder={copy.search}
         className="w-full px-3 py-2 border rounded text-sm"
       />
       <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-4">
@@ -57,11 +63,10 @@ export function HelpClient({ articles }: { articles: LoadedArticle[] }) {
         <article className="bg-white rounded-lg border border-[#efefef] shadow-sm p-5 prose prose-sm max-w-none text-[#232323]">
           {active ? (
             <div
-              // eslint-disable-next-line react/no-danger
               dangerouslySetInnerHTML={{ __html: renderHelpMarkdown(active.body) }}
             />
           ) : (
-            <p className="text-sm text-[#9ca3af]">No matching articles.</p>
+            <p className="text-sm text-[#9ca3af]">{copy.noResults}</p>
           )}
         </article>
       </div>

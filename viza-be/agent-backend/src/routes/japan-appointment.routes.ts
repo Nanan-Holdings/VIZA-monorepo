@@ -38,15 +38,6 @@ const jobBody = z.object({
     checklistConfirmed: z.array(z.string().trim().min(1)).default([]),
   }).strict(),
 }).strict();
-const paymentBody = z.object({
-  card: z.object({
-    pan: z.string().regex(/^[\d ]{12,23}$/),
-    expiry: z.string().regex(/^\d{1,2}\s*\/\s*(?:\d{2}|\d{4})$/),
-    cvv: z.string().regex(/^\d{3,4}$/),
-    holderName: z.string().trim().min(2).max(100),
-  }).strict(),
-}).strict();
-
 function bearer(req: Request) {
   const value = req.headers.authorization;
   return value?.startsWith("Bearer ") ? value.slice(7).trim() : null;
@@ -173,13 +164,6 @@ japanAppointmentOperationsRouter.post("/jobs/:jobId/slots/:slotId/select", jobAc
   if (!parsed.success) { res.status(400).json({ error: true, code: "validation_error", details: parsed.error.issues }); return; }
   try { res.json({ error: false, data: await service.selectSlot(parsed.data.jobId, parsed.data.slotId) }); }
   catch (error) { fail(res, error, "japan_appointment_slot_select_failed"); }
-});
-
-japanAppointmentOperationsRouter.post("/jobs/:jobId/payment-session", jobAccess, async (req, res) => {
-  const parsed = paymentBody.safeParse(req.body ?? {});
-  if (!parsed.success) { res.status(400).json({ error: true, code: "validation_error", details: parsed.error.issues }); return; }
-  try { res.json({ error: false, data: await service.recordPaymentAuthorization(locals(res).jobId ?? "", parsed.data) }); }
-  catch (error) { fail(res, error, "japan_appointment_payment_failed"); }
 });
 
 japanAppointmentOperationsRouter.post("/jobs/:jobId/approve-final-confirmation", jobAccess, async (_req, res) => {

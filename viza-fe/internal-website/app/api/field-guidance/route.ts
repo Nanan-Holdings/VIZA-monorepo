@@ -20,6 +20,10 @@ import {
   isFieldMetadataUnverified,
   isUsefulFieldClarificationReply,
 } from "@/lib/form-assistant/constants";
+import {
+  getDateFieldValueState,
+  type DateFieldValidationRules,
+} from "@/lib/date-field-validation";
 
 const AGENT_BACKEND_URL =
   process.env.AGENT_BACKEND_URL ?? process.env.NEXT_PUBLIC_AGENT_BACKEND_URL ?? "http://localhost:3002";
@@ -392,16 +396,86 @@ function withoutChoiceControlExamples(
   };
 }
 
+const ALLOWED_DATE_SENTINEL_FALSE_POSITIVE_MESSAGES = new Set([
+  "日期格式无法识别。",
+  "日期格式不符合要求。",
+  "The date format could not be recognized.",
+  "The date format is invalid.",
+  "出生日期不能是未来日期。",
+  "Date of birth cannot be in the future.",
+  "证件到期日必须晚于签发日。",
+  "The document expiry date must be after the issue date.",
+  "离境日期不能早于入境日期。",
+  "Departure date cannot be earlier than arrival date.",
+  "护照/旅行证件在入境前已过期。",
+  "The passport or travel document expires before arrival.",
+  "护照/旅行证件在计划入境后 6 个月内到期，请确认目的地是否接受。",
+  "The passport or travel document expires within 6 months after planned arrival; confirm the destination accepts this.",
+]);
+
+const ALLOWED_DATE_SENTINEL_PATTERN_ERROR_MESSAGES = new Set([
+  "此答案不符合该字段要求的格式。",
+  "This answer does not match the required field format.",
+]);
+
+type FieldGuidanceDateValidationRules = DateFieldValidationRules & Record<string, unknown>;
+
+function isAllowedDateSentinelFalsePositive(
+  message: string,
+  rules: FieldGuidanceDateValidationRules,
+): boolean {
+  const trimmed = message.trim();
+  if (ALLOWED_DATE_SENTINEL_FALSE_POSITIVE_MESSAGES.has(trimmed)) return true;
+  if (ALLOWED_DATE_SENTINEL_PATTERN_ERROR_MESSAGES.has(trimmed)) {
+    return typeof rules.pattern === "string" && rules.pattern.trim().length > 0;
+  }
+  if (typeof rules.maxLength === "number") {
+    return /^此答案超过 \d+ 个字符限制。$/.test(trimmed) ||
+      /^This answer exceeds \d+-character limit\.$/.test(trimmed);
+  }
+  return false;
+}
+
+function normalizeAllowedDateSentinelValidation(
+  request: FieldGuidanceRequest,
+  response: FieldGuidanceResponse,
+): FieldGuidanceResponse {
+  if (request.field.fieldType !== "date") return response;
+
+  const rules = request.field.validationRules as FieldGuidanceDateValidationRules | null;
+  if (getDateFieldValueState(request.answer, rules) !== "allowed_sentinel") return response;
+
+  const messages = response.validation.messages.filter(
+    (message) => !isAllowedDateSentinelFalsePositive(message, rules ?? {}),
+  );
+  if (messages.length === response.validation.messages.length) return response;
+
+  return {
+    ...response,
+    validation: {
+      ...response.validation,
+      // An upstream pre-fix response may have marked only the sentinel's
+      // date error as blocking. Clear that stale severity while preserving
+      // any unrelated messages and their original severity.
+      severity: messages.length === 0 && response.validation.severity === "error"
+        ? "ok"
+        : response.validation.severity,
+      messages,
+    },
+  };
+}
+
 function finalizeGuidance(
   request: FieldGuidanceRequest,
   response: FieldGuidanceResponse,
 ): FieldGuidanceResponse {
   const localized = getLocale(request);
+  const normalizedResponse = normalizeAllowedDateSentinelValidation(request, response);
   const safeExample = buildFieldExplanation(request.field, localized).example;
   const withSafeExamples = {
-    ...response,
+    ...normalizedResponse,
     guidance: {
-      ...response.guidance,
+      ...normalizedResponse.guidance,
       // Examples are deterministic field-format aids. Do not allow an LLM or
       // downstream service to introduce a country, phone prefix, address, or
       // date format that is not supported by the current field metadata.

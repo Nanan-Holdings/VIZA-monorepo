@@ -53,9 +53,7 @@ case "$country" in
       INDONESIA_BROWSER_API_ENDPOINT
       INDONESIA_BRIGHTDATA_BROWSER_API_ENDPOINT
       BROWSERBASE_API_KEY
-      TWOCAPTCHA_API_KEY
-      INDONESIA_CARD_SESSION_INTERNAL_TOKEN
-      IMAP_HOST
+      TWOCAPTCHA_API_KEY      IMAP_HOST
       IMAP_PORT
       IMAP_EMAIL
       IMAP_PASSWORD
@@ -79,7 +77,7 @@ case "$country" in
     capability=(BROWSERBASE_API_KEY TWOCAPTCHA_API_KEY FV_EMAIL FV_PASSWORD)
     ;;
   legacy)
-    capability=(MDAC_BROWSER_API_ENDPOINT MDAC_BRIGHTDATA_BROWSER_API_ENDPOINT TDAC_BROWSER_API_ENDPOINT BROWSERBASE_API_KEY TWOCAPTCHA_API_KEY IMAP_HOST IMAP_PORT IMAP_EMAIL IMAP_PASSWORD FV_EMAIL FV_PASSWORD VIETNAM_CARD_SESSION_INTERNAL_TOKEN)
+    capability=(MDAC_BROWSER_API_ENDPOINT MDAC_BRIGHTDATA_BROWSER_API_ENDPOINT TDAC_BROWSER_API_ENDPOINT BROWSERBASE_API_KEY TWOCAPTCHA_API_KEY IMAP_HOST IMAP_PORT IMAP_EMAIL IMAP_PASSWORD FV_EMAIL FV_PASSWORD)
     ;;
   pool)
     capability=(
@@ -105,20 +103,12 @@ case "$country" in
     ;;
 esac
 
-if [[ "$country" == "indonesia" && -z "${INDONESIA_CARD_SESSION_INTERNAL_TOKEN:-}" ]]; then
-  echo "Missing required Indonesia card-session internal token." >&2
-  exit 2
-fi
 
 if [[ "$country" == "south_korea" && -z "${KR_SUBMISSION_INTERNAL_TOKEN:-}" ]]; then
   echo "Missing required South Korea submission internal token." >&2
   exit 2
 fi
 
-if [[ "$country" == "legacy" && -z "${VIETNAM_CARD_SESSION_INTERNAL_TOKEN:-}" ]]; then
-  echo "Missing required Vietnam card-session internal token." >&2
-  exit 2
-fi
 
 for key in "${capability[@]}"; do
   if [[ -n "${!key:-}" ]]; then

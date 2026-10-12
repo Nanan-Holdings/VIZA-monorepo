@@ -112,7 +112,7 @@ export async function probeCeacStartPage(options: {
         detectedPageId: probe.id,
         heading: probe.heading,
         gate: null,
-        summary: "CEAC start page loaded successfully. Runtime is ready.",
+        summary: "CEAC start page loaded successfully. Start-page availability is verified; form filling remains unverified.",
         error: null,
       };
     }
@@ -169,6 +169,16 @@ export interface CaptchaSmokeResult {
   error: string | null;
 }
 
+export function hasVerifiedPostCaptchaSurface(
+  outcome: StartPageCaptchaOutcome,
+  postSolvePageId: string,
+): boolean {
+  const solveSucceeded = outcome.status === "solved" || outcome.status === "no_captcha";
+  const postSolvePageRecognized =
+    postSolvePageId !== "start" && postSolvePageId !== "unknown" && postSolvePageId !== "session_expired";
+  return solveSucceeded && postSolvePageRecognized;
+}
+
 /**
  * Exercise the CAPTCHA solver against the live CEAC start page.
  * Reports whether it reached a post-CAPTCHA surface.
@@ -176,6 +186,7 @@ export interface CaptchaSmokeResult {
 export async function probeCaptchaSolve(options: {
   headless?: boolean;
   timeoutMs?: number;
+  startLocationCode?: string | null;
 } = {}): Promise<CaptchaSmokeResult> {
   const headless = options.headless ?? true;
   const timeoutMs = options.timeoutMs ?? 60_000;
@@ -189,13 +200,12 @@ export async function probeCaptchaSolve(options: {
 
     await gotoCeacStartPage(page, timeoutMs);
 
-    const outcome = await solveStartPageCaptcha(page);
+    const outcome = await solveStartPageCaptcha(page, {
+      startLocationCode: options.startLocationCode,
+    });
     const postProbe = await detectPage(page);
 
-    const reachedPostCaptcha =
-      outcome.status === "solved" ||
-      outcome.status === "no_captcha" ||
-      (postProbe.id !== "start" && postProbe.id !== "unknown");
+    const reachedPostCaptcha = hasVerifiedPostCaptchaSurface(outcome, postProbe.id);
 
     return {
       reachedPostCaptcha,
@@ -244,7 +254,11 @@ if (isMainModule) {
     console.log(`[smoke] Mode: ${headless ? "headless" : "headed"}`);
     console.log();
 
-    probeCaptchaSolve({ headless }).then((result) => {
+    const envLocationCode = process.env.CEAC_LOCATION_CODE?.trim();
+    probeCaptchaSolve({
+      headless,
+      ...(envLocationCode ? { startLocationCode: envLocationCode } : {}),
+    }).then((result) => {
       console.log(JSON.stringify(result, null, 2));
       console.log();
       console.log(`[smoke] Reached post-CAPTCHA: ${result.reachedPostCaptcha}`);

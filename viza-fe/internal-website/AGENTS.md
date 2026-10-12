@@ -1,5 +1,128 @@
 # Internal Website Agent Guide
 
+DS-160 national identity numbers are literal structured values, not bilingual
+translations. `lib/bilingual-schema-contract.ts` keeps entry and final review
+on the canonical value even when historical `_zh`/`_en` mirrors remain stored;
+the runner consumes that same canonical key. The schema, input-prefill and
+review-localization tests cover this stale-mirror regression.
+
+`app/admin/(marketing)/marketing/**` and `lib/marketing/**` implement the staff editorial portal and content pipeline. `scripts/pipeline.config.json` stores VIZA source and voice rules; `scripts/build-seo-keywords.mjs` imports measured keyword exports. Public blog reads are in `app/api/public/marketing/blog/**`. Keep provider credentials in server environment variables only.
+
+`lib/ds160-photo-contract.ts` shares the byte-level U.S. DS-160 photo checks
+between the actual document-center upload UI, server upload, and profile-file
+reuse: JPEG, at most 240 KiB, square 600–1200 pixels, 8-bit/three-component
+frame. These technical checks do not certify facial composition, color profile,
+compression quality, or official acceptance. Keep its adjacent regression tests.
+`lib/ds160-photo-processing.ts` owns browser-side DS-160 crop rendering and
+adaptive JPEG compression. It emits a 600×600 JPEG under the shared byte
+contract and fails closed when the crop or encoder cannot produce one.
+
+`lib/client/application-draft-cache.ts` stores only unacknowledged long-form
+answer patches in tab-local sessionStorage, isolated by application and profile.
+Preserve empty repeat-row tombstones and per-field revisions: a late save must
+not remove newer edits, including edits back to the previous server value.
+The adjacent unit tests cover scope isolation and acknowledgement behavior.
+
+`supabase/migrations/20260921060000_ds160_live_catalog_reconciliation.sql`
+mirrors backend 0202. It reconciles fourteen differences discovered in the live
+catalog after 0197–0201, including spouse branches and companion limits, without
+changing saved answers. Verify the resulting catalog, not just SQL target names.
+
+`supabase/migrations/20260922000000_ds160_specific_travel_single_block.sql`
+mirrors backend 0203. It removes repeat metadata from the six conditional
+arrival/departure fields while preserving saved answer rows, including historical
+suffixed keys; planned locations and trip purpose remain repeatable.
+
+`supabase/migrations/20260922010000_ds160_form_control_types.sql` mirrors
+backend 0204. It aligns the CEAC sex select, former-spouse count text control,
+and marriage-ended textarea, and marks the duplicate present-job title as
+persistence-only while preserving saved answers and aliases.
+
+`supabase/migrations/20260922020000_ds160_explanation_textareas.sql` mirrors
+backend 0205 and aligns the three conditional DS-160 explanation fields to the
+observed CEAC textarea controls. It changes form metadata only.
+
+`supabase/migrations/20260929000000_ds160_official_email_queue.sql` mirrors
+backend 0206 byte-for-byte. It installs the service-role-only DS-160 official
+confirmation-email enqueue, exact-owner start, one-shot send reservation, and
+post-cleanup settlement RPCs, plus the application-mutex download enqueue
+guard. Keep the recipient digest in queue metadata and preserve the send
+reservation as the no-replay fence.
+
+`supabase/migrations/20260930102445_preserve_ds160_proof_stale_results.sql`
+mirrors backend 0207 byte-for-byte. It keeps CEAC proof work out of generic
+stale cleanup and preserves active leases, so email/proof failures cannot
+replace an application's submitted result. Existing proof GET and explicit
+retry handle expired leases; this migration does not enqueue or send mail.
+
+`lib/ds160-official-options.snapshot.json` contains public CEAC dropdown values
+observed on 2026-09-21. `lib/ds160-official-options.ts` keeps birthplaces,
+nationalities, other nationalities, family nationalities, passport issuers,
+geographic addresses and U.S. states separate. Preserve official codes and
+labels while translating display labels. The adjacent focused test compares
+counts and value/label fingerprints independently captured from the live DOM;
+do not substitute a generic ISO or U.S. region list. Bilingual schema hydration
+and dynamic controls share these options and preserve legacy saved names.
+`components/__tests__/dynamic-step-form-official-options.test.tsx` covers
+legacy ISO answers across entry, validation, and review when official catalogs
+replace generic lists; ambiguous region aliases must not be silently selected.
+`lib/ds160-consular-posts.ts` is the 217-entry CEAC start-page consular-post
+catalog captured on 2026-09-21. It keeps the official three-letter code and
+English label for runner payloads alongside Chinese display labels; do not
+reduce it to the five China posts or replace it with an ISO country list.
+
+Current product policy (2026-09-15): payments are removed. Applications do not
+require payment evidence; payment routes are retired and checkout pages return
+to the portal. Home and lifecycle reads do not depend on financial storage.
+Historical database records remain intact.
+The frontend migration `supabase/migrations/20260915194928_disable_payment_execution.sql`
+is the byte-identical mirror of backend `drizzle/0194_disable_payment_execution.sql`.
+It disables payment RPCs and financial triggers while preserving history.
+Production applied this migration on 2026-09-15 as version `20260915194928`.
+Both issuer-claim signatures are disabled; historical records remain intact.
+The frontend migration
+`supabase/migrations/20260921000000_ds160_preparer_fields.sql` is the
+byte-identical mirror of backend
+`drizzle/0196_ds160_preparer_fields.sql`. It upserts only the eleven
+`ds160_preparer_*` schema rows and preserves existing field IDs and applicant
+answers.
+The frontend migration
+`supabase/migrations/20260921010000_ds160_personal_identity_required_fields.sql` is the
+byte-identical mirror of backend
+`drizzle/0197_ds160_personal_identity_required_fields.sql`. It marks the
+native-name, birth-state, national-ID, SSN, U.S.-taxpayer-ID and active
+other-nationality passport controls required while preserving their explicit
+Does Not Apply validation rules, the current 20-character passport-number
+limit, and the verified Personal Information 1 text limits.
+The frontend migration
+`supabase/migrations/20260921020000_ds160_travel_required_fields.sql` is the
+byte-identical mirror of backend
+`drizzle/0198_ds160_travel_required_fields.sql`. It aligns the confirmed
+Travel Information, payer and companion branch metadata while preserving
+conditional logic, repeat groups and Does Not Apply rules.
+The frontend migration
+`supabase/migrations/20260921030000_ds160_previous_travel_contact_required_fields.sql`
+is the byte-identical mirror of backend
+`drizzle/0199_ds160_previous_travel_contact_required_fields.sql`. It aligns
+the confirmed Previous U.S. Travel, Address and Phone, parent, and spouse
+branches with CEAC-required flags, lengths, date precision, social options,
+and explicit Does Not Apply/Do Not Know conditions.
+The frontend migration
+`supabase/migrations/20260921040000_ds160_telecode_validation.sql` is the
+byte-identical mirror of backend
+`drizzle/0200_ds160_telecode_validation.sql`. It aligns the Personal
+Information 1 telecode format, length, and surname/given-name requiredness
+with the confirmed CEAC behavior.
+`components/__tests__/dynamic-step-form-telecode-validation.test.tsx` covers
+the same schema-driven UI acceptance and rejection paths.
+The frontend migration
+`supabase/migrations/20260921050000_ds160_remaining_live_parity.sql` is the
+byte-identical mirror of backend
+`drizzle/0201_ds160_remaining_live_parity.sql`. It aligns the remaining live
+Passport, family, U.S. Contact, Work/Education, Additional Work, Security,
+age-gate, repeat-group, and CEAC option-source metadata while preserving
+applicant answers.
+
 `lib/submission-worker-wake.server.ts` centralizes authenticated Fly worker
 wake requests; its focused tests live under `lib/__tests__/`.
 
@@ -11,11 +134,153 @@ flag server-only, exact-value parsed, and default-off in `.env.example`.
 
 Scope: this file applies to `viza-fe/internal-website/**`.
 
+`lib/form-utils.ts` scopes repeated conditional answers within their own group
+through `getRepeatInstanceValues` and discovers partially filled rows through
+`getRepeatInstanceCount`. Use that same scope for rendering, required checks,
+assistant validation and final review. Outer branch controllers stay global;
+missing later-row answers must never fall back to the first row. Legacy `null`
+conditional operands mean an empty value, like `_empty`, rather than literal
+text; preserve the empty-platform social-media regression.
+
+`components/dynamic-step-form.tsx` keeps local canonical and bilingual edits
+authoritative during stale prefill updates. Removed repeat rows must retain
+empty canonical/`_zh`/`_en` tombstones in every replacement draft until a row
+is restored; one-shot deletion patches are insufficient for page-level saves.
+
+`lib/legacy-compatibility-fields.ts` treats
+`validation_rules.legacy_compatibility_only` as persistence-only metadata.
+Dynamic forms, progress, assistant validation, and review hide those rows,
+while draft hydration and save patches keep the complete schema so historical
+aliases reach the server-side canonical bridge unchanged.
+
+`lib/ds160-age-gate.ts` centralizes DS-160 runtime visibility gates shared by
+the form, completion, assistant and review. The `CEAC_ESTA` gate uses the
+observed official nationality codes and active other-nationality rows; a
+permanent-residency row alone must not make the ESTA question visible.
+
+`lib/date-field-validation.ts` owns schema-aware date sentinel validation for
+dynamic form inputs, progress, assistant validation and review. `DO_NOT_KNOW`
+and `DOES_NOT_APPLY` are valid only when the field explicitly permits them;
+never apply ordinary date parsing to an allowed sentinel. Keep real dates and
+unsupported sentinels validated, including after clearing the checkbox. The
+adjacent tests and dynamic-form regressions cover this shared contract.
+`lib/form-field-sentinels.ts` is the shared allow/reject predicate for these
+sentinels across manual completion, local field errors, assistant validation,
+and review formatting. It normalizes legacy casing/whitespace before applying
+the field's metadata; unsupported sentinels remain editable but cannot count
+as complete or pass review.
+`lib/__tests__/ds160-live-branch-audit.test.ts` and its
+`lib/__tests__/fixtures/ds160-live-branch-metadata-20260928.json` fixture
+replay the dated live B1/B2 metadata: all active conditional expressions in
+both directions, repeat-row second-instance scope, and field-specific sentinel
+allow/reject branches. The fixture is derived from the read-only live export
+and must retain independent branch assignments and live field metadata.
+`lib/ds160-family-validation.ts` owns the CEAC DS-160 immediate-relative
+relationship cross-field rule. Keep it separate from the U.S. contact rule:
+the immediate-relative `SPOUSE` option accepts only Married or Legally
+Separated, while companion and U.S. contact relationships have their own
+official branches.
+When restoring bilingual text, a recognizable input-prompt mirror may be
+repaired only from an existing non-prompt canonical answer. Preserve genuine
+source-language answers and leave missing canonical answers visible for user
+correction; never invent data while repairing stale mirrors.
+
+US state fields may declare only `source: US_STATES` and a placeholder option.
+Resolve their complete code catalog before option validation; preserve stored
+codes during hydration and localize only their display text. Regression coverage
+lives in `components/__tests__/dynamic-step-form-us-state-prefill.test.tsx`
+and `components/ui/__tests__/region-select.test.tsx`.
+
+DS-160 SSN requires a number or the applicant's explicit Does Not Apply
+choice. The segmented numeric control must expose that schema-permitted
+choice without placing the sentinel inside its digits. Keep the full-form
+required/NA contract covered by
+`components/__tests__/dynamic-step-form-ssn-validation.test.tsx`.
+
+DS-160 official questions with maintained exact translations must take
+precedence over generated labels and stale translated metadata. Do not collapse
+distinct safety declarations into generic crime/family questions. Localize
+marital status SINGLE as 未婚 while preserving 单次 for entry counts; both
+contracts are covered by `lib/__tests__/bilingual-schema-contract.test.ts`.
+
+Dynamic long-form input must avoid whole-page work per keystroke. Keep step
+objects, callbacks and navigation lists stable; `DynamicStepForm` uses shallow
+memoization without ignoring cross-field inputs. Field validation shares a
+normalized answer lookup index per values snapshot, and scroll preservation
+measures only structural branch/repeat changes. The regression tests in
+`components/__tests__/dynamic-step-form-performance.test.tsx` cover typing and
+scroll behavior; `app/client/application/long-form/__tests__/page-orchestration.test.tsx`
+covers page orchestration and validation freshness. Preserve the ordered draft
+save queue and the pre-submission save barrier when optimizing this flow.
+Derived progress and review refresh after a 300 ms typing pause; current draft
+refs remain authoritative for navigation, validation and submission before
+that refresh. Cache branch inference by immutable schema identity, never by
+answer values. Review rows reuse unchanged data and compare every rendered
+value and callback. Performance verification must include the authenticated
+long-form route with review/progress mounted, not only an isolated field form.
+Bring the diagnostic browser tab to the foreground before measuring animation
+frames, and distinguish CPU slowdown tests from ordinary foreground timings.
+
+Keep the Radix component family on compatible stable-ref releases, including
+FocusScope, DismissableLayer, Popper, ScrollArea and Toast. Updating Select or
+Slot alone leaves older primitives with inline state-setting callback refs;
+opening a calendar can still trigger React 19 update-depth crashes.
+`package.json` also overrides every transitive `@radix-ui/react-slot` dependency
+to the direct fixed version. Preserve this override and the `prebuild` guard
+`scripts/check-radix-ref-contract.mjs`, which checks the lockfile and actual
+consumer resolutions. A fresh `npm ci` must pass the guard and the ref-stability
+regressions, followed by real-browser date-picker and select interaction checks.
+
+`npm run type-check` uses `tsconfig.typecheck.json` so stale development-server
+route artifacts under `.next/dev/types` cannot invalidate the production type
+check. Keep `.next/types` generated with `npx next typegen` in scope.
+
 Production Vercel Functions are pinned by `vercel.json` to `bom1` (Mumbai),
 which is the compute region nearest the production Supabase primary in
 `ap-south-1`. Keep database-backed Node.js routes in that region unless the
 primary database is deliberately migrated; static assets remain globally
 served by Vercel's CDN.
+
+Vercel request cancellation is enabled only for the read-only
+`app/api/applications/*/submission-status/route.ts` and
+`app/api/client/home-dashboard/route.ts` functions. Keep these paths
+narrow: payment, upload, enqueue and other mutation routes must not inherit
+automatic termination on disconnect. Its request-wide abort signal is opt-in
+through `createClient` / `createAdminClient` `requestSignal`, and must remain
+connected to in-progress response body reads after fetch returns headers.
+`lib/supabase/request-cancellation.integration.test.ts` verifies cancellation
+through the actual Supabase SDK against a local HTTP server, including slow
+JSON bodies and parallel reads; it must never use production credentials.
+`lib/supabase/next-fetch-retry.integration.test.ts` exercises retry recovery
+through the installed Next fetch memoizer and Supabase SDK against loopback
+HTTP. The retry transport must always pass an explicit per-call signal, even
+without a configured timeout, so Next cannot retain an unread response clone
+that blocks cancellation or replay the same failed response on a retry.
+`lib/supabase/status-storage-urls.integration.test.ts` verifies the status
+loader's batched Storage signing through the actual SDK against loopback HTTP,
+including bounded batch concurrency and partial failures with synthetic paths.
+`lib/supabase/status-related-rows.integration.test.ts` verifies the Home/Status
+embedded relation read through the actual SDK against loopback HTTP, including
+exact application filters, parent/child isolation, empty relations, bounded
+per-table fallback, and cancellation without additional network requests.
+`lib/supabase/user-package-read.integration.test.ts` verifies owner-scoped
+latest-package reads through the actual SDK against loopback HTTP, including
+inner embedding before the one-row limit and unchanged full-list reads.
+`lib/supabase/companion-session-preview.integration.test.ts` verifies aliased
+chat preview limits through the actual SDK against loopback HTTP: at most one
+user message per owned session, with title reads surviving preview failures.
+`lib/supabase/companion-session-messages.integration.test.ts` verifies that
+loading a conversation uses one SDK read with an inner ownership join, preserves
+the latest 50 messages and blocks, and fails closed for other users or errors.
+`lib/supabase/applicant-inbox-read.integration.test.ts` verifies that portal
+inbox initialization reuses active alias data from the current authenticated
+profile read, including legacy identity and explicit-consent fallback paths.
+`lib/supabase/reusable-document-existence.integration.test.ts` verifies the
+document loader's applicant/status filters and ordered metadata through the
+actual SDK against loopback HTTP, plus bounded HEAD checks and error draining.
+`lib/__tests__/appointment-status-cancellation.test.ts` exercises U.S. and
+France appointment status helpers against loopback HTTP, including complete
+snapshots, response-body cancellation, and auth-abort request suppression.
 
 ## Purpose
 
@@ -25,10 +290,64 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 
 ## Key Flows
 
-- Public beta feedback lives under `app/feedback/**` and is submitted through
-  the server-only `app/api/feedback/route.ts` boundary into `beta_feedback`.
-  Keep this route public, avoid browser-side Supabase writes, and do not store
-  sensitive application details or request identifiers.
+- `i18n/client-provider.tsx` delivers the active full translation catalog
+  through a locale-specific SSR-enabled
+  client chunk. The root provider retains server formatting configuration
+  without serializing messages into every Flight response. Preserve all
+  namespaces across client navigation and cookie-based language refresh.
+
+- `lib/client/home-dashboard-reader.server.ts` resolves the read-only client
+  session and owns the Home aggregate. It reuses authorized application,
+  document, and payment rows for the selected timeline; browser selection is
+  only a hint and must match an owned application. Never cache these rows
+  across requests. For a single owned application, the timeline relationship
+  read may supply the complete Home document projection. Validate every row,
+  cap the embedded documents at 1,000, and retain the standalone document read
+  if the cap is reached or embedding fails. Resolve that fallback before
+  awaiting unrelated compatibility reads. Multiple applications retain the
+  original document query and its global limit. `lib/client-session.test.ts` covers read-only identity
+  resolution, total deadlines, cancellation, and profile conflicts.
+
+- `lib/client/home-dashboard-client.ts` reads Home's aggregate through the
+  private no-store `GET /api/client/home-dashboard` route. Pass the browser's
+  abort signal through the route into the shared eight-second reader budget;
+  unmount cancels the read without releasing its in-flight guard prematurely.
+  Keep the legacy Server Action exports for other callers. The adjacent client
+  test and route test cover DTO/error handling, no caching and cancellation;
+  Home component tests preserve selection, partial states and retry cleanup.
+
+- `lib/client/home-profile-applications.server.ts` reads one authenticated
+  profile with its left-embedded, owner-filtered applications. Preserve the
+  complete selected columns, descending creation order, empty-profile behavior,
+  and one bounded compatibility fallback under the shared Home/Status cancellation
+  budget. The profile/application stage durations overlap for this single GET;
+  use fetch attempt counts for request totals, never sum those stage durations.
+  `lib/supabase/home-profile-applications.integration.test.ts` exercises the
+  real SDK against loopback HTTP for query shape, isolation and cancellation.
+
+- `lib/client-session.crypto.test.ts` exercises real JWT signing/verification
+  and the single-entry HS256 CryptoKey cache: concurrent imports, expiry,
+  tampering, invalid payloads, secret rotation, failed imports, and legacy
+  HMAC compatibility. Cache cryptographic key material only, never session
+  verification results or applicant identities.
+
+- `lib/client/portal-read-budget.server.ts` provides the shared eight-second
+  cancellation budget for the Home and Status server-side aggregates. Create
+  it before authentication, pass its signal to the session and service-role
+  Supabase clients, and dispose it in `finally` so expired response bodies and
+  retries are cancelled without leaving timers or listeners behind.
+
+- `lib/observability/portal-read.ts` records opt-in, bounded, server-only read
+  timings and process samples without user data. Supabase factories observe real
+  fetch attempts through the injected fetch implementation; stage timing also
+  includes SDK body parsing. `VIZA_PORTAL_READ_METRICS` defaults to false.
+  `lib/supabase/portal-read-observability.integration.test.ts` verifies real SDK
+  retries and chunked-response cancellation with diagnostics enabled.
+
+- `supabase/migrations/20260907001027_public_status_aggregate_once.sql` is the
+  byte-identical mirror of backend migration `0190`; it optimizes the public
+  status history RPC without changing JSON/time windows or execution grants.
+
 - Client portal under `app/client/**`.
 - Client dashboard country hero artwork under `public/country-heroes/**`, mapped
   to application country slugs by `lib/client/country-hero-theme.ts`. Germany's
@@ -47,14 +366,16 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   shared conditional-panel owner by `lib/application-schema-ui-contract.ts`.
   `scripts/audit-application-schema-ui.ts` validates every live country schema;
   strict errors block a schema launch.
+- Shared, non-sensitive visa form definitions and document requirements use
+  the bounded process-local singleflight cache in
+  `lib/static-visa-metadata-cache.ts`. Never place applicant answers, profile
+  data, credentials, payments, or other user-scoped values in that cache.
 - The development-only `/edge-cases` route under `app/edge-cases/**` reads that
   same compiler report and presents every current design edge case as a
   component study with the complete affected visa-type and field inventory.
 - The development-only `/schema-qa` route under `app/schema-qa/**` renders one
   live master schema with deterministic fictional answers entirely in browser
-  memory. `scripts/generate-all-application-qa-fixtures.ts` applies the same
-  fixture generator to every active catalogue route and writes only an ignored
-  local report. Neither path may load applicant data or call save/submission APIs.
+  memory. It must never load applicant data or call save/submission APIs.
 - Ongoing application identity and terminal-state classification live in
   `lib/applications/ongoing-application.ts`; database migrations enforce one
   in-flight row per applicant, canonical country, and visa type while allowing
@@ -75,6 +396,10 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `app/admin/(dashboard)/billing/**`.
 - Website automation server actions under
   `app/actions/internal-automation/**`.
+- The legacy order receipt endpoint at
+  `app/api/orders/[id]/receipt/route.ts` is retired with payment processing and
+  returns the stable HTTP 410 `payment_removed` response without reading order
+  or invoice data.
 - Payment, uploads, OCR, and external status API boundaries under
   `app/api/stripe/**`, `app/api/payments/**`, `app/api/document-upload/**`,
   `app/api/passport-ocr/**`, `app/api/translations/**`,
@@ -143,10 +468,6 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   and future forms consume it only as non-overwriting prefill.
 - Commercial and agency payment records are stored in `payment_records`,
   created by `supabase/migrations/*create_payment_records.sql`.
-- Client Settings privacy deduplication, single-owner traveler enforcement,
-  and account-wide payment defaults are enforced by
-  `supabase/migrations/20260829032221_client_settings_integrity.sql` and
-  `supabase/migrations/20260829032432_validate_client_settings_single_owner.sql`.
 - Customer support ticket storage for `/client/support` and `/admin/support`
   is created by `supabase/migrations/*create_support_ticket_queue.sql`.
 - VIZA AI chat under `app/client/chat/**` and
@@ -177,6 +498,14 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   and final booking remain separate explicit user approvals.
 - Travel AI under `app/client/travel-chat/**`, `components/client/travel/**`,
   `lib/travel/**`, and `app/api/travel/**`.
+- `app/travel-map/**` is a same-origin map-only document. It isolates the
+  Google Maps SDK language so locale changes reload only the map, preserving
+  parent form drafts and active Travel requests. It reads no applicant data.
+- `app/travel-chat-preview/page.tsx` is the existing development-only Travel
+  smoke route and includes the shared language selector for state-preservation
+  checks. Production continues to return `notFound()`.
+- `app/api/interview/**` supplies localized officer questions and scoring
+  reports to `app/client/interview-practice/**`; follow its module guide.
 - The default-off `/api/health/online-capacity-target` endpoint derives a
   non-sensitive project ref from the deployment's actual Supabase URL so the
   read-only capacity harness can reject misbound production targets. It must
@@ -186,7 +515,8 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   an `@viza.test` boolean. It must not call client-session continuity/profile
   helpers or expose the email/cookie, so capacity preflight remains read-only.
 - Auth and session protection through `proxy.ts`, `lib/supabase/**`,
-  `lib/client-session.ts`, `lib/impersonation-session.ts`, and the fail-closed
+  `lib/client-session.ts`, `lib/application-api-auth.ts`,
+  `lib/impersonation-session.ts`, and the fail-closed
   dynamic admin membership check in `lib/admin-membership.ts`. Admin invite
   secrets are hashed server-side by `lib/admin-invite-token.ts`; the historical
   email list in `lib/admin-access.ts` is bootstrap/recovery data only.
@@ -196,6 +526,12 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 - Supabase client credentials are normalized by `lib/supabase/env.ts` before
   use so BOM or surrounding whitespace from local environment files cannot
   produce invalid HTTP authorization headers.
+- `lib/supabase/circuit-breaker.ts` issues an owned request permit for each
+  admitted fetch. `fetch-with-timeout.ts` must settle or release it in every
+  exit path, including caller cancellation and retry-wait failures. Only the
+  current circuit generation may report recovery; old in-flight responses
+  must not unlock a newer recovery probe. Caller aborts are neutral health
+  outcomes, and both `Request.signal` and `RequestInit.signal` are honored.
 - User-facing copy through `messages/en.json` and `messages/zh.json`.
 - Local admin test-account bootstrap through
   `scripts/init-admin-account.mjs`, with password-reset decisions covered by
@@ -224,6 +560,9 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 - Live-assisted official submission status summaries are loaded through
   `lib/submission-live-status.ts`; exact runner-job product visibility and its
   conservative terminal mapping live in `lib/status/runner-job-visibility.ts`.
+  A validated single-application queue projection from the status related-row
+  helper may replace its queue read. Multiple targets and failed/malformed
+  prefetches keep the original globally capped read and result selection.
   Focused coverage lives beside both modules in their `.test.ts` files.
   Keep service-role access server-only and expose customer/staff actions
   through route handlers or server actions.
@@ -268,10 +607,10 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `supabase/migrations/20260625_vietnam_payment_status_tracking.sql`; these
   create the quote/intent/attempt/receipt tables and queue/status columns used
   by the Vietnam e-Visa payment checkpoint UI and submission-service runner.
-- Vietnam and Indonesia official-fee authorize/pay/status routes share
-  `app/api/applications/[id]/official-fee/auth.ts`; keep its accepted session
-  policy aligned with `/client/*` so signed `client_session` users do not see a
-  payment form that then fails a Supabase-only authentication check.
+- Vietnam and Indonesia official-fee authorize/pay/status routes under
+  `app/api/applications/[id]/official-fee/**` are retired and return the stable
+  payment-removed response before authentication, card handoff, queue enqueue,
+  or provider access.
 - Vietnam e-Visa trip-expense coverage is made explicitly required by
   `supabase/migrations/20260809105541_vn_evisa_require_expense_coverage.sql`;
   keep the runtime parity patch and submission-service expense preflight in
@@ -402,20 +741,6 @@ Before client UI changes, read:
 2. The nearest route/component `AGENTS.md`
 3. Neighboring components in the same feature directory
 
-For every `/client/*` visual change, also inspect the closest pattern on
-`/ui-components` before writing JSX or Tailwind classes. Reuse the demonstrated
-canonical component when one exists. A visually similar hand-built substitute
-is not acceptable, and repeated status/disclaimer/next-step copy in adjacent
-surfaces is a blocking content-design regression.
-
-Inline application feedback must compose `components/ui/alert.tsx` (or the
-applicant-facing `components/client/client-error-alert.tsx`) instead of local
-semantic-color boxes or blocking browser `alert()` calls. Field-level validation,
-badges, progress/status visualizations, and full workflow/result panels remain
-distinct patterns. `lib/__tests__/ui-alert-contract.test.ts` guards the shared
-Alert boundary and must be updated only when a reviewed design-system exception
-is intentional.
-
 For product behavior, prefer docs under `docs/` and the current code over stale
 comments.
 
@@ -520,6 +845,7 @@ Smoke URLs:
 - `components/client/korea-appointment/*`
 - `components/application-steps/*`
 - `components/dynamic-step-form.tsx`
+- `components/__tests__/dynamic-step-form-performance.test.tsx`
 - `components/__tests__/dynamic-step-form-vn-prearrival-options.test.ts`
 - `components/dynamic-form-field.tsx`
 - `components/field-guidance-panel.tsx`
@@ -547,6 +873,11 @@ Smoke URLs:
 - `lib/document-upload-client.ts`
 - `lib/document-image-validation.ts`
 - `lib/application-tab-completion.ts`
+- `lib/former-spouse-count.ts`: shared DS-160 former-spouse declaration/repeat-row validation used by entry, progress, assistant validation and final review; focused tests live under `lib/__tests__/`.
+- `lib/us-contact-validation.ts`: shared DS-160 U.S. contact unknown-name/organization and relationship cross-branch validation used by entry, progress, assistant validation and final review; focused tests live under `lib/__tests__/`.
+- `lib/ds160-travel-validation.ts`: shared DS-160 repeated purpose-category validation used by entry, progress, assistant validation and final review; focused tests live under `lib/__tests__/`.
+- `lib/static-visa-metadata-cache.ts`: bounded TTL/LRU and cold-miss
+  singleflight for shared visa schema metadata only.
 - `lib/canada-trv-completion.ts`: fail-closed CA_TRV value validation and
   versioned consent/signature/IRCC-terms completion gates shared by the wizard.
 - `lib/application-step-sections.ts`
@@ -654,16 +985,16 @@ Smoke URLs:
 - `supabase/migrations/20260824163030_jp_vjw_official_control_parity.sql`:
   publishes the reviewed VJW 3.16 dropdown/autocomplete masters and exact
   visible control types; keep it byte-identical to
-  `viza-be/agent-backend/drizzle/0185_jp_vjw_official_control_parity.sql`.
+  `viza-be/agent-backend/drizzle/0186_jp_vjw_official_control_parity.sql`.
 - `supabase/migrations/20260824170000_jp_vjw_chinese_option_labels.sql`:
   publishes Simplified Chinese display labels for the reviewed VJW option
   masters while preserving every official stored code/English value; keep it
   byte-identical to
-  `viza-be/agent-backend/drizzle/0186_jp_vjw_chinese_option_labels.sql`.
+  `viza-be/agent-backend/drizzle/0187_jp_vjw_chinese_option_labels.sql`.
 - `supabase/migrations/20260824173000_jp_vjw_simplified_chinese_admin_labels.sql`:
   removes residual Japanese kana from VJW municipality display labels while
   preserving every official romanized value; keep it byte-identical to
-  `viza-be/agent-backend/drizzle/0187_jp_vjw_simplified_chinese_admin_labels.sql`.
+  `viza-be/agent-backend/drizzle/0188_jp_vjw_simplified_chinese_admin_labels.sql`.
 - `supabase/migrations/20260824011500_expand_runner_result_statuses.sql`:
   mirrors the backend shared-pool result-status expansion; keep it
   byte-identical to
@@ -705,51 +1036,7 @@ Smoke URLs:
 - `scripts/verify-travel-image-relevance.ts`
 - `types/*`
 
-- `supabase/migrations/20260828170732_marketing_content_operations.sql`:
-  creates the server-only VIZA blog, social composition, provider audit, and
-  privacy-safe short-link tables used by the marketing control room.
-- `supabase/migrations/20260828171409_marketing_short_link_click_rpc.sql`:
-  records anonymous short-link clicks and increments counters atomically.
-- `supabase/migrations/20260828173609_marketing_public_assets.sql`: provisions
-  the public-read, authenticated-admin-write marketing media bucket.
-- `supabase/migrations/20260828174521_marketing_automation_runs.sql`: persists
-  idempotent scheduled generation, reconciliation, and watchdog runs.
-- `supabase/migrations/20260828174939_marketing_automation_actor_index.sql`:
-  indexes the automation actor foreign key for operational queries.
-
-## Client Portal Navigation Performance (PERF-001)
-
-Tab switches inside `/client/*` have a **500 ms budget**, measured as *content
-ready* — the destination page's primary content on screen, not every background
-enrichment.
-
-Measuring it:
-
-- `lib/client/route-perf.ts` records every route transition (intent → commit →
-  paint → ready → settled) plus the fetches each one caused. Recording is always
-  on; `?perf=1` on any portal URL shows the overlay, `?perf=0` hides it.
-- Pages report the "ready" milestone with `useRouteReady(<has content>)`. A new
-  portal page that loads data should call it.
-- `lib/server/perf-trace.ts` prints one `[perf] <loader> <total>ms <stage>=<ms>…`
-  line per data loader. On in development by default; `VIZA_PERF_TRACE=0` mutes
-  it, `VIZA_PERF_TRACE=1` enables it elsewhere.
-- `npm run perf:portal` drives Home ↔ Application against a running server and
-  fails when the median exceeds the budget. It needs `CLIENT_SESSION_SECRET`,
-  `VIZA_PERF_USER_ID`, `VIZA_PERF_USER_EMAIL` (see the spec header).
-
-Keeping it:
-
-- Portal reads go through `lib/client/portal-data.ts`, a keyed
-  stale-while-revalidate cache shared by Home, Application and Status. **Any
-  write that changes an application must invalidate it** —
-  `invalidateApplicationForm(applicationId)` and/or
-  `invalidateClientApplicationStatuses()`. `saveApplicationAnswers` already does.
-- `components/client/portal-prefetcher.tsx` warms the other tabs once the
-  current page is idle, and the navbar warms the Application tab on hover.
-- Data loaders must not grow sequential Supabase waves. `getClientStatusData`
-  is deliberately three waves; adding a fourth `await` between them is a
-  regression the trace line will show.
-- `CLIENT_SESSION_SECRET` must be set in every environment. With it, a verified
-  Supabase session is cached in the signed `client_session` cookie for ten
-  minutes and each server action skips two remote auth round trips; without it
-  the portal works but every action pays them.
+Payment regression tests: `app/api/payment-removal.test.ts` covers retired HTTP
+entry points; `lib/payments/submission-access.integration.test.ts` verifies
+ownership checks through the Supabase SDK with no financial queries. The old
+`lib/supabase/billing-read.integration.test.ts` is removed with the billing reader.

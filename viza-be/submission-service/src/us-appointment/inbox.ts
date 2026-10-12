@@ -1,11 +1,25 @@
 import { inbox, type InboundMessage } from "../inbox/wait-for-message";
 import { extractAuto } from "../inbox/extractors";
 
-const US_VISA_SCHEDULING_FROM = /(^|@|\.)(usvisascheduling\.com|microsoftonline\.com)$/i;
+export interface USAppointmentVerificationRequest {
+  since: string;
+  accountEmail: string;
+  applicationId: string;
+  accountId: string;
+}
 
-function isUSVisaSchedulingVerification(msg: InboundMessage): boolean {
-  if (!US_VISA_SCHEDULING_FROM.test(msg.from_addr)) return false;
-  return /(us visa|american citizen services|verify|verification|code|account|email)/i.test(msg.subject ?? "");
+export function isUSVisaSchedulingVerification(
+  msg: InboundMessage,
+  request: USAppointmentVerificationRequest,
+): boolean {
+  if (msg.to_addr.trim().toLowerCase() !== request.accountEmail.trim().toLowerCase()) return false;
+  const receivedAt = Date.parse(msg.received_at);
+  if (!Number.isFinite(receivedAt) || receivedAt < Date.parse(request.since)) return false;
+  const parsed = extractAuto({ from: msg.from_addr, subject: msg.subject, text: msg.text, html: msg.html });
+  // B2C China uses a code. A link-only message must not be consumed as its OTP.
+  return parsed.profileId === "usvisascheduling"
+    && /(verify|verification|security code|one[- ]?time|otp)/i.test(msg.subject ?? "")
+    && /^\d{4,8}$/.test(parsed.code ?? "");
 }
 
 export interface USAppointmentVerificationEmail {
@@ -16,12 +30,17 @@ export interface USAppointmentVerificationEmail {
 
 export async function waitForUSAppointmentVerificationEmail(
   applicantId: string,
-  timeoutMs: number = 90_000,
+  timeoutMs: number,
+  request: USAppointmentVerificationRequest,
 ): Promise<USAppointmentVerificationEmail> {
-  const message = await inbox.waitForMessage(
-    applicantId,
-    isUSVisaSchedulingVerification,
+  if (!request.accountEmail.trim() || !Number.isFinite(Date.parse(request.since))) {
+    throw new Error("US appointment verification requires the bound email and current code-request time.");
+  }
+  const message = await inbox.waitForAppointmentAccountMessage(
+    { applicantId, applicationId: request.applicationId, accountId: request.accountId, portal: "usvisascheduling" },
+    (candidate) => isUSVisaSchedulingVerification(candidate, request),
     timeoutMs,
+    { since: request.since, newestFirst: true },
   );
   const parsed = extractAuto({
     from: message.from_addr,
@@ -31,7 +50,7 @@ export async function waitForUSAppointmentVerificationEmail(
   });
   if (parsed.profileId !== "usvisascheduling") {
     throw new Error(
-      `[us-appointment-inbox] message ${message.id} matched but did not use usvisascheduling extractor`,
+      "US appointment message did not use the expected verification extractor.",
     );
   }
   return {

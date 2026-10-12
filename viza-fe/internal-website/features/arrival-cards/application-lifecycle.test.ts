@@ -52,6 +52,34 @@ describe("arrival-card application lifecycle", () => {
     })).toBe(false);
   });
 
+  it("locks Visit Japan Web only when authoritative QR evidence is ready", () => {
+    const result = {
+      country: "JP",
+      visaType: "JP_VISIT_JAPAN_WEB",
+      status: "qr_ready",
+      applicationId: "japan-application-id",
+      submitted: true,
+      qrReady: true,
+      artifacts: { qrCodes: ["applications/japan/official-qr.png"] },
+    };
+
+    expect(hasSuccessfulArrivalCardSubmission({
+      country: "japan",
+      visaType: "JP_VISIT_JAPAN_WEB",
+      submissionResult: result,
+    })).toBe(true);
+    expect(hasSuccessfulArrivalCardSubmission({
+      country: "japan",
+      visaType: "JP_VISIT_JAPAN_WEB",
+      submissionResult: { ...result, artifacts: { qrCodes: [] } },
+    })).toBe(false);
+    expect(hasSuccessfulArrivalCardSubmission({
+      country: "japan",
+      visaType: "JP_VISIT_JAPAN_WEB",
+      submissionResult: { ...result, qrReady: false },
+    })).toBe(false);
+  });
+
   it("locks a successfully submitted Korea e-Arrival Card independently of C-3", () => {
     expect(hasSuccessfulArrivalCardSubmission({
       country: "south_korea",

@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
+  isDs160VisaType,
   isUkMisroutedDryRunError,
   isUkPrefillSubmissionResult,
   ukPrefillProgressPercent,
@@ -117,6 +118,10 @@ const RUNNING_STALE_AFTER_MS = 3 * 60 * 1000;
 
 const COMPLETED_APPLICATION_STATUSES = new Set([
   "completed",
+  // DS-160 and other official submission workers persist the durable
+  // application result as `submitted`. Keep that terminal result authoritative
+  // even when a newer proof/email queue is the latest queue row.
+  "submitted",
   "submitted_mock",
   "form_ready_for_agency",
 ]);
@@ -158,6 +163,57 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function normalizeStatus(value: string | null | undefined): string {
   return (value ?? "").trim().toLowerCase();
+}
+
+function hasStoredSubmittedResult(application: ApplicationForStatus): boolean {
+  const result = isRecord(application.submission_result) ? application.submission_result : null;
+  return (
+    normalizeStatus(application.submission_result_status) === "submitted" &&
+    normalizeStatus(typeof result?.status === "string" ? result.status : null) === "submitted"
+  );
+}
+
+function shouldPreserveSubmittedApplicationStatus(
+  application: ApplicationForStatus,
+  queue: QueueRow | null,
+  terminalQueueOverridesApplication: boolean,
+): boolean {
+  return (
+    terminalQueueOverridesApplication &&
+    hasStoredSubmittedResult(application) &&
+    isDs160VisaType(application.visa_type) &&
+    normalizeStatus(queue?.provider) === "ceac_live" &&
+    normalizeStatus(queue?.status) === "ds160_submitted"
+  );
+}
+
+export function deriveApplicationStatus(
+  application: ApplicationForStatus,
+  queue: QueueRow | null,
+  queueResult: unknown,
+  queueOverridesApplication: boolean,
+  terminalQueueOverridesApplication: boolean,
+): string | null {
+  if (queueResult) return "action_required";
+
+  if (!queueOverridesApplication) {
+    return application.submission_result_status ?? null;
+  }
+
+  if (queue?.status?.endsWith("_scheduled")) return "scheduled";
+  if (queue?.status?.endsWith("_pending")) return "waiting";
+
+  if (terminalQueueOverridesApplication) {
+    return shouldPreserveSubmittedApplicationStatus(
+      application,
+      queue,
+      terminalQueueOverridesApplication,
+    )
+      ? application.submission_result_status ?? "submitted"
+      : "action_required";
+  }
+
+  return "processing";
 }
 
 function readPayloadString(payload: Record<string, unknown>, key: string): string | null {
@@ -344,7 +400,7 @@ function synthesizeQueueResult(queue: QueueRow | null, application: ApplicationF
       : queue.error_message ??
         queue.last_error ??
         (actionType === "payment_required"
-        ? "The official portal reached payment. VIZA will continue with the application-scoped virtual card."
+        ? "The official portal requires a fee. Automated payment is unavailable; this application needs attention."
         : "Vietnam official portal needs action before VIZA can continue.");
     const checkpoint =
       typeof payload.checkpoint === "string" && payload.checkpoint.trim()
@@ -353,13 +409,13 @@ function synthesizeQueueResult(queue: QueueRow | null, application: ApplicationF
           (actionType === "payment_required" ? "payment_page_visible" : "captcha_submitted_blocked");
   const evidence = isRecord(payload.evidence) ? payload.evidence : undefined;
   const instructionText = isVietnamPayment
-    ? "The official Vietnam e-Visa portal reached payment. VIZA will continue with the application-scoped virtual card."
+    ? "The official Vietnam e-Visa portal requires a fee. Automated payment is unavailable; this application needs attention."
     : isIndonesiaPayment
       ? checkpoint === "user_payment_required"
         ? actionType === "official_fee_otp_required"
           ? "The official Indonesia payment needs bank verification. VIZA staff will review it; do not make a duplicate payment."
-          : "The official Indonesia payment needs review. VIZA will continue with the application-scoped virtual card."
-        : "The official Indonesia e-Visa portal reached payment. VIZA will continue with the application-scoped virtual card."
+          : "The official Indonesia portal requires a fee. Automated payment is unavailable; this application needs attention."
+        : "The official Indonesia e-Visa portal requires a fee. Automated payment is unavailable; this application needs attention."
       : "The official portal needs action before VIZA can continue.";
   const resolvedPortalUrl = readPayloadString(payload, "url") ?? queue.official_portal_url;
 
@@ -380,7 +436,7 @@ function synthesizeQueueResult(queue: QueueRow | null, application: ApplicationF
       manualAction: {
         type: actionType,
         status: "open",
-        instructions: isIndonesiaPayment ? instructionText : instruction,
+        instructions: isIndonesiaPayment || isVietnamPayment ? instructionText : instruction,
       },
       paymentStatus: actionType === "payment_required" || actionType === "official_fee_payment_required" || actionType === "official_fee_otp_required"
         ? "manual_required"
@@ -985,7 +1041,7 @@ export function deriveNonTerminalStatus(
       progress: 99,
       message:
         queueMessage ??
-        "The official Vietnam e-Visa portal reached payment. VIZA will continue with the application-scoped virtual card.",
+        "The official Vietnam e-Visa portal requires a fee. Automated payment is unavailable; this application needs attention.",
       error: queueMessage,
     };
   }
@@ -997,7 +1053,7 @@ export function deriveNonTerminalStatus(
       progress: 99,
       message:
         queueMessage ??
-        "The official Indonesia e-Visa portal reached payment. VIZA will continue with the application-scoped virtual card.",
+        "The official Indonesia e-Visa portal requires a fee. Automated payment is unavailable; this application needs attention.",
       error: queueMessage,
     };
   }
@@ -1101,8 +1157,11 @@ const SUBMISSION_STATUS_REQUEST_TIMEOUT_MS = 8_000;
 async function getSubmissionStatus(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
+  signal: AbortSignal,
 ): Promise<Response> {
+  signal.throwIfAborted();
   const { id: applicationId } = await context.params;
+  signal.throwIfAborted();
   if (!applicationId) {
     return NextResponse.json({ error: "Missing application id" }, { status: 400 });
   }
@@ -1110,15 +1169,19 @@ async function getSubmissionStatus(
   // Client routes still support the signed legacy client_session cookie. Prefer
   // it here so status polling keeps working while a Supabase session refreshes.
   const legacySession = await getClientSessionFromRequest(request);
+  signal.throwIfAborted();
   let authUserId: string | null = null;
   if (!legacySession) {
     const supabase = await createClient({
       requestTimeoutMs: 3_000,
       retryDelaysMs: [250],
+      requestSignal: signal,
     });
+    signal.throwIfAborted();
     const {
       data: { user },
     } = await supabase.auth.getUser();
+    signal.throwIfAborted();
     authUserId = user?.id ?? null;
   }
   if (!legacySession && !authUserId) {
@@ -1128,6 +1191,7 @@ async function getSubmissionStatus(
   const admin = createAdminClient({
     requestTimeoutMs: 4_000,
     retryDelaysMs: [250],
+    requestSignal: signal,
   });
   const profileQuery = admin
     .from("applicant_profiles")
@@ -1135,6 +1199,7 @@ async function getSubmissionStatus(
   const { data: profile, error: profileError } = legacySession
     ? await profileQuery.eq("id", legacySession.userId).maybeSingle()
     : await profileQuery.eq("auth_user_id", authUserId!).maybeSingle();
+  signal.throwIfAborted();
 
   if (profileError) {
     return NextResponse.json({ error: profileError.message }, { status: 500 });
@@ -1150,6 +1215,7 @@ async function getSubmissionStatus(
     )
     .eq("id", applicationId)
     .maybeSingle();
+  signal.throwIfAborted();
 
   if (applicationError) {
     return NextResponse.json({ error: applicationError.message }, { status: 500 });
@@ -1171,6 +1237,10 @@ async function getSubmissionStatus(
     .from("submission_queue")
     .select(SUBMISSION_QUEUE_STATUS_SELECT)
     .eq("application_id", applicationId)
+    // Filter before LIMIT: arbitrarily many later email/download jobs must
+    // never hide the actual submission. Preserve legacy NULL providers.
+    .or("provider.is.null,provider.neq.ceac_proof")
+    .or("status.is.null,status.not.like.ds160\\_proof\\_%")
     .order("updated_at", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false, nullsFirst: false })
     .limit(1);
@@ -1187,6 +1257,7 @@ async function getSubmissionStatus(
     queueQuery,
     runnerQuery ?? Promise.resolve({ data: [], error: null }),
   ]);
+  signal.throwIfAborted();
 
   if (queueError) {
     return NextResponse.json({ error: queueError.message }, { status: 500 });
@@ -1260,17 +1331,13 @@ async function getSubmissionStatus(
       result: sanitizeCustomerSubmissionResult(resolvedResult),
       error: derived.error,
       updatedAt,
-      applicationStatus: queueResult
-        ? "action_required"
-        : queueOverridesApplication
-        ? queue?.status?.endsWith("_scheduled")
-          ? "scheduled"
-          : queue?.status?.endsWith("_pending")
-          ? "waiting"
-          : terminalQueueOverridesApplication
-            ? "action_required"
-            : "processing"
-        : application.submission_result_status ?? null,
+      applicationStatus: deriveApplicationStatus(
+        application,
+        queue,
+        queueResult,
+        queueOverridesApplication,
+        terminalQueueOverridesApplication,
+      ),
       queue: queue
         ? {
             id: queue.id,
@@ -1300,19 +1367,33 @@ export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  let timeout: ReturnType<typeof setTimeout> | null = null;
+  const controller = new AbortController();
+  const forwardAbort = () => controller.abort(request.signal.reason);
+  if (request.signal.aborted) forwardAbort();
+  else request.signal.addEventListener("abort", forwardAbort, { once: true });
+
+  const timeout = setTimeout(
+    () => controller.abort(new DOMException("Submission status upstream request timed out", "TimeoutError")),
+    SUBMISSION_STATUS_REQUEST_TIMEOUT_MS,
+  );
   try {
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      timeout = setTimeout(
-        () => reject(new Error("Submission status upstream request timed out")),
-        SUBMISSION_STATUS_REQUEST_TIMEOUT_MS,
-      );
-    });
-    return await Promise.race([
-      getSubmissionStatus(request, context),
-      timeoutPromise,
-    ]);
+    controller.signal.throwIfAborted();
+    // The same signal reaches Auth, data fetches and retry sleeps. Await their
+    // actual settlement so a response timeout cannot leave new queries running
+    // through the remainder of the status pipeline in the background.
+    const statusRequest = getSubmissionStatus(request, context, controller.signal);
+    // Vercel may reclaim a cancelled invocation. Keep only this already-started
+    // operation alive long enough to settle aborted fetches and release their
+    // circuit permits; cancellation checks prevent subsequent read stages.
+    after(async () => { await statusRequest.catch(() => undefined); });
+    return await statusRequest;
   } catch (error) {
+    if (request.signal.aborted) {
+      return NextResponse.json(
+        { error: "Submission status request cancelled." },
+        { status: 499, headers: { "Cache-Control": "no-store" } },
+      );
+    }
     const message = error instanceof Error ? error.message : String(error);
     console.warn("[submission-status] temporarily unavailable:", message);
     return NextResponse.json(
@@ -1329,6 +1410,7 @@ export async function GET(
       },
     );
   } finally {
-    if (timeout) clearTimeout(timeout);
+    clearTimeout(timeout);
+    request.signal.removeEventListener("abort", forwardAbort);
   }
 }

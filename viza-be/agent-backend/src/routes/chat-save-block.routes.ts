@@ -16,16 +16,13 @@ import { Router } from "express";
 import { Logger } from "../utils/logger.js";
 import { getSupabaseClient } from "../db/supabase-client.js";
 import { findApplicationIdentityFields } from "./chat-save-block-application-identity.js";
-import { resolveRequester, type Requester } from "../middleware/user-auth.js";
 
 const logger = new Logger({ serviceName: "ChatSaveBlockRoutes" });
 
 export const chatSaveBlockRouter = Router();
 
 interface SaveBlockBody {
-  // NOTE: any userId in the body is IGNORED. The applicant identity is derived
-  // from the authenticated Supabase token server-side to prevent account
-  // takeover via a spoofed userId.
+  userId: string;
   saveTarget: "applicant_profile" | "application" | "visa_application_answers";
   applicationId?: string;
   blockType: string;
@@ -33,30 +30,13 @@ interface SaveBlockBody {
 }
 
 chatSaveBlockRouter.post("/", async (req, res) => {
-  // Derive the applicant from the bearer token; never trust a body userId.
-  let requester: Requester | null = null;
-  try {
-    requester = await resolveRequester(req);
-  } catch {
-    res.status(500).json({ error: true, message: "Authentication is not configured" });
-    return;
-  }
-  if (!requester || requester.kind !== "user") {
-    res.status(401).json({
-      error: true,
-      message: "A valid applicant bearer token is required",
-    });
-    return;
-  }
-  const userId = requester.authUserId;
-
   const body = req.body as Partial<SaveBlockBody>;
-  const { saveTarget, applicationId, data } = body;
+  const { userId, saveTarget, applicationId, data } = body;
 
-  if (!saveTarget || !data || typeof data !== "object") {
+  if (!userId || !saveTarget || !data || typeof data !== "object") {
     res.status(400).json({
       error: true,
-      message: "saveTarget and data are required",
+      message: "userId, saveTarget, and data are required",
     });
     return;
   }

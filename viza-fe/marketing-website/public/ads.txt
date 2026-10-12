@@ -1,0 +1,6 @@
+# Authorized Digital Sellers for viza.it.com
+# https://iabtechlab.com/ads-txt/
+# Served from public/ at https://viza.it.com/ads.txt
+#
+# Google AdSense, Kelin Studio publisher account.
+google.com, pub-8631844190242419, DIRECT, f08c47fec0942fa0

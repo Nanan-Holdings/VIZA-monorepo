@@ -13,11 +13,6 @@ export interface AnimatedTabPillProps {
   tabs: TabPillItem[];
   activeTab: string | null;
   onTabChange: (id: string) => void;
-  /**
-   * Called when a tab is hovered or focused — i.e. the moment intent shows,
-   * before the click. Used to start loading the destination.
-   */
-  onTabIntent?: (id: string) => void;
   variant?: "text" | "pill";
   isDark?: boolean;
   className?: string;
@@ -41,7 +36,6 @@ export function AnimatedTabPill({
   tabs,
   activeTab,
   onTabChange,
-  onTabIntent,
   variant = "text",
   isDark = false,
   className,
@@ -62,8 +56,6 @@ export function AnimatedTabPill({
               key={tab.id}
               type="button"
               onClick={() => onTabChange(tab.id)}
-              onFocus={() => onTabIntent?.(tab.id)}
-              onMouseEnter={() => onTabIntent?.(tab.id)}
               className="px-5 py-1.5 font-switzer font-medium text-lg whitespace-nowrap transition-colors duration-300"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -94,9 +86,6 @@ export function AnimatedTabPill({
             data-nav-anchor={tab.id}
             aria-current={isActive ? "page" : undefined}
             onClick={() => onTabChange(tab.id)}
-            onFocus={() => onTabIntent?.(tab.id)}
-            onMouseEnter={() => onTabIntent?.(tab.id)}
-            onTouchStart={() => onTabIntent?.(tab.id)}
             className={cn(
               "px-[16px] py-[6px] rounded-full text-[16px] leading-[1.6] font-medium whitespace-nowrap shrink-0 transition-colors duration-200 border border-solid",
               getTabPillStateClasses(isActive, isDark),

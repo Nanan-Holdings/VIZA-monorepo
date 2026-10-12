@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { type WizardStep } from "@/types/visa-form-fields";
-import { evaluateShowIf } from "@/lib/form-utils";
+import { evaluateShowIf, getRepeatInstanceCount, getRepeatInstanceValues } from "@/lib/form-utils";
 import {
   getChineseLabel,
   getEnglishLabel,
@@ -11,11 +11,17 @@ import {
 } from "@/lib/ds160-translations";
 import {
   resolveLocalizedFieldLabel,
+  normalizeBilingualOption,
   resolveOptionDisplayLabel,
   usesBilingualAnswerPair,
 } from "@/lib/bilingual-schema-contract";
 import { ValidationPanel } from "./review-step";
-import { BilingualReviewPanel, type ReviewRow } from "./bilingual-review-panel";
+import {
+  BilingualReviewPanel,
+  areReviewRowValuesEqual,
+  type ReviewOfficialOption,
+  type ReviewRow,
+} from "./bilingual-review-panel";
 import { type FormAssistantFieldReviewIssue } from "@/types/form-assistant";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { isVisibleDynamicFieldRequired } from "@/lib/application-tab-completion";
@@ -24,6 +30,14 @@ import { Button } from "@/components/ui/button";
 import { ReviewEditButton } from "@/components/ui/review-edit-button";
 import { getVnPrearrivalStaticOptions } from "@/lib/vn-prearrival/static-options";
 import { getVnPrearrivalAdministrativeOptions } from "@/lib/vn-prearrival/administrative-options";
+import {
+  isAllowedDateSentinel,
+  isDateFieldValueComplete,
+  type DateFieldValidationRules,
+} from "@/lib/date-field-validation";
+import { getDs160AgeVisibleStep } from "@/lib/ds160-age-gate";
+import { isLegacyCompatibilityOnlyField } from "@/lib/legacy-compatibility-fields";
+import { getFormFieldSentinel } from "@/lib/form-field-sentinels";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 
 function formatDateOfficial(value: string): string | null {
@@ -36,6 +50,35 @@ function formatDateOfficial(value: string): string | null {
 
   const [, year, month, day] = match;
   return `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year}`;
+}
+
+function formatDateEditorValue(
+  value: string,
+  rules?: DateFieldValidationRules | null,
+): string {
+  const trimmed = value.trim();
+  const isoMatch = trimmed.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+  const isoMonthMatch = trimmed.match(/^(\d{4})[-/.](\d{1,2})$/);
+  const chineseMatch = trimmed.match(/^(\d{4})年(\d{1,2})月(\d{1,2})日$/);
+  const chineseMonthMatch = trimmed.match(/^(\d{4})年(\d{1,2})月$/);
+  const officialMatch = trimmed.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
+
+  if (isoMatch || chineseMatch) {
+    const [, year, month, day] = isoMatch ?? chineseMatch!;
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  }
+  if (isoMonthMatch || chineseMonthMatch) {
+    const [, year, month] = isoMonthMatch ?? chineseMonthMatch!;
+    return `${year}-${month.padStart(2, "0")}`;
+  }
+  if (officialMatch) {
+    const [, day, month, year] = officialMatch;
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  }
+  if (/^\d{4}$/.test(trimmed) && (rules?.allow_year_only === true || rules?.minimum_date_precision === "year")) {
+    return trimmed;
+  }
+  return trimmed;
 }
 
 export function getReviewSourceLabel(field: WizardStep["fields"][number]): string {
@@ -62,6 +105,16 @@ export function getReviewOptionText(
 ): string | null {
   const schemaLabel = getLocalizedOptionText(value, field.options, side);
   if (schemaLabel) return schemaLabel;
+
+  const officialOptions = getReviewFieldOptions(dynamicAnswers, field);
+  return getLocalizedOptionText(value, officialOptions, side);
+}
+
+function getReviewFieldOptions(
+  dynamicAnswers: Record<string, string>,
+  field: WizardStep["fields"][number],
+): WizardStep["fields"][number]["options"] {
+  if (field.options?.length) return field.options;
 
   const configuredSource = field.validationRules?.official_source;
   const inferredSource = field.fieldName === "province_city_of_hotel"
@@ -91,7 +144,65 @@ export function getReviewOptionText(
     : normalizedSource === "administrative_unit_level2"
       ? getVnPrearrivalAdministrativeOptions("level2", parentValue)
       : getVnPrearrivalStaticOptions(officialSource, parentValue);
-  return getLocalizedOptionText(value, officialOptions, side);
+  return officialOptions;
+}
+
+export function toReviewOfficialOptions(
+  options: WizardStep["fields"][number]["options"],
+): ReviewOfficialOption[] {
+  if (!options?.length) return [];
+
+  const cached = reviewOfficialOptionsCache.get(options);
+  if (cached) return cached;
+
+  const deduped = new Map<string, ReviewOfficialOption>();
+  const firstLabelByNormalizedValue = new Map<string, string>();
+  for (const option of options) {
+    const value = typeof option === "string" ? option : option.value;
+    if (!value.trim()) continue;
+
+    const normalized = normalizeBilingualOption(option);
+    const normalizedObject = typeof normalized === "string" ? null : normalized;
+    const normalizedValue = normalizedObject?.value ?? value;
+    const normalizedLabel = normalizedObject?.official_label
+      ?? normalizedObject?.label_en
+      ?? normalizedObject?.text
+      ?? value;
+    const normalizedKey = normalizedValue.toLowerCase();
+    if (!firstLabelByNormalizedValue.has(normalizedKey)) {
+      firstLabelByNormalizedValue.set(normalizedKey, normalizedLabel);
+    }
+
+    if (deduped.has(value)) continue;
+    deduped.set(value, {
+      value,
+      // resolveOptionDisplayLabel is case-insensitive and uses the first
+      // matching option. Keep that behavior while building the list once.
+      label: firstLabelByNormalizedValue.get(normalizedKey) ?? value,
+    });
+  }
+  const next = Array.from(deduped.values());
+  reviewOfficialOptionsCache.set(options, next);
+  return next;
+}
+
+const reviewOfficialOptionsCache = new WeakMap<
+  NonNullable<WizardStep["fields"][number]["options"]>,
+  ReviewOfficialOption[]
+>();
+
+export function getReviewBooleanText(
+  value: string,
+  side: "zh" | "en",
+): string | null {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "true" || normalized === "1") {
+    return side === "zh" ? "是" : "Yes";
+  }
+  if (normalized === "false" || normalized === "0") {
+    return side === "zh" ? "否" : "No";
+  }
+  return null;
 }
 
 export function getBilingualReviewValue(
@@ -101,6 +212,9 @@ export function getBilingualReviewValue(
   field: WizardStep["fields"][number],
   side: "zh" | "en",
 ): string {
+  // An explicit checkbox answer supersedes a previously translated text value.
+  const sentinel = getFormFieldSentinel(value);
+  if (sentinel) return sentinel;
   if (!usesBilingualAnswerPair(field)) return value;
 
   const explicit = dynamicAnswers[`${answerKey}_${side}`]?.trim();
@@ -163,13 +277,16 @@ export interface DynamicReviewStepProps {
   applicationId: string;
   dynamicAnswers: Record<string, string>;
   dbSteps: WizardStep[];
+  visaType?: string | null;
   photoPath: string | null;
   onEdit: (stepIndex: number, fieldName: string) => void;
   onPhotoEdit: () => void;
   onComplete: () => void;
+  onSaveOfficialValue?: (answerPatch: Record<string, string>) => Promise<void>;
   mode?: "submit" | "continue";
   continueLabel?: string;
   showAction?: boolean;
+  readOnly?: boolean;
   reviewIssues?: ReadonlyMap<string, FormAssistantFieldReviewIssue>;
 }
 
@@ -177,13 +294,16 @@ export function DynamicReviewStep({
   applicationId,
   dynamicAnswers,
   dbSteps,
+  visaType,
   photoPath,
   onEdit,
   onPhotoEdit,
   onComplete,
+  onSaveOfficialValue,
   mode = "submit",
   continueLabel,
   showAction = true,
+  readOnly = false,
   reviewIssues,
 }: DynamicReviewStepProps) {
   const t = useTranslations("applicationSteps");
@@ -195,7 +315,9 @@ export function DynamicReviewStep({
   const validationFieldLabels = useMemo(() => {
     const labels: Record<string, { zh: string; en: string }> = {};
     for (const step of dbSteps) {
-      for (const field of step.fields) {
+      const ageVisibleStep = getDs160AgeVisibleStep(step, visaType, dynamicAnswers);
+      for (const field of ageVisibleStep.fields) {
+        if (isLegacyCompatibilityOnlyField(field)) continue;
         labels[field.fieldName] = {
           zh: getReviewSourceLabel(field),
           en: getReviewOfficialLabel(field),
@@ -203,7 +325,7 @@ export function DynamicReviewStep({
       }
     }
     return labels;
-  }, [dbSteps]);
+  }, [dbSteps, dynamicAnswers, visaType]);
 
   /**
    * Format a field's stored value for display.
@@ -214,8 +336,15 @@ export function DynamicReviewStep({
     field?: WizardStep["fields"][number],
     side: "zh" | "en" = "zh",
   ): string => {
-    if (!value || value === "does_not_apply") return t("dynamicField.doesNotApply");
+    const sentinel = getFormFieldSentinel(value);
+    if (sentinel === "DOES_NOT_APPLY") return t("dynamicField.doesNotApply");
+    if (sentinel === "DO_NOT_KNOW") return t("dynamicField.doNotKnow");
+    if (!value) return t("review.notProvided");
     if (!field) return value;
+
+    if (field.fieldType === "checkbox") {
+      return getReviewBooleanText(value, side) ?? value;
+    }
 
     return getReviewOptionText(dynamicAnswers, value, field, side) ?? value;
   }, [dynamicAnswers, t]);
@@ -228,6 +357,10 @@ export function DynamicReviewStep({
       return formatDateOfficial(value) ?? value;
     }
 
+    if (field.fieldType === "checkbox") {
+      return getReviewBooleanText(value, "en") ?? value;
+    }
+
     if (field.fieldType === "select" || field.fieldType === "radio" || field.fieldType === "country") {
       return getReviewOptionText(dynamicAnswers, value, field, "en") ?? value;
     }
@@ -235,10 +368,50 @@ export function DynamicReviewStep({
     return value;
   }, [dynamicAnswers]);
 
+  const saveOfficialValue = useCallback(async (answerKey: string, officialValue: string) => {
+    if (!onSaveOfficialValue) return;
+    const schemaFieldName = answerKey.replace(/__\d+$/, "");
+    const field = dbSteps
+      .flatMap((step) => step.fields)
+      .find((candidate) => candidate.fieldName === schemaFieldName);
+    if (!field) throw new Error(`Review field not found: ${schemaFieldName}`);
+    if (isLegacyCompatibilityOnlyField(field)) {
+      throw new Error(`Review field is compatibility-only: ${schemaFieldName}`);
+    }
+
+    const dateRules = field.validationRules as DateFieldValidationRules | null;
+    const canonicalOfficialValue = field.fieldType === "date"
+      ? formatDateEditorValue(officialValue, dateRules)
+      : officialValue;
+    const allowedDateSentinel = field.fieldType === "date" &&
+      isAllowedDateSentinel(canonicalOfficialValue, dateRules);
+    if (field.fieldType === "date" && !allowedDateSentinel && !isDateFieldValueComplete(field, canonicalOfficialValue)) {
+      throw new Error(`Invalid official date: ${officialValue}`);
+    }
+
+    const answerPatch: Record<string, string> = { [answerKey]: canonicalOfficialValue };
+    if (usesBilingualAnswerPair(field)) {
+      answerPatch[`${answerKey}_en`] = canonicalOfficialValue;
+    }
+    await onSaveOfficialValue(answerPatch);
+  }, [dbSteps, onSaveOfficialValue]);
+
+  const previousRowsByKeyRef = useRef(new Map<string, ReviewRow>());
   const bilingualRows = useMemo<ReviewRow[]>(() => {
     const completedRows: ReviewRow[] = [];
     const missingRows: ReviewRow[] = [];
     const optionalRows: ReviewRow[] = [];
+    const previousRowsByKey = previousRowsByKeyRef.current;
+    const nextRowsByKey = new Map<string, ReviewRow>();
+
+    const reuseStableRow = (cacheKey: string, nextRow: ReviewRow): ReviewRow => {
+      const previousRow = previousRowsByKey.get(cacheKey);
+      const stableRow = previousRow && areReviewRowValuesEqual(previousRow, nextRow)
+        ? previousRow
+        : nextRow;
+      nextRowsByKey.set(cacheKey, stableRow);
+      return stableRow;
+    };
 
     dbSteps.forEach((step, sourceIndex) => {
       const sectionTitle = (() => {
@@ -248,24 +421,30 @@ export function DynamicReviewStep({
         return getLocalizedReviewSectionTitle(localized, isZh ? "zh" : "en");
       })();
 
-      for (const field of step.fields) {
-        if (!evaluateShowIf(field, dynamicAnswers, step.fields)) continue;
+      const instanceCounts = new Map<string, number>();
+      const instanceValues = new Map<string, Record<string, string>>();
+      const ageVisibleStep = getDs160AgeVisibleStep(step, visaType, dynamicAnswers);
+      for (const field of ageVisibleStep.fields) {
+        if (isLegacyCompatibilityOnlyField(field)) continue;
         if (field.fieldType === "file") continue;
-
-        const answerKeys = [field.fieldName];
-        for (let i = 2; i <= 20; i++) {
-          const repeatKey = `${field.fieldName}__${i}`;
-          if (dynamicAnswers[repeatKey] !== undefined) {
-            answerKeys.push(repeatKey);
-          } else {
-            break;
-          }
+        const group = String(field.validationRules?.repeat_group ?? field.fieldName);
+        let count = instanceCounts.get(group);
+        if (count === undefined) {
+          count = getRepeatInstanceCount(field, dynamicAnswers, step.fields);
+          instanceCounts.set(group, count);
         }
-
-        for (const answerKey of answerKeys) {
+        for (let instanceIndex = 0; instanceIndex < count; instanceIndex++) {
+          const instanceId = `${group}:${instanceIndex}`;
+          let scopedAnswers = instanceValues.get(instanceId);
+          if (!scopedAnswers) {
+            scopedAnswers = getRepeatInstanceValues(field, instanceIndex, dynamicAnswers, step.fields);
+            instanceValues.set(instanceId, scopedAnswers);
+          }
+          if (!evaluateShowIf(field, scopedAnswers, step.fields)) continue;
+          const answerKey = instanceIndex === 0 ? field.fieldName : `${field.fieldName}__${instanceIndex + 1}`;
           const value = dynamicAnswers[answerKey] ?? "";
           const isMissing = !value.trim();
-          const isRequired = isVisibleDynamicFieldRequired(field, dynamicAnswers, step.fields);
+          const isRequired = isVisibleDynamicFieldRequired(field, scopedAnswers, step.fields);
           const isRequiredMissing = isMissing && isRequired;
           const isOptionalBlank = isMissing && !isRequired;
 
@@ -288,16 +467,39 @@ export function DynamicReviewStep({
                 getBilingualReviewValue(dynamicAnswers, answerKey, value, field, "en"),
                 field,
               );
+          const cachedOfficialOptions = toReviewOfficialOptions(getReviewFieldOptions(dynamicAnswers, field));
+          let officialOptions = cachedOfficialOptions;
+          if (
+            (field.fieldType === "select" || field.fieldType === "radio" || field.fieldType === "country")
+            && value
+            && !officialOptions.some((option) => option.value === value)
+          ) {
+            officialOptions = [...officialOptions, { value, label: officialValue }];
+          }
+          if (field.fieldType === "checkbox" && officialOptions.length === 0) {
+            officialOptions = [
+              { value: "true", label: "Yes" },
+              { value: "false", label: "No" },
+            ];
+          }
+          const officialEditorKind = field.fieldType === "textarea"
+            ? "textarea" as const
+            : field.fieldType === "date"
+              ? "date" as const
+              : officialOptions.length > 0
+                ? "select" as const
+                : "text" as const;
           const badges: string[] = [];
           const warnings: string[] = [];
 
-          if (field.fieldType === "date") {
+          const allowedDateSentinel = field.fieldType === "date" && isAllowedDateSentinel(value, field.validationRules);
+          if (field.fieldType === "date" && !allowedDateSentinel) {
             badges.push(t("translation.officialFormatBadge"));
           } else if (field.fieldType === "select" || field.fieldType === "radio" || field.fieldType === "country") {
             badges.push(t("translation.optionLabelBadge"));
           }
 
-          if (field.fieldType === "date") {
+          if (field.fieldType === "date" && !allowedDateSentinel) {
             warnings.push(t("translation.dateFormatWarning", { format: "DD/MM/YYYY" }));
           }
 
@@ -305,7 +507,7 @@ export function DynamicReviewStep({
             warnings.push(t("translation.passportSpellingWarning"));
           }
 
-          const row: ReviewRow = {
+          const row = reuseStableRow(`${sourceIndex}:${answerKey}`, {
             section: isRequiredMissing
               ? `${sectionTitle} · ${t("review.missingInformation")}`
               : isOptionalBlank
@@ -323,13 +525,20 @@ export function DynamicReviewStep({
             officialValue,
             badges,
             warnings,
-            editable: true,
+            editable: !readOnly,
             editStepIndex: sourceIndex,
             missing: isRequiredMissing,
             optional: isOptionalBlank,
             issueSeverity: (reviewIssues?.get(answerKey) ?? reviewIssues?.get(field.fieldName))?.severity,
             issueMessage: (reviewIssues?.get(answerKey) ?? reviewIssues?.get(field.fieldName))?.message,
-          };
+            officialEditorKind,
+            officialEditorValue: officialEditorKind === "date"
+              ? isMissing ? "" : officialValue
+              : officialEditorKind === "select"
+                ? value
+                : isMissing ? "" : officialValue,
+            officialOptions: officialEditorKind === "select" ? officialOptions : undefined,
+          });
 
           if (isRequiredMissing) missingRows.push(row);
           else if (isOptionalBlank) optionalRows.push(row);
@@ -338,8 +547,9 @@ export function DynamicReviewStep({
       }
     });
 
+    previousRowsByKeyRef.current = nextRowsByKey;
     return [...completedRows, ...missingRows, ...optionalRows];
-  }, [dbSteps, dynamicAnswers, formatValue, getOfficialValue, isZh, reviewIssues, t, tDyn]);
+  }, [dbSteps, dynamicAnswers, formatValue, getOfficialValue, isZh, readOnly, reviewIssues, t, tDyn, visaType]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -347,7 +557,8 @@ export function DynamicReviewStep({
         <BilingualReviewPanel
           applicationId={applicationId}
           rows={bilingualRows}
-          onEditSection={onEdit}
+          onSaveOfficialValue={readOnly || !onSaveOfficialValue ? undefined : saveOfficialValue}
+          onEditSection={readOnly ? undefined : onEdit}
         />
 
         {photoPath ? (
@@ -356,10 +567,12 @@ export function DynamicReviewStep({
               <h3 className="font-heading text-sm font-semibold text-brand-500">
                 {isZh ? "上传照片" : "Photo"}
               </h3>
-              <ReviewEditButton
-                onClick={onPhotoEdit}
-                label={isZh ? "修改上传照片" : "Edit uploaded photo"}
-              />
+              {!readOnly ? (
+                <ReviewEditButton
+                  onClick={onPhotoEdit}
+                  label={isZh ? "修改上传照片" : "Edit uploaded photo"}
+                />
+              ) : null}
             </div>
             <Table className="table-fixed">
               <TableBody>
@@ -380,7 +593,7 @@ export function DynamicReviewStep({
         ) : null}
       </div>
 
-      {showAction && mode === "submit" ? (
+      {!readOnly && showAction && mode === "submit" ? (
         <>
           <ValidationPanel
             applicationId={applicationId}
@@ -393,7 +606,7 @@ export function DynamicReviewStep({
             onConfirm={onComplete}
           />
         </>
-      ) : showAction ? (
+      ) : !readOnly && showAction ? (
         <Button onClick={onComplete} size="lg" className="self-stretch">
           {actionLabel}
         </Button>

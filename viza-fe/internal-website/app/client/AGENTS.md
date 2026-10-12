@@ -5,9 +5,21 @@ Scope: this file applies to `viza-fe/internal-website/app/client/**`.
 ## Purpose
 
 The client portal is the authenticated applicant experience: home dashboard,
-destination selection, payment, consent, document checklist, application status
-and form filling, VIZA AI, Travel AI, settings, subscription, universal
-applicant info, and help pages.
+destination selection, consent, document checklist, application status and form
+filling, VIZA AI, Travel AI, settings, universal applicant info, and help
+pages. Commercial checkout, billing, and subscription payment surfaces are
+retired; their compatibility routes preserve safe redirects.
+
+## Current Navigation
+
+- `components/client/navbar.tsx` exposes Home and Application on the left and
+  Settings on the right; Chat remains available from the chat/menu control.
+  Status and Help remain account-menu destinations.
+- `components/client/animated-menu.tsx` keeps the Change country entry linked
+  to `/client/status`. Settings is the current destination for account,
+  privacy, traveler, and Points Center links.
+- Billing, checkout, payment-method, and subscription URLs are legacy
+  compatibility redirects. They must not become new financial entry points.
 
 ## Key Flows
 
@@ -16,13 +28,21 @@ applicant info, and help pages.
   or redirect applicants away from their requested route. The shell mounts
   `_components/alias-forwarding-consent-gate.tsx` after a valid session so
   applicants can explicitly authorize alias-email forwarding before protected
-  submission flows use it.
+  submission flows use it. The gate initializes when enabled, not when the
+  display locale changes; retain semantic error codes and localize at render.
+  `_components/__tests__/alias-forwarding-consent-gate.test.tsx` covers pending
+  reads, locale changes, re-enabling, and explicit forwarding authorization.
 - `about-me-form/`: compatibility redirect for retired health-questionnaire
   links. It may return only to a safe internal `/client/*` route and must never
   render or reintroduce the old Profile/Habits/Diet/Recovery questionnaire.
-- `home/page.tsx`: dashboard (hero, subscription entry, universal information
-  summary, recent activity). Destination selection moved to
-  `destinations/page.tsx`.
+- `home/page.tsx`: dashboard (hero, universal information summary, recent
+  activity) loads dashboard and selected task timeline through
+  one private `GET /api/client/home-dashboard` read. The server checks
+  the requested selection against owned applications and returns a slim task
+  projection. Clear stale timelines, surface partial/unavailable states, and
+  retain the in-flight guard until the read actually settles. Forward browser
+  cancellation on unmount, and keep focus refreshes serialized and stale-gated.
+  `home/__tests__/home-status-loading.test.tsx` covers these loading states.
 - `destinations/page.tsx`: country/application switch page — "my applications"
   switcher plus the popular-destinations catalog (featured, region groups,
   search). Reached via the hamburger menu "Change country" item. Progress
@@ -43,17 +63,16 @@ applicant info, and help pages.
   progress, external handoff state, and result delivery.
 - `documents/**`: document checklist center, upload state, OCR confirmation,
   and missing-material recovery.
-- `checkout/**`: Stripe Checkout entry for VIZA agency fee only.
-- `billing/**`: receipts, invoice requests, refund visibility, and payment
-  history.
+- `checkout/**`: retired compatibility route; `/client/checkout` redirects to
+  `/client/application` and the checkout implementation has been removed.
+- `billing/**`: retired compatibility route; `/client/billing` redirects to
+  `/client/settings` and financial reads/writes have been removed.
 - `consent/**`: ToS/privacy/agency authorisation acceptance and e-signature
   workflow.
-- `settings/**`: account settings plus privacy export/deletion request surface
-  and the applicant mailbox at `settings/inbox/**` (mail sent to the VIZA
-  alias: folders, AI reading panel, translation, attachments, queued replies).
-- `inbox/page.tsx`: legacy route — redirects to `/client/settings/inbox`.
-- `subscription/**`: RMB subscription and pay-per-application pricing, plus
-  Stripe/WeChat Pay/Alipay payment entry points for commercial plans.
+- `settings/**`: account settings plus privacy export/deletion request surface.
+- `subscription/**`: legacy subscription compatibility routes redirect to
+  `/client/settings`; commercial plan actions and payment-status polling have
+  been removed.
 - `chat/page.tsx` and `chat/chat-client.tsx`: VIZA AI and Travel AI tabbed chat.
 - `support/**`: customer service help center, self-service support bot, and
   human/email handoff. This must remain separate from the visa/travel AI chat.
@@ -63,6 +82,9 @@ applicant info, and help pages.
   boxes or standalone red paragraphs.
 - `travel-chat/page.tsx` and `travel-chat/travel-chat-client.tsx`: dedicated
   Travel AI route.
+- `interview-practice/**`: interview preparation, officer choice, bilingual
+  practice questions and reports; follow its module guide for locale and voice
+  behavior.
 - `applications/[applicationId]/us-appointment/page.tsx`: U.S. B1/B2
   appointment assistant entry after DS-160 capture/submission. It may use China
   USVisaScheduling gated assisted-live from explicit user actions, while other
@@ -82,8 +104,8 @@ applicant info, and help pages.
   VFS/JVAC Singapore cloud preflight for eligible Chinese long-term residents.
   It records consent, creates the alias-backed backend job, checks the official
   portal through Browserbase, and displays redacted evidence. VFS login,
-  verification, slot choice, payment, and final confirmation remain stopped in
-  the Free Plan phase.
+  verification, slot choice, and final confirmation remain stopped in the Free
+  Plan phase; payment processing is retired.
 - `universal-info/page.tsx`: reusable applicant profile editor. Keep its major
   categories as separate application-style cards; reusable passport, signature,
   portrait, recent bank-statement, and genuine travel/medical-insurance uploads live in

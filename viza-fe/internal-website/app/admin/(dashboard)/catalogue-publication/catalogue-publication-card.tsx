@@ -9,7 +9,6 @@ import {
   type CatalogueActionResult,
 } from "@/app/actions/admin-catalogue";
 import type { CatalogueReadiness, PublicCataloguePayload } from "@/lib/admin/catalogue";
-import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
 
 export interface CataloguePublicationCardProps {
   packageId: string;
@@ -65,8 +64,9 @@ function SubmitButton({ children, tone = "primary" }: { children: React.ReactNod
 
 function Result({ result, saved }: { result: CatalogueActionResult | null; saved: string }) {
   if (!result) return null;
-  const variant = result.success ? "success" : "destructive";
-  return <Alert className="mt-2" variant={variant}><AlertIcon variant={variant} /><AlertDescription>{result.success ? saved : result.error}</AlertDescription></Alert>;
+  return result.success
+    ? <p role="status" className="mt-2 text-xs font-semibold text-emerald-700">{saved}</p>
+    : <p role="alert" className="mt-2 text-xs font-semibold text-red-700">{result.error}</p>;
 }
 
 const inputClass = "h-9 rounded-md border border-[#d9dee7] bg-white px-3 text-sm text-[#232323]";

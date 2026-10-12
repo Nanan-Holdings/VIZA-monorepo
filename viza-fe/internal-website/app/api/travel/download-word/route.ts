@@ -1,14 +1,31 @@
 import { forwardJsonToTravelBackend } from "@/lib/travel/backend";
+import { resolveRequestLocale } from "@/lib/travel/travel-locale";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
 
 export async function POST(request: Request) {
+  let locale = resolveRequestLocale(request, undefined);
   try {
-    const payload = await request.json();
+    const rawPayload = await request.json();
+    locale = resolveRequestLocale(
+      request,
+      isRecord(rawPayload) ? rawPayload.locale : undefined
+    );
+    const payload = isRecord(rawPayload)
+      ? { ...rawPayload, locale }
+      : { locale };
     const response = await forwardJsonToTravelBackend("/download-word", payload);
 
     if (!response.ok) {
       const detail = await response.text();
       return Response.json(
-        { error: detail || "Failed to generate Word file." },
+        {
+          error:
+            detail ||
+            (locale === "zh" ? "Word 文件生成失败。" : "Failed to generate Word file."),
+        },
         { status: response.status }
       );
     }
@@ -29,7 +46,12 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Download failed.";
+    const message =
+      error instanceof Error
+        ? error.message
+        : locale === "zh"
+          ? "下载失败。"
+          : "Download failed.";
     return Response.json({ error: message }, { status: 500 });
   }
 }

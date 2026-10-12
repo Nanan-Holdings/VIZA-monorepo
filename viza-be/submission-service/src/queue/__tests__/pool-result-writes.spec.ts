@@ -53,3 +53,14 @@ test("Korea pool dispatch forwards the claimed job identity", () => {
   );
   assert.doesNotMatch(dispatch, /jobId\s*\?\?\s*applicationId/);
 });
+
+test("Korea arrival-card success requires an issue number and persisted official PDF", () => {
+  const arrivalCards = source("queue/arrival-card-runners.ts");
+  const koreaSuccessGuard = arrivalCards.indexOf('flow === "kr_arrival_card" && portal.submitted');
+  const resultConstruction = arrivalCards.indexOf("const result: DigitalArrivalCardSubmissionResult");
+
+  assert.ok(koreaSuccessGuard >= 0);
+  assert.ok(koreaSuccessGuard < resultConstruction);
+  assert.match(arrivalCards, /portal\.issueNumber\?\.trim\(\)/);
+  assert.match(arrivalCards, /pdfs\.length === 0/);
+});

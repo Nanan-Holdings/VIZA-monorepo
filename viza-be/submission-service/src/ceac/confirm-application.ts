@@ -35,9 +35,15 @@ export interface ConfirmApplicationOptions {
   securityQuestionValue?: string;
   /** Timeout for the Continue-click postback in ms. Default 30_000. */
   timeoutMs?: number;
+  /**
+   * Persist the captured CEAC identity and recovery secret before Continue is
+   * clicked. A rejected callback aborts the flow and the Continue control is
+   * never invoked. Existing callers may omit this callback.
+   */
+  onBeforeContinue?: (checkpoint: ConfirmApplicationCheckpoint) => Promise<void> | void;
 }
 
-export interface ConfirmApplicationResult {
+export interface ConfirmApplicationCheckpoint {
   /** The CEAC Application ID assigned to this new application (AA + 8 chars). */
   applicationId: string;
   /** The dropdown value that was selected (1-20). */
@@ -46,6 +52,9 @@ export interface ConfirmApplicationResult {
   securityQuestionText: string;
   /** The answer that was typed in. Stored so operators can pass it to the applicant. */
   securityAnswer: string;
+}
+
+export interface ConfirmApplicationResult extends ConfirmApplicationCheckpoint {
   /** URL landed on after clicking Continue. */
   postContinueUrl: string;
 }
@@ -268,17 +277,32 @@ export async function handleConfirmApplicationPage(
     await dumpConfirmPageDiagnostics(page, "selectoption-fail");
     throw err;
   }
-  const questionText = (await ddl.evaluate(
-    `s => s.options[s.selectedIndex] ? s.options[s.selectedIndex].text : ""`,
-  )) as string;
+  const questionText = await ddl.evaluate((select) => {
+    const selectElement = select as HTMLSelectElement;
+    const option = selectElement.options[selectElement.selectedIndex];
+    return option?.text ?? "";
+  });
 
   // 4. Fill answer.
   const answerInput = page.locator(SECURITY_ANSWER_SELECTOR).first();
   await answerInput.fill(options.securityAnswer);
 
-  // 5. Click Continue and wait for the next page to settle.
+  // 5. Persist the recovery checkpoint before Continue. The Application ID is
+  // already assigned by CEAC at this point, but clicking Continue is the
+  // irreversible transition into the draft. If persistence fails, leave the
+  // page untouched so the caller can classify the captured identity as a
+  // recovery checkpoint failure without advancing the official session.
   const btnContinue = page.locator(CONTINUE_BUTTON_SELECTOR).first();
   await btnContinue.waitFor({ state: "attached", timeout: 10_000 });
+  const checkpoint: ConfirmApplicationCheckpoint = {
+    applicationId,
+    securityQuestionValue: questionValue,
+    securityQuestionText: (questionText || "").trim(),
+    securityAnswer: options.securityAnswer,
+  };
+  await options.onBeforeContinue?.(checkpoint);
+
+  // 6. Click Continue and wait for the next page to settle.
   await btnContinue.click({ force: true, timeout: timeoutMs });
 
   try {
@@ -290,10 +314,7 @@ export async function handleConfirmApplicationPage(
   }
 
   return {
-    applicationId,
-    securityQuestionValue: questionValue,
-    securityQuestionText: (questionText || "").trim(),
-    securityAnswer: options.securityAnswer,
+    ...checkpoint,
     postContinueUrl: page.url(),
   };
 }

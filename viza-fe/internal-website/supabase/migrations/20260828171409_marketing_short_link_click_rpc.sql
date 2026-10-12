@@ -7,7 +7,7 @@ CREATE OR REPLACE FUNCTION public.record_marketing_short_link_click(
 ) RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = pg_catalog, public
+SET search_path = ''
 AS $$
 BEGIN
   IF NOT EXISTS (

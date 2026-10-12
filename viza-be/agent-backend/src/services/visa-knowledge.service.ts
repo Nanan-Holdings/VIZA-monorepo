@@ -1,23 +1,38 @@
 import { getSupabaseClient } from "../db/supabase-client.js";
 import { Logger } from "../utils/logger.js";
+import { runWithProviderCapacity } from "../utils/provider-capacity.js";
+import {
+  visaKnowledgeCapacityMonitor,
+  type VisaKnowledgeRequestTrace,
+} from "./visa-knowledge-capacity.js";
+import { resolveVisaKnowledgeRetrievalPolicy } from "./visa-knowledge-retrieval-policy.js";
+import {
+  documentTypesForIntent,
+  normalizeKnowledgeFilters,
+  type VisaKnowledgeIntent,
+} from "./visa-knowledge-query.js";
+export { documentTypesForIntent } from "./visa-knowledge-query.js";
+export type { VisaKnowledgeIntent } from "./visa-knowledge-query.js";
 
 const logger = new Logger({ serviceName: "VisaKnowledgeService" });
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const EMBEDDING_MODEL = "text-embedding-3-small";
-const DEFAULT_MATCH_COUNT = 5;
-const DEFAULT_MIN_SIMILARITY = 0.03;
 
-export type VisaKnowledgeIntent =
-  | "route_recommendation"
-  | "requirements"
-  | "form_intake"
-  | "fees_timing"
-  | "eligibility"
-  | "source_check";
+function requestAbortError(signal?: AbortSignal): Error {
+  if (signal?.reason instanceof Error) return signal.reason;
+  const error = new Error("Request aborted");
+  error.name = "AbortError";
+  return error;
+}
+
+function throwIfRequestAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw requestAbortError(signal);
+}
 
 export interface VisaKnowledgeQuery {
   query: string;
+  signal?: AbortSignal;
   country?: string | null;
   visaType?: string | null;
   intent?: VisaKnowledgeIntent;
@@ -72,72 +87,10 @@ function asNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
-function clampMatchCount(value: number | undefined): number {
-  if (!value || !Number.isFinite(value)) return DEFAULT_MATCH_COUNT;
-  return Math.min(Math.max(Math.trunc(value), 1), 12);
-}
-
-export function documentTypesForIntent(
-  intent?: VisaKnowledgeIntent
-): string[] | undefined {
-  if (!intent) return undefined;
-  const mapping: Record<VisaKnowledgeIntent, string[]> = {
-    route_recommendation: ["requirements", "process"],
-    requirements: ["requirements", "form_requirements", "photo_requirements"],
-    form_intake: ["form_requirements", "photo_requirements", "requirements", "process"],
-    fees_timing: ["requirements", "process"],
-    eligibility: ["requirements"],
-    source_check: ["requirements", "process", "form_requirements", "photo_requirements"],
-  };
-  return mapping[intent];
-}
-
-function normalizeCountryFilter(country?: string | null): string | null | undefined {
-  if (!country) return country;
-  const normalized = country.trim().toLowerCase();
-  const aliases: Record<string, string> = {
-    united_states: "us",
-    usa: "us",
-    "united states": "us",
-    united_kingdom: "uk",
-    "united kingdom": "uk",
-    britain: "uk",
-    "hong kong": "hong_kong",
-    hksar: "hong_kong",
-    macao: "macau",
-    "russian federation": "russia",
-    schengen_area: "france",
-  };
-  return aliases[normalized] ?? normalized;
-}
-
-function normalizeVisaTypeFilter(visaType?: string | null): string | null | undefined {
-  if (!visaType) return visaType;
-  const normalized = visaType.trim();
-  const aliasKey = normalized.toUpperCase();
-  const aliases: Record<string, string> = {
-    DS160: "b1_b2",
-    B1_B2: "b1_b2",
-    B211A: "tourist_b211a",
-    ID_C1_TOURIST: "tourist_b211a",
-    AU_VISITOR_600: "visitor_subclass_600",
-    JP_TOURIST: "short_term_tourism_evisa",
-    KR_C39_SHORT_TERM_VISIT: "c3_or_keta",
-    EG_E_VISA: "evisa_tourism",
-    UK_STANDARD_VISITOR: "standard_visitor",
-    EU_SCHENGEN_C_SHORT_STAY: "schengen_short_stay_tourism",
-    HK_VISIT_VISA: "hk_visit_visa",
-    MO_VISIT_VISA: "mo_visit_visa",
-    RU_E_VISA: "unified_evisa",
-  };
-  return aliases[aliasKey] ?? normalized;
-}
-
 function normalizeKnowledgeQuery(query: VisaKnowledgeQuery): VisaKnowledgeQuery {
   return {
     ...query,
-    country: normalizeCountryFilter(query.country),
-    visaType: normalizeVisaTypeFilter(query.visaType),
+    ...normalizeKnowledgeFilters(query),
   };
 }
 
@@ -147,38 +100,59 @@ function withIntentDocumentTypes(query: VisaKnowledgeQuery): VisaKnowledgeQuery 
   return documentTypes ? { ...query, documentTypes } : query;
 }
 
-async function getEmbedding(text: string): Promise<number[] | null> {
+async function getEmbedding(
+  text: string,
+  trace: VisaKnowledgeRequestTrace,
+  requestSignal?: AbortSignal,
+): Promise<number[] | null> {
+  throwIfRequestAborted(requestSignal);
   if (!OPENAI_API_KEY || OPENAI_API_KEY === "your_openai_api_key_here") {
     return null;
   }
 
+  visaKnowledgeCapacityMonitor.markExternalStart(trace, "embedding");
   try {
-    const response = await fetch("https://api.openai.com/v1/embeddings", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: EMBEDDING_MODEL,
-        input: text.slice(0, 8000),
-      }),
-    });
-
-    if (!response.ok) {
-      logger.warn("Embedding request failed", undefined, {
+    const result = await runWithProviderCapacity(async (signal) => {
+      const response = await fetch("https://api.openai.com/v1/embeddings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: EMBEDDING_MODEL,
+          input: text.slice(0, 8000),
+        }),
+        signal,
+      });
+      if (!response.ok) return { status: response.status, body: null };
+      return {
         status: response.status,
+        body: await response.json() as { data?: Array<{ embedding?: number[] }> },
+      };
+    }, requestSignal);
+
+    throwIfRequestAborted(requestSignal);
+    visaKnowledgeCapacityMonitor.markBetween(trace);
+    if (!result.body) {
+      visaKnowledgeCapacityMonitor.markExternalFailure(trace, "embedding");
+      logger.warn("Embedding request failed", undefined, {
+        status: result.status,
       });
       return null;
     }
-
-    const body = (await response.json()) as {
-      data?: Array<{ embedding?: number[] }>;
-    };
-
-    return body.data?.[0]?.embedding ?? null;
+    const embedding = result.body.data?.[0]?.embedding ?? null;
+    if (!embedding) {
+      visaKnowledgeCapacityMonitor.markExternalFailure(trace, "embedding");
+    }
+    return embedding;
   } catch (error) {
-    logger.warn("Embedding request errored", error as Error);
+    if (requestSignal?.aborted) throw requestAbortError(requestSignal);
+    visaKnowledgeCapacityMonitor.markExternalFailure(trace, "embedding");
+    visaKnowledgeCapacityMonitor.markBetween(trace);
+    logger.warn("Embedding request errored", undefined, {
+      errorName: error instanceof Error ? error.name : "UnknownError",
+    });
     return null;
   }
 }
@@ -218,10 +192,11 @@ async function retrieveWithVectorSearch(
   query: VisaKnowledgeQuery,
   embedding: number[],
   matchCount: number,
-  minSimilarity: number
+  minSimilarity: number,
+  trace: VisaKnowledgeRequestTrace,
 ): Promise<VisaKnowledgeChunk[]> {
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase.rpc("match_visa_chunks", {
+  const request = supabase.rpc("match_visa_chunks", {
     query_embedding: embedding,
     match_count: matchCount,
     filter_country: query.country ?? null,
@@ -232,8 +207,25 @@ async function retrieveWithVectorSearch(
         : null,
     min_similarity: minSimilarity,
   });
+  visaKnowledgeCapacityMonitor.markExternalStart(trace, "vector");
+  let response: Awaited<typeof request>;
+  try {
+    response = query.signal
+      ? await request.abortSignal(query.signal)
+      : await request;
+  } catch (error) {
+    if (query.signal?.aborted) throw error;
+    visaKnowledgeCapacityMonitor.markExternalFailure(trace, "vector");
+    visaKnowledgeCapacityMonitor.markBetween(trace);
+    throw error;
+  }
+  const { data, error } = response;
+
+  throwIfRequestAborted(query.signal);
+  visaKnowledgeCapacityMonitor.markBetween(trace);
 
   if (error) {
+    visaKnowledgeCapacityMonitor.markExternalFailure(trace, "vector");
     throw new Error(error.message);
   }
 
@@ -245,7 +237,8 @@ async function retrieveWithVectorSearch(
 
 async function retrieveWithFilteredFallback(
   query: VisaKnowledgeQuery,
-  matchCount: number
+  matchCount: number,
+  trace: VisaKnowledgeRequestTrace,
 ): Promise<VisaKnowledgeChunk[]> {
   const supabase = getSupabaseClient();
   let request = supabase
@@ -267,9 +260,25 @@ async function retrieveWithFilteredFallback(
     request = request.in("document_type", query.documentTypes);
   }
 
-  const { data, error } = await request;
+  visaKnowledgeCapacityMonitor.markExternalStart(trace, "rest");
+  let response: Awaited<typeof request>;
+  try {
+    response = query.signal
+      ? await request.abortSignal(query.signal)
+      : await request;
+  } catch (error) {
+    if (query.signal?.aborted) throw error;
+    visaKnowledgeCapacityMonitor.markExternalFailure(trace, "rest");
+    visaKnowledgeCapacityMonitor.markBetween(trace);
+    throw error;
+  }
+  const { data, error } = response;
+
+  throwIfRequestAborted(query.signal);
+  visaKnowledgeCapacityMonitor.markBetween(trace);
 
   if (error) {
+    visaKnowledgeCapacityMonitor.markExternalFailure(trace, "rest");
     logger.warn("Filtered knowledge fallback failed", error);
     return [];
   }
@@ -280,9 +289,11 @@ async function retrieveWithFilteredFallback(
     .filter((chunk): chunk is VisaKnowledgeChunk => chunk !== null);
 }
 
-export async function retrieveVisaKnowledge(
-  query: VisaKnowledgeQuery
+async function retrieveVisaKnowledgeInternal(
+  query: VisaKnowledgeQuery,
+  trace: VisaKnowledgeRequestTrace,
 ): Promise<VisaKnowledgeResult> {
+  throwIfRequestAborted(query.signal);
   const normalizedQuery = normalizeKnowledgeQuery(query);
   const cleanQuery = normalizedQuery.query.trim();
   if (!cleanQuery) {
@@ -293,20 +304,30 @@ export async function retrieveVisaKnowledge(
     };
   }
 
-  const matchCount = clampMatchCount(normalizedQuery.matchCount);
-  const minSimilarity = normalizedQuery.minSimilarity ?? DEFAULT_MIN_SIMILARITY;
-  const embedding = await getEmbedding(cleanQuery);
+  const retrievalPolicy = resolveVisaKnowledgeRetrievalPolicy({
+    matchCount: normalizedQuery.matchCount,
+    minSimilarity: normalizedQuery.minSimilarity,
+  });
+  const { matchCount, minSimilarity } = retrievalPolicy;
+  const embedding = await getEmbedding(
+    cleanQuery,
+    trace,
+    normalizedQuery.signal,
+  );
+  throwIfRequestAborted(normalizedQuery.signal);
   const intentQuery = withIntentDocumentTypes(normalizedQuery);
   const shouldRetryWithoutIntentDocumentTypes =
     !normalizedQuery.documentTypes?.length && Boolean(intentQuery.documentTypes?.length);
 
   if (embedding) {
+    let vectorSearchFailed = false;
     try {
       const chunks = await retrieveWithVectorSearch(
         intentQuery,
         embedding,
         matchCount,
-        minSimilarity
+        minSimilarity,
+        trace,
       );
       if (chunks.length > 0) {
         return {
@@ -317,11 +338,14 @@ export async function retrieveVisaKnowledge(
       }
 
       if (shouldRetryWithoutIntentDocumentTypes) {
+        throwIfRequestAborted(normalizedQuery.signal);
+        visaKnowledgeCapacityMonitor.markBroadFallback(trace, "vector");
         const broadChunks = await retrieveWithVectorSearch(
           normalizedQuery,
           embedding,
           matchCount,
-          minSimilarity
+          minSimilarity,
+          trace,
         );
         if (broadChunks.length > 0) {
           return {
@@ -332,14 +356,31 @@ export async function retrieveVisaKnowledge(
         }
       }
     } catch (error) {
+      if (normalizedQuery.signal?.aborted) {
+        throw requestAbortError(normalizedQuery.signal);
+      }
+      vectorSearchFailed = true;
       logger.warn("Vector knowledge retrieval failed", error as Error, {
         country: query.country,
         visaType: query.visaType,
       });
     }
+
+    if (!vectorSearchFailed) {
+      return {
+        chunks: [],
+        usedEmbedding: true,
+        fallbackReason: "no_similarity_match",
+      };
+    }
   }
 
-  const fallbackChunks = await retrieveWithFilteredFallback(intentQuery, matchCount);
+  throwIfRequestAborted(normalizedQuery.signal);
+  const fallbackChunks = await retrieveWithFilteredFallback(
+    intentQuery,
+    matchCount,
+    trace,
+  );
   if (fallbackChunks.length > 0) {
     return {
       chunks: fallbackChunks,
@@ -348,8 +389,12 @@ export async function retrieveVisaKnowledge(
     };
   }
 
+  throwIfRequestAborted(normalizedQuery.signal);
+  if (shouldRetryWithoutIntentDocumentTypes) {
+    visaKnowledgeCapacityMonitor.markBroadFallback(trace, "rest");
+  }
   const broadFallbackChunks = shouldRetryWithoutIntentDocumentTypes
-    ? await retrieveWithFilteredFallback(normalizedQuery, matchCount)
+    ? await retrieveWithFilteredFallback(normalizedQuery, matchCount, trace)
     : [];
   return {
     chunks: broadFallbackChunks,
@@ -361,6 +406,34 @@ export async function retrieveVisaKnowledge(
           ? "vector_search_failed"
           : "embedding_unavailable",
   };
+}
+
+export async function retrieveVisaKnowledge(
+  query: VisaKnowledgeQuery,
+): Promise<VisaKnowledgeResult> {
+  const trace = visaKnowledgeCapacityMonitor.start();
+  const startedAt = Date.now();
+  try {
+    const result = await retrieveVisaKnowledgeInternal(query, trace);
+    visaKnowledgeCapacityMonitor.finish(
+      trace,
+      "completed",
+      Date.now() - startedAt,
+      result.chunks.length === 0
+        ? "empty"
+        : result.usedEmbedding
+          ? "vector"
+          : "rest",
+    );
+    return result;
+  } catch (error) {
+    visaKnowledgeCapacityMonitor.finish(
+      trace,
+      query.signal?.aborted ? "aborted" : "failed",
+      Date.now() - startedAt,
+    );
+    throw error;
+  }
 }
 
 export function formatKnowledgeContext(chunks: VisaKnowledgeChunk[]): string {

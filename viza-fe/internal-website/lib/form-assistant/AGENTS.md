@@ -4,6 +4,10 @@ Scope: this file applies to `lib/form-assistant/**`.
 
 ## Responsibilities
 
+- `server-context.ts` must load the owned application and its applicant profile
+  through one PostgREST embedded relationship query on current schemas. Keep a
+  fail-closed compatibility fallback for old local schemas, and never cache
+  application or applicant ownership data.
 - `bootstrap.ts` decides whether a first-time supported form visit must create
   an application-scoped draft before the assistant can render. It must reuse
   existing drafts and require a non-empty DB-driven form schema.
@@ -76,16 +80,41 @@ Scope: this file applies to `lib/form-assistant/**`.
 - `validation-refresh.ts` guards automatic post-edit revalidation. A response
   may update the assistant and form only when both its request id and answer
   revision still match the latest snapshot.
+- `submission-readonly.ts` is the shared success-evidence gate for every form
+  assistant. Successful applications keep their saved conversation readable,
+  while all answer, confirmation, document, validation, and voice mutations
+  remain locked. Arrival cards and automated online products must retain their
+  stricter official evidence requirements.
 - Render assistant progress from the current merged form draft, not a previous
   assistant API response. Remote-search official selects are controlled by
   their product option endpoint and must not be rejected against a partial
   static fallback list.
+  Count and validate every visible repeat instance independently. Required
+  errors retain the `__N` answer key so navigation targets the incomplete row;
+  a completed first row must not hide a missing second-row answer.
+  DS-160 also requires `passport_expiration_date` strictly after
+  `passport_issuance_date`, matching the local form's date relationship gate.
 - Canonicalize saved/profile option labels to the schema's exact value before
   calculating missing fields, and re-read application answers immediately
   before choosing every next question so concurrent manual edits always win.
 - Knowledge sources and prompts must remain bound to the owned application's
   exact `country + visaType`. Never return the SGAC ICA fallback source for a
   different Singapore product or another country.
+- `knowledge.ts` may cache only public release/document/chunk metadata, keyed
+  by exact release plus normalized country and visa type. Active-release
+  success may be reused for at most five seconds; public content may be reused
+  for 60 seconds only while that gate remains active. Keep both layers bounded,
+  single-flight, negative/failure-retryable, and free of applicant, session,
+  answer, message, credential, or payment data.
+- `server-context.ts` shares the bounded `visa_form_fields` metadata cache with
+  the main form loader, keyed by resolved schema visa type and limited to a
+  60-second freshness window. Cache only non-empty public rows; failures and
+  empty reads must remain retryable, and each caller must rebuild deep-cloned
+  step objects so mutations cannot leak between requests.
+- After ownership is established, `server-context.ts` starts application
+  answers, applicant profile, and reusable-profile answer reads together.
+  Preserve application-answer precedence and the legacy missing-`source`
+  fallback; never cache these applicant-scoped values.
 - Networks that require an outbound HTTPS proxy may set
   `OPENAI_FORM_ASSISTANT_PROXY_URL` (or `HTTPS_PROXY`). Keep the request origin
   on official `api.openai.com` so TLS verification remains intact.
@@ -98,6 +127,7 @@ Run from `viza-fe/internal-website`:
 npx vitest run lib/form-assistant/document-extraction-policy.test.ts
 npx vitest run lib/form-assistant/bootstrap.test.ts
 npx vitest run lib/form-assistant/constants.test.ts
+npx vitest run lib/form-assistant/knowledge.test.ts
 npx vitest run lib/form-assistant/review-issues.test.ts
 npx vitest run lib/form-assistant/service.test.ts
 npm run qa:audit-schema-ui -- --summary --assistant

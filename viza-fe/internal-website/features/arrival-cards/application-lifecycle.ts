@@ -3,6 +3,7 @@ import {
   isKoreaEArrivalCardApplication,
 } from "@/lib/submission-queue";
 import { normalizeKoreaIssueNumber } from "@/features/kr-arrival-card/official-reference";
+import { getAutomatedOnlineSubmissionEvidence } from "@/lib/submission-result-evidence";
 
 export interface ArrivalCardApplicationLifecycleInput {
   country: string | null | undefined;
@@ -21,6 +22,11 @@ export function hasSuccessfulArrivalCardSubmission(
   if (!isDigitalArrivalCardApplication(input.country, input.visaType)) return false;
   const result = input.submissionResult;
   if (!result || typeof result !== "object" || Array.isArray(result)) return false;
+
+  if ((input.visaType ?? "").trim().toUpperCase() === "JP_VISIT_JAPAN_WEB") {
+    return getAutomatedOnlineSubmissionEvidence(result, input.visaType).qrReady;
+  }
+
   const record = result as Record<string, unknown>;
   if (record.status !== "submitted" || record.submitted !== true) return false;
 

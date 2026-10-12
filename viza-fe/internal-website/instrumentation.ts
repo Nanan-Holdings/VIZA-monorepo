@@ -17,6 +17,10 @@ const dynamicRequire: (specifier: string) => Promise<unknown> = (specifier) =>
   new Function("s", "return import(s)")(specifier) as Promise<unknown>;
 
 export async function register(): Promise<void> {
+  if (process.env.NEXT_RUNTIME === "nodejs" && process.env.VIZA_PORTAL_READ_METRICS === "true") {
+    const { startPortalReadRuntimeMetrics } = await import("./lib/observability/portal-read");
+    startPortalReadRuntimeMetrics();
+  }
   const opts = buildSentryInitOptions();
   if (!opts.dsn) {
     // No DSN — leave Sentry uninitialised so dev runs are quiet.
@@ -36,7 +40,7 @@ export async function register(): Promise<void> {
       };
       mod.init(opts as Record<string, unknown>);
     }
-  } catch (err) {
-    console.error("[sentry] failed to init:", err instanceof Error ? err.message : String(err));
+  } catch {
+    console.error("[sentry] initialization_failed");
   }
 }

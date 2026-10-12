@@ -1,6 +1,5 @@
 import { listAdminTickets } from "@/app/actions/admin-cs";
 import { CsQueueClient } from "./_components/CsQueueClient";
-import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +23,9 @@ export default async function AdminCsPage({
           </a>
         </header>
         {error ? (
-          <Alert variant="destructive"><AlertIcon variant="destructive" /><AlertDescription>{error}</AlertDescription></Alert>
+          <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+            {error}
+          </p>
         ) : (
           <CsQueueClient initialTab={tab} initialRows={rows ?? []} />
         )}

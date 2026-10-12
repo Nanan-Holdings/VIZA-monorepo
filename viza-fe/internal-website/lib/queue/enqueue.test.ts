@@ -238,7 +238,7 @@ describe("runner pool enqueue wake transport", () => {
     expect(result.workerTriggered).toBe(true);
   });
 
-  it("blocks enqueue when the exact application has no ready payment entitlement", async () => {
+  it("enqueues an application without a payment entitlement", async () => {
     configureAdmin({}, undefined, undefined, null, null, {
       entitlement: {
         decision_status: "payment_required",
@@ -252,12 +252,10 @@ describe("runner pool enqueue wake transport", () => {
 
     await expect(
       enqueueRunnerPoolJob("app-unpaid", "vietnam", "vn_prearrival"),
-    ).rejects.toThrow("application_payment_required");
-    expect(enqueueRunnerJobWakeMock).not.toHaveBeenCalled();
-    expect(wakeCloudSubmissionWorkerMock).not.toHaveBeenCalled();
+    ).resolves.toMatchObject({ id: "job-1", created: true });
   });
 
-  it("blocks enqueue when a ready entitlement has lost its paid evidence", async () => {
+  it("does not gate enqueue on historical refund evidence", async () => {
     configureAdmin({}, undefined, undefined, null, null, {
       entitlement: {
         decision_status: "ready",
@@ -271,8 +269,7 @@ describe("runner pool enqueue wake transport", () => {
 
     await expect(
       enqueueRunnerPoolJob("app-refunded", "vietnam", "vn_prearrival"),
-    ).rejects.toThrow("application_payment_review_required");
-    expect(enqueueRunnerJobWakeMock).not.toHaveBeenCalled();
+    ).resolves.toMatchObject({ id: "job-1", created: true });
   });
 
   it("reuses the bounded runner_pool_depth capacity policy", async () => {

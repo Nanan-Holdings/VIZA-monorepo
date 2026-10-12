@@ -419,6 +419,20 @@ describe("application completeness", () => {
     });
   });
 
+  it("keeps fallback parent validation labels bilingual when schema context is unavailable", () => {
+    const result = computeApplicationCompleteness({
+      steps: [],
+      answers: { kin_father_status: "1" },
+      requirements: [],
+      documents: [],
+      country: "taiwan",
+      visaType: "TW_ENTRY_PERMIT",
+    });
+    const name = result.missingInfo.find((item) => item.fieldName === "kin_father_name");
+    expect(name).toMatchObject({ labelEn: "Father — Name", labelZh: "父亲 — 姓名" });
+    expect(result.missingInfo.every((item) => !/\p{Script=Han}/u.test(item.labelEn))).toBe(true);
+  });
+
   it("allows a real English student school name and completed triggered Taiwan fields", () => {
     const result = computeApplicationCompleteness({
       steps: twApplicantAndKinshipSteps(),

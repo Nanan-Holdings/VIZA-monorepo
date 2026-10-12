@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GET as getTravelHealth } from "@/app/api/travel/health/route";
-import { forwardJsonToTravelBackend } from "@/lib/travel/backend";
 
 const activeHealthRequest = () =>
   new Request("http://127.0.0.1:3000/api/travel/health");
@@ -18,13 +17,17 @@ describe("travel service health boundaries", () => {
     vi.stubEnv("TRAVEL_BACKEND_URL", "http://travel-service.test");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://supabase.test/");
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "test-service-role-key");
-    vi.stubEnv("CLIENT_SESSION_SECRET", "test-client-session-secret-that-is-long-enough");
+    vi.stubEnv(
+      "CLIENT_SESSION_SECRET",
+      "test-client-session-secret-that-is-long-enough"
+    );
     vi.stubGlobal(
       "fetch",
-      vi.fn(async (url: RequestInfo | URL) =>
-        new Response("", {
-          status: String(url).includes("travel-service.test") ? 503 : 200,
-        })
+      vi.fn(
+        async (url: RequestInfo | URL) =>
+          new Response("", {
+            status: String(url).includes("travel-service.test") ? 503 : 200,
+          })
       )
     );
 
@@ -82,6 +85,69 @@ describe("travel service health boundaries", () => {
     });
   });
 
+  it("retries a transient Travel session database failure before reporting it unavailable", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "test-openai-key");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://supabase.test/");
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "test-service-role-key");
+    vi.stubEnv(
+      "CLIENT_SESSION_SECRET",
+      "test-client-session-secret-that-is-long-enough"
+    );
+    let databaseAttempts = 0;
+    const fetchMock = vi.fn(async (url: RequestInfo | URL) => {
+      if (String(url).includes("/rest/v1/travel_agent_sessions")) {
+        databaseAttempts += 1;
+        return new Response("", { status: databaseAttempts === 1 ? 503 : 200 });
+      }
+      return new Response("", { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await getTravelHealth(
+      new Request("http://127.0.0.1:3000/api/travel/health?probe=passive")
+    );
+    const payload = await response.json();
+
+    expect(databaseAttempts).toBe(2);
+    expect(payload.services.sessionDatabase).toEqual({
+      configured: true,
+      reachable: true,
+    });
+    expect(payload.ok).toBe(true);
+  });
+
+  it("reports the Travel session database unavailable after bounded retries are exhausted", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://supabase.test/");
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "test-service-role-key");
+    vi.stubEnv(
+      "CLIENT_SESSION_SECRET",
+      "test-client-session-secret-that-is-long-enough"
+    );
+    let databaseAttempts = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: RequestInfo | URL) => {
+        if (String(url).includes("/rest/v1/travel_agent_sessions")) {
+          databaseAttempts += 1;
+          return new Response("", { status: 503 });
+        }
+        return new Response("", { status: 200 });
+      })
+    );
+
+    const response = await getTravelHealth(
+      new Request("http://127.0.0.1:3000/api/travel/health?probe=passive")
+    );
+    const payload = await response.json();
+
+    expect(databaseAttempts).toBe(3);
+    expect(payload.services.sessionDatabase).toEqual({
+      configured: true,
+      reachable: false,
+    });
+    expect(payload.ok).toBe(false);
+  });
+
   it("does not contact OpenAI during the passive page-load health check", async () => {
     vi.stubEnv("OPENAI_API_KEY", "test-openai-key");
     vi.stubEnv("TRAVEL_BACKEND_URL", "http://travel-service.test");
@@ -113,7 +179,10 @@ describe("travel service health boundaries", () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://supabase.test/");
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "test-service-role-key");
     vi.stubEnv("CLIENT_SESSION_SECRET", "short");
-    vi.stubGlobal("fetch", vi.fn(async () => new Response("", { status: 200 })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("", { status: 200 }))
+    );
 
     const payload = await (await getTravelHealth(activeHealthRequest())).json();
 
@@ -121,50 +190,6 @@ describe("travel service health boundaries", () => {
     expect(payload.services.clientSession).toEqual({
       configured: false,
       reachable: false,
-    });
-  });
-});
-
-describe("travel service proxy authentication", () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-    vi.unstubAllEnvs();
-    vi.unstubAllGlobals();
-  });
-
-  it("forwards the server-only internal token when configured", async () => {
-    vi.stubEnv("TRAVEL_BACKEND_URL", "http://travel-service.test");
-    vi.stubEnv("TRAVEL_SERVICE_TOKEN", "travel-secret");
-    const fetchMock = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) =>
-      new Response("{}", { status: 200 })
-    );
-    vi.stubGlobal("fetch", fetchMock);
-
-    await forwardJsonToTravelBackend("/generate", { cities: ["Tokyo"] });
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      "http://travel-service.test/generate",
-      expect.objectContaining({
-        headers: {
-          "Content-Type": "application/json",
-          "x-internal-token": "travel-secret",
-        },
-      })
-    );
-  });
-
-  it("does not add an empty internal token header", async () => {
-    vi.stubEnv("TRAVEL_BACKEND_URL", "http://travel-service.test");
-    vi.stubEnv("TRAVEL_SERVICE_TOKEN", "");
-    const fetchMock = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) =>
-      new Response("{}", { status: 200 })
-    );
-    vi.stubGlobal("fetch", fetchMock);
-
-    await forwardJsonToTravelBackend("/generate", {});
-
-    expect(fetchMock.mock.calls[0]?.[1]?.headers).toEqual({
-      "Content-Type": "application/json",
     });
   });
 });

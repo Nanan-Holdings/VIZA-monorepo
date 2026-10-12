@@ -1,3 +1,31 @@
+# Payments removed — 2026-09-15
+
+VIZA no longer collects fees, sells paid subscriptions, binds payment methods,
+issues payment cards, executes official-fee payments, or gates submissions on
+commercial payment evidence. Applications proceed through ownership, consent,
+document, and submission checks. An unavoidable official-portal fee remains an
+honest needs-attention checkpoint; it is never marked paid automatically.
+
+Historical financial rows and immutable migrations remain for audit continuity.
+Retired payment HTTP routes return 410; old payment pages redirect to the portal.
+The historical design below is superseded and must not be implemented.
+
+## Production rollout completed — 2026-09-15
+
+- Portal: `app.viza.it.com`, deployment `dpl_2HD5ryR4WH3BZwXvjHC1AUMvw76T`.
+- Agent backend: release commit `a81ecd323520c232041d703d2710888e5992d2e1`.
+- Supabase migration: `20260915194928_disable_payment_execution`; all five
+  financial RPC signatures are disabled, payment triggers are absent, and
+  historical entitlement records are retained.
+- All 13 production Fly machines use the `payment-removed-20260915-*` images.
+  Each existing source baseline and machine configuration was preserved.
+  All four apps passed readiness and retired payment-route checks; smoke
+  machines exited after the existing idle timeout.
+- France appointment card fields and France/Japan payment-session callers
+  are removed, including the historical France dry-run confirmation surface.
+
+---
+
 # ADR-PAY-008: Link commercial collection, treasury funding, and government-fee card issuance
 
 **Status:** Accepted; expanded by the 2026-08-15 product decision below

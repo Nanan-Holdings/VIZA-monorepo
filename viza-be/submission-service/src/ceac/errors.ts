@@ -15,7 +15,9 @@ export type CeacErrorCode =
   | "VALIDATION_FAILED"
   | "SESSION_BOOTSTRAP_FAILED"
   | "GATE_DETECTED"
-  | "MANUAL_ACTION_REQUIRED";
+  | "MANUAL_ACTION_REQUIRED"
+  | "DS160_REVIEW_UNVERIFIED"
+  | "DS160_REVIEW_MISMATCH";
 
 export interface CeacErrorContext {
   /** The page identity the worker expected to be on. */
@@ -148,6 +150,48 @@ export class ManualActionRequiredError extends CeacError {
     this.name = "ManualActionRequiredError";
     this.actionType = actionType;
     this.instruction = instruction;
+  }
+}
+
+export type OfficialReviewVerificationStatus = "failed" | "unverified";
+
+/**
+ * Raised when the official Review page cannot be proven to match the values
+ * filled in the current CEAC run. This is deterministic pre-sign evidence,
+ * not a transport failure: replaying the same captured draft cannot repair it.
+ * Keep the context value-free; the private review diff artifact carries the
+ * field-level evidence for operators.
+ */
+export class OfficialReviewVerificationError extends CeacError {
+  readonly reviewStatus: OfficialReviewVerificationStatus;
+  readonly issueCount: number;
+
+  constructor(
+    reviewStatus: OfficialReviewVerificationStatus,
+    issueCount: number,
+    context: CeacErrorContext = {},
+  ) {
+    const normalizedIssueCount = Number.isFinite(issueCount)
+      ? Math.max(0, Math.floor(issueCount))
+      : 0;
+    const code = reviewStatus === "unverified"
+      ? "DS160_REVIEW_UNVERIFIED"
+      : "DS160_REVIEW_MISMATCH";
+    super(
+      code,
+      `DS-160 official review comparison ${reviewStatus}: ${normalizedIssueCount} field(s) require verification before signing.`,
+      {
+        ...context,
+        details: {
+          ...(context.details ?? {}),
+          reviewStatus,
+          issueCount: normalizedIssueCount,
+        },
+      },
+    );
+    this.name = "OfficialReviewVerificationError";
+    this.reviewStatus = reviewStatus;
+    this.issueCount = normalizedIssueCount;
   }
 }
 

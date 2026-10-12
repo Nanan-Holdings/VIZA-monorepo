@@ -56,10 +56,6 @@ export function selectJapanAppointmentSlot(jobId: string, slotId: string) {
   return request<JapanAppointmentSnapshot>(`/api/japan-appointment/jobs/${jobId}/slots/${slotId}/select`, { method: "POST" });
 }
 
-export function recordJapanAppointmentPayment(jobId: string, input: { card: { pan: string; expiry: string; cvv: string; holderName: string } }) {
-  return request<JapanAppointmentSnapshot>(`/api/japan-appointment/jobs/${jobId}/payment-session`, { method: "POST", body: JSON.stringify(input) });
-}
-
 export function approveJapanAppointmentFinal(jobId: string) {
   return request<JapanAppointmentSnapshot>(`/api/japan-appointment/jobs/${jobId}/approve-final-confirmation`, { method: "POST" });
 }

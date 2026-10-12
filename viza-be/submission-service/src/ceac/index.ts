@@ -19,6 +19,7 @@ export {
 
 export {
   detectPage,
+  isOfficialDs160ConfirmationPage,
   assertPage,
   waitForPage,
   type CeacPageId,
@@ -36,7 +37,9 @@ export {
 } from "./start-page-navigation";
 
 export {
+  Ds160ProofConsularPostRequiredError,
   resolveCeacStartLocationCode,
+  resolveDs160ProofStartLocationCode,
 } from "./start-location";
 
 export {
@@ -170,6 +173,7 @@ export {
 export {
   handleConfirmApplicationPage,
   type ConfirmApplicationOptions,
+  type ConfirmApplicationCheckpoint,
   type ConfirmApplicationResult,
 } from "./confirm-application";
 
@@ -180,19 +184,71 @@ export {
 } from "./final-submit";
 
 export {
+  applyExplicitPreparerAnswer,
+  assertDs160PreparerAnswers,
+  fillVerifiedPassportSignature,
+  type Ds160PreparerAnswers,
+} from "./signature-fields";
+
+export {
+  createDs160FinalSubmissionGuard,
+  hashSensitive,
+  type Ds160FinalSubmissionGuard,
+  type FinalSubmissionEvidence,
+  type FinalSubmissionGuardDecision,
+  type FinalSubmissionGuardInspection,
+  type FinalSubmissionRpcClient,
+  type FinalSubmissionRpcResponse,
+  type CreateDs160FinalSubmissionGuardOptions,
+} from "./final-submission-guard";
+
+export {
   fillRetrieveApplicationForm,
   retrievalUrlFor,
   type RecoveryCredentials,
 } from "./resume-application";
 
 export {
+  assertRecoveredDs160Application,
+  RECOVERABLE_DS160_PAGE_IDS,
+  type RecoveredDs160LandingOptions,
+} from "./recovered-application";
+
+export {
   mergeUsProofStoragePaths,
   waitForDs160ConfirmationPage,
+  ensureEnglishDs160Confirmation,
+  printOfficialDs160Confirmation,
+  prepareEnglishDs160ConfirmationCapture,
+  Ds160EnglishConfirmationError,
   type Ds160ProofStoragePaths,
 } from "./proof-artifacts";
 
 export {
+  sendOfficialDs160ConfirmationEmail,
+  Ds160ConfirmationEmailError,
+  type Ds160ConfirmationEmailCode,
+  type Ds160ConfirmationEmailDiagnostics,
+  type Ds160ConfirmationEmailNetworkEvent,
+  type Ds160ConfirmationEmailOptions,
+  type Ds160ConfirmationEmailResult,
+} from "./confirmation-email";
+
+export {
   selectDs160PhotoDocument,
+  resolveDs160PhotoDocument,
+  DS160_PHOTO_DOCUMENT_TYPES,
+  DS160_REUSABLE_PROFILE_PHOTO_STATUSES,
   buildPhotoFileFromDownloadedDocument,
   isDs160PhotoDocument,
 } from "./photo-document";
+
+export {
+  assertDs160PhotoFile,
+  validateDs160PhotoBytes,
+  Ds160PhotoPreflightError,
+  DS160_PHOTO_MAX_BYTES,
+  DS160_PHOTO_MIN_DIMENSION,
+  DS160_PHOTO_MAX_DIMENSION,
+  type Ds160PhotoValidationReason,
+} from "./photo-preflight";

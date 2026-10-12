@@ -82,13 +82,13 @@ function toResolvedAddress(place: GoogleAddressPlace): ResolvedAddress {
 }
 
 export async function POST(request: Request) {
-  // Paid Google Places proxy used by address autofill in the application form
-  // (authenticated and guest funnel); guest-safe defense-in-depth. (SEC-API-TRANSLATE-PROXY-01)
+  // Paid Google Places proxy reachable from the application form; same abuse
+  // guard as the other Places routes.
   const blocked = guardApiAbuse(request, {
     routeKey: "places-resolve-address",
-    limit: 90,
+    limit: 60,
     windowMs: 60_000,
-    maxBytes: 16 * 1024,
+    maxBytes: 8 * 1024,
   });
   if (blocked) return blocked;
 

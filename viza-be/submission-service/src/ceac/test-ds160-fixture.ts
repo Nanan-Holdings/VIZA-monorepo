@@ -158,12 +158,18 @@ export const TEST_DS160_ANSWERS: Record<string, string> = {
   primary_phone: "442079251234",
   mobile_phone_na: "Y",
   work_phone_na: "Y",
+  // Synthetic value keeps the secondary-phone mapping covered without using
+  // applicant data. The empty companion means the official NA checkbox is
+  // left unselected on this positive-path fixture.
+  secondary_phone: "442079251235",
+  secondary_phone_na: "",
   has_other_phones: "no",
   email_address: "tester@example.com",
   has_other_emails: "no",
   has_social_media: "no",
   social_media_provider: "NONE",
   social_media_identifier: "N/A",
+  has_other_social_media: "no",
 };
 
 export const TEST_DS160_PROFILE = {

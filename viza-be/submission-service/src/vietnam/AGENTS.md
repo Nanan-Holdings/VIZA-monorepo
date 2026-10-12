@@ -1,5 +1,13 @@
 # Vietnam Submission Runner Agent Guide
 
+Product policy (2026-09-15): payment execution has been removed.
+`src/payment-removed.ts` defines the unconditional retirement boundary.
+Card-session HTTP routes return 410; issuer and portal payment functions cannot
+spend or acquire cards, regardless of environment flags. Official fee checkpoints
+remain needs-attention states, never fabricated paid/submitted outcomes.
+Existing form filling, ownership/lease fences, consent, and browser cleanup remain.
+This supersedes historical payment pilot instructions below.
+
 Scope: this file applies to `viza-be/submission-service/src/vietnam/**`.
 
 ## Reference Implementation
@@ -76,10 +84,6 @@ Important patterns to mirror in the Playwright runner:
   without an official receipt/reference.
 - Preserve `validationErrors`, `fieldFallbacks`, CAPTCHA telemetry, trace, and
   final screenshot in the queue payload for frontend evidence and schema tuning.
-- At a verified official payment boundary, capture the redacted local evidence
-  before resolving any managed card. Boundary-only runs must return that typed
-  artifact without invoking card acquisition; keep this invariant covered by
-  `__tests__/payment-boundary.spec.ts`.
 - `country-options.ts` contains the alpha-3 country-name index used to normalize
   Vietnam e-Visa nationality answers before Ant Select filling. Keep it aligned
   with captured official/standard country option text when nationality dropdown

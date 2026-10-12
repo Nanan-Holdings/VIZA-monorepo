@@ -44,6 +44,70 @@ test("claim metric failures never mask an RPC claim error", async () => {
   assert.deepEqual(result, { jobsProcessed: 0, stoppedBecause: "claim_error" });
 });
 
+test("transient application row locks retry inside the same drain", async () => {
+  let claimCalls = 0;
+  let claimErrors = 0;
+  let healthyClaims = 0;
+  const result = await drainAndRun({
+    workerId: "worker-row-lock",
+    handler: async () => undefined,
+    claimLockRetryDelaysMs: [0, 0],
+    dependencies: {
+      client: {
+        rpc: async () => {
+          claimCalls += 1;
+          if (claimCalls <= 2) {
+            return {
+              data: null,
+              error: { message: 'could not obtain lock on row in relation "applications"' },
+            };
+          }
+          return { data: null, error: null };
+        },
+      },
+    },
+    onClaimError: () => {
+      claimErrors += 1;
+    },
+    onClaimHealthy: () => {
+      healthyClaims += 1;
+    },
+  });
+
+  assert.deepEqual(result, { jobsProcessed: 0, stoppedBecause: "empty" });
+  assert.equal(claimCalls, 3);
+  assert.equal(claimErrors, 0);
+  assert.equal(healthyClaims, 1);
+});
+
+test("transient application row lock retries are bounded", async () => {
+  let claimCalls = 0;
+  let claimErrors = 0;
+  const result = await drainAndRun({
+    workerId: "worker-row-lock-exhausted",
+    handler: async () => undefined,
+    claimLockRetryDelaysMs: [0, 0],
+    dependencies: {
+      client: {
+        rpc: async () => {
+          claimCalls += 1;
+          return {
+            data: null,
+            error: { message: 'could not obtain lock on row in relation "applications"' },
+          };
+        },
+      },
+    },
+    onClaimError: () => {
+      claimErrors += 1;
+    },
+  });
+
+  assert.deepEqual(result, { jobsProcessed: 0, stoppedBecause: "claim_error" });
+  assert.equal(claimCalls, 3);
+  assert.equal(claimErrors, 1);
+});
+
 test("a claimed job emits claimed latency before normal settlement", async () => {
   const metrics: Array<Record<string, unknown>> = [];
   const job = {

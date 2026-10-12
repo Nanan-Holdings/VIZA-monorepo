@@ -1,20 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowRight,
   CircleNotch as Loader2,
   Plus,
+  WarningCircle as CircleAlert,
 } from "@phosphor-icons/react";
 import { useLocale, useTranslations } from "next-intl";
-import { useClientApplicationStatuses } from "@/lib/client/portal-data";
+import { getClientApplicationStatuses } from "@/app/actions/client-application-status";
 import type { StatusApplication } from "@/app/client/status/status-data";
 import { buildApplicationLongFormHref } from "@/lib/client/recent-application-form";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ClientErrorAlert } from "@/components/client/client-error-alert";
-import { useRouteReady } from "@/lib/client/route-perf";
 
 const LONG_FORM_PATH = "/client/application/long-form";
 const DESTINATIONS_PATH = "/client/destinations";
@@ -52,24 +51,33 @@ export default function ApplicationChooserPage() {
     searchParams?.get("applicationId") || searchParams?.get("country"),
   );
 
-  // Shared with Home and Status: a return visit renders the list already in
-  // memory and refreshes it behind the applicant instead of showing skeletons.
-  const {
-    data: statuses,
-    error: statusError,
-  } = useClientApplicationStatuses({ enabled: !hasExplicitTarget });
-  const applications: StatusApplication[] | null = useMemo(
-    () => (statuses ? statuses.applications : statusError ? [] : null),
-    [statuses, statusError],
-  );
-  const failed = Boolean(statusError);
-  useRouteReady(applications !== null);
+  const [applications, setApplications] = useState<StatusApplication[] | null>(null);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     if (hasExplicitTarget) {
       router.replace(`${LONG_FORM_PATH}${query ? `?${query}` : ""}`);
     }
   }, [hasExplicitTarget, query, router]);
+
+  useEffect(() => {
+    if (hasExplicitTarget) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const result = await getClientApplicationStatuses();
+        if (!cancelled) setApplications(result.applications);
+      } catch {
+        if (!cancelled) {
+          setFailed(true);
+          setApplications([]);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [hasExplicitTarget]);
 
   const resumable = useMemo(
     () => (applications ?? []).filter((application) => RESUMABLE_STATES.has(application.state)),
@@ -109,7 +117,15 @@ export default function ApplicationChooserPage() {
         </div>
       ) : (
         <>
-          {failed ? <ClientErrorAlert className="mt-6" message={t("loadFailed")} /> : null}
+          {failed && (
+            <p
+              role="alert"
+              className="mt-6 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-[14px] text-amber-900"
+            >
+              <CircleAlert className="h-4 w-4 shrink-0" aria-hidden="true" />
+              {t("loadFailed")}
+            </p>
+          )}
 
           {resumable.length > 0 && (
             <section className="mt-8">

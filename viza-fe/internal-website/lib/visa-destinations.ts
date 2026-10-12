@@ -1,5 +1,4 @@
 import { matchesSearchText, normalizeSearchText } from "@/lib/utils";
-import { visaFormSchemaVisaTypesMatch } from "@/lib/visa-form-schema-aliases";
 
 export type PopularVisaDestination = {
   id: string;
@@ -18,13 +17,6 @@ export type PopularVisaDestination = {
   href?: string;
   countryCount?: number;
   searchAliases?: string[];
-  /**
-   * Extra country names this entry stands in for, matched exactly like
-   * `countryName` (no minimum query length). Group cards that collapse many
-   * countries -- the Schengen Area card -- use this so searching "France" or
-   * "法国" still finds the group that leads to that country.
-   */
-  countryAliases?: string[];
   /** False for legacy catalogue rows that must remain displayable in history but not recommended. */
   recommendable?: boolean;
 };
@@ -66,7 +58,6 @@ export function matchesVisaDestinationSearch(
     : [];
   return matchesSearchText(normalizedSearch, [
     isChinese ? destinationItem.countryNameZh : destinationItem.countryName,
-    ...(destinationItem.countryAliases ?? []),
     ...productCandidates,
   ]);
 }
@@ -160,11 +151,6 @@ export const SCHENGEN_VISA_DESTINATIONS: PopularVisaDestination[] = sortDestinat
   schengenDestination("sweden", "Sweden", "瑞典", "🇸🇪"),
   schengenDestination("switzerland", "Switzerland", "瑞士", "🇨🇭"),
 ]);
-
-/** Country codes covered by the single Schengen Area group card. */
-const SCHENGEN_COUNTRY_CODES = new Set(
-  SCHENGEN_VISA_DESTINATIONS.map((destinationItem) => destinationItem.country),
-);
 
 export const NON_SCHENGEN_VISA_DESTINATIONS: PopularVisaDestination[] = sortDestinations([
   destination({
@@ -424,7 +410,7 @@ export const NON_SCHENGEN_VISA_DESTINATIONS: PopularVisaDestination[] = sortDest
     visaType: "KE_ETA",
     visaName: "Kenya Electronic Travel Authorisation (eTA)",
     visaNameZh: "电子旅行授权",
-    description: "Online Kenya eTA application with VIZA-managed official-fee payment and status tracking.",
+    description: "Online Kenya eTA application preparation and status tracking.",
     descriptionZh: "在线办理肯尼亚电子旅行授权；官方费用由 VIZA 按申请单独管理并跟踪申请结果。",
     flag: "🇰🇪",
     region: "Africa",
@@ -432,11 +418,10 @@ export const NON_SCHENGEN_VISA_DESTINATIONS: PopularVisaDestination[] = sortDest
     searchAliases: ["Kenya eTA", "Electronic Travel Authorisation", "etakenya"],
   }),
   destination({
-    id: "laos-tourist-evisa",
     country: "laos",
     countryName: "Laos",
     countryNameZh: "老挝",
-    visaType: "LA_TOURIST_E_VISA",
+    visaType: "tourist_evisa",
     visaName: "Tourist eVisa",
     visaNameZh: "旅游电子签证",
     description: "Tourist eVisa intake for short tourism visits.",
@@ -519,11 +504,10 @@ export const NON_SCHENGEN_VISA_DESTINATIONS: PopularVisaDestination[] = sortDest
     searchAliases: ["NZeTA", "NZTD", "New Zealand Traveller Declaration"],
   }),
   destination({
-    id: "oman-tourist-evisa",
     country: "oman",
     countryName: "Oman",
     countryNameZh: "阿曼",
-    visaType: "OM_TOURIST_E_VISA",
+    visaType: "tourist_evisa",
     visaName: "Tourist eVisa",
     visaNameZh: "旅游电子签证",
     description: "Tourist eVisa intake for Oman visitor travel.",
@@ -695,11 +679,10 @@ export const NON_SCHENGEN_VISA_DESTINATIONS: PopularVisaDestination[] = sortDest
     searchAliases: ["taiwan", "台湾", "entry permit", "COA", "入境许可证"],
   }),
   destination({
-    id: "tanzania-tourist-evisa",
     country: "tanzania",
     countryName: "Tanzania",
     countryNameZh: "坦桑尼亚",
-    visaType: "TZ_TOURIST_E_VISA",
+    visaType: "tourist_evisa",
     visaName: "Tourist eVisa",
     visaNameZh: "旅游电子签证",
     description: "Tourist eVisa intake for Tanzania visitor travel.",
@@ -819,11 +802,11 @@ export const SCHENGEN_GROUP_DESTINATION: PopularVisaDestination = {
   kind: "group",
   href: "/client/destinations/schengen",
   countryCount: SCHENGEN_VISA_DESTINATIONS.length,
-  countryAliases: SCHENGEN_VISA_DESTINATIONS.flatMap((destinationItem) => [
+  searchAliases: SCHENGEN_VISA_DESTINATIONS.flatMap((destinationItem) => [
     destinationItem.countryName,
     destinationItem.countryNameZh,
+    ...(destinationItem.searchAliases ?? []),
   ]),
-  searchAliases: ["Schengen", "Schengen Area", "申根", "申根区"],
 };
 
 const DESTINATION_REGION_INPUTS: Array<Omit<VisaDestinationRegionGroup, "destinationIds" | "href"> & { countries: string[] }> = [
@@ -1095,18 +1078,7 @@ export type VisaDestinationCountryGroup = {
  */
 export const VISA_DESTINATION_COUNTRY_GROUPS: VisaDestinationCountryGroup[] = (() => {
   const groups = new Map<string, VisaDestinationCountryGroup>();
-  const countryCards = [
-    // The 29 Schengen main-destination countries are deliberately absent: one
-    // shared Type C form behind 29 near-identical cards buried every other
-    // destination in the picker and in search results. The group card below
-    // carries their names as `countryAliases`, so searching a member country
-    // still surfaces it, and picking it drills into the Schengen list.
-    ...SELECTABLE_VISA_DESTINATIONS.filter(
-      (destinationItem) => !SCHENGEN_COUNTRY_CODES.has(destinationItem.country),
-    ),
-    SCHENGEN_GROUP_DESTINATION,
-  ];
-  for (const destinationItem of countryCards) {
+  for (const destinationItem of [...SELECTABLE_VISA_DESTINATIONS, SCHENGEN_GROUP_DESTINATION]) {
     const existing = groups.get(destinationItem.country);
     if (existing) {
       existing.destinations.push(destinationItem);
@@ -1346,17 +1318,15 @@ export function getDisplayVisaDestinationsForRegion(regionId: string): PopularVi
 }
 
 export function getPopularVisaDestinationByPackage(country: string, visaType: string): PopularVisaDestination | null {
-  const requestedCountry = getCanonicalVisaDestinationCountry(country);
-  const countryScopedMatch = SELECTABLE_VISA_DESTINATIONS.find((destinationItem) =>
-    destinationItem.country === requestedCountry &&
-    visaFormSchemaVisaTypesMatch(destinationItem.visaType, visaType, requestedCountry)
+  const formVisaType = getFormVisaType(visaType);
+  const normalizedVisaType = formVisaType.toLowerCase();
+  const normalizedCountry = getCanonicalApplicationProductCountryForVisaType(
+    country,
+    formVisaType.trim().toLowerCase(),
   );
-  if (countryScopedMatch) return countryScopedMatch;
-
-  const normalizedCountry = getCanonicalApplicationProductCountry(country, visaType);
-  return SELECTABLE_VISA_DESTINATIONS.find((destinationItem) =>
-    destinationItem.country === normalizedCountry &&
-    visaFormSchemaVisaTypesMatch(destinationItem.visaType, visaType, normalizedCountry)
+  return getIndexedValue(
+    VISA_DESTINATION_BY_PACKAGE_INDEX,
+    `${normalizedCountry}::${normalizedVisaType}`,
   ) ?? null;
 }
 
@@ -1434,6 +1404,101 @@ export function getFormVisaType(visaType: string): string {
   return visaType;
 }
 
+function normalizeCountryLookup(value: string): string {
+  return value.trim().toLowerCase().replace(/[\s/-]+/g, "_");
+}
+
+function normalizeCountryNameLookup(value: string): string {
+  return value.toLowerCase().replace(/[\s/-]+/g, "_");
+}
+
+function hasOwnProperty<T>(record: Readonly<Record<string, T>>, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(record, key);
+}
+
+function buildFirstValueIndex<T>(entries: readonly (readonly [string, T])[]): Readonly<Record<string, T>> {
+  const index = Object.create(null) as Record<string, T>;
+  for (const [key, value] of entries) {
+    if (!hasOwnProperty(index, key)) index[key] = value;
+  }
+  return Object.freeze(index);
+}
+
+function getIndexedValue<T>(index: Readonly<Record<string, T>>, key: string): T | undefined {
+  return hasOwnProperty(index, key) ? index[key] : undefined;
+}
+
+// The catalogue is static at runtime. Keep these lookup records frozen so
+// repeated status/home reads do not rescan every destination or recreate Sets.
+const VISA_DESTINATION_BY_PACKAGE_INDEX = buildFirstValueIndex<PopularVisaDestination>(
+  SELECTABLE_VISA_DESTINATIONS
+    .map((destinationItem) => [
+      `${destinationItem.country}::${getFormVisaType(destinationItem.visaType).toLowerCase()}`,
+      destinationItem,
+    ] as const),
+);
+
+const VISA_TYPE_DESTINATION_COUNTRY_INDEX = (() => {
+  const countriesByVisaType = new Map<string, Set<string>>();
+
+  for (const destinationItem of SELECTABLE_VISA_DESTINATIONS) {
+    if (destinationItem.kind === "group") continue;
+    const normalizedVisaType = getFormVisaType(destinationItem.visaType).trim().toLowerCase();
+    if (!normalizedVisaType) continue;
+
+    const countries = countriesByVisaType.get(normalizedVisaType) ?? new Set<string>();
+    countries.add(destinationItem.country);
+    countriesByVisaType.set(normalizedVisaType, countries);
+  }
+
+  const index = Object.create(null) as Record<string, string | null>;
+  for (const [visaType, countries] of countriesByVisaType) {
+    // A product may identify its country only when it is unambiguous.
+    index[visaType] = countries.size === 1 ? [...countries][0] ?? null : null;
+  }
+  return Object.freeze(index);
+})();
+
+const CANONICAL_COUNTRY_ALIASES = buildFirstValueIndex<string>([
+  ["america", "united_states"],
+  ["england", "united_kingdom"],
+  ["great_britain", "united_kingdom"],
+  ["u_k", "united_kingdom"],
+  ["uk", "united_kingdom"],
+  ["united_states_of_america", "united_states"],
+  ["us", "united_states"],
+  ["usa", "united_states"],
+  ["viet_nam", "vietnam"],
+  ["vn", "vietnam"],
+  ["越南", "vietnam"],
+  ["巴西", "brazil"],
+  ["brazil", "brazil"],
+  ["俄罗斯", "russia"],
+  ["russia", "russia"],
+]);
+
+const CANONICAL_COUNTRY_NAME_INDEX = buildFirstValueIndex<string>(
+  SELECTABLE_VISA_DESTINATIONS.flatMap((destinationItem) => [
+    [destinationItem.country, destinationItem.country] as const,
+    [normalizeCountryNameLookup(destinationItem.countryName), destinationItem.country] as const,
+    [normalizeCountryNameLookup(destinationItem.countryNameZh), destinationItem.country] as const,
+  ]),
+);
+
+function getVisaTypeDestinationCountryFromNormalizedVisaType(normalizedVisaType: string): string | null {
+  return getIndexedValue(VISA_TYPE_DESTINATION_COUNTRY_INDEX, normalizedVisaType) ?? null;
+}
+
+function getCanonicalApplicationProductCountryForVisaType(
+  country: string,
+  normalizedVisaType: string,
+): string {
+  return (
+    getVisaTypeDestinationCountryFromNormalizedVisaType(normalizedVisaType) ??
+    getCanonicalVisaDestinationCountry(country)
+  );
+}
+
 /**
  * Resolve a product code to its country only when the catalogue contains that
  * exact visa type for one country. Dedicated products such as Philippines
@@ -1443,67 +1508,34 @@ export function getFormVisaType(visaType: string): string {
 export function getVisaTypeDestinationCountry(visaType: string): string | null {
   const normalizedVisaType = getFormVisaType(visaType).trim().toLowerCase();
   if (!normalizedVisaType) return null;
-
-  const countries = new Set(
-    SELECTABLE_VISA_DESTINATIONS
-      .filter((destinationItem) => destinationItem.kind !== "group")
-      .filter(
-        (destinationItem) =>
-          getFormVisaType(destinationItem.visaType).trim().toLowerCase() ===
-          normalizedVisaType,
-      )
-      .map((destinationItem) => destinationItem.country),
-  );
-
-  return countries.size === 1 ? [...countries][0] : null;
+  return getVisaTypeDestinationCountryFromNormalizedVisaType(normalizedVisaType);
 }
 
 export function getCanonicalApplicationProductCountry(
   country: string,
   visaType: string,
 ): string {
-  return (
-    getVisaTypeDestinationCountry(visaType) ??
-    getCanonicalVisaDestinationCountry(country)
+  return getCanonicalApplicationProductCountryForVisaType(
+    country,
+    getFormVisaType(visaType).trim().toLowerCase(),
   );
 }
 
 export function getCanonicalVisaDestinationCountry(country: string): string {
-  const normalized = country.trim().toLowerCase().replace(/[\s/-]+/g, "_");
-  const aliases: Record<string, string> = {
-    america: "united_states",
-    england: "united_kingdom",
-    great_britain: "united_kingdom",
-    u_k: "united_kingdom",
-    uk: "united_kingdom",
-    united_states_of_america: "united_states",
-    us: "united_states",
-    usa: "united_states",
-    viet_nam: "vietnam",
-    vn: "vietnam",
-    越南: "vietnam",
-    巴西: "brazil",
-    brazil: "brazil",
-    俄罗斯: "russia",
-    russia: "russia",
-  };
-  if (aliases[normalized]) return aliases[normalized];
-
-  const destination = SELECTABLE_VISA_DESTINATIONS.find((destinationItem) => {
-    const normalizedCountryName = destinationItem.countryName.toLowerCase().replace(/[\s/-]+/g, "_");
-    const normalizedCountryNameZh = destinationItem.countryNameZh.toLowerCase().replace(/[\s/-]+/g, "_");
-    return (
-      destinationItem.country === normalized ||
-      normalizedCountryName === normalized ||
-      normalizedCountryNameZh === normalized
-    );
-  });
-
-  return destination?.country ?? normalized;
+  const normalized = normalizeCountryLookup(country);
+  return (
+    getIndexedValue(CANONICAL_COUNTRY_ALIASES, normalized) ??
+    getIndexedValue(CANONICAL_COUNTRY_NAME_INDEX, normalized) ??
+    normalized
+  );
 }
 
 export function getVisaDestinationKey(country: string, visaType: string): string {
-  return `${getCanonicalApplicationProductCountry(country, visaType)}::${getFormVisaType(visaType).toLowerCase()}`;
+  const formVisaType = getFormVisaType(visaType);
+  return `${getCanonicalApplicationProductCountryForVisaType(
+    country,
+    formVisaType.trim().toLowerCase(),
+  )}::${formVisaType.toLowerCase()}`;
 }
 
 /**

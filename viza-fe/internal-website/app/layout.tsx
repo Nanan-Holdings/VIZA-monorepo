@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Toaster } from "sonner";
+import { LocalizedToaster } from "@/components/localized-toaster";
 import { switzer, geist } from "./fonts";
 import { NextIntlClientProvider } from "next-intl";
-import { getLocale, getMessages } from "next-intl/server";
+import { getLocale } from "next-intl/server";
+import { LocaleMessagesProvider } from "@/i18n/client-provider";
 import { RuntimeAbortErrorGuard } from "@/components/runtime-abort-error-guard";
 import { RuntimeAbortErrorScript } from "@/components/runtime-abort-error-script";
 
@@ -18,7 +19,6 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const locale = await getLocale();
-  const messages = await getMessages();
 
   return (
     <html lang={locale}>
@@ -26,10 +26,12 @@ export default async function RootLayout({
         <RuntimeAbortErrorScript />
       </head>
       <body className={`${switzer.variable} ${geist.variable} font-sans antialiased`}>
-        <NextIntlClientProvider messages={messages}>
-          <RuntimeAbortErrorGuard />
-          {children}
-          <Toaster position="top-right" richColors closeButton />
+        <NextIntlClientProvider locale={locale} messages={null}>
+          <LocaleMessagesProvider locale={locale}>
+            <RuntimeAbortErrorGuard />
+            {children}
+            <LocalizedToaster />
+          </LocaleMessagesProvider>
         </NextIntlClientProvider>
       </body>
     </html>

@@ -112,6 +112,19 @@ describe("local-first destination contracts", () => {
     expect(getDropdownDestinationContracts().length).toBeGreaterThan(100);
   });
 
+  it("keeps every curated card image on the app-controlled travel route", () => {
+    for (const destination of getDropdownDestinationContracts()) {
+      expect(destination.coverImage?.imageUrl, `${destination.nameEn}:cover`).toMatch(
+        /^\/travel\//u
+      );
+      for (const attraction of destination.attractions) {
+        expect(attraction.image?.imageUrl, `${destination.nameEn}:${attraction.nameEn}`).toMatch(
+          /^\/travel\//u
+        );
+      }
+    }
+  });
+
   it("gives every dropdown destination at least ten map-ready attraction cards", () => {
     for (const destination of getDropdownDestinationContracts()) {
       expect(destination.attractions.length, destination.nameEn).toBeGreaterThanOrEqual(10);

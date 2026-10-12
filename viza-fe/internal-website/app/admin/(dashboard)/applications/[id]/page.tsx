@@ -67,31 +67,6 @@ interface RunnerJobRow {
   application_id: string;
 }
 
-interface OrderRow {
-  id: string;
-  status: string;
-  agency_fee_cents: number;
-  govt_fee_cents: number;
-  currency: string;
-  paid_at: string | null;
-  application_id: string;
-}
-
-interface SubmissionEntitlementRow {
-  application_id: string;
-  decision_status: "ready" | "payment_required" | "review_required";
-  access_level: "standard" | "high";
-  agency_fee_status: string;
-  agency_fee_amount_cents: number;
-  official_fee_status: string;
-  official_fee_amount_cents: number;
-  currency: string;
-  order_id: string | null;
-  government_fee_allocation_id: string | null;
-  decision_reason: string | null;
-  updated_at: string;
-}
-
 interface InboundRow {
   id: string;
   from_addr: string;
@@ -128,8 +103,6 @@ function localizeStatusText(status: string, locale: InterfaceLocale): string {
     failed: "失败",
     queued: "排队中",
     running: "运行中",
-    paid: "已付款",
-    refunded: "已退款",
   };
 
   return labels[status.toLowerCase()] ?? status.replaceAll("_", " ");
@@ -332,7 +305,6 @@ function PackageOverview({
               <dl className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <FieldValue label={copy.detail.assigned} value={formatAdminDateTime(pkg.assignedAt, locale, copy.common.notRecorded)} fallback={copy.common.notRecorded} />
                 <FieldValue label={copy.common.expires} value={pkg.expiresAt ? formatAdminDateTime(pkg.expiresAt, locale, copy.common.notRecorded) : copy.common.noExpiry} fallback={copy.common.notRecorded} />
-                <FieldValue label={copy.detail.price} value={pkg.priceLabel} fallback={copy.common.notRecorded} />
               </dl>
             </div>
           ))}
@@ -399,17 +371,14 @@ function ApplicationCard({
         </p>
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-[#7a7a7a]">{copy.detail.applicationCard.package}</p>
           <p className="mt-1 text-sm font-medium text-[#232323]">{application.visaPackage?.name || copy.common.noPackageLinked}</p>
         </div>
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-[#7a7a7a]">{copy.detail.applicationCard.paymentConsent}</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-[#7a7a7a]">{copy.status.consent[application.consent.state]}</p>
           <div className="mt-2 flex flex-wrap gap-2">
-            <StatusPill tone={getToneForState(application.payment.state)}>
-              {copy.status.payment[application.payment.state]}
-            </StatusPill>
             <StatusPill tone={getToneForState(application.consent.state)}>
               {copy.status.consent[application.consent.state]}
             </StatusPill>
@@ -497,7 +466,6 @@ function LiveSubmissionPanel({
         provider: "服务",
         checkpoint: "检查点",
         officialStatus: "官网状态",
-        paymentStatus: "付款状态",
         reference: "官方编号",
         openOfficial: "打开官网",
         actionRequired: "需要人工处理",
@@ -514,7 +482,6 @@ function LiveSubmissionPanel({
         provider: "Provider",
         checkpoint: "Checkpoint",
         officialStatus: "Official status",
-        paymentStatus: "Payment status",
         reference: "Official reference",
         openOfficial: "Open official site",
         actionRequired: "Action required",
@@ -563,7 +530,6 @@ function LiveSubmissionPanel({
                   <FieldValue label={text.provider} value={live.provider ?? "-"} fallback="-" />
                   <FieldValue label={text.checkpoint} value={live.liveCheckpoint ?? live.currentStage ?? "-"} fallback="-" />
                   <FieldValue label={text.officialStatus} value={live.officialStatus ?? "-"} fallback="-" />
-                  <FieldValue label={text.paymentStatus} value={live.paymentStatus ?? "-"} fallback="-" />
                   <FieldValue label={text.reference} value={live.officialReference ?? "-"} fallback="-" />
                 </dl>
 
@@ -713,10 +679,8 @@ export default async function AdminApplicantOverviewPage({ params, searchParams 
 
   const [
     { data: jobs },
-    { data: orders },
     inbound,
     { data: workItems },
-    { data: submissionEntitlements },
   ] = await Promise.all([
     appIds.length > 0
       ? admin
@@ -725,13 +689,6 @@ export default async function AdminApplicantOverviewPage({ params, searchParams 
           .in("application_id", appIds)
           .order("enqueued_at", { ascending: false })
           .limit(20)
-      : Promise.resolve({ data: [] }),
-    appIds.length > 0
-      ? admin
-          .from("order")
-          .select("id, status, agency_fee_cents, govt_fee_cents, currency, paid_at, application_id")
-          .in("application_id", appIds)
-          .order("created_at", { ascending: false })
       : Promise.resolve({ data: [] }),
     aliasEmailStr
       ? admin
@@ -749,22 +706,11 @@ export default async function AdminApplicantOverviewPage({ params, searchParams 
           .order("created_at", { ascending: false })
           .limit(50)
       : Promise.resolve({ data: [] }),
-    appIds.length > 0
-      ? admin
-          .from("application_submission_entitlements")
-          .select("application_id, decision_status, access_level, agency_fee_status, agency_fee_amount_cents, official_fee_status, official_fee_amount_cents, currency, order_id, government_fee_allocation_id, decision_reason, updated_at")
-          .in("application_id", appIds)
-      : Promise.resolve({ data: [] }),
   ]);
 
   const jobRows = (jobs ?? []) as RunnerJobRow[];
-  const orderRows = (orders ?? []) as OrderRow[];
   const inboundRows = (inbound.data ?? []) as InboundRow[];
   const workRows = (workItems ?? []) as AdminWorkItemRow[];
-  const entitlementRows = (submissionEntitlements ?? []) as SubmissionEntitlementRow[];
-  const entitlementByApplicationId = new Map(
-    entitlementRows.map((entitlement) => [entitlement.application_id, entitlement]),
-  );
   const documentLinks = new Map<string, string>();
   await Promise.all(
     applicant.applications.flatMap((application) =>
@@ -823,34 +769,6 @@ export default async function AdminApplicantOverviewPage({ params, searchParams 
   const caseDocuments = applicant.applications.flatMap((application) =>
     application.applicationDocuments.map((document) => ({ application, document })),
   );
-  const entitlementCopy = locale === "zh"
-    ? {
-        title: "提交付款资格",
-        description: "查看每个申请已锁定的 high access、服务费、官方费与结算证据。未生成报价的申请不会在这里提前锁定豁免。",
-        unquoted: "尚未生成最终提交报价",
-        standard: "普通权限",
-        high: "High access 已锁定",
-        agency: "VIZA 服务费",
-        official: "官方费",
-        order: "订单",
-        allocation: "官方费 allocation",
-        updated: "最近核对",
-        review: "人工复核原因",
-      }
-    : {
-        title: "Submission payment eligibility",
-        description: "Inspect the locked high-access decision, agency fee, official fee, and settlement evidence for each application. Unquoted applications do not lock a waiver early.",
-        unquoted: "Final-submission quote not generated",
-        standard: "Standard access",
-        high: "High access locked",
-        agency: "VIZA agency fee",
-        official: "Official fee",
-        order: "Order",
-        allocation: "Government allocation",
-        updated: "Last evaluated",
-        review: "Review reason",
-      };
-
   return (
     <div className="w-full space-y-6 p-4 sm:p-6 md:p-8 max-w-6xl mx-auto">
       <div>
@@ -880,71 +798,6 @@ export default async function AdminApplicantOverviewPage({ params, searchParams 
       <ApplicantProfile applicant={applicant} copy={copy} locale={locale} />
       <PackageOverview applicant={applicant} copy={copy} locale={locale} />
       <SupportItems applicant={applicant} copy={copy} />
-
-      <SectionPanel title={entitlementCopy.title} description={entitlementCopy.description}>
-        <div className="space-y-3">
-          {applicant.applications.map((application) => {
-            const entitlement = entitlementByApplicationId.get(application.id);
-            return (
-              <div key={application.id} className="rounded-xl border border-[#e6eaf0] bg-[#fafafa] p-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <p className="font-heading font-semibold text-[#232323]">
-                      {application.countryLabel} · {application.visaTypeLabel}
-                    </p>
-                    <p className="mt-1 font-mono text-xs text-[#8a94a3]">{shortenId(application.id)}</p>
-                  </div>
-                  {entitlement ? (
-                    <div className="flex flex-wrap gap-2">
-                      <StatusPill tone={entitlement.decision_status === "ready" ? "success" : entitlement.decision_status === "review_required" ? "danger" : "warning"}>
-                        {localizeStatusText(entitlement.decision_status, locale)}
-                      </StatusPill>
-                      <StatusPill tone={entitlement.access_level === "high" ? "brand" : "neutral"}>
-                        {entitlement.access_level === "high" ? entitlementCopy.high : entitlementCopy.standard}
-                      </StatusPill>
-                    </div>
-                  ) : (
-                    <StatusPill tone="neutral">{entitlementCopy.unquoted}</StatusPill>
-                  )}
-                </div>
-
-                {entitlement ? (
-                  <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-                    <FieldValue
-                      label={entitlementCopy.agency}
-                      value={`${localizeStatusText(entitlement.agency_fee_status, locale)} · ${(entitlement.agency_fee_amount_cents / 100).toFixed(2)} ${entitlement.currency}`}
-                      fallback="-"
-                    />
-                    <FieldValue
-                      label={entitlementCopy.official}
-                      value={`${localizeStatusText(entitlement.official_fee_status, locale)} · ${(entitlement.official_fee_amount_cents / 100).toFixed(2)} ${entitlement.currency}`}
-                      fallback="-"
-                    />
-                    <FieldValue
-                      label={entitlementCopy.order}
-                      value={entitlement.order_id ? shortenId(entitlement.order_id) : copy.common.notRecorded}
-                      fallback={copy.common.notRecorded}
-                    />
-                    <FieldValue
-                      label={entitlementCopy.allocation}
-                      value={entitlement.government_fee_allocation_id ? shortenId(entitlement.government_fee_allocation_id) : copy.common.notRecorded}
-                      fallback={copy.common.notRecorded}
-                    />
-                    <FieldValue
-                      label={entitlementCopy.updated}
-                      value={formatAdminDateTime(entitlement.updated_at, locale, copy.common.notRecorded)}
-                      fallback={copy.common.notRecorded}
-                    />
-                    {entitlement.decision_reason ? (
-                      <FieldValue label={entitlementCopy.review} value={entitlement.decision_reason} fallback="-" />
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
-            );
-          })}
-        </div>
-      </SectionPanel>
 
       <SectionPanel title={documentCopy.title} description={documentCopy.description}>
         {caseDocuments.length === 0 ? <p className="text-sm text-[#64748b]">{documentCopy.empty}</p> : (
@@ -1005,8 +858,7 @@ export default async function AdminApplicantOverviewPage({ params, searchParams 
                 <select name="kind" className="h-10 rounded-md border border-[#d7dce3] bg-white px-3 text-sm">
                   <option value="document_review">document review</option>
                   <option value="submission_action_required">submission action required</option>
-                  <option value="refund_or_dispute">refund or dispute</option>
-                  <option value="support_sla_risk">customer follow-up</option>
+                <option value="support_sla_risk">customer follow-up</option>
                   <option value="privacy_request">privacy request</option>
                 </select>
                 <input name="title" required placeholder={workCopy.taskTitle} className="h-10 rounded-md border border-[#d7dce3] bg-white px-3 text-sm" />
@@ -1030,7 +882,7 @@ export default async function AdminApplicantOverviewPage({ params, searchParams 
       <div className="pt-6 border-t border-[#e5e7eb] space-y-6">
         <h2 className="text-lg font-bold text-[#232323] tracking-tight">{copy.detail.diagnostics.title}</h2>
         
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-6">
           {/* Runner 任务执行追踪队列 */}
           <section className="bg-white rounded-lg border border-[#efefef] shadow-sm overflow-hidden">
             <div className="px-4 py-3 border-b bg-[#fafafa]">
@@ -1066,32 +918,6 @@ export default async function AdminApplicantOverviewPage({ params, searchParams 
             )}
           </section>
 
-          {/* 详细交易扣费订单 */}
-          <section className="bg-white rounded-lg border border-[#efefef] shadow-sm overflow-hidden">
-            <div className="px-4 py-3 border-b bg-[#fafafa]">
-              <h3 className="font-semibold text-sm text-[#232323]">{copy.detail.diagnostics.paymentOrders}</h3>
-            </div>
-            {orderRows.length === 0 ? (
-              <p className="p-6 text-sm text-[#9ca3af]">{copy.detail.diagnostics.noRecords}</p>
-            ) : (
-              <ul className="divide-y text-sm">
-                {orderRows.map((o) => (
-                  <li key={o.id} className="px-4 py-3 flex justify-between items-center">
-                    <div>
-                      <Link href={`/client/orders/${o.id}`} className="font-mono text-xs text-brand-500 hover:underline">
-                        {o.id.slice(0, 8)}
-                      </Link>
-                      <span className="ml-2 text-xs font-medium bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded">{localizeStatusText(o.status, locale)}</span>
-                      {appIds.length > 1 && <span className="block text-[11px] text-[#6b6b6b] mt-0.5">{copy.detail.diagnostics.app}: {shortenId(o.application_id)}</span>}
-                    </div>
-                    <span className="font-mono text-xs text-[#232323] font-semibold">
-                      {((o.agency_fee_cents + o.govt_fee_cents) / 100).toFixed(2)} {o.currency}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
         </div>
 
         {/* 专属别名电子邮箱日志 */}

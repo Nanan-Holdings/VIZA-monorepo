@@ -9,7 +9,12 @@ import { useLocale } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ApplicationFormInputGroup } from "@/components/ui/application-form-input";
+import { InputGroupInput } from "@/components/ui/input-group";
+import type { DateMinimumPrecision } from "@/lib/date-field-validation";
 import { cn } from "@/lib/utils";
+
+export type DatePickerMode = "full" | "month" | "year";
 
 interface ApplicationFormDatePickerProps {
   /** Date value serialized as YYYY-MM-DD. */
@@ -22,14 +27,30 @@ interface ApplicationFormDatePickerProps {
   displayFormat?: string;
   disabled?: boolean;
   forceWhiteBackground?: boolean;
+  /** Minimum precision allowed by the field schema. */
+  minimumDatePrecision?: DateMinimumPrecision;
+  /** Render a text control for an intentionally partial date. */
+  mode?: DatePickerMode;
 }
 
 function parseDateValue(value?: string): Date | undefined {
   const trimmed = value?.trim();
   if (!trimmed || !/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return undefined;
 
-  const date = new Date(`${trimmed}T00:00:00`);
-  return Number.isNaN(date.getTime()) ? undefined : date;
+  const [, year, month, day] = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed) ?? [];
+  const date = new Date(Number(year), Number(month) - 1, Number(day));
+  if (Number.isNaN(date.getTime())) return undefined;
+  return date.getFullYear() === Number(year)
+    && date.getMonth() === Number(month) - 1
+    && date.getDate() === Number(day)
+    ? date
+    : undefined;
+}
+
+function formatPartialDateInput(value: string | undefined, mode: Exclude<DatePickerMode, "full">): string {
+  const digits = (value ?? "").replace(/\D/g, "").slice(0, mode === "year" ? 4 : 6);
+  if (mode === "year" || digits.length <= 4) return digits;
+  return `${digits.slice(0, 4)}-${digits.slice(4)}`;
 }
 
 function ApplicationFormDatePicker({
@@ -41,6 +62,8 @@ function ApplicationFormDatePicker({
   displayFormat = "PPP",
   disabled = false,
   forceWhiteBackground = false,
+  minimumDatePrecision = "day",
+  mode,
 }: ApplicationFormDatePickerProps) {
   const [open, setOpen] = React.useState(false);
   const locale = useLocale();
@@ -49,6 +72,41 @@ function ApplicationFormDatePicker({
   const date = parseDateValue(value);
   const rawDisplayValue = value?.trim();
   const resolvedPlaceholder = placeholder ?? (resolvedLocale === "zh" ? "请选择日期" : "Pick a date");
+  const resolvedMode: DatePickerMode = mode ?? "full";
+
+  if (resolvedMode !== "full") {
+    const partialPlaceholder = resolvedMode === "year"
+      ? "YYYY"
+      : "YYYY-MM";
+    const partialAriaLabel = resolvedLocale === "zh"
+      ? resolvedMode === "year"
+        ? "请输入年份（月份和日期未知）"
+        : "请输入年份和月份（日期未知）"
+      : resolvedMode === "year"
+        ? "Enter year (month and day unknown)"
+        : "Enter year and month (day unknown)";
+
+    return (
+      <ApplicationFormInputGroup
+        className="h-12"
+        filled={Boolean(rawDisplayValue)}
+        forceWhiteBackground={forceWhiteBackground}
+        data-date-mode={resolvedMode}
+        data-date-precision={minimumDatePrecision}
+      >
+        <InputGroupInput
+          value={formatPartialDateInput(value, resolvedMode)}
+          onChange={(event) => onChange(formatPartialDateInput(event.target.value, resolvedMode))}
+          placeholder={partialPlaceholder}
+          aria-label={partialAriaLabel}
+          inputMode="numeric"
+          pattern={resolvedMode === "year" ? "[0-9]{4}" : "[0-9]{4}-[0-9]{2}"}
+          maxLength={resolvedMode === "year" ? 4 : 7}
+          disabled={disabled}
+        />
+      </ApplicationFormInputGroup>
+    );
+  }
 
   return (
     <Popover open={open} onOpenChange={setOpen}>

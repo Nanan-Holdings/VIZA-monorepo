@@ -1,0 +1,59 @@
+{
+  "schemaVersion": "ds160-companion-evidence/v1",
+  "scope": {
+    "visaClasses": [
+      "B1",
+      "B2"
+    ],
+    "officialPortal": "https://ceac.state.gov/GenNIV/",
+    "qaMode": "unsigned",
+    "officialParityVerified": false
+  },
+  "safetyBoundary": {
+    "applicantAnswersIncluded": false,
+    "applicantIdentifiersIncluded": false,
+    "realSubmittedApplicationModified": false,
+    "realSubmittedApplicationResubmitted": false,
+    "finalSignaturePerformedInThisQa": false,
+    "finalOfficialSubmissionPerformedInThisQa": false
+  },
+  "evidenceKind": "security5_saved_readback",
+  "source": {
+    "rawFile": "D:/Temp/ds160-security5-saved-readback-20260922.json",
+    "rawSha256": "7f42d34b37c16869bf4a440341503e3c388eb7c96e4e0d94e83ae609ddf6ba91",
+    "observedAt": "2026-09-22T19:19:53.238Z"
+  },
+  "finding": {
+    "page": "/GenNIV/General/complete/complete_securityandbackground5.aspx",
+    "heading": "Security and Background: Part 5",
+    "yesControls": [
+      {
+        "checked": true,
+        "id": "ctl00_SiteContentPlaceHolder_FormView1_rblChildCustody_0"
+      },
+      {
+        "checked": true,
+        "id": "ctl00_SiteContentPlaceHolder_FormView1_rblVotingViolation_0"
+      },
+      {
+        "checked": true,
+        "id": "ctl00_SiteContentPlaceHolder_FormView1_rblRenounceExp_0"
+      }
+    ],
+    "explanationIds": [
+      {
+        "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxChildCustody",
+        "nonempty": true
+      },
+      {
+        "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxVotingViolation",
+        "nonempty": true
+      },
+      {
+        "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxRenounceExp",
+        "nonempty": true
+      }
+    ],
+    "summary": "After leaving and re-entering Part 5, the three Yes controls remained checked and their explanations remained nonempty; no explanation text is included."
+  }
+}

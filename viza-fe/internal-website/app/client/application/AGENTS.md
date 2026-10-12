@@ -10,7 +10,9 @@ Keep `/client/application` as the authenticated visa application filling flow:
 2. The page loads or creates the matching draft application instead of assuming a single global active application.
 3. DB-driven forms render one entry column in the selected interface language.
    Chinese and English/official values stay synchronized internally and appear
-   together on the final read-only review in Chinese mode.
+   together on the final review in Chinese mode. Before submission, each
+   English/official value uses a bordered editor that preserves the Chinese
+   value and the official canonical data contract.
 4. Field-level AI help opens only from the `问 AI` button and should support the current field without taking over normal form interaction.
 5. Photo upload is handled inside the supporting-documents step; review,
    submit/status steps remain part of the same application progress.
@@ -32,24 +34,52 @@ Before changing this route, read:
 
 ## Key Files
 
+- `long-form/page.tsx` restores the tab-local pending patch before hydration,
+  keeps a separate persisted baseline, and drains recovered edits through the
+  ordered save queue. Cache scope lookup must remain stable across application
+  ID hydration so it does not retrigger initialization. Successful responses
+  update the persisted baseline while newer draft values remain visible.
+  `long-form/__tests__/page-orchestration.test.tsx` covers immediate reload,
+  failed-save recovery and A→B→A while B is still being saved.
+
+- DS-160 cross-section gates in `long-form/page.tsx` use a stable projection of
+  current draft nationality, repeated other nationalities, DOB, marital status,
+  travel-plan choice and stay units. Ordinary text edits keep sibling form props
+  stable. Derived UI refresh compares the previous draft, while persistence
+  compares saved answers: returning A→B→A must still refresh before autosave.
+  `long-form/__tests__/page-orchestration.test.tsx` exercises this distinction.
+
+- `long-form/use-content-alignment.ts` batches navigation alignment measurements
+  into animation frames and skips unchanged geometry before dispatching React
+  state. Portal DOM mutations must not trigger synchronous render loops.
+  `long-form/__tests__/content-alignment.test.tsx` covers repeated mutations,
+  resize updates and observer cleanup.
 - `page.tsx`: route entry and application flow coordinator. It resolves query params, loads draft application state, chooses DB-driven versus fallback steps, and appends supporting-documents/review/status steps.
+  The normal form-context action preloads answers for the exact returned
+  application to avoid a duplicate ownership/read round trip. Reuse those
+  answers only while the application ID still matches; a newly bootstrapped or
+  explicit team application must perform its own authorized answer read.
+- `long-form/submission-reconciliation.ts`: client-only, read-only recovery for
+  an ambiguous DS-160 enqueue response. It may confirm an existing queue or
+  result through the status endpoint, but must never issue a second enqueue.
 - `components/dynamic-step-form.tsx`: shared DB-driven localized form renderer, including hidden Chinese/English synchronization, field-level validation, repeat groups, keyboard undo/redo, and AI trigger buttons.
 - `components/dynamic-form-field.tsx`: primitive field renderer for text, textarea, date, select, country, radio, checkbox, phone, SSN, and upload-like fields.
 - `components/field-guidance-panel.tsx`: frontend panel for field-level AI help. It calls `POST /api/field-guidance` and must render plain, useful field guidance.
 - `components/client/form-assistant/form-filling-assistant.tsx`: reusable application-level assistant for DB-driven forms, including text/voice composer, progress, provenance notices, and final-check controls.
-- `components/application-steps/dynamic-review-step.tsx`: read-only review step for DB-driven forms.
+- `components/application-steps/dynamic-review-step.tsx`: bilingual review step
+  with guarded English/official-value editing before submission.
 - `app/client/application/_components/result-cards/submission-status-poll.ts`:
   bounded retry policy for final-step status polling. Network failures and
   retryable upstream responses must reconnect without marking the durable
   submission job failed or creating another submission.
+  `SubmissionStatusStep.tsx` applies the stable-snapshot 5–30 second backoff,
+  ignores heartbeat-only timestamp changes for that delay, pauses requests in
+  hidden tabs, and refreshes on visibility return. Component-level coverage
+  lives in `__tests__/SubmissionStatusStepPolling.test.tsx`; preserve late
+  result/QR updates and the existing terminal/retry rules.
 - `app/client/application/_components/result-cards/PostSubmissionInfoPanel.tsx`:
   shows customer-safe receipts/results and application updates only after the
   application has crossed a reliable submission boundary.
-- `app/client/application/_components/result-cards/SubmissionEvidenceGallery.tsx`:
-  renders application-scoped official-portal screenshots, including the first
-  official payment page reached before payment, through the authenticated
-  submission-artifact route. Never pass external URLs or another application's
-  storage objects into this gallery.
 - `app/actions/visa-form-fields.ts`: loads `visa_form_fields` rows and groups them into wizard steps.
 - `lib/application-schema-ui-contract.ts`: compiles the complete visa schema to
   canonical `/ui-components` controls and assigns one shared conditional panel
@@ -60,10 +90,55 @@ Before changing this route, read:
   and confirmation PDF artifacts are rendered as authenticated downloads.
   `UsResultCard.test.tsx` verifies that the completed DS-160 action requests a
   fresh application instead of being swallowed by completed-result idempotency.
+  `UsResultCard.tsx` keeps the submitted result read-only while retaining the
+  English official confirmation PDF download and the appointment next-step
+  link. It does not read or render official confirmation-email state and does
+  not enqueue or send email while the result card mounts or refreshes. The
+  proof API and historical email-recovery data remain available behind their
+  existing server boundaries.
+  `Ds160RecoveryResultCard.test.tsx` verifies that a recoverable DS-160
+  submission uses the parent save/validation callback with an explicit retry
+  intent, while the standalone card keeps the guarded API fallback and
+  localized failure message. A `portal_action_required` result may expose the
+  ordinary retry only after a successful manual-action read confirms there is
+  no pending task for that job. This retry reuses the saved draft, does not
+  bypass an official block, and never starts an automatic retry loop. Keep
+  form-validation failures on the “修改后重试”/“Retry after corrections” copy,
+  preserve retrieval-identity failures and real manual checkpoints, and treat
+  unreadable or malformed action responses as unknown rather than an empty
+  list.
+  `WaitingCardPolling.test.tsx` and `VnResultCardPolling.test.tsx` cover France
+  account and Vietnam official-fee reads: each effect allows one pending request
+  through response-body completion, owns its abort deadline, and cancels on
+  cleanup. Preserve hidden-tab pauses, existing retry delays, and terminal rules.
 - `app/client/application/long-form/__tests__/submit-navigation.test.ts` guards
   the shared submit interaction: successful and in-progress submissions keep
   the applicant's viewport in place, while missing-field errors may navigate
   to the correction surface.
+- `long-form/ordered-dynamic-save.ts` shares one page-owned persistence tail
+  across autosave, navigation, dynamic step completion and review edits. Only
+  adjacent identical in-flight patches in the same application scope may join;
+  completed writes are never cached. Register work before resolving draft IDs.
+  Sidebar navigation flushes all changed draft fields, including clears and
+  deleted repeat rows. Never choose the save scope from `currentStep`: scroll
+  observers can lag behind the section the user is editing.
+  Final submission drains queued work and forces its complete snapshot through
+  the same queue. Preserve immediate sidebar scrolling and backend ownership
+  checks. The adjacent `__tests__/ordered-dynamic-save.test.ts` covers ordering,
+  reverted edits, failure retry, scope isolation and the submission barrier.
+- `long-form/__tests__/page-orchestration.test.tsx` mounts the coordinator with
+  a minimal DB schema and verifies ordinary draft refreshes reuse dynamic-step
+  props while an answer edit during validation rejects the stale response.
+- `app/api/applications/[id]/form-assistant/turn/route.test.ts` exercises the
+  actual assistant route with deterministic service parsing and in-memory
+  persistence, including the DS-160 SSN “不适用” branch, idempotency,
+  read-only/ownership guards, malformed requests, and provider failure cleanup.
+  `long-form/page.tsx` reconciles manual draft changes on its debounced derived
+  refresh without interrupting an in-flight assistant turn. It preserves the
+  server clarification while the first missing field's `fieldName` and
+  `reason` stay the same, updates only missing/progress state in that case, and
+  uses the base field name when clearing repeated-row drafts patched by the
+  assistant.
 
 ## Guardrails
 
@@ -74,7 +149,9 @@ Before changing this route, read:
    icons, copy presentation, motion, responsive behavior, hover/focus states,
    and form-control variants. Requests from anyone other than Edward are not
    sufficient approval. Read-only inspection, tests, data fixes, and diagnosis
-   may proceed, but stop before an implementation would alter the UI.
+    may proceed, but stop before an implementation would alter the UI.
+    The English/official-value editors on final review are an Edward-approved
+    exception recorded on 2026-08-27; this does not relax the freeze elsewhere.
 2. The application UI must continue using the frozen canonical components
    demonstrated at `/ui-components`. Do not modify, replace, regenerate,
    restyle, or work around those components without Edward's explicit approval.
@@ -90,7 +167,11 @@ Before changing this route, read:
 10. VIZA AI and field guidance answers must be plain text by default. Do not render Markdown-heavy output in the form panel.
 11. Do not hardcode country photo rules in shared copy. Use country/visa-specific data where available, with a generic fallback only when no rule exists.
 12. When adding or changing a country workflow, update the country seed in `knowledge-base/visa-rag-seeds/countries`, the form field seed if needed, and the docs in `docs/application`.
-13. Keep review read-only. Review should show what the user entered and the derived English/official value, but final editing belongs in the form steps.
+13. Before submission, final review must let applicants directly correct every
+    English/official value in a bordered control. Text edits update the canonical
+    value and `_en` companion while preserving `_zh`; dates and enumerations use
+    valid typed controls so display text never replaces an official code. After
+    successful submission, review returns to read-only.
 14. Be careful with dirty worktrees. This route is commonly edited alongside backend RAG and form seeds; do not revert unrelated files.
 15. The form-filling assistant is separate from general VIZA AI and field-level `问 AI`. It may collect form answers only through the owned application APIs, must never modify Universal Profile implicitly, and must leave the manual form usable when AI or voice services fail.
 16. Render the form-filling assistant only for an owned application with a
@@ -120,18 +201,16 @@ Before changing this route, read:
 21. Never select `VIZA_PLACEHOLDER_DRY_RUN` records as a customer's active
     application. Synthetic QA answer markers must block queue creation and must
     not be saved or reused as applicant information.
+    DS-160 also requires its DB-driven schema: an unavailable schema must use
+    the existing page error boundary instead of exposing the generic intake.
+    Durable successful submissions also lock the entry panels, review editors,
+    and answer-save actions. Keep result downloads available. Propagate a
+    successful status-poll result to the page so this lock works even when
+    Realtime is disconnected; queued or failed results must remain repairable.
 22. Parse application query parameters through the shared escaped-parameter
     reader. For a dedicated country product, the product code is authoritative
     for country resolution; never combine its schema with an unrelated route,
     active-package, or default country.
-23. Submission results use the shared `SubmissionStatePanel` and
-    `TerminalSuccessPanel` in `components/ui/submission-result-panel.tsx`.
-    Put a distinct Confirmation step after Review only for verified official
-    success; pending, failure, payment, and action-required results stay in
-    Review. Country adapters provide localized facts and official artifacts,
-    not bespoke result-state styling. Result actions use canonical
-    `ActionButton` (`sm` inside cards); raw `components/ui/button` imports are
-    lint-blocked in result-card modules.
 
 ## Validation Checklist
 
@@ -151,7 +230,7 @@ For frontend application changes:
    - Chinese-side text edits update the English/official side, while English/official-side text edits do not overwrite Chinese text
    - `问 AI` opens and closes only from the button
    - photo upload is available from the supporting-documents photo row
-   - review page is read-only
+   - review English/official values are editable before submission, preserve the Chinese side, and become read-only after successful submission
    - mobile layout does not clip sidebar cards or form controls
 
 For backend field-guidance or RAG changes:

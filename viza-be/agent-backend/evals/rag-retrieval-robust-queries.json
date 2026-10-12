@@ -1,0 +1,465 @@
+{
+  "version": "2026-09-14",
+  "provenance": {
+    "source": "knowledge-base/visa-rag-seeds/countries/*.json",
+    "curation": "Agent-curated synthetic heldout robustness queries from checked-in seed content; not human-user or production-traffic labels.",
+    "chunkIdSemantics": "Relevant IDs are the original documents[].chunks[].id values in the country JSON seeds. Runtime visa_chunks rows currently have generated UUIDs, so this set is a source-level gold set.",
+    "evidenceSemantics": "Every positive evidence.text value is copied verbatim from the referenced seed chunk content and is limited to one or two complete sentences. Multi-intent positives include each required source chunk.",
+    "negativePolicy": "An unanswerable case retains a non-empty candidate pool through its country/documentType filters, but the checked-in seeds do not contain the exact requested live, numeric, or unrelated information. Negative entries have empty relevantChunkIds and evidence.",
+    "selectionPolicy": "All 20 queries are heldout robustness cases and must not be used for parameter selection. Every positive parent-country tuple is absent from the positive labels in rag-retrieval-queries.json and rag-retrieval-confirmation-queries.json. The cross-country template parents official_field_answer_norms and standard_passport_identity_field_rules are excluded.",
+    "runtimeFilterNote": "Visa types use source product codes or the runtime alias EU_SCHENGEN_C_SHORT_STAY, which normalizes to schengen_short_stay_tourism. Explicit country and documentTypes filters keep the positive and negative candidate pools scoped to supported service countries.",
+    "coverage": {
+      "total": 20,
+      "heldout": 20,
+      "answerable": 14,
+      "unanswerable": 6,
+      "positiveCountries": 14,
+      "documentTypes": [
+        "requirements",
+        "form_requirements"
+      ]
+    }
+  },
+  "queries": [
+    {
+      "id": "RAG-ROBUST-001",
+      "split": "heldout",
+      "query": "去保加利亚短期旅游时，如果它是唯一或最长停留目的地，应走哪种申根路线，申请时间和停留上限有哪些？",
+      "country": "bulgaria",
+      "visaType": "EU_SCHENGEN_C_SHORT_STAY",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "route_recommendation",
+      "relevantChunkIds": [
+        "bgr_schengen_basic_route_zh",
+        "bgr_schengen_where_apply_documents"
+      ],
+      "answerable": true,
+      "rationale": "[multi-intent] 同时测试保加利亚短期申根路线、90/180停留上限和递交时间窗口；EU_SCHENGEN_C_SHORT_STAY 会归一化为 schengen_short_stay_tourism。",
+      "evidence": [
+        {
+          "chunkId": "bgr_schengen_basic_route_zh",
+          "text": "Chinese ordinary passport holders planning a short tourism trip to Bulgaria should normally use the Bulgaria/Schengen short-stay Type C tourism route when Bulgaria is the only destination, the longest-stay destination, or the main purpose destination."
+        },
+        {
+          "chunkId": "bgr_schengen_where_apply_documents",
+          "text": "EU Schengen guidance says a short-stay Schengen visa covers temporary visits of up to 90 days in any 180-day period."
+        },
+        {
+          "chunkId": "bgr_schengen_where_apply_documents",
+          "text": "Applications should normally be submitted at least 15 days before travel and no earlier than 6 months before the intended journey."
+        }
+      ]
+    },
+    {
+      "id": "RAG-ROBUST-002",
+      "split": "heldout",
+      "query": "How does Croatia fit the Schengen short-stay route, and where should I apply when several Schengen countries are on the itinerary?",
+      "country": "croatia",
+      "visaType": "schengen_short_stay_tourism",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "route_recommendation",
+      "relevantChunkIds": [
+        "hrv_schengen_where_apply_documents"
+      ],
+      "answerable": true,
+      "rationale": "[multi-intent] 组合短期停留上限与多国行程的主管国家判断。",
+      "evidence": [
+        {
+          "chunkId": "hrv_schengen_where_apply_documents",
+          "text": "EU Schengen guidance says a short-stay Schengen visa covers temporary visits of up to 90 days in any 180-day period. For a single-country trip, apply to the consulate/official visa channel of that country."
+        },
+        {
+          "chunkId": "hrv_schengen_where_apply_documents",
+          "text": "For multiple Schengen countries, apply to the country where the traveller will spend the longest time or, if stays are equal, the first-entry country."
+        }
+      ]
+    },
+    {
+      "id": "RAG-ROBUST-003",
+      "split": "heldout",
+      "query": "中国普通护照去捷克短期旅游，如果捷克是唯一或最长停留目的地，通常应选择什么签证路线？",
+      "country": "czech_republic",
+      "visaType": "EU_SCHENGEN_C_SHORT_STAY",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "route_recommendation",
+      "relevantChunkIds": [
+        "cze_schengen_basic_route_zh"
+      ],
+      "answerable": true,
+      "rationale": "[rewrite] 将捷克的中国普通护照旅游路线改写为中文请求；EU_SCHENGEN_C_SHORT_STAY 会归一化为 schengen_short_stay_tourism。",
+      "evidence": [
+        {
+          "chunkId": "cze_schengen_basic_route_zh",
+          "text": "Chinese ordinary passport holders planning a short tourism trip to Czech Republic should normally use the Czech Republic/Schengen short-stay Type C tourism route when Czech Republic is the only destination, the longest-stay destination, or the main purpose destination."
+        }
+      ]
+    },
+    {
+      "id": "RAG-ROBUST-004",
+      "split": "heldout",
+      "query": "Where should I submit a Denmark-focused Schengen application, and what submission window is advised?",
+      "country": "denmark",
+      "visaType": "schengen_short_stay_tourism",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "requirements",
+      "relevantChunkIds": [
+        "dnk_schengen_where_apply_documents"
+      ],
+      "answerable": true,
+      "rationale": "[multi-intent] 测试丹麦为单一目的地时的申请渠道和申根申请提前/最晚时间。",
+      "evidence": [
+        {
+          "chunkId": "dnk_schengen_where_apply_documents",
+          "text": "EU Schengen guidance says a short-stay Schengen visa covers temporary visits of up to 90 days in any 180-day period. For a single-country trip, apply to the consulate/official visa channel of that country."
+        },
+        {
+          "chunkId": "dnk_schengen_where_apply_documents",
+          "text": "Applications should normally be submitted at least 15 days before travel and no earlier than 6 months before the intended journey."
+        }
+      ]
+    },
+    {
+      "id": "RAG-ROBUST-005",
+      "split": "heldout",
+      "query": "爱沙尼亚是我申根行程唯一或最长停留地时，应该联系哪个受理渠道？",
+      "country": "estonia",
+      "visaType": "EU_SCHENGEN_C_SHORT_STAY",
+      "documentTypes": [
+        "form_requirements"
+      ],
+      "intent": "form_intake",
+      "relevantChunkIds": [
+        "estonia_form_channel_and_scope"
+      ],
+      "answerable": true,
+      "rationale": "[rewrite] 以表单准备意图询问爱沙尼亚主管领馆或授权签证中心；EU_SCHENGEN_C_SHORT_STAY 会归一化为 schengen_short_stay_tourism。",
+      "evidence": [
+        {
+          "chunkId": "estonia_form_channel_and_scope",
+          "text": "Use the competent Estonia consulate or its authorised visa application centre when Estonia is the only destination, main destination, longest-stay destination, or first-entry state when stays are equal."
+        }
+      ]
+    },
+    {
+      "id": "RAG-ROBUST-006",
+      "split": "heldout",
+      "query": "芬兰是我短期旅游的唯一目的地时，中国普通护照通常应选择什么路线，VIZA 要先核对哪些信息？",
+      "country": "finland",
+      "visaType": "EU_SCHENGEN_C_SHORT_STAY",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "route_recommendation",
+      "relevantChunkIds": [
+        "fin_schengen_basic_route_zh"
+      ],
+      "answerable": true,
+      "rationale": "[multi-intent] 组合芬兰短期 Type C 路线与递交前应确认的申请人/行程因素；EU_SCHENGEN_C_SHORT_STAY 会归一化为 schengen_short_stay_tourism。",
+      "evidence": [
+        {
+          "chunkId": "fin_schengen_basic_route_zh",
+          "text": "Chinese ordinary passport holders planning a short tourism trip to Finland should normally use the Finland/Schengen short-stay Type C tourism route when Finland is the only destination, the longest-stay destination, or the main purpose destination. VIZA AI should first confirm nationality, legal residence, destination set, stay length, day split across Schengen countries, first entry if stays are equal, purpose, passport validity, travel medical insurance, accommodation, itinerary, funds, return ties and biometrics."
+        }
+      ]
+    },
+    {
+      "id": "RAG-ROBUST-007",
+      "split": "heldout",
+      "query": "What are the Iceland Schengen submission timing limits, and what changes if another Schengen state is the main destination?",
+      "country": "iceland",
+      "visaType": "schengen_short_stay_tourism",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "fees_timing",
+      "relevantChunkIds": [
+        "isl_vfs_china_timing"
+      ],
+      "answerable": true,
+      "rationale": "[multi-intent] 测试冰岛申根停留/递交时间和多国行程的主目的地规则。",
+      "evidence": [
+        {
+          "chunkId": "isl_vfs_china_timing",
+          "text": "VFS Global's Iceland China page states that short-stay Schengen visas allow stays of up to 90 days in any 180-day period. Applications should be submitted in advance, no later than 15 days before the planned trip and no earlier than 6 months before the intended visit."
+        },
+        {
+          "chunkId": "isl_vfs_china_timing",
+          "text": "If the user visits multiple Schengen states, apply to Iceland only when Iceland is the longest stay or main purpose; if stays are equal, use first-entry rules."
+        }
+      ]
+    },
+    {
+      "id": "RAG-ROBUST-008",
+      "split": "heldout",
+      "query": "老挝旅游 eVisa 适用于哪些短期访问和旅行证件，哪些情况不应推荐？",
+      "country": "laos",
+      "visaType": "tourist_evisa",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "eligibility",
+      "relevantChunkIds": [
+        "lao_evisa_scope"
+      ],
+      "answerable": true,
+      "rationale": "[multi-intent] 组合老挝旅游 eVisa 的短期用途、普通护照限制、口岸核对和非旅游用途边界。",
+      "evidence": [
+        {
+          "chunkId": "lao_evisa_scope",
+          "text": "The official Laos eVisa portal describes Laos e-Visa as a Tourist eVisa for short stays related to tourism, sightseeing, cultural visits and short family trips. It is for ordinary passports, not diplomatic, official or emergency travel documents."
+        },
+        {
+          "chunkId": "lao_evisa_scope",
+          "text": "VIZA AI should check accepted entry points and avoid recommending eVisa for non-tourism or ineligible passport types."
+        }
+      ]
+    },
+    {
+      "id": "RAG-ROBUST-009",
+      "split": "heldout",
+      "query": "马尔代夫旅游签证可以落地办理吗，通常免签停留多久，入境申报何时做？",
+      "country": "maldives",
+      "visaType": "tourist_visa_on_arrival",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "requirements",
+      "relevantChunkIds": [
+        "mdv_visa_on_arrival_requirements"
+      ],
+      "answerable": true,
+      "rationale": "[multi-intent] 组合落地签、通常30天停留和 IMUGA 旅客申报时限。",
+      "evidence": [
+        {
+          "chunkId": "mdv_visa_on_arrival_requirements",
+          "text": "Maldives Immigration states that tourist visa is granted on arrival. Maldives official/mission pages describe a free tourist visa on arrival for up to 30 days for foreign tourists subject to entry requirements."
+        },
+        {
+          "chunkId": "mdv_visa_on_arrival_requirements",
+          "text": "IMUGA is the official Maldives Immigration portal for traveller declaration and immigration services; Traveller Declaration is required within the official pre-arrival/departure window."
+        }
+      ]
+    },
+    {
+      "id": "RAG-ROBUST-010",
+      "split": "heldout",
+      "query": "For a Mexico visitor trip, how does the 180-day visitor category relate to visa exemptions?",
+      "country": "mexico",
+      "visaType": "visitor_visa_or_exemption",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "eligibility",
+      "relevantChunkIds": [
+        "mex_inm_visitor_visa_scope"
+      ],
+      "answerable": true,
+      "rationale": "[multi-intent] 同时测试墨西哥非有偿活动访客类别、通常不超过180天的停留方向和第三国签证/永居豁免关系。",
+      "evidence": [
+        {
+          "chunkId": "mex_inm_visitor_visa_scope",
+          "text": "Mexico INM lists countries/regions whose nationals require a visa to travel to Mexico and describes the visitor without permission to perform remunerated activities category for tourism, business and other unpaid activities. Mexican consular guidance commonly describes visitor stays for a period not exceeding 180 days, subject to immigration officer decision at entry."
+        },
+        {
+          "chunkId": "mex_inm_visitor_visa_scope",
+          "text": "A valid visa or permanent residence from certain countries/regions can exempt some travellers from needing a Mexican visa."
+        }
+      ]
+    },
+    {
+      "id": "RAG-ROBUST-011",
+      "split": "heldout",
+      "query": "波兰短期旅游签证路线对中国大陆普通护照和香港特区护照有何不同？",
+      "country": "poland",
+      "visaType": "EU_SCHENGEN_C_SHORT_STAY",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "eligibility",
+      "relevantChunkIds": [
+        "pol_schengen_basic_route_zh"
+      ],
+      "answerable": true,
+      "rationale": "[multi-intent] 对比中国大陆普通护照的短期路线与香港特区护照的免签边界；EU_SCHENGEN_C_SHORT_STAY 会归一化为 schengen_short_stay_tourism。",
+      "evidence": [
+        {
+          "chunkId": "pol_schengen_basic_route_zh",
+          "text": "This route note applies to Chinese mainland ordinary passport holders. They should normally use the Poland/Schengen short-stay Type C tourism route when Poland is the only destination, the longest-stay destination, or the main purpose destination."
+        },
+        {
+          "chunkId": "pol_schengen_basic_route_zh",
+          "text": "It must not be applied to Hong Kong Special Administrative Region passport holders: Poland's official C-type guidance lists Hong Kong SAR passports as visa-exempt for stays in Poland or the Schengen area of no more than 90 days in any 180-day period, and EU Regulation 2018/1806 Annex II limits that exemption to holders of a Hong Kong Special Administrative Region passport."
+        }
+      ]
+    },
+    {
+      "id": "RAG-ROBUST-012",
+      "split": "heldout",
+      "query": "For a Portugal-centered Schengen itinerary, what is the short-stay limit and which country handles a multi-country application?",
+      "country": "portugal",
+      "visaType": "schengen_short_stay_tourism",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "route_recommendation",
+      "relevantChunkIds": [
+        "prt_schengen_where_apply_documents"
+      ],
+      "answerable": true,
+      "rationale": "[multi-intent] 测试葡萄牙为主要目的地的申根90/180规则和多国行程主管国判断。",
+      "evidence": [
+        {
+          "chunkId": "prt_schengen_where_apply_documents",
+          "text": "EU Schengen guidance says a short-stay Schengen visa covers temporary visits of up to 90 days in any 180-day period. For a single-country trip, apply to the consulate/official visa channel of that country."
+        },
+        {
+          "chunkId": "prt_schengen_where_apply_documents",
+          "text": "For multiple Schengen countries, apply to the country where the traveller will spend the longest time or, if stays are equal, the first-entry country."
+        }
+      ]
+    },
+    {
+      "id": "RAG-ROBUST-013",
+      "split": "heldout",
+      "query": "南非旅游签证申请，除了护照和行程，还要根据什么个人情况准备？",
+      "country": "south_africa",
+      "visaType": "visitor_visa_tourism",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "requirements",
+      "relevantChunkIds": [
+        "zaf_documents_direction"
+      ],
+      "answerable": true,
+      "rationale": "[rewrite] 将南非旅游签证材料准备方向改写为中文问题，覆盖国籍、居住地、资金、返程、家庭和黄热病因素。",
+      "evidence": [
+        {
+          "chunkId": "zaf_documents_direction",
+          "text": "For South Africa tourist visa questions, ask for passport nationality, residence country, itinerary, funds, return/onward ticket, accommodation, employment/study ties, and whether children are travelling. Also ask about yellow-fever transit/origin and current eVisa availability for the applicant nationality and residence country."
+        }
+      ]
+    },
+    {
+      "id": "RAG-ROBUST-014",
+      "split": "heldout",
+      "query": "For a Chinese passport holder legally residing in China and visiting Switzerland, which route and application channel should be checked?",
+      "country": "switzerland",
+      "visaType": "schengen_short_stay_tourism",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "route_recommendation",
+      "relevantChunkIds": [
+        "che_chinese_tourist_basic_route_zh",
+        "che_vfs_and_residence_district"
+      ],
+      "answerable": true,
+      "rationale": "[multi-intent] 同时验证瑞士短期申根路线和按中国合法居住地确认 VFS/领区渠道；两个 parent 均未用于前两份正例。",
+      "evidence": [
+        {
+          "chunkId": "che_chinese_tourist_basic_route_zh",
+          "text": "中国护照持有人如果去瑞士短期旅游，且瑞士是唯一目的地或主要停留国家，通常应按 Switzerland/Schengen 90 天以内短期签证路线准备，而不是美国、英国或越南签证。"
+        },
+        {
+          "chunkId": "che_vfs_and_residence_district",
+          "text": "The Swiss FDFA China page points users to VFS Global for visa services and lists Swiss representations/consular districts in China. Where to apply can depend on place of residence, so VIZA AI should ask where the applicant legally resides before giving appointment instructions."
+        }
+      ]
+    },
+    {
+      "id": "RAG-ROBUST-015",
+      "split": "heldout",
+      "query": "爱沙尼亚短期申根签证明天还能预约到几个具体时段？",
+      "country": "estonia",
+      "visaType": "EU_SCHENGEN_C_SHORT_STAY",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "fees_timing",
+      "relevantChunkIds": [],
+      "answerable": false,
+      "rationale": "[negative] Estonia requirements candidates remain after EU_SCHENGEN_C_SHORT_STAY normalization, but the checked-in seeds contain no live appointment-slot inventory for tomorrow.",
+      "evidence": []
+    },
+    {
+      "id": "RAG-ROBUST-016",
+      "split": "heldout",
+      "query": "墨西哥访客签证最近一个月的实际批准率是多少？",
+      "country": "mexico",
+      "visaType": "visitor_visa_or_exemption",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "source_check",
+      "relevantChunkIds": [],
+      "answerable": false,
+      "rationale": "[negative] Mexico requirements candidates exist for visitor eligibility and exemption rules, but the seed corpus has no recent approval-rate statistic.",
+      "evidence": []
+    },
+    {
+      "id": "RAG-ROBUST-017",
+      "split": "heldout",
+      "query": "老挝旅游 eVisa 现在的官方申请费是多少美元？",
+      "country": "laos",
+      "visaType": "tourist_evisa",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "fees_timing",
+      "relevantChunkIds": [],
+      "answerable": false,
+      "rationale": "[negative] Laos tourist eVisa requirements candidates remain, but the checked-in Laos requirements state scope, passport and entry-point rules without a current official fee amount.",
+      "evidence": []
+    },
+    {
+      "id": "RAG-ROBUST-018",
+      "split": "heldout",
+      "query": "南非访客签证本周平均处理多少工作日？",
+      "country": "south_africa",
+      "visaType": "visitor_visa_tourism",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "fees_timing",
+      "relevantChunkIds": [],
+      "answerable": false,
+      "rationale": "[negative] South Africa requirements candidates provide route and document guidance, but no current weekly processing-time average.",
+      "evidence": []
+    },
+    {
+      "id": "RAG-ROBUST-019",
+      "split": "heldout",
+      "query": "我的洗衣机一直显示 E17 故障，该怎么排查？",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "source_check",
+      "relevantChunkIds": [],
+      "answerable": false,
+      "rationale": "The filtered visa knowledge has no household appliance diagnostics or washing-machine E17 repair information; the visa candidate pool remains non-empty.",
+      "evidence": []
+    },
+    {
+      "id": "RAG-ROBUST-020",
+      "split": "heldout",
+      "query": "How do I solve a quadratic equation using the quadratic formula?",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "fees_timing",
+      "relevantChunkIds": [],
+      "answerable": false,
+      "rationale": "The filtered visa knowledge has no algebra instruction or quadratic-equation solution; the visa candidate pool remains non-empty.",
+      "evidence": []
+    }
+  ]
+}

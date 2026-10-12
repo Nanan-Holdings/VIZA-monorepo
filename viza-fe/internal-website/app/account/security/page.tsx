@@ -3,8 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useLocale } from "next-intl";
-import { Loader2, ShieldCheck, ShieldOff, KeyRound, Copy } from "lucide-react";
-import { ClientErrorAlert } from "@/components/client/client-error-alert";
+import { Loader2, ShieldCheck, ShieldOff, KeyRound, AlertCircle, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -143,7 +142,11 @@ export default function AccountSecurityPage() {
           </p>
         </header>
 
-        {error ? <ClientErrorAlert message={error} /> : null}
+        {error ? (
+          <p className="inline-flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+            <AlertCircle className="h-4 w-4" /> {error}
+          </p>
+        ) : null}
 
         <section className="rounded-xl border border-input bg-white p-5 shadow-sm">
           {verifiedFactor ? (

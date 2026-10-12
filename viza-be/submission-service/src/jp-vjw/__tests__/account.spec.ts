@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   generateJpVjwPortalPassword,
+  getJpVjwPortalCredentialKeys,
   JpVjwAccountStateError,
   resolveJpVjwAccountState,
 } from "../account";
@@ -15,6 +16,19 @@ test("generates a conservative Visit Japan Web password satisfying the official 
     assert.match(password, /[0-9]/u);
     assert.match(password, /!/u);
   }
+});
+
+test("isolates Visit Japan Web credential keys by application", () => {
+  assert.deepEqual(getJpVjwPortalCredentialKeys("application-one"), {
+    email: "japan.vjw.application-one.portal.email",
+    password: "japan.vjw.application-one.portal.password",
+    registrationState: "japan.vjw.application-one.portal.registration_state",
+  });
+  assert.notDeepEqual(
+    getJpVjwPortalCredentialKeys("application-one"),
+    getJpVjwPortalCredentialKeys("application-two"),
+  );
+  assert.throws(() => getJpVjwPortalCredentialKeys("  "), JpVjwAccountStateError);
 });
 
 test("reuses a complete credential pair only for the same managed alias", () => {

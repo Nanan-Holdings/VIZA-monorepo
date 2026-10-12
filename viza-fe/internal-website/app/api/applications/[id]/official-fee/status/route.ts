@@ -1,5 +1,7 @@
-import { GET } from "./route-handler";
+import { paymentRemovedResponse } from "@/app/api/payment-removed";
 
 export const dynamic = "force-dynamic";
 
-export { GET };
+export async function GET() {
+  return paymentRemovedResponse();
+}

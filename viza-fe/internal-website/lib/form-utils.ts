@@ -1,4 +1,197 @@
 import { type VisaFormFieldRow } from "@/types/visa-form-fields";
+import { isLegacyCompatibilityOnlyField } from "@/lib/legacy-compatibility-fields";
+
+type InferredConditionalToggle = {
+  fieldName: string;
+};
+
+type YesNoToggleMetadata = {
+  fieldName: string;
+  stems: string[];
+};
+
+interface ConditionalInferenceMetadata {
+  byField: Map<VisaFormFieldRow, InferredConditionalToggle | null>;
+  byFieldName: Map<string, Map<string | null, InferredConditionalToggle | null>>;
+  fieldNames: Set<string>;
+  yesNoToggles: YesNoToggleMetadata[];
+}
+
+// `evaluateShowIf` is used for every field while each dynamic step renders.
+// Legacy schemas without an explicit conditionalLogic object used to rebuild
+// the complete yes/no toggle list for every field on every render. Keep the
+// schema-only inference work with the fields array; the answer lookup remains
+// per call so changing a controller value never observes stale visibility.
+// A WeakMap bounds the cache to schema arrays that are still in use.
+const conditionalInferenceCache = new WeakMap<VisaFormFieldRow[], ConditionalInferenceMetadata>();
+
+function getRepeatGroup(field: VisaFormFieldRow): string | null {
+  const rules = field.validationRules as { repeat_group?: unknown } | null;
+  const group = rules?.repeat_group;
+  return group ? String(group) : null;
+}
+
+/** Rebase only this repeat group's answers; outer branch controllers stay global. */
+export function getRepeatInstanceValues(
+  field: VisaFormFieldRow,
+  instanceIndex: number,
+  values: Record<string, string>,
+  allFields: VisaFormFieldRow[],
+): Record<string, string> {
+  const group = getRepeatGroup(field);
+  if (!group || instanceIndex === 0) return values;
+  const scoped = { ...values };
+  for (const member of allFields) {
+    if (getRepeatGroup(member) !== group) continue;
+    // A missing answer in a later row must never inherit the first row's value.
+    scoped[member.fieldName] = values[`${member.fieldName}__${instanceIndex + 1}`] ?? "";
+  }
+  return scoped;
+}
+
+/** Include partially filled rows even when this particular field has no answer yet. */
+export function getRepeatInstanceCount(
+  field: VisaFormFieldRow,
+  values: Record<string, string>,
+  allFields: VisaFormFieldRow[],
+): number {
+  const group = getRepeatGroup(field);
+  if (!group) return 1;
+  const members = new Set(allFields.filter((member) => getRepeatGroup(member) === group)
+    .map((member) => member.fieldName));
+  const configuredMax = field.validationRules?.max_items;
+  // An omitted max_items means the official repeat group is unbounded. Do
+  // not invent a UI/schema ceiling while deriving already-saved row counts;
+  // the UI still creates rows one click at a time.
+  const max = typeof configuredMax === "number" && configuredMax > 0
+    ? configuredMax
+    : Number.MAX_SAFE_INTEGER;
+  let count = 1;
+  for (const [key, value] of Object.entries(values)) {
+    // Empty patches delete persisted answers. They must not resurrect a removed
+    // row in review/progress while its save is still in flight.
+    if (!value.trim()) continue;
+    const match = key.match(/^(.+)__(\d+)(?:_(?:zh|en))?$/);
+    if (match && members.has(match[1])) count = Math.max(count, Math.min(Number(match[2]), max));
+  }
+  return count;
+}
+
+function isYesNoToggle(field: VisaFormFieldRow): boolean {
+  return (
+    (field.fieldType === "radio" || field.fieldType === "select") &&
+    Array.isArray(field.options) &&
+    field.options.some((option) => {
+      const value = typeof option === "string" ? option : option.value;
+      return value.toLowerCase() === "yes";
+    })
+  );
+}
+
+function conditionalToggleStems(fieldName: string): string[] {
+  const stems: string[] = [fieldName];
+  const withoutUsed = fieldName.replace(/_used$/, "");
+  if (withoutUsed !== fieldName) {
+    stems.push(withoutUsed);
+    if (withoutUsed.endsWith("s")) stems.push(withoutUsed.slice(0, -1));
+  }
+  const withoutHas = fieldName.replace(/^has_/, "");
+  if (withoutHas !== fieldName) {
+    stems.push(withoutHas);
+    if (withoutHas.endsWith("s")) stems.push(withoutHas.slice(0, -1));
+  }
+  return stems;
+}
+
+function inferConditionalToggle(
+  field: VisaFormFieldRow,
+  yesNoToggles: YesNoToggleMetadata[],
+  fieldNames: Set<string>,
+): InferredConditionalToggle | null {
+  // 2a. repeat_group -> look for "<group>_used" or "has_<group>" toggle.
+  // Keep the candidate order from the legacy implementation: when both names
+  // exist, the *_used field wins.
+  const group = getRepeatGroup(field);
+  if (group) {
+    for (const toggleName of [`${group}_used`, `has_${group}`]) {
+      if (fieldNames.has(toggleName)) return { fieldName: toggleName };
+    }
+  }
+
+  // 2b. Find the first yes/no toggle in schema order whose legacy stem is a
+  // prefix of this field. The old implementation re-created this list for
+  // every field; the list is schema-only and safe to share across renders.
+  for (const toggle of yesNoToggles) {
+    for (const stem of toggle.stems) {
+      if (field.fieldName.startsWith(stem) && field.fieldName !== toggle.fieldName) {
+        return { fieldName: toggle.fieldName };
+      }
+    }
+  }
+
+  return null;
+}
+
+function getConditionalInferenceMetadata(allFields: VisaFormFieldRow[]): ConditionalInferenceMetadata {
+  const cached = conditionalInferenceCache.get(allFields);
+  if (cached) return cached;
+
+  const activeFields = allFields.filter((field) => !isLegacyCompatibilityOnlyField(field));
+  const yesNoToggles = activeFields
+    .filter(isYesNoToggle)
+    .map((field) => ({
+      fieldName: field.fieldName,
+      stems: conditionalToggleStems(field.fieldName),
+    }));
+  const fieldNames = new Set(activeFields.map((field) => field.fieldName));
+  const byField = new Map<VisaFormFieldRow, InferredConditionalToggle | null>();
+  const byFieldName = new Map<string, Map<string | null, InferredConditionalToggle | null>>();
+  for (const field of allFields) {
+    // Explicit logic never reaches the inferred branch. Leaving those fields
+    // out also keeps a later in-place logic update from observing stale cache
+    // metadata if a caller reuses a schema row object.
+    if (!field.conditionalLogic) {
+      const inferred = inferConditionalToggle(field, yesNoToggles, fieldNames);
+      byField.set(field, inferred);
+
+      // Some callers create a shallow field clone while rendering repeated
+      // instances. Cache the same schema-only result by field name and repeat
+      // group so those clones avoid rebuilding the toggle list as well.
+      const byGroup = byFieldName.get(field.fieldName) ?? new Map();
+      const group = getRepeatGroup(field);
+      if (!byGroup.has(group)) byGroup.set(group, inferred);
+      byFieldName.set(field.fieldName, byGroup);
+    }
+  }
+
+  const metadata = {
+    byField,
+    byFieldName,
+    fieldNames,
+    yesNoToggles,
+  } satisfies ConditionalInferenceMetadata;
+  conditionalInferenceCache.set(allFields, metadata);
+  return metadata;
+}
+
+function getCachedConditionalToggle(
+  field: VisaFormFieldRow,
+  metadata: ConditionalInferenceMetadata,
+): InferredConditionalToggle | null | undefined {
+  if (metadata.byField.has(field)) return metadata.byField.get(field) ?? null;
+  const byGroup = metadata.byFieldName.get(field.fieldName);
+  if (!byGroup) return undefined;
+  const group = getRepeatGroup(field);
+  if (!byGroup.has(group)) return undefined;
+  return byGroup.get(group) ?? null;
+}
+
+function inferConditionalToggleForUnknownField(
+  field: VisaFormFieldRow,
+  metadata: ConditionalInferenceMetadata,
+): InferredConditionalToggle | null {
+  return inferConditionalToggle(field, metadata.yesNoToggles, metadata.fieldNames);
+}
 
 /**
  * Evaluate a boolean expression against current form values.
@@ -6,7 +199,7 @@ import { type VisaFormFieldRow } from "@/types/visa-form-fields";
  *  - Equality / inequality: "field === value" / "field !== value"
  *  - List membership: "field in [val1, val2, val3]" / "field not in [val1, val2]"
  *  - Multi-select intersection: "field contains_any [val1, val2]"
- *  - Empty-string sentinel: "field === _empty"
+ *  - Empty-value sentinels: "field === _empty" or legacy "field === null"
  *  - Boolean composition: "a === b || c === d" and "a === yes && b === yes"
  *
  * Returns false for unparseable atoms.
@@ -29,7 +222,7 @@ export function evaluateExpression(
   };
 
   const resolveTarget = (raw: string): string =>
-    raw.toLowerCase() === "_empty" ? "" : raw.toLowerCase();
+    ["_empty", "null"].includes(raw.toLowerCase()) ? "" : raw.toLowerCase();
 
   const parseList = (raw: string): string[] =>
     raw
@@ -116,6 +309,112 @@ export function isRequiredWhenSatisfied(
   return evaluateExpression(expr, values);
 }
 
+function getShowIfDependencyNames(showIf: string): string[] {
+  const names = new Set<string>();
+  for (const atom of showIf.split(/\s*(?:\|\||&&)\s*/)) {
+    const match = atom.trim().match(
+      /^([A-Za-z_][A-Za-z0-9_]*)(?:\s*(?:===|!==)\s*|\s+(?:not\s+in|contains_any|in)\s+)/,
+    );
+    if (match) names.add(match[1]);
+  }
+  return [...names];
+}
+
+function findSameStepField(
+  fieldName: string,
+  field: VisaFormFieldRow,
+  allFields: VisaFormFieldRow[],
+): VisaFormFieldRow | undefined {
+  return allFields.find((candidate) =>
+    candidate.fieldName === fieldName && candidate.stepNumber === field.stepNumber,
+  );
+}
+
+function evaluateShowIfBranch(
+  showIf: string,
+  field: VisaFormFieldRow,
+  values: Record<string, string>,
+  allFields: VisaFormFieldRow[] | undefined,
+  visiting: Set<string>,
+): boolean {
+  // A dependency is only required to be visible when it belongs to the OR
+  // branch that actually satisfied the expression. Requiring every dependency
+  // up front would incorrectly hide `A || B` when A is stale but B is valid.
+  for (const branch of showIf.split("||")) {
+    const trimmedBranch = branch.trim();
+    if (!evaluateExpression(trimmedBranch, values)) continue;
+    if (!allFields) return true;
+
+    let branchVisible = true;
+    for (const dependencyName of getShowIfDependencyNames(trimmedBranch)) {
+      const controller = findSameStepField(dependencyName, field, allFields);
+      if (!controller || visiting.has(controller.fieldName)) continue;
+
+      // Legacy prefix inference can make one yes/no toggle appear subordinate
+      // to another (for example `family_members_used` vs `has_family_members`).
+      // Such controls are authoritative answers unless the schema gives them
+      // an explicit condition; recursing into the inferred prefix would hide
+      // a valid branch based on an unrelated stale toggle.
+      if (!controller.conditionalLogic && isYesNoToggle(controller)) continue;
+
+      visiting.add(controller.fieldName);
+      const controllerVisible = evaluateShowIfInternal(controller, values, allFields, visiting);
+      visiting.delete(controller.fieldName);
+      if (!controllerVisible) {
+        branchVisible = false;
+        break;
+      }
+    }
+    if (branchVisible) return true;
+  }
+  return false;
+}
+
+function evaluateShowIfInternal(
+  field: VisaFormFieldRow,
+  values: Record<string, string>,
+  allFields: VisaFormFieldRow[] | undefined,
+  visiting: Set<string>,
+): boolean {
+  const logic = field.conditionalLogic;
+
+  // 1. Explicit showIf condition
+  if (logic) {
+    const showIf = (logic as { showIf?: string }).showIf;
+    if (showIf && typeof showIf === "string") {
+      // A stale answer in a hidden controller must not activate its own
+      // dependents. Restrict this walk to the current step; cross-step
+      // dependencies need the caller's broader navigation context.
+      return evaluateShowIfBranch(showIf, field, values, allFields, visiting);
+    }
+  }
+
+  // 2. Infer conditional visibility when no explicit logic exists
+  if (!logic && allFields) {
+    const metadata = getConditionalInferenceMetadata(allFields);
+    const cachedToggle = getCachedConditionalToggle(field, metadata);
+    const inferredToggle = cachedToggle === undefined
+      ? inferConditionalToggleForUnknownField(field, metadata)
+      : cachedToggle;
+    if (inferredToggle) {
+      const controller = findSameStepField(inferredToggle.fieldName, field, allFields);
+      if (
+        controller &&
+        !visiting.has(controller.fieldName) &&
+        (controller.conditionalLogic || !isYesNoToggle(controller))
+      ) {
+        visiting.add(controller.fieldName);
+        const controllerVisible = evaluateShowIfInternal(controller, values, allFields, visiting);
+        visiting.delete(controller.fieldName);
+        if (!controllerVisible) return false;
+      }
+      return (values[inferredToggle.fieldName] ?? "").toLowerCase() === "yes";
+    }
+  }
+
+  return true; // no condition → always visible
+}
+
 /**
  * Evaluate a conditionalLogic.showIf expression against current form values.
  * Also infers conditional visibility when explicit conditionalLogic is missing
@@ -129,64 +428,5 @@ export function evaluateShowIf(
   values: Record<string, string>,
   allFields?: VisaFormFieldRow[],
 ): boolean {
-  const logic = field.conditionalLogic;
-
-  // 1. Explicit showIf condition
-  if (logic) {
-    const showIf = (logic as { showIf?: string }).showIf;
-    if (showIf && typeof showIf === "string") {
-      return evaluateExpression(showIf, values);
-    }
-  }
-
-  // 2. Infer conditional visibility when no explicit logic exists
-  if (!logic && allFields) {
-    // 2a. repeat_group → look for "<group>_used" or "has_<group>" toggle
-    const rules = field.validationRules as { repeat_group?: string } | null;
-    const group = rules?.repeat_group;
-    if (group) {
-      const toggleCandidates = [`${group}_used`, `has_${group}`];
-      for (const toggleName of toggleCandidates) {
-        if (allFields.some((f) => f.fieldName === toggleName)) {
-          return (values[toggleName] ?? "").toLowerCase() === "yes";
-        }
-      }
-    }
-
-    // 2b. Find the closest yes/no toggle field that this field's name
-    //     is prefixed by.
-    const yesNoToggles = allFields.filter(
-      (f) =>
-        f.fieldName !== field.fieldName &&
-        (f.fieldType === "radio" || f.fieldType === "select") &&
-        f.options &&
-        Array.isArray(f.options) &&
-        f.options.some((o) => {
-          const val = typeof o === "string" ? o : o.value;
-          return val.toLowerCase() === "yes";
-        })
-    );
-
-    for (const toggle of yesNoToggles) {
-      const stems: string[] = [toggle.fieldName];
-      const withoutUsed = toggle.fieldName.replace(/_used$/, "");
-      if (withoutUsed !== toggle.fieldName) {
-        stems.push(withoutUsed);
-        if (withoutUsed.endsWith("s")) stems.push(withoutUsed.slice(0, -1));
-      }
-      const withoutHas = toggle.fieldName.replace(/^has_/, "");
-      if (withoutHas !== toggle.fieldName) {
-        stems.push(withoutHas);
-        if (withoutHas.endsWith("s")) stems.push(withoutHas.slice(0, -1));
-      }
-
-      for (const stem of stems) {
-        if (field.fieldName.startsWith(stem) && field.fieldName !== toggle.fieldName) {
-          return (values[toggle.fieldName] ?? "").toLowerCase() === "yes";
-        }
-      }
-    }
-  }
-
-  return true; // no condition → always visible
+  return evaluateShowIfInternal(field, values, allFields, new Set([field.fieldName]));
 }

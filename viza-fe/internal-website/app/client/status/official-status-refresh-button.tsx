@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { CircleNotch as Loader2, ArrowClockwise as RotateCw } from "@phosphor-icons/react";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
-import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
 
 export function OfficialStatusRefreshButton({
   applicationId,
@@ -67,12 +66,7 @@ export function OfficialStatusRefreshButton({
         {loading ? loadingLabel : label}
       </button>
       {error ? <ClientErrorAlert message={error} /> : null}
-      {notice ? (
-        <Alert variant="info">
-          <AlertIcon variant="info" />
-          <AlertDescription>{notice}</AlertDescription>
-        </Alert>
-      ) : null}
+      {notice && <p className="text-sm text-[#66758a]">{notice}</p>}
     </div>
   );
 }

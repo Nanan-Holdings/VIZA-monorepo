@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   Camera,
+  CheckCircle as CheckCircle2,
   Upload,
   CircleNotch as Loader2,
   ImageIcon,
@@ -24,6 +25,7 @@ import {
 } from "@/lib/photo-validation";
 import { getPhotoGuidance } from "@/lib/photo-guidance";
 import { isChineseLocale } from "@/lib/i18n/locale";
+import { isDs160PhotoRequirement } from "@/lib/ds160-photo-contract";
 import { type VisaFormFieldRow } from "@/types/visa-form-fields";
 import { type FieldGuidanceChatMessage } from "@/types/field-guidance";
 import { PhotoCropTool } from "./photo-crop-tool";
@@ -61,6 +63,11 @@ export function PhotoUploadStep({
   const locale = useLocale();
   const isZh = isChineseLocale(locale);
   const guidance = getPhotoGuidance(country, visaType, isZh ? "zh" : "en");
+  const ds160PhotoMode = isDs160PhotoRequirement({
+    country,
+    visaType,
+    documentType: "photo",
+  });
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [screen, setScreen] = useState<Screen>(
@@ -300,6 +307,7 @@ export function PhotoUploadStep({
             </p>
             <PhotoCropTool
               imageObjectUrl={rawObjectUrl}
+              ds160Mode={ds160PhotoMode}
               onCropComplete={handleCropComplete}
               onCancel={handleCropCancel}
             />
@@ -402,10 +410,10 @@ export function PhotoUploadStep({
 
         {/* Result message */}
         {passed ? (
-          <Alert variant="success">
-            <AlertIcon variant="success" />
-            <AlertDescription>{t("passed")}</AlertDescription>
-          </Alert>
+          <div className="rounded-lg border border-green-200 bg-green-50 p-4 flex items-start gap-3">
+            <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
+            <p className="text-sm text-green-700">{t("passed")}</p>
+          </div>
         ) : (
           <Alert variant="destructive">
             <AlertIcon variant="destructive" />

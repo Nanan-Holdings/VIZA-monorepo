@@ -22,6 +22,68 @@ type VisaPackageRow = {
   description: string | null;
 };
 
+type UserPackageRow = {
+  visa_package_id: string | null;
+  visa_packages: VisaPackageRow | VisaPackageRow[] | null;
+};
+
+type UserPackageReadContext = {
+  adminClient: ReturnType<typeof createAdminClient>;
+  authUserId: string;
+};
+
+const USER_PACKAGE_READ_OPTIONS = {
+  requestTimeoutMs: 4_000,
+  retryDelaysMs: [250],
+} as const;
+
+const USER_PACKAGE_SELECT =
+  "visa_package_id, visa_packages(id, country, visa_type, name, description)";
+
+// Exclude missing relationships before the latest-only limit, matching the
+// full-list getter's filtering before callers select the first valid package.
+const LATEST_USER_PACKAGE_SELECT =
+  "visa_package_id, visa_packages!inner(id, country, visa_type, name, description)";
+
+async function resolveUserPackageReadContext(): Promise<UserPackageReadContext | null> {
+  const session = await getClientSessionWithFallback();
+  if (!session) return null;
+
+  const adminClient = createAdminClient(USER_PACKAGE_READ_OPTIONS);
+  const { data: profile, error: profileError } = await adminClient
+    .from("applicant_profiles")
+    .select("auth_user_id")
+    .eq("id", session.userId)
+    .maybeSingle();
+  if (profileError) return null;
+
+  // Normal applicant sessions store the applicant profile id. Legacy client
+  // sessions may store the auth id directly, so retain it as the fallback.
+  return {
+    adminClient,
+    authUserId: profile?.auth_user_id ?? session.userId,
+  };
+}
+
+function normalizeUserVisaPackage(
+  row: UserPackageRow | null | undefined,
+): UserVisaPackage | null {
+  if (!row) return null;
+
+  const pkg = Array.isArray(row.visa_packages)
+    ? row.visa_packages[0]
+    : row.visa_packages;
+  if (!pkg) return null;
+
+  return {
+    id: pkg.id,
+    country: pkg.country,
+    visa_type: pkg.visa_type,
+    name: pkg.name,
+    description: pkg.description ?? null,
+  } satisfies UserVisaPackage;
+}
+
 /**
  * Assign a visa package to a user (admin only).
  * Keeps other active packages so one user can work on multiple visas.
@@ -254,47 +316,20 @@ export async function selectUserVisaDestination(
  */
 export async function getUserVisaPackages(): Promise<UserVisaPackage[]> {
   try {
-    const session = await getClientSessionWithFallback();
-    if (!session) return [];
+    const context = await resolveUserPackageReadContext();
+    if (!context) return [];
 
-    const adminClient = createAdminClient({
-      requestTimeoutMs: 4_000,
-      retryDelaysMs: [250],
-    });
-    const { data: profile, error: profileError } = await adminClient
-      .from("applicant_profiles")
-      .select("auth_user_id")
-      .eq("id", session.userId)
-      .maybeSingle();
-    if (profileError) return [];
-
-    // Normal applicant sessions store the applicant profile id. Legacy client
-    // sessions may store the auth id directly, so retain it as the fallback.
-    const authUserId = profile?.auth_user_id ?? session.userId;
-    const { data, error } = await adminClient
+    const { data, error } = await context.adminClient
       .from("user_packages")
-      .select("visa_package_id, visa_packages(id, country, visa_type, name, description)")
-      .eq("auth_user_id", authUserId)
+      .select(USER_PACKAGE_SELECT)
+      .eq("auth_user_id", context.authUserId)
       .eq("status", "active")
       .order("assigned_at", { ascending: false });
 
     if (error || !data) return [];
 
-    return data
-      .map((row) => {
-        const pkg = Array.isArray(row.visa_packages)
-          ? row.visa_packages[0]
-          : row.visa_packages;
-
-        if (!pkg) return null;
-        return {
-          id: pkg.id,
-          country: pkg.country,
-          visa_type: pkg.visa_type,
-          name: pkg.name,
-          description: pkg.description ?? null,
-        } satisfies UserVisaPackage;
-      })
+    return (data as unknown as UserPackageRow[])
+      .map((row) => normalizeUserVisaPackage(row))
       .filter((pkg): pkg is UserVisaPackage => Boolean(pkg));
   } catch (err) {
     console.error("[getUserVisaPackages] Error:", err);
@@ -307,6 +342,23 @@ export async function getUserVisaPackages(): Promise<UserVisaPackage[]> {
  * Returns null if no package is assigned.
  */
 export async function getUserVisaPackage(): Promise<UserVisaPackage | null> {
-  const packages = await getUserVisaPackages();
-  return packages[0] ?? null;
+  try {
+    const context = await resolveUserPackageReadContext();
+    if (!context) return null;
+
+    const { data, error } = await context.adminClient
+      .from("user_packages")
+      .select(LATEST_USER_PACKAGE_SELECT)
+      .eq("auth_user_id", context.authUserId)
+      .eq("status", "active")
+      .order("assigned_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error || !data) return null;
+    return normalizeUserVisaPackage(data as unknown as UserPackageRow);
+  } catch (err) {
+    console.error("[getUserVisaPackage] Error:", err);
+    return null;
+  }
 }

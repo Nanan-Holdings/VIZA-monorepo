@@ -2,8 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { chromium } from "playwright";
 import {
+  clickImmigrationAndCustoms,
   chooseJpVjwAutocomplete,
+  confirmJpVjwDeclarationSave,
   fillJpVjwVerificationCode,
+  openJpVjwQrView,
   resolveJpVjwNativeOptionValue,
   type JpVjwLiveAdapterContext,
 } from "../live-adapter";
@@ -19,11 +22,16 @@ import {
   JP_VJW_MFA_NO_NAME,
   JP_VJW_OPTIONAL_MFA_HEADING,
   JP_VJW_OPTIONAL_MFA_QUESTION,
+  JP_VJW_IMMIGRATION_CUSTOMS_ACTION_NAME,
   JP_VJW_PROFILE_COMPLETE_NAME,
   JP_VJW_REENTRY_PERMISSION_QUESTION,
   JP_VJW_TAX_FREE_QR_QUESTION,
+  JP_VJW_TO_ENTRY_PROCEDURE_NAME,
+  JP_VJW_TRIP_REGISTERED_NAME,
   JP_VJW_YOUR_DETAILS_NAME,
+  JP_VJW_QR_ACTION_NAME,
   hasOfficialJpVjwQrEvidence,
+  isJpVjwDeclarationRegistered,
   isJpVjwCloudfrontAccessGate,
   isOfficialJpVjwUrl,
   resolveJpVjwUserAgent,
@@ -61,6 +69,16 @@ test("Visit Japan Web profile selectors accept the observed production wizard", 
   assert.match("Confirm entered details", JP_VJW_CONFIRM_ENTERED_DETAILS_NAME);
   assert.match("Register new planned entry/return", JP_VJW_NEW_TRIP_NAME);
   assert.match("Proceed to registration without copying details", JP_VJW_NO_COPY_TRIP_NAME);
+  assert.match("Registered planned entry/return", JP_VJW_TRIP_REGISTERED_NAME);
+  assert.match("To entry/return procedure", JP_VJW_TO_ENTRY_PROCEDURE_NAME);
+  assert.match("入国・帰国予定を登録しました", JP_VJW_TRIP_REGISTERED_NAME);
+  assert.match("入国・帰国手続へ", JP_VJW_TO_ENTRY_PROCEDURE_NAME);
+});
+
+test("Visit Japan Web dashboard selectors accept traditional-Chinese actions", () => {
+  assert.match("顯示QR碼", JP_VJW_QR_ACTION_NAME);
+  assert.match("顯示 QR 碼", JP_VJW_QR_ACTION_NAME);
+  assert.match("入境審查及海關申報 未登記", JP_VJW_IMMIGRATION_CUSTOMS_ACTION_NAME);
 });
 
 test("Visit Japan Web native option matching skips the empty placeholder", () => {
@@ -68,6 +86,20 @@ test("Visit Japan Web native option matching skips the empty placeholder", () =>
     { label: "-", value: "" },
     { label: "CHINA (PEOPLE'S REP.)", value: "156" },
   ], ["CHN", "China", "中国"]), "156");
+});
+
+test("Visit Japan Web native option matching fails closed for ambiguous fuzzy labels", () => {
+  assert.equal(resolveJpVjwNativeOptionValue([
+    { label: "AIR ASIA (AX)", value: "AX" },
+    { label: "AIR ASIA X (XJ)", value: "XJ" },
+  ], ["AIR ASIA"]), null);
+});
+
+test("Visit Japan Web native option matching fails closed for conflicting exact matches", () => {
+  assert.equal(resolveJpVjwNativeOptionValue([
+    { label: "Shared label", value: "A" },
+    { label: "Shared label", value: "B" },
+  ], ["Shared label"]), null);
 });
 
 test("Visit Japan Web accepts a free-text embarkation point when the official form enables Next", async () => {
@@ -122,6 +154,123 @@ test("Visit Japan Web verification code uses keyboard events required by the pro
   }
 });
 
+test("Visit Japan Web QR action falls back to the verified Angular control when an overlay intercepts pointer clicks", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  const logs: string[] = [];
+  try {
+    await page.setContent(`
+      <a id="qr" role="button" onclick="window.location.hash = '#/vjwpic026'">Display QR</a>
+      <div style="position: fixed; inset: 0; z-index: 2"></div>
+    `);
+    await page.evaluate(() => {
+      window.location.hash = "#/vjwpti006";
+    });
+    await openJpVjwQrView(
+      { page, logs } as unknown as JpVjwLiveAdapterContext,
+      page.getByRole("button", { name: "Display QR" }),
+    );
+    assert.match(page.url(), /vjwpic026/u);
+    assert.deepEqual(logs, ["jpvjw_qr_action_dom_fallback"]);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("Visit Japan Web confirms the observed procedure guide before displaying the official QR route", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  const logs: string[] = [];
+  try {
+    await page.setContent(`
+      <button id="display">Display QR code</button>
+      <div id="guide" role="dialog" hidden>
+        <h2>Procedure Guide</h2>
+        <button id="agree">Agree and display the QR code</button>
+        <button>Confirm the contents of the declaration</button>
+      </div>
+      <script>
+        document.querySelector('#display').addEventListener('click', () => {
+          document.querySelector('#guide').hidden = false;
+        });
+        document.querySelector('#agree').addEventListener('click', () => {
+          window.location.hash = '#/vjwpic026';
+        });
+      </script>
+    `);
+    await page.evaluate(() => {
+      window.location.hash = "#/vjwpti006";
+    });
+    await openJpVjwQrView(
+      { page, logs } as unknown as JpVjwLiveAdapterContext,
+      page.getByRole("button", { name: "Display QR code" }),
+    );
+    assert.match(page.url(), /vjwpic026/u);
+    assert.deepEqual(logs, ["jpvjw_qr_procedure_guide_confirmed"]);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("Visit Japan Web confirms the observed immigration and customs introduction dialog before waiting for the form route", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  const logs: string[] = [];
+  try {
+    await page.setContent(`
+      <button id="declaration">Immigration clearance and Customs declaration Not registered</button>
+      <div id="intro" role="dialog" hidden>
+        <h2>Immigration clearance and Customs declaration</h2>
+        <button id="next">Next</button>
+        <button>Back</button>
+      </div>
+      <script>
+        document.querySelector('#declaration').addEventListener('click', () => {
+          document.querySelector('#intro').hidden = false;
+        });
+        document.querySelector('#next').addEventListener('click', () => {
+          window.location.hash = '#/vjwpic004';
+        });
+      </script>
+    `);
+    await page.evaluate(() => {
+      window.location.hash = "#/vjwpti006";
+    });
+    await clickImmigrationAndCustoms({ page, logs } as unknown as JpVjwLiveAdapterContext);
+    assert.match(page.url(), /vjwpic004/u);
+    assert.deepEqual(logs, ["jpvjw_immigration_customs_intro_confirmed"]);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("Visit Japan Web accepts the observed definitive declaration success dialog before returning for QR evidence", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  const logs: string[] = [];
+  try {
+    await page.setContent(`
+      <div role="dialog">
+        <h2>Registration complete</h2>
+        <button id="back">Back to Entry/Return Procedure</button>
+      </div>
+      <script>
+        document.querySelector('#back').addEventListener('click', () => {
+          window.location.hash = '#/vjwpti006';
+        });
+      </script>
+    `);
+    await page.evaluate(() => {
+      window.location.hash = "#/vjwpic019";
+    });
+    await confirmJpVjwDeclarationSave({ page, logs } as unknown as JpVjwLiveAdapterContext);
+    assert.match(page.url(), /vjwpti006/u);
+    assert.deepEqual(logs, ["jpvjw_declaration_registered_modal_confirmed"]);
+  } finally {
+    await browser.close();
+  }
+});
+
 test("Visit Japan Web QR gate requires official host, visible QR and artifact", () => {
   assert.equal(isOfficialJpVjwUrl("https://www.vjw.digital.go.jp/"), true);
   assert.equal(isOfficialJpVjwUrl("https://example.com/vjw"), false);
@@ -149,4 +298,12 @@ test("Visit Japan Web QR gate accepts the official simplified-Chinese QR heading
     qrElementVisible: true,
     qrArtifactPath: "C:/evidence/official-qr.png",
   }), true);
+});
+
+test("Visit Japan Web declaration state never treats the disabled Not registered card as reusable QR evidence", () => {
+  assert.equal(isJpVjwDeclarationRegistered("Immigration clearance and Customs declaration Not registered"), false);
+  assert.equal(isJpVjwDeclarationRegistered("Immigration clearance and Customs declaration Registered"), true);
+  assert.equal(isJpVjwDeclarationRegistered("入境审查及海关申报 未登记"), false);
+  assert.equal(isJpVjwDeclarationRegistered("入国審査及び税関申告 登録済み"), true);
+  assert.equal(isJpVjwDeclarationRegistered("Immigration clearance and Customs declaration"), false);
 });

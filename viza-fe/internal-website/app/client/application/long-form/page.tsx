@@ -1,6 +1,7 @@
 "use client";
 
-import { startTransition, useEffect, useLayoutEffect, useState, useCallback, useMemo, useRef } from "react";
+import { memo, startTransition, useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { useContentAlignment } from "./use-content-alignment";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { CircleNotch as Loader2, Check, CaretDown as ChevronDown, ShieldCheck } from "@phosphor-icons/react";
@@ -17,19 +18,11 @@ import {
   loadDocumentCenterData,
   type DocumentCenterData,
 } from "@/app/client/documents/actions";
-import {
-  loadApplicationAnswers,
-  loadTeamApplicationContext,
-  loadUserVisaPackage,
-  loadVisaFormSteps,
-  invalidateApplicationForm,
-  invalidateClientApplicationStatuses,
-  saveApplicationAnswers as saveDynamicAnswers,
-} from "@/lib/client/portal-data";
+import { getVisaFormSteps } from "@/app/actions/visa-form-fields";
 import { type VisaFormFieldRow, type WizardStep } from "@/types/visa-form-fields";
 import { evaluateShowIf } from "@/lib/form-utils";
 import { resolveVisaFormSchemaVisaType } from "@/lib/visa-form-schema-aliases";
-import { type UserVisaPackage } from "@/app/actions/user-package";
+import { getUserVisaPackage, type UserVisaPackage } from "@/app/actions/user-package";
 import {
   PersonalInfoStep,
   PassportStep,
@@ -55,6 +48,7 @@ import {
 } from "@/components/client/form-assistant";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import {
+  saveDynamicAnswers,
   ensureDraftApplication,
   loadApplicationFormContext,
   loadDynamicAnswers,
@@ -75,6 +69,7 @@ import type {
   FormAssistantTurnResponse,
   FormAssistantValidationResponse,
   FormAssistantTranscriptionResponse,
+  FormAssistantMessage,
 } from "@/types/form-assistant";
 type FormAssistantRequestError = Error & {
   code?: string;
@@ -92,17 +87,23 @@ function localizedSubmissionAccessError(
   rawError: string,
   isZh: boolean,
 ): string {
-  if (!isZh) return rawError;
-  if (code === "application_payment_review_required") {
-    return "此申请的付款记录需要人工核对后才能提交。日本 Visit Japan Web 官方服务本身免费，请勿重复付款。";
+  if (code === "application_payment_review_required" || code === "application_payment_required") {
+    return isZh
+      ? "此申请需要进一步人工确认后才能提交，请联系客服。"
+      : "This application needs attention before submission can continue. Contact support for next steps.";
   }
-  if (code === "application_payment_required") {
-    return "提交前需要完成适用的 VIZA 服务费及官方费用确认。";
+  if (code === "already_submitted_result_invalid") {
+    return isZh
+      ? "已提交申请的结果暂时无法验证，请刷新申请状态后再试。"
+      : "The existing submission result could not be verified. Refresh the application status before retrying.";
+  }
+  if (!isZh) return rawError;
+  if (code === "authentication_required" || /^unauthorized$/i.test(rawError.trim())) {
+    return "登录状态已失效，请重新登录后再提交。";
   }
   return rawError;
 }
 import { shouldBootstrapFormAssistantDraft } from "@/lib/form-assistant/bootstrap";
-import { useRouteReady } from "@/lib/client/route-perf";
 import { canUseFormAssistant, isFormAssistantConfirmationField } from "@/lib/form-assistant/constants";
 import {
   buildFormAssistantFieldReviewIssues,
@@ -123,6 +124,7 @@ import {
 import { SubmissionStatusStep } from "../_components/result-cards/SubmissionStatusStep";
 import { UniversalProfileSyncCard } from "@/components/application-steps/universal-profile-sync-card";
 import {
+  getTeamApplicationContext,
   markTeamCompanionReviewed,
 } from "@/app/actions/application-group";
 import {
@@ -132,22 +134,41 @@ import {
 } from "@/lib/client/recent-application-form";
 import { setActiveApplicationSelection } from "@/lib/client/active-application-selection";
 import { readApplicationRouteParam } from "@/lib/client/application-route-params";
+import {
+  clearSavedApplicationDraftCache,
+  readApplicationDraftCache,
+  syncApplicationDraftCache,
+  writeApplicationDraftCache,
+  type ApplicationDraftCacheScope,
+} from "@/lib/client/application-draft-cache";
 import { sanitizeCustomerSubmissionResult } from "@/app/api/applications/customer-submission-result";
+import {
+  createOrderedDynamicSaveQueue,
+  type OrderedDynamicSaveQueue,
+} from "./ordered-dynamic-save";
+import {
+  isSubmissionTransportError,
+  reconcileSubmissionStatus,
+} from "./submission-reconciliation";
 import {
   computeAllTabCompletion,
   getApplicationFieldErrorMessage,
   getContiguousCompletedCount,
+  getMissingDynamicFormFields,
   getMissingRequiredDocumentRequirementKeys,
   getRequiredDocumentProgress,
   type MissingApplicationField,
 } from "@/lib/application-tab-completion";
 import { getAssistantProgress, validateApplicationAnswers } from "@/lib/form-assistant/validator";
 import {
-  hasConfirmedTerminalSubmissionSuccess,
   shouldShowReviewAlongsideSubmissionStatus,
   shouldShowSubmissionStatusStep,
 } from "@/lib/application-submission-display";
-import { hasSuccessfulArrivalCardSubmission } from "@/features/arrival-cards/application-lifecycle";
+import {
+  hasSuccessfulFormSubmission,
+  toSubmittedFormAssistantProgress,
+  toSubmittedFormAssistantState,
+} from "@/lib/form-assistant/submission-readonly";
 import { isIgnorableRuntimeAbortError } from "@/lib/runtime-abort-errors";
 import { isKoreaEArrivalCardLiveEnabled } from "@/features/kr-arrival-card/config";
 import {
@@ -167,9 +188,11 @@ import {
 import {
   buildApplicationStepSections,
   getDynamicStepTranslationCandidates,
+  initializeExpandedSectionState,
   type ApplicationStepSection,
   type ApplicationStepSectionKey,
 } from "@/lib/application-step-sections";
+import { getDs160AgeVisibleStep } from "@/lib/ds160-age-gate";
 import {
   buildTaiwanEntryPermitSections,
   isTaiwanEntryPermitQualificationStepSource,
@@ -191,6 +214,7 @@ import {
   isVietnamEVisaApplication,
   isVietnamPrearrivalApplication,
   type SubmissionMode,
+  type SubmissionRetryIntent,
   type TaiwanOfficialTermsConsentInput,
 } from "@/lib/submission-queue";
 import {
@@ -206,8 +230,19 @@ import {
 type StepStatus = "complete" | "in_progress" | "locked";
 
 const DYNAMIC_AUTOSAVE_INTERVAL_MS = 30_000;
+// Cross-step progress, branch visibility and the off-screen review are derived
+// from the complete answer snapshot. Keep those calculations out of the
+// keystroke path and publish the latest draft after the user pauses briefly.
+const DYNAMIC_DERIVED_REFRESH_DEBOUNCE_MS = 300;
 
-function prepareFormAssistantState(state: FormAssistantState): FormAssistantState {
+const EMPTY_REVIEW_COMPLETE = () => undefined;
+const MemoizedDynamicReviewStep = memo(DynamicReviewStep);
+
+function prepareFormAssistantState(
+  state: FormAssistantState,
+  options: { readOnly?: boolean } = {},
+): FormAssistantState {
+  if (options.readOnly) return toSubmittedFormAssistantState(state);
   const persistedMessages = state.messages.at(-1)?.role === "assistant"
     ? state.messages.slice(0, -1)
     : state.messages;
@@ -223,6 +258,109 @@ function prepareFormAssistantState(state: FormAssistantState): FormAssistantStat
         inputMode: "system",
       },
     ],
+  };
+}
+
+function buildDraftAssistantMessage(
+  missingFields: MissingApplicationField[],
+  copy: {
+    complete: string;
+    question: (label: string, labelZh?: string) => string;
+  },
+): string {
+  const nextField = missingFields[0];
+  if (!nextField) return copy.complete;
+
+  return copy.question(nextField.label, nextField.labelZh);
+}
+
+function buildRetryMissingFieldsMessage(
+  missingFields: MissingApplicationField[],
+  isZh: boolean,
+): string {
+  const labels = missingFields
+    .map((field) => (isZh ? field.labelZh ?? field.label : field.label) || field.fieldName)
+    .map((label) => label.trim())
+    .filter(Boolean)
+    .filter((label, index, allLabels) => allLabels.indexOf(label) === index);
+  const listedFields = labels.join(isZh ? "、" : ", ");
+
+  return isZh
+    ? `请先补齐或修正以下信息：${listedFields || "申请表字段"}。`
+    : `Complete or correct the following fields before retrying: ${listedFields || "the application fields"}.`;
+}
+
+function reconcileDraftFormAssistantState(
+  state: FormAssistantState,
+  options: {
+    answers: Record<string, string>;
+    dbSteps: WizardStep[];
+    country: string;
+    visaType: string;
+    messageCopy: {
+      complete: string;
+      question: (label: string, labelZh?: string) => string;
+    };
+  },
+): FormAssistantState {
+  const missingFields = getMissingDynamicFormFields(options.dbSteps, options.answers, {
+    country: options.country,
+    visaType: options.visaType,
+  });
+  const progress = getAssistantProgress(options.dbSteps, options.answers);
+  const assistantMessage = buildDraftAssistantMessage(missingFields, options.messageCopy);
+  const currentMessage = state.messages.at(-1);
+  const isCurrentAssistantMessage = currentMessage?.role === "assistant" &&
+    currentMessage.id.startsWith("assistant-current-");
+  const nextMessage: FormAssistantMessage = {
+    id: isCurrentAssistantMessage
+      ? currentMessage.id
+      : `assistant-current-${state.sessionId}-${crypto.randomUUID()}`,
+    role: "assistant",
+    content: assistantMessage,
+    createdAt: currentMessage?.createdAt ?? new Date().toISOString(),
+    inputMode: "system",
+  };
+  const currentMissingField = state.missingFields[0];
+  const nextMissingField = missingFields[0];
+  const sameCurrentTarget = currentMissingField?.fieldName === nextMissingField?.fieldName &&
+    currentMissingField?.reason === nextMissingField?.reason;
+  const sameMissingFields = state.missingFields.length === missingFields.length &&
+    state.missingFields.every((field, index) => {
+      const next = missingFields[index];
+      return field.fieldName === next?.fieldName && field.reason === next?.reason;
+    });
+  const sameProgress = state.progress.completed === progress.completed &&
+    state.progress.total === progress.total;
+  const nextCanRunFinalCheck = missingFields.length === 0
+    ? state.canRunFinalCheck
+    : false;
+  // Keep a server-authored clarification/explanation whenever the first
+  // missing target is unchanged. The local draft can change the remaining
+  // missing-field list or progress without making that clarification stale.
+  // Only a changed field/reason pair should replace the current assistant
+  // message and message history.
+  if (sameCurrentTarget) {
+    if (sameMissingFields && sameProgress && state.canRunFinalCheck === nextCanRunFinalCheck) {
+      return state;
+    }
+    return {
+      ...state,
+      missingFields,
+      progress,
+      canRunFinalCheck: nextCanRunFinalCheck,
+    };
+  }
+
+  return {
+    ...state,
+    assistantMessage,
+    missingFields,
+    progress,
+    canRunFinalCheck: nextCanRunFinalCheck,
+    messages: isCurrentAssistantMessage
+      ? [...state.messages.slice(0, -1), nextMessage]
+      : [...state.messages, nextMessage],
   };
 }
 
@@ -305,13 +443,6 @@ type LiveAssistedTarget =
   | "jp_vjw"
   | "ke_eta"
   | null;
-
-interface VietnamOneTimePaymentCard {
-  pan: string;
-  expiry: string;
-  cvv: string;
-  holderName: string;
-}
 
 type SubmitCheckState = "idle" | "checking" | "invalid";
 
@@ -404,18 +535,29 @@ type StepSectionKey = ApplicationStepSectionKey;
 type StepSectionDef = ApplicationStepSection<StepDef>;
 
 function collectDraftAnswers(drafts: Record<number, Record<string, string>>): Record<string, string> {
-  return Object.values(drafts).reduce<Record<string, string>>(
-    (acc, stepDraft) => ({ ...acc, ...stepDraft }),
-    {},
-  );
+  const merged: Record<string, string> = {};
+  // Later step drafts intentionally override earlier keys without cloning the
+  // whole accumulated answer map for every step.
+  for (const stepDraft of Object.values(drafts)) Object.assign(merged, stepDraft);
+  return merged;
 }
 
 const STEP_KEYS = ["personalInfo", "passport", "travelDetails", "documents", "team", "review"] as const;
+const EMPTY_INVALID_FIELD_NAMES_BY_STEP = new Map<number, Set<string>>();
+const EMPTY_INVALID_FIELD_MESSAGES_BY_STEP = new Map<number, Map<string, string>>();
 
-function getVisibleDynamicSteps(steps: WizardStep[], answers: Record<string, string>): VisibleDynamicStep[] {
+function getVisibleDynamicSteps(
+  steps: WizardStep[],
+  answers: Record<string, string>,
+  visaType?: string | null,
+): VisibleDynamicStep[] {
   return steps
-    .map((step, sourceIndex) => ({ step, sourceIndex }))
-    .filter(({ step }) => step.fields.some((field) => evaluateShowIf(field, answers, step.fields)));
+    .map((sourceStep, sourceIndex) => ({
+      sourceStep,
+      step: getDs160AgeVisibleStep(sourceStep, visaType, answers),
+      sourceIndex,
+    }))
+    .filter(({ sourceStep, step }) => step.fields.some((field) => evaluateShowIf(field, answers, sourceStep.fields)));
 }
 
 function getNextVisibleStepId(steps: StepDef[], currentStepId: number): number | null {
@@ -643,15 +785,7 @@ function GroupedStepSidebar({
   }, [completedStepIds, currentStep]);
 
   useEffect(() => {
-    setExpandedSections((prev) => {
-      const next = { ...prev };
-      for (const section of sections) {
-        if (next[section.id] === undefined) {
-          next[section.id] = section.steps.some((step) => step.id === currentStep);
-        }
-      }
-      return next;
-    });
+    setExpandedSections((prev) => initializeExpandedSectionState(prev, sections, currentStep));
   }, [sections, currentStep]);
 
   const toggleSection = useCallback((sectionId: string) => {
@@ -856,15 +990,7 @@ function GroupedMobileStepBar({
   const progressPercent = Math.min(100, (completedStepCount / Math.max(steps.length, 1)) * 100);
 
   useEffect(() => {
-    setExpandedSections((prev) => {
-      const next = { ...prev };
-      for (const section of sections) {
-        if (next[section.id] === undefined) {
-          next[section.id] = section.steps.some((step) => step.id === currentStep);
-        }
-      }
-      return next;
-    });
+    setExpandedSections((prev) => initializeExpandedSectionState(prev, sections, currentStep));
   }, [sections, currentStep]);
 
   const toggleSection = useCallback((sectionId: string) => {
@@ -1095,7 +1221,6 @@ function FinalConfirmationPanel({
   submissionError: string | null;
   onSubmit: (
     mode: SubmissionMode,
-    vietnamPaymentCard?: VietnamOneTimePaymentCard,
     taiwanOfficialTermsConsent?: TaiwanOfficialTermsConsentInput,
   ) => void | Promise<void>;
 }) {
@@ -1183,10 +1308,9 @@ function FinalConfirmationPanel({
   // the control against duplicate requests.
   const taiwanTermsReady =
     !isTaiwan || (taiwanEntryPromptAccepted && taiwanTermsModalAccepted);
-  const submitDisabled = isSubmitting || isChecking || !taiwanTermsReady ||
+  const submitDisabled = requirementsLoading || isSubmitting || isChecking || !taiwanTermsReady ||
     (isKoreaEArrivalCard && !koreaPreflightTrusted) ||
     (hasLiveAssistedTarget && !liveAssistedEnabled);
-  const officialPaymentCard: VietnamOneTimePaymentCard | undefined = undefined;
   const submitCopy = forceDryRun
     ? isZh
       ? "这是隔离的云端演练，只验证 VIZA 与 Fly 提交链路，不会打开或填写官方 CEAC 网站。"
@@ -1244,8 +1368,8 @@ function FinalConfirmationPanel({
             </h3>
             <p className="mt-1 text-sm leading-relaxed text-[#3d5878]">
               {isZh
-                ? "两项授权会分别记录。确认后，VIZA 将在后台自动完成官网填写、验证码和「确认资料」提交；只有取得官方申请编号才会显示提交成功。若审核通过后产生官网费用，VIZA 将从本申请专属的官方费用分配中自动支付。"
-                : "Each authorization is recorded separately. VIZA will complete the official form, CAPTCHA, and final confirmation in the background. Success is shown only after an official application number is verified. If an official fee becomes payable after approval, VIZA will pay it from this application's dedicated official-fee allocation."}
+                ? "两项授权会分别记录。确认后，VIZA 将在后台自动完成官网填写、验证码和「确认资料」提交；只有取得官方申请编号才会显示提交成功。若官网后续需要人工处理，系统会在状态中提示下一步。"
+                : "Each authorization is recorded separately. VIZA will complete the official form, CAPTCHA, and final confirmation in the background. Success is shown only after an official application number is verified. If the official portal needs attention later, the status page will show the next step."}
             </p>
           </div>
           <ApplicationCheckbox
@@ -1291,7 +1415,7 @@ function FinalConfirmationPanel({
                 termsModalAccepted: taiwanTermsModalAccepted,
               }
             : undefined;
-          void Promise.resolve(onSubmit(submitMode, officialPaymentCard, taiwanOfficialTermsConsent))
+          void Promise.resolve(onSubmit(submitMode, taiwanOfficialTermsConsent))
             .catch(() => undefined);
         }}
         className={cn(
@@ -1364,6 +1488,7 @@ interface SubmissionQueueJobInput {
   locale: string;
   answerSnapshot?: Record<string, string>;
   taiwanOfficialTermsConsent?: TaiwanOfficialTermsConsentInput;
+  intent?: SubmissionRetryIntent;
 }
 
 type SubmissionQueueJobResult = {
@@ -1376,81 +1501,37 @@ type SubmissionQueueJobResult = {
   submissionResult: SubmissionResult | null;
 };
 
-type ApplicationSubmissionState = {
-  submittedAt: string | undefined;
-  submissionResultStatus: SubmissionResultStatus | null;
-  submissionResult: SubmissionResult | null;
-  confirmationNumber: string | undefined;
-};
-
-const TERMINAL_SUBMISSION_RESULT_STATUSES = [
-  "completed",
-  "submitted",
-  "submitted_mock",
-  "form_ready_for_agency",
-] as const;
-
-function applicationStatusForQueuedSubmission(queueJob: SubmissionQueueJobResult): "processing" | "submitted" {
-  return TERMINAL_SUBMISSION_RESULT_STATUSES.includes(
-    queueJob.submissionResultStatus as (typeof TERMINAL_SUBMISSION_RESULT_STATUSES)[number],
-  )
-    ? "submitted"
-    : "processing";
+function isRecordValue(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-async function markApplicationSubmissionQueued(
-  supabase: ReturnType<typeof createClient>,
-  input: {
-    applicationId: string;
-    submittedAt: string;
-    queueJob: SubmissionQueueJobResult;
-    officialSubmissionPending?: boolean;
-  },
-): Promise<ApplicationSubmissionState> {
-  const selectColumns = "submitted_at, submission_result_status, submission_result, confirmation_number";
-  const { data: updatedApplication, error: updateError } = await supabase
-    .from("applications")
-    .update({
-      status: applicationStatusForQueuedSubmission(input.queueJob),
-      submitted_at: input.officialSubmissionPending ? null : input.submittedAt,
-      submission_result_status: input.queueJob.submissionResultStatus,
-      submission_result: input.queueJob.submissionResult,
-      confirmation_number: null,
-      submission_result_updated_at: input.submittedAt,
-    })
-    .eq("id", input.applicationId)
-    .or(
-      [
-        "submission_result_status.is.null",
-        `submission_result_status.not.in.(${TERMINAL_SUBMISSION_RESULT_STATUSES.join(",")})`,
-      ].join(","),
-    )
-    .select(selectColumns)
-    .maybeSingle();
-  if (updateError) throw new Error(updateError.message);
+function isVerifiedStoredSubmittedResult(
+  value: unknown,
+  input: Pick<SubmissionQueueJobInput, "country" | "visaType">,
+): value is SubmissionResult {
+  if (!isRecordValue(value)) return false;
+  const status = typeof value.status === "string" ? value.status.trim().toLowerCase() : "";
+  const country = typeof value.country === "string" ? value.country.trim() : "";
+  if (!status || !country) return false;
 
-  const application = updatedApplication ?? (await supabase
-    .from("applications")
-    .select(selectColumns)
-    .eq("id", input.applicationId)
-    .maybeSingle()).data;
+  if (isDs160VisaType(input.visaType)) {
+    const applicationId = value.applicationId;
+    if (
+      status !== "submitted" ||
+      country.toUpperCase() !== "US" ||
+      typeof applicationId !== "string" ||
+      !applicationId.trim()
+    ) {
+      return false;
+    }
+  }
 
-  return {
-    submittedAt: application?.submitted_at ??
-      (input.officialSubmissionPending ? undefined : input.submittedAt),
-    submissionResultStatus:
-      (application?.submission_result_status as SubmissionResultStatus | null | undefined) ??
-      input.queueJob.submissionResultStatus,
-    submissionResult:
-      (sanitizeCustomerSubmissionResult(application?.submission_result) as
-        | SubmissionResult
-        | null
-        | undefined) ?? input.queueJob.submissionResult,
-    confirmationNumber:
-      typeof application?.confirmation_number === "string" && application.confirmation_number.trim()
-        ? application.confirmation_number
-        : undefined,
-  };
+  return hasSuccessfulFormSubmission({
+    country: input.country,
+    visaType: input.visaType,
+    submissionResultStatus: status,
+    submissionResult: value,
+  });
 }
 
 async function insertSubmissionQueueJob(
@@ -1463,10 +1544,9 @@ async function insertSubmissionQueueJob(
       mode: input.mode,
       country: input.country,
       visaType: input.visaType,
-      // DS-160 retries must start a fresh CEAC application even when this
-      // VIZA application already has an older successful submission. This
-      // helper is also used by the result card's onResubmit path.
-      intent: isDs160VisaType(input.visaType) ? "new_application" : "retry",
+      // Keep retries on this VIZA application resumable. A fresh DS-160 uses
+      // the separate new-application endpoint after a confirmed success.
+      intent: input.intent ?? "retry",
       answerSnapshot: input.answerSnapshot,
       taiwanOfficialTermsConsent: input.taiwanOfficialTermsConsent,
     }),
@@ -1475,17 +1555,8 @@ async function insertSubmissionQueueJob(
     const payload = (await response.json().catch(() => null)) as {
       error?: unknown;
       code?: unknown;
-      checkoutUrl?: unknown;
       missingFields?: unknown;
     } | null;
-    if (
-      response.status === 402
-      && typeof payload?.checkoutUrl === "string"
-      && payload.checkoutUrl
-    ) {
-      window.location.assign(payload.checkoutUrl);
-      throw new Error("Redirecting to checkout.");
-    }
     const rawError = typeof payload?.error === "string"
       ? payload.error
       : `Submission queue creation failed with ${response.status}`;
@@ -1539,8 +1610,32 @@ async function insertSubmissionQueueJob(
     jobId?: unknown;
     queueStatus?: unknown;
     provider?: unknown;
+    alreadySubmitted?: unknown;
     result?: SubmissionResult | null;
   } | null;
+  if (payload?.alreadySubmitted === true) {
+    const result = sanitizeCustomerSubmissionResult(payload.result);
+    if (!isVerifiedStoredSubmittedResult(result, input)) {
+      const requestError = new Error(
+        localizedSubmissionAccessError(
+          "already_submitted_result_invalid",
+          "The existing submission result could not be verified.",
+          input.locale.toLowerCase().startsWith("zh"),
+        ),
+      ) as SubmissionQueueRequestError;
+      requestError.code = "already_submitted_result_invalid";
+      throw requestError;
+    }
+    return {
+      scheduled: false,
+      scheduledFor: null,
+      jobId: null,
+      queueStatus: null,
+      provider: typeof payload?.provider === "string" ? payload.provider : null,
+      submissionResultStatus: "submitted",
+      submissionResult: result,
+    };
+  }
   return {
     scheduled: Boolean(payload?.scheduled),
     scheduledFor: payload?.scheduledFor ?? null,
@@ -1556,7 +1651,6 @@ async function prepareSubmissionAccess(applicationId: string, isZh: boolean): Pr
   const currentUrl = new URL(window.location.href);
   currentUrl.searchParams.set("applicationId", applicationId);
   currentUrl.searchParams.set("step", "review");
-  currentUrl.searchParams.delete("payment");
   currentUrl.searchParams.delete("orderId");
   const returnTo = `${currentUrl.pathname}${currentUrl.search}`;
   const response = await fetch(`/api/applications/${applicationId}/submission-access`, {
@@ -1567,20 +1661,11 @@ async function prepareSubmissionAccess(applicationId: string, isZh: boolean): Pr
   const payload = (await response.json().catch(() => null)) as {
     error?: unknown;
     code?: unknown;
-    checkoutUrl?: unknown;
   } | null;
   if (response.ok) return true;
-  if (
-    response.status === 402
-    && typeof payload?.checkoutUrl === "string"
-    && payload.checkoutUrl
-  ) {
-    window.location.assign(payload.checkoutUrl);
-    return false;
-  }
   const rawError = typeof payload?.error === "string"
     ? payload.error
-    : "Submission payment eligibility could not be confirmed.";
+    : "Submission access needs attention before this application can continue.";
   throw new Error(localizedSubmissionAccessError(
     typeof payload?.code === "string" ? payload.code : undefined,
     rawError,
@@ -1588,60 +1673,6 @@ async function prepareSubmissionAccess(applicationId: string, isZh: boolean): Pr
   ));
 }
 
-async function insertOfficialFeeSubmissionQueueJobWithCard(
-  applicationId: string,
-  _card: VietnamOneTimePaymentCard | undefined,
-): Promise<SubmissionQueueJobResult> {
-  const response = await fetch(`/api/applications/${applicationId}/official-fee/pay`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ paymentMethod: "viza_managed_virtual_card" }),
-  });
-  const payload = (await response.json().catch(() => null)) as {
-    error?: unknown;
-    code?: unknown;
-    errorCode?: unknown;
-    checkoutUrl?: unknown;
-    queueId?: unknown;
-    queueStatus?: unknown;
-    provider?: unknown;
-  } | null;
-  if (!response.ok) {
-    if (
-      (payload?.code === "official_fee_funding_required" ||
-        payload?.errorCode === "official_fee_funding_required" ||
-        payload?.code === "application_payment_required" ||
-        payload?.errorCode === "application_payment_required") &&
-      typeof payload.checkoutUrl === "string"
-    ) {
-      window.location.assign(payload.checkoutUrl);
-      return {
-        scheduled: false,
-        scheduledFor: null,
-        jobId: null,
-        queueStatus: "official_fee_funding_required",
-        provider: "viza_managed_virtual_card",
-        submissionResultStatus: "waiting",
-        submissionResult: null,
-      };
-    }
-    throw new Error(
-      typeof payload?.error === "string"
-        ? payload.error
-        : `Official-fee queue creation failed with ${response.status}`,
-    );
-  }
-
-  return {
-    scheduled: false,
-    scheduledFor: null,
-    jobId: typeof payload?.queueId === "string" ? payload.queueId : null,
-    queueStatus: typeof payload?.queueStatus === "string" ? payload.queueStatus : "vn_cloud_live_pending",
-    provider: typeof payload?.provider === "string" ? payload.provider : "vietnam_evisa_live",
-    submissionResultStatus: "waiting",
-    submissionResult: null,
-  };
-}
 
 type LoadedApplicantProfile = UniversalProfileSnapshot & {
   id?: string | null;
@@ -1754,6 +1785,15 @@ function recoverOrFormatServerActionError(
   return error instanceof Error ? error.message : fallbackMessage;
 }
 
+function localizeApplicationAuthError(message: string, isZh: boolean): string {
+  if (!/^(unauthorized|forbidden|not authenticated)$/iu.test(message.trim())) {
+    return message;
+  }
+  return isZh
+    ? "登录状态与当前申请的身份验证失败。请刷新页面后重新提交；你的表单内容已保留。"
+    : "Your login session could not be verified for this application. Refresh the page and submit again; your answers have been preserved.";
+}
+
 type LoadedApplication = {
   id?: string | null;
   country?: string | null;
@@ -1816,13 +1856,21 @@ export default function ApplicationPage() {
   const router = useRouter();
   const t = useTranslations("application");
   const locale = useLocale();
+  const draftAssistantMessageCopy = useMemo(
+    () => ({
+      complete: t("formAssistant.draftComplete"),
+      question: (label: string, labelZh?: string) => t("formAssistant.draftQuestion", {
+        label: locale.toLowerCase().startsWith("zh") ? (labelZh ?? label) : label,
+      }),
+    }),
+    [locale, t],
+  );
   const searchParams = useSearchParams();
   const jumpToReview = searchParams.get("step") === "review";
   const jumpToTeam = searchParams.get("step") === "team";
   const jumpToConfirmation = ["confirmation", "confirm", "status"].includes(searchParams.get("step") ?? "");
   const explicitApplicationId = searchParams.get("applicationId")?.trim() || null;
   const returnToParam = searchParams.get("returnTo")?.trim() || null;
-  const paymentConfirmed = searchParams.get("payment") === "confirmed";
   const isCompanionFlow = Boolean(explicitApplicationId && returnToParam);
   const teamNotice = searchParams.get("teamNotice");
   const explicitCountry =
@@ -1854,7 +1902,7 @@ export default function ApplicationPage() {
     const packagePromise: Promise<UserVisaPackage | null> =
       explicitVisaType || isExplicitStatusView
         ? Promise.resolve(null)
-        : loadUserVisaPackage().catch((error) => {
+        : getUserVisaPackage().catch((error) => {
             attemptStaleServerActionReload(error);
             return null;
           });
@@ -1877,10 +1925,11 @@ export default function ApplicationPage() {
     }
 
     const stepsPromise = explicitVisaType
-      ? loadVisaFormSteps(explicitVisaType, explicitProductCountry ?? null)
-      : packagePromise.then((pkg) =>
-          loadVisaFormSteps(pkg?.visa_type ?? "ID_C1_TOURIST", pkg?.country ?? null),
-        );
+      ? getVisaFormSteps(explicitVisaType, { country: explicitProductCountry })
+      : packagePromise.then((pkg) => getVisaFormSteps(
+          pkg?.visa_type ?? "ID_C1_TOURIST",
+          { country: pkg?.country ?? null },
+        ));
 
     void stepsPromise
       .then((steps) => {
@@ -1902,7 +1951,6 @@ export default function ApplicationPage() {
   }, [explicitProductCountry, explicitVisaType, isExplicitStatusView]);
 
   const [loading, setLoading] = useState(true);
-  useRouteReady(!loading && packageLoaded);
   const [currentStep, setCurrentStep] = useState(0);
   const [_completedUpTo, setCompletedUpTo] = useState(0);
   const [appState, setAppState] = useState<ApplicationState>({
@@ -1938,13 +1986,16 @@ export default function ApplicationPage() {
   const [formAssistantAnswerRevision, setFormAssistantAnswerRevision] = useState(0);
   const [formAssistantUnavailable, setFormAssistantUnavailable] = useState(false);
   const [aiFilledFieldNames, setAiFilledFieldNames] = useState<string[]>([]);
+  const aiFilledFieldNameSet = useMemo(
+    () => new Set(aiFilledFieldNames),
+    [aiFilledFieldNames],
+  );
   const [draftVersion, setDraftVersion] = useState(0);
   const [autosaveVersion, setAutosaveVersion] = useState(0);
   const [documentCenterData, setDocumentCenterData] = useState<DocumentCenterData | null>(null);
   const [documentCenterError, setDocumentCenterError] = useState<string | null>(null);
   const [documentCenterLoaded, setDocumentCenterLoaded] = useState(false);
   const [localPassportBioPageName, setLocalPassportBioPageName] = useState<string | null>(null);
-  const [contentAlignment, setContentAlignment] = useState(0);
   const initialStepResolvedRef = useRef(false);
   const loadDataRequestRef = useRef(0);
   const formAssistantDraftBootstrapRef = useRef<{
@@ -1952,33 +2003,91 @@ export default function ApplicationPage() {
     promise: ReturnType<typeof ensureDraftApplication>;
   } | null>(null);
   const formAssistantHasValidatedRef = useRef(false);
+  const formAssistantValidationInFlightRef = useRef(false);
+  // One answer edit is enough to invalidate the current validation snapshot.
+  // Additional keystrokes must not schedule a page render for every character;
+  // the next validation request resets this latch before taking its snapshot.
+  const formAssistantAnswersMarkedDirtyRef = useRef(false);
   const formAssistantValidationRefreshGuardRef = useRef(new FormAssistantValidationRefreshGuard());
   const formAssistantValidateRef = useRef<(() => Promise<FormAssistantValidationResponse>) | null>(null);
+  const formAssistantDraftSyncPendingRef = useRef(false);
   const formAssistantRetryRef = useRef<{
     applicationId: string;
     text: string;
     idempotencyKey: string;
   } | null>(null);
+  const profileIdRef = useRef<string | null>(null);
+  const dynamicPersistedAnswersRef = useRef<Record<string, string>>({});
+  const dynamicAnswersRef = useRef(dynamicAnswers);
+  dynamicAnswersRef.current = dynamicAnswers;
   const dynamicDraftRef = useRef<Record<number, Record<string, string>>>({});
+  const submittedReadOnlyRef = useRef(false);
   const externalDraftProtectionRef = useRef<{ fieldNames: Set<string>; expiresAt: number } | null>(null);
   const draftVersionTimerRef = useRef<number | null>(null);
   const autosaveTimerRef = useRef<number | null>(null);
   const lastAutosaveVersionRef = useRef(0);
   const autosaveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const orderedDynamicSaveQueueRef = useRef<OrderedDynamicSaveQueue | null>(null);
   const autosaveRequestRef = useRef(0);
   const navigationSaveInFlightRef = useRef(false);
+  const submitCheckInFlightRef = useRef(false);
   const hasLiveSaveActivityRef = useRef(false);
   const applicationContentRef = useRef<HTMLElement | null>(null);
+  const contentAlignment = useContentAlignment(applicationContentRef);
   const formAssistantRef = useRef<HTMLDivElement | null>(null);
   const stepPanelRefs = useRef(new Map<number, HTMLDivElement>());
   const documentRequirementNavigationRef = useRef(0);
+
+  if (orderedDynamicSaveQueueRef.current === null) {
+    orderedDynamicSaveQueueRef.current = createOrderedDynamicSaveQueue(undefined, autosaveQueueRef);
+  }
+
+  const draftCacheContextRef = useRef({
+    applicationId: appState.applicationId || explicitApplicationId,
+    visaType: explicitVisaType ?? visaPackage?.visa_type ?? "ID_C1_TOURIST",
+    country: explicitProductCountry ?? visaPackage?.country ?? "indonesia",
+  });
+  draftCacheContextRef.current = {
+    applicationId: appState.applicationId || explicitApplicationId,
+    visaType: explicitVisaType ?? visaPackage?.visa_type ?? "ID_C1_TOURIST",
+    country: explicitProductCountry ?? visaPackage?.country ?? "indonesia",
+  };
+  const getApplicationDraftCacheScope = useCallback((applicationId?: string | null): ApplicationDraftCacheScope | null => {
+    const context = draftCacheContextRef.current;
+    const resolvedApplicationId = applicationId?.trim() || context.applicationId;
+    if (!resolvedApplicationId) return null;
+    return {
+      applicationId: resolvedApplicationId,
+      profileId: profileIdRef.current,
+      country: getCanonicalApplicationProductCountry(context.country, context.visaType),
+      visaType: context.visaType,
+    };
+  }, []);
 
   const markLiveSaveActivity = useCallback(() => {
     hasLiveSaveActivityRef.current = true;
   }, []);
 
+  const scheduleDynamicDerivedRefresh = useCallback(() => {
+    if (draftVersionTimerRef.current !== null) {
+      window.clearTimeout(draftVersionTimerRef.current);
+    }
+    draftVersionTimerRef.current = window.setTimeout(() => {
+      draftVersionTimerRef.current = null;
+      startTransition(() => setDraftVersion((version) => version + 1));
+    }, DYNAMIC_DERIVED_REFRESH_DEBOUNCE_MS);
+  }, []);
+
   const markFormAssistantAnswersChanged = useCallback(() => {
-    if (!formAssistantHasValidatedRef.current) return;
+    // A user can edit while the first validation request is still in flight.
+    // Treat that edit as a new answer snapshot too, otherwise the response
+    // captured before the edit would still pass the refresh guard.
+    if (
+      !formAssistantHasValidatedRef.current &&
+      !formAssistantValidationInFlightRef.current
+    ) return;
+    if (formAssistantAnswersMarkedDirtyRef.current) return;
+    formAssistantAnswersMarkedDirtyRef.current = true;
     const revision = formAssistantValidationRefreshGuardRef.current.markAnswersChanged();
     setFormAssistantAnswerRevision(revision);
     setFormAssistantValidationDirty(true);
@@ -2039,36 +2148,6 @@ export default function ApplicationPage() {
     });
   }, []);
 
-  useLayoutEffect(() => {
-    const syncNavAlignment = () => {
-      const homeAnchor = Array.from(document.querySelectorAll<HTMLElement>("[data-nav-anchor='Home']"))
-        .find((element) => element.getBoundingClientRect().width > 0);
-      const content = applicationContentRef.current;
-      if (!homeAnchor || !content) return;
-
-      const homeLeft = homeAnchor.getBoundingClientRect().left;
-      setContentAlignment(Math.max(0, homeLeft - content.getBoundingClientRect().left));
-    };
-
-    syncNavAlignment();
-    const alignmentFrame = window.requestAnimationFrame(syncNavAlignment);
-    const alignmentTimer = window.setTimeout(syncNavAlignment, 100);
-    const alignmentObserver = new MutationObserver(syncNavAlignment);
-    alignmentObserver.observe(document.body, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ["data-nav-anchor"],
-    });
-    window.addEventListener("resize", syncNavAlignment);
-    return () => {
-      window.cancelAnimationFrame(alignmentFrame);
-      window.clearTimeout(alignmentTimer);
-      alignmentObserver.disconnect();
-      window.removeEventListener("resize", syncNavAlignment);
-    };
-  }, []);
-
   useEffect(() => {
     const mediaQuery = window.matchMedia("(min-width: 1024px)");
     const originalHtmlOverflow = document.documentElement.style.overflow;
@@ -2110,6 +2189,7 @@ export default function ApplicationPage() {
     data: Record<string, string>,
     options?: { merge?: boolean },
   ) => {
+    if (submittedReadOnlyRef.current) return;
     const protection = externalDraftProtectionRef.current;
     let nextData = options?.merge
       ? mergeFormAssistantIssueDraft(dynamicDraftRef.current[stepId], data)
@@ -2120,11 +2200,25 @@ export default function ApplicationPage() {
     } else if (protection) {
       externalDraftProtectionRef.current = null;
     }
+    const previousDraft = dynamicDraftRef.current[stepId];
+    const hasDraftChanged = !previousDraft
+      || Object.keys(previousDraft).length !== Object.keys(nextData).length
+      || Object.entries(nextData).some(([key, value]) => previousDraft[key] !== value);
     dynamicDraftRef.current[stepId] = nextData;
+    const cacheScope = getApplicationDraftCacheScope();
+    const pendingCache = cacheScope
+      ? syncApplicationDraftCache(cacheScope, nextData, dynamicPersistedAnswersRef.current)
+      : null;
+    // Returning to the saved value still changes the visible branch. Compare
+    // with the previous draft here; the persisted baseline only decides save work.
+    if (hasDraftChanged) {
+      formAssistantDraftSyncPendingRef.current = true;
+      scheduleDynamicDerivedRefresh();
+    }
     const manuallyChangedAiFields = new Set(
       Object.entries(nextData)
         .filter(([fieldName, value]) =>
-          aiFilledFieldNames.includes(fieldName) && (dynamicAnswers[fieldName] ?? "") !== value,
+          aiFilledFieldNames.includes(fieldName) && (dynamicAnswersRef.current[fieldName] ?? "") !== value,
         )
         .map(([fieldName]) => fieldName),
     );
@@ -2132,7 +2226,7 @@ export default function ApplicationPage() {
       setAiFilledFieldNames((current) => current.filter((fieldName) => !manuallyChangedAiFields.has(fieldName)));
     }
     const hasChangedValue = Object.entries(nextData).some(
-      ([fieldName, value]) => (dynamicAnswers[fieldName] ?? "") !== value,
+      ([fieldName, value]) => (dynamicAnswersRef.current[fieldName] ?? "") !== value,
     );
     if (hasChangedValue) {
       markFormAssistantAnswersChanged();
@@ -2142,16 +2236,7 @@ export default function ApplicationPage() {
       // submit attempt will surface a fresh, localized error if it still fails.
       setError(null);
     }
-    if (hasChangedValue) {
-      // Refresh cross-step conditional visibility separately from persistence.
-      // This is a low-priority UI update and must never restart the save clock.
-      if (draftVersionTimerRef.current === null) {
-        draftVersionTimerRef.current = window.setTimeout(() => {
-          draftVersionTimerRef.current = null;
-          startTransition(() => setDraftVersion((version) => version + 1));
-        }, 120);
-      }
-
+    if (hasChangedValue || pendingCache) {
       // The first unsaved change starts one 30-second flush window; later
       // edits join that same batch instead of resetting the timer.
       if (autosaveTimerRef.current === null) {
@@ -2162,7 +2247,12 @@ export default function ApplicationPage() {
       }
     }
     setSubmitMissingFields((current) => current.length === 0 ? current : []);
-  }, [aiFilledFieldNames, dynamicAnswers, markFormAssistantAnswersChanged]);
+  }, [
+    aiFilledFieldNames,
+    getApplicationDraftCacheScope,
+    markFormAssistantAnswersChanged,
+    scheduleDynamicDerivedRefresh,
+  ]);
 
   useEffect(() => () => {
     if (draftVersionTimerRef.current !== null) window.clearTimeout(draftVersionTimerRef.current);
@@ -2182,14 +2272,17 @@ export default function ApplicationPage() {
   // Companion questions required by an official visa schema remain regular
   // dynamic form steps. The standalone VIZA Team workflow is deferred.
   const showTeamStep = false;
-  const STEPS: StepDef[] = STEP_KEYS
-    .filter((key) => showTeamStep || key !== "team")
-    .map((key, id) => ({
-      id,
-      name: t(`steps.${key}.name`),
-      description: t(`steps.${key}.description`),
-      sourceName: key,
-    }));
+  const STEPS = useMemo<StepDef[]>(
+    () => STEP_KEYS
+      .filter((key) => showTeamStep || key !== "team")
+      .map((key, id) => ({
+        id,
+        name: t(`steps.${key}.name`),
+        description: t(`steps.${key}.description`),
+        sourceName: key,
+      })),
+    [showTeamStep, t],
+  );
   const isDs160Application = isDs160VisaType(resolvedVisaType);
   const normalizedCountryForLive = resolvedCountry.trim().toLowerCase();
   const isFranceSchengenApplication =
@@ -2209,15 +2302,31 @@ export default function ApplicationPage() {
   });
 
   const formAssistantSchemaFieldCount = dbSteps.reduce((count, step) => count + step.fields.length, 0);
-  const formAssistantBlockedByArrivalCardSuccess = hasSuccessfulArrivalCardSubmission({
+  const formAssistantReadOnly = hasSuccessfulFormSubmission({
     country: resolvedCountry,
     visaType: resolvedVisaType,
+    submissionResultStatus: appState.submissionResultStatus,
     submissionResult: appState.submissionResult,
   });
+  submittedReadOnlyRef.current = formAssistantReadOnly;
+  const handlePolledSubmissionResult = useCallback((update: {
+    status: SubmissionResultStatus | null;
+    result: SubmissionResult;
+  }) => {
+    // Polling remains available when Realtime disconnects. Its verified result
+    // must lock the form as well as update the result card.
+    setAppState((previous) => previous.submissionResult === update.result &&
+      previous.submissionResultStatus === update.status
+      ? previous
+      : {
+          ...previous,
+          submissionResult: update.result,
+          submissionResultStatus: update.status,
+        });
+  }, []);
   const formAssistantEligible =
     !koreaSchemaUnavailable &&
-    (!isKoreaEArrivalCard || koreaPreflightTrusted) &&
-    !formAssistantBlockedByArrivalCardSuccess &&
+    (!isKoreaEArrivalCard || koreaPreflightTrusted || formAssistantReadOnly) &&
     canUseFormAssistant({
       applicationId: appState.applicationId,
       visaType: resolvedVisaType,
@@ -2246,7 +2355,25 @@ export default function ApplicationPage() {
       })
       .then((state) => {
         if (controller.signal.aborted) return;
-        setFormAssistantState(prepareFormAssistantState(state));
+        const preparedState = prepareFormAssistantState(state, { readOnly: formAssistantReadOnly });
+        if (formAssistantReadOnly) {
+          setFormAssistantState(preparedState);
+        } else {
+          // The server's current prompt can lag behind a saved/manual draft
+          // after a refresh. Reconcile it against the same schema and answer
+          // snapshot rendered by this page before exposing it to the user.
+          const draftAnswers = {
+            ...dynamicAnswersRef.current,
+            ...collectDraftAnswers(dynamicDraftRef.current),
+          };
+          setFormAssistantState(reconcileDraftFormAssistantState(preparedState, {
+            answers: draftAnswers,
+            dbSteps,
+            country: resolvedCountry,
+            visaType: resolvedVisaType,
+            messageCopy: draftAssistantMessageCopy,
+          }));
+        }
         setAiFilledFieldNames(state.aiFilledFieldNames);
       })
       .catch((assistantError) => {
@@ -2260,7 +2387,17 @@ export default function ApplicationPage() {
         if (!controller.signal.aborted) setFormAssistantBusy(false);
       });
     return () => controller.abort();
-  }, [appState.applicationId, formAssistantEligible, formAssistantReloadKey, locale]);
+  }, [
+    appState.applicationId,
+    dbSteps,
+    formAssistantEligible,
+    formAssistantReadOnly,
+    formAssistantReloadKey,
+    draftAssistantMessageCopy,
+    locale,
+    resolvedCountry,
+    resolvedVisaType,
+  ]);
 
   // A concurrent Server Action refresh can remount the client subtree after a
   // successful assistant request and leave the card in its empty 0 / 0 shell.
@@ -2288,6 +2425,8 @@ export default function ApplicationPage() {
   const isThailandTdac = isThailandTdacApplication(resolvedCountry, resolvedVisaType);
   const isUkStandardVisitor = isUkStandardVisitorApplication(resolvedCountry, resolvedVisaType);
   const isIndonesiaEVisa = isIndonesiaEVisaApplication(resolvedCountry, resolvedVisaType);
+  const preserveIndonesiaReview =
+    isIndonesiaEVisa || isIndonesiaEVisaApplication(explicitCountry, requestedVisaType);
   const liveAssistedTarget: LiveAssistedTarget = isDs160Application
     ? "ds160"
     : isFranceSchengenApplication
@@ -2372,24 +2511,10 @@ export default function ApplicationPage() {
   const documentStepIndex = dbSteps.length;
   const teamStepIndex = dbSteps.length + (showStandaloneDocumentStep ? 1 : 0);
   const reviewStepIndex = teamStepIndex + (showTeamStep ? 1 : 0);
-  const statusStepIndex = reviewStepIndex + 1;
+  const statusStepIndex = reviewStepIndex;
   const fallbackTeamStepIndex = 4;
   const fallbackReviewStepIndex = showTeamStep ? 5 : 4;
-  const fallbackStatusStepIndex = fallbackReviewStepIndex + 1;
-  const hasSubmissionStatus = shouldShowSubmissionStatusStep({
-    submittedAt: appState.submittedAt,
-    submissionResultStatus: appState.submissionResultStatus,
-    submissionResult: appState.submissionResult,
-  });
-  const showTerminalConfirmation = hasConfirmedTerminalSubmissionSuccess({
-    country: resolvedCountry,
-    visaType: resolvedVisaType,
-    submissionResultStatus: appState.submissionResultStatus,
-    submissionResult: appState.submissionResult,
-  });
-  // The review remains available for every state. Only confirmed official
-  // success earns the separate Confirmation panel after Review.
-  const showReviewAlongsideSubmissionStatus = shouldShowReviewAlongsideSubmissionStatus();
+  const fallbackStatusStepIndex = fallbackReviewStepIndex;
 
   const pendingDynamicDrafts = useMemo(
     () => {
@@ -2402,11 +2527,71 @@ export default function ApplicationPage() {
     () => ({ ...dynamicAnswers, ...pendingDynamicDrafts }),
     [dynamicAnswers, pendingDynamicDrafts],
   );
+  useEffect(() => {
+    if (!useDynamic || formAssistantReadOnly || formAssistantBusy || !formAssistantDraftSyncPendingRef.current) return;
+
+    // Manual edits are intentionally reconciled on the existing draft
+    // debounce cadence. Updating the assistant on every keystroke would
+    // recreate its message list and make the large form feel sluggish.
+    const draftAnswers = {
+      ...dynamicAnswersRef.current,
+      ...collectDraftAnswers(dynamicDraftRef.current),
+    };
+    formAssistantDraftSyncPendingRef.current = false;
+    setFormAssistantState((current) => {
+      if (!current) return current;
+      return reconcileDraftFormAssistantState(current, {
+        answers: draftAnswers,
+        dbSteps,
+        country: resolvedCountry,
+        visaType: resolvedVisaType,
+        messageCopy: draftAssistantMessageCopy,
+      });
+    });
+  }, [
+    dbSteps,
+    draftAssistantMessageCopy,
+    draftVersion,
+    formAssistantBusy,
+    formAssistantReadOnly,
+    resolvedCountry,
+    resolvedVisaType,
+    useDynamic,
+  ]);
+  // Cross-section gates must see the current draft, not the 30-second save
+  // snapshot. Restrict the override to structural DS-160 inputs so ordinary
+  // typing keeps sibling DynamicStepForm props stable.
+  const ds160CrossStepSignature = useMemo(() => {
+    if (!isDs160VisaType(resolvedVisaType)) return "{}";
+    return JSON.stringify(Object.fromEntries(Object.entries(dynamicAnswerSnapshot)
+      .filter(([key]) => /^(?:nationality_country|nationality|current_nationality|other_nationality|other_nationality_country(?:__\d+)?|date_of_birth|dateOfBirth|marital_status|has_specific_plans|has_specific_travel_plans|intended_length_of_stay_units?)$/.test(key))
+      .sort(([left], [right]) => left.localeCompare(right))));
+  }, [dynamicAnswerSnapshot, resolvedVisaType]);
+  const dynamicFormPrefill = useMemo(() => {
+    if (ds160CrossStepSignature === "{}") return dynamicAnswers;
+    const currentControllers = JSON.parse(ds160CrossStepSignature) as Record<string, string>;
+    return { ...dynamicAnswers, ...currentControllers };
+  }, [dynamicAnswers, ds160CrossStepSignature]);
   const visibleDynamicSteps = useMemo(
-    () => (useDynamic ? getVisibleDynamicSteps(dbSteps, dynamicAnswerSnapshot) : []),
-    [dbSteps, dynamicAnswerSnapshot, useDynamic],
+    () => (useDynamic ? getVisibleDynamicSteps(dbSteps, dynamicAnswerSnapshot, resolvedVisaType) : []),
+    [dbSteps, dynamicAnswerSnapshot, resolvedVisaType, useDynamic],
   );
-  const firstFormStepId = useDynamic ? (visibleDynamicSteps[0]?.sourceIndex ?? 0) : 0;
+  // Draft answers change on the typing cadence, but most edits do not change
+  // which schema steps are visible. Keep the step list reference stable until
+  // that visibility set (or the schema itself) actually changes so downstream
+  // navigation effects do not rebind on every draft snapshot.
+  const visibleDynamicStepKey = useMemo(
+    () => visibleDynamicSteps.map(({ sourceIndex }) => sourceIndex).join(","),
+    [visibleDynamicSteps],
+  );
+  // The signature intentionally replaces the array dependency: answer edits
+  // can recreate the same visible-step list without changing navigation.
+  const stableVisibleDynamicSteps = useMemo(
+    () => visibleDynamicSteps,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [dbSteps, useDynamic, visibleDynamicStepKey],
+  );
+  const firstFormStepId = useDynamic ? (stableVisibleDynamicSteps[0]?.sourceIndex ?? 0) : 0;
   const passportBioPageDocument = useMemo(
     () =>
       documentCenterData?.documents.find((document) =>
@@ -2444,7 +2629,7 @@ export default function ApplicationPage() {
     () =>
       useDynamic
         ? [
-        ...visibleDynamicSteps.map(({ step, sourceIndex }) => ({
+          ...stableVisibleDynamicSteps.map(({ step, sourceIndex }) => ({
           id: sourceIndex,
           sourceName: step.stepName,
           name: localizeDynamicStepName(step.stepName, {
@@ -2486,32 +2671,11 @@ export default function ApplicationPage() {
             : tDyn.has("Review") ? tDyn("Review" as never) : isZhInterface ? "审核申请" : "Review Application",
           description: tApp.has("reviewStepDescription") ? tApp("reviewStepDescription" as never) : "Review, confirm, and submit your details",
         },
-        ...(showTerminalConfirmation
-          ? [{
-              id: statusStepIndex,
-              sourceName: "Confirmation",
-              name: isZhInterface ? "提交结果" : "Submission result",
-              description: isZhInterface ? "查看官方提交结果和凭证" : "View the official submission result and artifacts",
-            }]
-          : []),
       ]
-        : [
-            ...STEPS,
-            ...(showTerminalConfirmation
-              ? [{
-                  id: fallbackStatusStepIndex,
-                  sourceName: "Confirmation",
-                  name: isZhInterface ? "提交结果" : "Submission result",
-                  description: isZhInterface ? "查看官方提交结果和凭证" : "View the official submission result and artifacts",
-                }]
-              : []),
-          ],
+        : [...STEPS],
     [
       documentStepIndex,
       reviewStepIndex,
-      statusStepIndex,
-      fallbackStatusStepIndex,
-      showTerminalConfirmation,
       showStandaloneDocumentStep,
       showTeamStep,
       STEPS,
@@ -2522,28 +2686,31 @@ export default function ApplicationPage() {
       tApp,
       tDyn,
       useDynamic,
-      visibleDynamicSteps,
+      stableVisibleDynamicSteps,
     ],
   );
 
-  const dynamicSectionTitles = {
-    personal: tApp.has("dynamicSections.personal") ? tApp("dynamicSections.personal" as never) : "Personal",
-    travel: tApp.has("dynamicSections.travel") ? tApp("dynamicSections.travel" as never) : "Travel",
-    stay: tApp.has("dynamicSections.stay") ? tApp("dynamicSections.stay" as never) : isZhInterface ? "停留信息" : "Stay",
-    travelCompanions: tApp.has("dynamicSections.travelCompanions") ? tApp("dynamicSections.travelCompanions" as never) : "Travel Companions",
-    previousTravel: tApp.has("dynamicSections.previousTravel") ? tApp("dynamicSections.previousTravel" as never) : "Previous U.S. Travel",
-    addressAndPhone: tApp.has("dynamicSections.addressAndPhone") ? tApp("dynamicSections.addressAndPhone" as never) : "Address and Phone",
-    passport: tApp.has("dynamicSections.passport") ? tApp("dynamicSections.passport" as never) : "Passport",
-    usContact: tApp.has("dynamicSections.usContact") ? tApp("dynamicSections.usContact" as never) : "U.S. Contact",
-    family: tApp.has("dynamicSections.family") ? tApp("dynamicSections.family" as never) : "Family",
-    workEducationTraining: tApp.has("dynamicSections.workEducationTraining") ? tApp("dynamicSections.workEducationTraining" as never) : "Work / Education / Training",
-    securityAndBackground: tApp.has("dynamicSections.securityAndBackground") ? tApp("dynamicSections.securityAndBackground" as never) : "Security and Background",
-    documents: tApp.has("dynamicSections.documents") ? tApp("dynamicSections.documents" as never) : isZhInterface ? "材料" : "Documents",
-    photo: tApp.has("dynamicSections.photo") ? tApp("dynamicSections.photo" as never) : "Upload Photo",
-    review: tApp.has("dynamicSections.review") ? tApp("dynamicSections.review" as never) : "Review",
-    team: tApp.has("dynamicSections.team") ? tApp("dynamicSections.team" as never) : "Team",
-    confirmation: tApp.has("dynamicSections.confirmation") ? tApp("dynamicSections.confirmation" as never) : "Confirmation",
-  } satisfies Record<StepSectionKey, string>;
+  const dynamicSectionTitles = useMemo(
+    () => ({
+      personal: tApp.has("dynamicSections.personal") ? tApp("dynamicSections.personal" as never) : "Personal",
+      travel: tApp.has("dynamicSections.travel") ? tApp("dynamicSections.travel" as never) : "Travel",
+      stay: tApp.has("dynamicSections.stay") ? tApp("dynamicSections.stay" as never) : isZhInterface ? "停留信息" : "Stay",
+      travelCompanions: tApp.has("dynamicSections.travelCompanions") ? tApp("dynamicSections.travelCompanions" as never) : "Travel Companions",
+      previousTravel: tApp.has("dynamicSections.previousTravel") ? tApp("dynamicSections.previousTravel" as never) : "Previous U.S. Travel",
+      addressAndPhone: tApp.has("dynamicSections.addressAndPhone") ? tApp("dynamicSections.addressAndPhone" as never) : "Address and Phone",
+      passport: tApp.has("dynamicSections.passport") ? tApp("dynamicSections.passport" as never) : "Passport",
+      usContact: tApp.has("dynamicSections.usContact") ? tApp("dynamicSections.usContact" as never) : "U.S. Contact",
+      family: tApp.has("dynamicSections.family") ? tApp("dynamicSections.family" as never) : "Family",
+      workEducationTraining: tApp.has("dynamicSections.workEducationTraining") ? tApp("dynamicSections.workEducationTraining" as never) : "Work / Education / Training",
+      securityAndBackground: tApp.has("dynamicSections.securityAndBackground") ? tApp("dynamicSections.securityAndBackground" as never) : "Security and Background",
+      documents: tApp.has("dynamicSections.documents") ? tApp("dynamicSections.documents" as never) : isZhInterface ? "材料" : "Documents",
+      photo: tApp.has("dynamicSections.photo") ? tApp("dynamicSections.photo" as never) : "Upload Photo",
+      review: tApp.has("dynamicSections.review") ? tApp("dynamicSections.review" as never) : "Review",
+      team: tApp.has("dynamicSections.team") ? tApp("dynamicSections.team" as never) : "Team",
+      confirmation: tApp.has("dynamicSections.confirmation") ? tApp("dynamicSections.confirmation" as never) : "Confirmation",
+    } satisfies Record<StepSectionKey, string>),
+    [isZhInterface, tApp],
+  );
 
   const groupedSections = useMemo(
     () => {
@@ -2573,9 +2740,54 @@ export default function ApplicationPage() {
   // Final list of steps in display order: flattened from grouped sections so
   // the sidebar index matches navigation order. Falls back to source order
   // for the hardcoded (non-DB) flow.
-  const effectiveSteps: StepDef[] = useDynamic
-    ? groupedSections.flatMap((section) => section.steps)
-    : sourceOrderedSteps;
+  const effectiveSteps = useMemo<StepDef[]>(
+    () => useDynamic
+      ? groupedSections.flatMap((section) => section.steps)
+      : sourceOrderedSteps,
+    [groupedSections, sourceOrderedSteps, useDynamic],
+  );
+
+  // The displayed step list intentionally waits for the debounced draft
+  // snapshot. Submission is an explicit boundary, though, so a branch toggle
+  // made immediately before clicking Submit must still be reflected in the
+  // synchronous completeness walk. Rebuild only the dynamic step definitions
+  // here; the static document/review steps already have stable ids.
+  const getCurrentEffectiveSteps = useCallback((answers: Record<string, string>) => {
+    if (!useDynamic) return effectiveSteps;
+
+    const currentVisibleDynamicSteps = getVisibleDynamicSteps(dbSteps, answers, resolvedVisaType);
+    const currentVisibleDynamicStepKey = currentVisibleDynamicSteps
+      .map(({ sourceIndex }) => sourceIndex)
+      .join(",");
+    if (currentVisibleDynamicStepKey === visibleDynamicStepKey) return effectiveSteps;
+
+    const sourceStepsById = new Map(sourceOrderedSteps.map((step) => [step.id, step]));
+    const currentDynamicSteps = currentVisibleDynamicSteps.map(({ step, sourceIndex }) =>
+      sourceStepsById.get(sourceIndex) ?? {
+        id: sourceIndex,
+        sourceName: step.stepName,
+        name: localizeDynamicStepName(step.stepName, {
+          isZhInterface,
+          visaType: resolvedVisaType,
+          translate: tDyn,
+        }),
+        description: tApp("dynamicStepDescription", { count: step.fields.length }),
+      },
+    );
+    const staticSteps = effectiveSteps.filter((step) => step.id >= documentStepIndex);
+    return [...currentDynamicSteps, ...staticSteps];
+  }, [
+    dbSteps,
+    documentStepIndex,
+    effectiveSteps,
+    isZhInterface,
+    resolvedVisaType,
+    sourceOrderedSteps,
+    tApp,
+    tDyn,
+    useDynamic,
+    visibleDynamicStepKey,
+  ]);
 
   const tabCompletion = useMemo(
     () => computeAllTabCompletion({
@@ -2595,7 +2807,6 @@ export default function ApplicationPage() {
       reviewStepId: reviewStepIndex,
       teamStepId: teamStepIndex,
       confirmationStepId: statusStepIndex,
-      showConfirmationStep: showTerminalConfirmation,
       showDocumentStep: showStandaloneDocumentStep,
       showTeamStep,
     }),
@@ -2617,7 +2828,6 @@ export default function ApplicationPage() {
       showStandaloneDocumentStep,
       showTeamStep,
       statusStepIndex,
-      showTerminalConfirmation,
       teamStepIndex,
     ],
   );
@@ -2664,9 +2874,9 @@ export default function ApplicationPage() {
   const formAssistantFieldReviewIssues = useMemo(
     () => buildFormAssistantFieldReviewIssues(
       formAssistantValidationDirty ? null : reviewValidation,
-      visibleDynamicSteps.map(({ step }) => step),
+      stableVisibleDynamicSteps.map(({ step }) => step),
     ),
-    [formAssistantValidationDirty, reviewValidation, visibleDynamicSteps],
+    [formAssistantValidationDirty, reviewValidation, stableVisibleDynamicSteps],
   );
   const formAssistantFieldReviewIssueMap = useMemo(
     () => new Map(formAssistantFieldReviewIssues.map((issue) => [issue.fieldName, issue])),
@@ -2708,6 +2918,12 @@ export default function ApplicationPage() {
   );
   const formAssistantReadinessProgress = useMemo(() => {
     const formProgress = getAssistantProgress(dbSteps, dynamicAnswerSnapshot);
+    // A durable submission is historical evidence. Do not re-grade it against
+    // today's date or later profile/schema changes, which can make a completed
+    // application appear incomplete after the fact.
+    if (formAssistantReadOnly) {
+      return { completed: formProgress.total, total: formProgress.total };
+    }
     // Required-field progress must not count a non-empty value that final
     // validation already rejects (for example an incomplete Japan address).
     // Otherwise the assistant can show 100% while Submit immediately returns
@@ -2729,9 +2945,13 @@ export default function ApplicationPage() {
     dbSteps,
     documentCenterData,
     dynamicAnswerSnapshot,
+    formAssistantReadOnly,
     showStandaloneDocumentStep,
     tabCompletion.missingFields,
   ]);
+  const formAssistantDisplayProgress = formAssistantReadOnly
+    ? toSubmittedFormAssistantProgress(formAssistantReadinessProgress)
+    : formAssistantReadinessProgress;
   const missingRequiredDocumentKeys = useMemo(
     () => showStandaloneDocumentStep
       ? getMissingRequiredDocumentRequirementKeys(documentCenterData)
@@ -2741,10 +2961,10 @@ export default function ApplicationPage() {
   const applicationReadyForAssistantReview =
     (!showStandaloneDocumentStep || documentCenterLoaded) &&
     tabCompletion.missingFields.length === 0;
-  const lastVisibleFormStepId = visibleDynamicSteps.at(-1)?.sourceIndex ?? null;
+  const lastVisibleFormStepId = stableVisibleDynamicSteps.at(-1)?.sourceIndex ?? null;
   const invalidFieldNamesByStep = useMemo(() => {
+    if (submitCheckState !== "invalid") return EMPTY_INVALID_FIELD_NAMES_BY_STEP;
     const fieldsByStep = new Map<number, Set<string>>();
-    if (submitCheckState !== "invalid") return fieldsByStep;
 
     for (const item of confirmationMissingFields) {
       const fieldNames = fieldsByStep.get(item.stepId) ?? new Set<string>();
@@ -2754,8 +2974,8 @@ export default function ApplicationPage() {
     return fieldsByStep;
   }, [confirmationMissingFields, submitCheckState]);
   const invalidFieldMessagesByStep = useMemo(() => {
+    if (submitCheckState !== "invalid") return EMPTY_INVALID_FIELD_MESSAGES_BY_STEP;
     const messagesByStep = new Map<number, Map<string, string>>();
-    if (submitCheckState !== "invalid") return messagesByStep;
 
     for (const item of confirmationMissingFields) {
       const fieldMessages = messagesByStep.get(item.stepId) ?? new Map<string, string>();
@@ -2774,6 +2994,16 @@ export default function ApplicationPage() {
     resolvedVisaType,
     submitCheckState,
   ]);
+  const showSubmissionStatusStep = shouldShowSubmissionStatusStep({
+    submittedAt: appState.submittedAt,
+    submissionResultStatus: appState.submissionResultStatus,
+    submissionResult: appState.submissionResult,
+  });
+  // A submission/status card must never replace the saved application review.
+  // This applies uniformly to pending, payment, handoff, success, retry, and
+  // failure states across every long-form country workflow.
+  const showReviewAlongsideSubmissionStatus = shouldShowReviewAlongsideSubmissionStatus();
+
   useEffect(() => {
     if (loading || effectiveSteps.length === 0) return;
     setCompletedUpTo(getContiguousCompletedCount(effectiveSteps, completedStepIds));
@@ -2785,7 +3015,21 @@ export default function ApplicationPage() {
     setError(null);
     setCurrentStep(0);
     setCompletedUpTo(0);
+    profileIdRef.current = null;
+    dynamicPersistedAnswersRef.current = {};
+    dynamicAnswersRef.current = {};
+    dynamicDraftRef.current = {};
+    formAssistantDraftSyncPendingRef.current = false;
     setDynamicAnswers({});
+    if (draftVersionTimerRef.current !== null) {
+      window.clearTimeout(draftVersionTimerRef.current);
+      draftVersionTimerRef.current = null;
+    }
+    if (autosaveTimerRef.current !== null) {
+      window.clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+    lastAutosaveVersionRef.current = 0;
     setKoreaPreflightTrusted(!isKoreaEArrivalCard);
     setSubmitCheckState("idle");
     setSubmitMissingFields([]);
@@ -2794,6 +3038,8 @@ export default function ApplicationPage() {
     setFormAssistantAnswerRevision(0);
     setFormAssistantBusy(false);
     formAssistantHasValidatedRef.current = false;
+    formAssistantValidationInFlightRef.current = false;
+    formAssistantAnswersMarkedDirtyRef.current = false;
     formAssistantValidationRefreshGuardRef.current.reset();
     initialStepResolvedRef.current = false;
     setAppState((prev) => ({
@@ -2816,17 +3062,13 @@ export default function ApplicationPage() {
     try {
       let profile: LoadedApplicantProfile | null = null;
       let application: LoadedApplication | null = null;
-
-      // When the URL already names the application, its answers do not have to
-      // wait for the ownership check to come back — both reads verify the
-      // session themselves, so they go out together. This removes a full
-      // Supabase round trip from every visit to the wizard.
-      const eagerAnswersPromise = explicitApplicationId
-        ? loadApplicationAnswers(explicitApplicationId).catch(() => null)
-        : null;
+      let preloadedAnswers: {
+        applicationId: string;
+        answers: Record<string, string>;
+      } | null = null;
 
       if (explicitApplicationId) {
-        const context = await loadTeamApplicationContext(explicitApplicationId);
+        const context = await getTeamApplicationContext(explicitApplicationId);
         if (!context.ok || !context.application || !context.profile) {
           if (isLatestRequest()) {
             setError(context.reason ?? t("errors.noApplicationFound"));
@@ -2845,6 +3087,12 @@ export default function ApplicationPage() {
         }
         profile = (context.profile as LoadedApplicantProfile | null) ?? null;
         application = (context.application as LoadedApplication | null) ?? null;
+        if (context.answersApplicationId && context.answers) {
+          preloadedAnswers = {
+            applicationId: context.answersApplicationId,
+            answers: context.answers,
+          };
+        }
       }
 
       if (
@@ -2898,27 +3146,53 @@ export default function ApplicationPage() {
       }
 
       if (!isLatestRequest()) return;
+      profileIdRef.current = profile?.id ?? null;
       setForceDryRun(application?.purpose === "VIZA_PLACEHOLDER_DRY_RUN");
 
       if (profile) {
         // Load DS-160 answers from visa_application_answers first (the source of truth)
         let ds160Answers: Record<string, string> = {};
         if (application?.id) {
-          const eagerAnswers =
-            application.id === explicitApplicationId ? await eagerAnswersPromise : null;
-          const { answers } = eagerAnswers ?? (await loadDynamicAnswers(application.id));
-          ds160Answers = answers;
+          if (preloadedAnswers?.applicationId === application.id) {
+            ds160Answers = preloadedAnswers.answers;
+          } else {
+            const { answers } = await loadDynamicAnswers(application.id);
+            ds160Answers = answers;
+          }
           if (
             isLatestRequest() &&
             isKoreaEArrivalCard &&
-            validateKoreaEArrivalPreflight(answers).ok
+            validateKoreaEArrivalPreflight(ds160Answers).ok
           ) {
             setKoreaPreflightTrusted(true);
           }
         }
+        const serverAnswers = { ...ds160Answers };
+        const cacheScope = getApplicationDraftCacheScope(application?.id);
+        const cachedDraft = cacheScope ? readApplicationDraftCache(cacheScope) : null;
+        const hydratedAnswers = cachedDraft
+          ? { ...serverAnswers, ...cachedDraft.answers }
+          : serverAnswers;
+        if (cachedDraft) {
+          // The cache contains only edits that were not confirmed by the
+          // server. Overlay it before both dynamic and hardcoded hydration so
+          // a refresh cannot show a mixed old/new application.
+          ds160Answers = hydratedAnswers;
+        }
+        const serverUniversalDynamicAnswers = applyCountrySpecificUniversalProfileAnswers({
+          answers: mergeUniversalProfileIntoAnswers(serverAnswers, profile),
+          existingAnswers: serverAnswers,
+          profile,
+          country: resolvedCountry,
+          visaType: resolvedVisaType,
+        });
+        const persistedDynamicAnswers = normalizeAnswersToFieldOptions(
+          serverUniversalDynamicAnswers,
+          dbSteps,
+        );
         const universalDynamicAnswers = applyCountrySpecificUniversalProfileAnswers({
-          answers: mergeUniversalProfileIntoAnswers(ds160Answers, profile),
-          existingAnswers: ds160Answers,
+          answers: mergeUniversalProfileIntoAnswers(hydratedAnswers, profile),
+          existingAnswers: hydratedAnswers,
           profile,
           country: resolvedCountry,
           visaType: resolvedVisaType,
@@ -2982,9 +3256,8 @@ export default function ApplicationPage() {
         }));
 
         if (!initialStepResolvedRef.current) {
-          const shouldOpenConfirmation = hasConfirmedTerminalSubmissionSuccess({
-            country: resolvedCountry,
-            visaType: resolvedVisaType,
+          const shouldOpenConfirmation = shouldShowSubmissionStatusStep({
+            submittedAt: application?.submitted_at ?? null,
             submissionResultStatus:
               (application?.submission_result_status as SubmissionResultStatus | null) ?? null,
             submissionResult:
@@ -2998,7 +3271,15 @@ export default function ApplicationPage() {
 
         // Set dynamic answers for the dynamic form steps
         if (Object.keys(mergedDynamicAnswers).length > 0) {
+          dynamicPersistedAnswersRef.current = persistedDynamicAnswers;
+          dynamicAnswersRef.current = mergedDynamicAnswers;
           setDynamicAnswers(mergedDynamicAnswers);
+          if (cachedDraft && Object.keys(cachedDraft.answers).length > 0 && autosaveTimerRef.current === null) {
+            autosaveTimerRef.current = window.setTimeout(() => {
+              autosaveTimerRef.current = null;
+              setAutosaveVersion((version) => version + 1);
+            }, DYNAMIC_AUTOSAVE_INTERVAL_MS);
+          }
           if (ds160Answers["photo_path"]) {
             setAppState((prev) => ({ ...prev, photo: ds160Answers["photo_path"] }));
           }
@@ -3025,6 +3306,7 @@ export default function ApplicationPage() {
     preferExplicitPackage,
     resolvedCountry,
     resolvedVisaType,
+    getApplicationDraftCacheScope,
     scrollToStepPanel,
     statusStepIndex,
     t,
@@ -3042,8 +3324,8 @@ export default function ApplicationPage() {
     if ((!jumpToReview && !jumpToTeam && !jumpToConfirmation) || reviewJumpHandled || loading) return;
     const targetId = jumpToConfirmation
       ? (useDynamic
-          ? (effectiveSteps.find((s) => s.sourceName === "Confirmation")?.id ?? reviewStepIndex)
-          : (effectiveSteps.find((s) => s.sourceName === "Confirmation")?.id ?? fallbackReviewStepIndex))
+          ? (effectiveSteps.find((s) => s.sourceName === "Confirmation")?.id ?? statusStepIndex)
+          : fallbackStatusStepIndex)
       : jumpToTeam && showTeamStep
       ? (useDynamic
           ? (effectiveSteps.find((s) => s.sourceName === "Team")?.id ?? teamStepIndex)
@@ -3063,9 +3345,11 @@ export default function ApplicationPage() {
     reviewStepIndex,
     showTeamStep,
     fallbackReviewStepIndex,
+    fallbackStatusStepIndex,
     fallbackTeamStepIndex,
     jumpToConfirmation,
     teamStepIndex,
+    statusStepIndex,
     scrollToStepPanel,
     useDynamic,
   ]);
@@ -3224,59 +3508,75 @@ export default function ApplicationPage() {
     t,
   ]);
 
-  const saveDynamicDraftForStep = useCallback(async (stepIndex: number) => {
-    const data = dynamicDraftRef.current[stepIndex];
-    if (!data) return;
-
-    const hasNonEmptyValue = Object.values(data).some((value) => value.trim() !== "");
-    const hasChangedValue = Object.entries(data).some(
-      ([fieldName, value]) => (dynamicAnswers[fieldName] ?? "") !== value,
-    );
-    if (!hasNonEmptyValue && !hasChangedValue) return;
-
-    const changedData = Object.fromEntries(
-      Object.entries(data).filter(
-        ([fieldName, value]) => (dynamicAnswers[fieldName] ?? "") !== value,
-      ),
-    );
-    if (Object.keys(changedData).length === 0) return;
-
-    const applicationId = await ensureWritableApplicationId();
-    const saveResult = await saveDynamicAnswers(applicationId, changedData);
-    if (saveResult.error) throw new Error(saveResult.error);
-
-    setDynamicAnswers((prev) => ({ ...prev, ...data }));
-  }, [dynamicAnswers, ensureWritableApplicationId]);
+  // The application state may briefly retain the previous route's draft ID.
+  // Keep route context in the join key, just as draft resolution does below.
+  const dynamicSaveScope = JSON.stringify([
+    appState.applicationId,
+    explicitApplicationId,
+    resolvedCountry,
+    resolvedVisaType,
+    preferExplicitPackage,
+  ]);
+  const enqueueDynamicAnswerSave = useCallback(
+    (patch: Record<string, string>, applicationIdOverride?: string, force = false) => {
+      if (submittedReadOnlyRef.current) return Promise.resolve();
+      const queue = orderedDynamicSaveQueueRef.current;
+      if (!queue) return Promise.reject(new Error("Dynamic answer save queue is unavailable"));
+      const applicationScope = applicationIdOverride ?? dynamicSaveScope;
+      let cacheScope = getApplicationDraftCacheScope(applicationIdOverride);
+      let queuedCacheEntry = cacheScope
+        ? writeApplicationDraftCache(cacheScope, patch)
+        : null;
+      return queue.enqueue(applicationScope, patch, async (snapshot) => {
+        const applicationId = applicationIdOverride ?? await ensureWritableApplicationId();
+        if (submittedReadOnlyRef.current) return;
+        if (!cacheScope) {
+          cacheScope = getApplicationDraftCacheScope(applicationId);
+          queuedCacheEntry = cacheScope
+            ? writeApplicationDraftCache(cacheScope, patch)
+            : null;
+        }
+        const saveResult = await saveDynamicAnswers(applicationId, snapshot);
+        if (saveResult.error) throw new Error(saveResult.error);
+        dynamicPersistedAnswersRef.current = {
+          ...dynamicPersistedAnswersRef.current,
+          ...snapshot,
+        };
+        if (cacheScope) {
+          clearSavedApplicationDraftCache(cacheScope, snapshot, queuedCacheEntry?.revision);
+        }
+      }, { deduplicate: !force });
+    },
+    [dynamicSaveScope, ensureWritableApplicationId, getApplicationDraftCacheScope],
+  );
 
   const saveAllDynamicDrafts = useCallback(async () => {
-    const mergedDraft = collectDraftAnswers(dynamicDraftRef.current);
+    const cacheScope = getApplicationDraftCacheScope();
+    const cachedDraft = cacheScope ? readApplicationDraftCache(cacheScope) : null;
+    const mergedDraft = {
+      ...(cachedDraft?.answers ?? {}),
+      ...collectDraftAnswers(dynamicDraftRef.current),
+    };
     const draftEntries = Object.entries(mergedDraft);
     if (draftEntries.length === 0) return;
 
     const hasChangedValue = draftEntries.some(
-      ([fieldName, value]) => (dynamicAnswers[fieldName] ?? "") !== value,
+      ([fieldName, value]) => Boolean(cachedDraft && Object.prototype.hasOwnProperty.call(cachedDraft.answers, fieldName))
+        || (dynamicAnswersRef.current[fieldName] ?? "") !== value,
     );
     if (!hasChangedValue) return;
 
     const changedDraft = Object.fromEntries(
       draftEntries.filter(
-        ([fieldName, value]) => (dynamicAnswers[fieldName] ?? "") !== value,
+        ([fieldName, value]) => Boolean(cachedDraft && Object.prototype.hasOwnProperty.call(cachedDraft.answers, fieldName))
+          || (dynamicAnswersRef.current[fieldName] ?? "") !== value,
       ),
     );
     if (Object.keys(changedDraft).length === 0) return;
 
     const requestId = ++autosaveRequestRef.current;
-    const runSave = autosaveQueueRef.current.then(async () => {
-      const applicationId = await ensureWritableApplicationId();
-      return saveDynamicAnswers(applicationId, changedDraft);
-    });
-    autosaveQueueRef.current = runSave.then(
-      () => undefined,
-      () => undefined,
-    );
-    let saveResult: Awaited<ReturnType<typeof saveDynamicAnswers>>;
     try {
-      saveResult = await runSave;
+      await enqueueDynamicAnswerSave(changedDraft);
     } catch (saveError) {
       if (requestId === autosaveRequestRef.current) {
         setAutosaving(false);
@@ -3284,21 +3584,55 @@ export default function ApplicationPage() {
       }
       throw saveError;
     }
-    if (saveResult.error) {
-      if (requestId === autosaveRequestRef.current) {
-        setAutosaving(false);
-        setAutosaveFailed(true);
-      }
-      throw new Error(saveResult.error);
-    }
 
-    setDynamicAnswers((prev) => ({ ...prev, ...mergedDraft }));
+    const latestDraft = collectDraftAnswers(dynamicDraftRef.current);
+    const visiblePatch = { ...changedDraft, ...latestDraft };
+    dynamicAnswersRef.current = { ...dynamicAnswersRef.current, ...visiblePatch };
+    setDynamicAnswers((prev) => ({ ...prev, ...visiblePatch }));
     setSubmitMissingFields([]);
     if (requestId === autosaveRequestRef.current) {
       setAutosaving(false);
       setAutosaveFailed(false);
     }
-  }, [dynamicAnswers, ensureWritableApplicationId]);
+  }, [enqueueDynamicAnswerSave, getApplicationDraftCacheScope]);
+
+  const handleReviewOfficialValueSave = useCallback(async (answerPatch: Record<string, string>) => {
+    if (submittedReadOnlyRef.current) return;
+    const answerEntries = Object.entries(answerPatch);
+    if (answerEntries.length === 0) return;
+
+    markLiveSaveActivity();
+    await enqueueDynamicAnswerSave(answerPatch);
+
+    const fieldNames = new Set(answerEntries.map(([fieldName]) => fieldName));
+    autosaveRequestRef.current += 1;
+    externalDraftProtectionRef.current = {
+      fieldNames,
+      expiresAt: Date.now() + 5_000,
+    };
+    for (const [stepIndexText, draft] of Object.entries(dynamicDraftRef.current)) {
+      const nextDraft = { ...draft };
+      let changed = false;
+      for (const fieldName of fieldNames) {
+        if (!Object.prototype.hasOwnProperty.call(nextDraft, fieldName)) continue;
+        delete nextDraft[fieldName];
+        changed = true;
+      }
+      if (changed) dynamicDraftRef.current[Number(stepIndexText)] = nextDraft;
+    }
+
+    dynamicAnswersRef.current = { ...dynamicAnswersRef.current, ...answerPatch };
+    setDynamicAnswers((current) => ({ ...current, ...answerPatch }));
+    setAiFilledFieldNames((current) => current.filter((fieldName) => !fieldNames.has(fieldName)));
+    setSubmitMissingFields([]);
+    setDraftVersion((current) => current + 1);
+    setExternalAnswerRevision((current) => current + 1);
+    markFormAssistantAnswersChanged();
+  }, [
+    enqueueDynamicAnswerSave,
+    markFormAssistantAnswersChanged,
+    markLiveSaveActivity,
+  ]);
 
   const handleFormAssistantSend = useCallback(async (
     text: string,
@@ -3363,8 +3697,9 @@ export default function ApplicationPage() {
           // `_en` value cannot visually override the correction on reload.
           delete patch[`${item.fieldName}_zh`];
           delete patch[`${item.fieldName}_en`];
+          const patchBaseFieldName = getBaseAnswerFieldName(item.fieldName);
           const stepIndex = dbSteps.findIndex((step) =>
-            step.fields.some((field) => field.fieldName === item.fieldName),
+            step.fields.some((field) => getBaseAnswerFieldName(field.fieldName) === patchBaseFieldName),
           );
           if (stepIndex >= 0) {
             // The assistant route already persisted this patch with
@@ -3392,6 +3727,13 @@ export default function ApplicationPage() {
           ])),
           expiresAt: Date.now() + 5_000,
         };
+        const nextAnswers = { ...dynamicAnswersRef.current };
+        for (const item of payload.appliedPatches) {
+          delete nextAnswers[`${item.fieldName}_zh`];
+          delete nextAnswers[`${item.fieldName}_en`];
+        }
+        Object.assign(nextAnswers, patch);
+        dynamicAnswersRef.current = nextAnswers;
         setDynamicAnswers((current) => {
           const next = { ...current };
           for (const item of payload.appliedPatches) {
@@ -3596,6 +3938,18 @@ export default function ApplicationPage() {
     scrollToFormAssistant();
   }, [scrollToApplicationField, scrollToFormAssistant]);
 
+  const handleDynamicReviewEdit = useCallback(
+    (stepIndex: number, fieldName: string) => scrollToApplicationField(fieldName, stepIndex),
+    [scrollToApplicationField],
+  );
+  const handleDynamicReviewPhotoEdit = useCallback(
+    () => scrollToDocumentRequirement(
+      "photo",
+      showStandaloneDocumentStep ? documentStepIndex : firstFormStepId,
+    ),
+    [documentStepIndex, firstFormStepId, scrollToDocumentRequirement, showStandaloneDocumentStep],
+  );
+
   const renderFormAssistantIssueField = useCallback((issue: FormAssistantDisplayValidationIssue) => {
     if (!issue.fieldName) return null;
     const location = formAssistantFieldLocations.get(getBaseAnswerFieldName(issue.fieldName));
@@ -3618,12 +3972,12 @@ export default function ApplicationPage() {
           country={resolvedCountry}
           visaType={resolvedVisaType}
           invalidFieldNames={issue.severity === "error" ? new Set([issue.fieldName]) : undefined}
-          aiFilledFieldNames={new Set(aiFilledFieldNames)}
+          aiFilledFieldNames={aiFilledFieldNameSet}
         />
       </div>
     );
   }, [
-    aiFilledFieldNames,
+    aiFilledFieldNameSet,
     dynamicAnswerSnapshot,
     formAssistantFieldLocations,
     formAssistantValidation?.validationId,
@@ -3637,7 +3991,11 @@ export default function ApplicationPage() {
   const handleFormAssistantValidate = useCallback(async (): Promise<FormAssistantValidationResponse> => {
     const applicationId = appState.applicationId;
     if (!applicationId) throw new Error(t("errors.noApplicationFound"));
+    // The guard revision is captured after the latest draft has been flushed.
+    // Allow the next edit to invalidate this new request exactly once.
+    formAssistantAnswersMarkedDirtyRef.current = false;
     const requestToken = formAssistantValidationRefreshGuardRef.current.startRequest();
+    formAssistantValidationInFlightRef.current = true;
     setFormAssistantBusy(true);
     try {
       await saveAllDynamicDrafts();
@@ -3658,6 +4016,7 @@ export default function ApplicationPage() {
         formAssistantHasValidatedRef.current = true;
         setFormAssistantValidation(payload);
         setFormAssistantValidationDirty(false);
+        formAssistantAnswersMarkedDirtyRef.current = false;
         setFormAssistantState((current) => current ? {
           ...current,
           progress: payload.progress,
@@ -3670,6 +4029,8 @@ export default function ApplicationPage() {
     } finally {
       if (formAssistantValidationRefreshGuardRef.current.isLatestRequest(requestToken)) {
         setFormAssistantBusy(false);
+        formAssistantAnswersMarkedDirtyRef.current = false;
+        formAssistantValidationInFlightRef.current = false;
       }
     }
   }, [appState.applicationId, locale, saveAllDynamicDrafts, t]);
@@ -3719,7 +4080,7 @@ export default function ApplicationPage() {
   }, [formAssistantValidation?.canReview, formAssistantValidationDirty, navigateFormAssistantToReview]);
 
   useEffect(() => {
-    if (!useDynamic || loading || autosaveVersion === 0) return;
+    if (!useDynamic || loading || formAssistantReadOnly || autosaveVersion === 0) return;
     if (lastAutosaveVersionRef.current === autosaveVersion) return;
     lastAutosaveVersionRef.current = autosaveVersion;
 
@@ -3728,9 +4089,15 @@ export default function ApplicationPage() {
       return;
     }
 
-    const pendingDraft = collectDraftAnswers(dynamicDraftRef.current);
+    const cacheScope = getApplicationDraftCacheScope();
+    const cachedDraft = cacheScope ? readApplicationDraftCache(cacheScope) : null;
+    const pendingDraft = {
+      ...(cachedDraft?.answers ?? {}),
+      ...collectDraftAnswers(dynamicDraftRef.current),
+    };
     const hasChangedValue = Object.entries(pendingDraft).some(
-      ([fieldName, value]) => (dynamicAnswers[fieldName] ?? "") !== value,
+      ([fieldName, value]) => Boolean(cachedDraft && Object.prototype.hasOwnProperty.call(cachedDraft.answers, fieldName))
+        || (dynamicAnswersRef.current[fieldName] ?? "") !== value,
     );
 
     if (!hasChangedValue) {
@@ -3744,7 +4111,8 @@ export default function ApplicationPage() {
 
     const changedDraft = Object.fromEntries(
       Object.entries(pendingDraft).filter(
-        ([fieldName, value]) => (dynamicAnswers[fieldName] ?? "") !== value,
+        ([fieldName, value]) => Boolean(cachedDraft && Object.prototype.hasOwnProperty.call(cachedDraft.answers, fieldName))
+          || (dynamicAnswersRef.current[fieldName] ?? "") !== value,
       ),
     );
     if (Object.keys(changedDraft).length === 0) {
@@ -3752,21 +4120,17 @@ export default function ApplicationPage() {
       setAutosaving(false);
       return;
     }
-    const runAutosave = autosaveQueueRef.current.then(async () => {
-      const applicationId = await ensureWritableApplicationId();
-      const saveResult = await saveDynamicAnswers(applicationId, changedDraft);
-      if (saveResult.error) throw new Error(saveResult.error);
-    });
-
-    autosaveQueueRef.current = runAutosave.then(
-      () => undefined,
-      () => undefined,
-    );
+    const runAutosave = enqueueDynamicAnswerSave(changedDraft);
 
     void runAutosave.then(
       () => {
         if (requestId !== autosaveRequestRef.current) return;
-        setDynamicAnswers((previous) => ({ ...previous, ...changedDraft }));
+        // The successful request confirms its snapshot, but edits made while
+        // it was in flight must remain visible and pending for the next save.
+        const latestDraft = collectDraftAnswers(dynamicDraftRef.current);
+        const visiblePatch = { ...changedDraft, ...latestDraft };
+        dynamicAnswersRef.current = { ...dynamicAnswersRef.current, ...visiblePatch };
+        setDynamicAnswers((previous) => ({ ...previous, ...visiblePatch }));
         setAutosaveFailed(false);
         setAutosaving(false);
       },
@@ -3782,7 +4146,16 @@ export default function ApplicationPage() {
         setAutosaving(false);
       },
     );
-  }, [autosaveVersion, dynamicAnswers, ensureWritableApplicationId, loading, saving, t, useDynamic]);
+  }, [
+    autosaveVersion,
+    enqueueDynamicAnswerSave,
+    formAssistantReadOnly,
+    getApplicationDraftCacheScope,
+    loading,
+    saving,
+    t,
+    useDynamic,
+  ]);
 
   useEffect(() => () => {
     autosaveRequestRef.current += 1;
@@ -3794,14 +4167,13 @@ export default function ApplicationPage() {
     // Jump immediately, then persist the section the user just left. The save
     // is important, but it should never make sidebar navigation feel blocked.
     scrollToStepPanel(targetStepId);
-    if (targetStepId === currentStep) return;
 
-    const shouldAutosaveCurrentStep =
-      useDynamic &&
-      currentStep < documentStepIndex &&
-      Boolean(dbSteps[currentStep]);
-
-    if (!shouldAutosaveCurrentStep) {
+    // Scroll/IntersectionObserver updates currentStep asynchronously, so the
+    // value captured by this callback can point at a different panel than the
+    // one the user edited. Flush the complete dirty draft instead of guessing
+    // which step was left. The helper computes the changed patch and the
+    // page-owned queue preserves save ordering without adding per-keystroke IO.
+    if (!useDynamic) {
       return;
     }
 
@@ -3810,7 +4182,7 @@ export default function ApplicationPage() {
     setError(null);
 
     try {
-      await saveDynamicDraftForStep(currentStep);
+      await saveAllDynamicDrafts();
       // Saving can reveal or hide conditional fields above the destination.
       // Re-anchor after that layout change so the requested panel stays put.
       scrollToStepPanel(targetStepId);
@@ -3825,7 +4197,7 @@ export default function ApplicationPage() {
       navigationSaveInFlightRef.current = false;
       setSaving(false);
     }
-  }, [currentStep, dbSteps, documentStepIndex, saveDynamicDraftForStep, scrollToStepPanel, t, useDynamic]);
+  }, [saveAllDynamicDrafts, scrollToStepPanel, t, useDynamic]);
 
   const handlePersonalComplete = async (data: PersonalInfoData) => {
     setSaving(true);
@@ -3874,8 +4246,7 @@ export default function ApplicationPage() {
         nationality: data.nationality,
         nationality_country: data.nationality,
       };
-      const saveResult = await saveDynamicAnswers(applicationId, answerPatch);
-      if (saveResult.error) throw new Error(saveResult.error);
+      await enqueueDynamicAnswerSave(answerPatch, applicationId);
 
       setAppState((prev) => ({ ...prev, applicationId, personal: data }));
       setCompletedUpTo((c) => Math.max(c, 1));
@@ -3918,7 +4289,7 @@ export default function ApplicationPage() {
         applicationId = result.applicationId;
       }
 
-      const saveResult = await saveDynamicAnswers(applicationId, {
+      await enqueueDynamicAnswerSave({
         passport_number: data.passportNumber,
         passportNumber: data.passportNumber,
         travel_document_number: data.passportNumber,
@@ -3931,8 +4302,7 @@ export default function ApplicationPage() {
         passport_issuing_country: data.passportIssuingCountry,
         passport_issuance_country: data.passportIssuingCountry,
         passport_country_of_issue: data.passportIssuingCountry,
-      });
-      if (saveResult.error) throw new Error(saveResult.error);
+      }, applicationId);
 
       setAppState((prev) => ({ ...prev, applicationId, passport: data }));
       setCompletedUpTo((c) => Math.max(c, 2));
@@ -4002,27 +4372,21 @@ export default function ApplicationPage() {
     }
   };
 
-  const handleDynamicStepComplete = async (stepIndex: number, data: Record<string, string>) => {
+  const handleDynamicStepComplete = useCallback(async (stepIndex: number, data: Record<string, string>) => {
+    if (submittedReadOnlyRef.current) return;
     setSaving(true);
     setError(null);
     try {
-      let applicationId = appState.applicationId;
-
-      // Non-team flows should always save to the current user's draft for the
-      // active package. Local state can be stale after package/country switches,
-      // which makes saveDynamicAnswers return "Unauthorized" and blocks moving
-      // to the next tab.
-      if (!explicitApplicationId) {
-        applicationId = await ensureWritableApplicationId();
-      } else if (!applicationId) {
+      if (explicitApplicationId && !appState.applicationId) {
         throw new Error(t("errors.noApplicationFound"));
       }
 
-      // Save answers via server action (bypasses RLS)
-      const saveResult = await saveDynamicAnswers(applicationId, data);
-      if (saveResult.error) throw new Error(saveResult.error);
+      // Resolve the non-team draft inside the queue, preserving call order
+      // even when that identity lookup is slower than a subsequent save.
+      await enqueueDynamicAnswerSave(data, explicitApplicationId ? appState.applicationId ?? undefined : undefined);
 
       // Update local state
+      dynamicAnswersRef.current = { ...dynamicAnswersRef.current, ...data };
       setDynamicAnswers((prev) => ({ ...prev, ...data }));
       setSubmitMissingFields([]);
       const currentStepPosition = getVisibleStepIndex(effectiveSteps, stepIndex);
@@ -4039,7 +4403,27 @@ export default function ApplicationPage() {
     } finally {
       setSaving(false);
     }
-  };
+  }, [appState.applicationId, enqueueDynamicAnswerSave, effectiveSteps, explicitApplicationId, scrollToStepPanel, t]);
+
+  // DynamicStepForm keeps its own field state, so these handlers only need to
+  // change when the page-level save context changes. Keeping one handler per
+  // step avoids defeating child memoization on every draft-version render.
+  const dynamicStepCompleteHandlers = useMemo(() => {
+    const handlers = new Map<number, (data: Record<string, string>) => void | Promise<void>>();
+    for (const step of effectiveSteps) {
+      if (step.id >= documentStepIndex) continue;
+      handlers.set(step.id, (data) => handleDynamicStepComplete(step.id, data));
+    }
+    return handlers;
+  }, [documentStepIndex, effectiveSteps, handleDynamicStepComplete]);
+  const dynamicStepDraftHandlers = useMemo(() => {
+    const handlers = new Map<number, (data: Record<string, string>) => void>();
+    for (const step of effectiveSteps) {
+      if (step.id >= documentStepIndex) continue;
+      handlers.set(step.id, (data) => handleDynamicDraftChange(step.id, data));
+    }
+    return handlers;
+  }, [documentStepIndex, effectiveSteps, handleDynamicDraftChange]);
 
   const returnToTeam = useCallback(() => {
     const target = new URL(returnToParam ?? "/client/application/long-form", window.location.origin);
@@ -4079,14 +4463,17 @@ export default function ApplicationPage() {
   }, [appState.applicationId, appState.passport, appState.personal, appState.travel, returnToTeam, t]);
 
   const buildCurrentAnswerSnapshot = useCallback(
-    () => ({ ...dynamicAnswers, ...collectDraftAnswers(dynamicDraftRef.current) }),
-    [dynamicAnswers],
+    () => ({ ...dynamicAnswersRef.current, ...collectDraftAnswers(dynamicDraftRef.current) }),
+    [],
   );
 
   const getCurrentSubmitMissingFields = useCallback(
-    (answers: Record<string, string>) => computeAllTabCompletion({
+    (
+      answers: Record<string, string>,
+      currentEffectiveSteps: StepDef[] = effectiveSteps,
+    ) => computeAllTabCompletion({
       dbSteps,
-      effectiveSteps,
+      effectiveSteps: currentEffectiveSteps,
       answers,
       documentCenterData,
       documentsLoaded: documentCenterLoaded,
@@ -4101,7 +4488,6 @@ export default function ApplicationPage() {
       reviewStepId: reviewStepIndex,
       teamStepId: teamStepIndex,
       confirmationStepId: statusStepIndex,
-      showConfirmationStep: showTerminalConfirmation,
       showDocumentStep,
       showTeamStep,
     }).missingFields,
@@ -4122,7 +4508,6 @@ export default function ApplicationPage() {
       showDocumentStep,
       showTeamStep,
       statusStepIndex,
-      showTerminalConfirmation,
       teamStepIndex,
     ],
   );
@@ -4133,14 +4518,14 @@ export default function ApplicationPage() {
     // A step can update the in-memory answer state before its autosave has
     // durably committed. The retry API validates persisted answers, so always
     // serialize the exact snapshot that passed the client-side final check.
-    await autosaveQueueRef.current;
+    await orderedDynamicSaveQueueRef.current?.drain();
     const snapshot = buildCurrentAnswerSnapshot();
     if (Object.keys(snapshot).length === 0) return snapshot;
-    const saveResult = await saveDynamicAnswers(applicationId, snapshot);
-    if (saveResult.error) throw new Error(saveResult.error);
+    await enqueueDynamicAnswerSave(snapshot, applicationId, true);
+    dynamicAnswersRef.current = { ...dynamicAnswersRef.current, ...snapshot };
     setDynamicAnswers((current) => ({ ...current, ...snapshot }));
     return snapshot;
-  }, [buildCurrentAnswerSnapshot]);
+  }, [buildCurrentAnswerSnapshot, enqueueDynamicAnswerSave]);
 
   const handleTeamConfirm = useCallback(async () => {
     setSaving(true);
@@ -4149,7 +4534,7 @@ export default function ApplicationPage() {
     try {
       await saveAllDynamicDrafts();
       const targetTeamStepIndex = useDynamic ? teamStepIndex : fallbackTeamStepIndex;
-      const targetStatusStepIndex = useDynamic ? reviewStepIndex : fallbackReviewStepIndex;
+      const targetStatusStepIndex = useDynamic ? statusStepIndex : fallbackStatusStepIndex;
       const teamStepPosition = getVisibleStepIndex(effectiveSteps, targetTeamStepIndex);
       setCompletedUpTo((c) => Math.max(c, teamStepPosition + 1));
       scrollToStepPanel(targetStatusStepIndex);
@@ -4165,50 +4550,30 @@ export default function ApplicationPage() {
     }
   }, [
     effectiveSteps,
-    fallbackReviewStepIndex,
+    fallbackStatusStepIndex,
     fallbackTeamStepIndex,
-    reviewStepIndex,
     saveAllDynamicDrafts,
     scrollToStepPanel,
+    statusStepIndex,
     t,
     teamStepIndex,
     useDynamic,
   ]);
-
-  const authorizeVietnamOfficialFeeIfNeeded = useCallback(
-    async (applicationId: string, mode: SubmissionMode) => {
-      if (mode !== "live_assisted" || !isVietnamEVisa) return;
-      const response = await fetch(`/api/applications/${applicationId}/official-fee/authorize`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accepted: true }),
-      });
-      if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as { error?: unknown } | null;
-        throw new Error(
-          typeof payload?.error === "string"
-            ? payload.error
-            : isZhInterface
-              ? "官方费用授权失败，请稍后重试。"
-              : "Official fee authorization failed. Please try again.",
-        );
-      }
-    },
-    [isVietnamEVisa, isZhInterface],
-  );
-
   // ── Dynamic-mode review complete handler ────────────────────────────
   const handleDynamicReviewComplete = async (
     mode: SubmissionMode = "dry_run",
-    vietnamPaymentCard?: VietnamOneTimePaymentCard,
     taiwanOfficialTermsConsent?: TaiwanOfficialTermsConsentInput,
+    submissionIntent?: SubmissionRetryIntent,
   ) => {
+    if (submittedReadOnlyRef.current) return;
     setSaving(true);
     setSubmittingMode(mode);
     setError(null);
     const isJpTourist = resolvedVisaType === "JP_TOURIST";
     const isKrC39 = resolvedVisaType === "KR_C39_SHORT_TERM_VISIT";
     let queueAccepted = false;
+    let submissionRequestStarted = false;
+    let applicationId = appState.applicationId;
     try {
       if (mode === "live_assisted" && !liveAssistedTarget) {
         throw new Error(isZhInterface ? "当前表单暂不支持 live assisted 官网辅助填写。" : "This form does not support live assisted official-site fill yet.");
@@ -4224,7 +4589,6 @@ export default function ApplicationPage() {
         throw new Error(isZhInterface ? "本地 live assisted 环境未启用。" : "Live assisted mode is not enabled locally.");
       }
       const supabase = createClient();
-      let applicationId = appState.applicationId;
       if (!explicitApplicationId) {
         if (isKoreaEArrivalCard) {
           applicationId = await ensureWritableApplicationId();
@@ -4241,40 +4605,44 @@ export default function ApplicationPage() {
 
       await saveAllDynamicDrafts();
       const submissionAnswerSnapshot = await persistCurrentDynamicAnswersForSubmission(applicationId);
-      const missing = getCurrentSubmitMissingFields(submissionAnswerSnapshot).filter(
+      const missing = getCurrentSubmitMissingFields(
+        submissionAnswerSnapshot,
+        getCurrentEffectiveSteps(submissionAnswerSnapshot),
+      ).filter(
         (item) => !forceDryRun || item.stepId !== documentStepIndex,
       );
       setSubmitMissingFields(missing);
       if (missing.length > 0) {
-        scrollToStepPanel(reviewStepIndex);
-        throw new Error(isZhInterface
-          ? "请先补齐审核申请页末尾列出的缺失信息。"
-          : "Please complete the missing information listed at the end of Review Application.");
+        scrollToStepPanel(statusStepIndex);
+        throw new Error(
+          submissionIntent === "retry"
+            ? buildRetryMissingFieldsMessage(missing, isZhInterface)
+            : isZhInterface
+              ? "请先补齐审核申请页末尾列出的缺失信息。"
+              : "Please complete the missing information listed at the end of Review Application.",
+        );
       }
       if (!isJpTourist && !isKrC39) {
-        const queueJob = mode === "live_assisted" && isVietnamEVisa
-          ? await insertOfficialFeeSubmissionQueueJobWithCard(applicationId, vietnamPaymentCard)
-          : await (async () => {
-              await authorizeVietnamOfficialFeeIfNeeded(applicationId, mode);
-              // Standard automated-submission countries enqueue a job for the
-              // submission-service worker to drive the per-country portal.
-              return insertSubmissionQueueJob({
-                applicationId,
-                country: resolvedCountry,
-                visaType: resolvedVisaType,
-                mode,
-                createdAt: new Date().toISOString(),
-                locale,
-                // Japan must validate and enqueue the exact snapshot visible
-                // on final review. The API durably writes this snapshot before
-                // it reads answers or creates a runner job, eliminating the
-                // autosave/outbox race at the submission boundary.
-                answerSnapshot: isJapanVjwApplication
-                  ? submissionAnswerSnapshot
-                  : undefined,
-                taiwanOfficialTermsConsent,
-              });
-            })();
+        // Standard automated-submission countries enqueue a job for the
+        // submission-service worker to drive the per-country portal.
+        submissionRequestStarted = true;
+        const queueJob = await insertSubmissionQueueJob({
+          applicationId,
+          country: resolvedCountry,
+          visaType: resolvedVisaType,
+          mode,
+          createdAt: new Date().toISOString(),
+          locale,
+          // Japan must validate and enqueue the exact snapshot visible
+          // on final review. The API durably writes this snapshot before
+          // it reads answers or creates a runner job, eliminating the
+          // autosave/outbox race at the submission boundary.
+          answerSnapshot: isJapanVjwApplication
+            ? submissionAnswerSnapshot
+            : undefined,
+          taiwanOfficialTermsConsent,
+          intent: submissionIntent,
+        });
         const submittedAt = new Date().toISOString();
         queueAccepted = true;
         // The route has now returned a durable queue/job result. Only at this
@@ -4283,32 +4651,17 @@ export default function ApplicationPage() {
         // the review form whenever server validation rejected the request.
         setAppState((prev) => ({
           ...prev,
-          submittedAt: prev.submittedAt ?? submittedAt,
-          submissionResultStatus: queueJob.submissionResultStatus,
-          submissionResult: queueJob.submissionResult,
-        }));
-        const submissionState = await markApplicationSubmissionQueued(supabase, {
-          applicationId,
-          submittedAt,
-          queueJob,
-          officialSubmissionPending:
-            mode === "live_assisted" && isTaiwanEntryPermit,
-        });
-        // Status, documents and the applicant's tab list all change here.
-        invalidateApplicationForm(applicationId);
-        invalidateClientApplicationStatuses();
-
-        setAppState((prev) => ({
-          ...prev,
-          submittedAt: submissionState.submittedAt,
+          submittedAt:
+            mode === "live_assisted" && isTaiwanEntryPermit
+              ? undefined
+              : (prev.submittedAt ?? submittedAt),
           submissionResultStatus:
-            submissionState.submissionResultStatus === "waiting" &&
+            queueJob.submissionResultStatus === "waiting" &&
             isUkStandardVisitor &&
             prev.submissionResult
               ? (prev.submissionResultStatus ?? "action_required")
-              : submissionState.submissionResultStatus,
-          submissionResult: submissionState.submissionResult,
-          confirmationNumber: submissionState.confirmationNumber,
+              : queueJob.submissionResultStatus,
+          submissionResult: queueJob.submissionResult,
         }));
       }
 
@@ -4322,16 +4675,17 @@ export default function ApplicationPage() {
         // JP_TOURIST has no automation pipeline. Synthesize the terminal
         // result client-side so the StatusStep can render JpResultCard with
         // the MOFA Form A download CTA.
+        const jpResult: SubmissionResult = {
+          country: "JP",
+          status: "form_ready_for_agency",
+          applicationId,
+          formAPdfUrl: `/api/applications/${applicationId}/jp-form-a-pdf`,
+        };
         setAppState((prev) => ({
           ...prev,
           submittedAt: new Date().toISOString(),
           submissionResultStatus: "form_ready_for_agency",
-          submissionResult: {
-            country: "JP",
-            status: "form_ready_for_agency",
-            applicationId,
-            formAPdfUrl: `/api/applications/${applicationId}/jp-form-a-pdf`,
-          },
+          submissionResult: jpResult,
         }));
       }
       if (isKrC39) {
@@ -4377,6 +4731,42 @@ export default function ApplicationPage() {
         setError(null);
         return;
       }
+      if (
+        !queueAccepted &&
+        submissionRequestStarted &&
+        applicationId &&
+        isDs160VisaType(resolvedVisaType) &&
+        isSubmissionTransportError(err)
+      ) {
+        const reconciliation = await reconcileSubmissionStatus(applicationId);
+        if (reconciliation.kind === "accepted") {
+          const submittedAt = new Date().toISOString();
+          setAppState((prev) => ({
+            ...prev,
+            submittedAt:
+              mode === "live_assisted" && isTaiwanEntryPermit
+                ? undefined
+                : (prev.submittedAt ?? submittedAt),
+            submissionResultStatus: reconciliation.submissionResultStatus,
+            submissionResult: reconciliation.submissionResult,
+          }));
+          setSubmitMissingFields([]);
+          const completionPosition = getVisibleStepIndex(effectiveSteps, reviewStepIndex);
+          setCompletedUpTo((c) => Math.max(c, completionPosition + 1));
+          setError(null);
+          return;
+        }
+        setError(
+          reconciliation.kind === "not_accepted"
+            ? isZhInterface
+              ? "未发现已接受的提交任务，本次请求未自动重复提交，请重试。"
+              : "No accepted submission task was found. The request was not resubmitted automatically; please try again."
+            : isZhInterface
+              ? "提交结果暂时无法确认，请刷新查看申请状态。系统未自动重复提交。"
+              : "The submission result could not be confirmed. Refresh the application status; the request was not resubmitted automatically.",
+        );
+        return;
+      }
       const submissionError = err instanceof Error ? err : new Error(t("errors.failedToSubmit"));
       const message = recoverOrFormatServerActionError(
         submissionError,
@@ -4384,7 +4774,7 @@ export default function ApplicationPage() {
         t("errors.stalePage"),
       );
       if (!message) return;
-      setError(message);
+      setError(localizeApplicationAuthError(message, isZhInterface));
       // If the queue endpoint succeeded but the follow-up application refresh
       // failed, keep the status panel visible. The server-side queue is the
       // authoritative side effect and reverting to the form would invite a
@@ -4399,8 +4789,8 @@ export default function ApplicationPage() {
 
   const handleReviewComplete = async (
     mode: SubmissionMode = "dry_run",
-    vietnamPaymentCard?: VietnamOneTimePaymentCard,
     taiwanOfficialTermsConsent?: TaiwanOfficialTermsConsentInput,
+    submissionIntent?: SubmissionRetryIntent,
   ) => {
     setSaving(true);
     setSubmittingMode(mode);
@@ -4432,7 +4822,6 @@ export default function ApplicationPage() {
       if (mode === "live_assisted" && !liveAssistedEnabled) {
         throw new Error(isZhInterface ? "本地 live assisted 环境未启用。" : "Live assisted mode is not enabled locally.");
       }
-      const supabase = createClient();
       let applicationId = appState.applicationId;
       if (!explicitApplicationId) {
         if (isKoreaEArrivalCard) {
@@ -4457,15 +4846,23 @@ export default function ApplicationPage() {
       if (!applicationId) throw new Error(t("errors.noApplicationFound"));
 
       await saveAllDynamicDrafts();
+      const currentAnswerSnapshot = buildCurrentAnswerSnapshot();
       const missing = useDynamic
-        ? getCurrentSubmitMissingFields(buildCurrentAnswerSnapshot())
+        ? getCurrentSubmitMissingFields(
+            currentAnswerSnapshot,
+            getCurrentEffectiveSteps(currentAnswerSnapshot),
+          )
         : [];
       setSubmitMissingFields(missing);
       if (missing.length > 0) {
         scrollToStepPanel(fallbackStatusStepIndex);
-        throw new Error(isZhInterface
-          ? "请先补齐审核申请页末尾列出的缺失信息。"
-          : "Please complete the missing information listed at the end of Review Application.");
+        throw new Error(
+          submissionIntent === "retry"
+            ? buildRetryMissingFieldsMessage(missing, isZhInterface)
+            : isZhInterface
+              ? "请先补齐审核申请页末尾列出的缺失信息。"
+              : "Please complete the missing information listed at the end of Review Application.",
+        );
       }
       // Persist the complete DS-160 answer set from hardcoded steps
       const normalizeResult = await persistDS160AnswerSet(
@@ -4476,39 +4873,26 @@ export default function ApplicationPage() {
       );
       if (normalizeResult.error) throw new Error(normalizeResult.error);
 
-      const queueJob = mode === "live_assisted" && isVietnamEVisa
-        ? await insertOfficialFeeSubmissionQueueJobWithCard(applicationId, vietnamPaymentCard)
-        : await (async () => {
-            await authorizeVietnamOfficialFeeIfNeeded(applicationId, mode);
-            return insertSubmissionQueueJob({
-              applicationId,
-              country: resolvedCountry,
-              visaType: resolvedVisaType,
-              mode,
-              createdAt: new Date().toISOString(),
-              locale,
-              taiwanOfficialTermsConsent,
-            });
-          })();
+      const queueJob = await insertSubmissionQueueJob({
+        applicationId,
+        country: resolvedCountry,
+        visaType: resolvedVisaType,
+        mode,
+        createdAt: new Date().toISOString(),
+        locale,
+        taiwanOfficialTermsConsent,
+        intent: submissionIntent,
+      });
 
       const submittedAt = new Date().toISOString();
-      const submissionState = await markApplicationSubmissionQueued(supabase, {
-        applicationId,
-        submittedAt,
-        queueJob,
-        officialSubmissionPending:
-          mode === "live_assisted" && isTaiwanEntryPermit,
-      });
-      // Status, documents and the applicant's tab list all change here.
-      invalidateApplicationForm(applicationId);
-      invalidateClientApplicationStatuses();
-
       setAppState((prev) => ({
         ...prev,
-        submittedAt: submissionState.submittedAt,
-        submissionResultStatus: submissionState.submissionResultStatus,
-        submissionResult: submissionState.submissionResult,
-        confirmationNumber: submissionState.confirmationNumber,
+        submittedAt:
+          mode === "live_assisted" && isTaiwanEntryPermit
+            ? undefined
+            : (prev.submittedAt ?? submittedAt),
+        submissionResultStatus: queueJob.submissionResultStatus,
+        submissionResult: queueJob.submissionResult,
       }));
       setSubmitMissingFields([]);
       const completionPosition = getVisibleStepIndex(effectiveSteps, fallbackReviewStepIndex);
@@ -4529,7 +4913,7 @@ export default function ApplicationPage() {
         t("errors.stalePage"),
       );
       if (!message) return;
-      setError(message);
+      setError(localizeApplicationAuthError(message, isZhInterface));
       throw submissionError;
     } finally {
       setSaving(false);
@@ -4565,82 +4949,89 @@ export default function ApplicationPage() {
   const checkAndSubmit = async (
     submit: (
       mode: SubmissionMode,
-      vietnamPaymentCard?: VietnamOneTimePaymentCard,
       taiwanOfficialTermsConsent?: TaiwanOfficialTermsConsentInput,
     ) => void | Promise<void>,
     mode: SubmissionMode,
-    vietnamPaymentCard?: VietnamOneTimePaymentCard,
     taiwanOfficialTermsConsent?: TaiwanOfficialTermsConsentInput,
   ) => {
-    if (saving || submitCheckState === "checking") return;
+    if (saving || submitCheckInFlightRef.current || submitCheckState === "checking") return;
+    submitCheckInFlightRef.current = true;
 
-    setSubmitCheckState("checking");
-    setError(null);
-
-    // Give React one paint to expose the page-wide checking state before the
-    // synchronous schema walk. No validation state is written to storage, so
-    // a refresh naturally returns the page to its normal state.
-    await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
-
-    if (showDocumentStep && appState.applicationId && !documentCenterLoaded) {
-      setSubmitCheckState("idle");
-      return;
-    }
-
-    const missing = useDynamic
-      ? getCurrentSubmitMissingFields(buildCurrentAnswerSnapshot()).filter(
-          (item) => !forceDryRun || item.stepId !== documentStepIndex,
-        )
-      : [];
-
-    setSubmitMissingFields(missing);
-    if (missing.length > 0) {
-      setSubmitCheckState("invalid");
-      focusFirstMissingField(missing);
-      return;
-    }
-
-    if (!appState.applicationId) {
-      setSubmitCheckState("invalid");
-      setError("Application must be saved before submission.");
-      return;
-    }
     try {
-      const ready = await prepareSubmissionAccess(appState.applicationId, isZhInterface);
-      if (!ready) {
+      setSubmitCheckState("checking");
+      setError(null);
+
+      // Give React one paint to expose the page-wide checking state before the
+      // synchronous schema walk. No validation state is written to storage, so
+      // a refresh naturally returns the page to its normal state.
+      await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+
+      if (showDocumentStep && appState.applicationId && !documentCenterLoaded) {
         setSubmitCheckState("idle");
         return;
       }
-      setSubmitCheckState("idle");
-      await submit(mode, vietnamPaymentCard, taiwanOfficialTermsConsent);
-    } catch (submitAccessError) {
-      setSubmitCheckState("invalid");
-      const requestError = submitAccessError as SubmissionQueueRequestError;
-      if (Array.isArray(requestError.missingFields) && requestError.missingFields.length > 0) {
-        const serverMissingFields = requestError.missingFields.map((missingField) => {
-          const stepIndex = dbSteps.findIndex((step) =>
-            step.fields.some((field) => field.fieldName === missingField.field));
-          const field = stepIndex >= 0
-            ? dbSteps[stepIndex]?.fields.find((candidate) => candidate.fieldName === missingField.field)
-            : undefined;
-          return {
-            stepId: stepIndex >= 0 ? stepIndex : reviewStepIndex,
-            stepName: stepIndex >= 0
-              ? dbSteps[stepIndex]?.stepName ?? `Step ${stepIndex + 1}`
-              : "Review Application",
-            fieldName: missingField.field,
-            label: field?.label ?? missingField.labelZh ?? missingField.field,
-            reason: "invalid" as const,
-          };
-        });
-        setSubmitMissingFields(serverMissingFields);
-        focusFirstMissingField(serverMissingFields);
+
+      const currentAnswerSnapshot = buildCurrentAnswerSnapshot();
+      const missing = useDynamic
+        ? getCurrentSubmitMissingFields(
+            currentAnswerSnapshot,
+            getCurrentEffectiveSteps(currentAnswerSnapshot),
+          ).filter(
+            (item) => !forceDryRun || item.stepId !== documentStepIndex,
+          )
+        : [];
+
+      setSubmitMissingFields(missing);
+      if (missing.length > 0) {
+        setSubmitCheckState("invalid");
+        focusFirstMissingField(missing);
+        return;
       }
-      setError(
-        submitAccessError instanceof Error
-          ? submitAccessError.message
-          : "Submission payment eligibility could not be confirmed.",
-      );
+
+      if (!appState.applicationId) {
+        setSubmitCheckState("invalid");
+        setError("Application must be saved before submission.");
+        return;
+      }
+      try {
+        const ready = await prepareSubmissionAccess(appState.applicationId, isZhInterface);
+        if (!ready) {
+          setSubmitCheckState("idle");
+          return;
+        }
+        setSubmitCheckState("idle");
+        await submit(mode, taiwanOfficialTermsConsent);
+      } catch (submitAccessError) {
+        setSubmitCheckState("invalid");
+        const requestError = submitAccessError as SubmissionQueueRequestError;
+        if (Array.isArray(requestError.missingFields) && requestError.missingFields.length > 0) {
+          const serverMissingFields = requestError.missingFields.map((missingField) => {
+            const stepIndex = dbSteps.findIndex((step) =>
+              step.fields.some((field) => field.fieldName === missingField.field));
+            const field = stepIndex >= 0
+              ? dbSteps[stepIndex]?.fields.find((candidate) => candidate.fieldName === missingField.field)
+              : undefined;
+            return {
+              stepId: stepIndex >= 0 ? stepIndex : reviewStepIndex,
+              stepName: stepIndex >= 0
+                ? dbSteps[stepIndex]?.stepName ?? `Step ${stepIndex + 1}`
+                : "Review Application",
+              fieldName: missingField.field,
+              label: field?.label ?? missingField.labelZh ?? missingField.field,
+              reason: "invalid" as const,
+            };
+          });
+          setSubmitMissingFields(serverMissingFields);
+          focusFirstMissingField(serverMissingFields);
+        }
+        setError(
+          submitAccessError instanceof Error
+            ? localizeApplicationAuthError(submitAccessError.message, isZhInterface)
+            : "Submission access needs attention before this application can continue.",
+        );
+      }
+    } finally {
+      submitCheckInFlightRef.current = false;
     }
   };
 
@@ -4649,6 +5040,7 @@ export default function ApplicationPage() {
   const handleKoreaPreflightComplete = useCallback(
     async (completion: KoreaArrivalCardPreflightCompletion) => {
       setKoreaPreflightTrusted(true);
+      dynamicAnswersRef.current = { ...dynamicAnswersRef.current, ...completion.answers };
       setDynamicAnswers((current) => ({
         ...current,
         ...completion.answers,
@@ -4791,7 +5183,7 @@ export default function ApplicationPage() {
         if (!value || (appliedFieldNameSet && !appliedFieldNameSet.has(fieldName))) return false;
         // A locally edited value can exist before its autosave reaches the
         // server. Preserve it just like a persisted manual answer.
-        return !(dynamicAnswers[fieldName] ?? "").trim();
+        return !(dynamicAnswersRef.current[fieldName] ?? "").trim();
       }),
     );
     const { givenNames, surname } = splitUniversalFullName(fields.full_name);
@@ -4811,6 +5203,7 @@ export default function ApplicationPage() {
       }
       if (changed) dynamicDraftRef.current[Number(stepIndexText)] = nextDraft;
     }
+    dynamicAnswersRef.current = { ...dynamicAnswersRef.current, ...safeAnswerPatch };
     setDynamicAnswers((prev) => ({ ...prev, ...safeAnswerPatch }));
     if (Object.keys(safeAnswerPatch).length > 0) {
       // Remount the current DB-driven step so its local controlled values are
@@ -4837,7 +5230,7 @@ export default function ApplicationPage() {
         passportExpirationDate: prev.passport.passportExpirationDate || fields.passport_expiry_date || undefined,
       },
     }));
-  }, [dynamicAnswers, markFormAssistantAnswersChanged]);
+  }, [markFormAssistantAnswersChanged]);
 
   // When the first form step has a dedicated passport-upload field (e.g. the UK
   // "Passport Upload" step), the passport OCR card above the form is the real
@@ -4847,11 +5240,28 @@ export default function ApplicationPage() {
     () => (hasPassportUploadField ? ["passport_upload"] : []),
     [hasPassportUploadField],
   );
+  const renderedDynamicSteps = useMemo(() => {
+    const steps = new Map<number, WizardStep>();
+    dbSteps.forEach((step, index) => {
+      const ageVisibleStep = getDs160AgeVisibleStep(step, resolvedVisaType, dynamicAnswerSnapshot);
+      steps.set(
+        index,
+        isTaiwanEntryPermit
+          ? { ...ageVisibleStep, fields: ageVisibleStep.fields.filter((field) => field.fieldName !== "household_revoked") }
+          : ageVisibleStep,
+      );
+    });
+    return steps;
+  }, [dbSteps, dynamicAnswerSnapshot, isTaiwanEntryPermit, resolvedVisaType]);
 
   const handlePassportBioUploaded = useCallback(
     (fileName: string) => {
       setLocalPassportBioPageName(fileName);
       if (!hasPassportUploadField) return;
+      dynamicAnswersRef.current = {
+        ...dynamicAnswersRef.current,
+        passport_upload: fileName,
+      };
       setDynamicAnswers((prev) =>
         prev.passport_upload === fileName ? prev : { ...prev, passport_upload: fileName },
       );
@@ -4862,6 +5272,8 @@ export default function ApplicationPage() {
   useEffect(() => {
     if (!hasPassportUploadField || !passportOcrInitialUploaded) return;
     const name = passportOcrInitialFileName ?? "uploaded";
+    if (dynamicAnswersRef.current.passport_upload) return;
+    dynamicAnswersRef.current = { ...dynamicAnswersRef.current, passport_upload: name };
     setDynamicAnswers((prev) =>
       prev.passport_upload ? prev : { ...prev, passport_upload: name },
     );
@@ -4945,6 +5357,12 @@ export default function ApplicationPage() {
     );
   }
 
+  if (isDs160Application && !useDynamic) {
+    // A generic intake cannot represent DS-160 fields or their branches.
+    // Use the existing error boundary instead of accepting unrelated answers.
+    throw new Error("DS-160 form schema is unavailable. Please reload the application.");
+  }
+
   if (koreaSchemaUnavailable) {
     return <KoreaArrivalCardSchemaUnavailableNotice isZh={isZhInterface} />;
   }
@@ -5005,18 +5423,6 @@ export default function ApplicationPage() {
             </h1>
           </header>
 
-          {paymentConfirmed && jumpToReview ? (
-            <Alert variant="info" className="mb-5">
-              <AlertIcon variant="info" />
-              <AlertTitle>{isZhInterface ? "付款已确认" : "Payment confirmed"}</AlertTitle>
-              <AlertDescription>
-                {isZhInterface
-                  ? "费用已到账。请复核申请内容，并再次明确点击提交；系统不会自动向官网提交。"
-                  : "Your payment is confirmed. Review the application and explicitly submit again; VIZA will not file it automatically."}
-              </AlertDescription>
-            </Alert>
-          ) : null}
-
           {showFormFillingAssistant ? (
             <div ref={formAssistantRef} className="scroll-mt-4">
               <FormFillingAssistant
@@ -5024,7 +5430,7 @@ export default function ApplicationPage() {
                 applicationId={appState.applicationId!}
                 locale={locale}
                 isZh={isZhInterface}
-                progress={formAssistantReadinessProgress}
+                progress={formAssistantDisplayProgress}
                 messages={formAssistantState?.messages ?? []}
                 missingFields={(formAssistantState?.missingFields ?? []).map((field) => {
                   const schemaField = dbSteps
@@ -5042,6 +5448,7 @@ export default function ApplicationPage() {
                   };
                 })}
                 loading={formAssistantBusy}
+                readOnly={formAssistantReadOnly}
                 validationResult={formAssistantDisplayValidation}
                 showReviewAction={applicationReadyForAssistantReview}
                 onSend={handleFormAssistantSend}
@@ -5090,10 +5497,8 @@ export default function ApplicationPage() {
           )}
           {error &&
             !(
-              hasSubmissionStatus &&
-              (showTerminalConfirmation
-                ? (currentStep === statusStepIndex || currentStep === fallbackStatusStepIndex)
-                : (currentStep === reviewStepIndex || currentStep === fallbackReviewStepIndex))
+              showSubmissionStatusStep &&
+              (currentStep === statusStepIndex || currentStep === fallbackStatusStepIndex)
             ) && (
             <ClientErrorAlert className="mb-6" message={error} />
           )}
@@ -5107,6 +5512,9 @@ export default function ApplicationPage() {
           {/* Step cards */}
           <div className="flex flex-col gap-5 sm:gap-6">
             {effectiveSteps.map((step) => {
+              const dynamicStep = renderedDynamicSteps.get(step.id);
+              const dynamicStepCompleteHandler = dynamicStepCompleteHandlers.get(step.id);
+              const dynamicStepDraftHandler = dynamicStepDraftHandlers.get(step.id);
               return (
                 <div
                   key={step.id}
@@ -5115,8 +5523,13 @@ export default function ApplicationPage() {
                   className="flex scroll-mt-28 flex-col gap-2 lg:scroll-mt-4"
                 >
                   {/* Panel card */}
+                  <fieldset
+                    disabled={formAssistantReadOnly && step.id !== (useDynamic ? reviewStepIndex : fallbackReviewStepIndex)}
+                    className="m-0 min-w-0 border-0 p-0"
+                    aria-labelledby={`application-step-heading-${step.id}`}
+                  >
                   <ApplicationFormPanel className="w-full p-4 sm:p-6 md:p-8">
-                    <h2 className="mb-5 font-heading text-[20px] font-medium tracking-[-0.5px] text-[#3d3d3d] sm:text-[24px] sm:tracking-[-0.7px] md:text-[28px]">
+                    <h2 id={`application-step-heading-${step.id}`} className="mb-5 font-heading text-[20px] font-medium tracking-[-0.5px] text-[#3d3d3d] sm:text-[24px] sm:tracking-[-0.7px] md:text-[28px]">
                       {step.name}
                     </h2>
                     {showPassportOcrUpload && step.id === firstFormStepId && activeVisaType !== "VN_PREARRIVAL_DECLARATION" && (
@@ -5135,7 +5548,7 @@ export default function ApplicationPage() {
                       /* Dynamic DB-driven form + photo/review/status steps */
                       <>
                         {/* DB-driven form steps */}
-                        {step.id < documentStepIndex && dbSteps[step.id] && (
+                        {step.id < documentStepIndex && dynamicStep && dynamicStepCompleteHandler && dynamicStepDraftHandler && (
                           <>
                             {isTaiwanEntryPermit && isTaiwanEntryPermitQualificationStepSource(step.sourceName) && appState.applicationId ? (
                               <DocumentCenterClient
@@ -5151,15 +5564,10 @@ export default function ApplicationPage() {
                             ) : null}
                             <DynamicStepForm
                               key={`${step.id}:${externalAnswerRevision}`}
-                              step={{
-                                ...dbSteps[step.id],
-                                fields: isTaiwanEntryPermit
-                                  ? dbSteps[step.id].fields.filter((field) => field.fieldName !== "household_revoked")
-                                  : dbSteps[step.id].fields,
-                              }}
-                              prefill={dynamicAnswers}
-                              onComplete={(data) => handleDynamicStepComplete(step.id, data)}
-                              onDraftChange={(data) => handleDynamicDraftChange(step.id, data)}
+                              step={dynamicStep}
+                              prefill={dynamicFormPrefill}
+                              onComplete={dynamicStepCompleteHandler}
+                              onDraftChange={dynamicStepDraftHandler}
                               onUserChange={markLiveSaveActivity}
                               saving={saving}
                               showContinueButton={false}
@@ -5168,7 +5576,7 @@ export default function ApplicationPage() {
                               externallyHandledFieldNames={passportUploadHandledFields}
                               invalidFieldNames={invalidFieldNamesByStep.get(step.id)}
                               invalidFieldMessages={invalidFieldMessagesByStep.get(step.id)}
-                              aiFilledFieldNames={new Set(aiFilledFieldNames)}
+                              aiFilledFieldNames={aiFilledFieldNameSet}
                               reviewIssues={formAssistantFieldReviewIssueMap}
                               onNavigateReviewIssue={handleNavigateReviewIssue}
                             />
@@ -5195,6 +5603,7 @@ export default function ApplicationPage() {
                           </>
                         )}
                         {showFormFillingAssistant &&
+                        !formAssistantReadOnly &&
                         formFieldsComplete &&
                         step.id === lastVisibleFormStepId ? (
                           <BrandActionButton
@@ -5228,50 +5637,53 @@ export default function ApplicationPage() {
 
                         {/* Dynamic review step */}
                         {step.id === reviewStepIndex && appState.applicationId && (
-                          hasSubmissionStatus ? (
-                            <div className="flex flex-col gap-6">
+                          showSubmissionStatusStep ? (
+                            <div
+                              className="flex flex-col gap-6"
+                              data-testid={preserveIndonesiaReview ? "indonesia-review-status-stack" : undefined}
+                            >
                               {showReviewAlongsideSubmissionStatus ? (
-                                <DynamicReviewStep
+                                <MemoizedDynamicReviewStep
+                                  readOnly={formAssistantReadOnly}
                                   applicationId={appState.applicationId}
                                   dynamicAnswers={dynamicAnswerSnapshot}
                                   dbSteps={dbSteps}
+                                  visaType={resolvedVisaType}
                                   photoPath={appState.photo}
-                                  onEdit={(stepIdx, fieldName) => scrollToApplicationField(fieldName, stepIdx)}
-                                  onPhotoEdit={() => scrollToDocumentRequirement(
-                                    "photo",
-                                    showStandaloneDocumentStep ? documentStepIndex : firstFormStepId,
-                                  )}
-                                  onComplete={() => undefined}
+                                  onEdit={handleDynamicReviewEdit}
+                                  onPhotoEdit={handleDynamicReviewPhotoEdit}
+                                  onSaveOfficialValue={formAssistantReadOnly ? undefined : handleReviewOfficialValueSave}
+                                  onComplete={EMPTY_REVIEW_COMPLETE}
                                   mode="continue"
                                   showAction={false}
                                   reviewIssues={formAssistantFieldReviewIssueMap}
                                 />
                               ) : null}
-                              {!showTerminalConfirmation ? (
-                                <SubmissionStatusStep
-                                  applicationId={appState.applicationId}
-                                  country={activeCountry}
-                                  visaType={activeVisaType}
-                                  status={appState.submissionResultStatus}
-                                  result={appState.submissionResult}
-                                  submissionStarting={saving && submittingMode !== null}
-                                  onResubmit={handleDynamicReviewComplete}
-                                />
-                              ) : null}
+                              {error ? <ClientErrorAlert message={error} /> : null}
+                              <SubmissionStatusStep
+                                onSubmissionResult={handlePolledSubmissionResult}
+                                applicationId={appState.applicationId}
+                                country={activeCountry}
+                                visaType={activeVisaType}
+                                status={appState.submissionResultStatus}
+                                result={appState.submissionResult}
+                                submissionStarting={saving && submittingMode !== null}
+                                onResubmit={handleDynamicReviewComplete}
+                              />
                             </div>
                           ) : (
                             <div className="flex flex-col gap-6">
-                              <DynamicReviewStep
+                                <MemoizedDynamicReviewStep
+                                readOnly={formAssistantReadOnly}
                                 applicationId={appState.applicationId}
                                 dynamicAnswers={dynamicAnswerSnapshot}
                                 dbSteps={dbSteps}
+                                visaType={resolvedVisaType}
                                 photoPath={appState.photo}
-                                onEdit={(stepIdx, fieldName) => scrollToApplicationField(fieldName, stepIdx)}
-                                onPhotoEdit={() => scrollToDocumentRequirement(
-                                  "photo",
-                                  showStandaloneDocumentStep ? documentStepIndex : firstFormStepId,
-                                )}
-                                onComplete={isCompanionFlow ? handleCompanionReviewComplete : () => undefined}
+                                onEdit={handleDynamicReviewEdit}
+                                onPhotoEdit={handleDynamicReviewPhotoEdit}
+                                onSaveOfficialValue={handleReviewOfficialValueSave}
+                                onComplete={isCompanionFlow ? handleCompanionReviewComplete : EMPTY_REVIEW_COMPLETE}
                                 mode="continue"
                                 continueLabel={isCompanionFlow ? t("team.confirmCompanion") : undefined}
                                 showAction={isCompanionFlow}
@@ -5292,24 +5704,13 @@ export default function ApplicationPage() {
                                   submittingMode={saving ? submittingMode ?? "dry_run" : null}
                                   submitCheckState={submitCheckState}
                                   submissionError={error}
-                                  onSubmit={(mode, paymentCard, taiwanConsent) =>
-                                    checkAndSubmit(handleDynamicReviewComplete, mode, paymentCard, taiwanConsent)}
+                                  onSubmit={(mode, taiwanConsent) =>
+                                    checkAndSubmit(handleDynamicReviewComplete, mode, taiwanConsent)}
                                 />
                               ) : null}
                             </div>
                           )
                         )}
-                        {step.id === statusStepIndex && appState.applicationId && showTerminalConfirmation ? (
-                          <SubmissionStatusStep
-                            applicationId={appState.applicationId}
-                            country={activeCountry}
-                            visaType={activeVisaType}
-                            status={appState.submissionResultStatus}
-                            result={appState.submissionResult}
-                            submissionStarting={saving && submittingMode !== null}
-                            onResubmit={handleDynamicReviewComplete}
-                          />
-                        ) : null}
 
                         {/* Team management and final submit step */}
                         {step.id === teamStepIndex && showTeamStep && (
@@ -5383,8 +5784,11 @@ export default function ApplicationPage() {
                           />
                         )}
                         {step.id === fallbackReviewStepIndex && (
-                          hasSubmissionStatus ? (
-                            <div className="flex flex-col gap-6">
+                          showSubmissionStatusStep ? (
+                            <div
+                              className="flex flex-col gap-6"
+                              data-testid={preserveIndonesiaReview ? "indonesia-review-status-stack" : undefined}
+                            >
                               {showReviewAlongsideSubmissionStatus ? (
                                 <ReviewStep
                                   applicationId={appState.applicationId ?? ""}
@@ -5400,17 +5804,17 @@ export default function ApplicationPage() {
                                   showAction={false}
                                 />
                               ) : null}
-                              {!showTerminalConfirmation ? (
-                                <SubmissionStatusStep
-                                  applicationId={appState.applicationId}
-                                  country={activeCountry}
-                                  visaType={activeVisaType}
-                                  status={appState.submissionResultStatus}
-                                  result={appState.submissionResult}
-                                  submissionStarting={saving && submittingMode !== null}
-                                  onResubmit={handleReviewComplete}
-                                />
-                              ) : null}
+                              {error ? <ClientErrorAlert message={error} /> : null}
+                              <SubmissionStatusStep
+                                onSubmissionResult={handlePolledSubmissionResult}
+                                applicationId={appState.applicationId}
+                                country={activeCountry}
+                                visaType={activeVisaType}
+                                status={appState.submissionResultStatus}
+                                result={appState.submissionResult}
+                                submissionStarting={saving && submittingMode !== null}
+                                onResubmit={handleReviewComplete}
+                              />
                             </div>
                           ) : (
                             <div className="flex flex-col gap-6">
@@ -5443,27 +5847,17 @@ export default function ApplicationPage() {
                                   submittingMode={saving ? submittingMode ?? "dry_run" : null}
                                   submitCheckState={submitCheckState}
                                   submissionError={error}
-                                  onSubmit={(mode, paymentCard, taiwanConsent) =>
-                                    checkAndSubmit(handleReviewComplete, mode, paymentCard, taiwanConsent)}
+                                  onSubmit={(mode, taiwanConsent) =>
+                                    checkAndSubmit(handleReviewComplete, mode, taiwanConsent)}
                                 />
                               ) : null}
                             </div>
                           )
                         )}
-                        {step.id === fallbackStatusStepIndex && showTerminalConfirmation ? (
-                          <SubmissionStatusStep
-                            applicationId={appState.applicationId}
-                            country={activeCountry}
-                            visaType={activeVisaType}
-                            status={appState.submissionResultStatus}
-                            result={appState.submissionResult}
-                            submissionStarting={saving && submittingMode !== null}
-                            onResubmit={handleReviewComplete}
-                          />
-                        ) : null}
                       </>
                     )}
                   </ApplicationFormPanel>
+                  </fieldset>
                 </div>
               );
             })}

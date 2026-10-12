@@ -12,8 +12,16 @@ location data.
 
 - `planner.ts`: source of truth for structured Travel state, required field
   order, form payload messages, itinerary parsing, and backend payloads.
+- `travel-locale.ts`: English/Chinese normalization and locale precedence at
+  Travel request boundaries; accept regional tags and fall back to the current
+  `NEXT_LOCALE` cookie when the payload omits a locale.
+  `travel-locale.test.ts` also guards the portal's Chinese default when no
+  preference cookie exists, regardless of browser language.
 - `conversation-state.ts`: server-owned state coercion and explicit
   `set/add/remove/unset/reset` operation validation.
+- `archive-hydration.ts`: deterministic local-versus-remote archive selection
+  that restores database history on a new device without overwriting newer
+  local input.
 - `auth.ts`: server-only Travel identity resolver shared by the page and
   authenticated Travel APIs; it mirrors client-portal impersonation, signed
   `client_session`, and Supabase fallback support.
@@ -39,16 +47,20 @@ location data.
   logging helpers.
 - `travel-chat-application.ts`: server-only loader for Travel Chat page
   application context.
-- `application-draft-autofill.ts`: pure, conservative mapping from confirmed
-  Travel facts to empty application draft fields; estimated provider data and
-  existing answers are never used/overwritten.
 - `locations.ts`: curated country/city data and aliases.
 - `locations-provider.ts`: async options provider and cache layer.
+- `__tests__/planner.test.ts`: planner reconstruction, alias, reset, dependent
+  selection, and payload consistency regression coverage.
+- `__tests__/conversation-state.test.ts`: persisted-state coercion and
+  idempotent operation invariant coverage.
 
 ## Ownership Boundaries
 
 - Do not infer required trip fields with hidden AI logic. Required flow order
   belongs in `planner.ts`.
+- Render structured form summaries with the current interface locale. Cached
+  display labels from a different locale must not override canonical place
+  values. Keep applicant-authored notes and stored state intact.
 - UI rendering belongs in `components/client/travel/**` and
   `app/client/travel-chat/**`.
 - Python itinerary/flight/hotel generation belongs in `viza-be/travel-service`.

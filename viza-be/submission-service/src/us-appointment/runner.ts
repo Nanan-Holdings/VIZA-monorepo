@@ -1,3 +1,5 @@
+import type { USAppointmentApplicantDetailsResult } from "./applicant-details-data";
+
 export type JsonValue =
   | null
   | boolean
@@ -51,6 +53,32 @@ export interface AppointmentAccountCredentials {
   password: string;
   givenName?: string | null;
   surname?: string | null;
+  accountStatus?: string | null;
+  emailVerified?: boolean;
+}
+
+export interface AppointmentPreparationResult {
+  readyForSlotCapture: boolean;
+  /** The authenticated page exposes a specific appointment-status result without a calendar. */
+  readyForStatusCapture?: boolean;
+  gate?: AppointmentPortalGate;
+  errorCode?: string;
+  errorMessage?: string;
+  /** Captured immediately before the official send-code action. */
+  verificationRequestedAt?: string;
+  /** Both flags require positive provider evidence, not merely absence of a gate. */
+  emailVerified?: boolean;
+  accountCreated?: boolean;
+}
+
+export interface AppointmentAccountRegistrationProof {
+  emailVerified: true;
+  accountCreated: true;
+  accountEmail: string;
+}
+
+export interface AppointmentAccountRegistrationSubmission {
+  accountEmail: string;
 }
 
 export interface ManualActionInsert {
@@ -146,6 +174,10 @@ export interface USAppointmentRunnerRepository {
   getAppointmentAccountCredentials(
     job: USAppointmentJobRow,
   ): Promise<AppointmentAccountCredentials | null>;
+  getAppointmentApplicantDetails?(
+    job: USAppointmentJobRow,
+  ): Promise<USAppointmentApplicantDetailsResult>;
+  assertAccountRegistrationInboxRoutable?(job: USAppointmentJobRow): Promise<void>;
   insertManualAction(input: ManualActionInsert): Promise<void>;
   updateJobForManualAction(input: {
     jobId: string;
@@ -166,8 +198,16 @@ export interface USAppointmentRunnerRepository {
   waitForAccountVerificationEmail?(
     job: USAppointmentJobRow,
     timeoutMs: number,
+    request: { since: string; accountEmail: string },
   ): Promise<{ code: string | null; link: string | null }>;
-  markAppointmentAccountVerified?(job: USAppointmentJobRow): Promise<void>;
+  markAppointmentAccountVerified?(
+    job: USAppointmentJobRow,
+    proof: AppointmentAccountRegistrationProof,
+  ): Promise<void>;
+  markAppointmentAccountRegistrationSubmitted?(
+    job: USAppointmentJobRow,
+    submission: AppointmentAccountRegistrationSubmission,
+  ): Promise<void>;
   insertConfirmation(input: ConfirmationInsert): Promise<{ id: string | null }>;
   insertStatusCheck(input: StatusCheckInsert): Promise<void>;
   updateApplicationAppointmentState(input: {
@@ -182,19 +222,12 @@ export interface USAppointmentPortalClient {
   prepareAppointmentFlow(
     job: USAppointmentJobRow,
     credentials: AppointmentAccountCredentials | null,
-  ): Promise<{
-    readyForSlotCapture: boolean;
-    gate?: AppointmentPortalGate;
-    errorCode?: string;
-    errorMessage?: string;
-  }>;
+    applicantDetails?: USAppointmentApplicantDetailsResult,
+  ): Promise<AppointmentPreparationResult>;
   completeAccountEmailVerification?(input: {
     emailCode?: string | null;
     verificationLink?: string | null;
-  }): Promise<{
-    readyForSlotCapture: boolean;
-    gate?: AppointmentPortalGate;
-  }>;
+  }): Promise<AppointmentPreparationResult>;
   observeSlots(job: USAppointmentJobRow): Promise<SlotInsert[]>;
   captureConfirmation(
     job: USAppointmentJobRow,
@@ -210,13 +243,89 @@ async function prepareAppointmentFlowWithAliasVerification(
   config: USAppointmentRunnerConfig,
   client: USAppointmentPortalClient,
   credentials: AppointmentAccountCredentials | null,
-): Promise<{
-  readyForSlotCapture: boolean;
-  gate?: AppointmentPortalGate;
-  errorCode?: string;
-  errorMessage?: string;
-}> {
-  const prepared = await client.prepareAppointmentFlow(job, credentials);
+): Promise<AppointmentPreparationResult> {
+  if (credentials && !credentials.emailVerified
+    && ["account_creation_started", "registration_started", "verification_pending", "account_email_verification"].includes(credentials.accountStatus ?? "")
+    && repository.assertAccountRegistrationInboxRoutable) {
+    try {
+      await repository.assertAccountRegistrationInboxRoutable(job);
+    } catch {
+      return { readyForSlotCapture: false, gate: {
+        jobStatus: "appointment_manual_required",
+        actionType: "site_policy_review",
+        errorCode: "registration_inbox_unavailable",
+        errorMessage: "The bound official account inbox cannot receive verification mail.",
+        instruction: "Restore the account inbox before starting official registration.",
+        metadata: { provider: "usvisascheduling", gate_type: "registration_inbox_unavailable" },
+      } };
+    }
+  }
+  const loadApplicantDetails = async (): Promise<USAppointmentApplicantDetailsResult | undefined> => {
+    if (!repository.getAppointmentApplicantDetails) return undefined;
+    try {
+      return await repository.getAppointmentApplicantDetails(job);
+    } catch {
+      // Do not disclose database errors or treat unavailable data as permission
+      // to guess identity/contact fields on the official application.
+      return { state: "missing", missingFields: ["application_data"] };
+    }
+  };
+  const applicantDetails = credentials?.emailVerified ? await loadApplicantDetails() : undefined;
+  const prepared = await client.prepareAppointmentFlow(job, credentials, applicantDetails);
+  if (credentials?.accountStatus === "registration_submitted" && credentials.emailVerified !== true) {
+    // Recovery uses the existing account/session. The provider must first prove
+    // the bound email and saved profile; no OTP or Create replay is permitted.
+    if (prepared.emailVerified !== true || prepared.accountCreated !== true
+      || prepared.readyForSlotCapture !== false
+      || prepared.gate || prepared.errorCode || prepared.errorMessage) return prepared;
+    const reconciliationGate = (code: string): AppointmentPreparationResult => ({
+      readyForSlotCapture: false,
+      emailVerified: true,
+      accountCreated: true,
+      gate: {
+        jobStatus: "appointment_manual_required",
+        actionType: "site_policy_review",
+        instruction: "The existing official account was verified, but VIZA could not save its active state. Reconcile the existing account before retrying.",
+        errorCode: code,
+        errorMessage: "VIZA could not persist the verified existing official account.",
+        metadata: { provider: "usvisascheduling", gate_type: code },
+      },
+    });
+    if (!repository.markAppointmentAccountVerified) {
+      return reconciliationGate("account_registration_reconciliation_persistence_unavailable");
+    }
+    try {
+      await repository.markAppointmentAccountVerified(job, {
+        emailVerified: true, accountCreated: true, accountEmail: credentials.email,
+      });
+    } catch {
+      return reconciliationGate("account_registration_reconciliation_persistence_failed");
+    }
+    return client.prepareAppointmentFlow(job, {
+      ...credentials, accountStatus: "active", emailVerified: true,
+    }, await loadApplicantDetails());
+  }
+  const completed = await completeUSAppointmentAccountRegistration(
+    job, repository, config, client, prepared, credentials,
+  );
+  if (completed.gate || completed.errorCode || !completed.accountCreated || completed.readyForSlotCapture) {
+    return completed;
+  }
+  // The same browser may continue after creation, but must never re-register.
+  return client.prepareAppointmentFlow(job, credentials ? {
+    ...credentials, accountStatus: "active", emailVerified: true,
+  } : null, await loadApplicantDetails());
+}
+
+/** Finish registration only; callers separately decide whether to enter scheduling. */
+export async function completeUSAppointmentAccountRegistration(
+  job: USAppointmentJobRow,
+  repository: USAppointmentRunnerRepository,
+  config: USAppointmentRunnerConfig,
+  client: USAppointmentPortalClient,
+  prepared: AppointmentPreparationResult,
+  credentials: AppointmentAccountCredentials | null,
+): Promise<AppointmentPreparationResult> {
   if (
     prepared.gate?.actionType !== "account_email_verification"
     || !repository.waitForAccountVerificationEmail
@@ -225,10 +334,31 @@ async function prepareAppointmentFlowWithAliasVerification(
     return prepared;
   }
 
+  const fail = (code: string, message: string): AppointmentPreparationResult => ({
+    readyForSlotCapture: false,
+    gate: {
+      jobStatus: "appointment_manual_required",
+      actionType: "site_policy_review",
+      instruction: message,
+      errorCode: code,
+      errorMessage: message,
+      metadata: { provider: "usvisascheduling", gate_type: code },
+    },
+  });
+  const since = prepared.verificationRequestedAt;
+  if (!credentials || !since || !Number.isFinite(Date.parse(since))) {
+    return fail("registration_verification_context_missing", "The current registration email request could not be identified.");
+  }
+  if (!repository.markAppointmentAccountVerified) {
+    return fail("registration_persistence_unavailable", "Official account registration persistence is unavailable.");
+  }
+
+  let verified: AppointmentPreparationResult;
   try {
     const verification = await repository.waitForAccountVerificationEmail(
       job,
       config.emailTimeoutMs,
+      { since, accountEmail: credentials.email },
     );
     if (!verification.code && !verification.link) {
       return {
@@ -244,16 +374,10 @@ async function prepareAppointmentFlowWithAliasVerification(
       };
     }
 
-    const verified = await client.completeAccountEmailVerification({
+    verified = await client.completeAccountEmailVerification({
       emailCode: verification.code,
       verificationLink: verification.link,
     });
-    if (verified.gate) return verified;
-
-    await repository.markAppointmentAccountVerified?.(job);
-    if (verified.readyForSlotCapture) return verified;
-
-    return client.prepareAppointmentFlow(job, credentials);
   } catch {
     return {
       ...prepared,
@@ -267,6 +391,63 @@ async function prepareAppointmentFlowWithAliasVerification(
       },
     };
   }
+  const accountCreationSubmitted =
+    verified.emailVerified === true
+    && verified.accountCreated !== true
+    && verified.gate?.metadata.account_creation_submitted === true;
+  if (accountCreationSubmitted) {
+    const persistenceFailure = (code: string, message: string): AppointmentPreparationResult => ({
+      ...verified,
+      errorCode: code,
+      errorMessage: message,
+      accountCreated: false,
+      emailVerified: true,
+      gate: verified.gate
+        ? {
+          ...verified.gate,
+          errorCode: code,
+          errorMessage: message,
+          metadata: {
+            ...verified.gate.metadata,
+            registration_submission_persistence: "failed",
+          },
+        }
+        : undefined,
+    });
+    if (!repository.markAppointmentAccountRegistrationSubmitted) {
+      return persistenceFailure(
+        "registration_submission_persistence_unavailable",
+        "The official account creation submission was observed, but VIZA cannot save its reconciliation state.",
+      );
+    }
+    try {
+      await repository.markAppointmentAccountRegistrationSubmitted(job, {
+        accountEmail: credentials?.email ?? "",
+      });
+    } catch {
+      return persistenceFailure(
+        "registration_submission_persistence_failed",
+        "The official account creation submission was observed, but VIZA could not save its reconciliation state.",
+      );
+    }
+    return verified;
+  }
+  if (verified.gate || verified.errorCode || verified.errorMessage) return verified;
+  if (verified.emailVerified !== true || verified.accountCreated !== true) {
+    return fail("account_registration_unconfirmed", "The official portal has not confirmed successful account creation.");
+  }
+  try {
+    await repository.markAppointmentAccountVerified(job, {
+      emailVerified: true, accountCreated: true, accountEmail: credentials.email,
+    });
+  } catch {
+    return {
+      ...fail("account_registration_persistence_failed", "The official account was created, but VIZA could not save its verified state. Reconcile the existing account before retrying."),
+      accountCreated: true,
+      emailVerified: true,
+    };
+  }
+  return verified;
 }
 
 export interface RunnerHandoff {
@@ -565,18 +746,17 @@ export class FixtureUSAppointmentPortalClient implements USAppointmentPortalClie
 }
 
 function hasPortalFixture(job: USAppointmentJobRow): boolean {
-  return Boolean(readObject(job.user_preferences_json?.portalFixture).slots)
-    || Boolean(readObject(job.user_preferences_json?.portalFixture).confirmation)
-    || Boolean(readObject(job.user_preferences_json?.portalFixture).statusCheck);
+  return Object.prototype.hasOwnProperty.call(job.user_preferences_json ?? {}, "portalFixture");
 }
 
 async function createDefaultPortalClient(
   job: USAppointmentJobRow,
   config: USAppointmentRunnerConfig,
 ): Promise<USAppointmentPortalClient> {
-  if (hasPortalFixture(job) || !config.playwrightEnabled) {
-    return new FixtureUSAppointmentPortalClient();
-  }
+  // A persisted assisted-live job must never obtain simulated official evidence.
+  // Local tests can inject FixtureUSAppointmentPortalClient explicitly.
+  if (!config.playwrightEnabled) throw new Error("US appointment real browser is disabled.");
+  if (hasPortalFixture(job)) throw new Error("US appointment live job contains a portal fixture.");
   const { createPlaywrightUSVisaSchedulingPortalClient } = await import("./usvisascheduling-portal.js");
   return createPlaywrightUSVisaSchedulingPortalClient(config);
 }
@@ -615,6 +795,29 @@ export function buildRunnerHandoff(
   };
 }
 
+async function captureAndPersistAppointmentSlots(
+  job: USAppointmentJobRow,
+  repository: USAppointmentRunnerRepository,
+  client: USAppointmentPortalClient,
+): Promise<void> {
+  const slots = await client.observeSlots(job);
+  const status = slots.length > 0
+    ? "appointment_slot_selection_required" : "appointment_no_slots_available";
+  await repository.insertSlots(slots);
+  await repository.updateJobStatus({ jobId: job.id, status });
+  await repository.updateApplicationAppointmentState({
+    applicationId: job.application_id, jobId: job.id, status,
+  });
+  await repository.insertAuditEvent({
+    job_id: job.id,
+    application_id: job.application_id,
+    user_id: job.user_id,
+    event_type: "appointment_runner_slots_observed",
+    event_message: "USVisaScheduling runner observed appointment slots.",
+    metadata_redacted_json: { slot_count: slots.length, source: "usvisascheduling" },
+  });
+}
+
 export async function processUSAppointmentJob(
   job: USAppointmentJobRow,
   repository: USAppointmentRunnerRepository,
@@ -629,6 +832,22 @@ export async function processUSAppointmentJob(
   let client: USAppointmentPortalClient | null = null;
 
   try {
+    if (!portalClient && (!config.playwrightEnabled || hasPortalFixture(job))) {
+      await persistManualGate(job, repository, {
+        jobStatus: "appointment_manual_required",
+        actionType: "site_policy_review",
+        instruction: "VIZA must configure a real browser and remove simulation data before running this official appointment job.",
+        metadata: {
+          gate_type: "live_browser_configuration_required",
+          provider: "usvisascheduling",
+          playwright_enabled: config.playwrightEnabled,
+          portal_fixture_present: hasPortalFixture(job),
+        },
+        errorCode: "live_browser_configuration_required",
+        errorMessage: "The live appointment runner cannot use simulated portal results.",
+      });
+      return "processed";
+    }
     if ([
       "appointment_consent_received",
       "appointment_account_required",
@@ -675,15 +894,6 @@ export async function processUSAppointmentJob(
           return "processed";
         }
       } else {
-        await repository.updateJobStatus({
-          jobId: job.id,
-          status: "appointment_payment_completed",
-        });
-        await repository.updateApplicationAppointmentState({
-          applicationId: job.application_id,
-          status: "appointment_payment_completed",
-          jobId: job.id,
-        });
         await repository.insertAuditEvent({
           job_id: job.id,
           application_id: job.application_id,
@@ -694,6 +904,9 @@ export async function processUSAppointmentJob(
             provider: "usvisascheduling",
           },
         });
+        // Calendar access is not payment evidence. Observe on this prepared
+        // session and persist only the actual slot result.
+        await captureAndPersistAppointmentSlots(job, repository, client);
         return "processed";
       }
     }
@@ -723,32 +936,7 @@ export async function processUSAppointmentJob(
         });
         return "processed";
       }
-      const slots = await client.observeSlots(job);
-    await repository.insertSlots(slots);
-      await repository.updateJobStatus({
-      jobId: job.id,
-      status: slots.length > 0
-        ? "appointment_slot_selection_required"
-        : "appointment_no_slots_available",
-    });
-    await repository.updateApplicationAppointmentState({
-      applicationId: job.application_id,
-      status: slots.length > 0
-        ? "appointment_slot_selection_required"
-        : "appointment_no_slots_available",
-      jobId: job.id,
-    });
-    await repository.insertAuditEvent({
-      job_id: job.id,
-      application_id: job.application_id,
-      user_id: job.user_id,
-      event_type: "appointment_runner_slots_observed",
-      event_message: "USVisaScheduling runner observed appointment slots.",
-      metadata_redacted_json: {
-        slot_count: slots.length,
-        source: "usvisascheduling",
-      },
-    });
+      await captureAndPersistAppointmentSlots(job, repository, client);
       return "processed";
     }
 
@@ -855,6 +1043,21 @@ export async function processUSAppointmentJob(
 
     if (job.status === "appointment_status_check_in_progress") {
       client = portalClient ?? await createDefaultPortalClient(job, config);
+      const credentials = await repository.getAppointmentAccountCredentials(job);
+      const prepared = await prepareAppointmentFlowWithAliasVerification(
+        job, repository, config, client, credentials,
+      );
+      if (!prepared.readyForSlotCapture && prepared.readyForStatusCapture !== true) {
+        await persistManualGate(job, repository, prepared.gate ?? {
+          jobStatus: "appointment_manual_required",
+          actionType: "site_policy_review",
+          instruction: "VIZA could not establish the official account session for the appointment status check.",
+          metadata: { gate_type: "status_session_unavailable", provider: "usvisascheduling" },
+          errorCode: "status_session_unavailable",
+          errorMessage: "Official appointment status cannot be read without a prepared account session.",
+        });
+        return "processed";
+      }
       const statusCheck = await client.captureStatusCheck(job);
     await repository.insertStatusCheck(statusCheck);
     await repository.updateJobStatus({
@@ -943,13 +1146,14 @@ export async function processUSAppointmentJob(
 export async function pollUSAppointmentAssistedJobs(
   repository: USAppointmentRunnerRepository,
   config: USAppointmentRunnerConfig = loadUSAppointmentRunnerConfig(),
+  dispatch?: (jobId: string) => Promise<boolean>,
 ): Promise<number> {
   if (!config.enabled) return 0;
 
   const jobs = await repository.listCandidateJobs(config.batchSize);
   let processed = 0;
   for (const job of jobs) {
-    if ((await processUSAppointmentJob(job, repository, config)) === "processed") {
+    if (dispatch ? await dispatch(job.id) : (await processUSAppointmentJob(job, repository, config)) === "processed") {
       processed += 1;
     }
   }

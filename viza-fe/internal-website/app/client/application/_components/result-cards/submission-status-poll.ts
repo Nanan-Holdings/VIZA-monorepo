@@ -47,11 +47,13 @@ export function shouldPreferDurableTerminalProps({
   localRetryActive,
   snapshotIsActive,
   snapshotAvailable,
+  propsIndicateActiveSubmission = false,
 }: {
   durableTerminalPropsAvailable: boolean;
   localRetryActive: boolean;
   snapshotIsActive: boolean;
   snapshotAvailable: boolean;
+  propsIndicateActiveSubmission?: boolean;
 }): boolean {
   // The props are the server-rendered starting point, while a successfully
   // polled snapshot is newer by definition. Keeping an old terminal prop
@@ -60,6 +62,7 @@ export function shouldPreferDurableTerminalProps({
   return (
     durableTerminalPropsAvailable &&
     !localRetryActive &&
+    !propsIndicateActiveSubmission &&
     !snapshotIsActive &&
     !snapshotAvailable
   );

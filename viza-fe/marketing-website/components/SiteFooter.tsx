@@ -5,13 +5,8 @@ import "./site-footer.css";
 
 /**
  * Shared marketing-site footer.
- *
  * All user-facing copy comes from the `footer` message namespace; office addresses
  * are intentionally left untranslated (proper nouns).
- *
- * Every link here must resolve to a page that exists and match its own label. The
- * decorative "ask AI" chips and the App Store / Google Play badges were removed —
- * the chips did nothing when clicked and there are no native apps to download.
  */
 export default function SiteFooter() {
   const t = useTranslations("footer");
@@ -19,6 +14,15 @@ export default function SiteFooter() {
   const offices: Array<[string, string]> = [
     ["中国（上海）自由贸易试验区罗山路1502弄", "No. 67, Kangcheng Road, Lane 958, Xinsong Road, Minhang District, Shanghai, China"],
     ["225 Pasir Panjang Rd,", "Singapore"],
+  ];
+
+  const socialLinks = [
+    { platform: "Facebook", href: "https://www.facebook.com/profile.php?id=61592698634582", icon: "/assets/social/facebook.svg" },
+    { platform: "Pinterest", href: "https://www.pinterest.com/viza_com/", icon: "/assets/social/pinterest.svg" },
+    { platform: "Instagram", href: "https://www.instagram.com/viza_com/?hl=en", icon: "/assets/social/instagram.svg" },
+    { platform: "LinkedIn", href: "https://www.linkedin.com/company/viza-com/home/?viewAsMember=true", icon: "/assets/social/linkedin.svg" },
+    { platform: "X", href: "https://x.com/viza_it_com", icon: "/assets/social/x.svg" },
+    { platform: "Reddit", href: "https://www.reddit.com/user/viza_com/", icon: "/assets/social/reddit.svg" },
   ];
 
   return (
@@ -32,39 +36,50 @@ export default function SiteFooter() {
             <img src="/assets/viza-logo-black.svg" alt="VIZA" />
           </a>
           <p className="foot-tag">{t("tagline")}</p>
+
+          <div className="foot-social">
+            <p className="social-label">{t("followUs")}</p>
+            <div className="social-links">
+              {socialLinks.map(({ platform, href, icon }) => (
+                <a
+                  className="social-link"
+                  href={href}
+                  key={platform}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={t("followOn", { platform })}
+                >
+                  <img src={icon} alt="" width="20" height="20" />
+                </a>
+              ))}
+            </div>
+          </div>
         </div>
 
-        {/* Company — every entry must resolve to a page that exists. */}
+        {/* Company */}
         <div className="col-company">
           <h4 className="col-head">{t("company")}</h4>
           <ul className="col-list">
-            <li><a href="/about">{t("about")}</a></li>
             <li><a href="/careers">{t("careers")}</a></li>
             <li><a href="/contact">{t("contact")}</a></li>
+            <li><a href="/security">{t("security")}</a></li>
+            <li><a href="/refunds">{t("refundsPolicy")}</a></li>
             <li><a href="/status">{t("status")}</a></li>
+            <li><a href="/legal/privacy">{t("privacy")}</a></li>
+            <li><a href="/legal/terms">{t("terms")}</a></li>
           </ul>
         </div>
 
-        {/* Product — each label now links to the page it names. */}
+        {/* Products */}
         <div className="col-products">
           <h4 className="col-head">{t("product")}</h4>
           <ul className="col-list">
-            <li><a href="/product">{t("prodOverview")}</a></li>
+            <li><a href="/apply">{t("prodMockInterview")}</a></li>
             <li><a href="/">{t("prodVisaReq")}</a></li>
-            <li><a href="/apply">{t("prodApply")}</a></li>
             <li><a href="/visa/france">{t("prodSchengen")}</a></li>
-            <li><a href="/visa/united-states">{t("prodUsVisa")}</a></li>
-          </ul>
-        </div>
-
-        {/* Legal & policies — split out of "Company" so the grouping matches the label. */}
-        <div className="col-legal">
-          <h4 className="col-head">{t("legal")}</h4>
-          <ul className="col-list">
-            <li><a href="/refunds">{t("refundsPolicy")}</a></li>
-            <li><a href="/legal/privacy">{t("privacy")}</a></li>
-            <li><a href="/legal/terms">{t("terms")}</a></li>
-            <li><a href="/security">{t("security")}</a></li>
+            <li><a href="/apply">{t("prodPhoto")}</a></li>
+            <li><a href="/contact">{t("prodHelpline")}</a></li>
+            <li><a href="/apply">{t("prodStudent")}</a></li>
           </ul>
         </div>
 
@@ -81,6 +96,16 @@ export default function SiteFooter() {
           </ul>
         </div>
 
+        {/* App buttons span the brand column area */}
+        <div className="foot-apps">
+          {/* Native apps pre-launch (MKT-013 intentional): badges link to the web app for now. */}
+          <a className="app-badge" href="/apply" aria-label="Download VIZA on the App Store">
+            <img src="/assets/app-store-badge.png" alt="Download on the App Store" />
+          </a>
+          <a className="app-badge" href="/apply" aria-label="Get VIZA on Google Play">
+            <img src="/assets/google-play-badge.png" alt="Get it on Google Play" />
+          </a>
+        </div>
       </div>
 
       <div className="foot-rule"></div>

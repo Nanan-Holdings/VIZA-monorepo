@@ -1,0 +1,639 @@
+{
+  "version": "2026-09-14",
+  "provenance": {
+    "source": "knowledge-base/visa-rag-seeds/countries/*.json",
+    "curation": "Agent-curated synthetic heldout confirmation queries from checked-in seed content; not human-user or production-traffic labels.",
+    "chunkIdSemantics": "Relevant IDs are the original documents[].chunks[].id values in the country JSON seeds. Runtime visa_chunks rows currently have generated UUIDs, so this set is a source-level gold set.",
+    "evidenceSemantics": "Every positive evidence.text value is copied verbatim from the referenced seed chunk content and is limited to one or two complete sentences. Multi-intent positives include each required source chunk.",
+    "negativePolicy": "An unanswerable case retains a non-empty candidate pool through its country/documentType filters, but the checked-in seeds do not contain the exact requested live, numeric, or unrelated information. Negative entries have empty relevantChunkIds and evidence.",
+    "selectionPolicy": "All 30 queries are heldout confirmation cases and must not be used for parameter selection. Every positive parent-country tuple is different from the positive tuples in rag-retrieval-queries.json. The cross-country template parents official_field_answer_norms and standard_passport_identity_field_rules are intentionally excluded.",
+    "runtimeFilterNote": "Visa types use source product codes or aliases known to normalizeVisaTypeFilter, including AU_VISITOR_600, EU_SCHENGEN_C_SHORT_STAY, EG_E_VISA, HK_VISIT_VISA, RU_E_VISA, and the corresponding native seed values. documentTypes are explicit so each negative retains a candidate pool.",
+    "coverage": {
+      "total": 30,
+      "heldout": 30,
+      "answerable": 20,
+      "unanswerable": 10,
+      "positiveCountries": 18,
+      "documentTypes": [
+        "requirements"
+      ]
+    }
+  },
+  "queries": [
+    {
+      "id": "RAG-CONFIRM-001",
+      "split": "heldout",
+      "query": "中国护照去澳大利亚短期旅游，Visitor 600 应选哪个 stream，签证审理主要看什么？",
+      "country": "australia",
+      "visaType": "AU_VISITOR_600",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "route_recommendation",
+      "relevantChunkIds": [
+        "aus_visitor_600_basic_route_zh",
+        "aus_600_genuine_visitor"
+      ],
+      "answerable": true,
+      "rationale": "[multi-intent] 同时询问澳大利亚 Visitor 600 的旅游路线和 genuine temporary visitor 审理重点；AU_VISITOR_600 会归一化为 seed 中的 visitor_subclass_600。",
+      "evidence": [
+        {
+          "chunkId": "aus_visitor_600_basic_route_zh",
+          "text": "中国护照持有人短期赴澳大利亚旅游、探亲访友或短期商务访问时，VIZA AI 应优先推荐 Visitor visa (subclass 600) 的合适 stream，通常是 Tourist stream（outside Australia）或 Business Visitor stream，具体取决于目的。不要把澳大利亚问题误判成新西兰 Visitor Visa、加拿大 TRV、英国 Standard Visitor 或美国 B1/B2。"
+        },
+        {
+          "chunkId": "aus_600_genuine_visitor",
+          "text": "Australian visitor visa decisions focus on whether the applicant is a genuine temporary visitor, has enough funds, meets health/character requirements, and will comply with visa conditions and leave Australia before the visa expires."
+        }
+      ]
+    },
+    {
+      "id": "RAG-CONFIRM-002",
+      "split": "heldout",
+      "query": "What online channel is used for many Australian subclass 600 visitor applications, and what may happen after lodging?",
+      "country": "australia",
+      "visaType": "visitor_subclass_600",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "requirements",
+      "relevantChunkIds": [
+        "aus_600_immiaccount"
+      ],
+      "answerable": true,
+      "rationale": "[multi-intent] 测试在线递交渠道以及递交后可能出现的生物信息或补件要求。",
+      "evidence": [
+        {
+          "chunkId": "aus_600_immiaccount",
+          "text": "Home Affairs uses online visa lodgement through ImmiAccount for many visitor applications. Depending on country and applicant profile, the applicant may be asked to provide biometrics at an Australian Visa Application Centre or supply additional documents."
+        }
+      ]
+    },
+    {
+      "id": "RAG-CONFIRM-003",
+      "split": "heldout",
+      "query": "中国普通护照去奥地利短期旅游，奥地利是主要停留国时应走哪条申根路线，还要先核对哪些事项？",
+      "country": "austria",
+      "visaType": "EU_SCHENGEN_C_SHORT_STAY",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "route_recommendation",
+      "relevantChunkIds": [
+        "aut_schengen_basic_route_zh"
+      ],
+      "answerable": true,
+      "rationale": "[rewrite] 将奥地利主要目的地的申根路由和前置核对项改写为中文问题；EU_SCHENGEN_C_SHORT_STAY 会归一化为 schengen_short_stay_tourism。",
+      "evidence": [
+        {
+          "chunkId": "aut_schengen_basic_route_zh",
+          "text": "Chinese ordinary passport holders planning a short tourism trip to Austria should normally use the Austria/Schengen short-stay Type C tourism route when Austria is the only destination, the longest-stay destination, or the main purpose destination. VIZA AI should first confirm nationality, legal residence, destination set, stay length, day split across Schengen countries, first entry if stays are equal, purpose, passport validity, travel medical insurance, accommodation, itinerary, funds, return ties and biometrics."
+        }
+      ]
+    },
+    {
+      "id": "RAG-CONFIRM-004",
+      "split": "heldout",
+      "query": "For a Belgium-centered Schengen trip, what is the maximum short-stay period and how do I decide where to apply?",
+      "country": "belgium",
+      "visaType": "schengen_short_stay_tourism",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "requirements",
+      "relevantChunkIds": [
+        "bel_schengen_where_apply_documents"
+      ],
+      "answerable": true,
+      "rationale": "[multi-intent] 同时测试比利时为单一/主要目的地时的申根停留上限和主管申请渠道。",
+      "evidence": [
+        {
+          "chunkId": "bel_schengen_where_apply_documents",
+          "text": "EU Schengen guidance says a short-stay Schengen visa covers temporary visits of up to 90 days in any 180-day period. For a single-country trip, apply to the consulate/official visa channel of that country."
+        }
+      ]
+    },
+    {
+      "id": "RAG-CONFIRM-005",
+      "split": "heldout",
+      "query": "柬埔寨旅游 e-Visa 通常是单次还是多次，最多可停留多久，获批后要带什么？",
+      "country": "cambodia",
+      "visaType": "tourist_evisa",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "requirements",
+      "relevantChunkIds": [
+        "khm_evisa_scope"
+      ],
+      "answerable": true,
+      "rationale": "[multi-intent] 组合旅游 e-Visa 的用途、入境次数、通常停留上限和入境时的批准证明要求。",
+      "evidence": [
+        {
+          "chunkId": "khm_evisa_scope",
+          "text": "Cambodia e-Visa is an official electronic visa issued by the Royal Government of Cambodia via the official evisa.gov.kh portal. Tourist e-Visa is normally for tourism, generally single entry, and commonly permits a stay up to 30 days subject to current official rules and accepted entry points."
+        },
+        {
+          "chunkId": "khm_evisa_scope",
+          "text": "Applicants receive an approval certificate that should be presented with the passport at immigration."
+        }
+      ]
+    },
+    {
+      "id": "RAG-CONFIRM-006",
+      "split": "heldout",
+      "query": "计划去埃及短期旅游时，什么时候可用官方 e-Visa，申请至少应提前多久，拿到签证是否就保证入境？",
+      "country": "egypt",
+      "visaType": "EG_E_VISA",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "route_recommendation",
+      "relevantChunkIds": [
+        "egy_china_evisa_basic_route_zh",
+        "egy_evisa_process_requirements"
+      ],
+      "answerable": true,
+      "rationale": "[multi-intent] 同时验证中国护照旅游 e-Visa 路由、至少提前7天申请和持证仍可能被拒绝入境；EG_E_VISA 会归一化为 evisa_tourism。",
+      "evidence": [
+        {
+          "chunkId": "egy_china_evisa_basic_route_zh",
+          "text": "For Chinese ordinary passport holders planning short tourism travel to Egypt, VIZA AI should consider the official Egypt e-Visa route through visa2egypt.gov.eg when eligible."
+        },
+        {
+          "chunkId": "egy_evisa_process_requirements",
+          "text": "Egypt e-Visa Portal states that applicants create an account, apply and pay online, and should create an e-Visa application at least 7 days before departure."
+        },
+        {
+          "chunkId": "egy_evisa_process_requirements",
+          "text": "Egyptian port authorities retain the right to refuse entry even when an e-Visa is held."
+        }
+      ]
+    },
+    {
+      "id": "RAG-CONFIRM-007",
+      "split": "heldout",
+      "query": "When a visitor is not visa-free for Hong Kong, what conditions are relevant and which activities are generally prohibited?",
+      "country": "hong_kong",
+      "visaType": "HK_VISIT_VISA",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "eligibility",
+      "relevantChunkIds": [
+        "hk_visit_transit_scope"
+      ],
+      "answerable": true,
+      "rationale": "[multi-intent] 询问香港访客/过境申请的基本资格和访客不得从事的活动；HK_VISIT_VISA 会归一化为 hk_visit_visa。",
+      "evidence": [
+        {
+          "chunkId": "hk_visit_transit_scope",
+          "text": "A visit/transit application may be considered when the applicant meets normal immigration requirements, holds a valid travel document with returnability to their country of residence or citizenship, has no security or criminal concern, and is unlikely to become a burden on Hong Kong. Visitors are generally not allowed to take up paid or unpaid employment, establish or join a business, or enter school as students."
+        }
+      ]
+    },
+    {
+      "id": "RAG-CONFIRM-008",
+      "split": "heldout",
+      "query": "意大利短期旅游签证和90天以上长期签证在类别上有什么区别，应该去哪里查官方信息？",
+      "country": "italy",
+      "visaType": "EU_SCHENGEN_C_SHORT_STAY",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "route_recommendation",
+      "relevantChunkIds": [
+        "ita_entry_visa_scope",
+        "ita_visa_for_italy_portal"
+      ],
+      "answerable": true,
+      "rationale": "[multi-intent] 同时区分意大利/申根 Type C 与90天以上 National Visa，并要求官方入口；EU_SCHENGEN_C_SHORT_STAY 会归一化为 schengen_short_stay_tourism。",
+      "evidence": [
+        {
+          "chunkId": "ita_entry_visa_scope",
+          "text": "A visa issued by Italian representations abroad allows transit or a short stay up to 90 days in Italy and other Schengen Convention countries as a Uniform Schengen Visa. A long stay over 90 days is a National Visa, not the short-stay tourism route."
+        },
+        {
+          "chunkId": "ita_visa_for_italy_portal",
+          "text": "For VIZA AI: if Italy is the sole or main destination for a short tourism trip, use Italy/Schengen Type C short-stay guidance and direct users to the official Italian visa portal or the competent Italian representation/VAC for residence-specific instructions."
+        }
+      ]
+    },
+    {
+      "id": "RAG-CONFIRM-009",
+      "split": "heldout",
+      "query": "Can a Chinese tourist obtain Nepal's tourist visa on arrival, and what stay categories are commonly issued?",
+      "country": "nepal",
+      "visaType": "tourist_visa_on_arrival",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "eligibility",
+      "relevantChunkIds": [
+        "npl_on_arrival_process"
+      ],
+      "answerable": true,
+      "rationale": "[multi-intent] 组合授权入境点、落地签性质、常见停留类别和中国公民资格。",
+      "evidence": [
+        {
+          "chunkId": "npl_on_arrival_process",
+          "text": "Nepal Immigration states that Tourist Visa on Arrival is available at Tribhuvan International Airport and other authorized entry/exit points. Tourist visa on arrival is the only entry visa for tourists and is issued with multiple re-entry facility, with common 15-day, 30-day and 90-day categories. Chinese nationals are listed in Nepal guidance as eligible for on-arrival visa at authorized entry points."
+        }
+      ]
+    },
+    {
+      "id": "RAG-CONFIRM-010",
+      "split": "heldout",
+      "query": "中国公民从中国、香港或澳门申请新西兰访客签证，还要额外提交什么背景材料？",
+      "country": "new_zealand",
+      "visaType": "visitor_visa",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "requirements",
+      "relevantChunkIds": [
+        "nzl_china_supplementary_form"
+      ],
+      "answerable": true,
+      "rationale": "[rewrite] 测试中国、香港和澳门申请人的 supplementary form 及 Hukou 身份材料要求。",
+      "evidence": [
+        {
+          "chunkId": "nzl_china_supplementary_form",
+          "text": "Immigration New Zealand states that citizens of China applying from China, Hong Kong or Macau must also provide a completed supplementary form with more details of background and intentions. Applicants may provide Hukou household registration as additional identity evidence, and family members included in the application may need Hukou copies."
+        }
+      ]
+    },
+    {
+      "id": "RAG-CONFIRM-011",
+      "split": "heldout",
+      "query": "What must a Norway visitor visa applicant show about funds and passport validity, and what daily benchmark is given?",
+      "country": "norway",
+      "visaType": "schengen_short_stay_tourism",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "requirements",
+      "relevantChunkIds": [
+        "nor_udi_requirements_funds"
+      ],
+      "answerable": true,
+      "rationale": "[multi-intent] 同时测试挪威访客签证的证件有效期、资金证明和 NOK 500/日基准。",
+      "evidence": [
+        {
+          "chunkId": "nor_udi_requirements_funds",
+          "text": "UDI states that a visitor visa can be used for a visit to Norway/Schengen of up to 90 days. Core checks include paying the application fee, submitting the embassy checklist, holding a passport valid for at least 3 months after the visit and issued within the last 10 years, valid travel insurance, sufficient money for the stay and return journey, no entry ban, Schengen 90/180 compliance, and fingerprint registration. UDI gives a funding benchmark of at least NOK 500 per day in Norway/Schengen, or a financial guarantee from the person/company visited if the applicant cannot show enough funds."
+        }
+      ]
+    },
+    {
+      "id": "RAG-CONFIRM-012",
+      "split": "heldout",
+      "query": "中国游客按菲律宾2026年的短期免签政策入境，通常需要满足哪些停留和旅行文件条件？",
+      "country": "philippines",
+      "visaType": "PH_TEMPORARY_VISITOR_VISA",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "eligibility",
+      "relevantChunkIds": [
+        "phl_14_day_policy_2026"
+      ],
+      "answerable": true,
+      "rationale": "[time-bound] 测试中国游客14天旅游/商务访客政策、护照有效期、酒店和返程票条件，并保留seed中的时效边界。",
+      "evidence": [
+        {
+          "chunkId": "phl_14_day_policy_2026",
+          "text": "The Philippine Embassy/Department of Foreign Affairs notice at the official source URL states that, effective 16 January 2026, Chinese nationals may enter the Philippines without obtaining a visa for stays up to 14 days for tourism or business visitor purposes, subject to the stated conditions. The notice lists a passport valid at least six months beyond the contemplated stay, confirmed hotel accommodation/booking, and return or onward ticket."
+        }
+      ]
+    },
+    {
+      "id": "RAG-CONFIRM-013",
+      "split": "heldout",
+      "query": "菲律宾 eTravel 是签证吗？提交后需要保留什么结果，什么时候注册？",
+      "country": "philippines",
+      "visaType": "PH_ETRAVEL_ARRIVAL_CARD",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "source_check",
+      "relevantChunkIds": [
+        "phl_etravel_standalone_declaration"
+      ],
+      "answerable": true,
+      "rationale": "[multi-intent] 区分 eTravel 入离境申报与 Temporary Visitor Visa，并测试注册窗口和 QR/reference 保留要求。",
+      "evidence": [
+        {
+          "chunkId": "phl_etravel_standalone_declaration",
+          "text": "The official eTravel portal at https://etravel.gov.ph/ is a standalone arrival/departure declaration. It is not a Temporary Visitor Visa and does not decide whether a traveller is visa-exempt."
+        },
+        {
+          "chunkId": "phl_etravel_standalone_declaration",
+          "text": "Travellers must follow the portal's current registration window and preserve the official QR code/reference returned after successful submission."
+        }
+      ]
+    },
+    {
+      "id": "RAG-CONFIRM-014",
+      "split": "heldout",
+      "query": "What platform does Qatar use for tourist e-visa applications, and which visitor categories does Hayya include?",
+      "country": "qatar",
+      "visaType": "hayya_a1_tourist_visa",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "route_recommendation",
+      "relevantChunkIds": [
+        "qat_hayya_official_platform"
+      ],
+      "answerable": true,
+      "rationale": "[multi-intent] 测试 Hayya 作为官方数字平台以及 A1、A2、A3、A4 等类别范围。",
+      "evidence": [
+        {
+          "chunkId": "qat_hayya_official_platform",
+          "text": "Qatar Ministry of Interior visa pages and Qatar Tourism materials describe Hayya as the e-platform used to streamline tourist visa applications for visitors to Qatar. Qatar Tourism says Hayya is Qatar's official e-visa digital platform and includes categories such as Tourist Visa (A1), GCC Resident Visa (A2), Visa with ETA (A3), Companion of GCC Citizen Visa (A4), and other visitor categories."
+        }
+      ]
+    },
+    {
+      "id": "RAG-CONFIRM-015",
+      "split": "heldout",
+      "query": "俄罗斯统一电子签证申请后，通常要核对哪些口岸、国籍和停留条件？",
+      "country": "russia",
+      "visaType": "RU_E_VISA",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "requirements",
+      "relevantChunkIds": [
+        "ru_evisa_conditions"
+      ],
+      "answerable": true,
+      "rationale": "[rewrite] 询问统一电子签证的官方申请渠道、获准口岸、适用国籍、护照有效期和停留规则；RU_E_VISA 会归一化为 unified_evisa。",
+      "evidence": [
+        {
+          "chunkId": "ru_evisa_conditions",
+          "text": "The official e-visa service explains that a unified e-visa is issued through the MFA website or mobile application and must be used through approved Russian Federation checkpoints. Official pages describe the e-visa as a short-stay authorization and instruct travellers to check the rules, eligible citizenship, checkpoints, passport validity, and permitted stay before travel."
+        }
+      ]
+    },
+    {
+      "id": "RAG-CONFIRM-016",
+      "split": "heldout",
+      "query": "What passport rule must a Saudi VisitSaudi eVisa traveller satisfy at entry, and can eligibility be assumed from a static list?",
+      "country": "saudi_arabia",
+      "visaType": "SA_E_VISA",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "eligibility",
+      "relevantChunkIds": [
+        "sa_evisa_eligibility_and_passport"
+      ],
+      "answerable": true,
+      "rationale": "[multi-intent] 同时测试实时国籍/护照类型资格、入境时至少六个月有效期和不得假定静态名单永远有效。",
+      "evidence": [
+        {
+          "chunkId": "sa_evisa_eligibility_and_passport",
+          "text": "Eligibility is controlled by the current nationality and passport-type choices in the VisitSaudi registration flow and must be checked again before submission because the live list can change. The VisitSaudi terms require a valid passport from a permitted country with at least six months remaining on the date of entry."
+        }
+      ]
+    },
+    {
+      "id": "RAG-CONFIRM-017",
+      "split": "heldout",
+      "query": "旅居新加坡的大陆居民申请赴台观光入出境许可，单次和一年多次的费用以及审核基准分别是什么？",
+      "country": "taiwan",
+      "visaType": "TW_ENTRY_PERMIT",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "fees_timing",
+      "relevantChunkIds": [
+        "taiwan_singapore_overseas_cn_timing_fee"
+      ],
+      "answerable": true,
+      "rationale": "[multi-intent] 组合单次/一年多次许可费、缴费期限、审核工作日基准与不提供付费加急的边界。",
+      "evidence": [
+        {
+          "chunkId": "taiwan_singapore_overseas_cn_timing_fee",
+          "text": "官方线上系统说明，单次入出境许可费为新台币600元，一年多次许可费为新台币1000元；核准日期两个月内须完成线上缴费。"
+        },
+        {
+          "chunkId": "taiwan_singapore_overseas_cn_timing_fee",
+          "text": "缴费成功通知后，申请人可下载电子入出境许可和收据。官方没有付费加急机制；通常审核以受理翌日起五个工作日为基准，补件时间不计入。"
+        }
+      ]
+    },
+    {
+      "id": "RAG-CONFIRM-018",
+      "split": "heldout",
+      "query": "For a Türkiye e-Visa, what passport validity buffer is required and how are supporting-document conditions determined?",
+      "country": "turkey",
+      "visaType": "TR_E_VISA",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "eligibility",
+      "relevantChunkIds": [
+        "tur_tr_evisa_passport_and_supporting_document_rules"
+      ],
+      "answerable": true,
+      "rationale": "[multi-intent] 测试护照超出获准停留期至少60天的规则，以及按旅行证件国籍派生的 supporting-document 条件。",
+      "evidence": [
+        {
+          "chunkId": "tur_tr_evisa_passport_and_supporting_document_rules",
+          "text": "The traveller must carry a passport or substitute travel document whose expiry is at least 60 days beyond the permitted visa stay or other authorised stay. Depending on travel-document nationality, the official portal may also require a valid visa or residence permit from a named supporting country or region."
+        }
+      ]
+    },
+    {
+      "id": "RAG-CONFIRM-019",
+      "split": "heldout",
+      "query": "阿联酋 ICP 783 五年多次旅游签证一次最多停留多久，总年度上限如何处理？",
+      "country": "united_arab_emirates",
+      "visaType": "AE_TOURIST_VISA",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "eligibility",
+      "relevantChunkIds": [
+        "ae_783_validity_and_stay"
+      ],
+      "answerable": true,
+      "rationale": "[multi-intent] 组合五年有效期、单次连续停留90天、等期延长和官方年度总停留上限。",
+      "evidence": [
+        {
+          "chunkId": "ae_783_validity_and_stay",
+          "text": "The ICP service issues a long-term multiple-entry tourist visa valid for five years. A holder may stay continuously for no more than 90 days, subject to an extension for an equivalent period, while total stay must not exceed the official annual limit."
+        }
+      ]
+    },
+    {
+      "id": "RAG-CONFIRM-020",
+      "split": "heldout",
+      "query": "What does the checked-in guidance say about China's free Sri Lanka tourist ETA period and double-entry facility?",
+      "country": "sri_lanka",
+      "visaType": "eta_tourism",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "eligibility",
+      "relevantChunkIds": [
+        "lka_eta_official_rules"
+      ],
+      "answerable": true,
+      "rationale": "[exact] 直接核对中国国籍的免费旅游 ETA、30天期限和首次抵达后30天内双次入境说明，并保留 current regulations 的边界。",
+      "evidence": [
+        {
+          "chunkId": "lka_eta_official_rules",
+          "text": "Recent official notices list China among nationalities eligible for free ETA for tourism purposes, with a 30-day free visa period and double-entry facility within 30 days from first arrival, subject to current regulations."
+        }
+      ]
+    },
+    {
+      "id": "RAG-CONFIRM-021",
+      "split": "heldout",
+      "query": "澳大利亚 Visitor 600 现在平均需要几天出签？",
+      "country": "australia",
+      "visaType": "AU_VISITOR_600",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "fees_timing",
+      "relevantChunkIds": [],
+      "answerable": false,
+      "rationale": "[negative] Australia requirements candidates remain under the normalized AU_VISITOR_600 filter, but the checked-in seeds only direct users to check current processing times and provide no current average-day figure.",
+      "evidence": []
+    },
+    {
+      "id": "RAG-CONFIRM-022",
+      "split": "heldout",
+      "query": "奥地利申根签证驻华使馆明天还有多少个预约名额？",
+      "country": "austria",
+      "visaType": "EU_SCHENGEN_C_SHORT_STAY",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "fees_timing",
+      "relevantChunkIds": [],
+      "answerable": false,
+      "rationale": "[negative] Austria requirements candidates remain after EU_SCHENGEN_C_SHORT_STAY normalization, but the seed has no live embassy/VAC appointment inventory for tomorrow.",
+      "evidence": []
+    },
+    {
+      "id": "RAG-CONFIRM-023",
+      "split": "heldout",
+      "query": "柬埔寨旅游 e-Visa 目前一天能处理多少申请？",
+      "country": "cambodia",
+      "visaType": "tourist_evisa",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "fees_timing",
+      "relevantChunkIds": [],
+      "answerable": false,
+      "rationale": "[negative] Cambodia tourist e-Visa requirements candidates exist, but the checked-in material contains no current daily processing-capacity metric.",
+      "evidence": []
+    },
+    {
+      "id": "RAG-CONFIRM-024",
+      "split": "heldout",
+      "query": "埃及 e-Visa 今天累计有多少申请正在审核？",
+      "country": "egypt",
+      "visaType": "EG_E_VISA",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "fees_timing",
+      "relevantChunkIds": [],
+      "answerable": false,
+      "rationale": "[negative] Egypt e-Visa requirements candidates remain under the normalized EG_E_VISA filter, but the seeds do not expose a live queue count or current in-review application total.",
+      "evidence": []
+    },
+    {
+      "id": "RAG-CONFIRM-025",
+      "split": "heldout",
+      "query": "香港访客签证最近一个月的实际批准率是多少？",
+      "country": "hong_kong",
+      "visaType": "HK_VISIT_VISA",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "source_check",
+      "relevantChunkIds": [],
+      "answerable": false,
+      "rationale": "[negative] Hong Kong visit-visa requirements candidates remain after HK_VISIT_VISA normalization, but the checked-in sources contain no recent approval-rate statistic.",
+      "evidence": []
+    },
+    {
+      "id": "RAG-CONFIRM-026",
+      "split": "heldout",
+      "query": "意大利短期申根旅游签证要求申请人账户里至少有多少欧元余额？",
+      "country": "italy",
+      "visaType": "EU_SCHENGEN_C_SHORT_STAY",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "requirements",
+      "relevantChunkIds": [],
+      "answerable": false,
+      "rationale": "[negative] Italy requirements candidates remain after EU_SCHENGEN_C_SHORT_STAY normalization and discuss financial evidence generally, but they do not provide a universal numeric bank-balance floor for this question.",
+      "evidence": []
+    },
+    {
+      "id": "RAG-CONFIRM-027",
+      "split": "heldout",
+      "query": "卡塔尔 Hayya A1 现在还能预约本周的具体递交时段吗？",
+      "country": "qatar",
+      "visaType": "hayya_a1_tourist_visa",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "fees_timing",
+      "relevantChunkIds": [],
+      "answerable": false,
+      "rationale": "[negative] Qatar Hayya requirements candidates exist, but the checked-in sources provide no current appointment-slot inventory or this week's submission availability.",
+      "evidence": []
+    },
+    {
+      "id": "RAG-CONFIRM-028",
+      "split": "heldout",
+      "query": "请推荐今晚在柏林开门的素食餐厅。",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "source_check",
+      "relevantChunkIds": [],
+      "answerable": false,
+      "rationale": "[negative] With no country filter, the requirements corpus supplies non-empty visa candidates, but the visa knowledge base has no restaurant listings or opening hours.",
+      "evidence": []
+    },
+    {
+      "id": "RAG-CONFIRM-029",
+      "split": "heldout",
+      "query": "明天从北京飞东京最便宜的机票多少钱？",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "fees_timing",
+      "relevantChunkIds": [],
+      "answerable": false,
+      "rationale": "[negative] The unfiltered requirements corpus remains non-empty, but these visa seeds contain no live flight schedules or airfare quotes.",
+      "evidence": []
+    },
+    {
+      "id": "RAG-CONFIRM-030",
+      "split": "heldout",
+      "query": "本周末柏林会下雨吗？",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "source_check",
+      "relevantChunkIds": [],
+      "answerable": false,
+      "rationale": "[negative] The unfiltered requirements corpus remains non-empty, but the visa knowledge base has no weather forecast data.",
+      "evidence": []
+    }
+  ]
+}

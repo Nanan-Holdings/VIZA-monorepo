@@ -1,4 +1,138 @@
 import type { SubmissionQueueItem } from "./types";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+const SUBMITTED_LEASE_RELEASE_MAX_ATTEMPTS = 3;
+const SUBMITTED_LEASE_RELEASE_RETRY_DELAYS_MS = [250, 500] as const;
+
+export interface Ds160TerminalLeaseReleaseEvidence {
+  /** The application-wide final-submission fence was read successfully. */
+  finalSubmissionAttemptCount: number;
+  /** No official CEAC success was found in the application or queue history. */
+  officialSuccess: boolean;
+}
+
+export interface ReleaseDs160RetryLeaseOptions {
+  /**
+   * Proves that a terminal failed/blocked row has no final-submission fence
+   * or official success. A missing, rejected, or incomplete check fails
+   * closed and leaves the terminal lease in place.
+   */
+  verifyTerminal?: () => Promise<Ds160TerminalLeaseReleaseEvidence | null>;
+}
+
+const RELEASEABLE_DS160_STATUSES = [
+  "ds160_live_assisted_pending",
+  "ds160_prefill_pending",
+  "ds160_live_assisted_failed",
+  "ds160_prefill_failed",
+  "ds160_blocked",
+] as const;
+
+/** Release a settled retry only after its browser and heartbeat have stopped. */
+export async function releaseDs160RetryLease(
+  client: SupabaseClient,
+  item: Pick<SubmissionQueueItem, "id" | "locked_by" | "locked_at">,
+  options: ReleaseDs160RetryLeaseOptions = {},
+): Promise<boolean> {
+  // The claim timestamp also fences a later claim by a reused worker ID.
+  if (!item.locked_by?.trim() || !item.locked_at) return false;
+
+  let terminalEvidence: Ds160TerminalLeaseReleaseEvidence | null = null;
+  if (options.verifyTerminal) {
+    try {
+      terminalEvidence = await options.verifyTerminal();
+    } catch {
+      // Terminal verification is deliberately fail-closed. The caller has
+      // already stopped browser work, so retaining the lease is safer than
+      // clearing it after an unreadable final-submission state.
+      return false;
+    }
+    if (
+      !terminalEvidence ||
+      terminalEvidence.finalSubmissionAttemptCount !== 0 ||
+      terminalEvidence.officialSuccess !== false
+    ) {
+      return false;
+    }
+  }
+
+  const releaseStatuses = options.verifyTerminal
+    ? RELEASEABLE_DS160_STATUSES
+    : RELEASEABLE_DS160_STATUSES.slice(0, 2);
+  const { data, error } = await client
+    .from("submission_queue")
+    .update({ locked_by: null, locked_at: null, locked_until: null })
+    .eq("id", item.id)
+    .eq("locked_by", item.locked_by)
+    .eq("locked_at", item.locked_at)
+    .in("status", releaseStatuses)
+    .select("id")
+    .abortSignal(AbortSignal.timeout(15_000))
+    .maybeSingle();
+  if (error) throw new Error(`Failed to release DS-160 retry lease: ${error.message}`);
+  return data !== null;
+}
+
+/**
+ * Release a successfully submitted DS-160 row after browser cleanup. Submitted
+ * rows are not retryable, so they deliberately use a separate status fence
+ * from the pre-final retry release above.
+ */
+export async function releaseDs160SubmittedLease(
+  client: SupabaseClient,
+  item: Pick<SubmissionQueueItem, "id" | "application_id" | "locked_by" | "locked_at">,
+): Promise<boolean> {
+  if (!item.locked_by?.trim() || !item.locked_at) return false;
+
+  const { data, error } = await client
+    .from("submission_queue")
+    .update({ locked_by: null, locked_at: null, locked_until: null })
+    .eq("id", item.id)
+    .eq("application_id", item.application_id)
+    .eq("locked_by", item.locked_by)
+    .eq("locked_at", item.locked_at)
+    .eq("status", "ds160_submitted")
+    .gt("locked_until", new Date().toISOString())
+    .select("id")
+    .abortSignal(AbortSignal.timeout(15_000))
+    .maybeSingle();
+  if (error) throw new Error(`Failed to release submitted DS-160 lease: ${error.message}`);
+  return data !== null;
+}
+
+/** Retry only transport failures; an ownership conflict returns false once. */
+export async function releaseDs160SubmittedLeaseWithRetry(
+  client: SupabaseClient,
+  item: Pick<SubmissionQueueItem, "id" | "application_id" | "locked_by" | "locked_at">,
+): Promise<boolean> {
+  for (let attempt = 1; attempt <= SUBMITTED_LEASE_RELEASE_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      return await releaseDs160SubmittedLease(client, item);
+    } catch (error) {
+      if (attempt === SUBMITTED_LEASE_RELEASE_MAX_ATTEMPTS) throw error;
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, SUBMITTED_LEASE_RELEASE_RETRY_DELAYS_MS[attempt - 1] ?? 500);
+      });
+    }
+  }
+  return false;
+}
+
+/** Keep the old claim until official browser work has completely ended. */
+export async function finishDs160Attempt(input: {
+  closeSession: () => Promise<void>;
+  stopRenewal: () => Promise<void>;
+  releaseRetry: () => Promise<unknown>;
+}): Promise<void> {
+  try {
+    await input.closeSession();
+  } catch (error) {
+    await input.stopRenewal();
+    throw error;
+  }
+  await input.stopRenewal();
+  await input.releaseRetry();
+}
 
 export interface SubmissionQueueClaimOptions {
   workerId: string;
@@ -15,14 +149,280 @@ interface RpcError {
   message: string;
 }
 
-interface SubmissionQueueClaimClient {
+export interface SubmissionQueueClaimClient {
   rpc(
     name:
       | "claim_submission_queue_batch"
       | "claim_vn_cloud_submission_queue_batch"
-      | "claim_indonesia_submission_queue_batch",
+      | "claim_indonesia_submission_queue_batch"
+      | "renew_submission_queue_lease",
     args: Record<string, unknown>,
   ): PromiseLike<{ data: unknown; error: RpcError | null }>;
+}
+
+export interface SubmissionQueueLease {
+  queueId: string;
+  leaseExpiresAt: string;
+}
+
+export class SubmissionQueueOwnershipLostError extends Error {
+  readonly code = "submission_queue_ownership_lost" as const;
+
+  constructor(message = "submission queue lease ownership was lost") {
+    super(message);
+    this.name = "SubmissionQueueOwnershipLostError";
+  }
+}
+
+export interface SubmissionQueueLeaseHeartbeat {
+  readonly signal: AbortSignal;
+  readonly lease: SubmissionQueueLease;
+  assertOwned(): void;
+  isOwnershipLost(): boolean;
+  stopRenewal(): Promise<void>;
+}
+
+export interface StartSubmissionQueueLeaseHeartbeatOptions {
+  client: SubmissionQueueClaimClient;
+  queueId: string;
+  workerId: string;
+  leaseSeconds?: number;
+  heartbeatMs?: number;
+  onOwnershipLost?: () => void | Promise<void>;
+}
+
+const DEFAULT_SUBMISSION_QUEUE_LEASE_SECONDS = 900;
+const MIN_SUBMISSION_QUEUE_LEASE_SECONDS = 60;
+const MAX_SUBMISSION_QUEUE_LEASE_SECONDS = 3_600;
+
+function assertNonBlank(value: string, name: string): string {
+  const normalized = value.trim();
+  if (!normalized) throw new TypeError(`${name} is required`);
+  return normalized;
+}
+
+function normalizeLeaseSeconds(value: number | undefined): number {
+  const leaseSeconds = value ?? DEFAULT_SUBMISSION_QUEUE_LEASE_SECONDS;
+  if (!Number.isSafeInteger(leaseSeconds) || leaseSeconds < 1) {
+    throw new RangeError("leaseSeconds must be a positive integer");
+  }
+  return Math.max(
+    MIN_SUBMISSION_QUEUE_LEASE_SECONDS,
+    Math.min(MAX_SUBMISSION_QUEUE_LEASE_SECONDS, leaseSeconds),
+  );
+}
+
+function parseLeaseRow(
+  data: unknown,
+  operation: string,
+  expectedQueueId: string,
+): SubmissionQueueLease | null {
+  if (data === null || data === undefined) return null;
+  if (!Array.isArray(data)) {
+    throw new Error(`${operation} must return a table row`);
+  }
+  if (data.length === 0) return null;
+  if (data.length !== 1 || !data[0] || typeof data[0] !== "object" || Array.isArray(data[0])) {
+    throw new Error(`${operation} returned an invalid lease row`);
+  }
+  const row = data[0] as Record<string, unknown>;
+  const queueId = typeof row.id === "string" ? row.id.trim() : "";
+  const leaseExpiresAt = typeof row.locked_until === "string" ? row.locked_until.trim() : "";
+  if (queueId !== expectedQueueId || !leaseExpiresAt || !Number.isFinite(Date.parse(leaseExpiresAt))) {
+    throw new Error(`${operation} returned an invalid lease`);
+  }
+  return { queueId, leaseExpiresAt };
+}
+
+function withTimeout<T>(promise: PromiseLike<T>, timeoutMs: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error("submission queue lease renewal timed out"));
+    }, timeoutMs);
+    Promise.resolve(promise).then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
+/**
+ * Renew one legacy submission_queue lease through the service-only RPC.
+ * An empty result is an ownership conflict and is deliberately returned as
+ * null so callers can abort the browser without touching the reclaimed row.
+ */
+export async function renewSubmissionQueueLease(
+  client: SubmissionQueueClaimClient,
+  input: { queueId: string; workerId: string; leaseSeconds?: number },
+): Promise<SubmissionQueueLease | null> {
+  const queueId = assertNonBlank(input.queueId, "queueId");
+  const workerId = assertNonBlank(input.workerId, "workerId");
+  const leaseSeconds = normalizeLeaseSeconds(input.leaseSeconds);
+  const { data, error } = await client.rpc("renew_submission_queue_lease", {
+    p_queue_id: queueId,
+    p_worker_id: workerId,
+    p_lease_seconds: leaseSeconds,
+  });
+  if (error) {
+    throw new Error(`Failed to renew submission_queue lease: ${error.message}`);
+  }
+  return parseLeaseRow(data, "renew_submission_queue_lease", queueId);
+}
+
+/**
+ * Keep one claimed DS-160 queue row alive while CEAC work runs. Renewal calls
+ * are serialized, the database-returned expiry is treated as authoritative,
+ * and a false/error result aborts the operation through the supplied callback.
+ */
+export async function startSubmissionQueueLeaseHeartbeat(
+  input: StartSubmissionQueueLeaseHeartbeatOptions,
+): Promise<SubmissionQueueLeaseHeartbeat> {
+  const queueId = assertNonBlank(input.queueId, "queueId");
+  const workerId = assertNonBlank(input.workerId, "workerId");
+  const leaseSeconds = normalizeLeaseSeconds(input.leaseSeconds);
+  const heartbeatMs = input.heartbeatMs ?? 60_000;
+  if (!Number.isSafeInteger(heartbeatMs) || heartbeatMs < 1_000 || heartbeatMs > 60_000) {
+    throw new RangeError("heartbeatMs must be between 1000 and 60000");
+  }
+
+  const controller = new AbortController();
+  let currentLease: SubmissionQueueLease | null = null;
+  let ownershipLost = false;
+  let stopped = false;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let renewInFlight: Promise<void> | null = null;
+  let lossCleanup: Promise<void> | null = null;
+  let conservativeDeadline = 0;
+  const leaseWindowMs = leaseSeconds * 1_000;
+  // The timeout is shorter than the remaining lease window, so a stuck
+  // Supabase request cannot let the browser run past the database lease.
+  const renewalTimeoutMs = Math.min(30_000, Math.max(5_000, Math.floor(leaseWindowMs / 3)));
+  const maxSafeWindowMs = Math.max(250, leaseWindowMs - 250);
+  const safetyLeadMs = Math.min(maxSafeWindowMs, 5_000);
+
+  const resetConservativeDeadline = (lease: SubmissionQueueLease, roundTripMs = 0): void => {
+    const expiresAt = Date.parse(lease.leaseExpiresAt);
+    const rttLead = Math.max(1_000, roundTripMs + 1_000);
+    const safety = Math.min(maxSafeWindowMs, Math.max(250, safetyLeadMs, rttLead));
+    const localLeaseCap = Date.now() + Math.max(250, leaseWindowMs - safety);
+    conservativeDeadline = Math.min(expiresAt - safety, localLeaseCap);
+  };
+
+  const markLost = (): void => {
+    if (ownershipLost) return;
+    ownershipLost = true;
+    const error = new SubmissionQueueOwnershipLostError();
+    controller.abort(error);
+    if (input.onOwnershipLost) {
+      lossCleanup = Promise.resolve()
+        .then(() => input.onOwnershipLost?.())
+        .then(() => undefined)
+        .catch(() => undefined);
+    }
+  };
+
+  const assertOwned = (): void => {
+    if (ownershipLost || Date.now() >= conservativeDeadline) {
+      markLost();
+      throw new SubmissionQueueOwnershipLostError();
+    }
+  };
+
+  const schedule = (): void => {
+    if (stopped || ownershipLost) return;
+    const remainingMs = conservativeDeadline - Date.now();
+    const renewalLeadMs = 1_000;
+    if (!Number.isFinite(remainingMs) || remainingMs <= renewalLeadMs) {
+      markLost();
+      return;
+    }
+    const delay = Math.min(heartbeatMs, remainingMs - renewalLeadMs);
+    if (delay <= 0) {
+      markLost();
+      return;
+    }
+    timer = setTimeout(() => {
+      timer = null;
+      renewInFlight = (async () => {
+        if (stopped || ownershipLost) return;
+        if (conservativeDeadline - Date.now() <= renewalLeadMs) {
+          markLost();
+          return;
+        }
+        const startedAt = Date.now();
+        const remainingMs = conservativeDeadline - startedAt;
+        const requestTimeoutMs = Math.max(
+          250,
+          Math.min(renewalTimeoutMs, remainingMs - renewalLeadMs),
+        );
+        const renewed = await withTimeout(renewSubmissionQueueLease(input.client, {
+          queueId,
+          workerId,
+          leaseSeconds,
+        }), requestTimeoutMs);
+        if (!renewed) {
+          markLost();
+          return;
+        }
+        currentLease = renewed;
+        resetConservativeDeadline(renewed, Math.max(0, Date.now() - startedAt));
+        schedule();
+      })()
+        .catch(() => {
+          markLost();
+        })
+        .finally(() => {
+          renewInFlight = null;
+        });
+    }, delay);
+  };
+
+  try {
+    const startedAt = Date.now();
+    currentLease = await withTimeout(renewSubmissionQueueLease(input.client, {
+      queueId,
+      workerId,
+      leaseSeconds,
+    }), renewalTimeoutMs);
+    if (!currentLease) {
+      markLost();
+      throw new SubmissionQueueOwnershipLostError();
+    }
+    resetConservativeDeadline(currentLease, Math.max(0, Date.now() - startedAt));
+    schedule();
+    assertOwned();
+  } catch (error) {
+    markLost();
+    stopped = true;
+    if (timer) clearTimeout(timer);
+    timer = null;
+    await lossCleanup;
+    if (error instanceof SubmissionQueueOwnershipLostError) throw error;
+    throw new SubmissionQueueOwnershipLostError("submission queue lease renewal failed");
+  }
+
+  return {
+    signal: controller.signal,
+    get lease() {
+      if (!currentLease) throw new SubmissionQueueOwnershipLostError();
+      return currentLease;
+    },
+    assertOwned,
+    isOwnershipLost: () => ownershipLost,
+    async stopRenewal() {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+      timer = null;
+      if (renewInFlight) await renewInFlight;
+      await lossCleanup;
+    },
+  };
 }
 
 async function claimSubmissionQueueItems(

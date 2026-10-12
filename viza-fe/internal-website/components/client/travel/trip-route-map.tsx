@@ -10,7 +10,17 @@ import {
 } from "@/components/client/travel/travel-attraction-knowledge";
 import type { TravelPlaceAttribution } from "@/lib/travel/google-places";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
-import { Bed, CaretRight, Fire, ForkKnife, MapPin, MoonStars, Star, type Icon } from "@phosphor-icons/react";
+import { TripRouteMapFrame } from "./trip-route-map-frame";
+import {
+  Bed,
+  CaretRight,
+  Fire,
+  ForkKnife,
+  MapPin,
+  MoonStars,
+  Star,
+  type Icon,
+} from "@phosphor-icons/react";
 
 export type TripMapPoint = {
   id: string;
@@ -33,7 +43,7 @@ export type TripMapPoint = {
   attribution?: TravelPlaceAttribution[];
 };
 
-type TripRouteMapProps = {
+export type TripRouteMapProps = {
   points: TripMapPoint[];
   routeCoordinates: Array<[number, number]>;
   activePointId?: string | null;
@@ -458,6 +468,70 @@ const LOCAL_NAME_BY_KEY: Record<string, string> = {
   kotoku: "东京江东区",
   koto: "东京江东区",
 };
+const ENGLISH_NAME_BY_LOCAL: Record<string, string> = {
+  东京: "Tokyo",
+  新加坡: "Singapore",
+  悉尼: "Sydney",
+  伦敦: "London",
+  巴黎: "Paris",
+  里昂: "Lyon",
+  马赛: "Marseille",
+  尼斯: "Nice",
+  纽约: "New York",
+  北京: "Beijing",
+  旧金山: "San Francisco",
+  比萨: "Pisa",
+  罗马: "Rome",
+  京都: "Kyoto",
+  大阪: "Osaka",
+  迪拜: "Dubai",
+  巴厘岛: "Bali",
+  莫斯科: "Moscow",
+  伊斯坦布尔: "Istanbul",
+  墨尔本: "Melbourne",
+  夏威夷: "Hawaii",
+  埃及: "Egypt",
+  滨海湾金沙: "Marina Bay Sands",
+  埃菲尔铁塔: "Eiffel Tower",
+  大本钟: "Big Ben",
+  涩谷十字路口: "Shibuya Crossing",
+  浅草寺: "Senso-ji Temple",
+  悉尼歌剧院: "Sydney Opera House",
+  罗马斗兽场: "Colosseum",
+  东京江东区: "Koto City",
+  东京晴空塔: "Tokyo Skytree",
+  原宿表参道: "Harajuku and Omotesando",
+  新宿黄金街: "Shinjuku Golden Gai",
+  涩谷夜景: "Shibuya at night",
+  东京塔夜景: "Tokyo Tower at night",
+  台场海滨: "Odaiba waterfront",
+  日本: "Japan",
+  中国: "China",
+  瑞士: "Switzerland",
+  法国: "France",
+  意大利: "Italy",
+  西班牙: "Spain",
+  德国: "Germany",
+  英国: "United Kingdom",
+  美国: "United States",
+  澳大利亚: "Australia",
+  加拿大: "Canada",
+  新西兰: "New Zealand",
+  泰国: "Thailand",
+  越南: "Vietnam",
+  韩国: "South Korea",
+  印度尼西亚: "Indonesia",
+  马来西亚: "Malaysia",
+  俄罗斯: "Russia",
+  土耳其: "Turkey",
+  印度: "India",
+  荷兰: "Netherlands",
+  比利时: "Belgium",
+  奥地利: "Austria",
+  希腊: "Greece",
+  葡萄牙: "Portugal",
+  阿联酋: "United Arab Emirates",
+};
 const DETAIL_SECTION_META: Record<
   DetailSectionId,
   { title: string; icon: Icon }
@@ -466,6 +540,15 @@ const DETAIL_SECTION_META: Record<
   food: { title: "必吃美食", icon: ForkKnife },
   stay: { title: "热门住宿区域", icon: Bed },
   nightlife: { title: "夜生活", icon: MoonStars },
+};
+const DETAIL_SECTION_META_EN: Record<
+  DetailSectionId,
+  { title: string; icon: Icon }
+> = {
+  attractions: { title: "Highlights", icon: MapPin },
+  food: { title: "Food to try", icon: ForkKnife },
+  stay: { title: "Best areas to stay", icon: Bed },
+  nightlife: { title: "Nightlife", icon: MoonStars },
 };
 const CITY_DETAIL_SAMPLES_BY_KEY: Record<
   string,
@@ -532,12 +615,7 @@ const CITY_DETAIL_SAMPLES_BY_KEY: Record<
       tags: ["海港", "市中心", "海滩"],
     },
     nightlife: {
-      items: [
-        "达令港",
-        "岩石区酒吧",
-        "歌剧院夜景",
-        "萨里山小酒馆",
-      ],
+      items: ["达令港", "岩石区酒吧", "歌剧院夜景", "萨里山小酒馆"],
       tip: "海港夜景和晚餐可以连起来，夜间回程也方便。",
       tags: ["海港夜景", "酒吧", "音乐"],
     },
@@ -803,6 +881,7 @@ const SCRIPT_ID = "viza-travel-google-maps-script";
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 
 let mapsLoaderPromise: Promise<GoogleMapsNamespace> | null = null;
+let mapsLoadedLanguage: string | null = null;
 const markerIconCache = new Map<string, Promise<string>>();
 
 function escapeHtml(input: string): string {
@@ -865,7 +944,113 @@ function getLocalNameFromValue(value: string | undefined): string | null {
   return key ? (LOCAL_NAME_BY_KEY[key] ?? null) : null;
 }
 
-function getPointDisplayName(point: TripMapPoint): string {
+function containsCjk(value: string): boolean {
+  return /[\u3400-\u9fff]/.test(value);
+}
+
+function containsLatinLetters(value: string): boolean {
+  return /[A-Za-z]/.test(value);
+}
+
+function getEnglishMappedName(value: string | undefined): string | null {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+
+  const exact = ENGLISH_NAME_BY_LOCAL[trimmed];
+  if (exact) return exact;
+
+  const key = normalizeLookupKey(trimmed);
+  if (!key) return null;
+  return (
+    Object.entries(ENGLISH_NAME_BY_LOCAL).find(
+      ([source]) => normalizeLookupKey(source) === key
+    )?.[1] ?? null
+  );
+}
+
+function getEnglishCuratedName(
+  item:
+    | {
+        name?: string;
+        aliases?: string[];
+      }
+    | null
+    | undefined
+): string | null {
+  if (!item) return null;
+
+  const candidates = [item.name, ...(item.aliases ?? [])]
+    .map((value) => value?.trim())
+    .filter((value): value is string => Boolean(value));
+  const mapped = candidates
+    .map((candidate) => getEnglishMappedName(candidate))
+    .find((value): value is string => Boolean(value));
+  if (mapped) return mapped;
+
+  return (
+    candidates.find(
+      (candidate) => containsLatinLetters(candidate) && !containsCjk(candidate)
+    ) ?? null
+  );
+}
+
+function getEnglishAttractionName(
+  item: { name?: string; aliases?: string[] },
+  point: TripMapPoint,
+  index: number
+): string {
+  const curatedName = getEnglishCuratedName(item);
+  if (curatedName) return curatedName;
+
+  const cityName =
+    getEnglishMappedName(point.city) ??
+    (containsLatinLetters(point.city ?? "") && !containsCjk(point.city ?? "")
+      ? point.city?.trim()
+      : null);
+  return `${cityName || "Destination"} attraction ${index + 1}`;
+}
+
+function getPointDisplayName(
+  point: TripMapPoint,
+  language: "zh" | "en" = /[A-Za-z]/.test(point.label) ? "en" : "zh"
+): string {
+ if (language === "en") {
+    const label = point.label.trim();
+    if (point.kind !== "city") {
+      const curatedName = getEnglishCuratedName(
+        findTravelAttraction(
+          point.city ?? point.localName ?? "",
+          point.label
+        )
+      );
+      if (curatedName) return curatedName;
+      const mappedLabel = getEnglishMappedName(label);
+      if (mappedLabel) return mappedLabel;
+      if (containsLatinLetters(label) && !containsCjk(label)) {
+        return label;
+      }
+    }
+
+    const candidates = [point.city, point.localName, point.subtitle]
+      .map((value) => value?.trim())
+      .filter((value): value is string => Boolean(value));
+    for (const candidate of candidates) {
+      const localName = getEnglishMappedName(candidate);
+      if (localName) return localName;
+      if (containsLatinLetters(candidate) && !containsCjk(candidate)) {
+        return candidate;
+      }
+    }
+
+   const cityName =
+     getEnglishMappedName(point.city) ??
+     (containsLatinLetters(point.city ?? "") && !containsCjk(point.city ?? "")
+       ? point.city?.trim()
+       : null);
+   if (point.kind !== "city" && cityName) return `${cityName} attraction`;
+   return cityName ?? "Destination";
+ }
+
   if (point.kind !== "city") {
     const labelLocalName = getLocalNameFromValue(point.label);
     if (labelLocalName) return labelLocalName;
@@ -903,13 +1088,21 @@ function getPointDisplayName(point: TripMapPoint): string {
   return /[A-Za-z]/.test(point.label) ? "待确认城市" : point.label;
 }
 
-function formatChineseDuration(duration: string | undefined): string {
+function formatLocalizedDuration(
+  duration: string | undefined,
+  language: "zh" | "en"
+): string {
   const normalized = (duration ?? "2-4 days")
     .replace(/\brecommended\b/gi, "")
-    .replace(/\bdays?\b/gi, "天")
     .replace(/\s+/g, " ")
     .trim();
-  return normalized || "2-4 天";
+  if (language === "en") {
+    const english = normalized
+      .replace(/(\d+(?:-\d+)?)\s*天/g, "$1 days")
+      .replace(/\bday\b/gi, "day");
+    return english || "2-4 days";
+  }
+  return normalized.replace(/\bdays?\b/gi, "天") || "2-4 天";
 }
 
 function getPointGalleryImages(point: TripMapPoint): string[] {
@@ -1101,9 +1294,7 @@ function toScreenPixel(
   };
 }
 
-function getSelectionItemDescriptor(
-  item: TripMapSelectionItem
-): {
+function getSelectionItemDescriptor(item: TripMapSelectionItem): {
   id?: string;
   city?: string;
   label?: string;
@@ -1111,10 +1302,10 @@ function getSelectionItemDescriptor(
 } {
   if (typeof item === "string") return { id: item };
   return {
-    id: "pointId" in item ? item.pointId ?? item.id : item.id,
+    id: "pointId" in item ? (item.pointId ?? item.id) : item.id,
     city: item.city,
-    label: "name" in item ? item.name ?? item.label : item.label,
-    kind: "type" in item ? item.type ?? item.kind : item.kind,
+    label: "name" in item ? (item.name ?? item.label) : item.label,
+    kind: "type" in item ? (item.type ?? item.kind) : item.kind,
   };
 }
 
@@ -1162,7 +1353,9 @@ function resolveSelectedMapPoints(
         const labelMatches = normalizedLabel && names.has(normalizedLabel);
         const cityMatches = normalizedCity && names.has(normalizedCity);
         if (descriptor.kind === "city") {
-          return Boolean(cityMatches || labelMatches) && candidate.kind === "city";
+          return (
+            Boolean(cityMatches || labelMatches) && candidate.kind === "city"
+          );
         }
         return Boolean(labelMatches || cityMatches);
       });
@@ -1203,19 +1396,13 @@ export function calculateTripMapHoverCardPlacement(
   const safeCardWidth = Math.max(1, cardWidth);
   const safeCardHeight = Math.max(1, cardHeight);
   const maxLeft = Math.max(safeMargin, safeWidth - safeCardWidth - safeMargin);
-  const left = clamp(
-    marker.x - safeCardWidth / 2,
-    safeMargin,
-    maxLeft
-  );
+  const left = clamp(marker.x - safeCardWidth / 2, safeMargin, maxLeft);
   const availableAbove = marker.y - safeMargin;
   const availableBelow = safeHeight - marker.y - safeMargin;
   const opensBelow =
-    availableAbove < safeCardHeight + pointerGap && availableBelow > availableAbove;
-  const maxTop = Math.max(
-    safeMargin,
-    safeHeight - safeCardHeight - safeMargin
-  );
+    availableAbove < safeCardHeight + pointerGap &&
+    availableBelow > availableAbove;
+  const maxTop = Math.max(safeMargin, safeHeight - safeCardHeight - safeMargin);
   const preferredTop = opensBelow
     ? marker.y + pointerGap
     : marker.y - safeCardHeight - pointerGap;
@@ -1321,7 +1508,10 @@ function drawRoundedRectPath(
   ctx.closePath();
 }
 
-export function createBubbleMarkerDimensions(iconSize: number, isActive: boolean) {
+export function createBubbleMarkerDimensions(
+  iconSize: number,
+  isActive: boolean
+) {
   const bodySize = isActive ? Math.round(iconSize * 1.08) : iconSize;
   const tailHeight = Math.round(bodySize * 0.26);
   const width = bodySize + 10;
@@ -1575,55 +1765,102 @@ function estimateCoordinateZoom(
   return Math.floor(clamp(Math.min(latZoom, lngZoom), minimumFitZoom, 11));
 }
 
-function getPointDisplayLocation(point: TripMapPoint): string {
-  if (point.countryLabel)
-    return point.countryLabel.replace(/\s*\([^)]*\)/g, "").trim();
+function getPointDisplayLocation(
+  point: TripMapPoint,
+  language: "zh" | "en" = "zh"
+): string {
+  const localize = (value: string) => {
+    const trimmed = value.replace(/\s*\([^)]*\)/g, "").trim();
+    if (language === "en") {
+      const mapped = getEnglishMappedName(trimmed);
+      if (mapped) return mapped;
+      const curatedName = getEnglishCuratedName(
+        findTravelAttraction(point.city ?? point.localName ?? "", trimmed)
+      );
+      if (curatedName) return curatedName;
+      return containsCjk(trimmed) ? "Location pending" : trimmed;
+    }
+    return getLocalNameFromValue(trimmed) ?? trimmed;
+  };
+
+  if (point.countryLabel) return localize(point.countryLabel);
   if (point.subtitle.includes(" in ")) {
     const subtitleLocation =
       point.subtitle.split(" in ").at(-1)?.trim() || point.subtitle;
-    const localized = getLocalNameFromValue(subtitleLocation);
+    const localized = localize(subtitleLocation);
     if (localized) return localized;
-    return /[A-Za-z]/.test(subtitleLocation) ? "位置待确认" : subtitleLocation;
+    return /[A-Za-z]/.test(subtitleLocation)
+      ? language === "zh"
+        ? "位置待确认"
+        : "Location pending"
+      : subtitleLocation;
   }
   const location =
-    getLocalNameFromValue(point.city) ??
-    getLocalNameFromValue(point.subtitle) ??
+    (language === "zh" ? getLocalNameFromValue(point.city) : null) ??
+    (language === "zh" ? getLocalNameFromValue(point.subtitle) : null) ??
     point.localName ??
     point.city ??
     point.subtitle;
+  if (language === "en") return localize(location);
   return /[A-Za-z]/.test(location) ? "位置待确认" : location;
 }
 
-function getPointAttractions(point: TripMapPoint): string {
+function getPointAttractions(
+  point: TripMapPoint,
+  language: "zh" | "en" = "zh"
+): string {
+  const rawCity = point.city ?? point.localName ?? point.label;
   const city =
-    point.kind === "city"
-      ? getPointDisplayName(point)
-      : (getLocalNameFromValue(point.city) ??
-        point.city ??
-        getPointDisplayName(point));
+    language === "en"
+      ? getEnglishMappedName(rawCity) ??
+        (containsLatinLetters(rawCity) && !containsCjk(rawCity)
+          ? rawCity
+          : "Destination")
+      : getLocalNameFromValue(rawCity) ?? rawCity;
   const curatedAttractions = getTravelAttractionsForCity(
     point.city ?? point.label
   )
     .slice(0, 4)
-    .map((item) => item.name);
+    .map((item, index) =>
+      language === "en"
+        ? getEnglishAttractionName(item, point, index)
+        : item.name
+    );
   if (point.kind === "city" && curatedAttractions.length) {
-    return curatedAttractions.join("、");
+    return curatedAttractions.join(language === "zh" ? "、" : ", ");
   }
 
-  const attractionName = getLocalNameFromValue(point.label) ?? point.label;
+  const attractionName =
+    language === "en"
+      ? getEnglishMappedName(point.label) ??
+        getEnglishCuratedName(
+          findTravelAttraction(point.city ?? point.localName ?? "", point.label)
+        ) ??
+        (containsLatinLetters(point.label) && !containsCjk(point.label)
+          ? point.label
+          : `${city} attraction`)
+      : getLocalNameFromValue(point.label) ?? point.label;
   const base =
     point.kind === "city"
-      ? [`${city}经典地标`, `${city}热门街区`, "观景点", "夜市"]
-      : [attractionName, `${city}步行路线`, "当地美食", "观景点", "夜景"];
-  return Array.from(new Set(base)).join("、");
+      ? language === "zh"
+        ? [`${city}经典地标`, `${city}热门街区`, "观景点", "夜市"]
+        : [`${city} landmarks`, `${city} neighbourhoods`, "Viewpoints", "Night markets"]
+      : language === "zh"
+        ? [attractionName, `${city}步行路线`, "当地美食", "观景点", "夜景"]
+        : [attractionName, `${city} walking route`, "Local food", "Viewpoints", "Night views"];
+  return Array.from(new Set(base)).join(language === "zh" ? "、" : ", ");
 }
 
 function formatGooglePointRating(
   point: TripMapPoint,
   isZh: boolean
 ): string | null {
-  if (point.source !== "google" || typeof point.rating !== "number") return null;
-  const count = Math.max(0, Math.round(point.reviewCount ?? 0)).toLocaleString();
+  if (point.source !== "google" || typeof point.rating !== "number")
+    return null;
+  const count = Math.max(
+    0,
+    Math.round(point.reviewCount ?? 0)
+  ).toLocaleString(isZh ? "zh-CN" : "en-US");
   return isZh
     ? `${point.rating.toFixed(1)} 分 · ${count} 条评价`
     : `${point.rating.toFixed(1)} · ${count} reviews`;
@@ -1737,12 +1974,51 @@ function getFallbackDetailSample(
   };
 }
 
-function buildDetailSectionSample(
+function getEnglishFallbackDetailSample(
   point: TripMapPoint,
   sectionId: DetailSectionId,
   city: string,
   location: string
 ): DetailSectionSample {
+  const cityName = city || getPointDisplayName(point, "en");
+  if (sectionId === "attractions") {
+    return {
+      items: getPointAttractions(point, "en").split(", ").slice(0, 4),
+      tip: `Group ${cityName}'s landmarks by neighbourhood, then leave time for viewpoints and local streets.`,
+      tags: ["Landmarks", "Neighbourhoods", "Photo spots"],
+    };
+  }
+  if (sectionId === "food") {
+    return {
+      items: [`${cityName} local food`, "Signature restaurants", "Coffee and dessert", "Night market stalls"],
+      tip: "Place popular restaurants around lunch or dinner, with snacks and desserts along the walking route.",
+      tags: ["Local food", "Dining", "Dessert"],
+    };
+  }
+  if (sectionId === "stay") {
+    return {
+      items: [`${location || cityName} centre`, "Landmark district", "Near transit", "Quiet residential area"],
+      tip: "Choose an area near a metro line or the main sights to keep daily transfers short.",
+      tags: ["Transit", "Central", "Time-saving"],
+    };
+  }
+  return {
+    items: [`${cityName} at night`, "Waterfront walk", "Rooftop bars", "Night market district"],
+    tip: "Keep evening plans in one area so dinner, a walk, and the return to your hotel stay easy.",
+    tags: ["Night views", "Bars", "Walks"],
+  };
+}
+
+function buildDetailSectionSample(
+  point: TripMapPoint,
+  sectionId: DetailSectionId,
+  city: string,
+  location: string,
+  language: "zh" | "en" = "zh"
+): DetailSectionSample {
+  if (language === "en") {
+    return getEnglishFallbackDetailSample(point, sectionId, city, location);
+  }
   const citySamples = getCityDetailSamples(point);
   return (
     citySamples?.[sectionId] ??
@@ -1753,8 +2029,21 @@ function buildDetailSectionSample(
 function getDetailSectionItemDescription(
   sectionId: DetailSectionId,
   item: string,
-  city: string
+  city: string,
+  language: "zh" | "en" = "zh"
 ): string {
+  if (language === "en") {
+    if (sectionId === "attractions") {
+      return `${item} works well as a ${city} highlight, with time for photos during the day and a walk in the early evening.`;
+    }
+    if (sectionId === "food") {
+      return `${item} fits naturally between activities as a relaxed meal or an evening stop.`;
+    }
+    if (sectionId === "stay") {
+      return `${item} keeps transit and dining nearby, making it a practical base for the trip.`;
+    }
+    return `${item} is a good after-dinner option when you want a slower evening with atmosphere and photos.`;
+  }
   if (sectionId === "attractions") {
     return `${item}适合安排成${city}的打卡点，白天拍照、傍晚散步都很顺。`;
   }
@@ -1773,31 +2062,44 @@ function getDetailSectionItemDescription(
 function getDetailItemMedia(
   sectionId: DetailSectionId,
   item: string,
-  city: string
+  city: string,
+  language: "zh" | "en" = "zh"
 ): DetailItemMedia {
   const attraction = findTravelAttraction(city, item);
   if (sectionId === "attractions" && attraction) {
     return {
       imageSrc: attraction.imageSrc,
       description:
-        attraction.description ??
-        getDetailSectionItemDescription(sectionId, item, city),
+        language === "zh" && attraction.description
+          ? attraction.description
+          : getDetailSectionItemDescription(sectionId, item, city, language),
       sourceUrl: attraction.sourceUrl,
     };
   }
 
   return (
-    DETAIL_ITEM_MEDIA_BY_TITLE[item] ?? {
-      description: getDetailSectionItemDescription(sectionId, item, city),
+    (language === "zh" ? DETAIL_ITEM_MEDIA_BY_TITLE[item] : undefined) ?? {
+      description: getDetailSectionItemDescription(
+        sectionId,
+        item,
+        city,
+        language
+      ),
     }
   );
 }
 
-function getPointIntro(point: TripMapPoint): string {
-  return (
-    point.intro ??
-    `${getPointDisplayName(point)}适合安排紧凑半日到一日游，动线清晰，拍照点集中，也方便串联周边美食与夜景。`
-  );
+function getPointIntro(
+  point: TripMapPoint,
+  language: "zh" | "en" = "zh"
+): string {
+  if (point.intro && (language === "zh" || !/[\u3400-\u9fff]/.test(point.intro))) {
+    return point.intro;
+  }
+  const title = getPointDisplayName(point, language);
+  return language === "zh"
+    ? `${title}适合安排紧凑半日到一日游，动线清晰，拍照点集中，也方便串联周边美食与夜景。`
+    : `${title} works well for a compact half-day or one-day visit, with clear routes, photo spots, local food, and evening views nearby.`;
 }
 
 function buildHoverCardHtml(
@@ -1818,12 +2120,13 @@ function buildHoverCardHtml(
     imageIndex?: number;
   }
 ): string {
-  const title = getPointDisplayName(point);
-  const cityOrCountry = getPointDisplayLocation(point);
-  const attractions = getPointAttractions(point);
+  const language = isZh ? "zh" : "en";
+  const title = getPointDisplayName(point, language);
+  const cityOrCountry = getPointDisplayLocation(point, language);
+  const attractions = getPointAttractions(point, language);
   const duration = isZh
-    ? formatChineseDuration(point.recommendedDays)
-    : (point.recommendedDays ?? "").trim();
+    ? formatLocalizedDuration(point.recommendedDays, "zh")
+    : formatLocalizedDuration(point.recommendedDays, "en");
   const googleRating = formatGooglePointRating(point, isZh);
   const googleAttribution = formatGooglePointAttribution(point, isZh);
   const googleMapsUri =
@@ -1834,7 +2137,11 @@ function buildHoverCardHtml(
     options?.galleryImages && options.galleryImages.length > 0
       ? options.galleryImages
       : [resolveMarkerImageUrl(point.imageSrc)];
-  const imageIndex = clamp(options?.imageIndex ?? 0, 0, Math.max(galleryImages.length - 1, 0));
+  const imageIndex = clamp(
+    options?.imageIndex ?? 0,
+    0,
+    Math.max(galleryImages.length - 1, 0)
+  );
   const imageUrl = galleryImages[imageIndex] ?? galleryImages[0] ?? "";
   const cardWidth = options?.cardWidth ?? 420;
   const imageHeight = options?.imageHeight ?? 260;
@@ -1882,7 +2189,7 @@ function buildHoverCardHtml(
         <span>${escapeHtml(title)}</span>
         <span style="border-radius:6px;background:#fff1f2;color:#fb4d61;font-size:${compact ? 13 : 15}px;font-weight:800;padding:2px 5px;">${isZh ? "热度 10" : "Trending 10"}</span>
       </div>
-      <button id="${summaryButtonId ?? ""}" type="button" style="pointer-events:auto;box-sizing:border-box;margin-top:10px;width:100%;border:0;border-radius:7px;background:#eef3fa;padding:7px 8px;text-align:left;color:#0f3bae;cursor:pointer;font-size:${bodySize}px;line-height:${introLineHeight}px;min-height:${introHeight + 14}px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
+      <button id="${summaryButtonId ?? ""}" type="button" style="pointer-events:auto;box-sizing:border-box;margin-top:10px;width:100%;border:0;border-radius:7px;background:#f1f0ff;padding:7px 8px;text-align:left;color:#0f3bae;cursor:pointer;font-size:${bodySize}px;line-height:${introLineHeight}px;min-height:${introHeight + 14}px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
         <span style="color:#0f3bae;">${isZh ? "热门景点：" : "Highlights:"}</span> <span style="color:#020617;">${escapeHtml(attractions)}</span>
       </button>
       ${
@@ -1905,7 +2212,7 @@ function buildHoverCardHtml(
         <span style="font-size:${compact ? 14 : 16}px;color:#475569;">⌖</span>
         <span>${escapeHtml(cityOrCountry)}</span>
         <span style="height:13px;width:1px;background:#cbd5e1;"></span>
-        <span>${escapeHtml(duration)} 推荐</span>
+        <span>${escapeHtml(duration)} ${isZh ? "推荐" : "recommended"}</span>
       </div>
       ${
         googleAttribution
@@ -1938,8 +2245,27 @@ async function loadGoogleMaps(
     throw new Error("Missing NEXT_PUBLIC_GOOGLE_MAPS_API_KEY");
   }
 
+  const requestedLanguage = toTravelAgentLocale(locale);
+  const existingScript = document.getElementById(
+    SCRIPT_ID
+  ) as HTMLScriptElement | null;
+  if (!mapsLoadedLanguage && existingScript?.src) {
+    try {
+      mapsLoadedLanguage =
+        new URL(existingScript.src).searchParams.get("language");
+    } catch {
+      mapsLoadedLanguage = null;
+    }
+  }
+
   const existingMaps = window.google?.maps;
-  if (existingMaps) return existingMaps;
+  if (existingMaps) {
+    if (mapsLoadedLanguage && mapsLoadedLanguage !== requestedLanguage) {
+      throw new Error("GOOGLE_MAPS_LOCALE_MISMATCH");
+    }
+    mapsLoadedLanguage ??= requestedLanguage;
+    return existingMaps;
+  }
   if (mapsLoaderPromise) return mapsLoaderPromise;
 
   mapsLoaderPromise = new Promise<GoogleMapsNamespace>((resolve, reject) => {
@@ -1956,22 +2282,21 @@ async function loadGoogleMaps(
       );
     };
 
-    const existingScript = document.getElementById(
-      SCRIPT_ID
-    ) as HTMLScriptElement | null;
     if (existingScript) {
       existingScript.addEventListener("load", resolveMaps, { once: true });
       existingScript.addEventListener(
         "error",
         () => reject(new Error("Failed to load Google Maps script")),
-        { once: true }
+        {
+          once: true,
+        }
       );
       return;
     }
 
     const script = document.createElement("script");
     script.id = SCRIPT_ID;
-    const language = toTravelAgentLocale(locale);
+    const language = requestedLanguage;
     const region = language === "zh-CN" ? "CN" : "US";
     script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&language=${language}&region=${region}&v=weekly`;
     script.async = true;
@@ -1982,6 +2307,7 @@ async function loadGoogleMaps(
       () => reject(new Error("Failed to load Google Maps script")),
       { once: true }
     );
+    mapsLoadedLanguage = language;
     document.head.appendChild(script);
   }).catch((error) => {
     mapsLoaderPromise = null;
@@ -1991,7 +2317,11 @@ async function loadGoogleMaps(
   return mapsLoaderPromise;
 }
 
-export function TripRouteMap({
+export function TripRouteMap(props: TripRouteMapProps) {
+  return <TripRouteMapFrame {...props} />;
+}
+
+export function TripRouteMapSurface({
   points,
   routeCoordinates,
   activePointId,
@@ -2002,8 +2332,10 @@ export function TripRouteMap({
   selectedPointIds,
   animateRoute,
   className,
-}: TripRouteMapProps) {
-  const locale = useLocale();
+  interfaceLocale,
+}: TripRouteMapProps & { interfaceLocale?: string }) {
+  const providerLocale = useLocale();
+  const locale = interfaceLocale ?? providerLocale;
   const isZh = isChineseLocale(locale);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<GoogleMapInstance | null>(null);
@@ -2117,10 +2449,20 @@ export function TripRouteMap({
     );
     const imageHeight = compact ? 168 : 217;
     const estimatedCardHeight = imageHeight + (compact ? 190 : 220);
-    return { currentWidth, currentHeight, compact, cardWidth, imageHeight, estimatedCardHeight };
+    return {
+      currentWidth,
+      currentHeight,
+      compact,
+      cardWidth,
+      imageHeight,
+      estimatedCardHeight,
+    };
   })();
   const hoverGalleryImages = useMemo(
-    () => (hoverPoint ? getPointGalleryImages(hoverPoint).map(resolveMarkerImageUrl) : []),
+    () =>
+      hoverPoint
+        ? getPointGalleryImages(hoverPoint).map(resolveMarkerImageUrl)
+        : [],
     [hoverPoint]
   );
   const hoverCardIds = useMemo(() => {
@@ -2137,7 +2479,7 @@ export function TripRouteMap({
   }, [hoverPoint]);
   const hoverCardHtml = useMemo(() => {
     if (!hoverPoint || !hoverCardIds) return "";
-    const title = getPointDisplayName(hoverPoint);
+    const title = getPointDisplayName(hoverPoint, isZh ? "zh" : "en");
     return buildHoverCardHtml(
       hoverPoint,
       onAddDestination ? hoverCardIds.addButtonId : null,
@@ -2221,10 +2563,7 @@ export function TripRouteMap({
       clearHoverCloseTimer();
       hoverCloseTimerRef.current = window.setTimeout(() => {
         hoverCloseTimerRef.current = null;
-        if (
-          hoverPointIdRef.current === pointId &&
-          !hoverPinnedRef.current
-        ) {
+        if (hoverPointIdRef.current === pointId && !hoverPinnedRef.current) {
           clearHoverPreview();
         }
       }, delay);
@@ -2282,12 +2621,7 @@ export function TripRouteMap({
     };
     card.addEventListener("click", handleClick);
     return () => card.removeEventListener("click", handleClick);
-  }, [
-    clearHoverPreview,
-    hoverCardIds,
-    hoverGalleryImages.length,
-    hoverPoint,
-  ]);
+  }, [clearHoverPreview, hoverCardIds, hoverGalleryImages.length, hoverPoint]);
 
   useEffect(() => {
     const card = hoverCardRef.current;
@@ -2318,8 +2652,10 @@ export function TripRouteMap({
   const hoverPlacement = (() => {
     if (!hoverPoint) return null;
     const map = mapRef.current;
-    const currentWidth = containerRef.current?.clientWidth ?? hoverCardConfig.currentWidth;
-    const currentHeight = containerRef.current?.clientHeight ?? hoverCardConfig.currentHeight;
+    const currentWidth =
+      containerRef.current?.clientWidth ?? hoverCardConfig.currentWidth;
+    const currentHeight =
+      containerRef.current?.clientHeight ?? hoverCardConfig.currentHeight;
     const currentZoom = map?.getZoom() ?? DEFAULT_ZOOM;
     const centerValue = map?.getCenter();
     const center = centerValue
@@ -2334,7 +2670,8 @@ export function TripRouteMap({
       currentHeight
     );
     const cardWidth = hoverCardMeasuredSize?.width ?? hoverCardConfig.cardWidth;
-    const cardHeight = hoverCardMeasuredSize?.height ?? hoverCardConfig.estimatedCardHeight;
+    const cardHeight =
+      hoverCardMeasuredSize?.height ?? hoverCardConfig.estimatedCardHeight;
     return {
       ...calculateTripMapHoverCardPlacement(
         marker,
@@ -2642,11 +2979,11 @@ export function TripRouteMap({
         iconSize,
         isActive
       );
-      const marker = new maps.Marker({
-        map,
-        position: { lat: point.lat, lng: point.lng },
-        title: `${point.label} · ${point.subtitle}`,
-        icon: buildMarkerIcon(
+     const marker = new maps.Marker({
+       map,
+       position: { lat: point.lat, lng: point.lng },
+        title: `${getPointDisplayName(point, isZh ? "zh" : "en")} · ${getPointDisplayLocation(point, isZh ? "zh" : "en")}`,
+       icon: buildMarkerIcon(
           maps,
           point,
           isActive,
@@ -2716,7 +3053,7 @@ export function TripRouteMap({
         path: routePath,
         map,
         geodesic: true,
-        strokeColor: "#01214A",
+        strokeColor: "#2d1635",
         strokeOpacity: animateRoute ? 0.32 : 0.78,
         strokeWeight: animateRoute ? 4 : 5,
         zIndex: 1,
@@ -2730,7 +3067,7 @@ export function TripRouteMap({
                   icon: {
                     path: maps.SymbolPath.FORWARD_CLOSED_ARROW,
                     scale: 3,
-                    strokeColor: "#01214A",
+                    strokeColor: "#2d1635",
                     strokeWeight: 2,
                   },
                   offset: "100%",
@@ -2746,7 +3083,7 @@ export function TripRouteMap({
           path: [routePath[0]!],
           map,
           geodesic: true,
-          strokeColor: "#3D6DAD",
+          strokeColor: "#8d5df7",
           strokeOpacity: 0.95,
           strokeWeight: 7,
           zIndex: 2,
@@ -2905,10 +3242,19 @@ export function TripRouteMap({
 
   const detailSections = useMemo<DetailSection[]>(() => {
     if (!detailPoint) return [];
+    const language = isZh ? "zh" : "en";
     const city =
-      getLocalNameFromValue(detailPoint.city) ??
-      getPointDisplayName(detailPoint);
-    const location = getPointDisplayLocation(detailPoint);
+      language === "zh"
+        ? getLocalNameFromValue(detailPoint.city) ??
+          getPointDisplayName(detailPoint, language)
+        : getPointDisplayName(
+            {
+              ...detailPoint,
+              label: detailPoint.city ?? detailPoint.label,
+            },
+            language
+          );
+    const location = getPointDisplayLocation(detailPoint, language);
 
     return (["attractions", "food", "stay", "nightlife"] as const).map(
       (sectionId) => {
@@ -2916,9 +3262,12 @@ export function TripRouteMap({
           detailPoint,
           sectionId,
           city,
-          location
+          location,
+          language
         );
-        const meta = DETAIL_SECTION_META[sectionId];
+        const meta = (isZh ? DETAIL_SECTION_META : DETAIL_SECTION_META_EN)[
+          sectionId
+        ];
         return {
           id: sectionId,
           title: meta.title,
@@ -2928,7 +3277,7 @@ export function TripRouteMap({
         };
       }
     );
-  }, [detailPoint]);
+  }, [detailPoint, isZh]);
 
   return (
     <div className={`relative ${className ?? ""}`} data-testid="trip-route-map">
@@ -2955,6 +3304,7 @@ export function TripRouteMap({
                     : "border-slate-200 bg-white text-slate-700 hover:border-blue-200 hover:bg-blue-50/70"
                 }`}
                 data-testid={`trip-map-selected-item-${sanitizeDomId(point.id)}`}
+                key={point.id}
                 onClick={() => {
                   onPointSelectRef.current?.(point.id);
                   openHoverPreview(point, true);
@@ -2968,7 +3318,8 @@ export function TripRouteMap({
                   openHoverPreview(point, false);
                 }}
                 onMouseLeave={() => {
-                  if (!hoverPinnedRef.current) scheduleHoverClose(point.id, 120);
+                  if (!hoverPinnedRef.current)
+                    scheduleHoverClose(point.id, 120);
                 }}
                 type="button"
               >
@@ -2979,7 +3330,7 @@ export function TripRouteMap({
                   }}
                 />
                 <span className="max-w-36 truncate text-xs font-semibold">
-                  {getPointDisplayName(point)}
+                  {getPointDisplayName(point, isZh ? "zh" : "en")}
                 </span>
               </button>
             );
@@ -3006,7 +3357,9 @@ export function TripRouteMap({
             aria-hidden="true"
             className="pointer-events-none absolute left-0 top-0 overflow-visible"
             data-testid="trip-map-hover-pointer"
-            height={Math.max(hoverPlacement.cardHeight, hoverPlacement.pointerY) + 2}
+            height={
+              Math.max(hoverPlacement.cardHeight, hoverPlacement.pointerY) + 2
+            }
             style={{ width: hoverPlacement.cardWidth }}
           >
             <polygon
@@ -3048,7 +3401,7 @@ export function TripRouteMap({
               <div className="space-y-4">
                 <div>
                   <div className="flex items-center gap-2 text-3xl font-bold text-slate-950">
-                    <span>{getPointDisplayName(detailPoint)}</span>
+                  <span>{getPointDisplayName(detailPoint, isZh ? "zh" : "en")}</span>
                     <CaretRight className="size-6 text-slate-300" />
                   </div>
                   <div className="mt-3 inline-flex items-center gap-2 rounded-md bg-rose-50 px-2 py-1 text-base font-semibold text-[#fb4d61]">
@@ -3058,8 +3411,15 @@ export function TripRouteMap({
                     </span>
                     <span className="h-4 w-px bg-rose-200" />
                     <span>
-                      第 1 名 · {getPointDisplayLocation(detailPoint)}
-                      {detailPoint.kind === "city" ? "热门城市" : "热门景点"}
+                      {isZh ? "第 1 名 · " : "#1 · "}
+                      {getPointDisplayLocation(detailPoint, isZh ? "zh" : "en")}
+                      {isZh
+                        ? detailPoint.kind === "city"
+                          ? "热门城市"
+                          : "热门景点"
+                        : detailPoint.kind === "city"
+                          ? "Popular city"
+                          : "Popular attraction"}
                     </span>
                   </div>
                   {detailPoint.source === "google" ? (
@@ -3091,15 +3451,18 @@ export function TripRouteMap({
 
                 <div className="flex items-center gap-3 text-xl text-slate-600">
                   <span className="text-2xl">⌖</span>
-                  <span>{getPointDisplayLocation(detailPoint)}</span>
+                  <span>{getPointDisplayLocation(detailPoint, isZh ? "zh" : "en")}</span>
                   <span className="h-5 w-px bg-slate-300" />
                   <span>
-                    {formatChineseDuration(detailPoint.recommendedDays)} 推荐
+                    {formatLocalizedDuration(
+                      detailPoint.recommendedDays,
+                      isZh ? "zh" : "en"
+                    )} {isZh ? "推荐" : "recommended"}
                   </span>
                 </div>
 
                 <p className="text-lg leading-relaxed text-slate-600">
-                  {getPointIntro(detailPoint)}
+                          {getPointIntro(detailPoint, isZh ? "zh" : "en")}
                 </p>
                 {detailGoogleAttribution ? (
                   <p className="rounded-md bg-slate-50 px-3 py-2 text-sm leading-relaxed text-slate-500">
@@ -3112,8 +3475,8 @@ export function TripRouteMap({
                     <div
                       aria-label={
                         isZh
-                          ? `${getPointDisplayName(detailPoint)}照片 ${index + 1}`
-                          : `${getPointDisplayName(detailPoint)} photo ${index + 1}`
+                          ? `${getPointDisplayName(detailPoint, "zh")}照片 ${index + 1}`
+                          : `${getPointDisplayName(detailPoint, "en")} photo ${index + 1}`
                       }
                       className="h-32 min-w-[150px] flex-1 rounded-md bg-cover bg-center transition-all duration-300 hover:-translate-y-1 hover:scale-[1.02] hover:shadow-lg hover:shadow-blue-200/60"
                       key={`${detailPoint.id}-preview-${index}`}
@@ -3177,11 +3540,15 @@ export function TripRouteMap({
                           <div className="border-t border-white/80 px-4 pb-4">
                             <div className="grid grid-cols-2 gap-3 pt-4 max-lg:grid-cols-1">
                               {section.items.map((item) => {
-                                const itemMedia = getDetailItemMedia(
-                                  section.id,
-                                  item,
-                                  getPointDisplayName(detailPoint)
-                                );
+                              const itemMedia = getDetailItemMedia(
+                                section.id,
+                                item,
+                                getPointDisplayName(
+                                  detailPoint,
+                                  isZh ? "zh" : "en"
+                                ),
+                                isZh ? "zh" : "en"
+                              );
                                 return (
                                   <article
                                     className="group overflow-hidden rounded-xl bg-white/85 shadow-sm shadow-blue-100/60 ring-1 ring-white/80 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-blue-200/60"

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  AlertTriangle,
   CheckCircle2,
   CircleDot,
   Clock3,
@@ -9,7 +10,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 
 export type Tone = "neutral" | "success" | "warning" | "danger" | "info" | "brand";
 
@@ -152,11 +152,15 @@ export function ErrorPanel({
   title?: string;
 }) {
   return (
-    <Alert variant="destructive">
-      <AlertIcon variant="destructive" />
-      <AlertTitle>{title}</AlertTitle>
-      <AlertDescription>{message}</AlertDescription>
-    </Alert>
+    <div className="rounded-lg border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+      <div className="flex items-start gap-2">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+        <div>
+          <p className="font-semibold">{title}</p>
+          <p className="mt-1">{message}</p>
+        </div>
+      </div>
+    </div>
   );
 }
 

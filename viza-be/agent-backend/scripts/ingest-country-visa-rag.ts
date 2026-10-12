@@ -14,6 +14,13 @@ import * as path from "path";
 import { createHash } from "crypto";
 import { fileURLToPath } from "url";
 import { createClient } from "@supabase/supabase-js";
+import {
+  buildKnowledgeChunkContent,
+  buildKnowledgeEmbeddingText,
+  resolveKnowledgeChunkingPolicy,
+  splitKnowledgeChunk,
+  type ChunkingPolicy,
+} from "../src/services/visa-knowledge-chunking.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -68,6 +75,7 @@ interface CliOptions {
   listOnly: boolean;
   releaseKey: string;
   dryRun: boolean;
+  chunking: string;
 }
 
 function normalizeCountry(value: string): string {
@@ -78,6 +86,7 @@ function parseArgs(argv: string[]): CliOptions {
   const countries = new Set<string>();
   let listOnly = false;
   let dryRun = false;
+  let chunking = "seed-semantic";
   let releaseKey =
     process.env.VISA_KNOWLEDGE_RELEASE_KEY ??
     `staged-${new Date().toISOString().slice(0, 10)}`;
@@ -85,6 +94,14 @@ function parseArgs(argv: string[]): CliOptions {
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === "--all") continue;
+    if (arg === "--chunking") {
+      const value = argv[index + 1];
+      if (!value) throw new Error("--chunking requires a profile name");
+      resolveKnowledgeChunkingPolicy(value);
+      chunking = value;
+      index += 1;
+      continue;
+    }
 
     if (arg === "--list") {
       listOnly = true;
@@ -135,6 +152,7 @@ function parseArgs(argv: string[]): CliOptions {
     listOnly,
     releaseKey,
     dryRun,
+    chunking,
   };
 }
 
@@ -262,21 +280,6 @@ async function getEmbedding(text: string): Promise<number[]> {
   );
 }
 
-function buildChunkContent(document: RagDocument, chunk: RagChunk): string {
-  return [
-    `# ${chunk.title}`,
-    "",
-    `Country: ${document.country}`,
-    `Visa type: ${document.visaType}`,
-    `Document type: ${document.documentType}`,
-    `Source: ${document.title}`,
-    `Source URL: ${document.sourceUrl}`,
-    `Tags: ${chunk.tags.join(", ")}`,
-    "",
-    chunk.content,
-  ].join("\n");
-}
-
 function contentHash(value: unknown): string {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex");
 }
@@ -310,7 +313,8 @@ async function ensureRelease(releaseKey: string): Promise<string> {
 async function ingestDocument(
   document: RagDocument,
   seedVersion: string,
-  releaseId: string
+  releaseId: string,
+  chunkingPolicy: ChunkingPolicy | null,
 ): Promise<{
   inserted: number;
   embedded: number;
@@ -336,7 +340,7 @@ async function ingestDocument(
     ingestion_scope: "country_seed",
     release_id: releaseId,
     status: "staged",
-    content_hash: contentHash(document),
+    content_hash: chunkingPolicy ? contentHash({ document, chunkingPolicy }) : contentHash(document),
     verified_at: new Date(`${seedVersion}T00:00:00.000Z`).toISOString(),
     last_synced_at: new Date().toISOString(),
   };
@@ -371,9 +375,9 @@ async function ingestDocument(
   let inserted = 0;
   let embedded = 0;
 
-  for (const chunk of document.chunks) {
-    const content = buildChunkContent(document, chunk);
-    const embedding = await getEmbedding(`${chunk.title}\n\n${content}`);
+  for (const chunk of document.chunks.flatMap(parent => splitKnowledgeChunk(parent, chunkingPolicy))) {
+    const content = buildKnowledgeChunkContent(document, chunk);
+    const embedding = await getEmbedding(buildKnowledgeEmbeddingText(document, chunk));
     const row: Record<string, unknown> = {
       document_id: documentId,
       country: document.country,
@@ -400,7 +404,7 @@ async function ingestDocument(
   return { inserted, embedded };
 }
 
-async function ingestSeed(seed: CountryRagSeed, releaseId: string): Promise<{
+async function ingestSeed(seed: CountryRagSeed, releaseId: string, chunkingPolicy: ChunkingPolicy | null): Promise<{
   inserted: number;
   embedded: number;
 }> {
@@ -413,7 +417,7 @@ async function ingestSeed(seed: CountryRagSeed, releaseId: string): Promise<{
 
   for (const document of seed.documents) {
     console.log(`  Ingesting: ${document.title}`);
-    const result = await ingestDocument(document, seed.version, releaseId);
+    const result = await ingestDocument(document, seed.version, releaseId, chunkingPolicy);
     inserted += result.inserted;
     embedded += result.embedded;
   }
@@ -424,6 +428,7 @@ async function ingestSeed(seed: CountryRagSeed, releaseId: string): Promise<{
 async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
   const seeds = resolveSeeds(options);
+  const chunkingPolicy = resolveKnowledgeChunkingPolicy(options.chunking);
 
   if (options.listOnly) {
     console.log(seeds.map((seed) => seed.country).join("\n"));
@@ -434,6 +439,9 @@ async function main(): Promise<void> {
       JSON.stringify(
         {
           releaseKey: options.releaseKey,
+          chunking: options.chunking,
+          chunks: seeds.flatMap(seed => seed.documents.flatMap(document => document.chunks))
+            .flatMap(chunk => splitKnowledgeChunk(chunk, chunkingPolicy)).length,
           countries: seeds.map((seed) => seed.country),
           documents: seeds.flatMap((seed) =>
             seed.documents.map((document) => `country:${document.slug}`)
@@ -454,12 +462,13 @@ async function main(): Promise<void> {
   console.log(`Countries: ${seeds.length}`);
   console.log(`Staged release: ${options.releaseKey}`);
   console.log(`Embeddings: required (${EMBEDDING_MODEL})`);
+  console.log(`Chunking: ${options.chunking}`);
 
   let totalInserted = 0;
   let totalEmbedded = 0;
 
   for (const seed of seeds) {
-    const result = await ingestSeed(seed, releaseId);
+    const result = await ingestSeed(seed, releaseId, chunkingPolicy);
     totalInserted += result.inserted;
     totalEmbedded += result.embedded;
   }

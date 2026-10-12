@@ -2,6 +2,8 @@ import {
   MARKETING_BLOG_LOCALES,
   MARKETING_SOCIAL_PLATFORMS,
   type MarketingBlogDraftInput,
+  type MarketingBlogAdminRecord,
+  type MarketingBlogFaq,
   type MarketingBlogLocale,
   type MarketingSocialCompositionInput,
   type MarketingSocialPlatform,
@@ -14,6 +16,7 @@ const SOCIAL_LIMITS: Record<MarketingSocialPlatform, number> = {
   "google-business-sg": 1_500,
   instagram: 2_200,
   linkedin: 3_000,
+  facebook: 5_000,
   pinterest: 500,
   reddit: 10_000,
 };
@@ -73,7 +76,31 @@ export function validateBlogDraft(input: MarketingBlogDraftInput): MarketingBlog
     category: input.category?.trim().slice(0, 120) || undefined,
     seoTitle: input.seoTitle?.trim().slice(0, 180) || undefined,
     seoDescription: input.seoDescription?.trim().slice(0, 500) || undefined,
+    topics: Array.isArray(input.topics) ? [...new Set(input.topics.filter((item): item is string => typeof item === "string").map((item) => item.trim().slice(0, 80)).filter(Boolean))].slice(0, 6) : [],
+    seoKeyword: typeof input.seoKeyword === "string" ? input.seoKeyword.trim().slice(0, 120) || undefined : undefined,
+    faqs: cleanBlogFaqs(input.faqs),
   };
+}
+
+export function validatePublishableBlog(post: MarketingBlogAdminRecord): void {
+  if (post.bodyMarkdown.trim().length < 300) throw new Error("Article needs at least 300 characters before publication");
+  if (!post.category?.trim()) throw new Error("Choose a category before publication");
+  if (!post.seoTitle?.trim() || !post.seoDescription?.trim()) throw new Error("SEO title and description are required before publication");
+  if (post.editorial.sourceUrl && !post.bodyMarkdown.includes(post.editorial.sourceUrl)) throw new Error("Article must retain its source link");
+  if (post.generationBrief && !post.coverImageUrl) throw new Error("Add a reviewed cover image before publishing an AI draft");
+  if (post.bodyMarkdown.includes("—")) throw new Error("Replace em dashes before publication");
+}
+
+export function parseGeneratedPlatformContent(value: unknown, platforms: readonly MarketingSocialPlatform[]): Partial<Record<MarketingSocialPlatform, string>> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Provider returned invalid platform content");
+  const content = value as Record<string, unknown>;
+  return Object.fromEntries(platforms.map((platform) => {
+    const caption = content[platform];
+    if (typeof caption !== "string" || !caption.trim()) throw new Error(`Provider returned invalid ${platform} copy`);
+    const trimmed = caption.trim();
+    if (trimmed.length > SOCIAL_LIMITS[platform]) throw new Error(`${platform} content must be ${SOCIAL_LIMITS[platform]} characters or fewer`);
+    return [platform, trimmed];
+  })) as Partial<Record<MarketingSocialPlatform, string>>;
 }
 
 export function validateSocialComposition(input: MarketingSocialCompositionInput): MarketingSocialCompositionInput {
@@ -93,6 +120,7 @@ export function validateSocialComposition(input: MarketingSocialCompositionInput
   }
   let scheduledFor: string | undefined;
   if (input.scheduledFor) {
+    if (platforms.includes("instagram") || platforms.includes("pinterest")) throw new Error("Instagram and Pinterest posts publish when approved; remove the scheduled time");
     const timestamp = Date.parse(input.scheduledFor);
     if (!Number.isFinite(timestamp)) throw new Error("Scheduled time is invalid");
     scheduledFor = new Date(timestamp).toISOString();
@@ -109,4 +137,22 @@ export function validateSocialComposition(input: MarketingSocialCompositionInput
     scheduledFor,
     platformContent: Object.fromEntries(platforms.map((platform) => [platform, input.platformContent[platform]!.trim()])),
   };
+}
+
+/* An FAQ needs both halves to be worth publishing: a half-filled pair would
+   reach the marketing site as an empty accordion row and as invalid FAQPage
+   data. Drop those rather than reject the save, so a reviewer can leave a row
+   half-typed while they work. */
+export function cleanBlogFaqs(value: unknown): MarketingBlogFaq[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((entry) => {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) return null;
+      const faq = entry as Record<string, unknown>;
+      const question = typeof faq.question === "string" ? faq.question.trim().slice(0, 200) : "";
+      const answer = typeof faq.answer === "string" ? faq.answer.trim().slice(0, 1_000) : "";
+      return question && answer ? { question, answer } : null;
+    })
+    .filter((faq): faq is MarketingBlogFaq => faq !== null)
+    .slice(0, 10);
 }

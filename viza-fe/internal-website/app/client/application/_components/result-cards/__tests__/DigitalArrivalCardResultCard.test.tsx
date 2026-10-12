@@ -1,6 +1,10 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { DigitalArrivalCardSubmissionResult } from "@/lib/submission-result";
+import type {
+  DigitalArrivalCardSubmissionResult,
+  JpVisitJapanWebSubmissionResult,
+  SubmissionResult,
+} from "@/lib/submission-result";
 import {
   DigitalArrivalCardResultCard,
   SubmissionStatusStep,
@@ -8,6 +12,7 @@ import {
 } from "../SubmissionStatusStep";
 import { FailureCard } from "../FailureCard";
 import { localizeProgressMessage, WaitingCard } from "../WaitingCard";
+import { AutomatedOnlineResultCard } from "../AutomatedOnlineResultCard";
 
 vi.mock("next-intl", () => ({
   useLocale: () => "zh",
@@ -24,15 +29,150 @@ describe("DigitalArrivalCardResultCard", () => {
     vi.unstubAllGlobals();
   });
 
+  const successfulJapanResult: JpVisitJapanWebSubmissionResult = {
+    country: "JP",
+    visaType: "JP_VISIT_JAPAN_WEB",
+    status: "qr_ready",
+    mode: "live_assisted",
+    provider: "jp_visit_japan_web_live",
+    applicationId: "jp-application-id",
+    submitted: true,
+    qrReady: true,
+    referenceNumber: null,
+    submittedAt: "2026-08-27T00:00:00.000Z",
+    portalUrl: "https://www.vjw.digital.go.jp/",
+    portalResponseSummary: "Official Visit Japan Web QR evidence captured.",
+    artifacts: {
+      screenshots: [],
+      qrCodes: ["applications/japan/official-qr.png"],
+      logs: [],
+      traces: [],
+    },
+  };
+
+  it("offers a new Visit Japan Web form through the shared arrival-card draft endpoint", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 409,
+      json: async () => ({ error: "Could not create a new Visit Japan Web application" }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<AutomatedOnlineResultCard result={successfulJapanResult} />);
+    fireEvent.click(screen.getByRole("button", { name: "再次填写" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/applications/jp-application-id/arrival-card-new-application",
+        expect.objectContaining({
+          method: "POST",
+          signal: expect.any(AbortSignal),
+        }),
+      );
+    });
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Could not create a new Visit Japan Web application",
+    );
+  });
+
+  it("restores the Visit Japan Web action when draft creation times out", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn((_url: string, options?: RequestInit) =>
+      new Promise((_resolve, reject) => {
+        options?.signal?.addEventListener("abort", () => {
+          reject(new DOMException("Aborted", "AbortError"));
+        });
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<AutomatedOnlineResultCard result={successfulJapanResult} />);
+    const startAgainButton = screen.getByRole("button", { name: "再次填写" });
+    fireEvent.click(startAgainButton);
+    expect(startAgainButton).toBeDisabled();
+
+    await act(async () => {
+      vi.advanceTimersByTime(15_000);
+      await Promise.resolve();
+    });
+
+    expect(startAgainButton).toBeEnabled();
+    expect(screen.getByRole("alert")).toHaveTextContent("无法创建新的日本申报表。");
+  });
+
+  it("shows the official QR code directly with a separate download action", () => {
+    render(<AutomatedOnlineResultCard result={successfulJapanResult} />);
+
+    const qrCode = screen.getByRole("img", { name: "日本官方二维码" });
+    expect(qrCode).toHaveAttribute(
+      "src",
+      "/api/applications/jp-application-id/submission-artifact?path=applications%2Fjapan%2Fofficial-qr.png&inline=1&download=visit-japan-web-jp-application-id.png",
+    );
+    expect(screen.getByRole("link", { name: "下载二维码" })).toHaveAttribute(
+      "href",
+      "/api/applications/jp-application-id/submission-artifact?path=applications%2Fjapan%2Fofficial-qr.png&download=visit-japan-web-jp-application-id.png",
+    );
+    expect(screen.queryByText("查看官方二维码")).not.toBeInTheDocument();
+    expect(screen.queryByText(/日本官方线上入境与海关申报服务免费/)).not.toBeInTheDocument();
+  });
+
+  it("keeps the owner-only Visit Japan Web login visible and copies both values", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        email: "application@viza.it.com",
+        password: "TestPassword2!",
+        portalUrl: "https://www.vjw.digital.go.jp/",
+        revealedAt: "2026-08-27T00:00:00.000Z",
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<AutomatedOnlineResultCard result={successfulJapanResult} />);
+    expect(fetchMock).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "查看官网登录信息" }));
+
+    expect(await screen.findByText("application@viza.it.com")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/applications/jp-application-id/jp-vjw-portal-credentials",
+      { method: "POST", cache: "no-store" },
+    );
+    expect(screen.queryByText("TestPassword2!")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "显示密码" }));
+    expect(screen.getByText("TestPassword2!")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "复制账号" }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith("application@viza.it.com"));
+    expect(screen.getByRole("button", { name: "已复制账号" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "复制密码" }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith("TestPassword2!"));
+    expect(screen.getByRole("button", { name: "已复制密码" })).toBeInTheDocument();
+
+    vi.useFakeTimers();
+    act(() => vi.advanceTimersByTime(61_000));
+    act(() => window.dispatchEvent(new Event("blur")));
+    expect(screen.getByText("application@viza.it.com")).toBeInTheDocument();
+    expect(screen.getByText("TestPassword2!")).toBeInTheDocument();
+    expect(screen.queryByText(/60 秒后/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "隐藏官网登录信息" }));
+    expect(screen.queryByText("application@viza.it.com")).not.toBeInTheDocument();
+    expect(screen.queryByText("TestPassword2!")).not.toBeInTheDocument();
+  });
+
   it("localizes raw loading stages for the Chinese interface", () => {
     expect(localizeProgressMessage("Current stage: payment_authorized.", true)).toBe(
-      "官方付款已授权，正在等待云端任务继续。",
+      "官网费用步骤需要人工处理。VIZA 不提供自动付款。",
     );
     expect(localizeProgressMessage("Current stage: future_runner_stage.", true)).toBe(
       "云端任务正在处理，页面会自动更新。",
     );
     expect(localizeProgressMessage("Current stage: payment_authorized.", false)).toBe(
-      "Current stage: payment_authorized.",
+      "The official fee checkpoint needs manual attention. VIZA does not provide automated payment.",
     );
     expect(
       localizeProgressMessage("Fly worker resumed with a future runtime message.", true),
@@ -103,7 +243,7 @@ describe("DigitalArrivalCardResultCard", () => {
     expect(phaseItem("正在填写官网表单")).toHaveClass("border-brand-200");
     expect(phaseItem("正在等待检查点或结果")).toHaveClass("border-brand-500");
     expect(
-      screen.getByText("Fly 云端已到达官方付款阶段，正在等待支付结果或银行验证。"),
+      screen.getByText("官网费用步骤需要人工处理。VIZA 不提供自动付款。"),
     ).toBeInTheDocument();
 
     rerender(
@@ -190,7 +330,210 @@ describe("DigitalArrivalCardResultCard", () => {
     window.sessionStorage.removeItem(`viza:smooth-progress:${persistenceKey}`);
   });
 
-  it("keeps the Vietnam managed-payment action mounted when the new queue becomes active", async () => {
+  it("keeps first-submit progress when the optimistic status card remounts before a queue id arrives", () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn((_url: string, options?: RequestInit) =>
+      new Promise<never>((_resolve, reject) => {
+        options?.signal?.addEventListener("abort", () => {
+          reject(new DOMException("Aborted", "AbortError"));
+        });
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const props = {
+      applicationId: "first-submit-progress-application",
+      country: "france",
+      visaType: "FR_SCHENGEN_C_SHORT_STAY",
+      status: "waiting" as const,
+      result: null,
+    };
+    const view = render(<SubmissionStatusStep {...props} submissionStarting />);
+
+    act(() => {
+      vi.advanceTimersByTime(4_000);
+    });
+    expect(screen.getByRole("progressbar", { name: "提交进度" })).toHaveAttribute(
+      "aria-valuenow",
+      "5",
+    );
+
+    view.rerender(<SubmissionStatusStep {...props} submissionStarting={false} />);
+    expect(screen.getByRole("progressbar", { name: "提交进度" })).toHaveAttribute(
+      "aria-valuenow",
+      "5",
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(800);
+    });
+    expect(screen.getByRole("progressbar", { name: "提交进度" })).toHaveAttribute(
+      "aria-valuenow",
+      "6",
+    );
+  });
+
+  it("keeps progress when the queue arrives with a stale lower server value", async () => {
+    vi.useFakeTimers();
+    let statusCall = 0;
+    const fetchMock = vi.fn(async (url: string) => {
+      if (!url.endsWith("/submission-status")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ account: null }),
+        };
+      }
+
+      statusCall += 1;
+      const body = statusCall === 1
+        ? {
+            status: "queued",
+            stage: "preparing",
+            progress: 0,
+            result: null,
+            error: null,
+            message: "The submission is queued.",
+            updatedAt: "2026-09-28T00:00:00.000Z",
+            applicationStatus: "waiting",
+            country: "france",
+            visaType: "FR_SCHENGEN_C_SHORT_STAY",
+            queue: null,
+          }
+        : {
+            status: "running",
+            stage: "filling_form",
+            progress: 0,
+            result: null,
+            error: null,
+            message: "The runner is filling the official portal form.",
+            updatedAt: "2026-09-28T00:00:01.000Z",
+            applicationStatus: "waiting",
+            country: "france",
+            visaType: "FR_SCHENGEN_C_SHORT_STAY",
+            queue: {
+              id: "queue-arrival-stale-progress",
+              status: "processing",
+              mode: "live_assisted",
+              provider: "france_visas_live",
+              currentStage: "filling_form",
+            },
+          };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => body,
+      };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const props = {
+      applicationId: "queue-arrival-progress-application",
+      country: "france",
+      visaType: "FR_SCHENGEN_C_SHORT_STAY",
+      status: "waiting" as const,
+      result: null,
+    };
+    const view = render(<SubmissionStatusStep {...props} submissionStarting />);
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    act(() => {
+      vi.advanceTimersByTime(4_000);
+    });
+    expect(screen.getByRole("progressbar", { name: "提交进度" })).toHaveAttribute(
+      "aria-valuenow",
+      "5",
+    );
+
+    view.rerender(<SubmissionStatusStep {...props} submissionStarting={false} />);
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(statusCall).toBeGreaterThanOrEqual(2);
+    expect(screen.getByRole("progressbar", { name: "提交进度" })).toHaveAttribute(
+      "aria-valuenow",
+      "5",
+    );
+  });
+
+  it("starts a fresh cycle for a new parent submission after a prior cycle progressed", () => {
+    vi.useFakeTimers();
+    const applicationId = "explicit-cycle-reset-application";
+    const fetchMock = vi.fn((_url: string, options?: RequestInit) =>
+      new Promise<never>((_resolve, reject) => {
+        options?.signal?.addEventListener("abort", () => {
+          reject(new DOMException("Aborted", "AbortError"));
+        });
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const props = {
+      applicationId,
+      country: "france",
+      visaType: "FR_SCHENGEN_C_SHORT_STAY",
+      status: "waiting" as const,
+      result: null,
+    };
+    const view = render(<SubmissionStatusStep {...props} submissionStarting />);
+    act(() => {
+      vi.advanceTimersByTime(4_000);
+    });
+    expect(screen.getByRole("progressbar", { name: "提交进度" })).toHaveAttribute(
+      "aria-valuenow",
+      "5",
+    );
+
+    view.rerender(<SubmissionStatusStep {...props} submissionStarting={false} />);
+    expect(screen.getByRole("progressbar", { name: "提交进度" })).toHaveAttribute(
+      "aria-valuenow",
+      "5",
+    );
+
+    const oldCycleStorageKey = Array.from({ length: window.sessionStorage.length }, (_, index) =>
+      window.sessionStorage.key(index),
+    ).find((key): key is string =>
+      key !== null &&
+      key.startsWith("viza:smooth-progress:progress-cycle:submit:") &&
+      key.includes(applicationId),
+    );
+    expect(oldCycleStorageKey).toBeDefined();
+    if (oldCycleStorageKey) window.sessionStorage.setItem(oldCycleStorageKey, "88");
+
+    view.rerender(<SubmissionStatusStep {...props} submissionStarting />);
+    expect(screen.getByRole("progressbar", { name: "提交进度" })).toHaveAttribute(
+      "aria-valuenow",
+      "0",
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(4_000);
+    });
+    expect(screen.getByRole("progressbar", { name: "提交进度" })).toHaveAttribute(
+      "aria-valuenow",
+      "5",
+    );
+
+    view.rerender(<SubmissionStatusStep {...props} submissionStarting={false} />);
+    expect(screen.getByRole("progressbar", { name: "提交进度" })).toHaveAttribute(
+      "aria-valuenow",
+      "5",
+    );
+
+    const cycleStorageKeys = Array.from({ length: window.sessionStorage.length }, (_, index) =>
+      window.sessionStorage.key(index),
+    ).filter((key): key is string =>
+      key !== null &&
+      key.startsWith("viza:smooth-progress:progress-cycle:submit:") &&
+      key.includes(applicationId),
+    );
+    for (const key of cycleStorageKeys) window.sessionStorage.removeItem(key);
+  });
+
+  it("renders a legacy Vietnam payment checkpoint as needs attention without payment controls", async () => {
     const fetchMock = vi.fn(async (url: string) => {
       if (url.endsWith("/official-fee/status")) {
         return {
@@ -247,18 +590,18 @@ describe("DigitalArrivalCardResultCard", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "开始自动付款" })).toBeInTheDocument();
-    await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
-        "/api/applications/vn-payment-application/submission-status",
-        expect.objectContaining({ cache: "no-store" }),
-      );
-    });
     await act(async () => {
       await Promise.resolve();
     });
-    expect(screen.getByRole("button", { name: "开始自动付款" })).toBeInTheDocument();
-    expect(screen.queryByText("正在提交您的申请")).not.toBeInTheDocument();
+    expect(screen.getAllByText("需要处理")).toHaveLength(2);
+    expect(
+      screen.getByText("需要处理，VIZA 自动付款已移除。请联系支持人员确认官方流程的下一步。"),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "开始自动付款" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "重新开始并自动付款" })).not.toBeInTheDocument();
+    expect(
+      fetchMock.mock.calls.some(([url]) => String(url).includes("/official-fee/")),
+    ).toBe(false);
   });
 
   it("does not hide portal field-selection errors as browser launch failures", () => {
@@ -272,6 +615,77 @@ describe("DigitalArrivalCardResultCard", () => {
         true,
       ),
     ).toContain("云端浏览器启动失败");
+  });
+
+  it("classifies Playwright form timeouts and closed pages without leaking diagnostics", () => {
+    const timeoutMessage =
+      'locator("#education-state").setChecked: Timeout 30000ms exceeded\nCall log:\n  - waiting for locator("#education-state")';
+
+    const localizedTimeout = userFacingSubmissionRuntimeMessage(timeoutMessage, true);
+    expect(localizedTimeout).toContain("官网填写步骤超时");
+    expect(localizedTimeout).not.toContain("云端浏览器启动失败");
+    expect(localizedTimeout).not.toContain("Call log:");
+    expect(localizedTimeout).not.toContain("#education-state");
+
+    expect(
+      userFacingSubmissionRuntimeMessage(
+        "Target page, context or browser has been closed while filling the official form.",
+        true,
+      ),
+    ).toContain("与官网页面的连接中断");
+  });
+
+  it("keeps database/schema-cache failures out of the official form-timeout message", () => {
+    const message = userFacingSubmissionRuntimeMessage(
+      "Could not query the database for the schema cache. Retrying after database connection timed out.",
+      true,
+    );
+
+    expect(message).toBe("VIZA 数据服务暂时不可用，申请结果尚未确认。请稍后查看状态。");
+    expect(message).not.toContain("官网填写步骤超时");
+    render(<FailureCard errorMessage={message} />);
+    expect(screen.getByText(message!)).toBeInTheDocument();
+  });
+
+  it.each([
+    "DS-160 audit evidence storage deadline expired.",
+    "DS-160 audit evidence storage remained unavailable after bounded retries.",
+  ])("classifies DS-160 audit storage failures as data-service errors: %s", (rawMessage) => {
+    const message = userFacingSubmissionRuntimeMessage(rawMessage, true);
+
+    expect(message).toBe("VIZA 数据服务暂时不可用，申请结果尚未确认。请稍后查看状态。");
+    expect(message).not.toContain("官网填写步骤超时");
+  });
+
+  it("describes official photo-service failures without claiming the photo was rejected", () => {
+    const message = "Automatic DS-160 submission stopped because the official photo step failed: Upload Photo flow did not return to CEAC within 90000ms (currently at [redacted-url])";
+    const localized = userFacingSubmissionRuntimeMessage(message, true);
+    expect(localized).toContain("官网照片上传服务未能完成处理");
+    expect(localized).toContain("此错误不代表照片不合格");
+    expect(localized).not.toContain("云端浏览器启动失败");
+    expect(localized).not.toContain("redacted-url");
+    expect(userFacingSubmissionRuntimeMessage("IdentixPhotoServiceError: official photo service returned an error", false))
+      .toContain("has not been submitted");
+    expect(userFacingSubmissionRuntimeMessage("The official Identix photo service returned an error page.", true))
+      .toContain("此错误不代表照片不合格");
+    render(<FailureCard errorMessage={localized} />);
+    expect(screen.getByText(localized!)).toBeInTheDocument();
+    expect(screen.queryByText(/云端任务未能完成，错误详情已记录/)).not.toBeInTheDocument();
+  });
+
+  it("keeps DS-160 photo preflight remediation visible through both result components", () => {
+    const localized = userFacingSubmissionRuntimeMessage("DS160_PHOTO_INVALID:not_square", true);
+    expect(localized).toContain("照片必须是正方形");
+    render(<FailureCard errorMessage={localized} />);
+    expect(screen.getByText(localized!)).toBeInTheDocument();
+  });
+
+  it("does not expose diagnostics appended to an otherwise safe localized message", () => {
+    render(
+      <FailureCard errorMessage="官网照片上传服务未能完成处理，申请尚未提交。此错误不代表照片不合格，请稍后重试。 private-diagnostic-token" />,
+    );
+    expect(screen.getByText(/云端任务未能完成，错误详情已记录/)).toBeInTheDocument();
+    expect(screen.queryByText(/private-diagnostic-token/)).not.toBeInTheDocument();
   });
 
   it("localizes Japan and Kenya automated-submission status messages", () => {
@@ -435,125 +849,9 @@ describe("DigitalArrivalCardResultCard", () => {
     expect(screen.queryByAltText("菲律宾 eTravel 官网确认页截图")).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "下载官网确认截图" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "再次提交" })).not.toBeInTheDocument();
-    expect(screen.queryByText("菲律宾 eTravel 免费，不是签证，也不保证边检准入。")).not.toBeInTheDocument();
+    expect(screen.getByText("菲律宾 eTravel 免费，不是签证，也不保证边检准入。")).toBeInTheDocument();
     expect(screen.queryByText("正在提交您的申请")).not.toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("uses the canonical clean success presentation for Philippines eTravel", () => {
-    const result: DigitalArrivalCardSubmissionResult & {
-      resultEvidence: {
-        authoritativeRead: {
-          source: "official_registration_result_read";
-          postSubmitRead: true;
-          referenceNumber: string;
-          stableReference: true;
-        };
-        qrRender: {
-          renderer: "official_client_reference_qr";
-          renderedForReference: string;
-          rendered: true;
-          referenceValueValidated: true;
-        };
-      };
-    } = {
-      country: "PH",
-      visaType: "PH_ETRAVEL_ARRIVAL_CARD",
-      status: "submitted",
-      mode: "live_assisted",
-      provider: "philippines_etravel_live",
-      applicationId: "application-id",
-      submitted: true,
-      referenceNumber: "PH-REFERENCE",
-      portalUrl: "https://etravel.gov.ph/",
-      portalResponseSummary: "Official confirmation captured.",
-      resultEvidence: {
-        authoritativeRead: {
-          source: "official_registration_result_read",
-          postSubmitRead: true,
-          referenceNumber: "PH-REFERENCE",
-          stableReference: true,
-        },
-        qrRender: {
-          renderer: "official_client_reference_qr",
-          renderedForReference: "PH-REFERENCE",
-          rendered: true,
-          referenceValueValidated: true,
-        },
-      },
-      artifacts: {
-        screenshots: ["user/application-id/PH/ph-confirmation.png"],
-        qrCodes: ["user/application-id/PH/ph-qr.png"],
-        pdfs: [],
-        logs: [],
-        traces: [],
-      },
-    };
-
-    render(<DigitalArrivalCardResultCard result={result} />);
-
-    expect(screen.getByText("eTravel 提交成功")).toBeInTheDocument();
-    expect(screen.queryByText("菲律宾 eTravel 官网已确认提交。")).not.toBeInTheDocument();
-    expect(screen.queryByText("这是提交时保存的官网原始凭证截图，可能包含二维码、参考号和入境提示。点击图片可查看原图。")).not.toBeInTheDocument();
-    expect(screen.queryByText("菲律宾 eTravel 免费，不是签证，也不保证边检准入。")).not.toBeInTheDocument();
-    expect(screen.queryByText("菲律宾 eTravel 本次没有官方 PDF；官网确认页截图已在上方提供查看和下载。")).not.toBeInTheDocument();
-    expect(screen.queryByText("eTravel 免费，不是签证，也不代表一定获准入境。")).not.toBeInTheDocument();
-
-    const evidencePanel = screen.getByText("菲律宾 eTravel 官网确认页").parentElement?.parentElement;
-    expect(evidencePanel).not.toHaveClass("border-emerald-200", "bg-emerald-50/40");
-    expect(screen.getByRole("link", { name: "下载官方二维码" })).toHaveClass(
-      "rounded-full",
-      "bg-brand-500",
-    );
-    expect(screen.getByRole("link", { name: "下载官网确认截图" })).toHaveClass(
-      "rounded-full",
-      "!border-[#e5e7eb]",
-    );
-  });
-
-  it("shows the final Thailand TDAC confirmation screenshot and PDF", () => {
-    const result: DigitalArrivalCardSubmissionResult = {
-      country: "TH",
-      visaType: "TH_TDAC_ARRIVAL_CARD",
-      status: "submitted",
-      mode: "live_assisted",
-      provider: "thailand_tdac_live",
-      applicationId: "application-id",
-      submitted: true,
-      confirmationNumber: "TH123456789",
-      referenceNumber: "TH123456789",
-      portalUrl: "https://tdac.immigration.go.th/arrival-card/#/home",
-      portalResponseSummary: "Thailand TDAC official portal returned a submission confirmation.",
-      confirmationPdfStoragePath: "user/application-id/TH/tdac-confirmation.pdf",
-      artifacts: {
-        screenshots: [
-          "user/application-id/TH/before-submit.png",
-          "user/application-id/TH/after-submit-success.png",
-        ],
-        qrCodes: [],
-        pdfs: ["user/application-id/TH/tdac-confirmation.pdf"],
-        logs: ["tdac_submitted", "tdac_pdf_downloaded"],
-        traces: [],
-      },
-    };
-
-    render(<DigitalArrivalCardResultCard result={result} />);
-
-    expect(screen.getByText("TDAC 提交成功")).toBeInTheDocument();
-    expect(screen.getByText("TH123456789")).toBeInTheDocument();
-    expect(screen.getByAltText("泰国 TDAC 官网确认页截图")).toHaveAttribute(
-      "src",
-      expect.stringContaining("after-submit-success.png"),
-    );
-    expect(screen.getByRole("link", { name: "查看泰国 TDAC 官网确认页原图" })).toHaveAttribute(
-      "href",
-      expect.stringContaining("inline=1"),
-    );
-    expect(screen.getByRole("link", { name: "下载官网确认截图" })).toHaveAttribute(
-      "href",
-      expect.stringContaining("after-submit-success.png"),
-    );
-    expect(screen.getByRole("button", { name: "下载确认文件" })).toBeInTheDocument();
   });
 
   it("keeps polling an incomplete Vietnam result and switches to the QR download", async () => {
@@ -738,7 +1036,7 @@ describe("cloud submission retry routing", () => {
     vi.unstubAllGlobals();
   });
 
-  it("starts a fresh CEAC application when retrying a failed DS-160", async () => {
+  it("resumes the existing DS-160 application when retrying a failed run", async () => {
     const onResubmit = vi.fn();
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -773,13 +1071,73 @@ describe("cloud submission retry routing", () => {
             mode: "live_assisted",
             country: "united_states",
             visaType: "DS160",
-            intent: "new_application",
+            intent: "retry",
           }),
         }),
       );
     });
     expect(onResubmit).not.toHaveBeenCalled();
   });
+
+  it.each(["waiting", "processing"] as const)(
+    "does not show a stale DS-160 failure while a newer %s attempt is active",
+    async (initialStatus) => {
+      const staleError = "官网填写步骤超时，VIZA 已暂停本次执行以保护申请数据。请稍后重试；如果问题持续出现，请联系支持。";
+      const staleResult = {
+        country: "US" as const,
+        status: "stopped_at_sign" as const,
+        applicationId: "old-official-application",
+        surnameFirst5: "APPLI",
+        yearOfBirth: 2000,
+        securityQuestion: "fixture",
+        embassyOrConsulate: "Beijing",
+        retrievalUrl: "https://ceac.state.gov/GenNIV/",
+        error: staleError,
+      } as unknown as SubmissionResult;
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          status: "running",
+          stage: "filling_form",
+          progress: 72,
+          result: null,
+          error: staleError,
+          message: staleError,
+          updatedAt: new Date().toISOString(),
+          applicationStatus: "processing",
+          country: "united_states",
+          visaType: "DS160",
+          queue: {
+            id: "current-ds160-queue",
+            status: "ds160_live_assisted_processing",
+            mode: "live_assisted",
+            provider: "ceac_live",
+            currentStage: "work_education_present",
+            heartbeatAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        }),
+      });
+      vi.stubGlobal("fetch", fetchMock);
+
+      render(
+        <SubmissionStatusStep
+          applicationId="application-id"
+          country="united_states"
+          visaType="DS160"
+          status={initialStatus}
+          result={staleResult}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText("正在填写官网表单")).toBeInTheDocument();
+      });
+      expect(screen.queryByText(/官网填写步骤超时|云端浏览器启动失败/)).not.toBeInTheDocument();
+      expect(screen.queryByText(staleError)).not.toBeInTheDocument();
+    },
+  );
 
   it("retries Japan Visit Japan Web through the live runner", async () => {
     const onResubmit = vi.fn().mockResolvedValue(undefined);
@@ -1024,7 +1382,7 @@ describe("cloud submission retry routing", () => {
     expect(screen.queryByText(previousError)).not.toBeInTheDocument();
   });
 
-  it("lets a new Indonesia payment retry outrank the previous durable failure", async () => {
+  it("retries a legacy Indonesia payment failure through the normal queue without payment calls", async () => {
     const previousResult = {
       country: "ID",
       status: "stopped_at_pay",
@@ -1100,7 +1458,8 @@ describe("cloud submission retry routing", () => {
       />,
     );
 
-    expect(screen.getByText("VIZA 将处理官方付款")).toBeInTheDocument();
+    expect(screen.getByText("提交没有完成")).toBeInTheDocument();
+    expect(screen.queryByText("VIZA 将处理官方付款")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "提交" }));
 
     await waitFor(() => {
@@ -1119,9 +1478,12 @@ describe("cloud submission retry routing", () => {
       expect(screen.queryByText("提交没有完成")).not.toBeInTheDocument();
       expect(screen.getByText("正在提交您的申请")).toBeInTheDocument();
     });
+    expect(
+      fetchMock.mock.calls.some(([url]) => String(url).includes("/official-fee/")),
+    ).toBe(false);
   });
 
-  it("authorizes a managed virtual card when restarting an Indonesia account checkpoint", async () => {
+  it("keeps a legacy Indonesia account checkpoint on a non-payment retry path", () => {
     const accountCheckpoint = {
       country: "GENERIC",
       targetCountry: "ID",
@@ -1134,15 +1496,7 @@ describe("cloud submission retry routing", () => {
       implementationStatus: "implemented",
       message: "The previous one-time card session was consumed.",
     } as const;
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => ({
-        cardSession: { redactedCard: { last4: "1111" } },
-        queueId: "new-indonesia-queue",
-        queueStatus: "pending",
-      }),
-    });
+    const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
     render(
@@ -1155,20 +1509,13 @@ describe("cloud submission retry routing", () => {
       />,
     );
 
-    expect(screen.getByText("本申请专用限额虚拟卡")).toBeInTheDocument();
-    const restartButton = screen.getByRole("button", { name: "重新开始并自动付款" });
-    expect(restartButton).toBeEnabled();
-    fireEvent.click(restartButton);
-
-    await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
-        "/api/applications/application-id/official-fee/pay",
-        expect.objectContaining({
-          method: "POST",
-          body: JSON.stringify({ paymentMethod: "viza_managed_virtual_card" }),
-        }),
-      );
-    });
+    expect(screen.getByText("需要人工操作")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "继续自动申请" })).toBeEnabled();
+    expect(screen.queryByText("本申请专用限额虚拟卡")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "重新开始并自动付款" })).not.toBeInTheDocument();
+    expect(
+      fetchMock.mock.calls.every(([url]) => url === "/api/applications/application-id/submission-status"),
+    ).toBe(true);
   });
 
   it("sends a failed Vietnam retry directly to a fresh cloud queue", async () => {
@@ -1215,7 +1562,8 @@ describe("cloud submission retry routing", () => {
       />,
     );
 
-    expect(screen.getByText("VIZA 将处理官方付款")).toBeInTheDocument();
+    expect(screen.getByText("提交没有完成")).toBeInTheDocument();
+    expect(screen.queryByText("VIZA 将处理官方付款")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "提交" }));
 
     expect(await screen.findByText("正在提交您的申请")).toBeInTheDocument();
@@ -1240,100 +1588,6 @@ describe("cloud submission retry routing", () => {
         json: async () => ({
           jobId: "new-vietnam-queue",
           queueStatus: "vn_cloud_live_pending",
-          provider: "vietnam_evisa_live",
-        }),
-      });
-    });
-  });
-
-  it("shows Fly cloud loading immediately while a Vietnam payment retry is being accepted", async () => {
-    let resolvePayment: ((value: unknown) => void) | undefined;
-    const paymentResponse = new Promise((resolve) => {
-      resolvePayment = resolve;
-    });
-    const fetchMock = vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
-      if (options?.method === "POST" && url.endsWith("/official-fee/pay")) {
-        return paymentResponse;
-      }
-      return {
-        ok: true,
-        status: 200,
-        json: async () => ({
-          status: "failed",
-          stage: "failed",
-          progress: 0,
-          result: {
-            country: "VN",
-            status: "stopped_at_pay",
-            mode: "live_assisted",
-            provider: "vietnam_evisa_live",
-            portalUrl: "https://evisa.gov.vn/e-visa/foreigners",
-            checkpoint: "payment_page_visible",
-            manualAction: {
-              type: "payment_required",
-              status: "open",
-              instructions: "Previous cloud attempt ended.",
-            },
-          },
-          error: "Previous cloud attempt ended.",
-          message: "Previous cloud attempt ended.",
-          updatedAt: new Date().toISOString(),
-          applicationStatus: "failed",
-          country: "VN",
-          visaType: "evisa_tourism",
-          queue: {
-            id: "old-vietnam-queue",
-            status: "failed",
-            mode: "live_assisted",
-            provider: "vietnam_evisa_live",
-          },
-        }),
-      };
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    render(
-      <SubmissionStatusStep
-        applicationId="application-id"
-        country="vietnam"
-        visaType="evisa_tourism"
-        status="failed"
-        result={{
-          country: "VN",
-          status: "stopped_at_pay",
-          mode: "live_assisted",
-          provider: "vietnam_evisa_live",
-          portalUrl: "https://evisa.gov.vn/e-visa/foreigners",
-          checkpoint: "payment_page_visible",
-          manualAction: {
-            type: "payment_required",
-            status: "open",
-            instructions: "Previous cloud attempt ended.",
-          },
-        }}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "开始自动付款" }));
-
-    expect(await screen.findByText("正在提交您的申请")).toBeInTheDocument();
-    expect(screen.getByRole("progressbar", { name: "提交进度" })).toBeInTheDocument();
-    expect(screen.getByText("正在启动云端任务；虚拟卡将在官网付款页按需开立。")).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/applications/application-id/official-fee/pay",
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({ paymentMethod: "viza_managed_virtual_card" }),
-      }),
-    );
-
-    await act(async () => {
-      resolvePayment?.({
-        ok: true,
-        status: 200,
-        json: async () => ({
-          queueId: "new-vietnam-queue",
-          queueStatus: "vn_payment_pending",
           provider: "vietnam_evisa_live",
         }),
       });

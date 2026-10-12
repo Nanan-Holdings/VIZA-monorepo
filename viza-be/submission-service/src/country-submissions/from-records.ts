@@ -407,6 +407,25 @@ export function applyThailandTdacAnswerAliases(
   return answers;
 }
 
+export function applyKoreaEArrivalAnswerAliases(
+  answers: Record<string, string>,
+  profile: ApplicantProfile,
+): Record<string, string> {
+  const profileName = splitProfileName(profile.full_name);
+  setIfMissing(answers, "surname", [
+    answers.family_name,
+    answers.last_name,
+    profileName.surname,
+  ]);
+  setIfMissing(answers, "given_name", [
+    answers.given_names,
+    answers.givenNames,
+    answers.first_name,
+    profileName.givenNames,
+  ]);
+  return answers;
+}
+
 export function buildCountrySubmissionApplication(
   profile: ApplicantProfile,
   application: Application,
@@ -445,6 +464,14 @@ export function buildCountrySubmissionApplication(
     normalizedVisaType === "th_tdac_arrival_card";
   if (isThailandTdac) {
     applyThailandTdacAnswerAliases(normalizedAnswers, profile, application);
+  }
+  const isKoreaEArrival =
+    (normalizedCountry === "kr"
+      || normalizedCountry === "korea"
+      || normalizedCountry === "south_korea")
+    && normalizedVisaType === "kr_e_arrival_card";
+  if (isKoreaEArrival) {
+    applyKoreaEArrivalAnswerAliases(normalizedAnswers, profile);
   }
   const isSgArrivalCard =
     (normalizedCountry === "sg" || normalizedCountry === "singapore") &&

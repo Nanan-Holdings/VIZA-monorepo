@@ -14,31 +14,26 @@ options, and exports Word/PDF travel plans.
   normalization, flight leg and hotel stay construction.
 - `agent.py`: Travel chat response generation.
 - `itinerary.py`: itinerary generation and revision logic.
-- `tools/flights.py`: SerpApi-first flight search with Booking.com fallback behavior.
-- `tools/serpapi.py`: Secret-safe SerpApi Google Flights/Hotels adapter; hotel
-  list results are enriched through property details so application autofill
-  receives verified addresses and telephone numbers when the provider has them.
-- `tests/test_serpapi.py`: SerpApi normalization and secret-safety regressions.
+- `tools/flights.py`: RapidAPI flight search with fallback behavior.
 - `tests/test_flights.py`: provider/fallback contract regressions.
-- `tests/test_hotels.py`: hotel provider/fallback truthfulness regressions.
-- `tests/test_itinerary_sanitization.py`: long-plan completeness regressions.
+- `tests/test_locale_alignment.py`: regional-locale normalization, chat and
+  itinerary fallbacks, provider options and export-language regressions.
 - `tests/test_export_summary.py`: current-itinerary export and no-placeholder regressions.
-- `tools/hotels.py`: SerpApi-first hotel search with Booking.com fallback behavior.
+- `tests/test_concurrency.py`: bounded provider admission and single-flight regressions.
+- `tools/hotels.py`: RapidAPI hotel search with fallback behavior.
 - `tools/http_client.py`: Shared bounded async HTTP client and provider request semaphore.
-- `tools/generate_verified_qa_travel_facts.py`: Explicitly unbooked local-QA
-  itinerary fact generator backed by live flight and hotel searches.
+- `tools/openai_client.py`: Shared bounded OpenAI admission queue for chat and itinerary calls.
+- `tools/export_admission.py`: Shared bounded admission queue for Word/PDF exports.
+- `travel_locale.py`: Normalize the supported `en`/`zh` locale tags at service boundaries.
 - `export_doc.py`, `export_pdf.py`, `export_summary.py`: document export.
 - `rag/retriever.py`: travel RAG helper.
 - `requirements.txt`: Python dependencies.
-- `.env.example`: OpenAI, SerpApi, and RapidAPI environment template.
+- `.env.example`: OpenAI and RapidAPI environment template.
 
 ## Ownership Boundaries
 
 - Keep HTTP route payloads compatible with frontend `lib/travel/planner.ts` and
   `/api/travel/*` proxies.
-- Follow the root authorization-continuity rule: requests to integrate, test,
-  configure, or obtain provider credentials authorize their normal in-scope
-  setup and validation steps without intermediate confirmation prompts.
 - Travel chat natural-language user messages must be interpreted through the
   OpenAI API before local RAG/default fallbacks are used. Local RAG should
   provide context and deterministic fallback only; it must not override an

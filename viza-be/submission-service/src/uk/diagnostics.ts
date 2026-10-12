@@ -22,12 +22,6 @@ export interface UkScreenshotArtifact {
   title: string;
 }
 
-export interface UkPaymentBoundaryArtifact extends UkScreenshotArtifact {
-  kind: "payment_boundary";
-  capturedAt: string;
-  redacted: true;
-}
-
 export interface CaptureScreenshotOptions {
   /** Directory to write into. Created if missing. */
   outputDir: string;
@@ -38,8 +32,6 @@ export interface CaptureScreenshotOptions {
   label: string;
   /** Capture full scrollable page (default true). */
   fullPage?: boolean;
-  /** Mask form controls before capture so applicant/card values cannot leak. */
-  redactFormControls?: boolean;
 }
 
 /** Best-effort screenshot capture. Returns null on failure rather than
@@ -54,13 +46,9 @@ export async function tryCaptureScreenshot(
     const slug = slugify(options.label);
     const filename = `uk-${options.runId}-${slug}.png`;
     const filepath = path.join(options.outputDir, filename);
-    const mask = options.redactFormControls
-      ? [page.locator("input, textarea, select, [contenteditable='true']")]
-      : undefined;
     const buffer = await page.screenshot({
       fullPage: options.fullPage ?? true,
       timeout: 10_000,
-      ...(mask ? { mask, maskColor: "#d9d9d9" } : {}),
     });
     await fs.writeFile(filepath, buffer);
     let url = "";

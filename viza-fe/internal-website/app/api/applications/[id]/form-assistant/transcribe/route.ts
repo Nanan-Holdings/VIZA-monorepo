@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getUserFromSupabaseSession } from "@/lib/client-session";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { consumeFormAssistantRateLimit } from "@/lib/form-assistant/rate-limit";
-import { hasSuccessfulArrivalCardSubmission } from "@/features/arrival-cards/application-lifecycle";
+import { requireOwnedApplication } from "@/lib/form-assistant/server-context";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,14 +28,6 @@ const SUPPORTED_MIME_TYPES = new Set([
   "audio/x-m4a",
   "audio/x-wav",
 ]);
-
-type ApplicationRow = {
-  id: string;
-  applicant_id: string;
-  country: string;
-  visa_type: string;
-  submission_result: unknown;
-};
 
 function jsonError(message: string, status: number): NextResponse {
   return NextResponse.json({ error: message }, { status });
@@ -80,17 +70,6 @@ function languageCode(value: FormDataEntryValue | null): string | null {
   if (normalized.startsWith("en")) return "en";
   if (/^[a-z]{2,3}$/.test(normalized)) return normalized;
   return null;
-}
-
-async function loadOwnedApplication(applicationId: string, applicantId: string): Promise<ApplicationRow | null> {
-  const admin = createAdminClient();
-  const { data } = await admin
-    .from("applications")
-    .select("id, applicant_id, country, visa_type, submission_result")
-    .eq("id", applicationId)
-    .eq("applicant_id", applicantId)
-    .maybeSingle();
-  return (data as ApplicationRow | null) ?? null;
 }
 
 async function transcribeAudio(file: File, language: string | null): Promise<{
@@ -202,32 +181,15 @@ export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  const session = await getUserFromSupabaseSession();
-  if (!session?.userId) {
-    return jsonError("Sign in before using voice transcription.", 401);
-  }
-  if (!consumeFormAssistantRateLimit(`transcribe:${session.userId}`, { limit: 12, windowMs: 60_000 })) {
-    return jsonError("Too many transcription requests. Please try again shortly.", 429);
-  }
-
   const { id: applicationId } = await context.params;
   if (!applicationId?.trim()) {
     return jsonError("Application id is required.", 400);
   }
 
-  const application = await loadOwnedApplication(applicationId, session.userId);
-  if (!application) {
-    return jsonError("Forbidden.", 403);
-  }
-  if (hasSuccessfulArrivalCardSubmission({
-    country: application.country,
-    visaType: application.visa_type,
-    submissionResult: application.submission_result,
-  })) {
-    return jsonError(
-      "The form assistant is locked after a successful arrival-card submission. Start another submission to continue.",
-      409,
-    );
+  const owned = await requireOwnedApplication(applicationId);
+  if ("error" in owned) return jsonError(owned.error, owned.status);
+  if (!consumeFormAssistantRateLimit(`transcribe:${owned.user.id}`, { limit: 12, windowMs: 60_000 })) {
+    return jsonError("Too many transcription requests. Please try again shortly.", 429);
   }
 
   let formData: FormData;

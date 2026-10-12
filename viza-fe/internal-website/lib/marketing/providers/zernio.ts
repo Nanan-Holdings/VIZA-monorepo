@@ -4,13 +4,15 @@ import { MarketingProviderConfigError } from "./openrouter";
 const ZERNIO_PLATFORM: Record<MarketingSocialPlatform, string> = {
   x: "twitter", "google-business-sg": "googlebusiness", instagram: "instagram",
   linkedin: "linkedin", pinterest: "pinterest", reddit: "reddit",
+  facebook: "facebook",
 };
 const ACCOUNT_ENV: Record<MarketingSocialPlatform, string> = {
   x: "ZERNIO_ACCOUNT_ID_X", "google-business-sg": "ZERNIO_ACCOUNT_ID_GOOGLE_BUSINESS_SG",
   instagram: "ZERNIO_ACCOUNT_ID_INSTAGRAM", linkedin: "ZERNIO_ACCOUNT_ID_LINKEDIN",
   pinterest: "ZERNIO_ACCOUNT_ID_PINTEREST", reddit: "ZERNIO_ACCOUNT_ID_REDDIT",
+  facebook: "ZERNIO_ACCOUNT_ID_FACEBOOK",
 };
-const CONTENT_LIMITS: Record<MarketingSocialPlatform, number> = { x: 280, "google-business-sg": 1_500, instagram: 2_200, linkedin: 3_000, pinterest: 500, reddit: 10_000 };
+const CONTENT_LIMITS: Record<MarketingSocialPlatform, number> = { x: 280, "google-business-sg": 1_500, instagram: 2_200, linkedin: 3_000, facebook: 5_000, pinterest: 500, reddit: 10_000 };
 
 function providerContent(platform: MarketingSocialPlatform, content: string, destinationUrl?: string) {
   const clean = content.trim();
@@ -31,6 +33,8 @@ function zernioConfig(platforms: readonly MarketingSocialPlatform[]) {
   const targets = platforms.map((platform) => {
     const accountId = process.env[ACCOUNT_ENV[platform]]?.trim();
     if (!accountId) throw new MarketingProviderConfigError(`${ACCOUNT_ENV[platform]} is not configured`);
+    if (platform === "linkedin" && !process.env.ZERNIO_LINKEDIN_ORGANIZATION_URN?.trim()) throw new MarketingProviderConfigError("ZERNIO_LINKEDIN_ORGANIZATION_URN is not configured");
+    if (platform === "facebook" && !process.env.ZERNIO_FACEBOOK_PAGE_ID?.trim()) throw new MarketingProviderConfigError("ZERNIO_FACEBOOK_PAGE_ID is not configured");
     if (platform === "pinterest" && !process.env.ZERNIO_PINTEREST_BOARD_ID?.trim()) throw new MarketingProviderConfigError("ZERNIO_PINTEREST_BOARD_ID is not configured");
     if (platform === "reddit" && !process.env.ZERNIO_REDDIT_SUBREDDIT?.trim()) throw new MarketingProviderConfigError("ZERNIO_REDDIT_SUBREDDIT is not configured");
     return { platform: ZERNIO_PLATFORM[platform], accountId };
@@ -60,6 +64,8 @@ function postId(body: Record<string, unknown>): string | null {
 
 function platformEntry(platform: MarketingSocialPlatform, target: { platform: string; accountId: string }, input: { title: string; destinationUrl?: string }) {
   const platformSpecificData: Record<string, string> = {};
+  if (platform === "linkedin") platformSpecificData.organizationUrn = process.env.ZERNIO_LINKEDIN_ORGANIZATION_URN!.trim();
+  if (platform === "facebook") platformSpecificData.pageId = process.env.ZERNIO_FACEBOOK_PAGE_ID!.trim();
   if (platform === "pinterest") {
     platformSpecificData.title = input.title.slice(0, 100);
     platformSpecificData.boardId = process.env.ZERNIO_PINTEREST_BOARD_ID!.trim();
@@ -142,6 +148,16 @@ export async function getZernioPost(postId: string) {
   if (!apiKey) throw new MarketingProviderConfigError("ZERNIO_API_KEY is not configured");
   if (!/^[A-Za-z0-9_-]{6,80}$/.test(postId)) throw new Error("Invalid Zernio post id");
   return request(`/posts/${encodeURIComponent(postId)}`, apiKey);
+}
+
+export function zernioPlatformPostUrl(body: Record<string, unknown>, platform: MarketingSocialPlatform): string | null {
+  const post = body.post && typeof body.post === "object" && !Array.isArray(body.post) ? body.post as Record<string, unknown> : body;
+  const entries = Array.isArray(post.platforms) ? post.platforms : [];
+  const entry = entries.find((value) => value && typeof value === "object" && !Array.isArray(value) && (value as Record<string, unknown>).platform === ZERNIO_PLATFORM[platform]);
+  if (!entry) return null;
+  const value = (entry as Record<string, unknown>).platformPostUrl;
+  if (typeof value !== "string") return null;
+  try { const url = new URL(value); return url.protocol === "https:" ? url.toString() : null; } catch { return null; }
 }
 
 export async function cancelZernioSchedule(postId: string) {

@@ -1,12 +1,32 @@
 import { describe, expect, it } from "vitest";
 import {
+  DS160_PROOF_EMAIL_ERROR_CODE,
+  DS160_PROOF_EMAIL_UNAVAILABLE_CODE,
   DS160_PROOF_QUEUE_STATUS,
   buildDs160ProofDownloadUrl,
+  ds160ProofEmailFailureResponse,
+  ds160ProofEmailUnavailableResponse,
   resolveDs160ProofAction,
   type Ds160ProofKind,
 } from "../ds160-proof";
 
 describe("DS-160 proof actions", () => {
+  it("returns a safe email failure payload without provider configuration details", () => {
+    const response = ds160ProofEmailFailureResponse();
+
+    expect(response.code).toBe(DS160_PROOF_EMAIL_ERROR_CODE);
+    expect(response.error).toContain("saved");
+    expect(response.error).toContain("download");
+    expect(response.error).not.toMatch(/RESEND|NOTIFY_FROM_EMAIL|\.env/u);
+  });
+
+  it("returns a separate safe payload when the proof email artifact is unavailable", () => {
+    const response = ds160ProofEmailUnavailableResponse();
+
+    expect(response.code).toBe(DS160_PROOF_EMAIL_UNAVAILABLE_CODE);
+    expect(response.error).not.toMatch(/RESEND|NOTIFY_FROM_EMAIL|\.env/u);
+  });
+
   it.each([
     ["confirmation", "confirmationPdfStoragePath", "ds160-confirmation-AA00FLSF69.pdf"],
     ["application", "applicationPdfStoragePath", "ds160-application-AA00FLSF69.pdf"],

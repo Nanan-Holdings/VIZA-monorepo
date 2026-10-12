@@ -22,7 +22,16 @@ import {
   DS160_SAVE_SELECTOR,
   DS160_MAPPING_GROUPS,
 } from "./ds160-form-mappings";
-import { deriveDS160Answers } from "./ds160-derive-answers";
+import { buildDs160AnswerMap, deriveDS160Answers } from "./ds160-derive-answers";
+import {
+  assertDs160RequiredAnswers,
+  Ds160DuplicatePurposeError,
+  Ds160ImmediateRelativeRelationshipError,
+  Ds160PlaceholderAnswersError,
+  Ds160RequiredAnswersError,
+  Ds160UsContactRelationshipError,
+} from "./ceac/field-contract";
+import { assertDs160PreparerAnswers } from "./ceac/signature-fields";
 import {
   startCeacSession,
   createRecoveryTracker,
@@ -40,12 +49,31 @@ import {
   retrievalUrlFor,
   mergeUsProofStoragePaths,
   waitForDs160ConfirmationPage,
-  selectDs160PhotoDocument,
+  prepareEnglishDs160ConfirmationCapture,
+  Ds160EnglishConfirmationError,
+  detectPage,
+  captureApplicationId,
+  resolveDs160PhotoDocument,
+  DS160_PHOTO_DOCUMENT_TYPES,
+  DS160_REUSABLE_PROFILE_PHOTO_STATUSES,
   buildPhotoFileFromDownloadedDocument,
-  type CeacRunResult,
+  createDs160FinalSubmissionGuard,
+  type ConfirmApplicationCheckpoint,
   type ConfirmApplicationResult,
+  type FinalSubmissionRpcClient,
   resolveCeacStartLocationCode,
+  Ds160ProofConsularPostRequiredError,
+  resolveDs160ProofStartLocationCode,
 } from "./ceac";
+import type { CapturedDs160ResumeCheckpoint } from "./ceac/captured-resume";
+import { classifyDs160RetryFailure, loadDs160RetryPlan } from "./ceac/submission-retry";
+import { isDs160OfficialEmailJob, processDs160OfficialEmailJob } from "./ds160-proof-email";
+import { assertDs160PhotoFile, Ds160PhotoPreflightError } from "./ceac/photo-preflight";
+import {
+  assertRecoveredDs160Application,
+  rewindRecoveredDs160ApplicationToPersonalInformation1,
+} from "./ceac/recovered-application";
+import { withDs160RecoveryFailure } from "./ceac/recovery-failure";
 import { writeSubmissionResult, markSubmissionFailed, setSubmissionStatus } from "./result-writer";
 import {
   applyVietnamAnswerAliases,
@@ -77,7 +105,6 @@ import type {
   VnSubmissionResult,
   SgArrivalCardSubmissionResult,
   DigitalArrivalCardSubmissionResult,
-  SubmissionResult,
 } from "./submission-result";
 import {
   fillFranceVisasApplication,
@@ -137,6 +164,15 @@ import {
 import { generateTotp } from "./au-visitor/totp";
 import { launchStealthBrowser } from "./ceac/stealth-browser";
 import { uploadArtifact } from "./artifact-storage";
+import { persistDs160InputSnapshot, persistDs160RunEvidence } from "./ceac/audit-artifacts";
+import { createDs160AuditStore } from "./ceac/audit-storage";
+import { createDs160AuditStorageTransport } from "./ceac/audit-storage-transport";
+import {
+  persistDs160SubmittedArtifacts,
+  type Ds160ProofArtifactStatus,
+  type Ds160ProofLocalPaths,
+  type Ds160ProofStoragePaths,
+} from "./ds160-submitted-artifacts";
 import {
   SubmissionQueueItem,
   ApplicantProfile,
@@ -156,6 +192,12 @@ import {
   claimPendingIndonesiaQueueItems,
   claimPendingSubmissionQueueItems,
   claimPendingVietnamCloudQueueItems,
+  finishDs160Attempt,
+  releaseDs160SubmittedLeaseWithRetry,
+  releaseDs160RetryLease,
+  startSubmissionQueueLeaseHeartbeat,
+  SubmissionQueueOwnershipLostError,
+  type SubmissionQueueLeaseHeartbeat,
 } from "./submission-queue-claim";
 import type { AuSubmissionResult } from "./submission-result";
 import {
@@ -177,8 +219,12 @@ import {
   createUSAppointmentRunnerRepository,
   loadUSAppointmentRunnerConfig,
   pollUSAppointmentAssistedJobs,
+  processUSAppointmentJob,
+  createPlaywrightUSVisaSchedulingPortalClient,
   validateUSAppointmentRunnerStart,
 } from "./us-appointment";
+import { USAppointmentDispatcher, type USAppointmentWakeResult } from "./us-appointment/dispatch";
+import { SupabaseUSAppointmentClaims } from "./us-appointment/claim-repository";
 import {
   normalizeSgacPortalPayload,
   runSgacPortalSubmission,
@@ -251,6 +297,60 @@ import {
 } from "./work-availability.js";
 
 const MAX_ATTEMPTS = 3;
+type Ds160ReviewFailureCode = "DS160_REVIEW_UNVERIFIED" | "DS160_REVIEW_MISMATCH";
+
+function getDs160ReviewFailureCode(error: unknown): Ds160ReviewFailureCode | null {
+  if (!error || typeof error !== "object") return null;
+  const direct = error as { code?: unknown; error?: unknown };
+  const nested = direct.error && typeof direct.error === "object"
+    ? direct.error as { code?: unknown }
+    : null;
+  const code = typeof direct.code === "string"
+    ? direct.code
+    : typeof nested?.code === "string" ? nested.code : null;
+  return code === "DS160_REVIEW_UNVERIFIED" || code === "DS160_REVIEW_MISMATCH"
+    ? code
+    : null;
+}
+
+function ds160ReviewFailureMessage(code: Ds160ReviewFailureCode): string {
+  return code === "DS160_REVIEW_UNVERIFIED"
+    ? "The official DS-160 Review page could not verify all mapped fields before signing. Review evidence was preserved and automatic retry is disabled until the review is corrected."
+    : "The official DS-160 Review page found mapped field differences before signing. Review evidence was preserved and automatic retry is disabled until the review is corrected.";
+}
+
+function buildDs160ReviewBlockedPayload(
+  base: Record<string, unknown>,
+  result: {
+    applicationId?: unknown;
+    lastCheckpoint?: unknown;
+    datArtifact?: unknown;
+    failureScreenshot?: unknown;
+  },
+  code: Ds160ReviewFailureCode,
+): Record<string, unknown> {
+  const message = ds160ReviewFailureMessage(code);
+  return {
+    ...base,
+    status: "action_required",
+    reason: message,
+    error: {
+      name: "OfficialReviewVerificationError",
+      code,
+      message,
+    },
+    ...(result.applicationId ? { applicationId: result.applicationId } : {}),
+    ...(result.lastCheckpoint ? { lastCheckpoint: result.lastCheckpoint } : {}),
+    ...(result.datArtifact ? { datArtifact: result.datArtifact } : {}),
+    ...(result.failureScreenshot ? { failureScreenshot: result.failureScreenshot } : {}),
+    reviewVerification: {
+      status: code === "DS160_REVIEW_UNVERIFIED" ? "unverified" : "failed",
+      evidencePreserved: true,
+      finalSubmission: "not_started",
+    },
+  };
+}
+
 const SUBMISSION_QUEUE_WORKER_ID =
   process.env.SUBMISSION_SERVICE_WORKER_ID?.trim() || `submission-service-${process.pid}`;
 const parsedSubmissionQueueLeaseSeconds = Number.parseInt(
@@ -1366,7 +1466,10 @@ function applyEnglishAliases(answers: Record<string, string>): void {
     if (!baseKey) continue;
 
     const current = answers[baseKey];
-    if (!current || HAS_CJK.test(current)) {
+    // An explicitly cleared canonical answer must not be replaced by a stale
+    // English alias. Only a missing key or an existing native-script value may
+    // use the English alias.
+    if (current === undefined || HAS_CJK.test(current)) {
       answers[baseKey] = value;
     }
   }
@@ -1440,7 +1543,7 @@ async function markStaleQueueItemsTimedOut(): Promise<void> {
 
 async function loadDs160Answers(
   applicationId: string,
-  options: { prepareForCeac?: boolean } = {},
+  options: { prepareForCeac?: boolean; onRows?: (rows: VisaApplicationAnswer[]) => void } = {},
 ): Promise<Record<string, string>> {
   const { data, error } = await supabase
     .from("visa_application_answers")
@@ -1449,11 +1552,9 @@ async function loadDs160Answers(
 
   if (error) throw new Error(`Failed to load DS-160 answers: ${error.message}`);
 
-  const answers: Record<string, string> = {};
-  for (const row of (data ?? []) as VisaApplicationAnswer[]) {
-    const value = row.value_json != null ? String(row.value_json) : row.value_text;
-    if (value) answers[row.field_name] = value;
-  }
+  const rows = (data ?? []) as VisaApplicationAnswer[];
+  options.onRows?.(rows);
+  const answers = buildDs160AnswerMap(rows);
 
   if (options.prepareForCeac) {
     applyEnglishAliases(answers);
@@ -1563,17 +1664,9 @@ async function uploadDs160Dat(
   return storagePath;
 }
 
-type Ds160ProofLocalPaths = {
-  confirmationPdfPath?: string;
-  applicationPdfPath?: string;
-  emailConfirmationPdfPath?: string;
-};
-
-type Ds160ProofStoragePaths = {
-  confirmationPdfStoragePath?: string;
-  applicationPdfStoragePath?: string;
-  emailConfirmationPdfStoragePath?: string;
-};
+type Ds160DatArtifactStatus =
+  | { status: "available" }
+  | { status: "unavailable"; failureStages: Array<"storage" | "metadata"> };
 
 async function captureDs160ProofArtifacts(
   page: import("@playwright/test").Page,
@@ -1759,11 +1852,19 @@ async function processDs160ProofItem(
       throw new Error("DS-160 proof recovery requires the stored security answer.");
     }
 
+    // Proof recovery uses the same applicant-selected CEAC post as the live
+    // submit flow.  Missing/invalid saved data is a typed terminal condition;
+    // it must not start a CAPTCHA session with a blank location or loop retry.
+    const branchAnswers = await loadDs160Answers(item.application_id);
+    const startLocationCode = resolveDs160ProofStartLocationCode(branchAnswers);
+
     session = await startCeacSession({
       headless: config.playwrightHeadless,
       acceptDownloads: true,
       runId,
       captchaMaxAttempts: 3,
+      startAction: "retrieve",
+      startLocationCode,
     });
     await session.page.goto(retrievalUrlFor(currentResult.applicationId ?? ""), {
       waitUntil: "domcontentloaded",
@@ -1776,6 +1877,7 @@ async function processDs160ProofItem(
       securityAnswer,
     });
     await waitForDs160ConfirmationPage(session.page);
+    await prepareEnglishDs160ConfirmationCapture(session.page, currentResult.applicationId ?? "");
 
     const ownerId = profile.auth_user_id ?? profile.id;
     const proofStoragePaths = await uploadDs160ProofArtifacts(
@@ -1807,16 +1909,23 @@ async function processDs160ProofItem(
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
     const newAttempts = item.attempts + 1;
-    const newStatus = newAttempts >= MAX_ATTEMPTS ? "ds160_proof_failed" : "ds160_proof_pending";
+    const terminalConfigurationError = err instanceof Ds160ProofConsularPostRequiredError;
+    const newStatus = terminalConfigurationError || newAttempts >= MAX_ATTEMPTS
+      ? "ds160_proof_failed"
+      : "ds160_proof_pending";
     await supabase
       .from("submission_queue")
       .update({
         status: newStatus,
         attempts: newAttempts,
         last_error: errorMsg,
-        error_code: "ds160_proof_recovery_failed",
+        error_code: terminalConfigurationError
+          ? err.code
+          : "ds160_proof_recovery_failed",
         error_message: errorMsg,
-        current_stage: "proof_recovery_failed",
+        current_stage: terminalConfigurationError
+          ? "proof_consular_post_required"
+          : "proof_recovery_failed",
         updated_at: new Date().toISOString(),
       })
       .eq("id", item.id);
@@ -1839,8 +1948,8 @@ async function updateDs160Metadata(
   ds160AppId: string,
   retrievalUrl: string,
   storagePath: string
-): Promise<void> {
-  await supabase
+): Promise<boolean> {
+  const { data, error } = await supabase
     .from("applications")
     .update({
       ds160_application_id: ds160AppId,
@@ -1848,7 +1957,249 @@ async function updateDs160Metadata(
       ds160_dat_storage_path: storagePath,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", dbApplicationId);
+    .eq("id", dbApplicationId)
+    .select("id")
+    .maybeSingle();
+  return !error && data !== null;
+}
+
+async function persistDs160RecoveryCheckpoint(
+  item: SubmissionQueueItem,
+  confirm: Pick<ConfirmApplicationCheckpoint, "applicationId" | "securityQuestionText" | "securityAnswer">,
+): Promise<void> {
+  const ownerId = item.locked_by?.trim();
+  if (!ownerId) throw new Error("DS-160 recovery checkpoint requires the queue lease owner.");
+
+  const capturedAt = new Date().toISOString();
+  const retrievalUrl = retrievalUrlFor(confirm.applicationId);
+  const existingPayload = item.ceac_result_payload ?? {};
+
+  const { error: metadataError } = await supabase
+    .from("applications")
+    .update({
+      ds160_application_id: confirm.applicationId,
+      ds160_retrieval_url: retrievalUrl,
+      updated_at: capturedAt,
+    })
+    .eq("id", item.application_id);
+  if (metadataError) {
+    throw new Error(`DS-160 recovery checkpoint application write failed: ${metadataError.message}`);
+  }
+  const { data, error } = await supabase
+    .from("submission_queue")
+    .update({
+      official_application_id_encrypted: encryptSecret(confirm.applicationId),
+      official_security_question_encrypted: encryptSecret(confirm.securityQuestionText),
+      official_security_answer_encrypted: encryptSecret(confirm.securityAnswer),
+      current_stage: "confirm_application_captured",
+      ceac_result_payload: {
+        ...existingPayload,
+        recovery: {
+          status: "application_captured",
+          capturedAt,
+          applicationIdStored: true,
+          securityQuestionStored: true,
+          securityAnswerStored: true,
+        },
+      },
+      updated_at: capturedAt,
+    })
+    .eq("id", item.id)
+    .eq("locked_by", ownerId)
+    .select("id")
+    .maybeSingle();
+
+  if (error) throw new Error(`DS-160 recovery checkpoint queue write failed: ${error.message}`);
+  if (!data || typeof data !== "object") {
+    throw new Error("DS-160 recovery checkpoint queue lease ownership was lost.");
+  }
+}
+
+interface Ds160StoredSubmissionState {
+  officialApplicationId: string | null;
+  submissionResult: Partial<UsSubmissionResult> | null;
+}
+
+async function readDs160SubmissionResult(
+  applicationId: string,
+): Promise<Ds160StoredSubmissionState> {
+  const { data, error } = await supabase
+    .from("applications")
+    .select("ds160_application_id,submission_result")
+    .eq("id", applicationId)
+    .maybeSingle();
+  if (error) throw new Error(`DS-160 recovery result lookup failed: ${error.message}`);
+  if (!data || typeof data !== "object") {
+    throw new Error("DS-160 recovery application record was not found.");
+  }
+
+  const storedApplicationId = data.ds160_application_id;
+  const officialApplicationId =
+    typeof storedApplicationId === "string" && storedApplicationId.trim()
+      ? storedApplicationId.trim()
+      : null;
+  const value = data.submission_result;
+  const submissionResult =
+    typeof value === "object" && value !== null && !Array.isArray(value)
+      ? (value as Partial<UsSubmissionResult>)
+      : null;
+  return { officialApplicationId, submissionResult };
+}
+
+async function markDs160FinalSubmissionActionRequired(
+  item: SubmissionQueueItem,
+  state: string,
+  message: string,
+  preserveApplicationResult = false,
+): Promise<void> {
+  const ownerId = item.locked_by?.trim();
+  if (!ownerId) {
+    console.error(
+      `[ceac] Cannot persist DS-160 recovery action for application=${redactIdentifier(item.application_id)}: queue lease owner missing`,
+    );
+    return;
+  }
+
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("submission_queue")
+    .update({
+      status: "ds160_blocked",
+      current_stage: "final_submission_recovery_required",
+      last_error: message,
+      error_code: "ds160_final_submission_recovery_required",
+      error_message: message,
+      ceac_result_payload: {
+        ...(item.ceac_result_payload ?? {}),
+        status: "action_required",
+        recovery: {
+          status: "final_submission_recovery_required",
+          state,
+        },
+      },
+      updated_at: now,
+    })
+    .eq("id", item.id)
+    .eq("locked_by", ownerId)
+    .select("id")
+    .maybeSingle();
+  if (error) throw new Error(`DS-160 recovery action queue write failed: ${error.message}`);
+  if (!data || typeof data !== "object") {
+    throw new Error("DS-160 recovery action queue lease ownership was lost.");
+  }
+
+  if (preserveApplicationResult) {
+    await setSubmissionStatus(item.application_id, "action_required");
+  } else {
+    await writeSubmissionResult(
+      item.application_id,
+      buildDs160ActionRequiredResult(item.application_id, "final_submission_recovery", message),
+      "action_required",
+    );
+  }
+}
+
+async function routeDs160ExistingFinalSubmission(
+  item: SubmissionQueueItem,
+  state: string,
+  storedState?: Ds160StoredSubmissionState,
+): Promise<void> {
+  const message =
+    "The saved DS-160 recovery information or previous final-submission result needs verification before this application can continue.";
+
+  try {
+    const stored = storedState ?? (await readDs160SubmissionResult(item.application_id));
+    const currentResult = stored.submissionResult;
+    const resultApplicationId =
+      currentResult?.country === "US" &&
+      typeof currentResult.applicationId === "string" &&
+      currentResult.applicationId.trim()
+        ? currentResult.applicationId.trim()
+        : null;
+    if (
+      stored.officialApplicationId &&
+      resultApplicationId &&
+      stored.officialApplicationId !== resultApplicationId
+    ) {
+      await markDs160FinalSubmissionActionRequired(
+        item,
+        "existing_application_identity_mismatch",
+        "Stored DS-160 identifiers disagree. Automatic retries are disabled until the existing CEAC application is reviewed.",
+        true,
+      );
+      return;
+    }
+    if (
+      currentResult?.country === "US" &&
+      currentResult.status === "submitted" &&
+      resultApplicationId
+    ) {
+      const ownerId = item.locked_by?.trim();
+      if (!ownerId) throw new Error("DS-160 recovery proof route requires the queue lease owner.");
+      const { data, error } = await supabase
+        .from("submission_queue")
+        .update({
+          status: "ds160_proof_pending",
+          current_stage: "retrieving_confirmation",
+          last_error: null,
+          error_code: "ds160_final_submission_recovery_proof",
+          error_message: "Existing submitted DS-160 detected; proof recovery is queued.",
+          ceac_result_payload: {
+            ...(item.ceac_result_payload ?? {}),
+            status: "recovery_proof_pending",
+            recovery: { status: "proof_pending", state },
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", item.id)
+        .eq("locked_by", ownerId)
+        .select("id")
+        .maybeSingle();
+      if (error) throw new Error(`DS-160 proof recovery queue write failed: ${error.message}`);
+      if (!data || typeof data !== "object") {
+        throw new Error("DS-160 proof recovery queue lease ownership was lost.");
+      }
+      return;
+    }
+
+    await markDs160FinalSubmissionActionRequired(
+      item,
+      state,
+      message,
+      currentResult?.country === "US",
+    );
+  } catch (error) {
+    console.error(
+      `[ceac] Existing DS-160 submission requires recovery for application=${redactIdentifier(item.application_id)}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    try {
+      await markDs160FinalSubmissionActionRequired(
+        item,
+        state,
+        "The existing DS-160 submission could not be verified safely. Automatic retries are disabled; recover the CEAC application manually.",
+        true,
+      );
+    } catch (fallbackError) {
+      console.error(
+        `[ceac] Failed to persist DS-160 recovery stop for application=${redactIdentifier(item.application_id)}: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`,
+      );
+    }
+  }
+}
+
+function ds160FailureAlertsEnabled(): boolean {
+  return process.env.DS160_FAILURE_ALERTS_ENABLED === "1";
+}
+
+async function sendDs160FailureAlertIfEnabled(
+  applicationId: string,
+  message: string,
+): Promise<void> {
+  if (!ds160FailureAlertsEnabled()) {
+    console.warn("[ceac] DS-160 external failure alert suppressed; explicit runtime opt-in is required");
+    return;
+  }
+  await sendFailureAlert(applicationId, message);
 }
 
 function buildDs160ActionRequiredResult(
@@ -2019,6 +2370,24 @@ async function processDs160LiveConfigBlockedItem(
 
 // ─── DS-160 Job Processor (CEAC runtime pipeline) ──────────────────────────
 
+async function updateOwnedDs160Queue(
+  item: SubmissionQueueItem,
+  patch: Record<string, unknown>,
+): Promise<void> {
+  const ownerId = item.locked_by?.trim();
+  if (!ownerId) throw new SubmissionQueueOwnershipLostError("DS-160 queue lease owner is missing");
+  const { data, error } = await supabase
+    .from("submission_queue")
+    .update(patch)
+    .eq("id", item.id)
+    .eq("locked_by", ownerId)
+    .gt("locked_until", new Date().toISOString())
+    .select("id")
+    .maybeSingle();
+  if (error) throw new Error(`Failed to update owned DS-160 queue row: ${error.message}`);
+  if (!data) throw new SubmissionQueueOwnershipLostError();
+}
+
 async function processDs160Item(
   item: SubmissionQueueItem,
   config: Ds160SubmissionConfig,
@@ -2029,90 +2398,191 @@ async function processDs160Item(
     `[ceac] Starting CEAC run ${runId} for application=${redactIdentifier(item.application_id)} (attempt ${item.attempts + 1})`,
   );
 
-  await supabase
-    .from("submission_queue")
-    .update({
-      status: liveAssisted ? "ds160_live_assisted_processing" : "ds160_prefill_processing",
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", item.id);
-  await setSubmissionStatus(item.application_id, "processing");
+  let finalSubmissionGuard: ReturnType<typeof createDs160FinalSubmissionGuard>;
+  try {
+    finalSubmissionGuard = createDs160FinalSubmissionGuard({
+      client: supabase as unknown as FinalSubmissionRpcClient,
+      applicationId: item.application_id,
+      authorizationId: item.id,
+      queueId: item.id,
+      ownerId: item.locked_by ?? "",
+      leaseSeconds: SUBMISSION_QUEUE_LEASE_SECONDS,
+    });
+  } catch (error) {
+    console.error(
+      `[ceac] DS-160 final-submission guard setup failed for application=${redactIdentifier(item.application_id)}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    try {
+      await markDs160FinalSubmissionActionRequired(
+        item,
+        "guard_setup_failed",
+        "The DS-160 final-submission fence could not be initialized. Automatic retries are disabled until the existing CEAC application is reviewed.",
+        true,
+      );
+    } catch (fallbackError) {
+      console.error(
+        `[ceac] Failed to persist DS-160 guard setup stop for application=${redactIdentifier(item.application_id)}: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`,
+      );
+    }
+    return;
+  }
+
+  let capturedResumeCheckpoint: CapturedDs160ResumeCheckpoint | null = null;
+  try {
+    // An explicit retry may create a new queue row. Recover its checkpoint
+    // from the same application, while checking every final-submit fence.
+    // Merely receiving a CEAC Application ID is not a final submission.
+    const plan = await loadDs160RetryPlan(supabase, item.application_id, item, decryptSecret);
+    if (plan.kind === "recover") {
+      await routeDs160ExistingFinalSubmission(item, plan.reason);
+      return;
+    }
+    capturedResumeCheckpoint = plan.kind === "resume" ? plan.checkpoint : null;
+    const inspection = await finalSubmissionGuard.inspect();
+    if (inspection.kind !== "available") {
+      await routeDs160ExistingFinalSubmission(item, inspection.kind);
+      return;
+    }
+  } catch (error) {
+    console.error(
+      `[ceac] DS-160 retry preflight failed for application=${redactIdentifier(item.application_id)}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    await markDs160FinalSubmissionActionRequired(
+      item,
+      "guard_inspection_failed",
+      "The saved DS-160 draft and submission result could not be verified. Retry once the recovery service is available.",
+      true,
+    );
+    return;
+  }
 
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "ceac-run-"));
   let session: Awaited<ReturnType<typeof startCeacSession>> | null = null;
-  const heartbeatTimer = setInterval(() => {
-    void supabase
-      .from("submission_queue")
-      .update({ updated_at: new Date().toISOString() })
-      .eq("id", item.id)
-      .in("status", ["ds160_live_assisted_processing", "ds160_prefill_processing"])
-      .then(({ error }) => {
-        if (error) {
-          console.warn(
-            `[ceac] Heartbeat update failed for queue=${redactIdentifier(item.id)}: ${error.message}`,
-          );
-        }
-      });
-  }, 60_000);
+  let queueLease: SubmissionQueueLeaseHeartbeat | null = null;
+  const assertQueueLeaseOwned = (): void => {
+    if (!queueLease) throw new SubmissionQueueOwnershipLostError();
+    queueLease.assertOwned();
+  };
 
   const tracker = createRecoveryTracker({ runId });
+  let recoveryCheckpointAttempted = false;
+  let recoveryCheckpointPersisted = false;
+  const capturedResumeActive = capturedResumeCheckpoint !== null;
+  const auditArtifacts: Record<string, { storagePath: string; sha256: string }> = {};
+  let auditEvidenceFailed = false;
+  let submittedResultPersisted = false;
+  const auditStoreOptions = {
+    jobId: item.id,
+    runId,
+    transport: createDs160AuditStorageTransport({
+      url: process.env.SUPABASE_URL!,
+      key: process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    }),
+    onStored: ({ name, path: storagePath, sha256 }: { name: string; path: string; sha256: string }) => {
+      auditArtifacts[name] = { storagePath, sha256 };
+    },
+  };
+  const auditStore = createDs160AuditStore(encryptSecret, {
+    ...auditStoreOptions,
+    assertActive: assertQueueLeaseOwned,
+  });
+  // Preserve terminal diagnostics even when the queue lease was lost. The
+  // existing finally-block ownership check still fences queue-reference writes.
+  const terminalAuditStore = createDs160AuditStore(encryptSecret, auditStoreOptions);
+  const diagnosticRedactions = Object.entries(process.env)
+    .filter(([key]) => /SECRET|TOKEN|PASSWORD|API_KEY|SERVICE_ROLE|CONNECT_URL/i.test(key))
+    .map(([, value]) => value ?? "");
 
   try {
+    // Fence the transition to processing, then renew through the service-only
+    // RPC before any CEAC browser is opened. Later renewal loss closes the
+    // active session and skips all stale settlement writes.
+    await updateOwnedDs160Queue(item, {
+      status: liveAssisted ? "ds160_live_assisted_processing" : "ds160_prefill_processing",
+      updated_at: new Date().toISOString(),
+    });
+
+    queueLease = await startSubmissionQueueLeaseHeartbeat({
+      client: supabase,
+      queueId: item.id,
+      workerId: item.locked_by ?? "",
+      leaseSeconds: SUBMISSION_QUEUE_LEASE_SECONDS,
+      onOwnershipLost: async () => {
+        if (session) {
+          session.reconnect = async () => {
+            throw new SubmissionQueueOwnershipLostError();
+          };
+          await session.close().catch(() => undefined);
+        }
+      },
+    });
+
+    await setSubmissionStatus(item.application_id, "processing");
+
+    if (capturedResumeCheckpoint) {
+      // Copy the validated checkpoint to this owned retry row before opening
+      // CEAC, so future retries do not depend on an older queue record.
+      assertQueueLeaseOwned();
+      recoveryCheckpointAttempted = true;
+      await persistDs160RecoveryCheckpoint(item, capturedResumeCheckpoint);
+      recoveryCheckpointPersisted = true;
+    }
+
     // Load applicant data and answers before bootstrap so the CEAC start-page
     // post/location can be selected from the applicant's own DS-160 answers.
     const { profile, documents } = await loadApplicantData(item.application_id);
-    const answers = await loadDs160Answers(item.application_id, { prepareForCeac: true });
-    const startLocationCode = resolveCeacStartLocationCode(answers);
-    const photoDocument = selectDs160PhotoDocument(documents);
+    let storedAnswerRows: VisaApplicationAnswer[] = [];
+    const branchAnswers = await loadDs160Answers(item.application_id, { onRows: rows => { storedAnswerRows = rows; } });
+    diagnosticRedactions.push(...Object.values(branchAnswers));
+    const answers = deriveDS160Answers({ ...branchAnswers });
+    await persistDs160InputSnapshot(auditStore, {
+      queueId: item.id, applicationId: item.application_id, runId,
+      storedAnswerRows, branchAnswers, answers, profileFallback: profile,
+    });
+    assertDs160RequiredAnswers(branchAnswers);
+    assertDs160PreparerAnswers(branchAnswers);
+    const startLocationCode = resolveCeacStartLocationCode(branchAnswers);
+    const photoDocument = await resolveDs160PhotoDocument({
+      applicationId: item.application_id,
+      applicantId: profile.id,
+      applicationDocuments: documents,
+      async loadReusableProfileDocuments({ applicantId }) {
+        const result = await supabase.from("universal_profile_documents")
+          .select("id, applicant_id, document_type, storage_path, filename, status, updated_at")
+          .eq("applicant_id", applicantId)
+          .in("document_type", [...DS160_PHOTO_DOCUMENT_TYPES])
+          .in("status", [...DS160_REUSABLE_PROFILE_PHOTO_STATUSES])
+          .order("updated_at", { ascending: false, nullsFirst: false });
+        if (result.error) throw new Error("Unable to load the applicant's reusable DS-160 photo.");
+        return result.data ?? [];
+      },
+    });
     const documentPaths = photoDocument
-      ? await downloadDocuments([photoDocument], tempDir)
+      ? await downloadDocuments([{
+          ...photoDocument,
+          file_name: path.basename(photoDocument.file_name ?? "ds160-photo.bin"),
+        }], tempDir)
       : new Map<string, string>();
     const photoFile = buildPhotoFileFromDownloadedDocument(photoDocument, documentPaths);
     const passportNumberForSignature = answers["passport_number"]?.trim();
+    const savedPreparerAssistance = branchAnswers["ds160_preparer_assistance"]?.trim() || undefined;
 
     if (liveAssisted && !photoFile) {
       throw new Error("DS-160 live submission requires an uploaded applicant photo before CEAC submission.");
+    }
+
+    if (liveAssisted && photoFile?.kind === "path") {
+      // Validate the exact downloaded application/profile file before opening
+      // CEAC. Legacy profile rows must satisfy the same contract as new uploads.
+      await assertDs160PhotoFile(photoFile.path);
     }
 
     if (liveAssisted && !passportNumberForSignature) {
       throw new Error("DS-160 live submission requires passport_number for the final signature step.");
     }
 
-    session = await startCeacSession({
-      headless: config.playwrightHeadless,
-      acceptDownloads: true,
-      runId,
-      startLocationCode,
-    });
-    // Record bootstrap checkpoint — proves CEAC start page was reached
-    await recordBootstrapCheckpoint(session.page, { sink: tracker, runId });
-
-    // Confirm-application page (Privacy Act ack + Application ID + security
-    // question). Captures `applicationId` + `securityQuestionText` +
-    // `securityAnswer` — the trio the applicant needs to retrieve their
-    // DS-160 from ceac.state.gov later. The security answer is sourced from
-    // the applicant's own data so it's deterministic on retry; falls back to
-    // a runner constant only when no source is present.
-    const securityAnswerSource =
-      answers["ds160_security_answer"] ??
-      answers["mother_surname"] ??
-      "VIZAREDOC";
-    const confirm: ConfirmApplicationResult = await handleConfirmApplicationPage(
-      session.page,
-      {
-        securityAnswer: securityAnswerSource,
-        // Question 3 = "What is your maternal grandmother's maiden name?" —
-        // the most deterministically answerable from applicant-provided data.
-        securityQuestionValue: "3",
-      },
-    );
-    console.log(
-      `[ceac] confirm-application checkpoint captured applicationId=${redactIdentifier(confirm.applicationId)}`,
-    );
-
-    // Recovery credentials so a mid-fill SessionTimedOut triggers auto-resume
-    // (CEAC's session is ~10min idle window). Required by orchestrateFill's
-    // contract for any run that may exceed the window.
+    // Recovery credentials are needed both by the initial Retrieve flow and
+    // by orchestrateFill if CEAC expires the session mid-run.
     const surnameFirstFive = (answers["surname"] ?? profile.full_name?.split(" ").slice(-1)[0] ?? "")
       .replace(/[^A-Za-z]/g, "")
       .slice(0, 5)
@@ -2121,6 +2591,99 @@ async function processDs160Item(
       answers["date_of_birth_year"] ??
       (profile.date_of_birth ? profile.date_of_birth.split("-")[0] : "") ??
       "";
+
+    session = await startCeacSession({
+      headless: config.playwrightHeadless,
+      acceptDownloads: true,
+      runId,
+      diagnosticDirectory: tempDir,
+      startLocationCode,
+      // Every validated captured draft uses Retrieve, never New Application.
+      ...(capturedResumeActive ? { startAction: "retrieve" as const } : {}),
+    });
+    assertQueueLeaseOwned();
+    // Record bootstrap checkpoint — proves CEAC start page was reached
+    await recordBootstrapCheckpoint(session.page, { sink: tracker, runId });
+
+    let recoveryIdentity: CapturedDs160ResumeCheckpoint;
+    if (capturedResumeCheckpoint) {
+      // A captured resume must retrieve the existing CEAC application before
+      // any field or final-submit orchestration. It never opens a new draft.
+      await fillRetrieveApplicationForm(session.page, {
+        applicationId: capturedResumeCheckpoint.applicationId,
+        surnameFirstFive,
+        yearOfBirth,
+        securityAnswer: capturedResumeCheckpoint.securityAnswer,
+      });
+      const recoveredPageId = await assertRecoveredDs160Application(
+        session.page,
+        capturedResumeCheckpoint.applicationId,
+      );
+      await rewindRecoveredDs160ApplicationToPersonalInformation1(
+        session.page,
+        capturedResumeCheckpoint.applicationId,
+        { currentPageId: recoveredPageId },
+      );
+      tracker.setApplicationId(capturedResumeCheckpoint.applicationId);
+      recoveryIdentity = capturedResumeCheckpoint;
+      console.log("[ceac] captured DS-160 application retrieved; continuing the same CEAC draft");
+    } else {
+      // Confirm-application page (Privacy Act ack + Application ID + security
+      // question). Captures the recovery secret required to retrieve this
+      // application later. Reuse the saved secret when available; otherwise
+      // create one and keep it in the existing encrypted confirmation metadata.
+      const securityAnswerSource =
+        branchAnswers["ds160_security_answer"]?.trim() ||
+        randomBytes(24).toString("base64url");
+      recoveryCheckpointAttempted = true;
+      const confirm: ConfirmApplicationResult = await handleConfirmApplicationPage(
+        session.page,
+        {
+          securityAnswer: securityAnswerSource,
+          // Question 3 = "What is your maternal grandmother's maiden name?" —
+          // the most deterministically answerable from applicant-provided data.
+          securityQuestionValue: "3",
+          onBeforeContinue: async (checkpoint) => {
+            // The CEAC ID is authoritative as soon as it appears on the
+            // SecureQuestion page. Record it in the in-memory recovery
+            // tracker before persistence so a failed checkpoint write is
+            // classified with the captured identity and never advances via
+            // Continue. The callback's rejection is intentionally allowed to
+            // propagate to the recovery-stop path below.
+            tracker.setApplicationId(checkpoint.applicationId);
+            await persistDs160RecoveryCheckpoint(item, checkpoint);
+            recoveryCheckpointPersisted = true;
+          },
+        },
+      );
+      recoveryIdentity = {
+        applicationId: confirm.applicationId,
+        securityQuestionText: confirm.securityQuestionText,
+        securityAnswer: confirm.securityAnswer,
+      };
+      console.log(
+        `[ceac] confirm-application checkpoint captured applicationId=${redactIdentifier(confirm.applicationId)}`,
+      );
+    }
+
+    const finalSubmit = passportNumberForSignature
+      ? {
+          passportNumber: passportNumberForSignature,
+          savedPreparerAssistance,
+          savedPreparerDetails: answers,
+          finalSubmissionGuard: {
+            ...finalSubmissionGuard,
+            begin: async () => {
+              assertQueueLeaseOwned();
+              // Retain the official review before reserving the irreversible
+              // final action, so a later process failure cannot erase it.
+              await persistDs160RunEvidence(auditStore, tempDir, "pre-sign-review.enc");
+              assertQueueLeaseOwned();
+              return finalSubmissionGuard.begin();
+            },
+          },
+        }
+      : undefined;
 
     // Drive page-by-page fill through CEAC navigation/checkpoint helpers.
     // orchestrateFill handles: field filling, page advancement, section
@@ -2132,30 +2695,64 @@ async function processDs160Item(
       runId,
       outputDir: tempDir,
       photo: photoFile,
-      finalSubmit: passportNumberForSignature
-        ? { passportNumber: passportNumberForSignature }
-        : undefined,
+      finalSubmit,
+      branchAnswers,
+      assertActive: assertQueueLeaseOwned,
       recoveryCredentials: {
-        applicationId: confirm.applicationId,
+        applicationId: recoveryIdentity.applicationId,
         surnameFirstFive,
         yearOfBirth,
-        securityAnswer: confirm.securityAnswer,
+        securityAnswer: recoveryIdentity.securityAnswer,
       },
     });
+    // orchestrateFill intentionally captures page errors into its result;
+    // re-check here so a heartbeat loss cannot continue into any persisted
+    // result or final-submit settlement path.
+    assertQueueLeaseOwned();
 
     // Upload .dat artifact to Supabase Storage if captured. The path is
     // user-prefixed for RLS — fall back to applicantId if the profile has
     // no auth_user_id (legacy rows from before Supabase Auth was wired).
     let storagePath = "";
+    const datArtifactFailureStages: Array<"storage" | "metadata"> = [];
+    let applicationMetadataFailure = false;
     if (datArtifact) {
+      assertQueueLeaseOwned();
       const ownerId = profile.auth_user_id ?? profile.id;
-      storagePath = await uploadDs160Dat(datArtifact.path, item.application_id, ownerId);
+      try {
+        storagePath = await uploadDs160Dat(datArtifact.path, item.application_id, ownerId);
+      } catch {
+        if (!isSubmittedResult(result)) throw new Error("DS-160 .dat artifact storage failed.");
+        datArtifactFailureStages.push("storage");
+        console.warn(
+          "[ceac] Optional .dat artifact storage failed after submitted result; preserving submission.",
+        );
+      }
     }
 
     // Persist Application ID and .dat metadata
     if (result.applicationId) {
+      assertQueueLeaseOwned();
       const retrievalUrl = `https://ceac.state.gov/GenNIV/Default.aspx?ApplicationID=${result.applicationId}`;
-      await updateDs160Metadata(item.application_id, result.applicationId, retrievalUrl, storagePath);
+      let metadataPersisted = false;
+      try {
+        metadataPersisted = await updateDs160Metadata(
+          item.application_id,
+          result.applicationId,
+          retrievalUrl,
+          storagePath,
+        );
+      } catch {
+        metadataPersisted = false;
+      }
+      if (!metadataPersisted) {
+        if (!isSubmittedResult(result)) throw new Error("DS-160 application metadata persistence failed.");
+        if (datArtifact) datArtifactFailureStages.push("metadata");
+        applicationMetadataFailure = true;
+        console.warn(
+          "[ceac] DS-160 application metadata persistence failed after submitted result; preserving submission.",
+        );
+      }
     }
 
     // Capture CAPTCHA solve telemetry from session bootstrap (if a CAPTCHA was solved)
@@ -2164,34 +2761,57 @@ async function processDs160Item(
       : {};
 
     if (isSubmittedResult(result)) {
-      await supabase
-        .from("submission_queue")
-        .update({
-          status: "ds160_submitted",
-          current_stage: "submitted",
-          ceac_result_payload: { ...result, sectionCoverage, ...captchaTelemetry } as unknown as Record<string, unknown>,
-          live_submitted_at: result.submittedAt,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", item.id);
-
-      const applicationId = result.applicationId ?? confirm.applicationId;
+      const applicationId = result.applicationId ?? recoveryIdentity.applicationId;
       const ownerId = profile.auth_user_id ?? profile.id;
-      const proofStoragePaths = await uploadDs160ProofArtifacts(
-        await captureDs160ProofArtifacts(session.page, tempDir),
-        item.application_id,
-        ownerId,
-      );
+      assertQueueLeaseOwned();
+      let proofStoragePaths: Ds160ProofStoragePaths = {};
+      let proofArtifactStatus: Ds160ProofArtifactStatus = {
+        status: "unavailable",
+        failureStage: "confirmation_preparation",
+      };
+      let englishCaptureReady = false;
+      try {
+        await prepareEnglishDs160ConfirmationCapture(session.page, applicationId);
+        assertQueueLeaseOwned();
+        englishCaptureReady = true;
+      } catch (error) {
+        // The irreversible CEAC submission is already confirmed by result.
+        // Preserve that result, but never capture an arbitrary page after the
+        // official English/gate/identity preparation fails.
+        const reason = error instanceof Ds160EnglishConfirmationError
+          ? error.code
+          : "ds160_english_confirmation_unavailable";
+        console.warn(
+          `[ceac] English confirmation capture skipped after submitted result (${reason}); preserving submission.`,
+        );
+      }
+      if (englishCaptureReady) {
+        const artifactResult = await persistDs160SubmittedArtifacts({
+          capture: () => captureDs160ProofArtifacts(session!.page, tempDir),
+          upload: (localPaths) => uploadDs160ProofArtifacts(
+            localPaths,
+            item.application_id,
+            ownerId,
+          ),
+        });
+        proofStoragePaths = artifactResult.storagePaths;
+        proofArtifactStatus = artifactResult.status;
+        if (proofArtifactStatus.status === "unavailable") {
+          console.warn(
+            `[ceac] Optional confirmation artifacts unavailable (${proofArtifactStatus.failureStage}) after submitted result; preserving submission.`,
+          );
+        }
+      }
       const usPayload: UsSubmissionResult = {
         country: "US",
         status: "submitted",
         applicationId,
-        confirmationNumber: result.confirmationNumber ?? applicationId,
+        confirmationNumber: result.confirmationNumber ?? undefined,
         submittedAt: result.submittedAt,
         surnameFirst5: surnameFirstFive,
         yearOfBirth: Number(yearOfBirth) || 0,
-        securityQuestion: confirm.securityQuestionText,
-        securityAnswerCipher: encryptSecret(confirm.securityAnswer),
+        securityQuestion: recoveryIdentity.securityQuestionText,
+        securityAnswerCipher: encryptSecret(recoveryIdentity.securityAnswer),
         embassyOrConsulate:
           answers["consular_post"] ??
           answers["embassy_or_consulate"] ??
@@ -2208,7 +2828,36 @@ async function processDs160Item(
             "This confirms the submission of the Nonimmigrant visa application for:",
         },
       };
+      assertQueueLeaseOwned();
       await writeSubmissionResult(item.application_id, usPayload, "submitted");
+      // Proof/result persistence must finish while the row is still in a
+      // processing state: the renewal RPC intentionally stops once the row
+      // becomes terminal. Drain one last renewal before the fenced terminal
+      // queue transition so a completed CEAC submit cannot lose its result.
+      await queueLease?.stopRenewal();
+      assertQueueLeaseOwned();
+      await updateOwnedDs160Queue(item, {
+        status: "ds160_submitted",
+        current_stage: "submitted",
+        ceac_result_payload: {
+          ...result, sectionCoverage, ...captchaTelemetry,
+          ...(datArtifact && datArtifactFailureStages.length > 0
+            ? {
+                datArtifact: {
+                  status: "unavailable",
+                  failureStages: datArtifactFailureStages,
+                } satisfies Ds160DatArtifactStatus,
+              }
+            : {}),
+          ...(applicationMetadataFailure
+            ? { applicationMetadata: { status: "unavailable", failureStage: "persistence" } }
+            : {}),
+          proofArtifacts: proofArtifactStatus,
+        } as unknown as Record<string, unknown>,
+        live_submitted_at: result.submittedAt,
+        updated_at: new Date().toISOString(),
+      });
+      submittedResultPersisted = true;
 
       console.log(
         `[ceac] Run ${runId} submitted for application=${redactIdentifier(item.application_id)} ceac=${redactIdentifier(applicationId)}`,
@@ -2216,15 +2865,6 @@ async function processDs160Item(
     } else if (isSuccessResult(result)) {
       // Handoff-ready: form filled up to Sign and Submit page.
       // Persist full CEAC result payload for operator diagnostics.
-      await supabase
-        .from("submission_queue")
-        .update({
-          status: "ds160_prefilled",
-          ceac_result_payload: { ...result, sectionCoverage, ...captchaTelemetry } as unknown as Record<string, unknown>,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", item.id);
-
       // Write the user-facing UsSubmissionResult to applications so the
       // frontend's realtime subscription can swap StatusStep to UsResultCard.
       // embassyOrConsulate is sourced from form answers; falls back to a
@@ -2233,21 +2873,29 @@ async function processDs160Item(
       const usPayload: UsSubmissionResult = {
         country: "US",
         status: "stopped_at_sign",
-        applicationId: result.applicationId ?? confirm.applicationId,
+        applicationId: result.applicationId ?? recoveryIdentity.applicationId,
         surnameFirst5: surnameFirstFive,
         yearOfBirth: Number(yearOfBirth) || 0,
-        securityQuestion: confirm.securityQuestionText,
-        securityAnswerCipher: encryptSecret(confirm.securityAnswer),
+        securityQuestion: recoveryIdentity.securityQuestionText,
+        securityAnswerCipher: encryptSecret(recoveryIdentity.securityAnswer),
         embassyOrConsulate:
           answers["consular_post"] ??
           answers["embassy_or_consulate"] ??
           answers["location_where_applying_for_visa"] ??
           "Pending — confirm at appointment",
-        retrievalUrl: `https://ceac.state.gov/GenNIV/Default.aspx?ApplicationID=${result.applicationId ?? confirm.applicationId}`,
+        retrievalUrl: `https://ceac.state.gov/GenNIV/Default.aspx?ApplicationID=${result.applicationId ?? recoveryIdentity.applicationId}`,
         ...(storagePath ? { datStoragePath: storagePath } : {}),
         finalSubmissionMode: "applicant_handoff",
       };
+      assertQueueLeaseOwned();
       await writeSubmissionResult(item.application_id, usPayload, "stopped_at_sign");
+      await queueLease?.stopRenewal();
+      assertQueueLeaseOwned();
+      await updateOwnedDs160Queue(item, {
+        status: "ds160_prefilled",
+        ceac_result_payload: { ...result, sectionCoverage, ...captchaTelemetry } as unknown as Record<string, unknown>,
+        updated_at: new Date().toISOString(),
+      });
 
       console.log(
         `[ceac] Run ${runId} handoff_ready for application=${redactIdentifier(item.application_id)}`,
@@ -2256,33 +2904,113 @@ async function processDs160Item(
       // Orchestrator caught an error internally but preserved recovery state.
       // Persist the failure result payload so ops can inspect recovery metadata.
       const errorMsg = result.error?.message as string ?? "Unknown orchestration error";
+      const recoveryFailurePayload = withDs160RecoveryFailure(item.ceac_result_payload, result.error, runId, diagnosticRedactions);
       console.error(
         `[ceac] Run ${runId} orchestration failed for application=${redactIdentifier(item.application_id)}:`,
-        errorMsg,
+        String(recoveryFailurePayload.reason),
       );
 
+      if (recoveryCheckpointAttempted && !recoveryCheckpointPersisted) {
+        await routeDs160ExistingFinalSubmission(item, "recovery_checkpoint_failed");
+        return;
+      }
+      try {
+        const inspection = await finalSubmissionGuard.inspect();
+        if (inspection.kind !== "available") {
+          await routeDs160ExistingFinalSubmission(item, inspection.kind);
+          return;
+        }
+      } catch (guardError) {
+        console.error(
+          `[ceac] DS-160 final-submission guard read failed after orchestration error for application=${redactIdentifier(item.application_id)}: ${guardError instanceof Error ? guardError.message : String(guardError)}`,
+        );
+        try {
+          await markDs160FinalSubmissionActionRequired(
+            item,
+            "guard_inspection_failed",
+            "The DS-160 final-submission fence could not be verified after an error. Automatic retries are disabled until the existing CEAC application is reviewed.",
+            true,
+          );
+        } catch (fallbackError) {
+          console.error(
+            `[ceac] Failed to persist DS-160 post-error guard stop for application=${redactIdentifier(item.application_id)}: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`,
+          );
+        }
+        return;
+      }
+
+      // Data rejection and explicit portal gates require a correction or a
+      // later user retry; do not burn all attempts on unchanged input.
+      const reviewFailureCode = getDs160ReviewFailureCode(result.error);
+      if (reviewFailureCode) {
+        const reviewMessage = ds160ReviewFailureMessage(reviewFailureCode);
+        const reviewFailurePayload = buildDs160ReviewBlockedPayload(
+          recoveryFailurePayload,
+          result,
+          reviewFailureCode,
+        );
+        await updateOwnedDs160Queue(item, {
+          status: "ds160_blocked",
+          current_stage: "official_review_verification_required",
+          last_error: reviewMessage,
+          error_code: reviewFailureCode,
+          error_message: reviewMessage,
+          ceac_result_payload: reviewFailurePayload,
+          updated_at: new Date().toISOString(),
+        });
+        await writeSubmissionResult(
+          item.application_id,
+          buildDs160ActionRequiredResult(item.application_id, "input_review_required", reviewMessage),
+          "action_required",
+        );
+        return;
+      }
+      const retryDisposition = classifyDs160RetryFailure(result.error, item.attempts, MAX_ATTEMPTS);
+      if (retryDisposition === "blocked") {
+        await updateOwnedDs160Queue(item, {
+          status: "ds160_blocked",
+          current_stage: "portal_action_required",
+          last_error: String(recoveryFailurePayload.reason),
+          ceac_result_payload: recoveryFailurePayload,
+          updated_at: new Date().toISOString(),
+        });
+        await writeSubmissionResult(
+          item.application_id,
+          buildDs160ActionRequiredResult(item.application_id, "portal_action_required", String(recoveryFailurePayload.reason)),
+          "action_required",
+        );
+        return;
+      }
+
       const newAttempts = item.attempts + 1;
-      const newStatus = newAttempts >= MAX_ATTEMPTS
+      const newStatus = retryDisposition === "failed"
         ? liveAssisted ? "ds160_live_assisted_failed" : "ds160_prefill_failed"
         : liveAssisted ? "ds160_live_assisted_pending" : "ds160_prefill_pending";
 
-      await supabase
-        .from("submission_queue")
-        .update({
+      await updateOwnedDs160Queue(item, {
           status: newStatus,
           attempts: newAttempts,
           last_error: errorMsg,
           ceac_result_payload: { ...result, sectionCoverage, ...captchaTelemetry } as unknown as Record<string, unknown>,
           updated_at: new Date().toISOString(),
-        })
-        .eq("id", item.id);
+        });
 
-      if (newAttempts >= MAX_ATTEMPTS) {
+      if (retryDisposition === "failed") {
         await markSubmissionFailed(item.application_id, errorMsg);
-        await sendFailureAlert(item.application_id, `[CEAC] ${errorMsg}`);
+        await sendDs160FailureAlertIfEnabled(item.application_id, `[CEAC] ${errorMsg}`);
       }
     }
   } catch (err) {
+    // A lost legacy lease is a concurrent ownership conflict. The heartbeat
+    // has already aborted and closed CEAC; do not write queue/application
+    // status because a replacement worker may own the row now.
+    if (err instanceof SubmissionQueueOwnershipLostError || queueLease?.isOwnershipLost()) {
+      console.warn(
+        `[ceac] DS-160 queue lease ownership lost for queue=${redactIdentifier(item.id)}; stopping without settlement`,
+      );
+      return;
+    }
+
     const recovery = session
       ? await preserveRecoveryOnFailure({
           tracker,
@@ -2295,7 +3023,7 @@ async function processDs160Item(
           failureScreenshot: null,
         };
 
-    const result: CeacRunResult = buildFailureResult(recovery, {
+    const result = buildFailureResult(recovery, {
       error: serializeError(err),
       failureScreenshot: recovery.failureScreenshot,
     });
@@ -2305,18 +3033,78 @@ async function processDs160Item(
       ? { captchaSolve: session.captchaSolve.telemetry }
       : {};
 
+    if (err instanceof Ds160PhotoPreflightError) {
+      const existingPayload = item.ceac_result_payload &&
+        typeof item.ceac_result_payload === "object" &&
+        !Array.isArray(item.ceac_result_payload)
+        ? item.ceac_result_payload as Record<string, unknown>
+        : {};
+      const failurePayload: Record<string, unknown> = {
+        ...existingPayload,
+        status: "failed",
+        runId,
+        error: serializeError(err),
+        failedAt: result.failedAt,
+        ...(result.applicationId ? { applicationId: result.applicationId } : {}),
+        ...(result.lastCheckpoint ? { lastCheckpoint: result.lastCheckpoint } : {}),
+        ...(result.datArtifact ? { datArtifact: result.datArtifact } : {}),
+        ...(result.failureScreenshot ? { failureScreenshot: result.failureScreenshot } : {}),
+      };
+      await updateOwnedDs160Queue(item, {
+        status: liveAssisted ? "ds160_live_assisted_failed" : "ds160_prefill_failed",
+        current_stage: "photo_validation_failed",
+        last_error: errorMsg,
+        error_code: err.code,
+        error_message: errorMsg,
+        ceac_result_payload: failurePayload,
+        updated_at: new Date().toISOString(),
+      });
+      await markSubmissionFailed(item.application_id, errorMsg);
+      return;
+    }
+
+    if (err instanceof Ds160PlaceholderAnswersError ||
+        err instanceof Ds160RequiredAnswersError ||
+        err instanceof Ds160DuplicatePurposeError ||
+        err instanceof Ds160UsContactRelationshipError ||
+        err instanceof Ds160ImmediateRelativeRelationshipError) {
+      // Applicant input cannot be repaired by retrying the browser. Preserve
+      // any captured official result/checkpoint and stop before another job.
+      await markDs160FinalSubmissionActionRequired(item, "input_review_required", errorMsg, true);
+      return;
+    }
+
+    if (recoveryCheckpointAttempted && !recoveryCheckpointPersisted) {
+      await routeDs160ExistingFinalSubmission(item, "recovery_checkpoint_failed");
+      return;
+    }
+
+    // Preserve the one-shot fence even if an exception happened after CEAC
+    // accepted the final click but before local result persistence finished.
+    try {
+      const inspection = await finalSubmissionGuard.inspect();
+      if (inspection.kind !== "available") {
+        await routeDs160ExistingFinalSubmission(item, inspection.kind);
+        return;
+      }
+    } catch {
+      await markDs160FinalSubmissionActionRequired(
+        item, "guard_inspection_failed",
+        "The DS-160 submission result could not be verified. Check the existing result before retrying.", true,
+      );
+      return;
+    }
+
     // Gate errors (anti-bot, captcha, manual intervention) are external CEAC
     // blockers — retrying won't help. Mark as blocked immediately with
-    // operator-facing context and alert.
+    // operator-facing context; external alerts remain opt-in for DS-160.
     if (isManualActionRequiredError(err)) {
       console.warn(
         `[ceac] Run ${runId} waiting for manual action for application=${redactIdentifier(item.application_id)}:`,
         errorMsg,
       );
 
-      await supabase
-        .from("submission_queue")
-        .update({
+      await updateOwnedDs160Queue(item, {
           status: "ds160_blocked",
           last_error: `[CEAC manual action: ${err.actionType}] ${errorMsg}`,
           ceac_result_payload: {
@@ -2329,8 +3117,7 @@ async function processDs160Item(
             ...exceptionCaptchaTelemetry,
           },
           updated_at: new Date().toISOString(),
-        })
-        .eq("id", item.id);
+        });
 
       await writeSubmissionResult(
         item.application_id,
@@ -2349,9 +3136,7 @@ async function processDs160Item(
         await updateDs160Metadata(item.application_id, result.applicationId, retrievalUrl, "");
       }
 
-      await supabase
-        .from("submission_queue")
-        .update({
+      await updateOwnedDs160Queue(item, {
           status: "ds160_blocked",
           last_error: `[CEAC gate: ${err.context.details?.gateKind ?? "unknown"}] ${errorMsg}`,
           ceac_result_payload: {
@@ -2360,13 +3145,51 @@ async function processDs160Item(
             ...exceptionCaptchaTelemetry,
           },
           updated_at: new Date().toISOString(),
-        })
-        .eq("id", item.id);
+        });
 
       await markSubmissionFailed(item.application_id, `[CEAC gate] ${errorMsg}`);
-      await sendFailureAlert(
+      await sendDs160FailureAlertIfEnabled(
         item.application_id,
         `[CEAC gate detected] ${errorMsg}`,
+      );
+    } else if (getDs160ReviewFailureCode(err)) {
+      const reviewFailureCode = getDs160ReviewFailureCode(err);
+      if (!reviewFailureCode) {
+        throw new Error("DS-160 review failure code could not be read safely.");
+      }
+      const reviewMessage = ds160ReviewFailureMessage(reviewFailureCode);
+      const payload = buildDs160ReviewBlockedPayload(
+        withDs160RecoveryFailure(item.ceac_result_payload, err, runId, diagnosticRedactions),
+        result,
+        reviewFailureCode,
+      );
+      await updateOwnedDs160Queue(item, {
+        status: "ds160_blocked",
+        current_stage: "official_review_verification_required",
+        last_error: reviewMessage,
+        error_code: reviewFailureCode,
+        error_message: reviewMessage,
+        ceac_result_payload: payload,
+        updated_at: new Date().toISOString(),
+      });
+      await writeSubmissionResult(
+        item.application_id,
+        buildDs160ActionRequiredResult(item.application_id, "input_review_required", reviewMessage),
+        "action_required",
+      );
+    } else if (classifyDs160RetryFailure(err, item.attempts, MAX_ATTEMPTS) === "blocked") {
+      const payload = withDs160RecoveryFailure(item.ceac_result_payload, err, runId, diagnosticRedactions);
+      await updateOwnedDs160Queue(item, {
+        status: "ds160_blocked",
+        current_stage: "portal_action_required",
+        last_error: String(payload.reason),
+        ceac_result_payload: payload,
+        updated_at: new Date().toISOString(),
+      });
+      await writeSubmissionResult(
+        item.application_id,
+        buildDs160ActionRequiredResult(item.application_id, "portal_action_required", String(payload.reason)),
+        "action_required",
       );
     } else {
       // Genuine worker/runtime failure — standard retry logic
@@ -2382,36 +3205,114 @@ async function processDs160Item(
       }
 
       const newAttempts = item.attempts + 1;
-      const newStatus = newAttempts >= MAX_ATTEMPTS
+      const retryDisposition = classifyDs160RetryFailure(err, item.attempts, MAX_ATTEMPTS);
+      const newStatus = retryDisposition === "failed"
         ? liveAssisted ? "ds160_live_assisted_failed" : "ds160_prefill_failed"
         : liveAssisted ? "ds160_live_assisted_pending" : "ds160_prefill_pending";
 
-      await supabase
-        .from("submission_queue")
-        .update({
+      await updateOwnedDs160Queue(item, {
           status: newStatus,
           attempts: newAttempts,
           last_error: errorMsg,
           ceac_result_payload: { ...result as unknown as Record<string, unknown>, ...exceptionCaptchaTelemetry },
           updated_at: new Date().toISOString(),
-        })
-        .eq("id", item.id);
+        });
 
-      if (newAttempts >= MAX_ATTEMPTS) {
+      if (retryDisposition === "failed") {
         console.error(
-          `[ceac] Max attempts reached for application=${redactIdentifier(item.application_id)} — sending alert`,
+          `[ceac] Retry policy ended the run for application=${redactIdentifier(item.application_id)}`,
         );
         await markSubmissionFailed(item.application_id, errorMsg);
-        await sendFailureAlert(item.application_id, `[CEAC] ${errorMsg}`);
+        await sendDs160FailureAlertIfEnabled(item.application_id, `[CEAC] ${errorMsg}`);
       }
     }
   } finally {
-    clearInterval(heartbeatTimer);
-    if (session) await session.close();
-    if (process.env.DS160_KEEP_TEMP === "1") {
-      console.warn(`[ceac] Keeping temp dir for diagnostics: ${tempDir}`);
-    } else {
-      try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch { /* ignore cleanup */ }
+    try {
+      try {
+        await persistDs160RunEvidence(terminalAuditStore, tempDir);
+      } catch {
+        auditEvidenceFailed = true;
+        console.error("[ceac] Private run evidence upload failed; comparison evidence is incomplete.");
+      }
+      if (!queueLease?.isOwnershipLost()) {
+        // Read the final payload rather than replacing it with the originally
+        // claimed row; terminal confirmation/recovery evidence must survive.
+        const current = await supabase.from("submission_queue")
+          .select("ceac_result_payload")
+          .eq("id", item.id).eq("locked_by", item.locked_by ?? "")
+          .eq("locked_at", item.locked_at ?? "")
+          .gt("locked_until", new Date().toISOString())
+          .abortSignal(AbortSignal.timeout(15_000)).maybeSingle();
+        if (current.error || !current.data) throw new Error("Could not read DS-160 audit evidence references");
+        if (current.data) {
+          const saved = await supabase.from("submission_queue").update({
+            ceac_result_payload: {
+              ...(current.data.ceac_result_payload ?? {}),
+              audit: { runId, artifacts: auditArtifacts, evidenceUploadFailed: auditEvidenceFailed },
+            },
+          }).eq("id", item.id).eq("locked_by", item.locked_by ?? "")
+            .eq("locked_at", item.locked_at ?? "")
+            .gt("locked_until", new Date().toISOString())
+            .select("id").abortSignal(AbortSignal.timeout(15_000)).maybeSingle();
+          if (saved.error || !saved.data) throw new Error("Could not save DS-160 audit evidence references");
+        }
+      }
+    } catch {
+      auditEvidenceFailed = true;
+      console.error("[ceac] Audit evidence persistence is incomplete; private local diagnostics retained.");
+    } finally {
+      try {
+        await finishDs160Attempt({
+          closeSession: async () => { if (session) await session.close(); },
+          stopRenewal: async () => { await queueLease?.stopRenewal(); },
+          releaseRetry: async () => {
+            if (queueLease?.isOwnershipLost()) return;
+            await releaseDs160RetryLease(supabase, item, {
+              verifyTerminal: async () => {
+                try {
+                  // Re-read the application-wide final fence and official
+                  // result after the browser has closed. A fresh/resumable
+                  // plan proves there is no final attempt or success; any
+                  // recovery/parse/read error deliberately retains the lease.
+                  const plan = await loadDs160RetryPlan(
+                    supabase,
+                    item.application_id,
+                    null,
+                    decryptSecret,
+                  );
+                  return plan.kind === "fresh" || plan.kind === "resume"
+                    ? { finalSubmissionAttemptCount: 0, officialSuccess: false }
+                    : null;
+                } catch {
+                  return null;
+                }
+              },
+            });
+          },
+        });
+        // Browser cleanup and heartbeat shutdown must finish before releasing
+        // the exact submitted claim. A lease-release failure never changes
+        // the confirmed official result.
+        if (submittedResultPersisted && !queueLease?.isOwnershipLost()) {
+          try {
+            // finishDs160Attempt above has already closed CEAC and stopped the
+            // heartbeat. Release only the exact submitted claim; a
+            // replacement/dead claim returns false and is never released.
+            const released = await releaseDs160SubmittedLeaseWithRetry(supabase, item);
+            if (!released) {
+              console.warn("[ceac] Submitted DS-160 lease was not released; preserving submission.");
+            }
+          } catch {
+            console.warn("[ceac] Submitted DS-160 lease release needs recovery; submission is preserved.");
+          }
+        }
+      } finally {
+        if (process.env.DS160_KEEP_TEMP === "1" || auditEvidenceFailed) {
+          console.warn(`[ceac] Keeping temp dir for diagnostics: ${tempDir}`);
+        } else {
+          try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch { /* ignore cleanup */ }
+        }
+      }
     }
   }
 }
@@ -3941,9 +4842,10 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
     } catch (error) {
       throw error;
     }
-    const stopBeforeCardEntry =
-      readBooleanEnv("VIZA_FORCE_STOP_BEFORE_PAYMENT", true) ||
-      readBooleanEnv("VN_OFFICIAL_PAYMENT_STOP_BEFORE_CARD_ENTRY", false);
+    const stopBeforeCardEntry = readBooleanEnv(
+      "VN_OFFICIAL_PAYMENT_STOP_BEFORE_CARD_ENTRY",
+      false,
+    );
     const preCardQaMode =
       stopBeforeCardEntry &&
       item.vn_result_payload?.qaMode === "pre_card_only";
@@ -4442,10 +5344,7 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
 
   try {
     const { profile, application, documents } = await loadApplicantData(item.application_id);
-    const officialPaymentAutopayEnabled =
-      liveAssisted &&
-      !readBooleanEnv("VIZA_FORCE_STOP_BEFORE_PAYMENT", true) &&
-      readBooleanEnv("VN_OFFICIAL_PAYMENT_AUTOPAY", false);
+    const officialPaymentAutopayEnabled = false;
     const managedIssuingEnabled = officialPaymentAutopayEnabled;
     const oneTimeCardPaymentEnabled =
       officialPaymentAutopayEnabled &&
@@ -4539,7 +5438,7 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
         ),
         ...(tracePath ? { tracePath } : {}),
         ...(finalScreenshotPath ? { finalScreenshotPath } : {}),
-        allowFixedCardPayment: Boolean(managedOfficialFeeContext) || queueAuthorizedOneTimeCard || envFixedCardPaymentEnabled,
+        allowFixedCardPayment: false,
         fixedCard: oneTimeFixedCard,
         expectedPaymentAmountCents: managedOfficialFeeContext?.canonicalAmountCents ?? null,
         expectedPaymentCurrency: managedOfficialFeeContext?.canonicalCurrency ?? null,
@@ -7162,24 +8061,12 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
     }
     // Indonesia B1/C1 payment is a closed cloud workflow. Never downgrade a
     // card-authorized run to a visible/manual official-payment handoff.
-    const userPaymentHandoffEnabled = true;
-    managedOfficialFeeContext = await loadManagedOfficialFeeExecutionContext(item.application_id);
-    managedPaymentHooks = createManagedPaymentHooks({
-      applicationId: item.application_id,
-      workerId: item.id,
-      country: application.country ?? "indonesia",
-      visaType: application.visa_type ?? (isB1 ? "ID_B1_EVOA" : "ID_C1_TOURIST"),
-    });
-    const forceStopBeforeOfficialPayment = readBooleanEnv(
-      "VIZA_FORCE_STOP_BEFORE_PAYMENT",
-      true,
+    const userPaymentHandoffEnabled = false;
+    managedPaymentHooks = createManagedPaymentHooks({ applicationId: item.application_id, workerId: item.id, country: application.country ?? "indonesia", visaType: application.visa_type ?? "ID_C1_TOURIST" });
+    const oneTimeIndonesiaCard = await consumeIndonesiaCardSessionWithGrace(
+      item.application_id,
+      indonesiaCardSessionsEnabled(),
     );
-    const oneTimeIndonesiaCard = forceStopBeforeOfficialPayment
-      ? null
-      : await consumeIndonesiaCardSessionWithGrace(
-          item.application_id,
-          indonesiaCardSessionsEnabled(),
-        );
     consumedOneTimeCardAuthorization = Boolean(oneTimeIndonesiaCard);
     console.log(
       `[indonesia] One-time card session ${oneTimeIndonesiaCard ? "consumed" : "unavailable"} application=${redactIdentifier(item.application_id)}`,
@@ -7189,16 +8076,12 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       enabled: userPaymentHandoffEnabled,
       waitTimeoutMs: Number.parseInt(process.env.INDONESIA_USER_PAYMENT_WAIT_MS ?? `${10 * 60 * 1000}`, 10),
       oneTimeCard: oneTimeIndonesiaCard,
-      expectedAmountCents: managedOfficialFeeContext.canonicalAmountCents,
-      expectedCurrency: managedOfficialFeeContext.canonicalCurrency,
-      ...(!forceStopBeforeOfficialPayment
-        ? {
-            takeOneTimeCard: async () => {
-              managedPaymentCard ??= await managedPaymentHooks?.takePaymentCard?.() ?? null;
-              return managedPaymentCard ? managedCardToOneTimeCard(managedPaymentCard) : null;
-            },
-          }
-        : {}),
+      expectedAmountCents: null,
+      expectedCurrency: null,
+      takeOneTimeCard: async () => {
+        managedPaymentCard ??= await managedPaymentHooks?.takePaymentCard?.() ?? null;
+        return managedPaymentCard ? managedCardToOneTimeCard(managedPaymentCard) : null;
+      },
       beforeCardSubmit: async () => {
         const memory = process.memoryUsage();
         const rssMb = Math.round(memory.rss / 1024 / 1024);
@@ -7424,40 +8307,7 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       });
     }
 
-    let resultForPersistence: SubmissionResult = result;
-    let paymentBoundaryStoragePath: string | null = null;
-    if (
-      "paymentBoundaryScreenshotPath" in result &&
-      typeof result.paymentBoundaryScreenshotPath === "string"
-    ) {
-      paymentBoundaryStoragePath = await uploadArtifact({
-        authUserId: profile.auth_user_id,
-        applicationId: item.application_id,
-        country: "ID",
-        kind: "official-payment-boundary",
-        ext: "png",
-        contentType: "image/png",
-        filePath: result.paymentBoundaryScreenshotPath,
-      });
-      const { paymentBoundaryScreenshotPath: _localPath, ...resultWithoutLocalPath } = result;
-      resultForPersistence = {
-        ...resultWithoutLocalPath,
-        checkpointEvidence: [{
-          kind: "pre_payment",
-          screenshotStoragePath: paymentBoundaryStoragePath,
-          capturedAt: new Date().toISOString(),
-          portalUrl: result.portalUrl,
-          authoritative: true,
-        }],
-      } as SubmissionResult;
-    }
-    const resultStatus = paymentBoundaryStoragePath
-      ? "stopped_at_pay"
-      : isPaymentFailed
-        ? "failed"
-        : result.status === "action_required"
-          ? "action_required"
-          : "unsupported";
+    const resultStatus = isPaymentFailed ? "failed" : result.status === "action_required" ? "action_required" : "unsupported";
     const nextQueueStatus = isPaymentAuthorizationRequired
       ? paymentPendingStatus
       : isPaymentFailed
@@ -7487,12 +8337,10 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
         diagnostics: "operatorDiagnostics" in result
           ? result.operatorDiagnostics?.slice(-20) ?? []
           : [],
-        paymentBoundaryStoragePath,
-        paymentSubmitted: false,
       },
     };
 
-    await writeSubmissionResult(item.application_id, resultForPersistence, resultStatus);
+    await writeSubmissionResult(item.application_id, result, resultStatus);
     const { error: queueUpdateError } = await supabase
       .from("submission_queue")
       .update({
@@ -7816,6 +8664,17 @@ async function processPendingQueueItem(rawItem: SubmissionQueueItem): Promise<vo
   } else if (isDs160ProofJob(item)) {
     const ds160Config = loadDs160SubmissionConfig();
     const liveStartError = validateDs160LiveStart(ds160Config);
+    if (isDs160OfficialEmailJob(item)) {
+      await processDs160OfficialEmailJob(item, {
+        client: supabase,
+        headless: ds160Config.playwrightHeadless,
+        leaseSeconds: SUBMISSION_QUEUE_LEASE_SECONDS,
+        loadProfile: async applicationId => (await loadApplicantData(applicationId)).profile,
+        loadAnswers: loadDs160Answers,
+        configurationError: liveStartError,
+      });
+      return;
+    }
     if (liveStartError) {
       await supabase
         .from("submission_queue")
@@ -7948,6 +8807,8 @@ async function pollOnce(runMaintenance = true): Promise<boolean> {
     try {
       const processedUsAppointmentJobs = await pollUSAppointmentAssistedJobs(
         createUSAppointmentRunnerRepository(),
+        loadUSAppointmentRunnerConfig(),
+        async (jobId) => (await wakeUSAppointmentJob(jobId)).outcome === "accepted",
       );
       if (processedUsAppointmentJobs > 0) {
         idleExitController?.noteActivity();
@@ -8012,6 +8873,7 @@ let runnerJobInFlight = false;
 let legacyQueueWorkInFlight = false;
 let activeHttpWork = 0;
 let idleExitController: IdleExitController | null = null;
+let usAppointmentDispatcher: USAppointmentDispatcher | null = null;
 
 function wakeSubmissionQueue(): void {
   if (shutdownRequested) return;
@@ -8050,6 +8912,57 @@ const RUNNER_WORKER_ID =
   process.env.FLY_MACHINE_ID?.trim() ||
   process.env.SUBMISSION_SERVICE_WORKER_ID?.trim() ||
   `local-submission-service-${process.pid}`;
+
+function wakeUSAppointmentJob(jobId: string): Promise<USAppointmentWakeResult> {
+  if (shutdownRequested || !runnerStarted || !runnerPoolDatabaseHealthy
+    || (process.env.FLY_MACHINE_ID && RUNNER_MACHINE_KIND && !runnerSlotLease?.isHealthy())) {
+    return Promise.resolve({ outcome: "unavailable" });
+  }
+  if (!usAppointmentDispatcher) {
+    const repository = createUSAppointmentRunnerRepository();
+    const config = loadUSAppointmentRunnerConfig();
+    if (!repository.getJob) return Promise.resolve({ outcome: "unavailable" });
+    const getJob = repository.getJob.bind(repository);
+    usAppointmentDispatcher = new USAppointmentDispatcher({
+      getJob,
+      claims: new SupabaseUSAppointmentClaims(),
+      workerId: RUNNER_WORKER_ID,
+      config,
+      runJob: async (job, signal) => {
+        const client = await createPlaywrightUSVisaSchedulingPortalClient(config);
+        const abort = () => { void client.abort().catch(() => undefined); };
+        signal.addEventListener("abort", abort, { once: true });
+        try {
+          if (signal.aborted) { await client.abort(); return "skipped"; }
+          return await processUSAppointmentJob(job, repository, config, client);
+        } finally {
+          signal.removeEventListener("abort", abort);
+          await client.close().catch(() => undefined);
+        }
+      },
+      onWorkStart: () => idleExitController?.workStarted(),
+      onWorkFinish: () => {
+        idleExitController?.workFinished();
+        if (shutdownRequested && !pollInFlight && !runnerJobInFlight) closeHealthServer();
+      },
+      onFailure: (code) => console.warn(`[us-appointment] ${code}`),
+      onFatal: (code) => {
+        console.error(`[us-appointment] ${code}`);
+        shutdownRunner("appointment cleanup deadline");
+        // An unresponsive browser must not leave a billable worker alive or
+        // run beside another job. Its durable claim remains reconciliation-only.
+        // Exit successfully so Fly's on-failure policy does not restart a loop.
+        const exitTimer = setTimeout(() => process.exit(0), 1_000);
+        void runnerSlotLease?.stop().catch(() => undefined).finally(() => {
+          clearTimeout(exitTimer);
+          process.exit(0);
+        });
+      },
+    });
+  }
+  return usAppointmentDispatcher.wake(jobId);
+}
+
 const runnerAbort = new AbortController();
 let runnerStarted = false;
 let runnerPoolDatabaseHealthy = true;
@@ -8106,6 +9019,7 @@ function finishShutdown(): void {
 }
 
 function closeHealthServer(): void {
+  if ((usAppointmentDispatcher?.activeCount ?? 0) > 0) return;
   if (!healthServer) {
     finishShutdown();
     return;
@@ -8125,13 +9039,14 @@ function shutdownRunner(signal: string): void {
   idleExitController?.stop();
   console.log(`[main] ${signal} received — stopping queue consumers`);
   runnerAbort.abort();
+  void usAppointmentDispatcher?.shutdown().catch(() => undefined);
   immediatePollRequested = false;
   if (runnerRetryWakeTimer) {
     clearTimeout(runnerRetryWakeTimer);
     runnerRetryWakeTimer = null;
   }
   runnerRetryWakeAt = 0;
-  if (!pollInFlight && !runnerJobInFlight) {
+  if (!pollInFlight && !runnerJobInFlight && (usAppointmentDispatcher?.activeCount ?? 0) === 0) {
     closeHealthServer();
   } else {
     console.log("[main] Waiting for active queue work to finish before shutdown");
@@ -8209,6 +9124,7 @@ async function isSafeForIdleExit(): Promise<boolean> {
     shutdownRequested ||
     pollInFlight ||
     runnerJobInFlight ||
+    (usAppointmentDispatcher?.activeCount ?? 0) > 0 ||
     activeHttpWork > 0 ||
     hasVietnamCardSessions() ||
     hasIndonesiaCardSessions() ||
@@ -8260,12 +9176,16 @@ async function main(): Promise<void> {
   // DEP-004: local handoff endpoints and Cloud Run probes should be available
   // before slower runner configuration logging and queue startup complete.
   healthServer = startHealthServer({
-    isWorkerStarted: () => runnerStarted,
-    isWorkerBusy: () => legacyQueueWorkInFlight || runnerJobInFlight || activeHttpWork > 0,
+    isWorkerStarted: () => runnerStarted && !shutdownRequested && runnerPoolDatabaseHealthy
+      && (usAppointmentDispatcher?.healthy ?? true)
+      && (!process.env.FLY_MACHINE_ID || !RUNNER_MACHINE_KIND || Boolean(runnerSlotLease?.isHealthy())),
+    isWorkerBusy: () => legacyQueueWorkInFlight || runnerJobInFlight || activeHttpWork > 0
+      || (usAppointmentDispatcher?.activeCount ?? 0) > 0,
     hasOneTimeCardSessions: () =>
       hasVietnamCardSessions() || hasIndonesiaCardSessions(),
     wakeSubmissionQueue,
     wakeRunnerJob: wakeRunnerJobs,
+    wakeUSAppointmentJob,
     onWorkStart: () => {
       activeHttpWork += 1;
       idleExitController?.workStarted();

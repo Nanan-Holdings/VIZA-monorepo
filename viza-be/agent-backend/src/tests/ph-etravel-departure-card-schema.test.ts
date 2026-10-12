@@ -5,6 +5,8 @@ import {
   PH_ETRAVEL_DEPARTURE_FORM_FIELDS,
   PH_ETRAVEL_DEPARTURE_VISA_TYPE,
 } from "../../scripts/ph-etravel/departure-form-fields";
+import { PH_ETRAVEL_SEA_PORT_OPTIONS } from "../../scripts/ph-etravel/official-options";
+import officialSnapshot from "../../scripts/ph-etravel/official-options.snapshot.json";
 
 const migrationSource = readFileSync(
   new URL("../../drizzle/0113_ph_etravel_departure_card_package.sql", import.meta.url),
@@ -51,9 +53,13 @@ describe("Philippines eTravel Departure Card schema seed", () => {
     const airports = PH_ETRAVEL_DEPARTURE_FORM_FIELDS.find((field) => field.field_name === "departure_airport")?.options ?? [];
     const seaports = PH_ETRAVEL_DEPARTURE_FORM_FIELDS.find((field) => field.field_name === "departure_seaport")?.options ?? [];
     expect(airports).toHaveLength(20);
-    expect(seaports).toHaveLength(53);
+    // SEA ports are a large official response and are intentionally fetched
+    // dynamically rather than embedded in the applicant seed.
+    expect(seaports).toEqual(PH_ETRAVEL_SEA_PORT_OPTIONS);
+    expect(seaports).toHaveLength(0);
+    expect(officialSnapshot.seaPorts).toHaveLength(53);
     expect(new Set(airports.map((option) => option.value)).size).toBe(airports.length);
-    expect(new Set(seaports.map((option) => option.value)).size).toBe(seaports.length);
+    expect(new Set(officialSnapshot.seaPorts.map((option) => option.code)).size).toBe(officialSnapshot.seaPorts.length);
 
     for (const field of PH_ETRAVEL_DEPARTURE_FORM_FIELDS) {
       expect(String(field.validation_rules?.label_zh ?? ""), field.field_name).toMatch(/[\u3400-\u9fff]/);

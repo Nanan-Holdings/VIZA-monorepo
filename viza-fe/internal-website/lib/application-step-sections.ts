@@ -30,6 +30,24 @@ export interface ApplicationStepSection<TStep extends ApplicationStepRef = Appli
   steps: TStep[];
 }
 
+export function initializeExpandedSectionState(
+  previous: Record<string, boolean>,
+  sections: ReadonlyArray<Pick<ApplicationStepSection, "id" | "steps">>,
+  currentStep: number,
+): Record<string, boolean> {
+  let changed = false;
+  const next = { ...previous };
+
+  for (const section of sections) {
+    if (next[section.id] === undefined) {
+      next[section.id] = section.steps.some((step) => step.id === currentStep);
+      changed = true;
+    }
+  }
+
+  return changed ? next : previous;
+}
+
 function normalizeStepName(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
 }

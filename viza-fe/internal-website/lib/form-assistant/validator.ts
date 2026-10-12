@@ -1,10 +1,42 @@
-import { evaluateShowIf } from "@/lib/form-utils";
+import { evaluateShowIf, getRepeatInstanceCount, getRepeatInstanceValues } from "@/lib/form-utils";
 import { resolveLocalizedFieldLabel } from "@/lib/bilingual-schema-contract";
+import { getDs160OfficialOptionSource, resolveDs160OfficialOptionValue } from "@/lib/ds160-official-options";
 import {
   getMissingDynamicFormFields,
   isPastUpcomingTravelDate,
+  isVisibleDynamicFieldRequired,
   type MissingApplicationField,
 } from "@/lib/application-tab-completion";
+import {
+  FORMER_SPOUSE_COUNT_FIELD,
+  FORMER_SPOUSE_IDENTITY_FIELDS,
+  findFormerSpouseDuplicateIssues,
+  getFormerSpouseCountIssue,
+  getFormerSpouseCountValidationMessage,
+  getFormerSpouseDuplicateMessage,
+} from "@/lib/former-spouse-count";
+import {
+  getUsContactRelationshipIssue,
+  getUsContactRelationshipIssueMessage,
+} from "@/lib/us-contact-validation";
+import {
+  getDs160ImmediateRelativeRelationshipIssue,
+  getDs160ImmediateRelativeRelationshipIssueMessage,
+} from "@/lib/ds160-family-validation";
+import {
+  getDs160TripPurposeDuplicateIssue,
+  getDs160TripPurposeDuplicateMessage,
+} from "@/lib/ds160-travel-validation";
+import { isDs160FieldVisibleForRuntime } from "@/lib/ds160-age-gate";
+import {
+  getDs160NationalityDuplicateIssue,
+  getDs160NationalityDuplicateMessage,
+} from "@/lib/ds160-nationality-validation";
+import { isLegacyCompatibilityOnlyField } from "@/lib/legacy-compatibility-fields";
+import {
+  getFormFieldSentinel,
+  getFormFieldSentinelState,
+} from "@/lib/form-field-sentinels";
 import type { VisaFormFieldOption, WizardStep } from "@/types/visa-form-fields";
 import type {
   FormAssistantProgress,
@@ -76,26 +108,28 @@ function fieldAnswerKeys(
   const configuredMax = field.validationRules?.max_items;
   const maxItems = typeof configuredMax === "number" && configuredMax > 0
     ? Math.floor(configuredMax)
-    : 5;
+    : null;
   const keys = new Set<string>([field.fieldName]);
-  for (let index = 1; index < maxItems; index += 1) {
-    const key = answerInstanceKey(field.fieldName, index);
-    if (Object.prototype.hasOwnProperty.call(answers, key)) keys.add(key);
+  const prefix = `${field.fieldName}__`;
+  for (const key of Object.keys(answers)) {
+    if (!key.startsWith(prefix)) continue;
+    const suffix = key.slice(prefix.length);
+    if (!/^\d+$/.test(suffix)) continue;
+    const rowIndex = Number(suffix);
+    if (!Number.isSafeInteger(rowIndex) || rowIndex < 2) continue;
+    if (maxItems !== null && rowIndex > maxItems) continue;
+    keys.add(key);
   }
-  return Array.from(keys);
+  return Array.from(keys).sort((left, right) => {
+    const leftIndex = Number(left.match(/__(\d+)$/)?.[1] ?? "1");
+    const rightIndex = Number(right.match(/__(\d+)$/)?.[1] ?? "1");
+    return leftIndex - rightIndex;
+  });
 }
 
 function hasMeaningfulAnswer(value: string | null | undefined): boolean {
   const normalized = value?.trim() ?? "";
   return normalized.length > 0 && normalized !== "[]" && normalized !== "{}";
-}
-
-function hasAnyFieldAnswer(
-  field: WizardStep["fields"][number] | undefined,
-  answers: Record<string, string>,
-): boolean {
-  if (!field) return false;
-  return fieldAnswerKeys(field, answers).some((key) => hasMeaningfulAnswer(answers[key]));
 }
 
 function relatedAnswer(
@@ -107,10 +141,7 @@ function relatedAnswer(
 }
 
 function isAllowedAnswerOverride(value: string, rules: Record<string, unknown>): boolean {
-  return (
-    (value === "DO_NOT_KNOW" && rules.allow_do_not_know === true) ||
-    (value === "DOES_NOT_APPLY" && (rules.allow_does_not_apply === true || rules.has_does_not_apply === true))
-  );
+  return getFormFieldSentinelState(value, rules) === "allowed";
 }
 
 function isAllowedYearOnlyDate(value: string, rules: Record<string, unknown>): boolean {
@@ -125,7 +156,7 @@ function optionValuesAreAllowed(
   const allowed = new Set(field.options.map(optionValue));
   const selectedValues = field.fieldType === "multi_select"
     ? value.split(",").map((part) => part.trim()).filter(Boolean)
-    : [value];
+    : [resolveDs160OfficialOptionValue(getDs160OfficialOptionSource(field), value)];
   return selectedValues.length > 0 && selectedValues.every((selected) => allowed.has(selected));
 }
 
@@ -149,6 +180,10 @@ export function canonicalizeApplicationOptionAnswers(
   const patches: CanonicalOptionAnswerPatch[] = [];
 
   for (const field of steps.flatMap((step) => step.fields)) {
+    // Compatibility aliases are persisted for the runner bridge but are no
+    // longer user-facing controls. Keep their historical values untouched;
+    // canonical alias resolution happens at the submission boundary.
+    if (isLegacyCompatibilityOnlyField(field)) continue;
     if (
       !field.options?.length ||
       !["select", "radio", "country", "multi_select"].includes(field.fieldType)
@@ -157,7 +192,8 @@ export function canonicalizeApplicationOptionAnswers(
     for (const answerKey of fieldAnswerKeys(field, answers)) {
       const previousValue = answers[answerKey]?.trim();
       if (!previousValue) continue;
-      const wholeValue = canonicalOptionValue(field.options, previousValue);
+      const resolvedValue = resolveDs160OfficialOptionValue(getDs160OfficialOptionSource(field), previousValue);
+      const wholeValue = canonicalOptionValue(field.options, resolvedValue);
       let canonicalValue = wholeValue;
       if (!canonicalValue && field.fieldType === "multi_select") {
         const parts = previousValue.split(",").map((part) => part.trim()).filter(Boolean);
@@ -246,15 +282,22 @@ export function getAssistantProgress(
   answers: Record<string, string>,
   now: Date = new Date(),
 ): FormAssistantProgress {
-  const visibleRequired = steps.flatMap((step) =>
-    step.fields.filter(
-      (field) => field.required && evaluateShowIf(field, answers, step.fields),
-    ),
-  );
+  const visibleRequired = steps.flatMap((step) => step.fields
+    .filter((field) => !isLegacyCompatibilityOnlyField(field))
+    .flatMap((field) =>
+    Array.from({ length: getRepeatInstanceCount(field, answers, step.fields) }, (_, index) => ({
+      key: answerInstanceKey(field.fieldName, index),
+      values: getRepeatInstanceValues(field, index, answers, step.fields),
+    })).filter(({ values }) =>
+      isDs160FieldVisibleForRuntime(field, step, undefined, answers, now) &&
+      isVisibleDynamicFieldRequired(field, values, step.fields)
+    )
+      .map(({ key }) => key),
+  ));
   const missingNames = new Set(
     getMissingDynamicFormFields(steps, answers, { now }).map((field) => field.fieldName),
   );
-  const completed = visibleRequired.filter((field) => !missingNames.has(field.fieldName)).length;
+  const completed = visibleRequired.filter((key) => !missingNames.has(key)).length;
   return { completed, total: visibleRequired.length };
 }
 
@@ -279,11 +322,69 @@ export function validateApplicationAnswers(params: {
   const labelForField = (field: WizardStep["fields"][number]) =>
     resolveLocalizedFieldLabel(field, isZh ? "zh" : "en");
   const missingFields = getMissingDynamicFormFields(steps, answers, { now: params.now }).map((missing) => {
-    const field = fieldByName.get(missing.fieldName);
-    return field ? { ...missing, label: labelForField(field) } : missing;
+    const field = fieldByName.get(missing.fieldName.replace(/__\d+$/, ""));
+    const instance = missing.fieldName.match(/__(\d+)$/)?.[1];
+    return field ? { ...missing, label: `${labelForField(field)}${instance ? ` #${instance}` : ""}` } : missing;
   });
   const errors: FormAssistantValidationIssue[] = missingFields.flatMap((missing) => {
-    const field = fieldByName.get(missing.fieldName);
+    const field = fieldByName.get(missing.fieldName.replace(/__\d+$/, ""));
+    if (missing.fieldName === FORMER_SPOUSE_COUNT_FIELD) {
+      const formerSpouseCountIssue = getFormerSpouseCountIssue(answers);
+      if (formerSpouseCountIssue) {
+        return [{
+          code: formerSpouseCountIssue.kind === "required"
+            ? "former_spouse_count_required"
+            : "former_spouse_count_mismatch",
+          fieldNames: [FORMER_SPOUSE_COUNT_FIELD],
+          message: getFormerSpouseCountValidationMessage(formerSpouseCountIssue, isZh),
+        }];
+      }
+    }
+    if (missing.fieldName === "us_contact_relationship") {
+      const usContactRelationshipIssue = getUsContactRelationshipIssue(answers);
+      if (usContactRelationshipIssue) {
+        return [{
+          code: `us_contact_relationship_${usContactRelationshipIssue.kind}`,
+          fieldNames: ["us_contact_relationship"],
+          message: getUsContactRelationshipIssueMessage(usContactRelationshipIssue, isZh),
+        }];
+      }
+    }
+    if (/^us_relative_relationship(?:__\d+)?$/u.test(missing.fieldName)) {
+      const immediateRelativeRelationshipIssue = getDs160ImmediateRelativeRelationshipIssue(
+        answers,
+        missing.fieldName,
+      );
+      if (immediateRelativeRelationshipIssue) {
+        return [{
+          code: `ds160_immediate_relative_relationship_${immediateRelativeRelationshipIssue.kind}`,
+          fieldNames: [missing.fieldName, "marital_status"],
+          message: getDs160ImmediateRelativeRelationshipIssueMessage(immediateRelativeRelationshipIssue, isZh),
+        }];
+      }
+    }
+    if (/^purpose_of_trip(?:__\d+)?$/u.test(missing.fieldName)) {
+      const tripPurposeIssue = getDs160TripPurposeDuplicateIssue(answers, missing.fieldName);
+      if (tripPurposeIssue) {
+        return [{
+          code: "ds160_trip_purpose_duplicate_category",
+          fieldNames: [missing.fieldName],
+          message: getDs160TripPurposeDuplicateMessage(tripPurposeIssue, isZh),
+        }];
+      }
+    }
+    if (
+      /^(?:nationality_country|other_nationality_country|other_permanent_resident_country)(?:__\d+)?$/u.test(missing.fieldName)
+    ) {
+      const nationalityIssue = getDs160NationalityDuplicateIssue(answers, missing.fieldName);
+      if (nationalityIssue) {
+        return [{
+          code: `ds160_${nationalityIssue.kind}`,
+          fieldNames: [missing.fieldName],
+          message: getDs160NationalityDuplicateMessage(nationalityIssue, isZh),
+        }];
+      }
+    }
     if (field && isPastUpcomingTravelDate(field, answers[missing.fieldName], params.now)) {
       return [{
         code: "date_before_today",
@@ -293,25 +394,55 @@ export function validateApplicationAnswers(params: {
     }
     // A non-empty but invalid choice/acceptance is not also "missing". The
     // specific validator below owns that one actionable issue.
-    if (hasAnyFieldAnswer(field, answers)) return [];
+    if (hasMeaningfulAnswer(answers[missing.fieldName])) return [];
     return [{
       code: "required_missing",
       fieldNames: [missing.fieldName],
       message: message(`${missing.label} is required.`, `请填写${missing.label}。`),
     }];
   });
+
+  if (visaType.trim().toUpperCase() === "DS160") {
+    const formerSpouseStep = steps.find((step) =>
+      FORMER_SPOUSE_IDENTITY_FIELDS.every((fieldName) =>
+        step.fields.some((field) => field.fieldName === fieldName && field.visaType === "DS160")),
+    );
+    const formerSpouseSurnameField = formerSpouseStep?.fields.find(
+      (field) => field.fieldName === "former_spouse_surname" && field.visaType === "DS160",
+    );
+    if (
+      formerSpouseStep &&
+      formerSpouseSurnameField &&
+      isDs160FieldVisibleForRuntime(formerSpouseSurnameField, formerSpouseStep, visaType, answers, params.now) &&
+      evaluateShowIf(formerSpouseSurnameField, answers, formerSpouseStep.fields)
+    ) {
+      for (const issue of findFormerSpouseDuplicateIssues(answers)) {
+        errors.push({
+          code: "former_spouse_duplicate",
+          fieldNames: issue.fieldNames,
+          message: getFormerSpouseDuplicateMessage(issue, isZh),
+        });
+      }
+    }
+  }
+
   const warnings: FormAssistantValidationIssue[] = [];
 
   for (const step of steps) {
     for (const field of step.fields) {
-      if (!evaluateShowIf(field, answers, step.fields)) continue;
+      if (isLegacyCompatibilityOnlyField(field)) continue;
+      if (!isDs160FieldVisibleForRuntime(field, step, visaType, answers, params.now)) continue;
       const label = labelForField(field);
       for (const answerKey of fieldAnswerKeys(field, answers)) {
+        const instanceIndex = Number(answerKey.match(/__(\d+)$/)?.[1] ?? "1") - 1;
+        const scopedAnswers = getRepeatInstanceValues(field, instanceIndex, answers, step.fields);
+        if (!evaluateShowIf(field, scopedAnswers, step.fields)) continue;
         const value = answers[answerKey]?.trim();
         if (!value) continue;
         const rules = field.validationRules ?? {};
         const suffix = answerInstanceSuffix(field.fieldName, answerKey);
         const allowedOverride = isAllowedAnswerOverride(value, rules);
+        const sentinelState = getFormFieldSentinelState(value, rules, field.options);
         const yearOnlyDate = field.fieldType === "date" && isAllowedYearOnlyDate(value, rules);
 
         if (
@@ -324,6 +455,25 @@ export function validateApplicationAnswers(params: {
             fieldNames: [answerKey],
             message: message(`${label} must be accepted.`, `请勾选并接受${label}。`),
           });
+        }
+
+        if (sentinelState === "unsupported") {
+          const unknown = getFormFieldSentinel(value) === "DO_NOT_KNOW";
+          const answerEn = unknown ? "Do Not Know" : "Does Not Apply";
+          const answerZh = unknown ? "不知道" : "不适用";
+          errors.push({
+            code: field.fieldType === "date" ? "invalid_date" : "unsupported_sentinel",
+            fieldNames: [answerKey],
+            message: message(
+              field.fieldType === "date"
+                ? `${label} must be a valid date.`
+                : `${label} does not allow “${answerEn}”. Choose the official option or enter a real value.`,
+              field.fieldType === "date"
+                ? `请为${label}填写有效日期。`
+                : `${label}不允许填写“${answerZh}”，请选择官网提供的选项或填写真实值。`,
+            ),
+          });
+          continue;
         }
 
         if (allowedOverride) continue;
@@ -399,7 +549,7 @@ export function validateApplicationAnswers(params: {
           typeof numericLengthRule.field === "string" &&
           typeof numericLengthRule.equals === "string" &&
           typeof numericLengthRule.length === "number" &&
-          relatedAnswer(answers, numericLengthRule.field, suffix).trim() === numericLengthRule.equals &&
+          relatedAnswer(scopedAnswers, numericLengthRule.field, "").trim() === numericLengthRule.equals &&
           !new RegExp(`^\\d{${numericLengthRule.length}}$`).test(value)
         ) {
           errors.push({
@@ -441,7 +591,7 @@ export function validateApplicationAnswers(params: {
               ? rules.after_or_equal_field
               : null;
           if (comparisonField) {
-            const comparisonDate = parseApplicationDate(relatedAnswer(answers, comparisonField, suffix).trim());
+            const comparisonDate = parseApplicationDate(relatedAnswer(scopedAnswers, comparisonField, "").trim());
             if (comparisonDate && parsedDate < comparisonDate) {
               errors.push({
                 code: "date_before_related_field",
@@ -454,7 +604,7 @@ export function validateApplicationAnswers(params: {
             }
           }
           if (typeof rules.min_days_after_field === "string") {
-            const comparisonDate = parseApplicationDate(relatedAnswer(answers, rules.min_days_after_field, suffix).trim());
+            const comparisonDate = parseApplicationDate(relatedAnswer(scopedAnswers, rules.min_days_after_field, "").trim());
             const requiredDays = typeof rules.min_days_after_field_days === "number"
               ? Math.max(0, rules.min_days_after_field_days)
               : 0;
@@ -475,6 +625,24 @@ export function validateApplicationAnswers(params: {
           }
         }
       }
+    }
+  }
+
+  // DS-160's schema predates the generic related-date rule and therefore does
+  // not carry `not_before_field` on the passport expiration row. Keep this
+  // exact official pair explicit so the server-side preflight matches the
+  // form's strict `expiration > issuance` check, including equal dates.
+  if (visaType.trim().toUpperCase() === "DS160") {
+    const issuanceField = fieldByName.get("passport_issuance_date");
+    const expirationField = fieldByName.get("passport_expiration_date");
+    const issuanceDate = parseApplicationDate(answers.passport_issuance_date ?? "");
+    const expirationDate = parseApplicationDate(answers.passport_expiration_date ?? "");
+    if (issuanceField && expirationField && issuanceDate && expirationDate && expirationDate <= issuanceDate) {
+      errors.push({
+        code: "passport_expiration_not_after_issuance",
+        fieldNames: ["passport_expiration_date", "passport_issuance_date"],
+        message: message("Expiry date must be after the issue date", "到期日必须晚于签发日"),
+      });
     }
   }
 

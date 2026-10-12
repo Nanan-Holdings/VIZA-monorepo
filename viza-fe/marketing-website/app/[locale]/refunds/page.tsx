@@ -5,8 +5,6 @@ import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import SiteNav from "@/components/SiteNav";
 import SiteFooter from "@/components/SiteFooter";
-import { CONTACT } from "@/lib/contact";
-import { portalUrl } from "@/lib/utils";
 
 /** Anchor ids, in page order — drives the TOC and the scroll-spy. */
 const SECTION_IDS = [
@@ -27,9 +25,6 @@ const MATRIX_ROWS = [
   { key: "cancelAfter", cls: { gov: "none", service: "partial", partner: "full" } },
   { key: "missDate", cls: { gov: "none", service: "full", partner: "full" } },
   { key: "rejectedFault", cls: { gov: "full", service: "full", partner: "partial" } },
-  // Spelled out separately so the boundary between our mistakes and applicant-supplied
-  // errors is visible in the matrix rather than buried in a footnote.
-  { key: "rejectedApplicant", cls: { gov: "none", service: "none", partner: "none" } },
   { key: "rejectedDiscretion", cls: { gov: "none", service: "partial", partner: "none" } },
   { key: "withdrew", cls: { gov: "none", service: "none", partner: "none" } },
   { key: "lostDoc", cls: { gov: "full", service: "full", partner: "full" } },
@@ -126,7 +121,7 @@ export default function RefundsPage() {
       <div className="crumbs">
         <a href="/">VIZA</a>
         <span className="sep">/</span>
-        <span>{t("crumbs.transparency")}</span>
+        <a href="#">{t("crumbs.transparency")}</a>
         <span className="sep">/</span>
         <span className="here">{t("crumbs.here")}</span>
       </div>
@@ -222,10 +217,25 @@ export default function RefundsPage() {
               </li>
             ))}
           </ol>
-          {/* The old "download PDF" link had no PDF behind it. */}
           <div className="toc-help">
             {t("toc.help")}
-            <a href="/contact">{t("toc.helpLink")}</a>
+            <a href="#">
+              {t("toc.download")}
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+            </a>
           </div>
         </aside>
 
@@ -373,9 +383,10 @@ export default function RefundsPage() {
               <li>
                 {t.rich("claim.items.email", {
                   ...richTags,
-                  link: (chunks) => <a href={`mailto:${CONTACT.emailSupport}`}>{chunks}</a>,
+                  link: (chunks) => <a href="mailto:refunds@viza.co">{chunks}</a>,
                 })}
               </li>
+              <li>{t.rich("claim.items.person", richTags)}</li>
             </ul>
 
             <p>{t("claim.escalate")}</p>
@@ -419,7 +430,7 @@ export default function RefundsPage() {
                 <p>{t("changelog.cta.body")}</p>
               </div>
               <div className="ctas">
-                <a className="btn-white" href={portalUrl("/client/support")}>
+                <button className="btn-white">
                   {t("changelog.cta.open")}
                   <svg
                     width="14"
@@ -433,8 +444,8 @@ export default function RefundsPage() {
                   >
                     <polyline points="9 18 15 12 9 6" />
                   </svg>
-                </a>
-                <a className="btn-ghost-w" href="/contact">{t("changelog.cta.talk")}</a>
+                </button>
+                <button className="btn-ghost-w">{t("changelog.cta.talk")}</button>
               </div>
             </div>
           </section>
@@ -456,7 +467,7 @@ export default function RefundsPage() {
             <circle cx="12" cy="12" r="10" />
             <polyline points="12 6 12 12 16 14" />
           </svg>
-          {t("updatedStrip")}
+          {t.rich("updatedStrip", { link: (chunks) => <a href="#">{chunks}</a> })}
         </div>
       </div>
 

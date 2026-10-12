@@ -9,6 +9,8 @@ interface ChatInputProps {
   disabled?: boolean;
   isConnecting?: boolean;
   placeholder?: string;
+  /** The active interface locale, used for accessible control labels. */
+  locale?: string;
   className?: string;
   textareaClassName?: string;
   buttonClassName?: string;
@@ -22,6 +24,7 @@ export function ChatInput({
   disabled = false,
   isConnecting = false,
   placeholder = "Ask anything...",
+  locale = "en",
   className,
   textareaClassName,
   buttonClassName,
@@ -78,6 +81,7 @@ export function ChatInput({
   );
 
   const canSend = value.trim().length > 0 && !disabled;
+  const isZh = locale.toLowerCase().startsWith("zh");
 
   return (
     <div
@@ -103,7 +107,7 @@ export function ChatInput({
           textareaClassName
         )}
         style={{ height: "40px", maxHeight: `${LINE_HEIGHT * MAX_ROWS}px` }}
-        aria-label="Message input"
+        aria-label={isZh ? "消息输入框" : "Message input"}
         aria-keyshortcuts="Enter Control+Enter Meta+Enter Escape"
       />
 
@@ -118,7 +122,15 @@ export function ChatInput({
               : "bg-gray-200 text-gray-400 cursor-not-allowed",
             buttonClassName
           )}
-          aria-label={isConnecting ? "Connecting..." : "Send message"}
+          aria-label={
+            isConnecting
+              ? isZh
+                ? "正在连接……"
+                : "Connecting..."
+              : isZh
+                ? "发送消息"
+                : "Send message"
+          }
         >
           <ArrowUp className="size-5" weight="bold" />
         </button>

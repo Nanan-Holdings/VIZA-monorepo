@@ -10,3 +10,14 @@ eg-recon-out
 **/__tests__
 .git
 .DS_Store
+**/output
+**/artifacts
+**/docs
+**/.dev-logs
+**/.env
+**/.env.*
+**/.mcp.json
+**/node_modules
+**/diag-out
+**/e2e-out
+**/recon-out

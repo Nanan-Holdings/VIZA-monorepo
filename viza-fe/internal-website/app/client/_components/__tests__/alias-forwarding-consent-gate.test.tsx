@@ -2,11 +2,12 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AliasForwardingConsentGate } from "../alias-forwarding-consent-gate";
 
+const localeState = vi.hoisted(() => ({ value: "zh" }));
 const initializeInbox = vi.fn();
 const authorizeForwarding = vi.fn();
 
 vi.mock("next-intl", () => ({
-  useLocale: () => "zh",
+  useLocale: () => localeState.value,
 }));
 
 vi.mock("@/app/actions/applicant-inbox", () => ({
@@ -16,8 +17,111 @@ vi.mock("@/app/actions/applicant-inbox", () => ({
 
 describe("AliasForwardingConsentGate", () => {
   beforeEach(() => {
+    localeState.value = "zh";
     initializeInbox.mockReset();
     authorizeForwarding.mockReset();
+  });
+
+  it("keeps one pending initialization when the locale changes", async () => {
+    const pendingSetup = {
+      alias: "appl-test@viza.it.com",
+      destinationEmail: "user@example.com",
+      forwardingAuthorized: false,
+    };
+    let resolveInitialization!: (value: {
+      ok: true;
+      data: typeof pendingSetup;
+    }) => void;
+    initializeInbox.mockReturnValue(
+      new Promise<{ ok: true; data: typeof pendingSetup }>((resolve) => {
+        resolveInitialization = resolve;
+      }),
+    );
+
+    const { rerender } = render(<AliasForwardingConsentGate enabled />);
+    await waitFor(() => {
+      expect(initializeInbox).toHaveBeenCalledTimes(1);
+    });
+
+    localeState.value = "en";
+    rerender(<AliasForwardingConsentGate enabled />);
+    localeState.value = "zh";
+    rerender(<AliasForwardingConsentGate enabled />);
+    localeState.value = "en";
+    rerender(<AliasForwardingConsentGate enabled />);
+    expect(initializeInbox).toHaveBeenCalledTimes(1);
+
+    resolveInitialization({ ok: true, data: pendingSetup });
+    expect(await screen.findByText("Authorize your VIZA application email")).toBeInTheDocument();
+  });
+
+  it("localizes a completed initialization error without retrying", async () => {
+    initializeInbox.mockResolvedValue({
+      ok: false,
+      error: { code: "SERVICE_UNAVAILABLE" },
+    });
+
+    const { rerender } = render(<AliasForwardingConsentGate enabled />);
+    expect(
+      await screen.findByText("邮箱授权服务暂时不可用，请稍后重试。你的申请资料不会丢失。"),
+    ).toBeInTheDocument();
+
+    localeState.value = "en";
+    rerender(<AliasForwardingConsentGate enabled />);
+    expect(
+      screen.getByText(
+        "The email authorization service is temporarily unavailable. Please try again later; your application data is safe.",
+      ),
+    ).toBeInTheDocument();
+    expect(initializeInbox).toHaveBeenCalledTimes(1);
+  });
+
+  it("reinitializes after being disabled and enabled again without accepting a stale result", async () => {
+    const firstSetup = {
+      alias: "appl-first@viza.it.com",
+      destinationEmail: "first@example.com",
+      forwardingAuthorized: true,
+    };
+    const secondSetup = {
+      alias: "appl-second@viza.it.com",
+      destinationEmail: "second@example.com",
+      forwardingAuthorized: false,
+    };
+    let resolveFirst!: (value: { ok: true; data: typeof firstSetup }) => void;
+    let resolveSecond!: (value: { ok: true; data: typeof secondSetup }) => void;
+    initializeInbox
+      .mockReturnValueOnce(
+        new Promise<{ ok: true; data: typeof firstSetup }>((resolve) => {
+          resolveFirst = resolve;
+        }),
+      )
+      .mockReturnValueOnce(
+        new Promise<{ ok: true; data: typeof secondSetup }>((resolve) => {
+          resolveSecond = resolve;
+        }),
+      );
+
+    const { rerender } = render(<AliasForwardingConsentGate enabled={false} />);
+    expect(initializeInbox).not.toHaveBeenCalled();
+
+    rerender(<AliasForwardingConsentGate enabled />);
+    await waitFor(() => {
+      expect(initializeInbox).toHaveBeenCalledTimes(1);
+    });
+
+    rerender(<AliasForwardingConsentGate enabled={false} />);
+    rerender(<AliasForwardingConsentGate enabled />);
+    await waitFor(() => {
+      expect(initializeInbox).toHaveBeenCalledTimes(2);
+    });
+
+    resolveFirst({ ok: true, data: firstSetup });
+    await Promise.resolve();
+    expect(screen.queryByText(firstSetup.alias)).not.toBeInTheDocument();
+
+    resolveSecond({ ok: true, data: secondSetup });
+    expect(await screen.findByText(secondSetup.alias)).toBeInTheDocument();
+    expect(screen.queryByText(firstSetup.alias)).not.toBeInTheDocument();
   });
 
   it("does not interrupt users who already authorized account forwarding", async () => {

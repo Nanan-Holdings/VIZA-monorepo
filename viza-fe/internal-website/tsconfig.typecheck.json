@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "exclude": [
+    ".next/dev/**",
+    "node_modules",
+    "Home_Page",
+    "Home Page  Popup Cards",
+    "design-system",
+    "tests",
+    "playwright.config.ts"
+  ]
+}

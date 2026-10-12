@@ -53,21 +53,6 @@ const jobBodySchema = z
   })
   .strict();
 
-const paymentSessionBodySchema = z
-  .object({
-    sessionId: z.string().trim().min(8).max(160),
-    redacted: z
-      .object({
-        brand: z.string().trim().min(1).max(40).optional(),
-        last4: z.string().trim().regex(/^\d{4}$/u),
-        expMonth: z.string().trim().regex(/^\d{2}$/u),
-        expYear: z.string().trim().regex(/^\d{4}$/u),
-        holderNamePresent: z.boolean().optional(),
-      })
-      .passthrough(),
-  })
-  .strict();
-
 function readBearerToken(req: Request): string | null {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith("Bearer ")) return null;
@@ -431,32 +416,6 @@ franceAppointmentOperationsRouter.post(
       res.json({ error: false, data: snapshot });
     } catch (error) {
       sendFranceAppointmentError(res, error, "france_appointment_slot_select_failed");
-    }
-  },
-);
-
-franceAppointmentOperationsRouter.post(
-  "/jobs/:jobId/payment-session",
-  requireJobAccess,
-  async (req: Request, res: Response): Promise<void> => {
-    const bodyResult = paymentSessionBodySchema.safeParse(req.body ?? {});
-    if (!bodyResult.success) {
-      sendValidationError(res, bodyResult.error);
-      return;
-    }
-    const jobId = getLocals(res).jobId;
-    if (!jobId) {
-      res.status(400).json({ error: true, code: "job_id_missing" });
-      return;
-    }
-    try {
-      const job = await service.recordPaymentAuthorization(jobId, {
-        sessionId: bodyResult.data.sessionId,
-        redacted: bodyResult.data.redacted,
-      });
-      res.json({ error: false, data: await service.getStatus(job.id) });
-    } catch (error) {
-      sendFranceAppointmentError(res, error, "france_appointment_payment_session_failed");
     }
   },
 );

@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { assignUserPackage } from "@/app/actions/user-package";
-import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
 
 interface VisaPackage {
   id: string;
@@ -21,19 +20,17 @@ export function AssignPackageForm({ userId, visaPackages }: AssignPackageFormPro
   const [selectedPackageId, setSelectedPackageId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   const handleAssign = async () => {
     if (!selectedPackageId || !userId) return;
     setIsSubmitting(true);
-    setError(null);
 
     try {
       const result = await assignUserPackage(userId, selectedPackageId);
 
       if (!result.success) {
-        setError(`Failed to assign package: ${result.error}`);
+        alert(`Failed to assign package: ${result.error}`);
         return;
       }
 
@@ -41,7 +38,7 @@ export function AssignPackageForm({ userId, visaPackages }: AssignPackageFormPro
       setSelectedPackageId("");
       router.refresh();
     } catch (err) {
-      setError(`Error: ${err instanceof Error ? err.message : String(err)}`);
+      alert(`Error: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -73,12 +70,6 @@ export function AssignPackageForm({ userId, visaPackages }: AssignPackageFormPro
           </option>
         ))}
       </select>
-      {error ? (
-        <Alert variant="destructive">
-          <AlertIcon variant="destructive" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      ) : null}
       <div className="flex gap-2">
         <button
           onClick={handleAssign}
@@ -88,7 +79,7 @@ export function AssignPackageForm({ userId, visaPackages }: AssignPackageFormPro
           {isSubmitting ? "Assigning..." : "Confirm"}
         </button>
         <button
-          onClick={() => { setShowForm(false); setSelectedPackageId(""); setError(null); }}
+          onClick={() => { setShowForm(false); setSelectedPackageId(""); }}
           className="px-4 py-2 rounded-lg text-sm font-medium border text-[#6b6b6b] hover:bg-gray-50 transition-colors"
         >
           Cancel

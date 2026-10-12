@@ -16,6 +16,9 @@ reports, and workflow documentation for VIZA.
 - `prd-backend-data-schema.md`: backend data model requirements.
 - `application/DG.md`: application form developer guide.
 - `application/UG.md`: application form user guide.
+- `application/ds160-functional-audit-2026-09-28.md`: B1/B2 assistant, manual
+  form, persistence, review, branch coverage, and submission-contract audit;
+  distinguishes synthetic browser checks from dated official portal evidence.
 - `application/schema-ui-contract.md`: canonical mapping from scraped master
   schema fields to frozen application components, conditional-panel ownership,
   strict audit workflow, and the edge-case component backlog.
@@ -23,14 +26,24 @@ reports, and workflow documentation for VIZA.
 - `travel-agent-development-guide.md`: Travel AI guide.
 - `TRAVEL_AGENT_QA.md`: Travel Agent QA findings, smoke prompts,
   destination-index runbook, and known limitations.
-- `travel-unresolved-itinerary-ai-handoff.md`: bounded prompt and route matrix
-  for externally researching unresolved, unbooked itinerary candidates.
 - `infra/1000-user-concurrency-roadmap.md`: measured concurrency assumptions,
   current code baseline, and the infrastructure scaling sequence for a
   1,000-session target; recommendations only, not applied configuration.
-- `infra/marketing-deploy.md`: canonical two-project deployment, credential,
-  migration, cron, and production smoke contract for public marketing and the
-  authenticated marketing-operations backend.
+- `infra/2026-09-07-free-concurrency-review.md`: current topology, read-only
+  database observations, implemented public-read/Travel concurrency savings,
+  local verification evidence, and remaining production capacity gates.
+- `infra/2026-09-11-100-session-backend-optimization-plan.md`: evidence-backed
+  follow-up plan for the failed 100-session local gate, covering Next server
+  reads, authentication, failure visibility, cancellation, and connection budgets;
+  implementation progress, local verification, the user-directed 2026-09-12
+  release, next-round profiling strategy, and the rejected time-zone candidate's
+  paired local results, subsequent HTTP connection diagnostics, and the
+  profile/queue read-consolidation candidate, and the 2026-09-13 private Home GET
+  transport/cancellation comparison, alias-consent locale deduplication, and
+  the 2026-09-14 form save ordering, support-read and explicit-draft query follow-up.
+  Record deployment status separately
+  from capacity acceptance; unfinished gates must not be presented as proven
+  100-session capacity.
 - `internal-automation/**`: VIZA website automation lifecycle, module plans,
   payment/consent/document/packet/status boundaries, and process assignment
   notes.
@@ -39,8 +52,6 @@ reports, and workflow documentation for VIZA.
 - `visa-schema-playbook.md`: adding/maintaining country visa schemas.
 - `application-qa-multithread-testing.md`: authenticated Universal Profile
   completion and six-tab Chrome QA across every DB-driven application schema.
-- `country-parallel-arrival-card-and-visa-test-runbook.md`: operator runbook
-  for a parallel, country-wide live-declaration and pre-payment-boundary test.
 - `SUPABASE_AGENT_SETUP.md`: remote Supabase setup, migration, verification,
   and troubleshooting workflow for agents.
 - `db/database-architecture-governance.md`: metadata-only production database
@@ -55,9 +66,6 @@ reports, and workflow documentation for VIZA.
   evidence-backed public service/portal availability.
 - `AGENT_COMPLETION_CHECKLIST.md`: evidence checklist for database-backed and
   persistence-related completion claims.
-- `agent-development-framework.md`: accepted multi-agent architecture,
-  ownership protocol, audit findings, and coordination templates shared by
-  Codex and Claude entry-point instructions.
 - `superpowers/plans/*`: implementation plans written before staged feature
   work; keep them aligned with the current module guides and product scope.
 - `superpowers/specs/*`: approved design notes that record scope, alternatives,

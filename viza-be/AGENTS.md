@@ -13,16 +13,18 @@ and Travel AI planning.
 - `agent-backend`: Express REST API, Socket.IO `/visa`, Drizzle migrations, RAG
   retrieval, form guidance, translations, validation, website automation
   support, and seed scripts.
-- `submission-service`: Playwright queue worker for official visa portal
-  automation and DS-160 CEAC prefill.
+- `submission-service`: Playwright queue runners for official visa portals,
+  including DS-160 prefill and gated live submission, with health/wake HTTP
+  endpoints, persisted recovery state and on-demand machine lifecycle.
 - `email-worker`: Cloudflare Email Routing worker for applicant alias inboxes,
   Supabase/R2 ingestion, and forwarding official correspondence to the
   applicant's real email.
 - `resilience-worker`: independent Cloudflare watchdog and encrypted
   server-to-server cache/outbox gateway. Its Durable Object stores only
   encrypted blobs and operational metadata; it does not decrypt applicant data.
-- `travel-service`: Python FastAPI service for travel itineraries, travel chat,
-  flight/hotel options, and Word/PDF export.
+- `travel-service`: Python FastAPI service for itineraries, revisions,
+  flight/hotel options and Word/PDF export. Its independent `/chat` endpoint is
+  not the current Web conversation entry; that coordinator runs in Next.js.
 
 ## Ownership Boundaries
 
@@ -33,7 +35,9 @@ and Travel AI planning.
   OCR metadata, consent, and notification support live in `agent-backend`.
 - Queue processing and browser automation live in `submission-service`.
 - Travel generation and external travel APIs live in `travel-service`.
-- Frontend proxy/UI changes live in `viza-fe/internal-website`.
+- Next.js UI/BFF changes live in `viza-fe/internal-website`, including current
+  Travel conversation state coordination, form-assistant/OCR APIs and payment
+  webhooks. Do not describe every Next API as a proxy to these services.
 
 ## Validation
 

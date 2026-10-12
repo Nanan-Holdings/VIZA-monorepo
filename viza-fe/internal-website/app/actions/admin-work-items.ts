@@ -230,21 +230,11 @@ export async function syncAdminOperationalWorkItems(): Promise<
     const rows: SignalRow[] = [];
     const warnings: string[] = [];
 
-    const [provisioning, runners, refunds, takeovers, portals, dlq, appointments, privacy] = await Promise.all([
-      admin
-        .from("payment_provisioning_jobs")
-        .select("id, order_id, status, attempts, max_attempts, last_error")
-        .in("status", ["retry", "dead_letter"])
-        .limit(100),
+    const [runners, takeovers, portals, dlq, appointments, privacy] = await Promise.all([
       admin
         .from("runner_job")
         .select("id, application_id, country, status, last_error")
         .in("status", ["failed", "dead_letter", "needs_human"])
-        .limit(100),
-      admin
-        .from("refund_request")
-        .select("id, application_id, applicant_id, status, reason")
-        .in("status", ["requested", "disputed"])
         .limit(100),
       admin
         .from("takeover_session")
@@ -273,23 +263,11 @@ export async function syncAdminOperationalWorkItems(): Promise<
         .limit(100),
     ]);
 
-    const sources = [provisioning, runners, refunds, takeovers, portals, dlq, appointments, privacy];
+    const sources = [runners, takeovers, portals, dlq, appointments, privacy];
     for (const source of sources) {
       if (source.error) warnings.push(source.error.message);
     }
 
-    for (const job of provisioning.data ?? []) {
-      rows.push(signalRow(actor.id, {
-        dedupe_key: `payment_provisioning_jobs:${job.id}`,
-        order_id: job.order_id as string,
-        source_type: "payment_provisioning_jobs",
-        source_id: job.id as string,
-        kind: "payment_provisioning_failed",
-        title: `Payment provisioning ${job.status}`,
-        description: (job.last_error as string | null) || `Attempt ${job.attempts} of ${job.max_attempts}`,
-        priority: job.status === "dead_letter" ? "p0" : "p1",
-      }));
-    }
     for (const job of runners.data ?? []) {
       rows.push(signalRow(actor.id, {
         dedupe_key: `runner_job:${job.id}`,
@@ -300,19 +278,6 @@ export async function syncAdminOperationalWorkItems(): Promise<
         title: `${String(job.country).replaceAll("_", " ")} submission ${job.status}`,
         description: (job.last_error as string | null) || "Submission runner requires staff review",
         priority: job.status === "dead_letter" ? "p0" : "p1",
-      }));
-    }
-    for (const request of refunds.data ?? []) {
-      rows.push(signalRow(actor.id, {
-        dedupe_key: `refund_request:${request.id}`,
-        application_id: request.application_id as string,
-        applicant_id: request.applicant_id as string,
-        source_type: "refund_request",
-        source_id: request.id as string,
-        kind: "refund_or_dispute",
-        title: request.status === "disputed" ? "Payment dispute requires response" : "Refund request requires decision",
-        description: request.reason as string,
-        priority: request.status === "disputed" ? "p0" : "p1",
       }));
     }
     for (const takeover of takeovers.data ?? []) {

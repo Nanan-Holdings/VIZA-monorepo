@@ -584,11 +584,13 @@ def build_itinery_rows(itinerary, state):
 
 
 def normalize_export_language(value):
-    text = _as_text(value, "zh").lower()
-    if text in {"en", "english"}:
+    text = _as_text(value, "zh").lower().replace("_", "-")
+    if text in {"en", "english"} or text.startswith("en-"):
         return "en"
     if text in {"bilingual", "both", "zh-en", "zh_en"}:
         return "bilingual"
+    if text in {"zh", "chinese"} or text.startswith("zh-"):
+        return "zh"
     return "zh"
 
 

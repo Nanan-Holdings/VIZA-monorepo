@@ -66,6 +66,10 @@ describe("createNewArrivalCardApplication", () => {
 
     const result = await createNewArrivalCardApplication("user-id", "source-id");
 
+    expect(createAdminClient).toHaveBeenCalledWith({
+      requestTimeoutMs: 5_000,
+      retryDelaysMs: [],
+    });
     expect(result).toEqual({
       applicationId: "new-application-id",
       country: "vietnam",
@@ -79,6 +83,52 @@ describe("createNewArrivalCardApplication", () => {
         status: "draft",
       }),
     );
+  });
+
+  it("creates a new Visit Japan Web draft after an official QR result", async () => {
+    const profileQuery = query({ data: { id: "profile-id" }, error: null });
+    const sourceQuery = query({
+      data: {
+        id: "source-id",
+        applicant_id: "profile-id",
+        country: "japan",
+        visa_type: "JP_VISIT_JAPAN_WEB",
+        visa_package_id: "package-id",
+        submission_result: {
+          country: "JP",
+          visaType: "JP_VISIT_JAPAN_WEB",
+          status: "qr_ready",
+          applicationId: "source-id",
+          submitted: true,
+          qrReady: true,
+          artifacts: { qrCodes: ["applications/japan/official-qr.png"] },
+        },
+      },
+      error: null,
+    });
+    const existingQuery = query({ data: [], error: null });
+    const createQuery = query({ data: { id: "new-japan-application-id" }, error: null });
+    const answersQuery = query({ data: [], error: null });
+    const from = vi
+      .fn()
+      .mockReturnValueOnce(profileQuery)
+      .mockReturnValueOnce(sourceQuery)
+      .mockReturnValueOnce(existingQuery)
+      .mockReturnValueOnce(createQuery)
+      .mockReturnValueOnce(answersQuery);
+    createAdminClient.mockReturnValue({ from });
+
+    await expect(createNewArrivalCardApplication("user-id", "source-id")).resolves.toEqual({
+      applicationId: "new-japan-application-id",
+      country: "japan",
+      visaType: "JP_VISIT_JAPAN_WEB",
+      status: 201,
+    });
+    expect(createQuery.insert).toHaveBeenCalledWith(expect.objectContaining({
+      country: "japan",
+      visa_type: "JP_VISIT_JAPAN_WEB",
+      status: "draft",
+    }));
   });
 
   it("reuses an existing ongoing draft instead of violating the uniqueness index", async () => {
@@ -263,6 +313,8 @@ describe("createNewArrivalCardApplication", () => {
     const answersQuery = query({
       data: [
         { field_name: "full_name", value_text: "Traveller", value_json: null },
+        { field_name: "surname", value_text: "TRAVELLER", value_json: null },
+        { field_name: "given_names", value_text: "TEST", value_json: null },
         { field_name: "passport_number", value_text: "P123", value_json: null },
         { field_name: "occupation", value_text: "Student", value_json: null },
         { field_name: "email_address", value_text: "traveller@example.com", value_json: null },
@@ -291,6 +343,12 @@ describe("createNewArrivalCardApplication", () => {
       "full_name",
       "full_name_zh",
       "full_name_en",
+      "surname",
+      "surname_zh",
+      "surname_en",
+      "given_names",
+      "given_names_zh",
+      "given_names_en",
       "first_name",
       "middle_name",
       "last_name",
@@ -310,6 +368,8 @@ describe("createNewArrivalCardApplication", () => {
     ]);
     expect(copyAnswersQuery.insert).toHaveBeenCalledWith([
       expect.objectContaining({ field_name: "full_name" }),
+      expect.objectContaining({ field_name: "surname" }),
+      expect.objectContaining({ field_name: "given_names" }),
       expect.objectContaining({ field_name: "passport_number" }),
     ]);
     expect(copyAnswersQuery.insert).not.toHaveBeenCalledWith(expect.arrayContaining([

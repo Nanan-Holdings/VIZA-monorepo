@@ -9,18 +9,57 @@
 import { chromium, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import {
   browserbaseEnabled,
-  connectBrowserbaseCloudBrowser,
+  connectReconnectableBrowserbaseCloudBrowser,
+  type ReconnectableBrowserbaseCloudBrowser,
 } from "../browserbase-session";
 import { CEAC_GATE_MARKERS, CEAC_URLS } from "./selectors";
 import { assertPage, detectPage } from "./pages";
 import { ManualActionRequiredError, SessionBootstrapError } from "./errors";
-import { assertNoGate } from "./gates";
+import { assertNoGate, isGateError } from "./gates";
 import { selectStartPageLocation } from "./start-page-location";
 import { solveStartPageCaptchaWithRetry } from "./start-page-captcha";
 import { gotoCeacStartPage } from "./start-page-navigation";
+import { tryCaptureBootstrapDiagnostics } from "./diagnostics";
+import { installCeacPostbackMonitor } from "./aspnet";
 
 export const CEAC_DEFAULT_USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36";
+
+export const CEAC_BROWSERBASE_DEFAULT_TIMEOUT_SECONDS = 1_800;
+export const CEAC_BROWSERBASE_MAX_TIMEOUT_SECONDS = 3_600;
+
+/**
+ * Resolve the bounded CEAC Browserbase TTL from deployment configuration.
+ * CEAC runs default to the historical 1,800-second lease; deployments may
+ * extend that lease up to one hour, but malformed or out-of-range values fail
+ * before a provider session is created.
+ */
+export function resolveCeacBrowserbaseTimeoutSeconds(
+  env: NodeJS.ProcessEnv = process.env,
+): number {
+  const raw = env.CEAC_BROWSERBASE_TIMEOUT_SECONDS?.trim();
+  if (!raw) return CEAC_BROWSERBASE_DEFAULT_TIMEOUT_SECONDS;
+
+  if (!/^\d+$/.test(raw)) {
+    throw new SessionBootstrapError(
+      "CEAC_BROWSERBASE_TIMEOUT_SECONDS must be an integer between 1800 and 3600 seconds.",
+      { details: { setting: "CEAC_BROWSERBASE_TIMEOUT_SECONDS" } },
+    );
+  }
+
+  const parsed = Number(raw);
+  if (
+    !Number.isSafeInteger(parsed)
+    || parsed < CEAC_BROWSERBASE_DEFAULT_TIMEOUT_SECONDS
+    || parsed > CEAC_BROWSERBASE_MAX_TIMEOUT_SECONDS
+  ) {
+    throw new SessionBootstrapError(
+      "CEAC_BROWSERBASE_TIMEOUT_SECONDS must be an integer between 1800 and 3600 seconds.",
+      { details: { setting: "CEAC_BROWSERBASE_TIMEOUT_SECONDS" } },
+    );
+  }
+  return parsed;
+}
 
 export interface CeacSessionOptions {
   /** Headless mode for the underlying Chromium instance. Default: true. */
@@ -36,6 +75,8 @@ export interface CeacSessionOptions {
   userAgent?: string;
   /** Optional run identifier for structured logging. */
   runId?: string;
+  /** Private run directory for evidence captured before failed bootstrap cleanup. */
+  diagnosticDirectory?: string;
   /**
    * When positive, visible live-assisted runs wait for the applicant to
    * complete the CEAC start-page location/CAPTCHA checkpoint manually.
@@ -43,6 +84,8 @@ export interface CeacSessionOptions {
   manualStartWaitMs?: number;
   /** CEAC start-page post/location code to select before manual CAPTCHA. */
   startLocationCode?: string | null;
+  /** Use Retrieve for existing applications; default is a new application. */
+  startAction?: "start" | "retrieve";
   /** Maximum automated 2captcha attempts for the CEAC start page. Default: 3. */
   captchaMaxAttempts?: number;
 }
@@ -55,9 +98,13 @@ export interface CeacSession {
   context: BrowserContext;
   page: Page;
   readonly runId?: string;
+  /** Applicant-selected CEAC post retained across session rebuilds. */
+  startLocationCode?: string | null;
   captchaSolve?: { telemetry: Array<Record<string, unknown>> };
   /** Close the browser and release resources. Safe to call multiple times. */
   close(): Promise<void>;
+  /** Reattach the same provider session after a dropped control connection. */
+  reconnect?(): Promise<void>;
 }
 
 /**
@@ -79,11 +126,16 @@ export async function startCeacSession(
 
   let browser: Browser | null = null;
   let context: BrowserContext | null = null;
+  let page: Page | null = null;
+  let cloudSession: ReconnectableBrowserbaseCloudBrowser | null = null;
 
   try {
-    let page: Page;
     if (browserbaseEnabled("CEAC")) {
-      const cloud = await connectBrowserbaseCloudBrowser({ prefix: "CEAC" });
+      const cloud = await connectReconnectableBrowserbaseCloudBrowser({
+        prefix: "CEAC",
+        timeoutSeconds: resolveCeacBrowserbaseTimeoutSeconds(),
+      });
+      cloudSession = cloud;
       browser = cloud.browser;
       context = cloud.context;
       page = cloud.page;
@@ -104,6 +156,7 @@ export async function startCeacSession(
     try {
       await gotoCeacStartPage(page, navigationTimeoutMs);
     } catch (err) {
+      if (isGateError(err)) throw err;
       const message = err instanceof Error ? err.message : String(err);
       throw new SessionBootstrapError(
         `Failed to load CEAC start page within ${navigationTimeoutMs}ms`,
@@ -143,8 +196,12 @@ export async function startCeacSession(
       );
     }
 
+    // Bootstrap may briefly receive a challenge response before the verified
+    // start form appears. Its bounded gate checks above own that phase; latch
+    // form failures only after clearance, before the first form interaction.
+    installCeacPostbackMonitor(page);
     const onStartPage = /\/GenNIV\/Default\.aspx/i.test(page.url());
-    if (onStartPage && options.startLocationCode) {
+    if (onStartPage && options.startLocationCode !== undefined && options.startLocationCode !== null) {
       const locationOutcome = await selectStartPageLocation(page, {
         locationCode: options.startLocationCode,
       });
@@ -173,6 +230,7 @@ export async function startCeacSession(
     }
 
     let captchaSolveTelemetry: Array<Record<string, unknown>> | undefined;
+    let resolvedStartLocationCode = options.startLocationCode;
     const captchaSelector = CEAC_GATE_MARKERS.solvableCaptchaSelectors.join(", ");
     const captchaPresent = captchaSelector
       ? (await page.locator(captchaSelector).count().catch(() => 0)) > 0
@@ -183,11 +241,13 @@ export async function startCeacSession(
         solveStartPageCaptchaWithRetry(
           page,
           options.captchaMaxAttempts ?? 3,
+          { startLocationCode: options.startLocationCode, startAction: options.startAction },
         ),
         readStartCaptchaTimeoutMs(),
         "CEAC start-page CAPTCHA solve timed out",
       );
       captchaSolveTelemetry = solved.telemetry.map((entry) => ({ ...entry }));
+      resolvedStartLocationCode = solved.locationCode;
       await assertNoGate(page);
     }
 
@@ -196,12 +256,30 @@ export async function startCeacSession(
       context,
       page,
       runId: options.runId,
+      startLocationCode: resolvedStartLocationCode,
       captchaSolve: captchaSolveTelemetry ? { telemetry: captchaSolveTelemetry } : undefined,
-      close: makeCloser(browser, context),
+      close: cloudSession ? cloudSession.close.bind(cloudSession) : makeCloser(browser, context),
     };
+    if (cloudSession) {
+      const cloud = cloudSession;
+      session.reconnect = async function () {
+        await cloud.reconnect();
+        this.browser = cloud.browser;
+        this.context = cloud.context;
+        this.page = cloud.page;
+        installCeacPostbackMonitor(this.page);
+      };
+    }
 
     return session;
   } catch (err) {
+    if (page && options.diagnosticDirectory) {
+      await tryCaptureBootstrapDiagnostics(page, options.diagnosticDirectory);
+    }
+    if (cloudSession) {
+      await cloudSession.close().catch(() => undefined);
+      throw err;
+    }
     // Make sure we do not leak a browser if bootstrap fails mid-way.
     try {
       if (context) await context.close();
@@ -235,12 +313,20 @@ export async function rebuildSessionForResume(
   options: CeacSessionOptions = {},
 ): Promise<void> {
   try { await session.close(); } catch { /* best-effort */ }
-  const fresh = await startCeacSession({ ...options, runId: session.runId });
+  const fresh = await startCeacSession({
+    ...options,
+    startAction: "retrieve",
+    startLocationCode:
+      options.startLocationCode !== undefined ? options.startLocationCode : session.startLocationCode,
+    runId: session.runId,
+  });
   // Swap in the new refs. Close function closes the NEW browser.
   session.browser = fresh.browser;
   session.context = fresh.context;
   session.page = fresh.page;
+  session.startLocationCode = fresh.startLocationCode;
   session.captchaSolve = fresh.captchaSolve;
+  session.reconnect = fresh.reconnect;
   (session as { close: () => Promise<void> }).close = fresh.close;
 }
 

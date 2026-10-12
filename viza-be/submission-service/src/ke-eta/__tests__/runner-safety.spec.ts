@@ -69,46 +69,38 @@ function payload(): SubmissionPayload {
   };
 }
 
-test("Kenya eTA acquires the restricted card lazily inside the evidenced adapter", async () => {
+test("Kenya eTA preserves form prefill until the fee checkpoint, then reports payment removal", async () => {
   const events: string[] = [];
   const result = await normalizeAndRunKeEtaPortalSubmission(payload(), {
     liveEnabled: true,
     payment: {
       prepare: async () => {
-        events.push("prepare");
-        return {
-          paymentSessionId: "attempt-1",
-          pan: "4111111111111111",
-          expiry: "12/30",
-          cvv: "123",
-          holderName: "VIZA TEST",
-        };
+        throw new Error("payment handoff must not be called");
       },
-      finalize: async ({ outcome }) => {
-        events.push(`finalize:${outcome}`);
+      finalize: async () => {
+        throw new Error("payment finalization must not be called");
       },
     },
     adapter: {
       submit: async (context) => {
         events.push("portal-ready");
-        const card = await context.takePaymentCard();
-        assert.equal(card.paymentSessionId, "attempt-1");
-        events.push("portal-paid");
-        return {
-          portalUrl: "https://etakenya.go.ke/status",
-          bodyText: "Kenya eTA application submitted. Application reference: KE-ABC12345",
-          officialReference: "KE-ABC12345",
-          status: "submitted",
-        };
+        assert.equal(context.payload.emailAddress, "appl-test@viza.it.com");
+        assert.equal(context.payload.passportNumber, "E12345678");
+        events.push("form-prefill");
+        await context.takePaymentCard();
+        throw new Error("payment checkpoint should stop the adapter");
       },
     },
   });
 
-  assert.equal(result.status, "submitted");
-  assert.deepEqual(events, ["portal-ready", "prepare", "portal-paid", "finalize:paid"]);
+  assert.equal(result.status, "blocked");
+  assert.equal(result.submitted, false);
+  assert.equal(result.errorDetails?.code, "payment_removed");
+  assert.match(result.portalResponseSummary, /official fee checkpoint needs attention/iu);
+  assert.deepEqual(events, ["portal-ready", "form-prefill"]);
 });
 
-test("Kenya eTA refuses an apparent submission when no card was consumed", async () => {
+test("Kenya eTA cannot bypass the fee checkpoint with an externally supplied card", async () => {
   let prepared = false;
   await assert.rejects(
     normalizeAndRunKeEtaPortalSubmission(payload(), {

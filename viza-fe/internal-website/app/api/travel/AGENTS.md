@@ -37,13 +37,13 @@ service URL off the client.
   with localStorage fallback in the client.
 - `preferences/route.ts`: authenticated view, item deletion, and full clearing
   for explicitly saved cross-session Travel preferences.
-- `application-drafts/route.ts`: authenticated preview/commit boundary for
-  confirmed planner facts. It fills only empty local draft fields, excludes
-  estimates, and never starts official submission or payment work.
 
 ## Ownership Boundaries
 
 - Use `lib/travel/backend.ts` for backend URL and JSON forwarding.
+- Use `lib/travel/travel-locale.ts` for explicit request locale and cookie
+  fallback. Propagate the current language through generation, revision,
+  location/provider requests and exports, including localized failure messages.
 - Do not duplicate itinerary generation directly in route handlers. Use the
   server-only `lib/travel/itinerary-fallback.ts` pipeline for Travel Service,
   Google Places, and OpenAI fallback orchestration.

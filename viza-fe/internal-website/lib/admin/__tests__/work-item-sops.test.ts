@@ -16,7 +16,9 @@ describe("admin work-item SOP registry", () => {
   });
 
   it("resolves known kinds and returns undefined for unknown work", () => {
-    expect(getWorkItemSop("payment_provisioning_failed")?.owningTeam).toBe("commerce_ops");
+    expect(getWorkItemSop("document_review")?.owningTeam).toBe("case_ops");
+    expect(getWorkItemSop("payment_provisioning_failed")).toBeUndefined();
+    expect(getWorkItemSop("refund_or_dispute")).toBeUndefined();
     expect(getWorkItemSop("not_registered")).toBeUndefined();
   });
 });

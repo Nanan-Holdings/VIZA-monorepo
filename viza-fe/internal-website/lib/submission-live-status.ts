@@ -55,6 +55,12 @@ export type LiveSubmissionSummary = {
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
+export interface LiveSubmissionApplicationProduct {
+  id: string;
+  country: string;
+  visa_type: string;
+}
+
 type QueueRow = {
   id: string;
   application_id: string;
@@ -69,8 +75,6 @@ type QueueRow = {
   official_portal_url?: string | null;
   official_status?: string | null;
   payment_status?: string | null;
-  official_application_reference_encrypted?: string | null;
-  vn_registration_code_encrypted?: string | null;
   live_submitted_at?: string | null;
   updated_at: string | null;
   created_at: string | null;
@@ -113,6 +117,14 @@ type QueryErrorLike = {
   details?: string;
   hint?: string;
 };
+
+type PrefetchedQueueResult = {
+  data: unknown;
+  error: unknown;
+};
+
+const SUBMISSION_QUEUE_SELECT =
+  "id, application_id, status, mode, provider, current_stage, live_checkpoint, manual_action_status, error_code, error_message, official_portal_url, official_status, payment_status, live_submitted_at, updated_at, created_at";
 
 const LIVE_PROVIDERS = new Set([
   "vietnam_evisa_live",
@@ -228,7 +240,45 @@ function isSchemaMissingError(error: QueryErrorLike | null | undefined): boolean
 }
 
 function isLiveQueue(row: QueueRow): boolean {
+  // DS-160 proof recovery is a post-submission artifact job. It deliberately
+  // uses live_assisted mode for the shared queue, but must never replace the
+  // official submission row in client/admin live status summaries.
+  if (row.provider === "ceac_proof" || normalizeStatus(row.status).startsWith("ds160_proof_")) {
+    return false;
+  }
   return row.mode === "live_assisted" || (row.provider ? LIVE_PROVIDERS.has(row.provider) : false);
+}
+
+function record(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function getPrefetchedQueueRows(
+  result: PrefetchedQueueResult | undefined,
+  applicationIds: readonly string[],
+): QueueRow[] | null {
+  if (applicationIds.length !== 1 || !result || result.error !== null && result.error !== undefined) {
+    return null;
+  }
+  if (!Array.isArray(result.data)) return null;
+  const applicationId = applicationIds[0].toLowerCase();
+  const rows: QueueRow[] = [];
+  for (const item of result.data) {
+    const row = record(item);
+    if (
+      !row ||
+      typeof row.id !== "string" ||
+      row.id.trim().length === 0 ||
+      typeof row.application_id !== "string" ||
+      row.application_id.toLowerCase() !== applicationId
+    ) {
+      return null;
+    }
+    rows.push(row as unknown as QueueRow);
+  }
+  return rows;
 }
 
 function compareByNewest(a: { updated_at?: string | null; created_at?: string | null }, b: { updated_at?: string | null; created_at?: string | null }): number {
@@ -349,44 +399,41 @@ async function loadActionsForTable({
 export async function loadLiveSubmissionSummaries(
   adminClient: AdminClient,
   applicationIds: string[],
-  /**
-   * Country/visa-type for the same applications, when the caller already has
-   * them. Passing them in removes a whole Supabase round trip from the portal's
-   * status load; omitting them keeps the original self-contained behaviour.
-   */
-  knownApplications?: readonly ApplicationProductRow[],
+  applicationProducts?: readonly LiveSubmissionApplicationProduct[],
+  options: { prefetchedQueueResult?: PrefetchedQueueResult } = {},
 ): Promise<Map<string, LiveSubmissionSummary>> {
   if (applicationIds.length === 0) return new Map();
 
-  // The queue read and the product lookup do not depend on each other, so they
-  // go out together rather than one after the other.
-  const [queueResult, applicationResult] = await Promise.all([
-    adminClient
-      .from("submission_queue")
-      .select(
-        "id, application_id, status, mode, provider, current_stage, live_checkpoint, manual_action_status, error_code, error_message, official_portal_url, official_status, payment_status, official_application_reference_encrypted, vn_registration_code_encrypted, live_submitted_at, updated_at, created_at",
-      )
-      .in("application_id", applicationIds)
-      .order("created_at", { ascending: false, nullsFirst: false })
-      .limit(500),
-    knownApplications
-      ? Promise.resolve({ data: knownApplications as ApplicationProductRow[], error: null })
-      : adminClient
-          .from("applications")
-          .select("id, country, visa_type")
-          .in("id", applicationIds),
-  ]);
-
+  const prefetchedQueueRows = getPrefetchedQueueRows(options.prefetchedQueueResult, applicationIds);
+  const queueResult = prefetchedQueueRows
+    ? { data: prefetchedQueueRows, error: null }
+    : await adminClient
+        .from("submission_queue")
+        .select(SUBMISSION_QUEUE_SELECT)
+        .in("application_id", applicationIds)
+        .order("created_at", { ascending: false, nullsFirst: false })
+        .limit(500);
   const { data, error } = queueResult;
+
   if (error && !isSchemaMissingError(error)) {
     throw new Error(error.message);
   }
 
-  const { data: applicationData, error: applicationError } = applicationResult;
-  if (applicationError) throw new Error(applicationError.message);
+  let applicationData: ApplicationProductRow[];
+  if (applicationProducts !== undefined) {
+    const requestedIds = new Set(applicationIds);
+    applicationData = applicationProducts.filter((application) => requestedIds.has(application.id));
+  } else {
+    const { data: queriedApplicationData, error: applicationError } = await adminClient
+      .from("applications")
+      .select("id, country, visa_type")
+      .in("id", applicationIds);
+    if (applicationError) throw new Error(applicationError.message);
+    applicationData = (queriedApplicationData ?? []) as ApplicationProductRow[];
+  }
 
   const runnerFlowByApplication = new Map<string, StatusVisibleRunnerFlow>();
-  for (const application of (applicationData ?? []) as ApplicationProductRow[]) {
+  for (const application of applicationData) {
     const flow = statusVisibleRunnerFlowForApplication(
       application.country,
       application.visa_type,
@@ -394,29 +441,31 @@ export async function loadLiveSubmissionSummaries(
     if (flow) runnerFlowByApplication.set(application.id, flow);
   }
   const eligibleRunnerApplicationIds = [...runnerFlowByApplication.keys()];
+  const runnerResult = eligibleRunnerApplicationIds.length > 0
+    ? await adminClient
+        .from("runner_job")
+        .select(
+          "id, application_id, country, status, last_error, enqueued_at, started_at, finished_at",
+        )
+        .in("application_id", eligibleRunnerApplicationIds)
+        .in(
+          "country",
+          STATUS_VISIBLE_RUNNER_FLOWS.map((flow) => flow.country),
+        )
+        .order("enqueued_at", { ascending: false, nullsFirst: false })
+        .limit(500)
+    : { data: [], error: null };
+  const { data: runnerData, error: runnerError } = runnerResult;
+  if (runnerError && !isSchemaMissingError(runnerError)) {
+    throw new Error(runnerError.message);
+  }
 
   const liveRows = (error ? [] : ((data ?? []) as QueueRow[])).filter(isLiveQueue);
   const jobIds = liveRows.map((row) => row.id);
   const actionGroups = new Map<string, LiveManualActionSummary[]>();
 
-  // The runner jobs and the four manual-action tables are all keyed off data we
-  // already have, so they share one round trip instead of two.
-  const [runnerResult, actionGroupsResult] = await Promise.all([
-    eligibleRunnerApplicationIds.length > 0
-      ? adminClient
-          .from("runner_job")
-          .select(
-            "id, application_id, country, status, last_error, enqueued_at, started_at, finished_at",
-          )
-          .in("application_id", eligibleRunnerApplicationIds)
-          .in(
-            "country",
-            STATUS_VISIBLE_RUNNER_FLOWS.map((flow) => flow.country),
-          )
-          .order("enqueued_at", { ascending: false, nullsFirst: false })
-          .limit(500)
-      : Promise.resolve({ data: [], error: null }),
-    Promise.all([
+  const actions = (
+    await Promise.all([
       loadActionsForTable({
         adminClient,
         tableName: "submission_manual_actions",
@@ -441,15 +490,8 @@ export async function loadLiveSubmissionSummaries(
         queueColumn: "job_id",
         jobIds,
       }),
-    ]),
-  ]);
-
-  const { data: runnerData, error: runnerError } = runnerResult;
-  if (runnerError && !isSchemaMissingError(runnerError)) {
-    throw new Error(runnerError.message);
-  }
-
-  const actions = actionGroupsResult.flat();
+    ])
+  ).flat();
 
   for (const action of actions) {
     if (!action.jobId) continue;

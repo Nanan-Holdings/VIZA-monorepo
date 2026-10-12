@@ -420,9 +420,9 @@ if (!$NoSubmission) {
     Write-Warn "Submission service port is busy. Using $SubmissionPort."
   }
   $started += Start-DevProcess `
-    -Name "VIZA Submission Service with Indonesia local payment handoff" `
+    -Name "VIZA Submission Service" `
     -WorkingDirectory $submissionServiceDir `
-    -Command "`$env:PORT = '$SubmissionPort'; `$env:VN_LOCAL_CARD_SESSION_ENABLED = 'true'; `$env:ID_LOCAL_CARD_SESSION_ENABLED = 'true'; npm run dev"
+    -Command "`$env:PORT = '$SubmissionPort'; npm run dev"
 }
 
 if (!$NoTravel) {
@@ -473,12 +473,6 @@ if (!$NoTravel) {
 
 if (!$NoSubmission) {
   Wait-HttpReady -Name "submission-service" -Uri "http://127.0.0.1:$SubmissionPort/health" -TimeoutSeconds $StartupTimeoutSeconds
-  Wait-HttpJsonFieldReady `
-    -Name "Indonesia one-time card session endpoint" `
-    -Uri "http://127.0.0.1:$SubmissionPort/local/indonesia/card-session" `
-    -FieldName "enabled" `
-    -ExpectedValue $true `
-    -TimeoutSeconds $StartupTimeoutSeconds
 }
 
 Wait-HttpReady -Name "frontend" -Uri $clientLoginUrl -TimeoutSeconds $StartupTimeoutSeconds

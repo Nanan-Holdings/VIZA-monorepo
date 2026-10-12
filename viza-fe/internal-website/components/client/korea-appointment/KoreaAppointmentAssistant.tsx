@@ -26,7 +26,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { BrandField, BrandInput } from "@/components/client/brand-field";
 import { ProgressRail } from "@/components/client/simplified-form/progress-rail";
-import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -570,8 +570,8 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
       const ready = manualActionType === "official_cancel_confirmation_required";
       return (
         <div className="space-y-5">
-          <Alert variant="warning">
-            <AlertIcon variant="warning" />
+          <Alert className="border-amber-200 bg-amber-50">
+            <AlertCircle className="h-4 w-4 text-amber-700" />
             <AlertTitle>{changeIntent === "reschedule" ? t("management.confirmReschedule") : t("management.confirmCancel")}</AlertTitle>
             <AlertDescription>{ready ? t("management.cancelWarning") : t("management.sessionExpired")}</AlertDescription>
           </Alert>
@@ -828,8 +828,8 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
             </CollapsibleContent>
           </Collapsible>
           {!reviewReady ? (
-            <Alert variant="warning">
-              <AlertIcon variant="warning" />
+            <Alert className="border-amber-200 bg-amber-50">
+              <AlertCircle className="h-4 w-4 text-amber-700" />
               <AlertTitle>{t("review.missingTitle")}</AlertTitle>
               <AlertDescription>{t("review.missingBody")}</AlertDescription>
             </Alert>
@@ -862,8 +862,8 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
         <StageCard stage="account" title={t("account.title")} description={t("account.focus")} icon={<MessageSquareText className="h-5 w-5" />} error={error}>
           {workerUnavailable ? (
             <>
-              <Alert variant="warning">
-                <AlertIcon variant="warning" />
+              <Alert className="border-amber-200 bg-amber-50">
+                <AlertCircle className="h-4 w-4 text-amber-700" />
                 <AlertTitle>{t("account.workerTitle")}</AlertTitle>
                 <AlertDescription>{t("account.workerBody")}</AlertDescription>
               </Alert>
@@ -897,7 +897,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
             <>
               <p className="text-sm leading-6 text-muted-foreground">{t("account.smsBody", { phone: phoneMasked || t("common.maskedPhone") })}</p>
               {manualAction?.expires_at ? (
-                <p className="text-xs text-muted-foreground">{t("account.expires", { time: new Date(manualAction.expires_at).toLocaleTimeString() })}</p>
+                <p className="text-xs text-muted-foreground">{t("account.expires", { time: new Date(manualAction.expires_at).toLocaleTimeString(t("locale") === "zh" ? "zh-CN" : "en-US") })}</p>
               ) : null}
               <BrandField label={t("account.codeLabel")} htmlFor="korea-sms-code">
                 <BrandInput
@@ -990,7 +990,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
               <div className="grid h-12 w-12 place-items-center rounded-full bg-brand-50 text-brand-600"><CalendarCheck className="h-6 w-6" /></div>
               <h2 className="mt-4 font-heading text-lg font-medium">{t("slots.emptyTitle")}</h2>
               <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">{t("slots.emptyBody")}</p>
-              {noSlots.lastCheckedAt ? <p className="mt-2 text-xs text-muted-foreground">{t("slots.checkedAt", { time: new Date(noSlots.lastCheckedAt).toLocaleString() })}</p> : null}
+              {noSlots.lastCheckedAt ? <p className="mt-2 text-xs text-muted-foreground">{t("slots.checkedAt", { time: new Date(noSlots.lastCheckedAt).toLocaleString(t("locale") === "zh" ? "zh-CN" : "en-US") })}</p> : null}
               <BrandActionButton
                 className="mt-5 w-full"
                 loading={busy === "request-live-booking"}
@@ -1010,7 +1010,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
             <>
               <div className="flex items-center justify-between gap-4 text-xs text-muted-foreground">
                 <span>{centerName}</span>
-                {snapshot.job?.updated_at ? <span>{t("slots.checkedAt", { time: new Date(snapshot.job.updated_at).toLocaleString() })}</span> : null}
+                {snapshot.job?.updated_at ? <span>{t("slots.checkedAt", { time: new Date(snapshot.job.updated_at).toLocaleString(t("locale") === "zh" ? "zh-CN" : "en-US") })}</span> : null}
               </div>
               <div className="space-y-3" role="radiogroup" aria-label={t("slots.title")}>
                 {observedSlots.map((slot) => (
@@ -1072,8 +1072,8 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
               <span className="text-sm leading-6">{t("confirm.authorization")}</span>
             </label>
           ) : (
-            <Alert variant="success">
-              <AlertIcon variant="success" />
+            <Alert className="border-emerald-200 bg-emerald-50">
+              <CheckCircle2 className="h-4 w-4 text-emerald-700" />
               <AlertTitle>{t("confirm.approvedTitle")}</AlertTitle>
               <AlertDescription>{t("confirm.approvedBody")}</AlertDescription>
             </Alert>

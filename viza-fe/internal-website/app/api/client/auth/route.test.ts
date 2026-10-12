@@ -112,7 +112,7 @@ describe("POST /api/client/auth", () => {
     await expect(response.json()).resolves.toEqual({ success: true });
     expect(clearClientSessionMock).toHaveBeenCalledOnce();
     expect(getUserFromSupabaseSessionMock).toHaveBeenCalledWith({
-      requestTimeoutMs: 500,
+      requestTimeoutMs: 4_000,
       retryDelaysMs: [],
     });
     expect(clearClientSessionMock.mock.invocationCallOrder[0]).toBeLessThan(
@@ -138,7 +138,7 @@ describe("POST /api/client/auth", () => {
     await expect(response.json()).resolves.toEqual({ success: true });
     expect(clearClientSessionMock).toHaveBeenCalledOnce();
     expect(getUserFromSupabaseSessionMock).toHaveBeenCalledWith({
-      requestTimeoutMs: 500,
+      requestTimeoutMs: 4_000,
       retryDelaysMs: [],
     });
     expect(clearClientSessionMock.mock.invocationCallOrder[0]).toBeLessThan(
@@ -190,6 +190,26 @@ describe("POST /api/client/auth", () => {
     });
     expect(sendContinuityOtpMock).toHaveBeenCalledWith("applicant@example.com");
     expect(clearClientSessionMock).not.toHaveBeenCalled();
+  });
+
+  it("maps an HTML gateway response parse error to the continuity OTP path", async () => {
+    signInWithPasswordMock.mockResolvedValue({
+      error: {
+        name: "AuthUnknownError",
+        message: `Unexpected token '<', "<!DOCTYPE "... is not valid JSON`,
+      },
+    });
+    sendContinuityOtpMock.mockResolvedValue(true);
+
+    const response = await POST(passwordRequest());
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      code: "continuity_otp_sent",
+      error: "A continuity sign-in code was sent because the authentication provider is unavailable.",
+    });
+    expect(sendContinuityOtpMock).toHaveBeenCalledWith("applicant@example.com");
   });
 
   it("maps an Auth 500 dependency failure to a continuity OTP", async () => {

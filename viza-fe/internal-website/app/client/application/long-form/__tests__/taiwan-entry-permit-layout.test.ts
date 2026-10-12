@@ -41,7 +41,7 @@ describe("Taiwan entry permit long-form layout", () => {
     expect(source).toContain('id="tw-terms-modal-consent"');
     expect(source).toContain("taiwanEntryPromptAccepted && taiwanTermsModalAccepted");
     expect(source).toContain(
-      "onSubmit(submitMode, officialPaymentCard, taiwanOfficialTermsConsent)",
+      "onSubmit(submitMode, taiwanOfficialTermsConsent)",
     );
     expect(source).toContain(
       "taiwanOfficialTermsConsent: input.taiwanOfficialTermsConsent",

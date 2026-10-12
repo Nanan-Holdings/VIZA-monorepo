@@ -1,9 +1,19 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { DynamicFormField } from "../dynamic-form-field";
 import type { VisaFormFieldRow } from "@/types/visa-form-fields";
 
 let mockLocale = "zh";
+
+beforeAll(() => {
+  if (!("ResizeObserver" in globalThis)) {
+    globalThis.ResizeObserver = class ResizeObserver {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    };
+  }
+});
 
 vi.mock("next-intl", () => ({
   useLocale: () => mockLocale,
@@ -30,6 +40,113 @@ function field(overrides: Partial<VisaFormFieldRow>): VisaFormFieldRow {
 }
 
 describe("DynamicFormField localization", () => {
+  it("gives number controls their localized field label as an accessible name", () => {
+    render(
+      <DynamicFormField
+        field={field({
+          id: "planned-stay",
+          visaType: "JP_VISIT_JAPAN_WEB",
+          fieldName: "planned_stay_days",
+          label: "计划停留天数",
+          fieldType: "number",
+          validationRules: { label_zh: "计划停留天数" },
+        })}
+        value=""
+        onChange={vi.fn()}
+        displayLocale="zh"
+      />,
+    );
+
+    expect(screen.getByRole("spinbutton", { name: "计划停留天数" })).toBeInTheDocument();
+  });
+
+  it("renders an explicit Does Not Apply checkbox for the DS-160 Social Security Number", () => {
+    const onChange = vi.fn();
+    const ssnField = field({
+      id: "us-social-security-number",
+      visaType: "DS160",
+      fieldName: "us_social_security_number",
+      label: "U.S. Social Security Number",
+      fieldType: "text",
+      required: true,
+      validationRules: { allow_does_not_apply: true },
+    });
+
+    const { rerender } = render(
+      <DynamicFormField
+        field={ssnField}
+        value=""
+        onChange={onChange}
+        displayLocale="zh"
+      />,
+    );
+
+    const doesNotApply = screen.getByRole("checkbox", { name: "dynamicField.doesNotApply" });
+    expect(doesNotApply).not.toBeChecked();
+    fireEvent.click(doesNotApply);
+    expect(onChange).toHaveBeenCalledWith("DOES_NOT_APPLY");
+
+    rerender(
+      <DynamicFormField
+        field={ssnField}
+        value="DOES_NOT_APPLY"
+        onChange={onChange}
+        displayLocale="zh"
+      />,
+    );
+
+    expect(screen.getByRole("checkbox", { name: "dynamicField.doesNotApply" })).toBeChecked();
+    expect(screen.queryByLabelText("dynamicField.usSocialSecurityNumber")).not.toBeInTheDocument();
+    expect(screen.getAllByText("dynamicField.doesNotApply")).toHaveLength(2);
+  });
+
+  it("keeps an unsupported sentinel editable and lets an allowed sentinel clear", () => {
+    const onChange = vi.fn();
+    const unsupportedField = field({
+      id: "employer-name",
+      visaType: "DS160",
+      fieldName: "employer_name",
+      label: "Employer name",
+      fieldType: "text",
+      validationRules: { maxLength: 75 },
+    });
+    const { rerender } = render(
+      <DynamicFormField
+        field={unsupportedField}
+        value="DOES_NOT_APPLY"
+        onChange={onChange}
+        displayLocale="en"
+      />,
+    );
+
+    const editableInput = screen.getByRole("textbox", { name: "Employer name" });
+    expect(editableInput).not.toBeDisabled();
+    expect(editableInput).toHaveValue("DOES_NOT_APPLY");
+    fireEvent.change(editableInput, { target: { value: "NUS" } });
+    expect(onChange).toHaveBeenCalledWith("NUS");
+    expect(screen.queryByRole("checkbox", { name: "Does not apply" })).not.toBeInTheDocument();
+
+    const allowedField = field({
+      ...unsupportedField,
+      validationRules: { allow_does_not_apply: true, maxLength: 75 },
+    });
+    rerender(
+      <DynamicFormField
+        field={allowedField}
+        value="DOES_NOT_APPLY"
+        onChange={onChange}
+        displayLocale="en"
+      />,
+    );
+
+    const doesNotApply = screen.getByRole("checkbox", { name: "Does not apply" });
+    expect(doesNotApply).toBeChecked();
+    expect(doesNotApply).not.toBeDisabled();
+    expect(screen.getByRole("textbox", { name: "Employer name" })).toBeDisabled();
+    fireEvent.click(doesNotApply);
+    expect(onChange).toHaveBeenCalledWith("");
+  });
+
   it("renders an official text autocomplete while preserving free entry", () => {
     const onChange = vi.fn();
     const departureField = field({
@@ -90,7 +207,7 @@ describe("DynamicFormField localization", () => {
     expect(screen.queryByText("Tourism")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByLabelText("旅游"));
-    await waitFor(() => expect(onChange).toHaveBeenCalledWith("tourism"));
+    expect(onChange).toHaveBeenCalledWith("tourism");
 
     mockLocale = "en";
     rerender(
@@ -133,7 +250,7 @@ describe("DynamicFormField localization", () => {
     const indicators = container.querySelectorAll("[data-application-radio]");
     expect(indicators[0]).toBeEmptyDOMElement();
     expect(indicators[1]).not.toBeEmptyDOMElement();
-    await waitFor(() => expect(onChange).toHaveBeenCalledWith("female"));
+    expect(onChange).toHaveBeenCalledWith("female");
   });
 
   it("renders a searchable selector when a radio schema has twelve or more options", () => {
@@ -187,8 +304,7 @@ describe("DynamicFormField localization", () => {
     fireEvent.click(screen.getByRole("option", { name: "女" }));
 
     expect(screen.getByRole("combobox")).toHaveTextContent("女");
-    expect(onChange).not.toHaveBeenCalled();
-    await waitFor(() => expect(onChange).toHaveBeenCalledWith("female"));
+    expect(onChange).toHaveBeenCalledWith("female");
   });
 
   it("does not let empty dependent selects fall back to a free-text input", () => {

@@ -1,25 +1,7 @@
 import { NextRequest } from "next/server";
-import { getClientSessionWithFallback } from "@/lib/client-session";
-import { consumeRateLimit, exceedsBodyLimit, getClientIp } from "@/lib/api/rate-limit-ip";
+import { normalizeInterfaceLocale, type InterfaceLocale } from "@/lib/i18n/locale";
 
 type Message = { role: "user" | "assistant"; content: string };
-
-const MAX_MESSAGES = 120;
-const MAX_MESSAGE_CHARS = 4_000;
-const MAX_BODY_BYTES = 512 * 1024;
-
-/** Validate the client-controlled `messages` array is a well-formed interview transcript. */
-function isValidMessages(value: unknown): value is Message[] {
-  if (!Array.isArray(value) || value.length < 2 || value.length > MAX_MESSAGES) return false;
-  return value.every(
-    (item) =>
-      Boolean(item) &&
-      typeof item === "object" &&
-      ((item as Message).role === "user" || (item as Message).role === "assistant") &&
-      typeof (item as Message).content === "string" &&
-      (item as Message).content.length <= MAX_MESSAGE_CHARS,
-  );
-}
 
 /**
  * Practice-session summary.
@@ -47,17 +29,9 @@ export interface InterviewReport {
   }>;
 }
 
-// OpenAI-compatible endpoint. Defaults to local Ollama in development; point
-// LLM_BASE_URL at api.openai.com/v1 (with a real LLM_API_KEY) to use a hosted
-// provider instead. In production an unset LLM_BASE_URL resolves to null so we
-// never silently forward applicant transcripts to a localhost default — the
-// caller falls back to the deterministic local report instead.
-function resolveLlmBaseUrl(): string | null {
-  const configured = process.env.LLM_BASE_URL?.trim();
-  if (configured) return configured;
-  if (process.env.NODE_ENV === "production") return null;
-  return "http://localhost:11434/v1";
-}
+// OpenAI-compatible endpoint. Defaults to local Ollama; point LLM_BASE_URL at
+// api.openai.com/v1 (with a real LLM_API_KEY) to use a hosted provider instead.
+const LLM_BASE_URL = process.env.LLM_BASE_URL ?? "http://localhost:11434/v1";
 // Report = a pure scoring task, so default to a smaller/faster model than the
 // interviewer. Override with LLM_REPORT_MODEL (falls back to the shared model).
 const LLM_MODEL =
@@ -80,38 +54,40 @@ function clampScore(score: number): number {
   return Math.max(35, Math.min(92, Math.round(score)));
 }
 
-function localScore(question: string, answer: string): LlmScore {
+function localScore(question: string, answer: string, locale: InterfaceLocale): LlmScore {
   const text = answer.trim();
   let score = 50;
   if (text.length >= 8) score += 8;
   if (text.length >= 18) score += 8;
   if (text.length >= 36) score += 6;
   if (/\d/.test(text)) score += 6;
-  if (/纽约|洛杉矶|旧金山|芝加哥|波士顿|拉斯维加斯|西雅图|华盛顿|迈阿密|奥兰多|夏威夷|城市/i.test(text)) score += 6;
-  if (/美元|美金|人民币|费用|预算|存款|银行|流水|工资|收入|资助|自费|钱/.test(text)) score += 6;
-  if (/天|周|月|号|日期|时间|行程|回程|机票/.test(text)) score += 5;
-  if (/工作|公司|单位|机构|职位|上班|请假|学生|学校|业务|生意/.test(text)) score += 5;
-  if (/家人|父母|孩子|妻子|丈夫|配偶|家庭|房子|回国|回来|项目/.test(text)) score += 5;
-  if (/不知道|随便|没有|不清楚|还没想|无所谓|^1$|^好$/.test(text)) score -= 18;
+  if (/纽约|洛杉矶|旧金山|芝加哥|波士顿|拉斯维加斯|西雅图|华盛顿|迈阿密|奥兰多|夏威夷|城市|new york|los angeles|san francisco|chicago|boston|las vegas|seattle|washington|miami|orlando|hawaii|city/i.test(text)) score += 6;
+  if (/美元|美金|人民币|费用|预算|存款|银行|流水|工资|收入|资助|自费|钱|dollars?|budget|savings?|bank|salary|income|sponsor|self.funded|money/i.test(text)) score += 6;
+  if (/天|周|月|号|日期|时间|行程|回程|机票|days?|weeks?|months?|dates?|itinerary|return|flight/i.test(text)) score += 5;
+  if (/工作|公司|单位|机构|职位|上班|请假|学生|学校|业务|生意|work|company|organization|job|leave|student|school|business/i.test(text)) score += 5;
+  if (/家人|父母|孩子|妻子|丈夫|配偶|家庭|房子|回国|回来|项目|family|parents?|children|wife|husband|spouse|home|return|project/i.test(text)) score += 5;
+  if (/不知道|随便|没有|不清楚|还没想|无所谓|^1$|^好$|don.t know|whatever|not sure|^okay$/i.test(text)) score -= 18;
 
   const finalScore = clampScore(score);
   const flag = finalScore >= 78 ? "strong" : finalScore < 62 ? "weak" : "neutral";
-  const topic = /费用|预算|资助/.test(question) ? "资金"
-    : /工作|公司|机构/.test(question) ? "工作"
-    : /家里|牵挂|回国/.test(question) ? "约束"
-    : /城市|住宿|行程/.test(question) ? "行程"
-    : /多长|回程|时间/.test(question) ? "时间"
-    : "目的";
-  const note = flag === "strong" ? "细节较具体"
-    : flag === "weak" ? "缺少关键事实"
-    : "可再补充细节";
+  const en = locale === "en";
+  const topic = /费用|预算|资助|cost|budget|pay|sponsor/i.test(question) ? (en ? "Funding" : "资金")
+    : /工作|公司|机构|work|company|organization/i.test(question) ? (en ? "Work" : "工作")
+    : /家里|牵挂|回国|family|ties|home/i.test(question) ? (en ? "Home ties" : "约束")
+    : /城市|住宿|行程|cities|city|accommodation|itinerary/i.test(question) ? (en ? "Itinerary" : "行程")
+    : /多长|回程|时间|how long|return|time/i.test(question) ? (en ? "Timing" : "时间")
+    : (en ? "Purpose" : "目的");
+  const note = flag === "strong" ? (en ? "Specific details provided" : "细节较具体")
+    : flag === "weak" ? (en ? "Key facts are missing" : "缺少关键事实")
+    : (en ? "Add more specific details" : "可再补充细节");
 
   return { index: 0, score: finalScore, flag, note, topic };
 }
 
-function buildLocalReport(messages: Message[]): InterviewReport {
-  const pairs = buildPairs(messages).filter((pair) => pair.question !== "好的，今天的面试到这里就结束了，感谢您的配合。");
-  const scored = pairs.map((pair, i) => ({ pair, i, score: localScore(pair.question, pair.answer) }));
+function buildLocalReport(messages: Message[], locale: InterfaceLocale): InterviewReport {
+  const en = locale === "en";
+  const pairs = buildPairs(messages).filter((pair) => !["好的，今天的面试到这里就结束了，感谢您的配合。", "That concludes today's interview. Thank you for your time."].includes(pair.question));
+  const scored = pairs.map((pair, i) => ({ pair, i, score: localScore(pair.question, pair.answer, locale) }));
   const avg = scored.length
     ? scored.reduce((sum, item) => sum + item.score.score, 0) / scored.length
     : 60;
@@ -159,41 +135,23 @@ type LlmScore = {
 };
 
 export async function POST(request: NextRequest) {
-  const session = await getClientSessionWithFallback();
-  if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  if (exceedsBodyLimit(request, MAX_BODY_BYTES)) {
-    return Response.json({ error: "Payload too large" }, { status: 413 });
-  }
-  if (
-    !consumeRateLimit(`interview-report:${session.userId}`, { limit: 20, windowMs: 60_000 }) ||
-    !consumeRateLimit(`interview-report-ip:${getClientIp(request)}`, { limit: 40, windowMs: 60_000 })
-  ) {
-    return Response.json({ error: "Too many requests. Please try again shortly." }, { status: 429 });
-  }
-
+  let locale = normalizeInterfaceLocale(request.cookies.get("NEXT_LOCALE")?.value ?? "zh");
   let messages: Message[];
   try {
-    ({ messages } = (await request.json()) as { messages: Message[] });
+    const body = (await request.json()) as { messages: Message[]; locale?: string };
+    messages = body.messages;
+    if (body.locale) locale = normalizeInterfaceLocale(body.locale);
   } catch {
-    return Response.json({ error: "Invalid request body" }, { status: 400 });
+    return Response.json({ error: locale === "en" ? "Invalid interview request." : "面试请求无效。" }, { status: 400 });
   }
 
-  if (!isValidMessages(messages)) {
-    return Response.json({ error: "对话记录不足，无法生成报告" }, { status: 400 });
+  if (!Array.isArray(messages) || messages.length < 2) {
+    return Response.json({ error: locale === "en" ? "There are not enough answers to generate a report." : "对话记录不足，无法生成报告" }, { status: 400 });
   }
 
   const pairs = buildPairs(messages);
   if (pairs.length === 0) {
-    return Response.json({ error: "对话记录不足，无法生成报告" }, { status: 400 });
-  }
-
-  const llmBaseUrl = resolveLlmBaseUrl();
-  if (!llmBaseUrl) {
-    // Production with no LLM endpoint configured: serve the deterministic local
-    // report instead of reaching out to a localhost default.
-    return Response.json(buildLocalReport(messages));
+    return Response.json({ error: locale === "en" ? "There are not enough answers to generate a report." : "对话记录不足，无法生成报告" }, { status: 400 });
   }
 
   // The model only scores each numbered Q&A; the question/answer text itself is
@@ -228,10 +186,12 @@ ${numbered}
 
 不要输出通过概率、每题优劣判断，或如何改进回答的建议。
 
-评分维度：clarity 表达清晰度、confidence 回答的置信感、consistency 前后一致性、narrativeAlignment 与真实情况的符合度。`;
+评分维度：clarity 表达清晰度、confidence 回答的置信感、consistency 前后一致性、narrativeAlignment 与真实情况的符合度。
+
+${locale === "en" ? "The user selected English. Write every topic value in English, regardless of the transcript language. Preserve the specified JSON keys exactly." : "用户选择中文。所有 topic 内容必须使用中文，即使对话记录是其他语言。保留指定的 JSON 字段。"}`;
 
   try {
-    const res = await fetch(`${llmBaseUrl}/chat/completions`, {
+    const res = await fetch(`${LLM_BASE_URL}/chat/completions`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${LLM_API_KEY}`,
@@ -239,8 +199,8 @@ ${numbered}
       },
       body: JSON.stringify({
         model: LLM_MODEL,
-        ...(!llmBaseUrl.includes("api.openai.com") ? { temperature: 0.3 } : {}),
-        ...(llmBaseUrl.includes("api.openai.com")
+        ...(!LLM_BASE_URL.includes("api.openai.com") ? { temperature: 0.3 } : {}),
+        ...(LLM_BASE_URL.includes("api.openai.com")
           ? { max_completion_tokens: 1200 }
           : { max_tokens: 1200 }),
         response_format: { type: "json_object" },
@@ -249,8 +209,7 @@ ${numbered}
     });
 
     if (!res.ok) {
-      const text = await res.text();
-      return Response.json({ error: text }, { status: res.status });
+      return Response.json(buildLocalReport(messages, locale));
     }
 
     const payload = (await res.json()) as {
@@ -269,7 +228,7 @@ ${numbered}
     try {
       parsed = JSON.parse(raw);
     } catch {
-      return Response.json(buildLocalReport(messages));
+      return Response.json(buildLocalReport(messages, locale));
     }
 
     const scoreByIndex = new Map<number, LlmScore>();
@@ -285,7 +244,7 @@ ${numbered}
           question: truncate(pair.question, 60),
           answer: truncate(pair.answer, 60),
           timestamp: timestampForIndex(i),
-          topic: s?.topic ?? "综合评估",
+          topic: s?.topic ?? (locale === "en" ? "Overall assessment" : "综合评估"),
         };
       }
     );
@@ -303,6 +262,6 @@ ${numbered}
 
     return Response.json(report);
   } catch {
-    return Response.json(buildLocalReport(messages));
+    return Response.json(buildLocalReport(messages, locale));
   }
 }

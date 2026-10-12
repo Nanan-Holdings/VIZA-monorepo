@@ -13,9 +13,7 @@ import {
   Robot as Bot,
   Calendar,
   CaretRight as ChevronRight,
-  CurrencyCircleDollar as CircleDollarSign,
   ClipboardText as ClipboardList,
-  CreditCard,
   Database as DatabaseBackup,
   Globe as Globe2,
   Headphones,
@@ -34,9 +32,6 @@ import {
   GearSix as ServerCog,
   Gear as Settings,
   ShieldCheck,
-  ShoppingCart,
-  Tag as Tags,
-  ArrowCounterClockwise as Undo2,
   UserPlus,
   Users,
 } from "@phosphor-icons/react";
@@ -47,7 +42,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { LOCALE_COOKIE, normalizeInterfaceLocale } from "@/lib/i18n/locale";
+import { normalizeInterfaceLocale, setInterfaceLocalePreference } from "@/lib/i18n/locale";
 import { cn } from "@/lib/utils";
 
 interface Route {
@@ -57,14 +52,14 @@ interface Route {
 }
 
 type AdminNavKey =
-  | "dashboard" | "accounts" | "applications" | "coverage" | "billing"
-  | "support" | "orders" | "products" | "cataloguePublication"
-  | "consultations" | "work" | "takeovers" | "chat" | "revenue"
-  | "pricing" | "metrics" | "portalHealth" | "notificationDlq" | "backups"
-  | "costs" | "analytics" | "marketing" | "privacy" | "refunds" | "leads" | "audit" | "team";
+  | "dashboard" | "accounts" | "applications" | "coverage"
+  | "support" | "products" | "cataloguePublication" | "consultations"
+  | "work" | "takeovers" | "chat" | "metrics" | "portalHealth"
+  | "notificationDlq" | "backups" | "costs" | "analytics" | "privacy"
+  | "leads" | "audit" | "team" | "marketing";
 
 type AdminNavSectionKey =
-  | "control" | "growth" | "cases" | "customers" | "commerce" | "platform" | "catalogue" | "administration";
+  | "control" | "growth" | "cases" | "customers" | "platform" | "catalogue" | "administration";
 
 interface AdminNavSection {
   labelKey: AdminNavSectionKey;
@@ -75,15 +70,15 @@ const ADMIN_COPY = {
   en: {
     nav: {
       dashboard: "Dashboard", accounts: "Accounts", applications: "Applications", coverage: "Coverage",
-      billing: "Billing", support: "Support", orders: "Orders", products: "Products",
+      support: "Support", products: "Products",
       cataloguePublication: "Marketing publication", consultations: "Appointments", work: "Work queue",
-      takeovers: "Takeovers", chat: "Live chat", revenue: "Revenue", pricing: "Pricing",
+      takeovers: "Takeovers", chat: "Live chat",
       metrics: "Runner metrics", portalHealth: "Portal health", notificationDlq: "Notification DLQ",
-      backups: "Backups", costs: "Costs", analytics: "Analytics", marketing: "Marketing ops", privacy: "Privacy requests",
-      refunds: "Refunds & disputes", leads: "Leads", audit: "Audit log", team: "Team & workload",
+      backups: "Backups", costs: "Costs", analytics: "Analytics", privacy: "Privacy requests",
+      leads: "Leads", audit: "Audit log", team: "Team & workload", marketing: "Marketing ops",
     },
     sections: {
-      control: "Control tower", growth: "Growth", cases: "Cases", customers: "Customers", commerce: "Commerce",
+      control: "Control tower", growth: "Growth", cases: "Cases", customers: "Customers",
       platform: "Platform", catalogue: "Catalogue", administration: "Administration",
     },
     admin: "Admin",
@@ -98,15 +93,15 @@ const ADMIN_COPY = {
   zh: {
     nav: {
       dashboard: "仪表盘", accounts: "账户", applications: "申请", coverage: "覆盖范围",
-      billing: "账单", support: "客服", orders: "订单", products: "产品",
+      support: "客服", products: "产品",
       cataloguePublication: "营销发布", consultations: "预约", work: "工作队列",
-      takeovers: "人工接管", chat: "在线聊天", revenue: "收入", pricing: "定价",
+      takeovers: "人工接管", chat: "在线聊天",
       metrics: "自动化指标", portalHealth: "门户健康", notificationDlq: "通知死信队列",
-      backups: "备份", costs: "成本", analytics: "分析", marketing: "营销运营", privacy: "隐私请求",
-      refunds: "退款与争议", leads: "销售线索", audit: "审计日志", team: "团队与工作量",
+      backups: "备份", costs: "成本", analytics: "分析", privacy: "隐私请求",
+      leads: "销售线索", audit: "审计日志", team: "团队与工作量", marketing: "营销运营",
     },
     sections: {
-      control: "运营控制台", growth: "增长", cases: "申请案件", customers: "客户", commerce: "交易",
+      control: "运营控制台", growth: "增长", cases: "申请案件", customers: "客户",
       platform: "平台", catalogue: "产品目录", administration: "系统管理",
     },
     admin: "管理后台",
@@ -141,12 +136,6 @@ const adminNavSections: AdminNavSection[] = [
     { labelKey: "chat", icon: MessageSquare, href: "/admin/chat" },
     { labelKey: "privacy", icon: ShieldCheck, href: "/admin/privacy" },
   ] },
-  { labelKey: "commerce", routes: [
-    { labelKey: "orders", icon: ShoppingCart, href: "/admin/orders" },
-    { labelKey: "billing", icon: CreditCard, href: "/admin/billing" },
-    { labelKey: "refunds", icon: Undo2, href: "/admin/refunds" },
-    { labelKey: "revenue", icon: CircleDollarSign, href: "/admin/revenue" },
-  ] },
   { labelKey: "platform", routes: [
     { labelKey: "portalHealth", icon: Activity, href: "/admin/portal-health" },
     { labelKey: "metrics", icon: ServerCog, href: "/admin/metrics" },
@@ -156,7 +145,6 @@ const adminNavSections: AdminNavSection[] = [
   ] },
   { labelKey: "catalogue", routes: [
     { labelKey: "coverage", icon: Map, href: "/admin/packages" },
-    { labelKey: "pricing", icon: Tags, href: "/admin/pricing" },
     { labelKey: "products", icon: Package, href: "/admin/products" },
     { labelKey: "cataloguePublication", icon: Globe2, href: "/admin/catalogue-publication" },
   ] },
@@ -167,19 +155,22 @@ const adminNavSections: AdminNavSection[] = [
 ];
 
 const adminRoutes = adminNavSections.flatMap((section) => section.routes);
+const staffNavSections: AdminNavSection[] = [
+  { labelKey: "growth", routes: [{ labelKey: "marketing", icon: Megaphone, href: "/admin/marketing" }] },
+];
 
 function initialsFor(name: string) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "VA";
 }
 
-function AdminNavigation({ onNavigate }: { onNavigate?: () => void }) {
+function AdminNavigation({ onNavigate, userRole }: { onNavigate?: () => void; userRole: string }) {
   const locale = normalizeInterfaceLocale(useLocale());
   const copy = ADMIN_COPY[locale];
   const pathname = usePathname();
 
   return (
     <nav className="space-y-5 px-3 py-4" aria-label={copy.admin}>
-      {adminNavSections.map((section) => (
+      {(userRole === "staff" ? staffNavSections : adminNavSections).map((section) => (
         <section key={section.labelKey}>
           <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">
             {copy.sections[section.labelKey]}
@@ -230,7 +221,7 @@ function AdminLanguageSwitcher() {
   const router = useRouter();
   const copy = ADMIN_COPY[locale];
   const setLocale = (nextLocale: "en" | "zh") => {
-    document.cookie = `${LOCALE_COOKIE}=${nextLocale}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
+    setInterfaceLocalePreference(nextLocale);
     router.refresh();
   };
 
@@ -266,7 +257,7 @@ function AdminSidebar({ userName, userRole }: { userName: string; userRole: stri
         <Image src="/logo/viza-logo-black.svg" alt="VIZA" width={88} height={25} priority />
         <Badge variant="secondary" className="font-medium">{copy.admin}</Badge>
       </div>
-      <ScrollArea className="min-h-0 flex-1"><AdminNavigation /></ScrollArea>
+      <ScrollArea className="min-h-0 flex-1"><AdminNavigation userRole={userRole} /></ScrollArea>
       <div className="border-t border-sidebar-border p-3">
         <div className="flex items-center gap-2 rounded-lg p-2">
           <AdminIdentity userName={userName} userRole={userRole} />
@@ -286,7 +277,7 @@ function AdminTopBar({ userName, userRole }: { userName: string; userRole: strin
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-  const route = adminRoutes.find((item) => pathname === item.href || (item.href !== "/admin" && pathname.startsWith(`${item.href}/`)));
+  const route = (userRole === "staff" ? staffNavSections.flatMap((section) => section.routes) : adminRoutes).find((item) => pathname === item.href || (item.href !== "/admin" && pathname.startsWith(`${item.href}/`)));
   const pageTitle = route ? copy.nav[route.labelKey] : copy.nav.dashboard;
 
   return (
@@ -302,7 +293,7 @@ function AdminTopBar({ userName, userRole }: { userName: string; userRole: strin
               <Image src="/logo/viza-logo-black.svg" alt="VIZA" width={88} height={25} />
               <Badge variant="secondary">{copy.admin}</Badge>
             </div>
-            <ScrollArea className="min-h-0 flex-1"><AdminNavigation onNavigate={() => setOpen(false)} /></ScrollArea>
+            <ScrollArea className="min-h-0 flex-1"><AdminNavigation userRole={userRole} onNavigate={() => setOpen(false)} /></ScrollArea>
             <Separator />
             <div className="p-4"><AdminIdentity userName={userName} userRole={userRole} /></div>
           </SheetContent>
@@ -313,12 +304,12 @@ function AdminTopBar({ userName, userRole }: { userName: string; userRole: strin
         <p className="hidden text-xs text-muted-foreground sm:block">{copy.admin}</p>
       </div>
       <AdminLanguageSwitcher />
-      <Button asChild variant="ghost" size="icon" className="hidden sm:inline-flex">
+      {userRole === "admin" ? <Button asChild variant="ghost" size="icon" className="hidden sm:inline-flex">
         <Link href="/admin/notifications/dlq" aria-label={copy.nav.notificationDlq}><Bell className="size-4" /></Link>
-      </Button>
-      <Button asChild variant="ghost" size="icon" className="hidden sm:inline-flex">
+      </Button> : null}
+      {userRole === "admin" ? <Button asChild variant="ghost" size="icon" className="hidden sm:inline-flex">
         <Link href="/admin/team" aria-label={copy.nav.team}><Settings className="size-4" /></Link>
-      </Button>
+      </Button> : null}
       <Separator orientation="vertical" className="hidden h-8 sm:block" />
       <AdminIdentity userName={userName} userRole={userRole} compact />
     </header>

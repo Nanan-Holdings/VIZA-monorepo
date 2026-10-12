@@ -2,19 +2,18 @@ import { randomInt } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { chromium, type Browser, type Page } from "playwright";
+import { chromium,type Browser,type Page } from "playwright";
 import {
-  browserbaseEnabled,
-  connectBrowserbaseCloudBrowser,
+browserbaseEnabled,
+connectBrowserbaseCloudBrowser,
 } from "../browserbase-session";
 import { ensureApplicantInboxAlias } from "../inbox/alias";
 import { extractAuto } from "../inbox/extractors/index";
 import { inbox } from "../inbox/wait-for-message";
-import { decryptSecret, encryptSecret } from "../secret-cipher";
+import { decryptSecret,encryptSecret } from "../secret-cipher";
 import { findMissingAppointmentFields } from "../appointment-free-smoke";
 import { loadCanonicalAnswers } from "../queue/answers";
 import { supabase } from "../supabase";
-import { consumeJapanVfsPaymentSession } from "./payment-session";
 
 export type JapanVfsCheckpoint = "login" | "captcha" | "waf" | "identity_verification" | "selector_drift" | "no_slots" | "payment";
 
@@ -353,25 +352,7 @@ async function extractSlots(page: Page): Promise<JapanVfsSlotObservation[]> {
 }
 
 async function fillHostedPayment(page: Page, input: JapanVfsBookingInput): Promise<boolean> {
-  const card = consumeJapanVfsPaymentSession(input.paymentSessionId, input.jobId);
-  if (!card) return false;
-  const scopes = [page, ...page.frames()];
-  const fill = async (selectors: string, value: string) => {
-    for (const scope of scopes) {
-      const field = scope.locator(selectors).first();
-      if (await field.isVisible({ timeout: 750 }).catch(() => false)) { await field.fill(value); return true; }
-    }
-    return false;
-  };
-  if (!await fill("input[autocomplete='cc-number'], input[name*='card' i][name*='number' i], input[placeholder*='card number' i]", card.pan)) return false;
-  await fill("input[autocomplete='cc-name'], input[name*='holder' i], input[placeholder*='name on card' i]", card.holderName);
-  const combined = await fill("input[autocomplete='cc-exp'], input[name*='expir' i], input[placeholder*='MM/YY' i]", `${card.expiryMonth}/${card.expiryYear.slice(-2)}`);
-  if (!combined) {
-    await fill("input[name*='month' i]", card.expiryMonth);
-    await fill("input[name*='year' i]", card.expiryYear);
-  }
-  if (!await fill("input[autocomplete='cc-csc'], input[name*='cvv' i], input[name*='cvc' i], input[placeholder*='CVV' i]", card.cvv)) return false;
-  return clickVisible(page, /pay now|pay|submit payment|continue/i);
+  return false;
 }
 
 function checkpointForText(text: string): JapanVfsCheckpoint | null {

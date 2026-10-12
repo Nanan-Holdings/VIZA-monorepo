@@ -588,10 +588,7 @@ export function buildLifecycleSummary(bundle: ApplicationAutomationBundle): Life
   );
   const packet = buildPacketStateSummary(bundle.application, bundle.packets);
   const checklist = {
-    payment:
-      payment.status === "paid" ||
-      payment.status === "partially_refunded" ||
-      payment.status === "refunded",
+    payment: true, // Compatibility only: payment is no longer a lifecycle prerequisite.
     consent: consent.status === "complete",
     documents: documents.status === "ready",
     packet: packetIsReady(packet),
@@ -599,7 +596,6 @@ export function buildLifecycleSummary(bundle: ApplicationAutomationBundle): Life
     result: Boolean(packet.resultStatus || packet.resultStoragePath),
   };
   const blockers: string[] = [];
-  if (!checklist.payment) blockers.push("payment");
   if (!checklist.consent) blockers.push("consent");
   if (documents.status === "coverage_gap") blockers.push("document_coverage");
   else if (!checklist.documents) blockers.push("documents");
@@ -607,10 +603,7 @@ export function buildLifecycleSummary(bundle: ApplicationAutomationBundle): Life
   let lifecycleStage: LifecycleSummary["lifecycleStage"] = "complete";
   let nextAction: LifecycleSummary["nextAction"] = "view_result";
 
-  if (!checklist.payment) {
-    lifecycleStage = "payment";
-    nextAction = "complete_payment";
-  } else if (!checklist.consent) {
+  if (!checklist.consent) {
     lifecycleStage = "consent";
     nextAction = "accept_consent";
   } else if (!checklist.documents) {
@@ -697,24 +690,9 @@ export async function readApplicationAutomationBundles(
         "id, application_id, document_type, requirement_key, storage_path, filename, status, rejection_reason, required, review_notes, reviewed_at, reviewed_by, created_at, updated_at",
       )
       .in("application_id", applicationIds),
-    adminClient
-      .from<PaymentRecordRow>("payment_records")
-      .select(
-        "id, application_id, applicant_id, visa_package_id, provider, provider_session_id, provider_payment_id, amount_cents, currency, status, fee_type, receipt_url, metadata, created_at, updated_at",
-      )
-      .in("application_id", applicationIds),
-    adminClient
-      .from<InvoiceRequestRow>("invoice_requests")
-      .select(
-        "id, payment_record_id, application_id, applicant_id, invoice_name, tax_identifier, billing_email, status, notes, created_at, updated_at",
-      )
-      .in("application_id", applicationIds),
-    adminClient
-      .from<RefundRecordRow>("refund_records")
-      .select(
-        "id, payment_record_id, application_id, applicant_id, amount_cents, currency, status, reason, policy_snapshot, created_at, updated_at",
-      )
-      .in("application_id", applicationIds),
+    Promise.resolve({ data: [] as PaymentRecordRow[], error: null }),
+    Promise.resolve({ data: [] as InvoiceRequestRow[], error: null }),
+    Promise.resolve({ data: [] as RefundRecordRow[], error: null }),
     adminClient
       .from<ConsentEventRow>("consent_events")
       .select("id, application_id, applicant_id, consent_type, version, accepted, document_hash, created_at")

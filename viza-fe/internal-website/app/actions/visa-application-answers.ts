@@ -6,6 +6,7 @@ import {
   getClientSessionWithFallback,
   type ClientSession,
 } from "@/lib/client-session";
+import { getOwnedApplicantSession } from "@/lib/application-api-auth";
 import {
   resolveApplicantProfileForAuthUser,
   type ApplicantProfileIdentityRow,
@@ -33,6 +34,7 @@ import {
 import { getChineseLabel, getEnglishLabel } from "@/lib/ds160-translations";
 import { normalizeBilingualFormField } from "@/lib/bilingual-schema-contract";
 import { retryTransientSupabaseResult } from "@/lib/supabase/fetch-with-timeout";
+import { getCachedStaticVisaMetadata } from "@/lib/static-visa-metadata-cache";
 import {
   cacheApplicationAnswers,
   isResilienceEligibleError,
@@ -54,6 +56,7 @@ import {
   JP_VJW_PAYLOAD_VALIDATION_ERROR_CODE,
   shouldResetJpVjwPreflightAfterAnswerSave,
 } from "@/lib/application-submission-display";
+import { hasSuccessfulFormSubmission } from "@/lib/form-assistant/submission-readonly";
 import {
   isQaDryRunPurpose,
   isSyntheticQaValue,
@@ -72,6 +75,16 @@ type ApplicationOwnerProfile = {
   id?: string | null;
   auth_user_id?: string | null;
   dependant_of_user_id?: string | null;
+};
+
+type ApplicationOwnerRelation =
+  | ApplicationOwnerProfile
+  | ApplicationOwnerProfile[]
+  | null;
+
+type ApplicationWithOwner = Record<string, unknown> & {
+  applicant_id?: string | null;
+  applicant_profiles?: ApplicationOwnerRelation;
 };
 
 type UniversalProfileSaveInput = Omit<
@@ -375,34 +388,56 @@ function groupUniversalSchemaRows(rows: VisaFormFieldDbRow[]) {
 
 async function loadUniversalProfileSchemaDefinitions(
   adminClient: ReturnType<typeof createAdminClient>
-) {
-  const pageSize = 1_000;
-  const rows: VisaFormFieldDbRow[] = [];
+): Promise<{
+  fields: UniversalProfileFieldDefinition[];
+  error?: string;
+}> {
+  try {
+    return await getCachedStaticVisaMetadata<{
+      fields: UniversalProfileFieldDefinition[];
+    }>("universal-profile-field-definitions:v1", async () => {
+      const rows = await getCachedStaticVisaMetadata<VisaFormFieldDbRow[]>(
+        "visa-form-fields:v1:all",
+        async () => {
+          const pageSize = 1_000;
+          const allRows: VisaFormFieldDbRow[] = [];
 
-  for (let from = 0; ; from += pageSize) {
-    const { data, error } = await adminClient
-      .from("visa_form_fields")
-      .select("*")
-      .order("visa_type", { ascending: true })
-      .order("step_number", { ascending: true })
-      .order("display_order", { ascending: true })
-      .range(from, from + pageSize - 1);
+          for (let from = 0; ; from += pageSize) {
+            const { data, error } = await adminClient
+              .from("visa_form_fields")
+              .select("*")
+              .order("visa_type", { ascending: true })
+              .order("step_number", { ascending: true })
+              .order("display_order", { ascending: true })
+              .range(from, from + pageSize - 1);
+            if (error) throw new Error(error.message);
 
-    if (error)
+            const page = (data ?? []) as VisaFormFieldDbRow[];
+            allRows.push(...page);
+            if (page.length < pageSize) break;
+          }
+          return allRows;
+        },
+        {
+          shouldCache: (schemaRows) => schemaRows.length > 0,
+        },
+      );
+
       return {
-        fields: [] as UniversalProfileFieldDefinition[],
-        error: error.message,
+        fields: buildUniversalProfileFieldDefinitions(
+          groupUniversalSchemaRows(rows)
+        ),
       };
-    const page = (data ?? []) as VisaFormFieldDbRow[];
-    rows.push(...page);
-    if (page.length < pageSize) break;
+    },
+    {
+      shouldCache: (schema) => schema.fields.length > 0,
+    });
+  } catch (error) {
+    return {
+      fields: [] as UniversalProfileFieldDefinition[],
+      error: error instanceof Error ? error.message : "Failed to load visa form schema",
+    };
   }
-
-  return {
-    fields: buildUniversalProfileFieldDefinitions(
-      groupUniversalSchemaRows(rows)
-    ),
-  };
 }
 
 async function loadApplicationOwnerProfile(
@@ -431,6 +466,93 @@ async function loadApplicationOwnerProfile(
     profile: fallbackResult.data,
     error: fallbackResult.error?.message,
   };
+}
+
+function getApplicationOwnerFromRelation(
+  relation: ApplicationOwnerRelation | undefined
+): ApplicationOwnerProfile | null {
+  if (Array.isArray(relation)) return relation[0] ?? null;
+  return relation ?? null;
+}
+
+function isApplicationOwnerRelationError(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("relationship") ||
+    normalized.includes("embed") ||
+    normalized.includes("applicant_profiles")
+  );
+}
+
+/**
+ * Load an application and its ownership identity in one PostgREST request.
+ * Older local schemas may lack dependant_of_user_id or relationship metadata;
+ * those environments retain a fail-closed two-query compatibility fallback.
+ */
+async function loadApplicationWithOwner(
+  adminClient: ReturnType<typeof createAdminClient>,
+  applicationId: string,
+  applicationColumns: string
+): Promise<{
+  application: ApplicationWithOwner | null;
+  profile: ApplicationOwnerProfile | null;
+  error?: string;
+}> {
+  const runEmbeddedQuery = (ownerColumns: string) =>
+    adminClient
+      .from("applications")
+      .select(`${applicationColumns}, applicant_profiles(${ownerColumns})`)
+      .eq("id", applicationId)
+      .maybeSingle();
+
+  let result = await runEmbeddedQuery(
+    "id, auth_user_id, dependant_of_user_id"
+  );
+  if (
+    result.error &&
+    isMissingColumnError(result.error.message, "dependant_of_user_id")
+  ) {
+    result = await runEmbeddedQuery("id, auth_user_id");
+  }
+
+  if (result.error && isApplicationOwnerRelationError(result.error.message)) {
+    const fallbackApplicationResult = await adminClient
+      .from("applications")
+      .select(applicationColumns)
+      .eq("id", applicationId)
+      .maybeSingle();
+    if (fallbackApplicationResult.error) {
+      return {
+        application: null,
+        profile: null,
+        error: fallbackApplicationResult.error.message,
+      };
+    }
+    const fallbackApplication =
+      (fallbackApplicationResult.data as ApplicationWithOwner | null) ?? null;
+    if (!fallbackApplication?.applicant_id) {
+      return { application: fallbackApplication, profile: null };
+    }
+    const fallbackOwner = await loadApplicationOwnerProfile(
+      adminClient,
+      fallbackApplication.applicant_id
+    );
+    return {
+      application: fallbackApplication,
+      profile: fallbackOwner.profile,
+      error: fallbackOwner.error,
+    };
+  }
+
+  if (result.error) {
+    return { application: null, profile: null, error: result.error.message };
+  }
+
+  const application = (result.data as ApplicationWithOwner | null) ?? null;
+  const profile = getApplicationOwnerFromRelation(
+    application?.applicant_profiles
+  );
+  return { application, profile };
 }
 
 function createApplicantProfileIdentityStore(
@@ -696,7 +818,7 @@ async function saveDynamicAnswersOnce(
     if (!normalized.ok) return { error: normalized.error };
     const answers = normalized.data;
     const savedAt = new Date().toISOString();
-    const resilienceEvent: ApplicationAnswersEvent = {
+    let resilienceEvent: ApplicationAnswersEvent = {
       version: 1,
       applicantId: session.userId,
       applicationId,
@@ -709,32 +831,51 @@ async function saveDynamicAnswersOnce(
       requestTimeoutMs: 4_000,
       retryDelaysMs: [],
     });
-    const { data: app, error: appError } = await adminClient
-      .from("applications")
-      .select(
-        "id, applicant_id, visa_type, submitted_at, submission_result, submission_result_status, updated_at"
-      )
-      .eq("id", applicationId)
-      .single();
+    const ownedApplicationResult = await loadApplicationWithOwner(
+      adminClient,
+      applicationId,
+      "id, applicant_id, country, visa_type, submitted_at, submission_result, submission_result_status, updated_at"
+    );
 
-    if (appError) {
-      if (isResilienceEligibleError(appError.message)) {
+    if (ownedApplicationResult.error) {
+      if (isResilienceEligibleError(ownedApplicationResult.error)) {
         await queueApplicationAnswers(resilienceEvent);
         return { queued: true };
       }
-      return { error: appError.message };
+      return { error: ownedApplicationResult.error };
     }
+    const app = ownedApplicationResult.application as
+      | (ApplicationWithOwner & {
+          id: string;
+          applicant_id: string;
+          country?: string | null;
+          visa_type?: string | null;
+          submitted_at?: string | null;
+          submission_result?: unknown;
+          submission_result_status?: string | null;
+          updated_at?: string | null;
+        })
+      | null;
     if (!app) return { error: "Application not found" };
-
-    const { profile, error: profileError } = await loadApplicationOwnerProfile(
-      adminClient,
-      app.applicant_id
+    const ownedSession = await getOwnedApplicantSession(
+      ownedApplicationResult.profile,
+      session
     );
-
-    if (profileError) return { error: profileError };
-    if (!ownsApplicationSession(profile, session)) {
+    if (!ownedSession) {
       return { error: "Unauthorized" };
     }
+    if (hasSuccessfulFormSubmission({
+      country: app.country,
+      visaType: app.visa_type,
+      submissionResultStatus: app.submission_result_status,
+      submissionResult: app.submission_result,
+    })) {
+      return { error: "Application is already submitted and read-only" };
+    }
+    resilienceEvent = {
+      ...resilienceEvent,
+      applicantId: ownedSession.userId,
+    };
 
     const now = savedAt;
     const emptyFieldNames = Object.entries(answers)
@@ -887,18 +1028,6 @@ async function saveDynamicAnswersOnce(
     }
     return { error: err instanceof Error ? err.message : "Failed to save" };
   }
-}
-
-function ownsApplicationSession(
-  profile: ApplicationOwnerProfile | null,
-  session: ClientSession
-): profile is ApplicationOwnerProfile & { id: string } {
-  return Boolean(
-    profile?.id &&
-    (profile.id === session.userId ||
-      (session.authUserId && profile.auth_user_id === session.authUserId) ||
-      profile.dependant_of_user_id === (session.authUserId ?? session.userId))
-  );
 }
 
 export async function saveDynamicAnswers(
@@ -1409,14 +1538,18 @@ export async function ensureDraftApplication(
     const profile = profileResult.profile;
     if (!profile?.id) return { error: "Profile not found" };
 
-    const { data: activePackage } = await adminClient
-      .from("user_packages")
-      .select("visa_package_id, visa_packages(id, country, visa_type)")
-      .eq("auth_user_id", session.authUserId ?? session.userId)
-      .eq("status", "active")
-      .order("assigned_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const activePackage = options.preferExplicit
+      ? null
+      : (
+          await adminClient
+            .from("user_packages")
+            .select("visa_package_id, visa_packages(id, country, visa_type)")
+            .eq("auth_user_id", session.authUserId ?? session.userId)
+            .eq("status", "active")
+            .order("assigned_at", { ascending: false })
+            .limit(1)
+            .maybeSingle()
+        ).data;
 
     const pkg = Array.isArray(activePackage?.visa_packages)
       ? activePackage?.visa_packages[0]
@@ -1564,7 +1697,10 @@ export async function completeKoreaEArrivalCardPreflight(input: {
       }
 
       const owner = await loadApplicationOwnerProfile(adminClient, application.applicant_id);
-      if (owner.error || !ownsApplicationSession(owner.profile, session)) {
+      const ownedSession = owner.error
+        ? null
+        : await getOwnedApplicantSession(owner.profile, session);
+      if (owner.error || !ownedSession) {
         return { ok: false, error: owner.error ?? "Unauthorized" };
       }
       if (
@@ -1605,6 +1741,72 @@ export async function completeKoreaEArrivalCardPreflight(input: {
   }
 }
 
+async function loadApplicationAnswersForOwnedSession(
+  adminClient: ReturnType<typeof createAdminClient>,
+  session: ClientSession,
+  applicationId: string,
+  applicantId: string
+): Promise<{ answers: Record<string, string>; error?: string }> {
+  const { data: rows, error } = await adminClient
+    .from("visa_application_answers")
+    .select("field_name, value_text")
+    .eq("application_id", applicationId);
+
+  if (error) {
+    if (isResilienceEligibleError(error.message)) {
+      const cached = await loadCachedApplicationAnswers(
+        session.userId,
+        applicationId
+      );
+      if (cached) return { answers: cached.answers };
+    }
+    return { answers: {}, error: error.message };
+  }
+
+  const answers: Record<string, string> = {};
+  for (const row of rows ?? []) {
+    if (!row.value_text) continue;
+    // Reserved double-underscore keys contain form metadata, not answers.
+    if (row.field_name.startsWith("__")) continue;
+    answers[row.field_name] = row.value_text;
+  }
+
+  await cacheApplicationAnswers({
+    version: 1,
+    applicantId: session.userId,
+    applicationId,
+    answers,
+    savedAt: new Date().toISOString(),
+  }).catch(() => undefined);
+
+  await auditPiiRead(
+    "actions/visa-application-answers:loadDynamicAnswers",
+    applicantId,
+    ["form_answers"],
+    { applicationId, purpose: "self_view" }
+  );
+
+  return { answers };
+}
+
+const APPLICATION_FORM_CONTEXT_COLUMNS = [
+  "id",
+  "country",
+  "visa_type",
+  "purpose",
+  "status",
+  "submission_result_status",
+  "result_status",
+  "submission_result",
+  "confirmation_number",
+  "submitted_at",
+  "arrival_date",
+  "departure_date",
+  "port_of_entry",
+  "accommodation_name",
+  "accommodation_address",
+].join(", ");
+
 export async function loadApplicationFormContext(
   country: string,
   visaType: string,
@@ -1612,6 +1814,8 @@ export async function loadApplicationFormContext(
 ): Promise<{
   profile?: SeedableUniversalProfile;
   application?: Record<string, unknown> | null;
+  answers?: Record<string, string>;
+  answersApplicationId?: string;
   error?: string;
 }> {
   try {
@@ -1627,19 +1831,32 @@ export async function loadApplicationFormContext(
     const profile = profileResult.profile;
     if (!profile?.id) return { error: "Profile not found" };
 
-    const { data: applicationRows, error } = await adminClient
+    const applicationRowsPromise = adminClient
       .from("applications")
-      .select("*")
+      .select(APPLICATION_FORM_CONTEXT_COLUMNS)
       .eq("applicant_id", profile.id)
       .order("updated_at", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false });
+    const reusableAnswersPromise = loadReusableProfileAnswers(
+      adminClient,
+      session.authUserId ?? profile.auth_user_id ?? session.userId
+    );
+    const [applicationRowsResult, reusableResult] = await Promise.all([
+      applicationRowsPromise,
+      reusableAnswersPromise,
+    ]);
 
-    if (error) return { error: error.message };
+    if (applicationRowsResult.error) {
+      return { error: applicationRowsResult.error.message };
+    }
+    if (reusableResult.error) return { error: reusableResult.error };
 
     const resolvedVisaType = getFormVisaType(visaType);
-    const applications = (applicationRows ?? []).filter(
+    const applicationRows = (applicationRowsResult.data ?? []) as unknown as
+      Record<string, unknown>[];
+    const applications = applicationRows.filter(
       (row) => !isQaDryRunPurpose(row.purpose)
-    ) as Record<string, unknown>[];
+    );
     const matchingApplications = applications.filter((row) =>
       applicationIdentityMatches(row, country, resolvedVisaType)
     );
@@ -1651,12 +1868,6 @@ export async function loadApplicationFormContext(
       ) ??
       matchingApplications[0] ??
       (options.preferExplicit ? null : (applications[0] ?? null));
-
-    const reusableResult = await loadReusableProfileAnswers(
-      adminClient,
-      session.authUserId ?? profile.auth_user_id ?? session.userId
-    );
-    if (reusableResult.error) return { error: reusableResult.error };
 
     const customerApplication: Record<string, unknown> | null = application
       ? {
@@ -1713,6 +1924,19 @@ export async function loadApplicationFormContext(
       canadaPortalTermsConsentPresent = Boolean(portalTermsResult.data?.[0]?.id);
     }
 
+    const applicationId =
+      typeof customerApplication?.id === "string"
+        ? customerApplication.id
+        : null;
+    const answersResult = applicationId
+      ? await loadApplicationAnswersForOwnedSession(
+          adminClient,
+          session,
+          applicationId,
+          profile.id
+        )
+      : { answers: {} };
+
     return {
       profile: {
         ...profile,
@@ -1726,6 +1950,8 @@ export async function loadApplicationFormContext(
             canada_ircc_portal_terms_consent_present: canadaPortalTermsConsentPresent,
           }
         : null,
+      answers: answersResult.answers,
+      answersApplicationId: applicationId ?? undefined,
     };
   } catch (err) {
     return {
@@ -1866,89 +2092,43 @@ export async function loadDynamicAnswers(
       retryDelaysMs: [],
     });
 
-    // The answers themselves do not depend on the ownership check, so that read
-    // goes out at the same time and is simply discarded if the check fails.
-    // This is on the critical path of every wizard open.
-    const answersRead = adminClient
-      .from("visa_application_answers")
-      .select("field_name, value_text")
-      .eq("application_id", applicationId);
+    const ownedApplicationResult = await loadApplicationWithOwner(
+      adminClient,
+      applicationId,
+      "applicant_id"
+    );
 
-    const { data: app, error: appError } = await adminClient
-      .from("applications")
-      .select("applicant_id")
-      .eq("id", applicationId)
-      .maybeSingle();
-
-    if (appError && isResilienceEligibleError(appError.message)) {
+    if (
+      ownedApplicationResult.error &&
+      isResilienceEligibleError(ownedApplicationResult.error)
+    ) {
       const cached = await loadCachedApplicationAnswers(
         session.userId,
         applicationId
       );
       if (cached) return { answers: cached.answers };
     }
-    if (appError) return { answers: {}, error: appError.message };
+    if (ownedApplicationResult.error) {
+      return { answers: {}, error: ownedApplicationResult.error };
+    }
+    const app = ownedApplicationResult.application;
     if (!app?.applicant_id)
       return { answers: {}, error: "Application not found" };
 
-    const { profile, error: profileError } = await loadApplicationOwnerProfile(
-      adminClient,
-      app.applicant_id
+    const ownedSession = await getOwnedApplicantSession(
+      ownedApplicationResult.profile,
+      session
     );
-
-    if (profileError) {
-      if (isResilienceEligibleError(profileError)) {
-        const cached = await loadCachedApplicationAnswers(
-          session.userId,
-          applicationId
-        );
-        if (cached) return { answers: cached.answers };
-      }
-      return { answers: {}, error: profileError };
-    }
-    if (!ownsApplicationSession(profile, session)) {
+    if (!ownedSession) {
       return { answers: {}, error: "Unauthorized" };
     }
 
-    const { data: rows, error } = await answersRead;
-
-    if (error) {
-      if (isResilienceEligibleError(error.message)) {
-        const cached = await loadCachedApplicationAnswers(
-          session.userId,
-          applicationId
-        );
-        if (cached) return { answers: cached.answers };
-      }
-      return { answers: {}, error: error.message };
-    }
-
-    const answers: Record<string, string> = {};
-    for (const row of rows ?? []) {
-      if (!row.value_text) continue;
-      // Skip reserved meta keys (e.g. simplified-form wizard state blob).
-      if (row.field_name.startsWith("__")) continue;
-      answers[row.field_name] = row.value_text;
-    }
-
-    await cacheApplicationAnswers({
-      version: 1,
-      applicantId: session.userId,
+    return loadApplicationAnswersForOwnedSession(
+      adminClient,
+      ownedSession,
       applicationId,
-      answers,
-      savedAt: new Date().toISOString(),
-    }).catch(() => undefined);
-
-    if (app?.applicant_id) {
-      await auditPiiRead(
-        "actions/visa-application-answers:loadDynamicAnswers",
-        app.applicant_id,
-        ["form_answers"],
-        { applicationId, purpose: "self_view" }
-      );
-    }
-
-    return { answers };
+      app.applicant_id
+    );
   } catch (err) {
     if (isResilienceEligibleError(err)) {
       const session = await getClientSessionWithFallback();

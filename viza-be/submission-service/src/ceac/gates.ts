@@ -61,13 +61,20 @@ export interface GateDetectionResult {
 export async function detectGate(page: Page): Promise<GateDetectionResult> {
   const url = page.url();
 
-  // Extract visible body text (innerText excludes hidden elements)
-  let visibleText = "";
-  try {
-    visibleText = await page.locator("body").innerText({ timeout: 5_000 });
-  } catch {
-    // Page may not have a body yet or may be in a broken state
-  }
+  // Body text and independent challenge-selector probes can run together.
+  // Results are collected in declaration order below so diagnostics remain
+  // stable for a given DOM while avoiding sequential cross-region waits.
+  const [visibleText, selectorMatches] = await Promise.all([
+    page.locator("body").innerText({ timeout: 5_000 }).catch(() => ""),
+    Promise.all(CEAC_GATE_MARKERS.blockingCaptchaSelectors.map(async (selector) => {
+      try {
+        return (await page.locator(selector).count()) > 0;
+      } catch {
+        // Selector may be invalid for the current page state
+        return false;
+      }
+    })),
+  ]);
 
   const visibleTextSnippet = visibleText.slice(0, 500);
 
@@ -84,17 +91,9 @@ export async function detectGate(page: Page): Promise<GateDetectionResult> {
   // Only check blockingCaptchaSelectors — the solvable CEAC start-page
   // image CAPTCHA (img[id*="Captcha"]) is handled by start-page-captcha.ts
   // and must NOT trigger a gate error (US-024).
-  const matchedCaptchaSelectors: string[] = [];
-  for (const selector of CEAC_GATE_MARKERS.blockingCaptchaSelectors) {
-    try {
-      const count = await page.locator(selector).count();
-      if (count > 0) {
-        matchedCaptchaSelectors.push(selector);
-      }
-    } catch {
-      // Selector may be invalid for the current page state
-    }
-  }
+  const matchedCaptchaSelectors = CEAC_GATE_MARKERS.blockingCaptchaSelectors.filter(
+    (_selector, index) => selectorMatches[index],
+  );
 
   const hasCaptcha = matchedCaptchaSelectors.length > 0;
   const hasText = matchedTextPatterns.length > 0;

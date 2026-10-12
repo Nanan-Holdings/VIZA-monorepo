@@ -493,66 +493,10 @@ export async function getApplicationLifecycleSummaries(
   }
 }
 
+/** Legacy callers receive no commercial-payment state. */
 export async function getApplicationPaymentRecords(
-  applicationIds: string[],
-  packageIds: string[],
+  _applicationIds: string[],
+  _packageIds: string[],
 ): Promise<ApplicationPaymentRecord[]> {
-  const uniqueApplicationIds = [...new Set(applicationIds.filter(Boolean))];
-  const uniquePackageIds = [...new Set(packageIds.filter(Boolean))];
-
-  if (uniqueApplicationIds.length === 0 && uniquePackageIds.length === 0) return [];
-
-  try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) return [];
-
-    const adminClient = createAdminClient();
-    const { data: profile } = await adminClient
-      .from("applicant_profiles")
-      .select("id")
-      .eq("auth_user_id", user.id)
-      .maybeSingle();
-
-    const applicantProfile = profile as ApplicantProfileRow | null;
-    if (!applicantProfile) return [];
-
-    const paymentReads: Array<Promise<{ data: ApplicationPaymentRecord[] | null }>> = [];
-    const columns = "id, application_id, visa_package_id, status, created_at, updated_at";
-
-    if (uniqueApplicationIds.length > 0) {
-      paymentReads.push(
-        adminClient
-          .from("payment_records")
-          .select(columns)
-          .eq("applicant_id", applicantProfile.id)
-          .in("application_id", uniqueApplicationIds) as unknown as Promise<{ data: ApplicationPaymentRecord[] | null }>,
-      );
-    }
-
-    if (uniquePackageIds.length > 0) {
-      paymentReads.push(
-        adminClient
-          .from("payment_records")
-          .select(columns)
-          .eq("applicant_id", applicantProfile.id)
-          .in("visa_package_id", uniquePackageIds) as unknown as Promise<{ data: ApplicationPaymentRecord[] | null }>,
-      );
-    }
-
-    const results = await Promise.all(paymentReads);
-    const paymentsById = new Map<string, ApplicationPaymentRecord>();
-    for (const result of results) {
-      for (const payment of result.data ?? []) {
-        paymentsById.set(payment.id, payment);
-      }
-    }
-
-    return Array.from(paymentsById.values());
-  } catch {
-    return [];
-  }
+  return [];
 }

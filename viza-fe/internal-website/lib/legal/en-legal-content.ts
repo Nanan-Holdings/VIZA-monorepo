@@ -199,24 +199,8 @@ export const enTermsArticle: LegalArticle = {
     {
       heading: "Fees and Payments",
       content: [
-        { type: "paragraph", text: "Certain services require payment of applicable fees." },
-        {
-          type: "paragraph",
-          text: "Prices will be displayed on the relevant service pages and will be confirmed at the time of purchase.",
-        },
-        {
-          type: "paragraph",
-          text: "Unless expressly stated otherwise, fees paid to VIZA cover only the visa application assistance services provided by VIZA.",
-        },
-        {
-          type: "paragraph",
-          text: "Government filing fees, visa issuance fees, appointment fees, biometric collection fees, medical examination fees, courier charges, translation fees, and other third-party costs are generally not included in VIZA service fees.",
-        },
-        {
-          type: "paragraph",
-          text: "When an official fee is electronically payable, VIZA provisions a limited virtual card for the specific application and pays the official portal on the user's behalf. The official authority's payment and refund rules still apply.",
-        },
-        { type: "paragraph", text: "Refunds, cancellations, and related matters are governed by our Refund Policy." },
+        { type: "paragraph", text: "VIZA does not collect service fees or offer paid subscriptions. Applications do not require payment through VIZA." },
+        { type: "paragraph", text: "Government authorities and other service providers may still charge fees under their own rules. VIZA does not collect or automatically pay those fees; an official fee requirement may prevent an application from continuing." },
       ],
     },
     {
@@ -676,15 +660,8 @@ export const enDisclaimerArticle: LegalArticle = {
     {
       heading: "Service Fees",
       content: [
-        { type: "paragraph", text: "Fees charged by VIZA are solely for visa application assistance services." },
-        {
-          type: "paragraph",
-          text: "Unless expressly stated otherwise, the fees displayed on our website do not include government application fees, visa issuance fees, biometric collection fees, medical examination fees, courier fees, translation fees, appointment fees, or other third-party charges.",
-        },
-        {
-          type: "paragraph",
-          text: "Such fees are charged by government authorities or authorized service providers and remain subject to their payment, cancellation, and refund policies. When electronic payment is available, VIZA uses an application-scoped virtual card to pay the official portal on the user's behalf.",
-        },
+        { type: "paragraph", text: "VIZA does not collect service fees or offer paid subscriptions. Applications do not require payment through VIZA." },
+        { type: "paragraph", text: "Government authorities and other service providers may still charge fees under their own rules. VIZA does not collect or automatically pay those fees; an official fee requirement may prevent an application from continuing." },
       ],
     },
     {

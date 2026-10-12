@@ -11,22 +11,52 @@ conversation state, and other cross-route behavior.
 
 - `visa-knowledge.service.ts`: embeddings, Supabase RPC retrieval,
   document-type targeting, fallback retrieval, and knowledge context formatting.
+  It propagates the request abort signal into embedding, RPC, and REST work and
+  must not start another fallback after the caller disconnects.
+  Successful vector searches with no qualifying match return an empty result;
+  never bypass the similarity threshold with unordered REST rows. REST fallback
+  is reserved for unavailable embeddings or failed vector requests.
+- `visa-knowledge-retrieval-policy.ts`: validated shared retrieval defaults and
+  bounded `VISA_RAG_MATCH_COUNT` / `VISA_RAG_MIN_SIMILARITY` overrides. Numeric
+  changes require the public-seed retrieval experiment and heldout check.
+- `visa-knowledge-query.ts`: pure country/product alias normalization and
+  intent filters, shared by runtime and the retrieval experiment. Gold labels
+  must remain reachable after these aliases are applied.
+- `visa-knowledge-chunking.ts`: exact shared ingestion/evaluation text envelope
+  plus pure, boundary-aware experimental splitting. Splitting is measured in
+  Unicode code points; ingestion retains curated seed boundaries by default.
+- `visa-knowledge-capacity.ts`: bounded, process-local RAG request, external
+  call, fallback, result, latency, and cancellation aggregates. It must never
+  record query text, route dimensions, user/session identity, or chunk content.
 - `visa-conversation-state.service.ts`: extracts, merges, persists, and
-  summarizes VIZA conversation route state.
+  summarizes VIZA conversation route state. It may reuse a complete
+  request-scoped session/message snapshot from the socket bootstrap, while an
+  incomplete legacy message page must retain the wider database fallback.
+  Structured memory writes use semantic deduplication that ignores only
+  `updatedAt`; legacy or empty memory still writes once, and changed state
+  retains optimistic revision checks.
 - `visa-entry-rule.service.ts`: deterministic passport/destination eligibility
   lookup, reviewed policy fallbacks, and policy-first prompt generation.
+  `visa-entry-rule-cache.ts` coalesces identical public rule lookups in a
+  bounded process-local cache keyed to the exact active knowledge release.
+  Successful missing-rule lookups are negative-cached for the same bounded TTL;
+  database failures must remain immediately retryable.
+  Applicant identity, chat text, answers, and stay length must remain outside
+  the shared cache; stay limits are evaluated on a defensive per-request copy.
 - `internal-automation/**`: lifecycle status mapping, external status
   normalization, packet handoff payload shaping, and notification payload
   helpers for website-owned automation.
-- `official-fee/**`: official visa fee quote/consent/payment-intent framework,
-  dry-run/manual providers, precondition gates, redaction, and reconciliation.
+- `official-fee/**`: historical official visa fee quote/consent/payment-intent
+  framework and redacted compatibility models. Its HTTP routers are unmounted
+  and migration `0194_disable_payment_execution.sql` disables payment
+  execution and reconciliation entrypoints.
 - `us-appointment/**`: U.S. B1/B2 appointment dry-run state machine,
   provider-detection metadata, manual checkpoints, slot/status models,
   redaction, and audit helpers.
 - `france-appointment/**`: France Schengen TLScontact China appointment service
   over the shared `appointment_*` data model. Requires France-Visas reference
   and user consent, enforces slot/status cooldowns, allows only user-selected
-  observed slots, and stores payment state as redacted metadata.
+  observed slots, and no longer exposes payment-session authorization.
 - `japan-appointment/**`: Japan VFS/JVAC Singapore preparation service over the
   shared appointment tables. It validates stored answers and documents,
   prepares a redacted alias account record, and delegates Browserbase portal
@@ -35,7 +65,10 @@ conversation state, and other cross-route behavior.
   slot observation, explicit user slot selection, and dry-run booking
   confirmation against the shared `appointment_*` data model.
 - `portal-health.service.ts`: bounded synthetic portal checks, transactional
-  observation persistence, and public status snapshot reads.
+  observation persistence, and public status snapshot reads. Public snapshots
+  coalesce per process, cache successful redacted results for ten seconds, and
+  abort the RPC after eight seconds. A finished probe run invalidates cached
+  and in-flight older snapshots; failures remain immediately retryable.
 
 ## Ownership Boundaries
 
@@ -58,6 +91,7 @@ Run from `viza-be/agent-backend`:
 
 ```powershell
 npm run type-check
+npm test -- --run src/services/visa-knowledge-capacity.test.ts src/services/visa-knowledge.service.test.ts
 npm run test:visa-agent-evals
 npm run test:field-guidance-copilot
 ```

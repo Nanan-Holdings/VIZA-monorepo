@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { ExtractedPassport, ExtractedField } from "@/lib/passport/extract";
+import { useLocale } from "next-intl";
 
 /**
  * Manual-confirm UI for OCR-extracted passport fields (DOC-002).
@@ -17,7 +18,7 @@ export interface PassportConfirmProps {
   submitting?: boolean;
 }
 
-const LABELS: Record<string, string> = {
+const LABELS_EN: Record<string, string> = {
   passport_number: "Passport number",
   surname: "Surname",
   given_names: "Given names",
@@ -26,6 +27,17 @@ const LABELS: Record<string, string> = {
   date_of_birth: "Date of birth",
   passport_expiry_date: "Passport expiry",
   sex: "Sex",
+};
+
+const LABELS_ZH: Record<string, string> = {
+  passport_number: "护照号码",
+  surname: "姓",
+  given_names: "名",
+  nationality: "国籍",
+  passport_issuing_country: "签发国家",
+  date_of_birth: "出生日期",
+  passport_expiry_date: "护照有效期",
+  sex: "性别",
 };
 
 const FIELD_ORDER: Array<[keyof ExtractedPassport, string]> = [
@@ -50,6 +62,9 @@ export function PassportConfirm({
   onConfirm,
   submitting,
 }: PassportConfirmProps) {
+  const locale = useLocale();
+  const isZh = locale.toLowerCase().startsWith("zh");
+  const labels = isZh ? LABELS_ZH : LABELS_EN;
   const initial: Record<string, string> = {};
   for (const [k, formKey] of FIELD_ORDER) {
     const f = extracted[k] as ExtractedField | null;
@@ -66,8 +81,9 @@ export function PassportConfirm({
       className="space-y-3"
     >
       <p className="text-sm text-[#6b6b6b]">
-        We extracted the fields below from your passport. Edit anything
-        that looks wrong before confirming.
+        {isZh
+          ? "以下是从护照中提取的字段。请在确认前修改任何错误信息。"
+          : "We extracted the fields below from your passport. Edit anything that looks wrong before confirming."}
       </p>
       <ul className="space-y-2">
         {FIELD_ORDER.map(([k, formKey]) => {
@@ -76,7 +92,7 @@ export function PassportConfirm({
           return (
             <li key={formKey} className="flex items-center gap-3">
               <label className="w-40 text-sm text-[#6b6b6b]">
-                {LABELS[formKey] ?? formKey}
+                {labels[formKey] ?? formKey}
               </label>
               <input
                 value={values[formKey] ?? ""}
@@ -90,7 +106,7 @@ export function PassportConfirm({
               />
               <span
                 className={`text-[10px] px-2 py-0.5 rounded border ${pillClass(f)}`}
-                title={`source: ${f.source}`}
+                title={`${isZh ? "来源" : "Source"}: ${f.source}`}
               >
                 {(f.confidence * 100).toFixed(0)}%
               </span>
@@ -100,8 +116,9 @@ export function PassportConfirm({
       </ul>
       {extracted.manualConfirmRequired ? (
         <p className="text-xs text-amber-700">
-          Some fields are below our confidence threshold and need your
-          eye. Highlighted rows are pre-selected.
+          {isZh
+            ? "部分字段的识别置信度较低，需要您检查。已突出显示的字段已自动选中。"
+            : "Some fields are below our confidence threshold and need your eye. Highlighted rows are pre-selected."}
         </p>
       ) : null}
       <button
@@ -109,7 +126,13 @@ export function PassportConfirm({
         disabled={submitting}
         className="px-4 py-2 rounded-md bg-black text-white text-sm disabled:opacity-50"
       >
-        {submitting ? "Saving…" : "Confirm and continue"}
+        {submitting
+          ? isZh
+            ? "保存中……"
+            : "Saving…"
+          : isZh
+            ? "确认并继续"
+            : "Confirm and continue"}
       </button>
     </form>
   );

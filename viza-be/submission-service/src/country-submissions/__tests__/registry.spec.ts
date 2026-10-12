@@ -230,6 +230,56 @@ test("registry: Korea e-Arrival Card is an independent exact-flow provider", () 
   assert.equal(payload.countrySpecific.purpose_of_entry, "Tourism (individual)");
 });
 
+test("from-records: maps Korea passport name keys before provider validation", () => {
+  const profile: ApplicantProfile = {
+    id: "test-applicant",
+    auth_user_id: "test-user",
+    full_name: "Alex Tan",
+    date_of_birth: "1999-01-15",
+    place_of_birth: "Singapore",
+    gender: "Male",
+    nationality: "Singapore",
+    occupation: "Student",
+    address: null,
+    passport_number: "TEST123456",
+    passport_issue_date: "2023-01-01",
+    passport_expiry_date: "2033-01-01",
+    issuing_country: "Singapore",
+    issuing_authority: "ICA",
+    email: "test.viza.user@example.com",
+    phone: "+6591234567",
+    wechat: null,
+  };
+  const application: Application = {
+    id: "11111111-2222-4333-8444-555555555555",
+    applicant_id: "test-applicant",
+    country: "south_korea",
+    visa_type: "KR_E_ARRIVAL_CARD",
+    status: "submitted",
+    arrival_date: "2026-09-01",
+    departure_date: "2026-09-05",
+    port_of_entry: null,
+    purpose: "tourism",
+    accommodation_name: null,
+    accommodation_address: null,
+    confirmation_number: null,
+    submitted_at: null,
+    visa_package_id: null,
+    ds160_application_id: null,
+    ds160_retrieval_url: null,
+    ds160_dat_storage_path: null,
+  };
+
+  const mapped = buildCountrySubmissionApplication(profile, application, {
+    last_name: "TAN",
+    first_name: "ALEX",
+  });
+
+  assert.ok(mapped.answers);
+  assert.equal(mapped.answers.surname, "TAN");
+  assert.equal(mapped.answers.given_name, "ALEX");
+});
+
 test("registry: Taiwan routes to canonical runner_job live submit path", () => {
   const provider = getCountrySubmissionProvider("taiwan", "TW_ENTRY_PERMIT");
   assert.ok(provider);

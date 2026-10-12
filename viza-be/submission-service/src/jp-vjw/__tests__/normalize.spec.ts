@@ -139,6 +139,28 @@ test("accepts the official optional postal code and normalizes legacy China/tour
   assert.equal(result.purposeOfVisit, "0");
 });
 
+test("canonicalizes reviewed occupation labels to official codes", () => {
+  const input = payload();
+  input.countrySpecific.occupation = "工程师";
+
+  const result = normalizeJpVjwPortalPayload(input);
+
+  assert.equal(result.occupation, "0100");
+});
+
+test("fails closed for values outside the reviewed finite VJW code contracts", () => {
+  const invalid = payload();
+  invalid.countrySpecific.arrival_airline = "not-an-airline";
+  invalid.countrySpecific.occupation = "Astronaut";
+  invalid.countrySpecific.purpose_of_visit = "999";
+  invalid.countrySpecific.accommodation_prefecture = "99";
+
+  assert.throws(
+    () => normalizeJpVjwPortalPayload(invalid),
+    /arrival_airline, occupation, purpose_of_visit, accommodation_prefecture/u,
+  );
+});
+
 test("rejects missing official address subdivisions and an invalid Japan contact phone", () => {
   const invalid = payload();
   delete invalid.countrySpecific.accommodation_prefecture;

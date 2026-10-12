@@ -11,6 +11,12 @@ import {
   type VisaKnowledgeChunk,
 } from "../services/visa-knowledge.service.js";
 import { Logger } from "../utils/logger.js";
+import { runWithProviderCapacity } from "../utils/provider-capacity.js";
+import { createRequestAbortSignal } from "./request-abort.js";
+import {
+  BoundedSingleFlightCache,
+  createFieldGuidanceCacheKey,
+} from "./field-guidance-cache.js";
 
 const router = Router();
 const logger = new Logger({ serviceName: "FieldGuidance" });
@@ -22,10 +28,13 @@ const OPENAI_FIELD_GUIDANCE_MODEL =
   process.env.OPENAI_MODEL ||
   "gpt-5.5";
 const DISABLE_RETRIEVAL = process.env.FIELD_GUIDANCE_EVAL_DISABLE_RETRIEVAL === "1";
-const GUIDANCE_CACHE = new Map<string, CachedGuidance>();
+const GUIDANCE_CACHE = new BoundedSingleFlightCache<CachedGuidance>(256, 15 * 60 * 1_000);
 const MAX_HISTORY_MESSAGES = 8;
 const OPTION_CONTEXT_VALUE_LIMIT = 12;
 const MAX_OPTION_EXPLANATIONS = 2;
+// This route augments queries with field metadata and truncates each source for
+// cards/replies. Preserve its baseline until that separate context path is evaluated.
+const FIELD_GUIDANCE_KNOWLEDGE_POLICY = { matchCount: 5, minSimilarity: 0.03 };
 
 const STANDARD_IDENTITY_FIELD_SOURCE: SourceBody = {
   title: "Standard passport identity-field guidance",
@@ -416,15 +425,6 @@ function buildQuestionRetrievalQuery(
 
 function getLocale(locale?: string | null): "zh" | "en" {
   return locale?.toLowerCase().startsWith("zh") ? "zh" : "en";
-}
-
-function cacheKey(
-  country: string | null | undefined,
-  visaType: string | null | undefined,
-  fieldName: string,
-  locale: string | null | undefined
-): string {
-  return `${country ?? "unknown"}:${visaType ?? "unknown"}:${fieldName}:${getLocale(locale)}`;
 }
 
 function isDs160Scope(country?: string | null, visaType?: string | null): boolean {
@@ -1076,6 +1076,19 @@ function parseDate(value: string | null | undefined): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+function isAllowedDateSentinel(
+  value: string,
+  rules: Record<string, unknown>,
+): boolean {
+  if (value === "DO_NOT_KNOW") {
+    return rules.allow_do_not_know === true || rules.allow_unknown === true;
+  }
+  if (value === "DOES_NOT_APPLY") {
+    return rules.allow_does_not_apply === true || rules.has_does_not_apply === true;
+  }
+  return false;
+}
+
 function addMonths(date: Date, months: number): Date {
   const next = new Date(date);
   next.setMonth(next.getMonth() + months);
@@ -1286,7 +1299,7 @@ function findAnswer(
   return null;
 }
 
-function validateAnswer(
+export function validateAnswer(
   field: FieldGuidanceField,
   answer: string,
   allAnswers: Record<string, string>,
@@ -1308,6 +1321,13 @@ function validateAnswer(
 
   if (field.required && !trimmed) {
     warn("此必填项还没有填写。", "This required field has not been filled yet.");
+  }
+
+  // Date sentinels are canonical answers only when this schema explicitly
+  // exposes the corresponding branch. Treat an allowed sentinel as complete
+  // and skip ordinary date, pattern, length, and cross-field checks.
+  if (field.fieldType === "date" && isAllowedDateSentinel(trimmed, rules)) {
+    return { severity, messages };
   }
 
   const maxLength = typeof rules.maxLength === "number" ? rules.maxLength : null;
@@ -1427,7 +1447,8 @@ async function generateAiGuidance(
   reqBody: FieldGuidanceRequest,
   field: FieldGuidanceField,
   locale: "zh" | "en",
-  chunks: VisaKnowledgeChunk[]
+  chunks: VisaKnowledgeChunk[],
+  requestSignal?: AbortSignal,
 ): Promise<AiGuidanceJson | null> {
   if (!OPENAI_API_KEY || OPENAI_API_KEY === "your_openai_api_key_here") {
     return null;
@@ -1444,11 +1465,11 @@ async function generateAiGuidance(
     .join("\n\n");
 
   try {
-    const message = await client.responses.create({
+    const message = await runWithProviderCapacity((signal) => client.responses.create({
       model: OPENAI_FIELD_GUIDANCE_MODEL,
       max_output_tokens: 500,
       instructions: `You are a visa form field copilot. Active application scope: ${activeScopeLabel(reqBody)}. Stay strictly within this country and visa type. Do not mention DS-160, CEAC, U.S. consular forms, or U.S. visa requirements unless the active scope is U.S. DS-160/B1_B2. If the source context is thin, say the field should follow the current destination's official form and documents instead of borrowing rules from another country. For standard identity/passport fields, treat the Standard field source as binding: copy what is printed on the passport or official document. Treat issuing country, place of issue, and issuing authority as distinct fields; authority names must never be suggested as place-of-issue answers. Use ${locale === "zh" ? "Simplified Chinese for every descriptive value. Examples may remain as official values, names, codes, dates, or options, but summary, hints, officialWarnings, option descriptions, and explanatory formatHints must be Chinese even when the source context is English, Indonesian, or another language" : "English"}. Produce a compact guidance card: summary must be one actionable sentence (at most ${locale === "zh" ? "60 Chinese characters" : "140 characters"}); return at most 2 short examples; formatHints, hints, and officialWarnings may contain at most one short item each; return at most ${MAX_OPTION_EXPLANATIONS} directly relevant option explanations. Use empty arrays for anything that adds no value. Do not repeat the field name, sources, confidence, or generic disclaimers. Plain text only inside JSON values: do not use Markdown headings, bold, bullets, code formatting, or tables. Do not invent legal requirements not supported by the field metadata or context.`,
-      input: `Active application scope: ${activeScopeLabel(reqBody)}\n\nField metadata:\n${JSON.stringify(field, null, 2)}\n\nCurrent answer:\n${reqBody.answer?.trim() || "(empty)"}\n\nRelated filled answers:\n${JSON.stringify(relevantAnswerEntries(reqBody.allAnswers), null, 2)}\n\nRelevant source context:\n${relevantContext || "No source context found."}`,
+      input: `Active application scope: ${activeScopeLabel(reqBody)}\n\nField metadata:\n${JSON.stringify(field, null, 2)}\n\nRelevant source context:\n${relevantContext || "No source context found."}`,
       text: {
         format: {
           type: "json_schema",
@@ -1491,13 +1512,14 @@ async function generateAiGuidance(
           },
         },
       },
-    });
+    }, { signal }), requestSignal);
 
     const parsed = parseJsonObject(message.output_text);
     return parsed;
   } catch (error) {
-    logger.warn("AI field guidance generation failed", error as Error, {
+    logger.warn("AI field guidance generation failed", undefined, {
       fieldName: field.fieldName,
+      errorName: error instanceof Error ? error.name : "UnknownError",
     });
     return null;
   }
@@ -1511,7 +1533,8 @@ async function generateQuestionReply(
   validation: ValidationBody,
   history: ChatMessage[],
   locale: "zh" | "en",
-  chunks: VisaKnowledgeChunk[]
+  chunks: VisaKnowledgeChunk[],
+  requestSignal?: AbortSignal,
 ): Promise<{ reply: string; aiUsed: boolean }> {
   const fallback =
     standardIdentityQuestionFallback(reqBody, field, locale) ??
@@ -1542,7 +1565,7 @@ async function generateQuestionReply(
   }));
 
   try {
-    const message = await client.responses.create({
+    const message = await runWithProviderCapacity((signal) => client.responses.create({
       model: OPENAI_FIELD_GUIDANCE_MODEL,
       max_output_tokens: 700,
       reasoning: { effort: "low" },
@@ -1555,7 +1578,7 @@ async function generateQuestionReply(
           content: `Active application scope: ${activeScopeLabel(reqBody)}\n\nQuestion: ${question}\n\nField: ${JSON.stringify(field)}\n\nQuestion-specific field context:\n${optionContext}\n\nCurrent guidance: ${JSON.stringify(guidance)}\n\nValidation: ${JSON.stringify(validation)}\n\nRelevant RAG context:\n${relevantContext || "No source context found."}`,
         },
       ],
-    });
+    }, { signal }), requestSignal);
 
     const reply = stripOutOfScopeFormReferences(
       stripMarkdown(message.output_text?.trim() ?? ""),
@@ -1577,8 +1600,9 @@ async function generateQuestionReply(
     }
     return { reply: reply || scopedFallback, aiUsed: Boolean(reply) };
   } catch (error) {
-    logger.warn("AI field question reply failed", error as Error, {
+    logger.warn("AI field question reply failed", undefined, {
       fieldName: field.fieldName,
+      errorName: error instanceof Error ? error.name : "UnknownError",
     });
     return { reply: scopedFallback, aiUsed: false };
   }
@@ -1587,74 +1611,82 @@ async function generateQuestionReply(
 async function getStaticGuidance(
   reqBody: FieldGuidanceRequest,
   field: FieldGuidanceField,
-  locale: "zh" | "en"
+  locale: "zh" | "en",
 ): Promise<CachedGuidance & { cached: boolean; chunks: VisaKnowledgeChunk[] }> {
-  const key = cacheKey(reqBody.country, reqBody.visaType, field.fieldName, reqBody.locale);
-  const cached = GUIDANCE_CACHE.get(key);
-  if (cached) {
-    return { ...cached, cached: true };
-  }
+  const key = createFieldGuidanceCacheKey({
+    country: reqBody.country,
+    visaType: reqBody.visaType,
+    locale: reqBody.locale,
+    field,
+  });
+  const result = await GUIDANCE_CACHE.getOrCreate(key, async () => {
+    const query = [
+      field.stepName,
+      field.label,
+      field.fieldName,
+      field.placeholder,
+      isPhotoField(field)
+        ? "visa photo photograph passport photo digital image upload requirements size background file format"
+        : null,
+      isStandardIdentityField(field)
+        ? "standard passport identity field authority issuing authority place of issue passport type document type nationality exact wording biodata page MRZ"
+        : null,
+      "visa application form field requirements examples warnings",
+    ]
+      .filter(Boolean)
+      .join(" ");
 
-  const query = [
-    field.stepName,
-    field.label,
-    field.fieldName,
-    field.placeholder,
-    isPhotoField(field)
-      ? "visa photo photograph passport photo digital image upload requirements size background file format"
-      : null,
-    isStandardIdentityField(field)
-      ? "standard passport identity field authority issuing authority place of issue passport type document type nationality exact wording biodata page MRZ"
-      : null,
-    "visa application form field requirements examples warnings",
-  ]
-    .filter(Boolean)
-    .join(" ");
+    // Static guidance is shared across applicants. It contains field metadata
+    // and public knowledge only, so a disconnected caller must not cancel the
+    // one bounded operation that concurrent requests are awaiting.
+    const knowledge = DISABLE_RETRIEVAL
+      ? { chunks: [] as VisaKnowledgeChunk[] }
+      : await retrieveVisaKnowledge({
+          query,
+          country: reqBody.country,
+          visaType: reqBody.visaType,
+          intent: "form_intake",
+          ...FIELD_GUIDANCE_KNOWLEDGE_POLICY,
+        });
 
-  const knowledge = DISABLE_RETRIEVAL
-    ? { chunks: [] as VisaKnowledgeChunk[] }
-    : await retrieveVisaKnowledge({
-        query,
-        country: reqBody.country,
-        visaType: reqBody.visaType,
-        intent: "form_intake",
-        matchCount: 5,
-      });
+    const base = buildDeterministicGuidance(field, locale);
+    const ai = await generateAiGuidance(reqBody, field, locale, knowledge.chunks);
+    const merged = enforceGuidanceLanguage(
+      ai ? mergeGuidance(base, ai, field, locale) : base,
+      base,
+      locale
+    );
+    const guidance = sanitizeGuidanceScope({
+      ...merged,
+      examples: merged.examples.length > 0 ? merged.examples : base.examples,
+      hints: merged.hints.length > 0 ? merged.hints : base.hints,
+      officialWarnings:
+        merged.officialWarnings.length > 0 ? merged.officialWarnings : base.officialWarnings,
+      formatHints: merged.formatHints.length > 0 ? merged.formatHints : base.formatHints,
+    }, reqBody);
+    const sources = [...standardIdentitySourceFor(field), ...mapSources(knowledge.chunks)];
+    const confidence = ai
+      ? (asString(ai.confidence) === "high" || asString(ai.confidence) === "medium"
+          ? (asString(ai.confidence) as Confidence)
+          : "medium")
+      : sources.length > 0
+        ? "medium"
+        : "low";
 
-  const base = buildDeterministicGuidance(field, locale);
-  const ai = await generateAiGuidance(reqBody, field, locale, knowledge.chunks);
-  const merged = enforceGuidanceLanguage(
-    ai ? mergeGuidance(base, ai, field, locale) : base,
-    base,
-    locale
-  );
-  const guidance = sanitizeGuidanceScope({
-    ...merged,
-    examples: merged.examples.length > 0 ? merged.examples : base.examples,
-    hints: merged.hints.length > 0 ? merged.hints : base.hints,
-    officialWarnings:
-      merged.officialWarnings.length > 0 ? merged.officialWarnings : base.officialWarnings,
-    formatHints: merged.formatHints.length > 0 ? merged.formatHints : base.formatHints,
-  }, reqBody);
-  const sources = [...standardIdentitySourceFor(field), ...mapSources(knowledge.chunks)];
-  const confidence = ai
-    ? (asString(ai.confidence) === "high" || asString(ai.confidence) === "medium"
-        ? (asString(ai.confidence) as Confidence)
-        : "medium")
-    : sources.length > 0
-      ? "medium"
-      : "low";
+    return {
+      guidance,
+      sources,
+      chunks: knowledge.chunks,
+      confidence,
+      aiUsed: Boolean(ai),
+    };
+  });
 
-  const staticGuidance: CachedGuidance = {
-    guidance,
-    sources,
-    chunks: knowledge.chunks,
-    confidence,
-    aiUsed: Boolean(ai),
+  return {
+    ...result.value,
+    cached: result.source !== "created",
+    chunks: result.value.chunks,
   };
-  GUIDANCE_CACHE.set(key, staticGuidance);
-
-  return { ...staticGuidance, cached: false, chunks: knowledge.chunks };
 }
 
 router.post("/", async (req: Request, res: Response): Promise<void> => {
@@ -1667,6 +1699,7 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
   }
 
   try {
+    const requestSignal = createRequestAbortSignal(req, res);
     const locale = getLocale(body.locale);
     const staticGuidance = await getStaticGuidance(body, field, locale);
     const validation = validateAnswer(
@@ -1683,7 +1716,8 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
           country: body.country,
           visaType: body.visaType,
           intent: "form_intake",
-          matchCount: 5,
+          ...FIELD_GUIDANCE_KNOWLEDGE_POLICY,
+          signal: requestSignal,
         })
       : null;
     const questionChunks = questionKnowledge
@@ -1698,7 +1732,8 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
           validation,
           history,
           locale,
-          questionChunks
+          questionChunks,
+          requestSignal,
         )
       : null;
     const sources = questionKnowledge

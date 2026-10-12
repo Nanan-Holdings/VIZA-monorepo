@@ -159,18 +159,21 @@ The photo upload step should show country-specific photo guidance when available
 
 ## Review
 
-The final Review Application step is read-only. It summarizes completed answers,
-shows paired Chinese/English or official values for final checking, and lists
-empty or missing fields at the bottom. Confirmation and submission controls are
-part of this same step. If something is wrong or missing, use the edit action to
-return to the relevant form step.
+The final Review Application step summarizes completed answers, shows paired
+Chinese/English or official values for final checking, and lists empty or
+missing fields at the bottom. Before submission, every English/official value is
+shown in a bordered editor so it can be corrected directly; editing English does
+not replace the Chinese answer, and dates/options retain valid official values.
+Confirmation and submission controls are part of this same step. Use the section
+edit action when the original-language answer or full field needs correction.
 
 ## Submission Status
 
-After submission, Review Application switches to the application status and
-confirmation result. Failed or stalled submissions keep the read-only review
-summary visible above the retry status so applicants can verify saved answers
-before submitting again. The current module prepares and records application
+After successful submission, Review Application switches to the application
+status and confirmation result and the review becomes read-only. Failed or
+stalled submissions keep the editable review summary visible above the retry
+status so applicants can correct saved answers before submitting again. The
+current module prepares and records application
 progress; final external government submission may still depend on backend
 automation coverage for that country.
 

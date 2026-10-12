@@ -4,15 +4,20 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { CircleFlag } from "react-circle-flags";
 import { useTranslations } from "next-intl";
 import LanguageToggle from "./LanguageToggle";
-import { NAV_TABS, type NavTab } from "@/lib/nav-tabs";
-import { PASSPORTS, usePassportSelection } from "@/lib/passports";
 import { portalUrl } from "@/lib/utils";
 import "./site-nav.css";
 
-type Tab = NavTab["id"];
+/** Passport ISO codes (display names resolve from the `passports` namespace). */
+const PASSPORT_CODES = [
+  "SG", "JP", "KR", "DE", "FR", "GB", "US", "AU", "CA",
+  "AE", "CN", "IN", "BR", "PH", "ID", "MY", "TH",
+] as const;
+type PassportCode = (typeof PASSPORT_CODES)[number];
+
+type Tab = "explore" | "events" | "blog";
 
 type Props = {
-  /** Tab id to mark active. Omit for none. */
+  /** "explore" or "events" — adds .active to that tab. Omit for none. */
   activeTab?: Tab;
 };
 
@@ -20,30 +25,39 @@ export default function SiteNav({ activeTab: initialTab }: Props) {
   const t = useTranslations();
 
   // --- Nav tab pill indicator ---
-  const activeTab = initialTab;
+  const [activeTab, setActiveTab] = useState<Tab | undefined>(initialTab);
   const tabsRef = useRef<HTMLDivElement>(null);
-  const tabRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
+  const exploreRef = useRef<HTMLAnchorElement>(null);
+  const eventsRef = useRef<HTMLAnchorElement>(null);
+  const blogRef = useRef<HTMLAnchorElement>(null);
   const [pill, setPill] = useState<{ left: number; width: number }>({ left: 0, width: 0 });
 
   useLayoutEffect(() => {
-    const measure = () => {
-      const el = activeTab ? tabRefs.current[activeTab] : null;
+    if (!activeTab) return;
+    const el = activeTab === "explore" ? exploreRef.current : activeTab === "blog" ? blogRef.current : eventsRef.current;
+    const wrap = tabsRef.current;
+    if (!el || !wrap) return;
+    const r = el.getBoundingClientRect();
+    const pr = wrap.getBoundingClientRect();
+    setPill({ left: r.left - pr.left, width: r.width });
+  }, [activeTab, t]);
+
+  useEffect(() => {
+    const onResize = () => {
+      if (!activeTab) return;
+      const el = activeTab === "explore" ? exploreRef.current : activeTab === "blog" ? blogRef.current : eventsRef.current;
       const wrap = tabsRef.current;
-      if (!el || !wrap) {
-        setPill({ left: 0, width: 0 });
-        return;
-      }
+      if (!el || !wrap) return;
       const r = el.getBoundingClientRect();
       const pr = wrap.getBoundingClientRect();
       setPill({ left: r.left - pr.left, width: r.width });
     };
-    measure();
-    window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
-  }, [activeTab, t]);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [activeTab]);
 
   // --- Passport selector ---
-  const [passportCode, setPassportCode] = usePassportSelection();
+  const [passportCode, setPassportCode] = useState<PassportCode>("SG");
   const [ppOpen, setPpOpen] = useState(false);
   const [ppQuery, setPpQuery] = useState("");
   const ppInputRef = useRef<HTMLInputElement>(null);
@@ -66,9 +80,8 @@ export default function SiteNav({ activeTab: initialTab }: Props) {
 
   const filteredPassports = useMemo(() => {
     const q = ppQuery.trim().toLowerCase();
-    const codes = PASSPORTS.map((p) => p.code);
-    if (!q) return codes;
-    return codes.filter(
+    if (!q) return PASSPORT_CODES;
+    return PASSPORT_CODES.filter(
       (code) => t(`passports.${code}`).toLowerCase().includes(q) || code.toLowerCase().includes(q),
     );
   }, [ppQuery, t]);
@@ -162,47 +175,57 @@ export default function SiteNav({ activeTab: initialTab }: Props) {
 
         <div className="nav-tabs" id="siteNavTabs" ref={tabsRef}>
           <span className="pill-indicator" id="siteNavPill" style={{ left: pill.left, width: pill.width }} />
-          {NAV_TABS.map((tab) => (
-            <a
-              key={tab.id}
-              ref={(el) => { tabRefs.current[tab.id] = el; }}
-              className={`nav-tab${activeTab === tab.id ? " active" : ""}`}
-              data-tab={tab.id}
-              href={tab.href}
-            >
-              {t(tab.labelKey)}
-            </a>
-          ))}
+          <a
+            ref={exploreRef}
+            className={`nav-tab${activeTab === "explore" ? " active" : ""}`}
+            data-tab="explore"
+            href="/"
+            onClick={() => setActiveTab("explore")}
+          >
+            {t("nav.explore")}
+          </a>
+          <a
+            ref={eventsRef}
+            className={`nav-tab${activeTab === "events" ? " active" : ""}`}
+            data-tab="events"
+            href="/events"
+            onClick={() => setActiveTab("events")}
+          >
+            {t("nav.events")}
+          </a>
+          <a
+            ref={blogRef}
+            className={`nav-tab${activeTab === "blog" ? " active" : ""}`}
+            data-tab="blog"
+            href="/blog"
+            onClick={() => setActiveTab("blog")}
+          >
+            {t("nav.blog")}
+          </a>
         </div>
 
         <div className="nav-right">
-          {/* Submitting hands the term to the explore grid, which reads ?q= on load. */}
-          <form className="search" action="/" method="get" role="search">
+          <label className="search">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="8" />
               <path d="m21 21-4.35-4.35" />
             </svg>
-            <input
-              id="siteNavSearchInput"
-              name="q"
-              type="search"
-              aria-label={t("nav.searchPlaceholder")}
-              placeholder={t("nav.searchPlaceholder")}
-            />
-          </form>
+            <input id="siteNavSearchInput" placeholder={t("nav.searchPlaceholder")} />
+          </label>
           <LanguageToggle />
-          <a className="icon-btn" href="/contact" title={t("explore.help")} aria-label={t("explore.help")}>
+          <button className="icon-btn" title={t("explore.help")} type="button">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10" />
               <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
               <path d="M12 17h.01" />
             </svg>
-          </a>
-          <a className="avatar" href={portalUrl("/client/login")} title={t("nav.signIn")} aria-label={t("nav.signIn")}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          </button>
+          <a className="login-btn" href={portalUrl("/client/login")} title={t("nav.signIn")} aria-label={t("nav.signIn")}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
               <circle cx="12" cy="7" r="4" />
             </svg>
+            <span>{t("nav.signIn")}</span>
           </a>
         </div>
       </div>

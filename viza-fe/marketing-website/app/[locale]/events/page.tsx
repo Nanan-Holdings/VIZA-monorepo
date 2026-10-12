@@ -1,39 +1,8 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
 import SiteFooter from "@/components/SiteFooter";
 import SiteNav from "@/components/SiteNav";
-import "../story.css";
-
-/**
- * The "活动" nav tab used to point at a route that did not exist, so visitors
- * landed on an error page. Until there is a real events programme this renders an
- * honest, non-error placeholder.
- */
-export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
-  const { locale } = await params;
-  const t = await getTranslations({ locale, namespace: "pages.events" });
-  return { title: t("metaTitle"), description: t("metaDescription") };
-}
 
 export default async function EventsPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
-  setRequestLocale(locale);
-  const t = await getTranslations({ locale, namespace: "pages.events" });
-
-  return (
-    <>
-      <SiteNav activeTab="events" />
-      <main className="story">
-        <header className="story-head">
-          <span className="story-eyebrow">{t("eyebrow")}</span>
-          <h1>{t("title")}</h1>
-          <p>{t("lede")}</p>
-        </header>
-        <div className="story-cta">
-          <a className="story-btn" href="/">{t("ctaBrowse")}</a>
-          <a className="story-btn secondary" href="/contact">{t("ctaContact")}</a>
-        </div>
-      </main>
-      <SiteFooter />
-    </>
-  );
+  const zh = locale === "zh-CN";
+  return <><SiteNav activeTab="events" /><main className="mx-auto max-w-3xl px-6 py-20"><h1 className="text-4xl font-semibold text-fg-1">{zh ? "暂时还没有活动" : "No events yet"}</h1><p className="mt-6 text-lg leading-8 text-fg-2">{zh ? "未来的签证讲座、咨询会和合作活动会在这里发布。" : "Future visa clinics, information sessions, and partner events will be announced here."}</p><a className="mt-10 inline-flex rounded-full bg-brand-500 px-5 py-3 font-medium text-white" href="/contact">{zh ? "联系我们" : "Contact us"}</a></main><SiteFooter /></>;
 }

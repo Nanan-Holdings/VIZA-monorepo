@@ -64,6 +64,41 @@ export const JP_VJW_NEW_TRIP_NAME =
 export const JP_VJW_NO_COPY_TRIP_NAME =
   /不复制.*继续登记|不複製.*繼續登記|Proceed to registration without copying details|引き継がずに登録を進める/i;
 
+export const JP_VJW_TRIP_REGISTERED_NAME =
+  /已登记.*入境.*回国计划|已登記.*入境.*回國計劃|Registered planned entry\/return|入国・帰国予定を登録しました|入国・帰国予定の登録が完了しました/i;
+
+export const JP_VJW_TO_ENTRY_PROCEDURE_NAME =
+  /前往入境.*回国手续|前往入境.*回國手續|To entry\/return procedure|入国・帰国手続へ/i;
+
+export const JP_VJW_NEXT_NAME = /^(?:下一步|Next|次へ)$/i;
+
+/** Actions on the trip/declaration dashboard in all supported portal locales. */
+export const JP_VJW_IMMIGRATION_CUSTOMS_ACTION_NAME =
+  /入境\s*审查.*海关\s*申报|入境\s*審查.*海關\s*申報|入国.*税関申告|Immigration.*Customs/i;
+
+export const JP_VJW_QR_ACTION_NAME =
+  /显示\s*QR\s*码|顯示\s*QR\s*碼|QRコードを表示|Display QR/i;
+
+export const JP_VJW_DECLARATION_COMPLETE_NAME =
+  /登记完成|登記完成|Registration complete|登録完了/i;
+
+export const JP_VJW_BACK_TO_ENTRY_PROCEDURE_NAME =
+  /返回入境.*回国手续|返回入境.*回國手續|Back to Entry\/Return Procedure|入国・帰国手続に戻る/i;
+
+export const JP_VJW_AGREE_DISPLAY_QR_NAME =
+  /同意\s*并\s*显示\s*QR\s*码|同意\s*並\s*顯示\s*QR\s*碼|Agree and display the QR code|同意してQRコードを表示/i;
+
+export const JP_VJW_DECLARATION_NOT_REGISTERED_NAME =
+  /未登记|未登記|Not registered|未登録/i;
+
+export const JP_VJW_DECLARATION_REGISTERED_NAME =
+  /已登记|已登記|Registered|登録済み|登録済/i;
+
+export function isJpVjwDeclarationRegistered(value: string): boolean {
+  return !JP_VJW_DECLARATION_NOT_REGISTERED_NAME.test(value)
+    && JP_VJW_DECLARATION_REGISTERED_NAME.test(value);
+}
+
 /**
  * The official VJW edge currently rejects Playwright's HeadlessChrome UA with
  * a CloudFront 404. This is a browser identity override, not a success

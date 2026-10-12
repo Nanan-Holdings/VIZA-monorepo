@@ -168,7 +168,7 @@ describe("Singapore SG Arrival Card schema seed", () => {
 
   test("keeps arrival and departure dates together in trip information", () => {
     expect(seedSource).toContain(
-      'field_name: "arrival_date", label: "Date of Arrival (DD/MM/YYYY)", field_type: "date", required: true, step_number: 2, step_name: "Trip Information", display_order: 1',
+      'field_name: "arrival_date", label: "Date of Arrival", field_type: "date", required: true, step_number: 2, step_name: "Trip Information", display_order: 1',
     );
     expect(seedSource).toContain(
       'field_name: "departure_date", label: "Date of Departure from Singapore", field_type: "date", required: true, step_number: 2, step_name: "Trip Information", display_order: 2',

@@ -1,9 +1,8 @@
+import { rejectRemovedPayment } from "../payment-removed.js";
 import {
-  parseVietnamFixedCardInput,
-  redactVietnamFixedCard,
   type RedactedVietnamFixedCard,
   type VietnamFixedCard,
-  type VietnamFixedCardInput,
+  type VietnamFixedCardInput
 } from "../vietnam/fixed-card-payment";
 
 export type IndonesiaOneTimeCard = VietnamFixedCard;
@@ -22,18 +21,12 @@ export interface IndonesiaCardSessionResult {
   expiresAtIso: string;
   redactedCard: RedactedIndonesiaOneTimeCard;
 }
-
-const DEFAULT_TTL_MS = 10 * 60 * 1000;
 const sessions = new Map<string, IndonesiaCardSession>();
 
-function envEnabled(value: string | undefined): boolean {
-  return /^(1|true|yes|on)$/i.test((value ?? "").trim());
-}
-
 export function indonesiaCardSessionsEnabled(
-  env: Record<string, string | undefined> = process.env,
+  _env: Record<string, string | undefined> = process.env,
 ): boolean {
-  return env.NODE_ENV !== "production" && envEnabled(env.ID_LOCAL_CARD_SESSION_ENABLED);
+  return false;
 }
 
 function nowMs(): number {
@@ -54,39 +47,13 @@ function cleanupExpired(referenceTime = nowMs()): void {
   }
 }
 
-export function putIndonesiaCardSession(input: {
+export function putIndonesiaCardSession(_input: {
   applicationId: string;
   card: IndonesiaOneTimeCardInput;
   ttlMs?: number;
   referenceTimeMs?: number;
-}, env: Record<string, string | undefined> = process.env): IndonesiaCardSessionResult {
-  if (!indonesiaCardSessionsEnabled(env)) {
-    throw new Error("Indonesia applicant-card sessions are local-development fixtures only.");
-  }
-  const applicationId = normalizeApplicationId(input.applicationId);
-  const referenceTime = input.referenceTimeMs ?? nowMs();
-  cleanupExpired(referenceTime);
-  const ttlMs = Math.max(30_000, Math.min(input.ttlMs ?? DEFAULT_TTL_MS, 15 * 60 * 1000));
-  const card = parseVietnamFixedCardInput(input.card, {
-    panLabel: "cardNumber",
-    expiryLabel: "expiry",
-    cvvLabel: "cvv",
-  });
-  if (!input.card.holderName?.trim() || card.holderName === "VIZA") {
-    throw new Error("holderName is required for Indonesia official payment.");
-  }
-  const session: IndonesiaCardSession = {
-    applicationId,
-    card,
-    createdAt: referenceTime,
-    expiresAt: referenceTime + ttlMs,
-  };
-  sessions.set(applicationId, session);
-  return {
-    applicationId,
-    expiresAtIso: new Date(session.expiresAt).toISOString(),
-    redactedCard: redactVietnamFixedCard(card),
-  };
+}, _env: Record<string, string | undefined> = process.env): IndonesiaCardSessionResult {
+  return rejectRemovedPayment();
 }
 
 export function peekIndonesiaCardSession(applicationId: string, referenceTimeMs = nowMs()): IndonesiaCardSession | null {
@@ -95,11 +62,8 @@ export function peekIndonesiaCardSession(applicationId: string, referenceTimeMs 
   return sessions.get(normalized) ?? null;
 }
 
-export function consumeIndonesiaCardSession(applicationId: string, referenceTimeMs = nowMs()): IndonesiaOneTimeCard | null {
-  const session = peekIndonesiaCardSession(applicationId, referenceTimeMs);
-  if (!session) return null;
-  sessions.delete(session.applicationId);
-  return session.card;
+export function consumeIndonesiaCardSession(_applicationId: string, _referenceTimeMs = nowMs()): IndonesiaOneTimeCard | null {
+  return null;
 }
 
 /** Delete an unused card without returning its sensitive contents. */

@@ -3,39 +3,25 @@
 Scope: this file applies to
 `viza-fe/internal-website/app/admin/(dashboard)/billing/**`.
 
-## Purpose
+## Current State
 
-This module owns staff visibility into agency-fee payments, invoice requests,
-refund records, and payment-related customer support context.
+`/admin/billing` is a legacy compatibility route and redirects to
+`/admin/applications`. The billing support UI, financial data loader, receipt
+and invoice views, refund actions, and payment reads/writes have been retired.
 
-## Key Responsibilities
+## Navigation
 
-- Render payment records with applicant, application, package, amount, status,
-  and receipt links.
-- Surface invoice requests and refund records for support follow-up.
-- Show government-fee mode from package/application metadata, but do not process
-  official government payments here.
-- Link from payment rows to `/admin/applications/[id]`.
-- Keep `page.tsx` as the server data loader and
-  `billing-support-workspace.tsx` as the interactive staff support surface.
-- Keep billing support UI copy bound to the global interface language
-  (`NEXT_LOCALE`) for English/Chinese switching.
-
-## Data Sources
-
-- `payment_records`
-- `invoice_requests`
-- `refund_records`
-- `applications`
-- `applicant_profiles`
-- `visa_packages`
+The admin sidebar has no active Billing destination. Use Applications, Work,
+Support, Privacy, or the relevant operational area for current case handling;
+the billing URL exists only to preserve a safe redirect for stale links.
 
 ## Guardrails
 
-- Do not store or display raw card data.
-- Do not implement government portal payment relay.
-- Do not mutate Stripe records directly from this UI unless a dedicated,
-  audited action exists.
+- Keep `/admin/billing` as a deterministic redirect to
+  `/admin/applications`.
+- Do not reintroduce payment, receipt, invoice, refund, subscription, or
+  provider actions in this module.
+- Do not read or mutate financial tables from this route.
 
 ## Validation
 
@@ -45,3 +31,5 @@ Run from `viza-fe/internal-website`:
 npm run type-check
 npm run lint
 ```
+
+Smoke `/admin/billing` and verify it redirects to `/admin/applications`.

@@ -50,6 +50,28 @@ export interface CaptureScreenshotOptions {
   fullPage?: boolean;
 }
 
+/** Preserve a failed public bootstrap surface before its browser is closed. */
+export async function tryCaptureBootstrapDiagnostics(page: Page, outputDir: string): Promise<void> {
+  try {
+    await fs.mkdir(outputDir, { recursive: true });
+    await tryCaptureScreenshot(page, { outputDir, filename: "bootstrap-failure.png", fullPage: true });
+    const snapshot = await page.evaluate(() => ({
+      path: location.pathname,
+      heading: document.querySelector("h2")?.textContent?.trim() ?? null,
+      visibleText: document.body.innerText.slice(0, 3000),
+      // Never retain input values, cookies, hidden state or credentials.
+      controls: Array.from(document.querySelectorAll("input,select,a,button")).map(el => ({
+        tag: el.tagName, id: el.id, name: el.getAttribute("name"),
+        type: el.getAttribute("type"),
+        visible: el.getBoundingClientRect().width > 0 && el.getBoundingClientRect().height > 0,
+      })),
+    }));
+    await fs.writeFile(path.join(outputDir, "bootstrap-failure.json"), JSON.stringify(snapshot, null, 2));
+  } catch {
+    // Preserve the original bootstrap error even if its page is unavailable.
+  }
+}
+
 /**
  * Best-effort screenshot capture. Returns `null` when the page is unavailable,
  * the directory can't be created, or the write fails — never throws.

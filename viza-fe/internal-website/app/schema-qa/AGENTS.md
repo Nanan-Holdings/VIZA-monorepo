@@ -15,11 +15,10 @@ be visually inspected without writing QA data to customer applications.
 - Never call application save, assistant, queue, payment, or submission APIs.
 - Build the preview from the live master schema and the shared dynamic form
   components; do not maintain a duplicate field inventory.
+- Normalize bilingual fields through the same contract as the applicant form
+  before compiling steps, including field-specific option translations.
 - Preview values must remain obviously fictional and must never be exported to
   Universal Profile or Supabase.
-- `scripts/generate-all-application-qa-fixtures.ts` may read the master schemas,
-  but its 75-route fixture report must remain a local, ignored file and must
-  always be marked synthetic and non-submittable.
 
 ## Validation
 

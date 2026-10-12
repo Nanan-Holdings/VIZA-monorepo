@@ -1,0 +1,520 @@
+import "server-only";
+
+import { isOngoingApplicationState } from "@/lib/client/active-application-selection";
+import type {
+  ApplicationRow,
+  DocumentRow,
+  PaymentRow,
+} from "@/lib/client/application-progress";
+import { getClientSessionReadResult } from "@/lib/client-session";
+import { isQaDryRunPurpose } from "@/lib/applications/qa-safety";
+import {
+  recordPortalReadOutcome,
+  tracePortalReadStage,
+} from "@/lib/observability/portal-read";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getFormVisaType } from "@/lib/visa-destinations";
+import { loadHomeProfileApplications } from "./home-profile-applications.server";
+import {
+  createPortalReadBudget,
+  type PortalReadBudget,
+} from "./portal-read-budget.server";
+import {
+  CLIENT_STATUS_APPLICATION_SELECT,
+  assembleClientHomeTimeline,
+  loadClientHomeTimelinePreload,
+  type ClientHomeTimelineApplication,
+  type ClientHomeTimelineDocumentRow,
+  type ClientStatusApplicationRow,
+  type ClientStatusDocumentRow,
+} from "@/app/client/status/status-data";
+
+export interface ClientHomeProfile {
+  full_name: string | null;
+  surname: string | null;
+  given_names: string | null;
+  date_of_birth: string | null;
+  place_of_birth: string | null;
+  birth_country: string | null;
+  birth_province_or_state: string | null;
+  birth_city: string | null;
+  gender: string | null;
+  nationality: string | null;
+  occupation: string | null;
+  address: string | null;
+  passport_number: string | null;
+  passport_issue_date: string | null;
+  passport_expiry_date: string | null;
+  passport_issuing_country: string | null;
+  email: string | null;
+  phone: string | null;
+  wechat: string | null;
+}
+
+export interface ClientHomeDashboardData {
+  authenticated: boolean;
+  authEmail: string | null;
+  profile: ClientHomeProfile | null;
+  applications: ApplicationRow[];
+  documents: DocumentRow[];
+  payments: PaymentRow[];
+  error?: string;
+  /** True when identity resolution failed because the provider was unavailable. */
+  unavailable?: boolean;
+}
+
+export interface ClientHomeDashboardWithTimelineData extends ClientHomeDashboardData {
+  timeline: ClientHomeTimelineApplication | null;
+  timelineApplicationId: string | null;
+  timelinePartialData: boolean;
+}
+
+export interface ClientHomeApplicationSelectionHint {
+  /** A browser selection hint; the server verifies it against owned rows. */
+  applicationId?: string | null;
+  country?: string | null;
+  visaType?: string | null;
+}
+
+export interface ClientHomeDashboardReadOptions {
+  selection?: ClientHomeApplicationSelectionHint | null;
+  includeTimeline?: boolean;
+}
+
+export interface ClientHomeDashboardReadResult {
+  data: ClientHomeDashboardData;
+  timeline: ClientHomeTimelineApplication | null;
+  timelineApplicationId: string | null;
+  timelinePartialData: boolean;
+}
+
+/**
+ * Keep browser-provided selection hints small and non-authoritative. The
+ * dashboard always selects from the owner-scoped rows returned by Supabase;
+ * these values only influence which already-authorized row gets a timeline.
+ */
+const MAX_HOME_SELECTION_HINT_LENGTH = 128;
+
+const PROFILE_COLUMNS = [
+  "full_name",
+  "surname",
+  "given_names",
+  "date_of_birth",
+  "place_of_birth",
+  "birth_country",
+  "birth_province_or_state",
+  "birth_city",
+  "gender",
+  "nationality",
+  "occupation",
+  "address",
+  "passport_number",
+  "passport_issue_date",
+  "passport_expiry_date",
+  "passport_issuing_country",
+  "email",
+  "phone",
+  "wechat",
+].join(", ");
+
+const DOCUMENT_COLUMNS =
+  "id, application_id, document_type, status, required, created_at, updated_at";
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const HOME_READ_ERROR_CODES = {
+  sessionUnavailable: "session_unavailable",
+  profileRead: "profile_read_failed",
+  applicationsRead: "applications_read_failed",
+  documentsRead: "documents_read_failed",
+  dashboardRead: "dashboard_read_failed",
+} as const;
+
+type HomeDocumentRow = ClientStatusDocumentRow & {
+  id: string;
+  application_id: string;
+  document_type: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+};
+type HomeDocumentReadResult = { data: unknown; error: unknown };
+
+
+function emptyDashboard(
+  authenticated: boolean,
+  authEmail: string | null = null,
+  error?: string,
+): ClientHomeDashboardData {
+  return {
+    authenticated,
+    authEmail,
+    profile: null,
+    applications: [],
+    documents: [],
+    payments: [],
+    ...(error ? { error } : {}),
+  };
+}
+
+function toDashboardApplication(row: ClientStatusApplicationRow): ApplicationRow {
+  return {
+    id: row.id,
+    status: row.status,
+    country: row.country,
+    visa_type: row.visa_type,
+    purpose: row.purpose,
+    visa_package_id: row.visa_package_id,
+    submission_result_status: row.submission_result_status,
+    submitted_at: row.submitted_at,
+    created_at: row.created_at ?? "",
+    updated_at: row.updated_at,
+  };
+}
+
+function toDashboardDocument(row: HomeDocumentRow): DocumentRow {
+  return {
+    id: row.id,
+    application_id: row.application_id,
+    document_type: row.document_type,
+    status: row.status,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+function selectHomeApplication(
+  applications: ClientStatusApplicationRow[],
+  selection?: ClientHomeApplicationSelectionHint | null,
+): ClientStatusApplicationRow | null {
+  const requestedId = selection?.applicationId?.trim();
+  if (requestedId) {
+    const selected = applications.find((application) => application.id === requestedId);
+    if (selected) return selected;
+  }
+
+  const country = selection?.country?.trim().toLowerCase();
+  const visaType = selection?.visaType
+    ? getFormVisaType(selection.visaType.trim()).toLowerCase()
+    : null;
+  if (country && visaType) {
+    const selected = applications.find(
+      (application) =>
+        application.country.trim().toLowerCase() === country &&
+        getFormVisaType(application.visa_type).trim().toLowerCase() === visaType,
+    );
+    if (selected) return selected;
+  }
+
+  return applications.find((application) => isOngoingApplicationState(application.status)) ?? null;
+}
+
+function normalizeSelectionHintValue(
+  value: string | null | undefined,
+): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim();
+  if (!normalized || normalized.length > MAX_HOME_SELECTION_HINT_LENGTH) return undefined;
+  return normalized;
+}
+
+/**
+ * Normalize an optional route hint without turning a malformed hint into a
+ * dashboard failure. Invalid values are ignored independently so a valid
+ * country/visa pair can still provide a best-effort selection.
+ */
+export function normalizeClientHomeApplicationSelectionHint(
+  selection?: ClientHomeApplicationSelectionHint | null,
+): ClientHomeApplicationSelectionHint | undefined {
+  if (!selection) return undefined;
+
+  const applicationId = normalizeSelectionHintValue(selection.applicationId);
+  const country = normalizeSelectionHintValue(selection.country);
+  const visaType = normalizeSelectionHintValue(selection.visaType);
+  const normalizedApplicationId = applicationId && UUID_PATTERN.test(applicationId)
+    ? applicationId
+    : undefined;
+
+  if (!normalizedApplicationId && !country && !visaType) return undefined;
+  return {
+    ...(normalizedApplicationId ? { applicationId: normalizedApplicationId } : {}),
+    ...(country ? { country } : {}),
+    ...(visaType ? { visaType } : {}),
+  };
+}
+
+function buildDashboardReadResult(
+  data: ClientHomeDashboardData,
+): ClientHomeDashboardReadResult {
+  return {
+    data,
+    timeline: null,
+    timelineApplicationId: null,
+    timelinePartialData: false,
+  };
+}
+
+async function loadClientHomeDashboardInternal(
+  options: ClientHomeDashboardReadOptions = {},
+  readBudget: PortalReadBudget,
+): Promise<ClientHomeDashboardReadResult> {
+  // Avoid even constructing an authenticated/admin client after an upstream
+  // request has already been cancelled.
+  if (readBudget.signal.aborted) {
+    recordPortalReadOutcome(
+      readBudget.didTimeout() ? "unavailable" : "cancelled",
+    );
+    return buildDashboardReadResult({
+      ...emptyDashboard(false),
+      error: HOME_READ_ERROR_CODES.sessionUnavailable,
+      unavailable: true,
+    });
+  }
+  const sessionResult = await tracePortalReadStage(
+    "auth",
+    () => getClientSessionReadResult({
+      requestTimeoutMs: 3_000,
+      retryDelaysMs: [250],
+      requestSignal: readBudget.signal,
+    }),
+  );
+  if (sessionResult.status === "unavailable") {
+    recordPortalReadOutcome(
+      sessionResult.reason === "cancelled" && !readBudget.didTimeout()
+        ? "cancelled"
+        : "unavailable",
+    );
+    return buildDashboardReadResult({
+      ...emptyDashboard(false),
+      error: HOME_READ_ERROR_CODES.sessionUnavailable,
+      unavailable: true,
+    });
+  }
+  if (sessionResult.status !== "authenticated") {
+    recordPortalReadOutcome("unauthenticated");
+    return buildDashboardReadResult(emptyDashboard(false));
+  }
+  const session = sessionResult.session;
+
+  const adminClient = createAdminClient({
+    requestTimeoutMs: 4_000,
+    retryDelaysMs: [250],
+    requestSignal: readBudget.signal,
+  });
+  const { profileResult, applicationResult } = await loadHomeProfileApplications(
+    adminClient,
+    session.userId,
+    {
+      profileColumns: PROFILE_COLUMNS,
+      applicationColumns: CLIENT_STATUS_APPLICATION_SELECT,
+      signal: readBudget.signal,
+    },
+  );
+
+  const { data: profile, error: profileError } = profileResult;
+  if (profileError) {
+    return buildDashboardReadResult(
+      emptyDashboard(true, session.email, HOME_READ_ERROR_CODES.profileRead),
+    );
+  }
+  if (!profile) {
+    return buildDashboardReadResult({
+      ...emptyDashboard(true, session.email),
+    });
+  }
+
+  const { data: applicationRows, error: applicationError } = applicationResult;
+  if (applicationError) {
+    return buildDashboardReadResult({
+      authenticated: true,
+      authEmail: session.email,
+      profile: profile as unknown as ClientHomeProfile,
+      applications: [],
+      documents: [],
+      payments: [],
+      error: HOME_READ_ERROR_CODES.applicationsRead,
+    });
+  }
+
+  const rawApplications = ((applicationRows ?? []) as unknown as ClientStatusApplicationRow[]).filter(
+    (application) => !isQaDryRunPurpose(application.purpose),
+  );
+  const applicationIds = rawApplications.map((application) => application.id);
+
+  const selectedApplication = options.includeTimeline
+    ? selectHomeApplication(rawApplications, options.selection)
+    : null;
+  const shouldPrefetchHomeDocuments = Boolean(
+    selectedApplication && rawApplications.length === 1,
+  );
+  let documentPrefetchResolved = false;
+  let resolveDocumentPrefetch: (documents?: ClientHomeTimelineDocumentRow[]) => void = () => undefined;
+  const documentPrefetchRead = new Promise<ClientHomeTimelineDocumentRow[] | undefined>((resolve) => {
+    resolveDocumentPrefetch = (documents) => {
+      if (documentPrefetchResolved) return;
+      documentPrefetchResolved = true;
+      resolve(documents);
+    };
+  });
+  const timelinePreload = selectedApplication
+    ? loadClientHomeTimelinePreload(
+        adminClient,
+        selectedApplication,
+        {
+          documentColumns: shouldPrefetchHomeDocuments ? DOCUMENT_COLUMNS : undefined,
+          signal: readBudget.signal,
+          onPrefetchedDocuments: shouldPrefetchHomeDocuments
+            ? resolveDocumentPrefetch
+            : undefined,
+        },
+      )
+    : null;
+  const drainTimelinePreload = async (): Promise<void> => {
+    if (timelinePreload) await timelinePreload.catch(() => undefined);
+  };
+
+  try {
+    let rawDocuments: HomeDocumentRow[] = [];
+    if (applicationIds.length > 0) {
+      const readStandaloneDocuments = async (): Promise<HomeDocumentReadResult> => {
+        if (readBudget.signal.aborted) return { data: [], error: null };
+        return tracePortalReadStage("documents", () =>
+          adminClient
+            .from("application_documents")
+            .select(DOCUMENT_COLUMNS)
+            .in("application_id", applicationIds),
+        );
+      };
+      const documentRead: Promise<HomeDocumentReadResult> = shouldPrefetchHomeDocuments && timelinePreload
+        ? documentPrefetchRead.then((prefetchedDocuments) => {
+            if (prefetchedDocuments !== undefined) {
+              return { data: prefetchedDocuments, error: null };
+            }
+            return readStandaloneDocuments();
+          })
+        : readStandaloneDocuments();
+      const documentResult = await documentRead;
+      const { data: documentRows, error: documentError } = documentResult;
+      if (documentError) {
+        return buildDashboardReadResult({
+          authenticated: true,
+          authEmail: session.email,
+          profile: profile as unknown as ClientHomeProfile,
+          applications: rawApplications.map(toDashboardApplication),
+          documents: [],
+          payments: [],
+          error: HOME_READ_ERROR_CODES.documentsRead,
+        });
+      }
+      rawDocuments = (documentRows ?? []) as unknown as HomeDocumentRow[];
+    }
+
+    const data: ClientHomeDashboardData = {
+      authenticated: true,
+      authEmail: session.email,
+      profile: profile as unknown as ClientHomeProfile,
+      applications: rawApplications.map(toDashboardApplication),
+      documents: rawDocuments.map(toDashboardDocument),
+      payments: [],
+    };
+    const result = buildDashboardReadResult(data);
+    if (!options.includeTimeline || !selectedApplication || !timelinePreload) return result;
+
+    try {
+      const timelineResult = await assembleClientHomeTimeline({
+        application: selectedApplication,
+        documents: rawDocuments,
+        payments: [],
+      }, await timelinePreload);
+      return {
+        ...result,
+        timeline: timelineResult.application,
+        timelineApplicationId: selectedApplication.id,
+        timelinePartialData: timelineResult.partialData,
+      };
+    } catch {
+      recordPortalReadOutcome("unavailable");
+      return {
+        ...result,
+        timelineApplicationId: selectedApplication.id,
+        timelinePartialData: true,
+      };
+    }
+  } finally {
+    // Every started timeline read is settled before any early dashboard return
+    // or unexpected synchronous failure can escape this function.
+    await drainTimelinePreload();
+  }
+}
+
+/**
+ * Keep provider/configuration failures inside the typed read contract. The
+ * action must never serialize a Supabase or runtime error message to a
+ * browser, and an unavailable identity read must not look like a logout.
+ */
+export async function loadClientHomeDashboard(
+  options: ClientHomeDashboardReadOptions = {},
+  upstreamSignal?: AbortSignal,
+): Promise<ClientHomeDashboardReadResult> {
+  // This check deliberately happens before the budget/client setup so a
+  // pre-aborted Route Handler request cannot initiate a Supabase read.
+  if (upstreamSignal?.aborted) {
+    recordPortalReadOutcome("cancelled");
+    return buildDashboardReadResult({
+      ...emptyDashboard(false),
+      error: HOME_READ_ERROR_CODES.sessionUnavailable,
+      unavailable: true,
+    });
+  }
+
+  const readBudget = createPortalReadBudget(undefined, upstreamSignal);
+  try {
+    return await loadClientHomeDashboardInternal(options, readBudget);
+  } catch {
+    recordPortalReadOutcome("unavailable");
+    return buildDashboardReadResult({
+      ...emptyDashboard(false),
+      error: HOME_READ_ERROR_CODES.dashboardRead,
+      unavailable: true,
+    });
+  } finally {
+    readBudget.dispose();
+  }
+}
+
+/** Convert the internal result to the stable aggregate DTO shared by actions and GET. */
+export function toClientHomeDashboardWithTimelineData(
+  result: ClientHomeDashboardReadResult,
+): ClientHomeDashboardWithTimelineData {
+  return {
+    ...result.data,
+    timeline: result.timeline,
+    timelineApplicationId: result.timelineApplicationId,
+    timelinePartialData: result.timelinePartialData,
+  };
+}
+
+/** Safe fixed-code fallback for a route-level unexpected reader failure. */
+export function createClientHomeDashboardFailureResult(): ClientHomeDashboardReadResult {
+  return buildDashboardReadResult({
+    ...emptyDashboard(false),
+    error: HOME_READ_ERROR_CODES.dashboardRead,
+    unavailable: true,
+  });
+}
+
+export function recordHomeDashboardReadOutcome(
+  result: ClientHomeDashboardReadResult,
+): void {
+  if (result.data.unavailable) {
+    recordPortalReadOutcome("unavailable");
+  } else if (!result.data.authenticated) {
+    recordPortalReadOutcome("unauthenticated");
+  } else if (result.data.error) {
+    recordPortalReadOutcome("error");
+  } else if (result.timelinePartialData) {
+    recordPortalReadOutcome("partial");
+  } else {
+    recordPortalReadOutcome("ok");
+  }
+}

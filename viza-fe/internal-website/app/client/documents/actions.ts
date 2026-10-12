@@ -14,7 +14,7 @@ import {
   getVisaTypeDisplayNameZh,
 } from "@/lib/visa-destinations";
 import { normalizeBirthplace } from "@/lib/birthplace-options";
-import { isVietnamEVisaApplication as isVietnamEVisaQueueApplication } from "@/lib/submission-queue";
+import { isDs160VisaType, isVietnamEVisaApplication as isVietnamEVisaQueueApplication } from "@/lib/submission-queue";
 import {
   resolveVisaFormSchemaVisaType,
   visaFormSchemaVisaTypesMatch,
@@ -33,6 +33,18 @@ import {
   type DocumentImageSignals,
   type OfficialDocumentImageSlot,
 } from "@/lib/document-image-validation";
+import {
+  loadDocumentPreviewUrls,
+  type CreateSignedUrls,
+} from "./document-preview-urls";
+import { loadExistingDocumentPaths } from "./reusable-document-existence";
+import { isChineseLocale } from "@/lib/i18n/locale";
+import {
+  DS160_PHOTO_MAX_BYTES,
+  getDs160PhotoErrorMessage,
+  isDs160PhotoRequirement,
+  validateDs160PhotoBytes,
+} from "@/lib/ds160-photo-contract";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -1462,6 +1474,15 @@ async function loadDocumentRequirements(application: ApplicationRow, packageRow:
     return { source: "fallback" as const, requirements: cloneRequirements(INDONESIA_C1_TOURIST_REQUIREMENTS) };
   }
 
+  if (isDs160VisaType(application.visa_type)
+      && ["us", "usa", "united_states", "united_states_of_america"].includes(application.country.trim().toLowerCase().replace(/[\s-]+/g, "_"))) {
+    // CEAC needs the digital photo. Generic interview/agency supporting
+    // documents must not block submission of the DS-160 questionnaire itself.
+    return { source: "fallback" as const, requirements: FALLBACK_REQUIREMENTS.map((requirement) => ({
+      ...requirement,
+      required: requirement.documentType === "photo",
+    })) };
+  }
   return { source: "fallback" as const, requirements: FALLBACK_REQUIREMENTS };
 }
 
@@ -1471,16 +1492,27 @@ async function loadDocuments(applicationId: string): Promise<ApplicationDocument
     "id, application_id, document_type, requirement_key, storage_path, filename, status, rejection_reason, required, review_notes, reviewed_at, created_at, updated_at";
   const baseSelect = "id, application_id, document_type, storage_path, filename, status, rejection_reason, created_at, updated_at";
 
-  const attachPreviewUrls = async (rows: ApplicationDocumentRow[]) => Promise.all(
-    rows.map(async (row) => {
+  const attachPreviewUrls = async (rows: ApplicationDocumentRow[]) => {
+    // Keep the large generated Supabase client type from expanding through
+    // this server-action module. The installed Storage client and official API
+    // both expose this exact batch method.
+    const previewBucket = adminClient.storage
+      .from(APPLICATION_DOCUMENTS_BUCKET) as unknown as {
+        createSignedUrls: CreateSignedUrls;
+      };
+    const previewUrls = await loadDocumentPreviewUrls(
+      rows.map((row) => row.storage_path?.trim() ?? ""),
+      (paths, expiresIn) => previewBucket.createSignedUrls(paths, expiresIn),
+    );
+
+    return rows.map((row) => {
       const storagePath = row.storage_path?.trim();
-      if (!storagePath) return normalizeDocument(row);
-      const { data, error: previewError } = await adminClient.storage
-        .from(APPLICATION_DOCUMENTS_BUCKET)
-        .createSignedUrl(storagePath, 60 * 60);
-      return normalizeDocument(row, previewError ? null : data?.signedUrl ?? null);
-    }),
-  );
+      return normalizeDocument(
+        row,
+        storagePath ? previewUrls.get(storagePath) ?? null : null,
+      );
+    });
+  };
 
   const { data, error } = await adminClient
     .from("application_documents")
@@ -1735,21 +1767,25 @@ async function loadReusableProfileDocuments(applicantId: string): Promise<Reusab
   const candidates = (data ?? []) as Array<
     Pick<UniversalProfileDocumentRow, "document_type" | "storage_path" | "filename" | "status">
   >;
-  const verified = await Promise.all(
-    candidates.map(async (candidate) => {
-      if (!candidate.storage_path || !isReusableDocumentStatus(candidate.status)) return null;
-      const { data: exists, error: storageError } = await adminClient.storage
-        .from(APPLICATION_DOCUMENTS_BUCKET)
-        .exists(candidate.storage_path);
-      if (storageError || !exists) return null;
-      return {
-        documentType: candidate.document_type,
-        filename: candidate.filename,
-      } satisfies ReusableProfileDocument;
-    }),
+  const candidatePaths = candidates
+    .filter((candidate) => candidate.storage_path && isReusableDocumentStatus(candidate.status))
+    .map((candidate) => candidate.storage_path);
+  const existingPaths = await loadExistingDocumentPaths(
+    candidatePaths,
+    (path) => adminClient.storage.from(APPLICATION_DOCUMENTS_BUCKET).exists(path),
   );
 
-  return verified.filter((document): document is ReusableProfileDocument => document !== null);
+  return candidates
+    .filter(
+      (candidate) =>
+        candidate.storage_path &&
+        isReusableDocumentStatus(candidate.status) &&
+        existingPaths.has(candidate.storage_path),
+    )
+    .map((candidate) => ({
+      documentType: candidate.document_type,
+      filename: candidate.filename,
+    } satisfies ReusableProfileDocument));
 }
 
 function mergeVirtualDocuments(documents: ApplicationDocument[], virtualDocuments: ApplicationDocument[]) {
@@ -1855,6 +1891,7 @@ export async function reuseUniversalProfileDocument(input: {
   documentType: string;
   requirementKey: string;
   required: boolean;
+  locale?: string;
 }): Promise<DocumentMutationResult> {
   try {
     const contextResult = await getApplicantContext();
@@ -1891,6 +1928,35 @@ export async function reuseUniversalProfileDocument(input: {
     }
     if (!storageObjectExists) {
       return { ok: false, code: "not_found", error: "The saved profile file is no longer available" };
+    }
+
+    if (isDs160PhotoRequirement({
+      country: application.country,
+      visaType: application.visa_type,
+      documentType: input.documentType,
+      requirementKey: input.requirementKey,
+    })) {
+      const { data: photo, error: photoReadError } = await adminClient.storage
+        .from(APPLICATION_DOCUMENTS_BUCKET).download(reusableDocument.storage_path);
+      if (photoReadError || !photo) {
+        return {
+          ok: false,
+          code: "server_error",
+          error: isChineseLocale(input.locale ?? "en")
+            ? "无法读取已保存的照片，请重新上传。"
+            : "Unable to read the saved photo. Please upload it again.",
+        };
+      }
+      const photoError = photo.size > DS160_PHOTO_MAX_BYTES
+        ? "file_too_large"
+        : validateDs160PhotoBytes(new Uint8Array(await photo.arrayBuffer()));
+      if (photoError) {
+        return {
+          ok: false,
+          code: "invalid_request",
+          error: getDs160PhotoErrorMessage(photoError, isChineseLocale(input.locale ?? "en")),
+        };
+      }
     }
 
     return recordDocumentUpload({
@@ -2263,6 +2329,24 @@ export async function uploadApplicationDocument(formData: FormData): Promise<Upl
 
     const application = await getOwnedApplication(applicationId, contextResult.context.applicantId);
     if (!application) return { ok: false, code: "not_found", error: "Application not found" };
+
+    if (isDs160PhotoRequirement({
+      country: application.country,
+      visaType: application.visa_type,
+      documentType,
+      requirementKey,
+    })) {
+      const photoError = file.size > DS160_PHOTO_MAX_BYTES
+        ? "file_too_large"
+        : validateDs160PhotoBytes(new Uint8Array(await file.arrayBuffer()));
+      if (photoError) {
+        return {
+          ok: false,
+          code: "invalid_request",
+          error: getDs160PhotoErrorMessage(photoError, isChineseLocale(getFormDataString(formData, "locale") ?? "en")),
+        };
+      }
+    }
 
     const vietnamImageUploadError = await validateVietnamOfficialImageUpload({ application, documentType, file });
     if (vietnamImageUploadError) {

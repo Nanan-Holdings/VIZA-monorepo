@@ -1,6 +1,7 @@
 import "server-only";
 
 import { compileApplicationSchemaForUi } from "@/lib/application-schema-ui-contract";
+import { normalizeBilingualFormField } from "@/lib/bilingual-schema-contract";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   dbRowToFormField,
@@ -18,7 +19,7 @@ function buildSteps(rows: VisaFormFieldDbRow[]): WizardStep[] {
       stepName: row.step_name || `Step ${row.step_number}`,
       fields: [],
     };
-    step.fields.push(dbRowToFormField(row));
+    step.fields.push(normalizeBilingualFormField(dbRowToFormField(row)));
     steps.set(row.step_number, step);
   }
   return [...steps.values()]

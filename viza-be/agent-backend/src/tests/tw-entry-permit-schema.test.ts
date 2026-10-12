@@ -34,7 +34,7 @@ const migration0124Source = readFileSync(
 const migration0125Source = readFileSync(
   new URL("../../drizzle/0125_tw_household_revoked_conditional_metadata.sql", import.meta.url),
   "utf8",
-);
+).replace(/\r\n?/g, "\n");
 
 const migration0126Source = readFileSync(
   new URL("../../drizzle/0126_tw_eligibility_4_document_requirements.sql", import.meta.url),
@@ -54,7 +54,7 @@ const migration0128Source = readFileSync(
 const migration0130Source = readFileSync(
   new URL("../../drizzle/0130_tw_identity_birthplace_parent_student_metadata.sql", import.meta.url),
   "utf8",
-);
+).replace(/\r\n?/g, "\n");
 
 const migration0131Source = readFileSync(
   new URL("../../drizzle/0131_tw_birth_place_mainland_region_options.sql", import.meta.url),
@@ -444,9 +444,13 @@ describe("Taiwan entry permit schema contract", () => {
     expect(fieldSnippet("name_chinese")).toContain("disallow_latin_only: true");
     expect(fieldSnippet("name_chinese")).toContain("disallow_latin_replacement: true");
     expect(fieldSnippet("name_chinese")).toContain("real Chinese name in Traditional Chinese characters");
-    expect(dynamicFormFieldSource).toContain('const isTwUppercaseNameField = field.fieldName === "name_english"');
+    expect(dynamicFormFieldSource).toMatch(
+      /field\.visaType === "TW_ENTRY_PERMIT"\s*&&\s*field\.fieldName === "name_english"/,
+    );
     expect(dynamicFormFieldSource).toContain("nextValue = nextValue.toUpperCase()");
-    expect(dynamicFormFieldSource).toContain('const isTwChineseNameField = field.fieldName === "name_chinese"');
+    expect(dynamicFormFieldSource).toMatch(
+      /field\.visaType === "TW_ENTRY_PERMIT"\s*&&\s*field\.fieldName === "name_chinese"/,
+    );
     expect(dynamicFormFieldSource).toContain("convertSimplifiedToTraditional(value)");
     expect(twNormalizeSource).toContain('requireStr(a.name_english, "name_english").toUpperCase()');
     expect(twNormalizeSource).toContain("toIsoDate");
@@ -618,14 +622,18 @@ describe("Taiwan entry permit schema contract", () => {
     expect(seedSource).toContain('...kinshipFields("child1", "Child 1 (子女)", 5, false, 60)');
     expect(seedSource).toContain('...kinshipFields("child2", "Child 2 (子女)", 5, false, 80)');
 
-    expect(visaFormFieldsActionSource).toContain('const schemaVisaType = resolveVisaFormSchemaVisaType(visaType, options.country)');
+    expect(visaFormFieldsActionSource).toContain("const schemaCountry = getCanonicalApplicationProductCountry(");
+    expect(visaFormFieldsActionSource).toMatch(
+      /const schemaVisaType = resolveVisaFormSchemaVisaType\(visaType,\s*schemaCountry\);/,
+    );
     expect(visaFormFieldsActionSource).toContain('.from("visa_form_fields")');
     expect(visaFormFieldsActionSource).toContain('.eq("visa_type", schemaVisaType)');
     expect(visaFormFieldsActionSource).toContain('.order("step_number", { ascending: true })');
     expect(visaFormFieldsActionSource).toContain('.order("display_order", { ascending: true })');
     expect(visaFormFieldsActionSource).not.toContain('.eq("country"');
 
-    expect(visaFormSchemaAliasesSource).not.toContain("TW_ENTRY_PERMIT");
+    expect(visaFormSchemaAliasesSource).toContain('visaTypes: new Set(["tw_entry_permit", "taiwan_entry_permit", "tw_overseas_cn_tourism_entry_permit"])');
+    expect(visaFormSchemaAliasesSource).toContain('canonicalVisaType: "TW_ENTRY_PERMIT"');
     expect(visaFormSchemaAliasesSource).toContain("return visaType");
   });
 
@@ -680,7 +688,7 @@ describe("Taiwan entry permit schema contract", () => {
     expect(migration0125Source).not.toContain("application_documents");
     expect(migration0125Source).not.toContain("runner_job");
     expect(migration0125Source).not.toContain("'B211A'");
-    expect(migration0125Source).toContain("'radio',\n      false");
+    expect(migration0125Source).toMatch(/'radio',\s+false/);
     expect(seedSource).toContain('required_when: "eligibility_category === 2 && embassy_office in [50, 51]"');
     expect(seedSource).toContain('conditional_logic: { showIf: "eligibility_category === 2 && embassy_office in [50, 51]" }');
   });
@@ -718,7 +726,7 @@ describe("Taiwan entry permit schema contract", () => {
     expect(migration0130Source).toContain("Rollback SQL");
 
     const syncedFields = Array.from(
-      migration0130Source.matchAll(/'TW_ENTRY_PERMIT',\n\s+'([^']+)'/g),
+      migration0130Source.matchAll(/'TW_ENTRY_PERMIT',\r?\n\s+'([^']+)'/g),
       (match) => match[1],
     );
     expect(syncedFields).toHaveLength(19);

@@ -1,4 +1,5 @@
 const NON_TRANSLATABLE_FIELD_PATTERNS = [
+  /(?:^|_)full_name_native_alphabet(?:_|$)/i,
   /(?:^|_)(passport|document|confirmation|application)_?(?:no|num|number|id|code)(?:_|$)/i,
   /(?:^|_)(date|dob|expiry|expiration|issued_at|issue_date)(?:_|$)/i,
   /(?:^|_)(email|phone|telephone|mobile|wechat|url)(?:_|$)/i,

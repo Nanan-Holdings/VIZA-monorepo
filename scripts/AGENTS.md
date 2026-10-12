@@ -24,16 +24,9 @@ smoke-test helpers for the VIZA monorepo.
   root, including the internal website, marketing website, agent backend,
   submission worker, travel service, optional database services, logs, health
   checks, targeted VIZA Supabase migrations, automatic portal opening, and
-  stop support. It starts the submission worker with the local-only Vietnam
-  and Indonesia one-time card-session endpoints enabled and points the frontend
-  at the same submission-service port; card numbers and CVV must still never be written to
-  scripts, env files, logs, or committed files. Use `-SkipVizaMigrations` to
+  stop support. Payment features and card-session probes are removed. Use `-SkipVizaMigrations` to
   skip migration apply during local startup or `-RequireVizaMigrations` when
   stale DB metadata must fail fast.
-- `start-vn-autopay-dev.ps1`: repo-root wrapper for
-  `npm run vn:autopay:dev`. It starts `viza-be/submission-service` with the
-  Vietnam one-time card-session endpoint enabled, defaulting to port 18080 so it
-  matches the global dev stack and frontend local payment route.
 - `restart-all.ps1`: one-shot emergency restart wrapper that forwards flags to
   `start-all.ps1` with `-Reset` (stop all matching started processes and start
   fresh).
@@ -41,9 +34,7 @@ smoke-test helpers for the VIZA monorepo.
 - `start-indonesia-submission-worker.cmd`: Windows double-click helper that
   starts `viza-be/submission-service` for intentional local Indonesia B1/C1
   assisted-live retries only when `VIZA_ALLOW_LOCAL_INDONESIA_WORKER=1`.
-  Production payment jobs belong to the single Fly worker because their
-  one-time card session is process-local; the default guard prevents a local
-  worker from racing Fly for those jobs.
+  The local guard prevents this worker from racing Fly for production jobs.
 - `start-travel-dev.ps1`: opens local terminals for Travel AI development.
 - `start-help-and-internal.ps1`: starts the public help/marketing site and the
   internal portal on separate local ports.
@@ -59,9 +50,8 @@ smoke-test helpers for the VIZA monorepo.
 - `audit-travel-cards.mjs`: validates the complete Travel city/attraction
   catalog, localized names, specific descriptions, source links and image
   paths; `--check-remote` also verifies the deployed image rewrite.
-- `__tests__/start-all-vn-autopay.test.mjs`: static regression coverage for
-  the global `dev:all:with-db` startup chain, especially the Vietnam
-  one-time card-session submission-service handoff and matching frontend env.
+- `__tests__/start-all-vn-autopay.test.mjs`: verifies that local startup uses
+  the matching service URL without enabling removed payment/card endpoints.
 - `supabase-self-heal.mjs`: fail-closed, read-only Supabase Auth/REST canary
   for an external GitHub Actions runner. It requires a project-ref-matching
   `SUPABASE_URL`, runs three dual-endpoint probe rounds per schedule, requires
@@ -198,6 +188,29 @@ history and counts as missing evidence rather than poisoning future trends.
 It emits only aggregate capacity counters, Advisor lint counts, and persistent
 redacted query IDs; it never reads the database or turns a candidate into an
 automatic migration.
+The v2 passive report additionally carries sorted public-table activity
+counters from `pg_stat_user_tables` as exact decimal strings. The trend accepts
+older v1 artifacts, calculates deltas only across matching statistics-reset
+markers and monotonic counters, and withholds table review candidates until the
+same five-observation/22-hour evidence window is complete. These counters are
+metadata: never add SQL text, parameters, row samples, user identifiers, or
+automatic index creation to the table-activity path.
+When PostgreSQL has never recorded an explicit `pg_stat_database.stats_reset`,
+the observer uses `pg_postmaster_start_time()` as a conservative non-null reset
+marker. A database restart therefore breaks the evidence window, while the
+existing monotonic-counter guard still rejects any counter reset or rollback.
+The v3 passive report adds only three fixed connection-source buckets derived
+from exact application-name equality: `agent_backend`, `maintenance`, and
+`other`. Unknown, empty, and Supabase-internal names are never emitted and are
+always counted as `other`. This is a best-effort snapshot of database backends
+under transaction pooling, not a request, user, or tenant metric. Keep raw
+application names, usernames, addresses, PIDs, SQL, parameters, and session
+identifiers out of the artifact and workflow summary.
+The table-review threshold is deliberately conservative: all four consecutive
+segments must be present for that table, followed by either at least 100
+sequential scans touching 10,000 tuples or at least 1,000 inserts/updates/
+deletes. A matching table still requires Advisor, static-call-site, and EXPLAIN
+evidence before any migration is proposed.
 Function-hardening batches use the structured `function_search_path` assertion
 to pin an exact `pg_catalog`-first namespace path and SECURITY
 DEFINER/INVOKER mode; they must pair it with explicit execution-ACL assertions
@@ -207,3 +220,6 @@ stricter than the target PostgreSQL catalog representation, use the read-only
 `verify-approved-batch` action after correcting and reviewing the exact
 structured assertion. Never replay an already-recorded migration to repair a
 postflight-only failure.
+
+Payment removal (2026-09-15): the PhotonPay connectivity smoke and Vietnam
+autopay wrapper scripts are removed; the root npm autopay command is retired.

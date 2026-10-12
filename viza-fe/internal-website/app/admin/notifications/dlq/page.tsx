@@ -1,6 +1,5 @@
 import { listDlq } from "@/app/actions/notification-dlq";
 import { DlqClient } from "./_components/DlqClient";
-import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +15,9 @@ export default async function NotificationDlqPage() {
           </p>
         </header>
         {error ? (
-          <Alert variant="destructive"><AlertIcon variant="destructive" /><AlertDescription>{error}</AlertDescription></Alert>
+          <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+            {error}
+          </p>
         ) : (
           <DlqClient initialRows={rows ?? []} />
         )}

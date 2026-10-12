@@ -189,6 +189,7 @@ export async function runJpVjwPortalSubmission(
     logs.push("jpvjw_user_agent_override=windows_chrome");
     const account = await prepareJpVjwManagedAccount({
       applicantId: options.applicantId!,
+      applicationId: payload.applicationId,
       aliasEmail: options.aliasEmail!,
       correlationId: payload.applicationId,
     });

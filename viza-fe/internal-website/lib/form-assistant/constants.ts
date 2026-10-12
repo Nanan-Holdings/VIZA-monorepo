@@ -414,51 +414,6 @@ function explanationOptionLabel(option: VisaFormFieldOption, locale: string): st
     : option.label_en?.trim() || option.text?.trim() || option.official_label?.trim() || option.value;
 }
 
-const INLINE_REVIEWED_CHOICE_LIMIT = 5;
-
-/**
- * Small reviewed choice sets belong in the conversation itself. Large
- * searchable lists (countries, airports, occupations, and similar controls)
- * stay conversational so the assistant does not dump an unusable catalogue.
- */
-export function getReviewedChoiceAnswerLabels(
-  field: Pick<FieldExplanationTarget, "fieldType" | "options">,
-  locale: string,
-): string[] | null {
-  if (!isFieldChoiceControl(field) || !field.options) return null;
-  if (field.options.length < 2 || field.options.length > INLINE_REVIEWED_CHOICE_LIMIT) return null;
-  const labels = Array.from(new Set(
-    field.options.map((option) => explanationOptionLabel(option, locale)).filter(Boolean),
-  ));
-  if (labels.length < 2) return null;
-  const normalized = labels.map((label) => label.trim().toLocaleLowerCase());
-  const isYesNo = labels.length === 2 &&
-    normalized.some((label) => /^(?:yes|true|是|有)$/.test(label)) &&
-    normalized.some((label) => /^(?:no|false|否|无|沒有|没有)$/.test(label));
-  if (isYesNo) return null;
-
-  return labels;
-}
-
-export function buildReviewedChoiceAnswerHint(
-  field: Pick<FieldExplanationTarget, "fieldType" | "options">,
-  locale: string,
-): string | null {
-  const labels = getReviewedChoiceAnswerLabels(field, locale);
-  if (!labels) return null;
-
-  if (locale.startsWith("zh")) {
-    const choices = labels.length === 2
-      ? `${labels[0]} 或 ${labels[1]}`
-      : `${labels.slice(0, -1).join("、")}，或 ${labels.at(-1)}`;
-    return `可回答：${choices}。请直接用自己的话回复。`;
-  }
-  const choices = labels.length === 2
-    ? `${labels[0]} or ${labels[1]}`
-    : `${labels.slice(0, -1).join(", ")}, or ${labels.at(-1)}`;
-  return `Available answers: ${choices}. Reply in your own words.`;
-}
-
 const DATE_FORMAT_EXAMPLES: Readonly<Record<string, string>> = {
   "YYYY-MM-DD": "2026-09-15",
   "DD/MM/YYYY": "15/09/2026",
@@ -787,8 +742,7 @@ export function buildFieldClarificationFallback(
   const example = explanation.example
     ? locale.startsWith("zh") ? `格式示例：${explanation.example}。` : `Format example: ${explanation.example}.`
     : "";
-  const reviewedChoices = buildReviewedChoiceAnswerHint(field, locale);
-  return [explanation.summary, explanation.sourceHint, reviewedChoices, example].filter(Boolean).join(" ");
+  return [explanation.summary, explanation.sourceHint, example].filter(Boolean).join(" ");
 }
 
 function normalizeClarificationText(value: string): string {

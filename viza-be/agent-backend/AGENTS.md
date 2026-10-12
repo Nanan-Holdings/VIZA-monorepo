@@ -20,10 +20,27 @@ explicitly reintroduces another provider.
   timeout defaults on three fresh connections before readiness, creates the HTTP server, attaches
   Socket.IO, registers `/visa`, and checks Supabase. `src/server-shutdown.ts`
   owns the bounded Socket.IO/HTTP/database shutdown order.
-- Express app: `src/app.ts` mounts REST routes and error handling.
+- Express app: `src/app.ts` mounts REST routes and error handling. OCR admission
+  must precede both large-body parsers; `src/app.passport-admission.test.ts`
+  exercises the actual app over loopback HTTP with a simulated OCR handler,
+  including overlapping requests, partial uploads, parser errors, and recovery.
 - VIZA AI chat: `src/socket/visa-namespace.ts` plus `src/agent/index.ts`.
+  `src/agent/index.test.ts` covers locale-aware fallback replies when the
+  generation provider is not configured; the socket passes its response locale.
+  `src/agent/application-context.ts` owns the request-scoped applicant profile
+  and latest-application read. Keep its normal path as one nested Supabase
+  request, retain the legacy lookup as an availability fallback, and never
+  process-cache or log applicant data.
 - RAG retrieval: `src/services/visa-knowledge.service.ts`,
   `src/config/visa-destination-registry.ts`, and `visa_chunks`.
+- RAG parameter experiments: `scripts/evaluate-rag-retrieval.ts`,
+  `evals/rag-retrieval-queries.json`, and `evals/rag-retrieval-results.json`.
+  `npm run eval:rag-retrieval -- --live` embeds only checked-in public seeds and
+  synthetic queries; `--cached` performs no provider calls. Embedding vectors
+  live under ignored `.tmp/rag-eval/`. Select on dev only, then check heldout;
+  do not claim live-database, ANN latency, or generated-answer accuracy from
+  this exact local cosine experiment. Curated chunk boundaries remain the
+  ingestion default until a separately validated release is re-embedded.
 - Versioned RAG publishing: `scripts/ingest-country-visa-rag.ts`,
   `scripts/stage-visa-knowledge-supplements.ts`,
   `scripts/promote-visa-knowledge-release.ts`, and
@@ -35,10 +52,12 @@ explicitly reintroduces another provider.
 - Website internal automation: `src/routes/internal-automation/**`,
   `src/services/internal-automation/**`, `src/db/schema.ts`, and
   `drizzle/0013_internal_automation_loop.sql`.
-- Official visa fee payment framework: `src/routes/official-fee.routes.ts`,
+- Official visa fee payment history: `src/routes/official-fee.routes.ts`,
   `src/services/official-fee/**`, `src/db/schema.ts`, and
-  `drizzle/0089_official_fee_payment.sql`. Dry-run/manual-review only unless
-  a future task explicitly enables provider-approved live payment.
+  `drizzle/0089_official_fee_payment.sql` remain for historical/read
+  compatibility. The routers are no longer mounted and `0194` disables
+  database payment execution; official portal fees must surface as an honest
+  needs-attention result.
 - U.S. B1/B2 appointment assistant: `src/routes/us-appointment.routes.ts`,
   `src/services/us-appointment/**`, `src/db/schema.ts`, and
   `drizzle/0091_us_appointment_assistant.sql`. China
@@ -59,7 +78,8 @@ explicitly reintroduces another provider.
   must remain in submission-service. Assisted-live booking calls the protected
   `/internal/france-tls/book-selected-slot` handoff and accepts success only
   when submission-service returns a verifiable official confirmation number;
-  dry-run confirmation IDs must never be used for assisted-live jobs. With
+  dry-run confirmation IDs must never be used for assisted-live jobs. Payment
+  session authorization is no longer exposed; with
   `FRANCE_TLS_ACCOUNT_PREP_ENABLED=true`, the assisted-live action first calls
   the token-protected `/internal/france-tls/register-account` endpoint to
   provision/activate/login the applicant alias and prefill the France-Visas
@@ -75,6 +95,23 @@ explicitly reintroduces another provider.
   portal observation to submission-service. Free Plan mode stops before slot
   selection, payment, and final booking.
 - DB schema and migrations: `src/db/schema.ts` and `drizzle/*.sql`.
+- `drizzle/0206_ds160_official_email_queue.sql` and its byte-identical
+  frontend mirror own the DS-160 official confirmation-email/download queue, exact
+  owner/lock send fence, and post-browser-close settlement. The focused
+  migration test is
+  `src/tests/ds160-official-email-queue-migration.test.ts`; its database
+  companion is explicitly gated to a marked local/test PostgreSQL transaction
+  and always rolls back synthetic fixtures.
+- `drizzle/0207_preserve_ds160_proof_stale_results.sql` isolates CEAC proof
+  work from generic stale maintenance and protects valid leases. Its mirror
+  contract is in `src/tests/stale-queue-maintenance-migration.test.ts`.
+  `src/tests/stale-queue-maintenance.fixture.sql` executes the old failure
+  and corrected behavior in an empty disposable PostgreSQL database and
+  rolls everything back; run with `psql -v ON_ERROR_STOP=1 -f <fixture>`.
+  Never run this fixture against production or an existing application DB.
+  `src/tests/stale-queue-maintenance-db.integration.test.ts` additionally
+  covers explicit 0206 retry of expired queued/sending jobs. It requires a
+  marked local/test database and rolls its transaction back.
 - Transactional notification delivery: `src/notify/templates/**` and
   `src/notify/worker.ts`; Vietnam status changes use the locale-aware
   `vietnam_status_update` template and link to the VIZA status center.
@@ -82,7 +119,19 @@ explicitly reintroduces another provider.
   `src/routes/public-status.routes.ts`, and
   `drizzle/0150_public_status_tracking.sql` own bounded synthetic probes,
   durable observations/incidents, and the redacted public snapshot.
+  `drizzle/0190_public_status_aggregate_once.sql` removes repeated history
+  aggregation. `src/tests/public-status-aggregate-*.test.ts` verifies the
+  mirrored migration plus guarded local database JSON/ACL/OID parity across
+  calendar/rolling boundaries and timezones; it never defaults to production.
 - Seed/ingestion scripts: `scripts/*.ts`.
+- `scripts/ds160-consular-posts.ts` is the checked-in 217-entry CEAC DS-160
+  start-page consular-post catalog. Keep official codes/English labels stable
+  for runner payloads and use `labelZh` only for applicant-facing display.
+- `scripts/prove-rag-retrieval.ts` and its adjacent test implement the local,
+  cached-vector exhaustive empirical RAG certificate. They pool already seen
+  synthetic questions, enumerate threshold equivalence intervals and k 1-12,
+  and use exact rational objective comparisons. This is descriptive benchmark
+  optimization, not a replacement for independent validation or a release gate.
 - Audited tourist-form seeds:
   `scripts/seed-ca-trv-form-fields.ts`,
   `scripts/seed-tr-e-visa-form-fields.ts`,
@@ -171,12 +220,17 @@ explicitly reintroduces another provider.
   that Cookie belongs to the exact configured synthetic user UUID and is not an
   impersonation session. It ramps 100 sessions for 30 seconds and then
   holds read-only `/client/home`, `/client/status`, and `/ready` traffic for at
-  least five minutes; the Cookie must never be logged or written to artifacts.
+  least five minutes at the canonical `ONLINE_CAPACITY_RELEASE_PACING_MS`
+  (5 seconds); other pacing values remain diagnostics and fail authenticated
+  release eligibility. The Cookie must never be logged or written to artifacts.
 - The harness also samples `/api/internal/status/capacity` once per second using
   a step-scoped telemetry secret and fails closed on incomplete/malformed
   samples, non-open pool state, a cumulative wait peak above one, any wait that
   persists into a one-second sample, peak DB pool utilization at or above 80%,
-  counter reset, or new failed/slow query. Results retain only
+  counter reset, new failed/slow query, a disabled/restarted runtime monitor,
+  event-loop delay p95 at or above 100 ms, event-loop utilization at or above
+  80%, or V8 heap utilization at or above 80%. RSS is recorded only as an
+  aggregate because the V8 heap limit is not the container memory limit. Results retain only
   aggregates and SHA-256 query fingerprints. The status route uses its own
   `CAPACITY_STATUS_SECRET`, never the broader portal-probe secret. The protected
   synthetic `/api/internal/status/capacity/database-read` route is enabled only
@@ -186,9 +240,54 @@ explicitly reintroduces another provider.
   PostgreSQL gate for the matching paced load shape. It requires a loopback URL,
   `ONLINE_CAPACITY_DB_CONFIRM=local-test`, a non-production marker, and the DB
   GUC `app.viza_environment=local-test`; without all four it must skip safely.
+- `scripts/local-capacity-rls.ts` (`npm run load:local-rls`) is a separate,
+  database-only diagnostic for 100 synthetic identities sharing three clients.
+  It requires `ONLINE_CAPACITY_RLS_CONFIRM=local-test`,
+  `ONLINE_CAPACITY_RLS_NONPRODUCTION=local-test`, an explicit dedicated
+  `ONLINE_CAPACITY_RLS_DATABASE_URL` on a literal loopback address, and the
+  database environment marker. It never falls back to `DATABASE_URL`.
+  `scripts/local-capacity-rls-fixture.ts` refuses existing objects/roles before
+  creating a minimal four-table fixture and applying the actual `0168` policy
+  migration. Use only a disposable empty PostgreSQL 17 database; the container
+  owner must remove it afterward. It creates local `auth.uid()` claim emulation,
+  not Supabase login sessions, and never runs the website. Each read cycle owns
+  one client, uses `SET LOCAL ROLE` and a transaction-local claim, verifies RLS
+  ownership, and checks identity reset after COMMIT or ROLLBACK. Aggregate output
+  lives under ignored `load-test-results/online-capacity/`. Its result cannot
+  satisfy or weaken the separate website release gate. Target refusal tests:
+  `src/tests/local-capacity-rls.test.ts`.
 - `src/online-capacity-target.ts` owns the default-off target marker returned at
   `/api/health/online-capacity-target`. It derives the project ref from the
   service's actual Supabase URL and must never return keys or connection URLs.
+- `src/utils/provider-capacity.ts` owns the bounded instance-local budget for
+  non-chat AI/provider calls. Passport OCR, field guidance, validation, and
+  embedding requests must enter through `runWithProviderCapacity()`, consume
+  its execution `AbortSignal`, and preserve the bounded execution deadline.
+  Chat keeps its separate turn-level gate. The protected capacity route may
+  expose only aggregate gate counts and bounded latency percentiles, never
+  prompts, responses, request identities, model input, or provider errors.
+  Caller cancellation/deadlines reject promptly, but active slots and execution
+  latency track the underlying operation until it actually settles. Never
+  release an occupied slot merely because an abort signal was sent. Work
+  cancelled between admission and execution must not start a provider call;
+  late resolution/rejection must release exactly once and remain observed.
+  An operation that never settles retains its slot rather than admitting
+  unlimited replacement work. `src/utils/provider-capacity.test.ts` covers
+  delayed cleanup and admission cancellation; the route-level regression is
+  `src/routes/passport-scan-draining.test.ts`.
+- `src/routes/passport-scan-admission.ts` separately bounds OCR HTTP requests
+  before body parsing (default 4 per process, configurable up to 16 with
+  `PASSPORT_SCAN_MAX_IN_FLIGHT`). It has no waiting queue and returns 503 with
+  `Retry-After` on overflow. This bounds body parsing and request handling;
+  provider work draining after a response still occupies the provider gate.
+  The internal website's independent `/api/passport-ocr` route does not use
+  this backend admission middleware.
+- `src/observability/runtime-capacity.ts` owns low-cardinality process metrics
+  for the secret-protected capacity endpoint. It samples event-loop delay and
+  utilization plus aggregate process memory/uptime; never add PID, hostname,
+  environment values, request identity, user data, stack traces, or heap
+  snapshots. Event-loop delay is reset after each protected snapshot so load
+  gates observe bounded windows rather than a process-lifetime average.
 
 ## Ownership Boundaries
 
@@ -205,8 +304,8 @@ explicitly reintroduces another provider.
   create/link appointment account records and model checkpoint state, but
   actual login, official account registration, CAPTCHA/MFA/email handling,
   waiting-room/rate-limit handling, and slot capture belong in
-  `submission-service`. User slot selection and payment/final approval remain
-  explicit VIZA actions.
+  `submission-service`. User slot selection and final approval remain explicit
+  VIZA actions; payment actions are disabled.
 - Do not move frontend route logic here; Next.js route/UI code belongs in
   `viza-fe/internal-website`.
 
@@ -229,6 +328,9 @@ npm run db:migrate
 ```
 
 Smoke `GET /health` after startup and `/client/chat` after Socket.IO changes.
+For multi-replica topology changes, also run
+`npm run test:socket-scaling-integration` against a disposable loopback Redis;
+the test skips safely when its dedicated URL is absent.
 
 ## Important Files
 
@@ -239,6 +341,8 @@ Smoke `GET /health` after startup and `/client/chat` after Socket.IO changes.
 - `src/socket/visa-namespace.ts`
 - `src/db/schema.ts`
 - `src/db/supabase-client.ts`
+- `src/db/successful-probe-cache.ts`: bounded success-only single-flight cache
+  used by Supabase health/readiness probes; failed probes are never cached.
 - `src/routes/internal-automation/*`
 - `src/routes/official-fee.routes.ts`
 - `src/routes/us-appointment.routes.ts`

@@ -8,7 +8,6 @@ import {
   CalendarDots as CalendarClock,
   CheckCircle as CheckCircle2,
   ClipboardText as ClipboardList,
-  CreditCard,
   FileText as FileCheck2,
   Kanban as FolderKanban,
   Question as HelpCircle,
@@ -26,7 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
-type IssueTypeKey = "application" | "documents" | "billing" | "status" | "account";
+type IssueTypeKey = "application" | "documents" | "status" | "account";
 type HelpActionKey = "faqs" | "requests";
 type ChatTurn = {
   id: string;
@@ -42,7 +41,6 @@ const ISSUE_TYPES: Array<{
 }> = [
   { key: "application", icon: ClipboardList, href: "/client/application", tone: "info" },
   { key: "documents", icon: FileCheck2, href: "/client/documents", tone: "warning" },
-  { key: "billing", icon: CreditCard, href: "/client/billing", tone: "success" },
   { key: "status", icon: CalendarClock, href: "/client/status", tone: "info" },
   { key: "account", icon: FolderKanban, href: "/client/settings", tone: "success" },
 ];
@@ -56,7 +54,7 @@ const HELP_ACTIONS: Array<{
   { key: "requests", icon: Inbox, href: "/client/support/requests" },
 ];
 
-const QUICK_ISSUES = ["stuck", "change", "refund", "deadline"] as const;
+const QUICK_ISSUES = ["stuck", "change", "deadline"] as const;
 
 function activityToneClasses(tone: "info" | "success" | "warning") {
   if (tone === "success") return "bg-emerald-50 text-emerald-700";

@@ -1,40 +1,72 @@
 # Product analytics (OBS-001)
 
-Single taxonomy file: `events.ts` exports the `EVENT` enum + `track(event)` helper. **Add to the enum first** — drifted string literals cause dashboards that silently disagree with reality.
+`events.ts` declares the `EVENT` constant object and the `track(event)` helper.
+This module is an event taxonomy and optional transport wrapper; it is not
+evidence that all listed business events are emitted.
 
-## Vendor
+Source baseline: **2026-09-13**.
 
-PostHog at MVP. `NEXT_PUBLIC_POSTHOG_KEY` + `NEXT_PUBLIC_POSTHOG_HOST` envs control it; the helper is a no-op when the key is unset (dev runs are quiet).
+## Current implementation status
 
-## Consent gate
+| Area | Current code | Boundary |
+| --- | --- | --- |
+| Taxonomy | 13 event names in `EVENT` | A declared name is not an instrumented call site |
+| Transport | Dynamic import of `posthog-js` when `NEXT_PUBLIC_POSTHOG_KEY` is set | The checked package manifest/lock do not include `posthog-js`; import failure is not handled by this wrapper |
+| Call sites | No production imports/calls to this helper found in the current app | Do not claim signup/payment/submission events reach PostHog |
+| Browser consent | `track` returns unless `viza_cookie_consent` ends in `=accept` | This check only runs when `document` exists; it is not a server-side consent or legal-compliance guarantee |
+| Autocapture | Explicitly disabled in `getClient` | Explicit event wiring is still needed |
+| Admin dashboard | Database-backed 30-day operational counts | It does not query the PostHog API or compute cohort conversion |
 
-`track()` reads the `viza_cookie_consent` cookie (PRODUCT-008) and short-circuits unless the applicant chose **accept**. GDPR is enforced at the call site — no auto-init.
+Setting a key alone does not complete installation, consent handling, producer
+instrumentation or end-to-end verification. A missing key makes the helper a
+no-op. A configured key with a missing SDK can reject the call.
 
-## Standard events
+## Declared event names
 
-| Name                          | Where fired                                                            | Required properties                      |
-| ----------------------------- | ---------------------------------------------------------------------- | ---------------------------------------- |
-| `signup_started`              | `/signup` page mount                                                  | locale                                   |
-| `signup_verified`             | `/verify-email` callback                                              | email_verified=true                      |
-| `application_created`         | `app/actions/visa-application-answers.ts:ensureDraftApplication`      | application_id, country, visa_type       |
-| `application_step_completed`  | `app/application/[id]/answer/_components/AnswerForm.tsx` (next click) | application_id, step_index               |
-| `payment_intent_created`      | Stripe checkout-session creation                                       | application_id, amount_cents, currency   |
-| `payment_succeeded`           | Stripe webhook `checkout.session.completed`                            | application_id, amount_cents, currency   |
-| `doc_uploaded`                | `components/document-upload.tsx` onUploaded callback                  | application_id, kind                     |
-| `face_match_decided`          | `app/actions/face-match.ts:runFaceMatch`                              | application_id, decision, score          |
-| `identity_verified`           | Stripe webhook `identity.verification_session.verified`                | application_id                           |
-| `application_submitted`       | runner-side persist functions (`persist*Submitted`)                   | application_id, country                  |
-| `application_delivered`       | runner-side persist functions (`persist*Delivered`)                   | application_id, country                  |
-| `refund_requested`            | `app/actions/refund-request.ts:requestRefund`                         | application_id, amount_cents             |
-| `refund_decided`              | `app/actions/refund-request.ts:decideRefund`                          | refund_request_id, approve               |
+The names below exist in `EVENT`; their old proposed producer locations must
+not be treated as implemented fire sites:
 
-## /admin/analytics dashboard
+- `signup_started`, `signup_verified`
+- `application_created`, `application_step_completed`
+- `payment_intent_created`, `payment_succeeded`
+- `doc_uploaded`, `face_match_decided`, `identity_verified`
+- `application_submitted`, `application_delivered`
+- `refund_requested`, `refund_decided`
 
-`/admin/analytics/page.tsx` server-fetches funnel counts via PostHog query API (or a Postgres view backed by `notification_event_log` + your event ingestion path) and renders 4 funnel cards using brand-* tokens. Deep-dive button links to the PostHog dashboard.
+`AnalyticsEvent.properties` is currently a generic primitive-value record.
+Per-event required property schemas are not enforced by this module.
 
-## Adding a new event
+## Admin analytics
 
-1. Add the constant to `EVENT` in `events.ts`.
-2. Document the required properties in the table above.
-3. Call `track({ name: EVENT.<key>, properties: { ... } })` from the producing code.
-4. Update `/admin/analytics` if the new event belongs in the funnel.
+[AdminAnalyticsPage](../../app/admin/analytics/page.tsx) issues five concurrent
+Supabase count queries for the previous 30 days:
+
+- `marketing_leads.created_at`
+- `applicant_profiles.created_at`
+- `applications.created_at`
+- `order.paid_at`, limited to `paid`, `submitted`, `completed` statuses
+- `runner_job.finished_at`, limited to `succeeded`
+
+The last metric counts successful runner jobs, not deduplicated successful
+applicants or a single cohort. The page labels the results as operational stage
+volumes, reports unavailable sources, and links out using
+`NEXT_PUBLIC_POSTHOG_DASHBOARD_URL` or the generic PostHog site. That link is not
+proof of a configured dashboard or an event ingestion pipeline.
+
+## Completing instrumentation in a future implementation
+
+1. Add intentional producer calls and typed property contracts for the selected
+   events; verify exact paths instead of copying historical fire-site tables.
+2. Install/configure the SDK and explicitly handle transport failure without
+   failing the primary user action.
+3. Define both browser and server consent/privacy behavior before emitting
+   identifiers. The present browser-only cookie guard does not cover server
+   calls.
+4. Verify one event from producer through transport to the intended dashboard;
+   distinguish duplicate/replayed business actions from new events.
+5. Keep operational DB counts separate from identity-linked behavioral funnels
+   and cohort conversion metrics.
+
+These are remaining integration tasks, not claims of implemented behavior.
+Request timings and runtime diagnostics are documented separately in
+[Portal Observability](../observability/AGENTS.md).

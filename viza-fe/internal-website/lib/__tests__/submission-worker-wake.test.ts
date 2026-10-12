@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { wakeCloudSubmissionWorker } from "../submission-worker-wake.server";
+import {
+  wakeCloudSubmissionWorker,
+  wakeDs160SubmissionWorker,
+} from "../submission-worker-wake.server";
 
 describe("wakeCloudSubmissionWorker", () => {
   it("does not start a Machine or call a wake endpoint during cutover pause", async () => {
@@ -106,6 +109,78 @@ describe("wakeCloudSubmissionWorker", () => {
     expect(fetchImpl).toHaveBeenCalledWith(
       "https://api.machines.dev/v1/apps/viza-runner-pool/machines/machine-vn/start",
       expect.objectContaining({ method: "POST" }),
+    );
+  });
+
+  it("keeps the generic legacy wake on the Vietnam compatibility endpoint", async () => {
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input) === "https://vietnam-worker.example.test/internal/submission-queue/wake") {
+        return new Response(null, { status: 202 });
+      }
+      return new Response(null, { status: 404 });
+    });
+
+    const result = await wakeCloudSubmissionWorker("job-vietnam", {
+      target: "legacy",
+      env: {
+        NODE_ENV: "production",
+        VIETNAM_SUBMISSION_SERVICE_URL: "https://vietnam-worker.example.test",
+        SUBMISSION_SERVICE_CLOUD_URL: "https://legacy-worker.example.test",
+        SUBMISSION_QUEUE_INTERNAL_TOKEN: "secret-token",
+      },
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "https://vietnam-worker.example.test/internal/submission-queue/wake",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ jobId: "job-vietnam" }),
+      }),
+    );
+  });
+
+  it("cold-starts DS-160 on the retained legacy app and uses its endpoint", async () => {
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("/apps/viza-prod-submission-legacy/machines")) {
+        return Response.json([{ id: "legacy-machine", state: "stopped" }]);
+      }
+      if (url.endsWith("/apps/viza-prod-submission-legacy/machines/legacy-machine/start")) {
+        return new Response(null, { status: 202 });
+      }
+      if (url === "https://legacy-worker.example.test/internal/submission-queue/wake") {
+        return new Response(null, { status: 202 });
+      }
+      return new Response(null, { status: 404 });
+    });
+
+    const result = await wakeDs160SubmissionWorker("job-ds160", {
+      env: {
+        NODE_ENV: "production",
+        FLY_SUBMISSION_ORG_TOKEN: "fly-token",
+        FLY_SUBMISSION_LEGACY_APP: "viza-prod-submission-legacy",
+        SUBMISSION_SERVICE_CLOUD_URL: "https://legacy-worker.example.test",
+        VIETNAM_SUBMISSION_SERVICE_URL: "https://vietnam-worker.example.test",
+        SUBMISSION_QUEUE_INTERNAL_TOKEN: "secret-token",
+      },
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "https://api.machines.dev/v1/apps/viza-prod-submission-legacy/machines",
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: "Bearer fly-token" }),
+      }),
+    );
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "https://legacy-worker.example.test/internal/submission-queue/wake",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ jobId: "job-ds160" }),
+      }),
     );
   });
 

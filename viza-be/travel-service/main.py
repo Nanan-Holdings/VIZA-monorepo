@@ -6,15 +6,12 @@ from contextlib import asynccontextmanager
 from datetime import date, timedelta
 from typing import Any, Optional
 
-from fastapi import BackgroundTasks
-from fastapi import Depends
-from fastapi import FastAPI
+from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from pathlib import Path
 
-from auth import allowed_origins, require_internal_auth
 from itinerary import (
     _fallback_itinerary,
     _openai_revision_unavailable,
@@ -27,8 +24,9 @@ from export_doc import export_to_word
 from export_pdf import export_to_pdf
 from tools.flights import _fallback_flights, search_flights
 from tools.hotels import _fallback_hotels, search_hotels
+from tools.export_admission import ExportAdmissionTimeout, export_request_slot
 from tools.http_client import close_http_client, get_http_client
-from tools.serpapi import is_serpapi_configured
+from travel_locale import is_english_locale, normalize_travel_locale
 
 
 def _positive_env_int(name: str, default: int) -> int:
@@ -78,15 +76,10 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-# Browser CORS: an env-driven allowlist instead of "*". The Next.js proxy
-# reaches this service server-to-server (CORS does not apply there), so this
-# only governs any direct browser access. Credentials are not used (no cookies
-# or Authorization flows), so allow_credentials stays False — which also keeps
-# the config spec-valid (a wildcard origin with credentials is invalid).
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins(),
-    allow_credentials=False,
+    allow_origins=["*"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -112,7 +105,7 @@ class TravelRequest(BaseModel):
     attached_files: list[str] = Field(default_factory=list)
     itinerary: list[dict] = Field(default_factory=list)
     itinery_rows: list[dict] = Field(default_factory=list)
-    export_language: Optional[str] = "zh"
+    export_language: Optional[str] = None
     locale: str = "zh-CN"
 
 
@@ -211,6 +204,8 @@ def _travel_payload(data: TravelRequest):
     normalized_country = _normalized_country(data)
     start_date = _travel_start_date(data.departure_date)
 
+    locale = normalize_travel_locale(data.locale)
+    export_language = data.export_language or locale
     return {
         **_payload(data),
         "country": normalized_country,
@@ -219,6 +214,8 @@ def _travel_payload(data: TravelRequest):
         "travel_days": data.travel_days or sum(city_days.values()),
         "departure_date": start_date.isoformat(),
         "date_flexibility": data.date_flexibility or "flexible",
+        "locale": locale,
+        "export_language": export_language,
     }
 
 
@@ -316,6 +313,58 @@ def _cleanup_file(file_path: str):
     Path(file_path).unlink(missing_ok=True)
 
 
+def _cleanup_completed_export(task: asyncio.Task):
+    """Clean a thread result when its request was cancelled before handoff."""
+
+    if task.cancelled():
+        return
+    try:
+        file_path = task.result()
+    except BaseException:
+        # Retrieving the result consumes failures from abandoned export tasks.
+        return
+    if isinstance(file_path, str):
+        _cleanup_file(file_path)
+
+
+async def _run_export_with_admission(export_fn, itinerary, payload):
+    """Keep the admission slot until the worker thread actually completes."""
+
+    async with export_request_slot():
+        return await asyncio.to_thread(export_fn, itinerary, payload)
+
+
+async def _export_to_file(export_fn, itinerary, payload, background_tasks):
+    """Run one bounded export and register cleanup before returning its path."""
+
+    file_path = None
+    export_task = asyncio.create_task(
+        _run_export_with_admission(export_fn, itinerary, payload)
+    )
+    try:
+        try:
+            file_path = await asyncio.shield(export_task)
+        except asyncio.CancelledError:
+            # to_thread cannot stop an already-running worker. Ensure its
+            # eventual result is deleted if the request goes away first. The
+            # worker task owns the admission slot until it actually finishes.
+            export_task.add_done_callback(_cleanup_completed_export)
+            raise
+    except asyncio.CancelledError:
+        if isinstance(file_path, str):
+            _cleanup_file(file_path)
+        raise
+
+    background_tasks.add_task(_cleanup_file, file_path)
+    return file_path
+
+
+def _export_busy_detail(data: TravelRequest):
+    if is_english_locale(data.export_language or data.locale):
+        return "Export service is busy. Please retry shortly."
+    return "导出服务当前繁忙，请稍后重试。"
+
+
 async def _run_external_search(search_fn, kwargs: dict[str, Any], fallback):
     """Run one provider search with bounded concurrency and a hard deadline."""
 
@@ -346,27 +395,10 @@ async def ready():
         await get_http_client()
     except Exception as exc:
         return {"status": "not_ready", "service": "travel-service", "error": str(exc)}
-    return {
-        "status": "ready",
-        "service": "travel-service",
-        "providers": {
-            "flight_hotel": {
-                "configured": is_serpapi_configured()
-                or bool(os.getenv("RAPIDAPI_KEY", "").strip()),
-                "primary": "serpapi-google-travel",
-                "fallback": "rapidapi-booking-com",
-                "serpapi_configured": is_serpapi_configured(),
-                "rapidapi_configured": bool(os.getenv("RAPIDAPI_KEY", "").strip()),
-            },
-            "itinerary": {
-                "configured": bool(os.getenv("OPENAI_API_KEY", "").strip()),
-                "name": "openai",
-            },
-        },
-    }
+    return {"status": "ready", "service": "travel-service"}
 
 
-@app.post("/generate", dependencies=[Depends(require_internal_auth)])
+@app.post("/generate")
 async def generate(data: TravelRequest):
     payload = _travel_payload(data)
     try:
@@ -380,12 +412,19 @@ async def generate(data: TravelRequest):
     return {"reply": itinerary}
 
 
-@app.post("/revise-itinerary", dependencies=[Depends(require_internal_auth)])
+@app.post("/revise-itinerary")
 async def revise(data: TravelRevisionRequest):
     if hasattr(data, "model_dump"):
         payload = data.model_dump()
     else:
         payload = data.dict()
+    locale = normalize_travel_locale(data.locale)
+    payload["locale"] = locale
+    state = payload.get("state")
+    if isinstance(state, dict):
+        payload["state"] = {**state, "locale": locale}
+    else:
+        payload["state"] = {"locale": locale}
     try:
         return await asyncio.wait_for(
             revise_itinerary(payload),
@@ -394,11 +433,11 @@ async def revise(data: TravelRevisionRequest):
     except asyncio.TimeoutError:
         print("Travel itinerary revision exceeded the endpoint deadline; preserving current version.")
         current = _sanitize_itinerary(payload.get("current_itinerary"), payload.get("state"))
-        timeout_label = "OpenAI request timed out" if data.locale.lower().startswith("en") else "OpenAI 请求超时"
-        return _openai_revision_unavailable(timeout_label, current)
+        timeout_label = "OpenAI request timed out" if is_english_locale(locale) else "OpenAI 请求超时"
+        return _openai_revision_unavailable(timeout_label, current, locale)
 
 
-@app.post("/chat", dependencies=[Depends(require_internal_auth)])
+@app.post("/chat")
 async def chat(data: TravelChatRequest):
     try:
         return await asyncio.wait_for(
@@ -407,7 +446,7 @@ async def chat(data: TravelChatRequest):
         )
     except asyncio.TimeoutError:
         print("Travel chat exceeded the endpoint deadline; returning a safe fallback.")
-        is_english = data.locale.lower().startswith("en")
+        is_english = is_english_locale(data.locale)
         return TravelChatResponse(
             reply=(
                 "Travel chat timed out. Please try again, or tell me your destination and trip length."
@@ -418,7 +457,7 @@ async def chat(data: TravelChatRequest):
         )
 
 
-@app.post("/download-word", dependencies=[Depends(require_internal_auth)])
+@app.post("/download-word")
 async def download_word(data: TravelRequest, background_tasks: BackgroundTasks):
     payload = _travel_payload(data)
     if data.itinerary:
@@ -432,17 +471,28 @@ async def download_word(data: TravelRequest, background_tasks: BackgroundTasks):
         except asyncio.TimeoutError:
             print("Travel itinerary generation exceeded the endpoint deadline; using fallback.")
             itinerary = _fallback_itinerary(payload)
-    file_path = await asyncio.to_thread(export_to_word, itinerary, payload)
-    background_tasks.add_task(_cleanup_file, file_path)
+    try:
+        file_path = await _export_to_file(
+            export_to_word,
+            itinerary,
+            payload,
+            background_tasks,
+        )
+    except ExportAdmissionTimeout as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=_export_busy_detail(data),
+            headers={"Retry-After": "5"},
+        ) from exc
 
     return FileResponse(
         path=file_path,
-        filename=f"travel_plan_{data.export_language or 'zh'}.docx",
+        filename=f"travel_plan_{payload.get('export_language', 'zh')}.docx",
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     )
 
 
-@app.post("/download-pdf", dependencies=[Depends(require_internal_auth)])
+@app.post("/download-pdf")
 async def download_pdf(data: TravelRequest, background_tasks: BackgroundTasks):
     payload = _travel_payload(data)
     if data.itinerary:
@@ -456,17 +506,28 @@ async def download_pdf(data: TravelRequest, background_tasks: BackgroundTasks):
         except asyncio.TimeoutError:
             print("Travel itinerary generation exceeded the endpoint deadline; using fallback.")
             itinerary = _fallback_itinerary(payload)
-    file_path = await asyncio.to_thread(export_to_pdf, itinerary, payload)
-    background_tasks.add_task(_cleanup_file, file_path)
+    try:
+        file_path = await _export_to_file(
+            export_to_pdf,
+            itinerary,
+            payload,
+            background_tasks,
+        )
+    except ExportAdmissionTimeout as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=_export_busy_detail(data),
+            headers={"Retry-After": "5"},
+        ) from exc
 
     return FileResponse(
         path=file_path,
-        filename=f"travel_plan_{data.export_language or 'zh'}.pdf",
+        filename=f"travel_plan_{payload.get('export_language', 'zh')}.pdf",
         media_type="application/pdf",
     )
 
 
-@app.post("/flight-options", dependencies=[Depends(require_internal_auth)])
+@app.post("/flight-options")
 async def flight_options(data: TravelRequest):
     legs = _build_flight_legs(data)
     result_tasks = [
@@ -477,11 +538,13 @@ async def flight_options(data: TravelRequest):
                 "destination_city": leg["to"],
                 "departure_date": leg["departure_date"],
                 "adults": leg["adults"],
+                "locale": data.locale,
             },
             lambda leg=leg: _fallback_flights(
                 leg["from"],
                 leg["to"],
                 leg["departure_date"],
+                locale=data.locale,
             ),
         )
         for leg in legs
@@ -521,7 +584,7 @@ async def flight_options(data: TravelRequest):
     return {"legs": results}
 
 
-@app.post("/hotel-options", dependencies=[Depends(require_internal_auth)])
+@app.post("/hotel-options")
 async def hotel_options(data: TravelRequest):
     stays = _build_hotel_stays(data)
     result_tasks = [
@@ -532,35 +595,17 @@ async def hotel_options(data: TravelRequest):
                 "check_in_date": stay["check_in"],
                 "check_out_date": stay["check_out"],
                 "adults": stay["adults"],
+                "locale": data.locale,
             },
-            lambda stay=stay: _fallback_hotels(stay["city"], adults=stay["adults"]),
+            lambda stay=stay: _fallback_hotels(
+                stay["city"], adults=stay["adults"], locale=data.locale
+            ),
         )
         for stay in stays
     ]
     options_by_stay = await asyncio.gather(*result_tasks)
     results = [
-        {
-            **stay,
-            "options": options,
-            "provider_unavailable": any(
-                bool(option.get("provider_status") == "unavailable")
-                for option in options
-                if isinstance(option, dict)
-            ),
-            "estimated": any(
-                bool(option.get("estimated"))
-                for option in options
-                if isinstance(option, dict)
-            ),
-            "provider_message": next(
-                (
-                    option.get("provider_message")
-                    for option in options
-                    if isinstance(option, dict) and option.get("provider_message")
-                ),
-                None,
-            ),
-        }
+        {**stay, "options": options}
         for stay, options in zip(stays, options_by_stay)
     ]
 

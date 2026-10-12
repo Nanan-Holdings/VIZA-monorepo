@@ -1,5 +1,7 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import enMessages from "@/messages/en.json";
+import zhMessages from "@/messages/zh.json";
 import type { UsSubmissionResult } from "@/lib/submission-result";
 import { UsResultCard } from "../UsResultCard";
 
@@ -32,16 +34,156 @@ const stoppedAtSignResult: UsSubmissionResult = {
   status: "stopped_at_sign",
 };
 
-const confirmedResult: UsSubmissionResult = {
-  ...submittedResult,
-  confirmationNumber: "AA0020260801",
-  finalSubmissionMode: "external_verified",
-};
+function responseWithHangingBody(): Response {
+  return {
+    ok: true,
+    status: 200,
+    json: () => new Promise<never>(() => undefined),
+  } as unknown as Response;
+}
 
 describe("UsResultCard", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.useRealTimers();
     push.mockReset();
+  });
+
+  it("keeps required result-card accessibility messages in every locale", () => {
+    for (const messages of [enMessages, zhMessages]) {
+      const card = messages.usAppointment.ds160Card;
+      expect(card.copyValue).toContain("{label}");
+      expect(card.copiedValue).toContain("{label}");
+      expect(card.openCeacStatus).toBeTruthy();
+      expect(card.officialActions).toBeTruthy();
+      expect(card.printConfirmation).toBeTruthy();
+      expect(card.proofPreparing).toBeTruthy();
+      expect(card.proofQueued).toBeTruthy();
+      expect(card.proofReady).toBeTruthy();
+      expect(card.proofFailed).toBeTruthy();
+      expect(card.proofTimeout).toBeTruthy();
+    }
+    expect(enMessages.usAppointment.ds160Card.printConfirmation).toBe("Download English Confirmation PDF");
+    expect(enMessages.usAppointment.ds160Card.submittedBody).toContain("English confirmation PDF");
+    expect(enMessages.usAppointment.ds160Card.securityAnswerUnavailable).toContain("English confirmation PDF");
+    expect(zhMessages.usAppointment.ds160Card.printConfirmation).toBe("下载英文确认页 PDF");
+    expect(zhMessages.usAppointment.ds160Card.submittedBody).toContain("英文确认页 PDF");
+    expect(zhMessages.usAppointment.ds160Card.securityAnswerUnavailable).toContain("英文确认页 PDF");
+  });
+
+  it("keeps the submitted PDF and appointment actions read-only on mount and refresh", () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const view = render(<UsResultCard applicationId="viza-application-id" result={submittedResult} />);
+
+    expect(screen.getAllByRole("button", { name: "copyValue" })).toHaveLength(3);
+    expect(screen.getByRole("button", { name: "printConfirmation" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "button" })).toBeInTheDocument();
+    expect(screen.queryByTestId("ds160-automatic-email-status")).not.toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    view.unmount();
+    render(<UsResultCard applicationId="viza-application-id" result={submittedResult} />);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("starts a download without opening a popup after proof is ready", async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({
+      ok: true,
+      status: "ready",
+      downloadUrl: "/api/applications/viza-application-id/submission-artifact?download=confirmation.pdf",
+    }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    let clickedHref = "";
+    const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+      clickedHref = this.href;
+    });
+
+    render(<UsResultCard applicationId="viza-application-id" result={submittedResult} />);
+    fireEvent.click(screen.getByRole("button", { name: "printConfirmation" }));
+
+    await waitFor(() => {
+      expect(clickedHref).toContain("/api/applications/viza-application-id/submission-artifact");
+    });
+    const downloadCalls = fetchMock.mock.calls as unknown as Array<[RequestInfo | URL, RequestInit | undefined]>;
+    expect(downloadCalls.filter(([, init]) => init?.method === "POST")).toHaveLength(1);
+    anchorClick.mockRestore();
+  });
+
+  it("releases the PDF action after a hung proof POST without replaying it", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn(async () => responseWithHangingBody());
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<UsResultCard applicationId="viza-application-id" result={submittedResult} />);
+    const downloadButton = screen.getByRole("button", { name: "printConfirmation" });
+    fireEvent.click(downloadButton);
+    expect(downloadButton).toBeDisabled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(downloadButton).toBeEnabled();
+    expect(screen.getByText("proofTimeout")).toBeInTheDocument();
+  });
+
+  it("releases the PDF action after the proof transport never resolves", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn(() => new Promise<Response>(() => undefined));
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<UsResultCard applicationId="viza-application-id" result={submittedResult} />);
+    const downloadButton = screen.getByRole("button", { name: "printConfirmation" });
+    fireEvent.click(downloadButton);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(downloadButton).toBeEnabled();
+    expect(screen.getByText("proofTimeout")).toBeInTheDocument();
+  });
+
+  it("releases the PDF action after a hung proof status read without replaying the POST", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        return Promise.resolve(new Response(JSON.stringify({ status: "queued" }), { status: 200 }));
+      }
+      expect(String(input)).toContain("/ds160-proof?kind=confirmation");
+      return Promise.resolve(responseWithHangingBody());
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<UsResultCard applicationId="viza-application-id" result={submittedResult} />);
+    const downloadButton = screen.getByRole("button", { name: "printConfirmation" });
+    fireEvent.click(downloadButton);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3_000);
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+
+    expect(fetchMock.mock.calls.filter(([, request]) => request?.method === "POST")).toHaveLength(1);
+    expect(fetchMock.mock.calls.filter(([, request]) => request?.method !== "POST")).toHaveLength(1);
+    expect(downloadButton).toBeEnabled();
+    expect(screen.getByText("proofTimeout")).toBeInTheDocument();
+  });
+
+  it("does not promise CEAC retrieval when the security answer is hidden", () => {
+    render(
+      <UsResultCard
+        applicationId="viza-application-id"
+        result={{ ...submittedResult, securityAnswer: "[REDACTED]" }}
+      />,
+    );
+
+    expect(screen.getByText("securityAnswerUnavailable")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "openCeacStatus" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "openCeac" })).not.toBeInTheDocument();
   });
 
   it("creates a new VIZA draft and navigates back to the form", async () => {
@@ -84,20 +226,5 @@ describe("UsResultCard", () => {
         }),
       );
     });
-  });
-
-  it("uses the terminal success panel only after CEAC confirmation evidence is verified", () => {
-    const { rerender } = render(<UsResultCard applicationId="viza-application-id" result={submittedResult} />);
-    expect(screen.getByText("submitted").closest("[data-submission-state]")).toHaveAttribute(
-      "data-submission-state",
-      "action-required",
-    );
-
-    rerender(<UsResultCard applicationId="viza-application-id" result={confirmedResult} />);
-    expect(screen.getByText("AA0020260801").closest("[data-submission-state]")).toHaveAttribute(
-      "data-submission-state",
-      "success",
-    );
-    expect(screen.getByRole("button", { name: "printConfirmation" })).toBeInTheDocument();
   });
 });

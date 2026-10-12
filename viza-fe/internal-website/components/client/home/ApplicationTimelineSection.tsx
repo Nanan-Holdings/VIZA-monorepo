@@ -11,13 +11,12 @@ import { getCountryHeroTheme, heroGradientCss } from "@/lib/client/country-hero-
 import { cn } from "@/lib/utils";
 import type {
   StatusAction,
-  StatusApplication,
+  ClientHomeTimelineApplication,
   StatusStep,
   StatusStepKey,
 } from "@/app/client/status/status-data";
 
 const STEP_ACTIONS: Partial<Record<StatusStepKey, StatusAction["key"][]>> = {
-  payment: ["pay"],
   consent: ["giveConsent"],
   form: ["startApplication", "continueForm"],
   documents: ["uploadDocuments"],
@@ -31,8 +30,7 @@ const STEP_ACTIONS: Partial<Record<StatusStepKey, StatusAction["key"][]>> = {
  * country gradient (see `country-hero-theme`), so they must stay pure white —
  * those gradients are hand-tuned for white legibility, nothing else.
  */
-const STEP_IMAGE: Record<StatusStepKey, string> = {
-  payment: "/images/step-icons-white/payment.png",
+const STEP_IMAGE: Partial<Record<StatusStepKey, string>> = {
   consent: "/images/step-icons-white/consent.png",
   form: "/images/step-icons-white/form.png",
   documents: "/images/step-icons-white/documents.png",
@@ -57,13 +55,13 @@ function formatRelative(date: Date, locale: string, t: TimelineTranslator): stri
   return date.toLocaleDateString(locale, { month: "short", day: "numeric" });
 }
 
-function getAction(application: StatusApplication, step: StatusStep): StatusAction | null {
+function getAction(application: ClientHomeTimelineApplication, step: StatusStep): StatusAction | null {
   const keys = STEP_ACTIONS[step.key] ?? [];
   return application.actions.find((action) => keys.includes(action.key)) ?? null;
 }
 
 function getDescription(
-  application: StatusApplication,
+  application: ClientHomeTimelineApplication,
   step: StatusStep,
   t: TimelineTranslator,
 ) {
@@ -100,7 +98,7 @@ function TaskCard({
   step,
   index,
 }: {
-  application: StatusApplication;
+  application: ClientHomeTimelineApplication;
   step: StatusStep;
   index: number;
 }) {
@@ -130,7 +128,7 @@ function TaskCard({
         style={{ backgroundImage: heroGradientCss(heroTheme) }}
       >
         <Image
-          src={STEP_IMAGE[step.key]}
+          src={STEP_IMAGE[step.key] ?? STEP_IMAGE.form ?? "/images/step-icons-white/form.png"}
           alt=""
           fill
           sizes="64px"
@@ -195,7 +193,7 @@ function TaskGroup({
 }: {
   title: string;
   emptyText: string;
-  application: StatusApplication;
+  application: ClientHomeTimelineApplication;
   steps: StatusStep[];
 }) {
   return (
@@ -227,7 +225,7 @@ function TaskGroup({
   );
 }
 
-export function ApplicationTimelineSection({ application }: { application: StatusApplication | null }) {
+export function ApplicationTimelineSection({ application }: { application: ClientHomeTimelineApplication | null }) {
   const t = useTranslations("home.timeline");
 
   if (!application) {

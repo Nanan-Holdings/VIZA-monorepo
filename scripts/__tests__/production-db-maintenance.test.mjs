@@ -54,6 +54,32 @@ function passiveCapacitySample(overrides = {}) {
       max_transaction_age_seconds: 0,
       max_idle_in_transaction_seconds: 0,
     },
+    connection_sources: [
+      {
+        source: "agent_backend",
+        total: 4,
+        active: 1,
+        idle: 3,
+        idle_in_transaction: 0,
+        other: 0,
+      },
+      {
+        source: "maintenance",
+        total: 1,
+        active: 1,
+        idle: 0,
+        idle_in_transaction: 0,
+        other: 0,
+      },
+      {
+        source: "other",
+        total: 20,
+        active: 0,
+        idle: 20,
+        idle_in_transaction: 0,
+        other: 0,
+      },
+    ],
     locks: { ungranted: 0 },
     database_stats: {
       stats_reset: "2026-08-22T00:00:00Z",
@@ -71,6 +97,20 @@ function passiveCapacitySample(overrides = {}) {
       live_machine_slots: 0,
     },
     maintenance_candidates: [],
+    table_activity: {
+      stats_reset: "2026-08-22T00:00:00Z",
+      tables: [{
+        table: "portal_health_checks",
+        seq_scan: "100",
+        seq_tup_read: "1000",
+        idx_scan: "200",
+        idx_tup_fetch: "300",
+        n_tup_ins: "10",
+        n_tup_upd: "5",
+        n_tup_del: "1",
+        n_tup_hot_upd: "4",
+      }],
+    },
     pg_stat_statements_available: true,
     ...overrides,
   };
@@ -361,6 +401,11 @@ test("passive capacity assessment distinguishes transient warnings from persiste
     shared_blks_read: 10,
     temp_blks_written: 0,
   }]);
+  assert.deepEqual(result.summary.connection_source_peaks, {
+    agent_backend: 4,
+    maintenance: 1,
+    other: 20,
+  });
 
   const blockedSamples = [0, 1, 2].map((offset) => passiveCapacitySample({
     connections: {
@@ -468,6 +513,47 @@ test("passive capacity assessment rejects malformed samples and warns without st
   );
 });
 
+test("passive capacity rejects raw or inconsistent connection-source attribution", () => {
+  assert.throws(
+    () => assessPassiveCapacity({
+      samples: [
+        passiveCapacitySample({
+          connection_sources: [{
+            source: "customer-specific-name",
+            total: 25,
+            active: 2,
+            idle: 23,
+            idle_in_transaction: 0,
+            other: 0,
+          }],
+        }),
+        passiveCapacitySample(),
+        passiveCapacitySample(),
+      ],
+      statementMetrics: {
+        stats_reset: "2026-08-22T00:00:00Z",
+        observation_window_seconds: 3600,
+        statements: [],
+      },
+    }),
+    /connection sources/u,
+  );
+
+  const inconsistent = passiveCapacitySample();
+  inconsistent.connection_sources[0].total += 1;
+  assert.throws(
+    () => assessPassiveCapacity({
+      samples: [inconsistent, passiveCapacitySample(), passiveCapacitySample()],
+      statementMetrics: {
+        stats_reset: "2026-08-22T00:00:00Z",
+        observation_window_seconds: 3600,
+        statements: [],
+      },
+    }),
+    /connection sources/u,
+  );
+});
+
 test("passive capacity assessment fails closed when database counters reset", () => {
   const samples = [
     passiveCapacitySample(),
@@ -567,7 +653,7 @@ test("passive capacity observation takes three read-only samples and emits no st
   assert.equal(requests.filter(({ url }) => url.endsWith("/database/query/read-only")).length, 4);
   assert.equal(requests.some(({ url }) => /\/database\/query$/u.test(url)), false);
   assert.equal(result.project_ref, PRODUCTION_PROJECT_REF);
-  assert.equal(result.sanitization_schema, "viza-passive-capacity-metadata-only-v1");
+  assert.equal(result.sanitization_schema, "viza-passive-capacity-metadata-only-v3");
   assert.equal(result.samples.length, 3);
   assert.equal(result.assessment.status, "green");
   assert.equal(JSON.stringify(result).includes("must not be emitted"), false);
@@ -580,6 +666,20 @@ test("passive capacity observation takes three read-only samples and emits no st
   });
   assert.doesNotMatch(PASSIVE_CAPACITY_SQL, /SELECT\s+\*\s+FROM\s+public\./iu);
   assert.doesNotMatch(PG_STAT_STATEMENTS_AUDIT_SQL, /\bquery\b\s*,/iu);
+  assert.match(PASSIVE_CAPACITY_SQL, /'table_activity'/u);
+  assert.match(PASSIVE_CAPACITY_SQL, /'seq_scan'/u);
+  assert.match(PASSIVE_CAPACITY_SQL, /'seq_tup_read'/u);
+  assert.match(PASSIVE_CAPACITY_SQL, /'idx_scan'/u);
+  assert.match(PASSIVE_CAPACITY_SQL, /'n_tup_hot_upd'/u);
+  assert.match(PASSIVE_CAPACITY_SQL, /'connection_sources'/u);
+  assert.match(PASSIVE_CAPACITY_SQL, /'agent_backend'/u);
+  assert.match(PASSIVE_CAPACITY_SQL, /'maintenance'/u);
+  assert.match(PASSIVE_CAPACITY_SQL, /'other'/u);
+  assert.doesNotMatch(JSON.stringify(result), /application_name|client_addr|usename|pid/iu);
+  assert.match(
+    PASSIVE_CAPACITY_SQL,
+    /COALESCE\(\s*stats_reset,\s*pg_catalog\.pg_postmaster_start_time\(\)\s*\)/u,
+  );
 });
 
 test("scheduled passive capacity workflow is read-only, single-flight, and retains only metadata", () => {
@@ -596,6 +696,8 @@ test("scheduled passive capacity workflow is read-only, single-flight, and retai
   assert.match(workflow, /oyjxdzsoejraedqghndi:capacity-observe/u);
   assert.match(workflow, /actions\/upload-artifact@v4/u);
   assert.match(workflow, /retention-days: 7/u);
+  assert.match(workflow, /assessment\.summary\.connection_source_peaks/u);
+  assert.match(workflow, /Best-effort connection source peaks/u);
   assert.match(workflow, /ref: refs\/heads\/main/u);
   assert.match(workflow, /persist-credentials: false/u);
   assert.doesNotMatch(workflow, /database\/query[^\n]*read_only:\s*false/iu);

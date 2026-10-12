@@ -288,7 +288,7 @@ const evalCases: EvalCase[] = [
       { role: 'assistant', content: '1. destination\n2. nationality\n3. purpose\n4. stay length' },
       { role: 'user', content: 'Canada，中国，旅游，10天' },
     ],
-    expected: { resolvedCountry: 'canada', visaType: 'visitor_visa' },
+    expected: { resolvedCountry: 'canada', visaType: 'CA_TRV' },
   },
   {
     id: 'CMP-005',
@@ -1068,7 +1068,12 @@ function evaluateBranchTests(): BranchResult[] {
     branch('COUNTRY-011', 'country_routing_branch', () => [
       expectEqual('Hong Kong service country routes', resolveKnowledgeCountry('中国护照去香港旅游'), 'hong_kong'),
       expectEqual('Macau service country routes', resolveKnowledgeCountry('中国护照去澳门旅游'), 'macau'),
-      expectEqual('Russia service country routes', resolveKnowledgeCountry('中国护照去俄罗斯旅游'), 'russia'),
+      expectEqual('Removed Russia route remains unresolved', resolveKnowledgeCountry('中国护照去俄罗斯旅游'), null),
+      expectArrayEqual(
+        'Removed Russia route is reported as unsupported',
+        detectUnsupportedServiceCountries('中国护照去俄罗斯旅游'),
+        ['russia']
+      ),
     ]),
 
     branch('VISA-001', 'visa_type_branch', () => [
@@ -1349,7 +1354,7 @@ function evaluateBranchTests(): BranchResult[] {
       return [
         expectEqual('unsupported country correction moves to Canada', state.mainDestination, 'canada'),
         expectEqual('old Mexico removed after 换成 correction', state.destinationCountries.includes('mexico'), false),
-        expectEqual('Canada visitor route after correction', state.recommendedVisaType, 'visitor_visa'),
+        expectEqual('Canada visitor route after correction', state.recommendedVisaType, 'CA_TRV'),
         expectArrayEqual('Canada follow-up has no unsupported service country', detectUnsupportedServiceCountries(lastUserMessage), []),
       ];
     }),
@@ -1663,7 +1668,11 @@ function evaluateBranchTests(): BranchResult[] {
         rule.productRecommendations.filter((product) =>
           product.provider === 'official'
             ? !isAllowedOfficialProductUrl(product.url)
-            : !product.url.startsWith('/client/application?')
+            : !(
+                product.url.startsWith('/client/application?') ||
+                (product.productCode === 'KR_E_ARRIVAL_CARD' &&
+                  product.url === '/client/arrival-cards/south-korea')
+              )
         )
       );
       const conditionalWithoutInputs = REVIEWED_VISA_ENTRY_RULES.filter(
@@ -1724,7 +1733,7 @@ function evaluateBranchTests(): BranchResult[] {
         singapore: { CHN: ['SG_ARRIVAL_CARD'], SGP: [], GBR: ['SG_ARRIVAL_CARD'], USA: ['SG_ARRIVAL_CARD'], CAN: ['SG_ARRIVAL_CARD'], AUS: ['SG_ARRIVAL_CARD'], NZL: ['SG_ARRIVAL_CARD'] },
         malaysia: { CHN: ['MY_MDAC_ARRIVAL_CARD'], SGP: [], GBR: ['MY_MDAC_ARRIVAL_CARD'], USA: ['MY_MDAC_ARRIVAL_CARD'], CAN: ['MY_MDAC_ARRIVAL_CARD'], AUS: ['MY_MDAC_ARRIVAL_CARD'], NZL: ['MY_MDAC_ARRIVAL_CARD'] },
         thailand: { CHN: ['TH_TDAC_ARRIVAL_CARD'], SGP: ['TH_TDAC_ARRIVAL_CARD'], GBR: ['TH_TDAC_ARRIVAL_CARD'], USA: ['TH_TDAC_ARRIVAL_CARD'], CAN: ['TH_TDAC_ARRIVAL_CARD'], AUS: ['TH_TDAC_ARRIVAL_CARD'], NZL: ['TH_TDAC_ARRIVAL_CARD'] },
-        south_korea: { CHN: ['KR_C39_SHORT_TERM_VISIT'], SGP: [], GBR: [], USA: [], CAN: [], AUS: [], NZL: [] },
+        south_korea: { CHN: ['KR_C39_SHORT_TERM_VISIT', 'KR_E_ARRIVAL_CARD'], SGP: [], GBR: [], USA: [], CAN: [], AUS: [], NZL: [] },
         us: { CHN: ['DS160'], SGP: ['US_ESTA'], GBR: ['US_ESTA'], USA: [], CAN: [], AUS: ['US_ESTA'], NZL: ['US_ESTA'] },
         france: { CHN: ['EU_SCHENGEN_C_SHORT_STAY'], SGP: [], GBR: [], USA: [], CAN: [], AUS: [], NZL: [] },
         philippines: { CHN: ['PH_ETRAVEL_ARRIVAL_CARD'], SGP: ['PH_ETRAVEL_ARRIVAL_CARD'], GBR: ['PH_ETRAVEL_ARRIVAL_CARD'], USA: ['PH_ETRAVEL_ARRIVAL_CARD'], CAN: ['PH_ETRAVEL_ARRIVAL_CARD'], AUS: ['PH_ETRAVEL_ARRIVAL_CARD'], NZL: ['PH_ETRAVEL_ARRIVAL_CARD'] },

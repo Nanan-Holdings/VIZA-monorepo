@@ -2,6 +2,13 @@
 
 Scope: this file applies to `viza-fe/internal-website/components/client/travel/**`.
 
+`trip-route-map-frame.tsx` sends only map presentation state to the isolated
+same-origin `/travel-map` document. Both ends check message origin and source.
+`TripRouteMapSurface` retains the existing marker/detail/selection behavior;
+only the map document reloads when language changes, preserving parent drafts.
+`trip-route-map-frame.test.tsx` verifies draft preservation and callback source
+checks; the route-specific frame header is covered in the Next config tests.
+
 ## Goal
 
 Keep Travel AI UI deterministic and production-safe while preserving current business flow:
@@ -27,6 +34,14 @@ If guidance conflicts, prefer deterministic flow in `planner.ts`.
   validation, search, and hotel-state copy; payload keys and deterministic step
   order remain language-neutral.
 - `travel-itinerary-panel.tsx`: itinerary render/export
+- `travel-session-history.tsx`: localized searchable Travel conversation drawer,
+  with a persistent toolbar, switching, new chats, renaming, and confirmed deletion.
+  Both embedded `/client/chat?agent=travel` and standalone `/client/travel-chat`
+  must render it; `embedded` changes layout only, never history availability.
+  The parent provides visible message text with internal form payloads removed
+  and retains ownership of session archives, itinerary versions, and map state.
+- `travel-session-history.test.tsx`: search, switching, new chat, rename,
+  deletion confirmation, and pending-response interaction coverage.
 - `trip-route-map.tsx`: map route, markers, hover preview, map-to-form handoff
 - `trip-route-map.test.ts`: regression coverage for shared marker-anchor and hover-pointer geometry.
 
@@ -43,10 +58,7 @@ If guidance conflicts, prefer deterministic flow in `planner.ts`.
 
 - Add new entries here whenever a new important Travel AI file is created. Include the path and a one-line purpose.
 - `travel-itinerary-data.ts`: shared itinerary extraction/export payload helpers for final itinerary views.
-- `travel-itinerary-data.test.ts`: regression coverage for concise generated-plan titles across Chinese and English city lists.
 - `travel-itinerary-experience.tsx`: right-side final itinerary card, detail dialog, and full dynamic map experience.
-- `travel-application-draft-autofill.tsx`: guarded Travel-plan preview and
-  confirmation UI for filling empty local VIZA application draft fields.
 - `travel-attraction-knowledge.ts`: curated attraction knowledge base with city aliases, exact map coordinates, image URLs, and source URLs for itinerary editing and route maps.
 - `travel-card-curated-data.json`: local Travel card city/attraction data with image paths, source URLs, descriptions, and verified coordinates.
 - `travel-card-curated-localization-01.json`, `-02.json`, `-03.json`:
@@ -54,6 +66,8 @@ If guidance conflicts, prefer deterministic flow in `planner.ts`.
   English; keeps localization out of the page-load path.
 - `public/travel/cities/*` and `public/travel/attractions/*`: local imagery used by map and itinerary cards to avoid broken remote hotlinks.
 - `travel-itinerary-share-renderer.tsx`: public share-page renderer for standalone itinery cards, tables, and downloads.
+- `travel-itinerary-share-renderer.test.tsx`: viewer-language precedence over a
+  saved share locale, structural table-label switching, and invalid-link copy.
 - `app/api/travel/geocode/route.ts`: resolves travel city coordinates through Google Geocoding API for map markers and routes.
 - `app/api/travel/ip-location/route.ts`: resolves the user's approximate IP city for the origin/return confirmation step.
 - `lib/travel/google-places.ts`: shared Google Places attraction card schema,

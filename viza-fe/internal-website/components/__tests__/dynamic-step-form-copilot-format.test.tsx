@@ -2438,6 +2438,29 @@ describe("DynamicStepForm copilot format", () => {
     expect(onComplete).toHaveBeenCalledWith(expected);
   });
 
+  it("publishes a selected option to the parent draft before an immediate submit", () => {
+    const onDraftChange = vi.fn();
+
+    render(
+      <DynamicStepForm
+        step={vietnamExpenseStep}
+        prefill={{}}
+        onDraftChange={onDraftChange}
+        onComplete={vi.fn()}
+        showContinueButton={false}
+        visaType="VN_E_VISA"
+      />,
+    );
+
+    onDraftChange.mockClear();
+    fireEvent.click(screen.getByRole("combobox"));
+    fireEvent.click(screen.getByRole("option", { name: "个人" }));
+
+    expect(onDraftChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ expense_coverage: "personal" }),
+    );
+  });
+
   it("allows an optional formatted text field to pass after the user clears the old value", () => {
     const onComplete = vi.fn();
     render(

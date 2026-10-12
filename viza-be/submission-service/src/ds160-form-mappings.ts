@@ -83,6 +83,11 @@ export const ds160PersonalInfoMappings: Record<string, FormFieldMapping> = {
     type: "text",
     label: "State/Province of Birth",
   },
+  state_of_birth_na: {
+    selector: 'input[id="ctl00_SiteContentPlaceHolder_FormView1_cbexAPP_POB_ST_PROVINCE_NA"]',
+    type: "checkbox",
+    label: "State/Province of Birth Does Not Apply",
+  },
   country_of_birth: {
     selector: 'select[id*="ddlAPP_POB_CNTRY"]',
     type: "select",
@@ -142,6 +147,21 @@ export const ds160TravelMappings: Record<string, FormFieldMapping> = {
     type: "text",
     label: "Intended Arrival Year",
   },
+  departure_date_day: {
+    selector: 'select[id="ctl00_SiteContentPlaceHolder_FormView1_ddlDEPARTURE_US_DTEDay"]',
+    type: "select",
+    label: "Date of Departure from U.S. Day",
+  },
+  departure_date_month: {
+    selector: 'select[id="ctl00_SiteContentPlaceHolder_FormView1_ddlDEPARTURE_US_DTEMonth"]',
+    type: "select",
+    label: "Date of Departure from U.S. Month",
+  },
+  departure_date_year: {
+    selector: 'input[id="ctl00_SiteContentPlaceHolder_FormView1_tbxDEPARTURE_US_DTEYear"]',
+    type: "text",
+    label: "Date of Departure from U.S. Year",
+  },
   intended_length_of_stay: {
     selector: 'input[id*="tbxTRAVEL_LOS"]',
     type: "text",
@@ -182,27 +202,32 @@ export const ds160TravelMappings: Record<string, FormFieldMapping> = {
     label: "Who is paying for your trip?",
   },
   payer_surname: {
-    selector: 'input[id*="tbxPAYER_SURNAME"]',
+    selector: 'input[id*="tbxPayerSurname"]',
     type: "text",
     label: "Payer Surname",
   },
   payer_given_names: {
-    selector: 'input[id*="tbxPAYER_GIVEN_NAME"]',
+    selector: 'input[id*="tbxPayerGivenName"]',
     type: "text",
     label: "Payer Given Names",
   },
   payer_phone: {
-    selector: 'input[id*="tbxPAYER_TEL"]',
+    selector: 'input[id*="tbxPayerPhone"]',
     type: "text",
     label: "Payer Phone",
   },
   payer_email: {
-    selector: 'input[id*="tbxPAYER_EMAIL"]',
+    selector: 'input[id*="tbxPAYER_EMAIL_ADDR"]',
     type: "text",
     label: "Payer Email",
   },
+  payer_email_na: {
+    selector: 'input[id="ctl00_SiteContentPlaceHolder_FormView1_cbxDNAPAYER_EMAIL_ADDR_NA"]',
+    type: "checkbox",
+    label: "Payer Email Does Not Apply",
+  },
   payer_relationship: {
-    selector: 'select[id*="ddlPAYER_REL"]',
+    selector: 'select[id*="ddlPayerRelationship"]',
     type: "select",
     label: "Payer Relationship to You",
   },
@@ -382,7 +407,10 @@ export const ds160ContactMappings: Record<string, FormFieldMapping> = {
     type: "radio",
     label: "Has other email addresses",
   },
-  has_social_media: {
+  // CEAC's rblAddSocial asks about other websites/applications. Whether the
+  // applicant uses a listed platform is represented by the provider/NONE
+  // dropdown, so those two intake questions must never overwrite each other.
+  has_other_social_media: {
     selector: 'input[name*="rblAddSocial"], input[id*="rblAddSocial"]',
     type: "radio",
     label: "Has additional social media presence",
@@ -606,6 +634,11 @@ export const ds160PreviousUsTravelMappings: Record<string, FormFieldMapping> = {
     type: "radio",
     label: "Denied ESTA / travel authorization",
   },
+  vwp_denial_explain: {
+    selector: 'textarea[name*="tbxVWP_DENIAL_EXPL"], textarea[id*="tbxVWP_DENIAL_EXPL"]',
+    type: "text",
+    label: "ESTA denial explanation",
+  },
   immigrant_petition_filed: {
     selector: 'input[name*="rblIV_PETITION_IND"], input[id*="rblIV_PETITION_IND"]',
     type: "radio",
@@ -798,29 +831,44 @@ export const ds160FamilyRelativesMappings: Record<string, FormFieldMapping> = {
 // ---------------------------------------------------------------------------
 export const ds160FamilySpouseMappings: Record<string, FormFieldMapping> = {
   spouse_surname: {
-    selector: 'input[id*="tbxSPOUSE_SURNAME"]',
+    selector: 'input[id*="tbxSpouseSurname"]',
     type: "text",
     label: "Spouse Surname",
   },
   spouse_given_names: {
-    selector: 'input[id*="tbxSPOUSE_GIVEN_NAME"]',
+    selector: 'input[id*="tbxSpouseGivenName"]',
     type: "text",
     label: "Spouse Given Names",
   },
-  spouse_date_of_birth: {
-    selector: 'input[id*="tbxSPOUSE_DOB"]',
-    type: "date",
-    label: "Spouse Date of Birth",
+  spouse_date_of_birth_day: {
+    selector: 'select[id*="ddlDOBDay"]',
+    type: "select",
+    label: "Spouse Date of Birth Day",
+  },
+  spouse_date_of_birth_month: {
+    selector: 'select[id*="ddlDOBMonth"]',
+    type: "select",
+    label: "Spouse Date of Birth Month",
+  },
+  spouse_date_of_birth_year: {
+    selector: 'input[id*="tbxDOBYear"]',
+    type: "text",
+    label: "Spouse Date of Birth Year",
   },
   spouse_nationality: {
-    selector: 'select[id*="ddlSPOUSE_NATL"]',
+    selector: 'select[id*="ddlSpouseNatDropDownList"]',
     type: "select",
     label: "Spouse Nationality",
   },
   spouse_city_of_birth: {
-    selector: 'input[id*="tbxSPOUSE_POB_CITY"]',
+    selector: 'input[id*="tbxSpousePOBCity"]',
     type: "text",
     label: "Spouse City of Birth",
+  },
+  spouse_city_of_birth_na: {
+    selector: 'input[id="ctl00_SiteContentPlaceHolder_FormView1_cbexSPOUSE_POB_CITY_NA"]',
+    type: "checkbox",
+    label: "Spouse City of Birth Do Not Know",
   },
 };
 

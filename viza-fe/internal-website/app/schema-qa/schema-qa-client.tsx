@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { Flask } from "@phosphor-icons/react";
 
 import { DynamicStepForm } from "@/components/dynamic-step-form";
 import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
@@ -58,8 +59,8 @@ export function SchemaQaClient({
           </p>
         </header>
 
-        <Alert className="mt-6" variant="info">
-          <AlertIcon variant="info" />
+        <Alert className="mt-6 border-sky-200 bg-sky-50 text-sky-950">
+          <AlertIcon><Flask className="h-5 w-5" /></AlertIcon>
           <AlertTitle>Mock residential address</AlertTitle>
           <AlertDescription>{MOCK_RESIDENTIAL_ADDRESS}</AlertDescription>
         </Alert>

@@ -1,8 +1,10 @@
 import { Namespace, Socket } from 'socket.io';
-import { and, desc, eq } from 'drizzle-orm';
 import { Logger } from '../utils/logger.js';
 import { db } from '../db/index.js';
-import { visaAgentRunDiagnostics, visaChatMessages } from '../db/schema.js';
+import {
+  visaAgentRunDiagnostics,
+  visaChatMessages,
+} from '../db/schema.js';
 import {
   streamChat,
   buildApplicationContext,
@@ -34,10 +36,11 @@ import {
   loadVisaConversationState,
   normalizePassportCountryIso3,
   normalizeVisaConversationState,
-  saveVisaConversationState,
+  persistVisaConversationStateIfChanged,
   summarizeVisaConversationState,
   updateVisaConversationState,
   type VisaConversationState,
+  type VisaConversationStateSnapshot,
 } from '../services/visa-conversation-state.service.js';
 import {
   buildVisaEntryRulePrompt,
@@ -50,26 +53,22 @@ import {
   ChatConcurrencyGate,
   readChatCapacityLimits,
 } from './chat-concurrency.js';
-import { authenticateSupabaseUser } from '../middleware/user-auth.js';
+import { persistApplicationBlocksWithFallback } from './application-block-persistence.js';
+import {
+  buildChatTurnBootstrapQuery,
+  loadChatTurnBootstrap,
+  persistUserMessageAndLoadChatTurnBootstrap,
+  type ChatTurnBootstrap,
+  type ChatTurnBootstrapRow,
+} from './chat-turn-bootstrap.js';
+import {
+  persistChatTurnCompletion,
+  type ChatTurnCompletionDiagnostic,
+} from './chat-turn-completion.js';
+import { persistVisibleVisaChatMessage } from './visible-chat-message.js';
 
 const logger = new Logger({ serviceName: 'VisaNamespace' });
-
-/**
- * Read a Supabase access token from the Socket.IO handshake: preferred
- * `auth.token`, with an `Authorization: Bearer` header fallback.
- */
-function readHandshakeToken(socket: Socket): string | null {
-  const authToken = (socket.handshake.auth as { token?: unknown } | undefined)?.token;
-  if (typeof authToken === 'string' && authToken.trim().length > 0) {
-    return authToken.trim();
-  }
-  const header = socket.handshake.headers.authorization;
-  if (typeof header === 'string' && header.startsWith('Bearer ')) {
-    const token = header.slice('Bearer '.length).trim();
-    if (token.length > 0) return token;
-  }
-  return null;
-}
+const CHAT_HISTORY_LIMIT = 50;
 
 let chatConcurrencyGate: ChatConcurrencyGate | null = null;
 
@@ -90,28 +89,12 @@ async function saveVisibleVisaChatMessage(
   role: 'user' | 'assistant',
   content: string
 ): Promise<void> {
-  const normalizedContent = content.trim();
-  if (!normalizedContent) return;
-
-  const existing = await db
-    .select({ id: visaChatMessages.id })
-    .from(visaChatMessages)
-    .where(
-      and(
-        eq(visaChatMessages.sessionId, sessionId),
-        eq(visaChatMessages.role, role),
-        eq(visaChatMessages.content, normalizedContent)
-      )
-    )
-    .limit(1);
-
-  if (existing.length > 0) return;
-
-  await db.insert(visaChatMessages).values({
+  await persistVisibleVisaChatMessage(
     sessionId,
     role,
-    content: normalizedContent,
-  });
+    content,
+    (query) => db.execute(query)
+  );
 }
 
 function includesAny(value: string, terms: string[]): boolean {
@@ -982,22 +965,14 @@ export function buildApplicationRedirectPromptNote(
     .join('\n');
 }
 
-async function emitAndSaveApplicationBlock(
+function emitApplicationBlock(
   socket: Socket,
-  sessionId: string,
   toolInput: ApplicationBlockPayload
-): Promise<void> {
+): void {
   socket.emit('application_block', {
     type: 'application_block',
     payload: toolInput,
     timestamp: Date.now(),
-  });
-
-  await db.insert(visaChatMessages).values({
-    sessionId,
-    role: 'block',
-    content: toolInput.title,
-    blockData: toolInput as unknown as Record<string, unknown>,
   });
 }
 
@@ -1005,80 +980,16 @@ async function emitAndSaveApplicationBlock(
  * Register all event handlers for the /visa Socket.IO namespace.
  */
 export function registerVisaNamespace(nsp: Namespace): void {
-  // Connection auth. A validated Supabase token binds socket.data.authUserId,
-  // which the room/message handlers below enforce against client-supplied ids.
-  //
-  // Transitional by default: the current frontend socket clients do NOT yet
-  // send a token, so token-absence is allowed (and logged) rather than
-  // rejected, to avoid disabling all chat. Once the frontend attaches the
-  // applicant token in the handshake (see HANDOFF), set VISA_SOCKET_REQUIRE_AUTH
-  // =true to reject unauthenticated/invalid connections outright.
-  nsp.use(async (socket: Socket, next: (err?: Error) => void) => {
-    const requireAuth = process.env.VISA_SOCKET_REQUIRE_AUTH === 'true';
-    try {
-      const token = readHandshakeToken(socket);
-      if (!token) {
-        if (requireAuth) {
-          next(new Error('unauthorized'));
-          return;
-        }
-        socket.data.authUserId = null;
-        next();
-        return;
-      }
-      let authUserId: string | null = null;
-      try {
-        authUserId = await authenticateSupabaseUser(token);
-      } catch {
-        // Auth not configured; treat as unauthenticated.
-        authUserId = null;
-      }
-      if (!authUserId) {
-        if (requireAuth) {
-          next(new Error('unauthorized'));
-          return;
-        }
-        // Token present but invalid: do not bind an identity (so ownership
-        // checks cannot be bypassed), but stay connected during rollout.
-        socket.data.authUserId = null;
-        next();
-        return;
-      }
-      socket.data.authUserId = authUserId;
-      next();
-    } catch (err) {
-      logger.error('visa_socket_auth_failed', err instanceof Error ? err : new Error(String(err)), {
-        socketId: socket.id,
-      });
-      next(new Error('socket_auth_failed'));
-    }
-  });
-
   nsp.on('connection', (socket: Socket) => {
     let chatRequestInFlight = false;
-    const authUserId = (socket.data.authUserId as string | null | undefined) ?? null;
 
     logger.info('Client connected to /visa', {
       socketId: socket.id,
       transport: socket.conn.transport.name,
-      authenticated: Boolean(authUserId),
     });
 
     // ---- join_room (for proactive messages) --------------------------------
     socket.on('join_room', (room: string) => {
-      // When the connection is authenticated, a client may only join its own
-      // user room (`user:<authUserId>`); reject any attempt to subscribe to
-      // another user's room.
-      if (authUserId && room !== `user:${authUserId}`) {
-        logger.warn('join_room_denied', undefined, { socketId: socket.id });
-        socket.emit('error', {
-          type: 'error',
-          message: 'You cannot join this room.',
-          code: 'FORBIDDEN',
-          timestamp: Date.now(),
-        });
-        return;
-      }
       socket.join(room);
       logger.debug(`Socket ${socket.id} joined room ${room}`);
     });
@@ -1087,23 +998,6 @@ export function registerVisaNamespace(nsp: Namespace): void {
     socket.on('visa_chat_message', async (request: VisaChatRequest) => {
       const { user_id, session_id, message } = request;
       const responseLocale = normalizeResponseLocale(request.locale);
-
-      // When the connection is authenticated, the client-supplied user_id must
-      // match the token's user. This blocks a client from reading/writing chat
-      // history or memory under another user's id.
-      if (authUserId && user_id && user_id !== authUserId) {
-        logger.warn('visa_chat_message_user_mismatch', undefined, {
-          socketId: socket.id,
-          sessionId: session_id,
-        });
-        socket.emit('error', {
-          type: 'error',
-          message: 'You cannot send messages for this user.',
-          code: 'FORBIDDEN',
-          timestamp: Date.now(),
-        });
-        return;
-      }
 
       if (chatRequestInFlight) {
         socket.emit('error', {
@@ -1136,64 +1030,117 @@ export function registerVisaNamespace(nsp: Namespace): void {
       try {
         releaseCapacity = await getChatConcurrencyGate().acquire(requestController.signal);
 
-        // 1. Save user message to DB (non-fatal)
-        try {
-          await saveVisibleVisaChatMessage(session_id, 'user', message);
-        } catch (dbErr) {
-          logger.warn('Failed to save user message (DB may be unavailable)', dbErr as Error, {
-            sessionId: session_id,
-          });
-        }
-
-        // 2. Load conversation history (fallback to current message only)
+        // 1. Application context is independent from message persistence and
+        // the request-scoped chat snapshot, so overlap all of those reads.
+        const applicationContextPromise = buildApplicationContext(user_id);
         const clientHistory = normalizeClientHistory(request.history, message);
         let historySource: 'client' | 'database' | 'current_message' =
           clientHistory.length > 1 ? 'client' : 'current_message';
         let chatHistory: { role: 'user' | 'assistant'; content: string }[] =
           clientHistory.length > 0 ? clientHistory : [{ role: 'user', content: message }];
+        let conversationStateSnapshot: VisaConversationStateSnapshot | undefined;
 
+        const applyBootstrap = (bootstrap: ChatTurnBootstrap): void => {
+          const history = bootstrap.messageRows;
+          conversationStateSnapshot = bootstrap.conversationStateSnapshot ?? undefined;
+
+          if (history.length === 0) return;
+
+          // Only include user/assistant messages (skip 'block' role for OpenAI API)
+          const databaseHistory = history
+            .filter((msg) => msg.role === 'user' || msg.role === 'assistant')
+            .map((msg) => ({
+              role: msg.role as 'user' | 'assistant',
+              content: msg.content,
+            }))
+            .reverse();
+
+          if (databaseHistory.length >= clientHistory.length) {
+            chatHistory = databaseHistory;
+            historySource = 'database';
+          }
+        };
+
+        const executeBootstrapQuery = async (
+          query: Parameters<typeof db.execute>[0],
+        ): Promise<ChatTurnBootstrapRow[]> => {
+          const result = await db.execute(query);
+          return (result.rows ?? result) as unknown as ChatTurnBootstrapRow[];
+        };
+
+        const loadLegacyBootstrap = (): Promise<ChatTurnBootstrap> =>
+          loadChatTurnBootstrap(CHAT_HISTORY_LIMIT, () =>
+            executeBootstrapQuery(
+              buildChatTurnBootstrapQuery(session_id, CHAT_HISTORY_LIMIT),
+            ),
+          );
+
+        // 2. The normal path persists the user message and loads history plus
+        // session memory in one statement. Keep the old sequence as a
+        // non-fatal availability fallback.
         try {
-          const history = await db
-            .select({ role: visaChatMessages.role, content: visaChatMessages.content })
-            .from(visaChatMessages)
-            .where(eq(visaChatMessages.sessionId, session_id))
-            .orderBy(desc(visaChatMessages.createdAt))
-            .limit(50);
-
-          if (history.length > 0) {
-            // Only include user/assistant messages (skip 'block' role for OpenAI API)
-            const databaseHistory = history
-              .filter((msg) => msg.role === 'user' || msg.role === 'assistant')
-              .map((msg) => ({
-                role: msg.role as 'user' | 'assistant',
-                content: msg.content,
-              }))
-              .reverse();
-
-            if (databaseHistory.length >= clientHistory.length) {
-              chatHistory = databaseHistory;
-              historySource = 'database';
+          const bootstrap = await persistUserMessageAndLoadChatTurnBootstrap(
+            session_id,
+            message,
+            CHAT_HISTORY_LIMIT,
+            executeBootstrapQuery,
+          );
+          if (bootstrap) {
+            applyBootstrap(bootstrap);
+          } else {
+            try {
+              await saveVisibleVisaChatMessage(session_id, 'user', message);
+            } catch (dbErr) {
+              logger.warn(
+                'Failed to save empty user message (DB may be unavailable)',
+                dbErr as Error,
+                { sessionId: session_id },
+              );
             }
+            applyBootstrap(await loadLegacyBootstrap());
           }
         } catch (dbErr) {
-          logger.warn('Failed to load chat history (using current message only)', dbErr as Error, {
-            sessionId: session_id,
-          });
+          logger.warn(
+            'Failed combined user-message persistence and chat bootstrap; using legacy path',
+            dbErr as Error,
+            { sessionId: session_id },
+          );
+          try {
+            await saveVisibleVisaChatMessage(session_id, 'user', message);
+          } catch (saveErr) {
+            logger.warn(
+              'Failed to save user message (DB may be unavailable)',
+              saveErr as Error,
+              { sessionId: session_id },
+            );
+          }
+          try {
+            applyBootstrap(await loadLegacyBootstrap());
+          } catch (historyErr) {
+            logger.warn(
+              'Failed to load chat history (using current message only)',
+              historyErr as Error,
+              { sessionId: session_id },
+            );
+          }
         }
 
         // 3. Build structured state, dynamic system prompt, and RAG context.
-        const appContext = await buildApplicationContext(user_id);
-        let priorConversationState: VisaConversationState | null = null;
-        let memoryRevision = 0;
-        try {
-          const persistedState = await loadVisaConversationState(session_id);
-          priorConversationState = persistedState.state;
-          memoryRevision = persistedState.revision;
-        } catch (stateErr) {
+        const persistedStatePromise = loadVisaConversationState(
+          session_id,
+          conversationStateSnapshot,
+        ).catch((stateErr: unknown) => {
           logger.warn('Failed to load visa conversation state', stateErr as Error, {
             sessionId: session_id,
           });
-        }
+          return null;
+        });
+        const [appContext, persistedState] = await Promise.all([
+          applicationContextPromise,
+          persistedStatePromise,
+        ]);
+        let priorConversationState: VisaConversationState | null = persistedState?.state ?? null;
+        let memoryRevision = persistedState?.revision ?? 0;
         const profilePassportCountry =
           appContext.profile?.nationality ??
           appContext.profile?.passport_issuing_country ??
@@ -1224,15 +1171,17 @@ export function registerVisaNamespace(nsp: Namespace): void {
           message
         );
         try {
-          memoryRevision = await saveVisaConversationState(
+          const statePersistence = await persistVisaConversationStateIfChanged(
             session_id,
             conversationState,
-            memoryRevision
+            persistedState,
           );
+          memoryRevision = statePersistence.revision;
           socket.emit('visa_memory_updated', {
             sessionId: session_id,
             revision: memoryRevision,
             state: conversationState,
+            persisted: statePersistence.wrote,
           });
         } catch (stateErr) {
           if (
@@ -1246,16 +1195,18 @@ export function registerVisaNamespace(nsp: Namespace): void {
                 chatHistory,
                 message
               );
-              memoryRevision = await saveVisaConversationState(
+              const retryPersistence = await persistVisaConversationStateIfChanged(
                 session_id,
                 rebased,
-                current.revision
+                current,
               );
+              memoryRevision = retryPersistence.revision;
               Object.assign(conversationState, rebased);
               socket.emit('visa_memory_updated', {
                 sessionId: session_id,
                 revision: memoryRevision,
                 state: rebased,
+                persisted: retryPersistence.wrote,
               });
             } catch (retryError) {
               logger.warn('Failed to rebase visa conversation memory', retryError as Error, {
@@ -1330,7 +1281,7 @@ export function registerVisaNamespace(nsp: Namespace): void {
               country: knowledgeCountry,
               visaType: knowledgeVisaType,
               intent: knowledgeIntent,
-              matchCount: 5,
+              signal: requestController.signal,
             });
         const knowledgeContext = formatKnowledgeContext(knowledgeResult.chunks);
         const entryRulePrompt =
@@ -1348,15 +1299,37 @@ export function registerVisaNamespace(nsp: Namespace): void {
         )
           ? buildRuleProductRecommendationBlocks(entryRule, responseLocale)
           : [];
-        for (const applicationRedirect of applicationRedirects) {
-          try {
-            await emitAndSaveApplicationBlock(socket, session_id, applicationRedirect);
-          } catch (dbErr) {
-            logger.error('Failed to emit/save application redirect block', dbErr as Error, {
+        applicationRedirects.forEach((applicationRedirect) => {
+          emitApplicationBlock(socket, applicationRedirect);
+        });
+        const blockPersistence = await persistApplicationBlocksWithFallback(
+          session_id,
+          applicationRedirects,
+          (rows) => db.insert(visaChatMessages).values(rows),
+        );
+        if (blockPersistence.mode === 'fallback') {
+          logger.warn(
+            'Failed to persist application redirect block batch; using legacy writes',
+            undefined,
+            {
               sessionId: session_id,
-              blockType: applicationRedirect.blockType,
-              country: applicationRedirect.country,
-            });
+              blockCount: applicationRedirects.length,
+              errorName: blockPersistence.batchErrorName,
+            },
+          );
+
+          for (const failure of blockPersistence.failedBlocks) {
+            const applicationRedirect = applicationRedirects[failure.index];
+            logger.warn(
+              'Failed to save application redirect block',
+              undefined,
+              {
+                sessionId: session_id,
+                blockType: applicationRedirect?.blockType,
+                country: applicationRedirect?.country,
+                errorName: failure.errorName,
+              },
+            );
           }
         }
         const applicationRedirectNote = buildApplicationRedirectPromptNote(
@@ -1441,48 +1414,85 @@ export function registerVisaNamespace(nsp: Namespace): void {
             },
             onComplete: async (response, toolsUsed) => {
               fullResponse = response;
+              const diagnostic: ChatTurnCompletionDiagnostic = {
+                sessionId: session_id,
+                memoryRevision,
+                destinationCountry: knowledgeCountry,
+                passportCountryIso3: conversationState.passportCountryIso3,
+                entryRuleOutcome: entryRule?.outcome ?? 'unknown',
+                visaType: knowledgeVisaType,
+                recommendedProducts: applicationRedirects.map((block) => ({
+                  productCode: block.productCode,
+                  provider: block.provider,
+                  requirement: block.requirement,
+                })),
+                intent: knowledgeIntent,
+                sourceKeys: knowledgeResult.chunks
+                  .map((chunk) => chunk.sourceKey)
+                  .filter((sourceKey): sourceKey is string => Boolean(sourceKey)),
+                fallbackReason: knowledgeResult.fallbackReason,
+                model:
+                  process.env.OPENAI_MODEL ??
+                  process.env.OPENAI_CHAT_MODEL ??
+                  'unknown',
+                durationMs: Date.now() - startTime,
+              };
 
-              // 5. Save assistant text message to DB (only if there's text)
-              if (fullResponse.trim()) {
-                try {
-                  await saveVisibleVisaChatMessage(session_id, 'assistant', fullResponse);
-                } catch (dbErr) {
-                  logger.error('Failed to save assistant message', dbErr as Error, {
-                    sessionId: session_id,
-                  });
-                }
-              }
-
+              // 5. Persist assistant text and its redacted diagnostic atomically.
               try {
-                await db.insert(visaAgentRunDiagnostics).values({
-                  sessionId: session_id,
-                  memoryRevision,
-                  destinationCountry: knowledgeCountry,
-                  passportCountryIso3: conversationState.passportCountryIso3,
-                  entryRuleOutcome: entryRule?.outcome ?? 'unknown',
-                  visaType: knowledgeVisaType,
-                  recommendedProducts: applicationRedirects.map((block) => ({
-                    productCode: block.productCode,
-                    provider: block.provider,
-                    requirement: block.requirement,
-                  })),
-                  intent: knowledgeIntent,
-                  sourceKeys: knowledgeResult.chunks
-                    .map((chunk) => chunk.sourceKey)
-                    .filter((sourceKey): sourceKey is string => Boolean(sourceKey)),
-                  fallbackReason: knowledgeResult.fallbackReason,
-                  model:
-                    process.env.OPENAI_MODEL ??
-                    process.env.OPENAI_CHAT_MODEL ??
-                    'unknown',
-                  durationMs: Date.now() - startTime,
-                });
-              } catch (diagnosticError) {
-                logger.warn(
-                  'Failed to persist redacted visa-agent diagnostic',
-                  diagnosticError as Error,
-                  { sessionId: session_id }
+                await persistChatTurnCompletion(
+                  fullResponse,
+                  diagnostic,
+                  (query) => db.execute(query),
                 );
+              } catch (completionPersistenceError) {
+                logger.warn(
+                  'Combined chat completion persistence failed; using legacy writes',
+                  undefined,
+                  {
+                    sessionId: session_id,
+                    errorName:
+                      completionPersistenceError instanceof Error
+                        ? completionPersistenceError.name
+                        : 'UnknownError',
+                  }
+                );
+
+                if (fullResponse.trim()) {
+                  try {
+                    await saveVisibleVisaChatMessage(
+                      session_id,
+                      'assistant',
+                      fullResponse,
+                    );
+                  } catch (dbErr) {
+                    logger.warn(
+                      'Failed to save assistant message',
+                      undefined,
+                      {
+                        sessionId: session_id,
+                        errorName:
+                          dbErr instanceof Error ? dbErr.name : 'UnknownError',
+                      },
+                    );
+                  }
+                }
+
+                try {
+                  await db.insert(visaAgentRunDiagnostics).values(diagnostic);
+                } catch (diagnosticError) {
+                  logger.warn(
+                    'Failed to persist redacted visa-agent diagnostic',
+                    undefined,
+                    {
+                      sessionId: session_id,
+                      errorName:
+                        diagnosticError instanceof Error
+                          ? diagnosticError.name
+                          : 'UnknownError',
+                    }
+                  );
+                }
               }
 
               // 6. Emit response_complete
@@ -1507,7 +1517,8 @@ export function registerVisaNamespace(nsp: Namespace): void {
             },
           },
           dynamicSystemPrompt,
-          requestController.signal
+          requestController.signal,
+          responseLocale
         );
       } catch (err) {
         if (err instanceof ChatCapacityError) {

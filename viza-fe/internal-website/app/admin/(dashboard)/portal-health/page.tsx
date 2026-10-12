@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +37,7 @@ export default async function PortalHealthPage() {
   if (error) {
     return (
       <div className="w-full p-6 md:p-8">
-        <Alert variant="destructive"><AlertIcon variant="destructive" /><AlertDescription>{error.message}</AlertDescription></Alert>
+        <p className="text-sm text-red-600">{error.message}</p>
       </div>
     );
   }

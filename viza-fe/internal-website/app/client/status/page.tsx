@@ -10,11 +10,10 @@ import {
   type ApplicationListTone,
 } from "./applications-list";
 import {
-  getClientStatusData,
-  isArrivalCardVisaType,
-  type ClientStatusData,
+  getClientStatusIndexData,
+  type ClientStatusIndexData,
+  type ClientStatusIndexApplication,
   type ClientStatusState,
-  type StatusApplication,
 } from "./status-data";
 import {
   getPopularVisaDestinationByPackage,
@@ -34,7 +33,7 @@ export const dynamic = "force-dynamic";
 
 const LIST_TONE: Record<ClientStatusState, ApplicationListTone> = {
   not_started: "brand",
-  needs_payment: "alert",
+  needs_payment: "warn",
   needs_consent: "warn",
   in_progress: "brand",
   needs_documents: "warn",
@@ -73,11 +72,11 @@ function statusLabel(
   state: ClientStatusState,
   t: Awaited<ReturnType<typeof getTranslations>>
 ): string {
-  return t(`states.${state}`);
+  return t(`states.${state === "needs_payment" ? "needs_attention" : state}`);
 }
 
 function toApplicationListItem(
-  application: StatusApplication,
+  application: ClientStatusIndexApplication,
   locale: string,
   t: Awaited<ReturnType<typeof getTranslations>>
 ): ApplicationListItem {
@@ -87,28 +86,20 @@ function toApplicationListItem(
     application.visaType
   );
   const records: ApplicationListRecord[] = application.applicationRecords.map(
-    (record) => {
-      const completedArrivalCard =
-        isArrivalCardVisaType(record.visaType) && record.state === "submitted";
-
-      return {
-        selectionKey: record.id,
-        applicationId: record.applicationId,
-        packageId: record.packageId,
-        visaLabel: isZh ? record.visaTypeLabelZh : record.visaTypeLabel,
-        stateLabel: completedArrivalCard
-          ? t("states.arrival_card_submitted")
-          : statusLabel(record.state, t),
-        tone: completedArrivalCard ? "success" : LIST_TONE[record.state],
-        progressPercent: record.progressPercent,
-        country: record.country,
-        visaType: record.visaType,
-        continueHref: record.continueHref,
-        detailHref: record.detailHref,
-        ongoing:
-          !completedArrivalCard && isOngoingApplicationState(record.state),
-      };
-    }
+    (record) => ({
+      selectionKey: record.id,
+      applicationId: record.applicationId,
+      packageId: record.packageId,
+      visaLabel: isZh ? record.visaTypeLabelZh : record.visaTypeLabel,
+      stateLabel: statusLabel(record.state, t),
+      tone: LIST_TONE[record.state],
+      progressPercent: record.progressPercent,
+      country: record.country,
+      visaType: record.visaType,
+      continueHref: record.continueHref,
+      detailHref: record.detailHref,
+      ongoing: isOngoingApplicationState(record.state),
+    })
   );
   const primaryRecord =
     records.find((record) => record.ongoing) ?? records[0] ?? null;
@@ -162,7 +153,7 @@ function ApplicationsIndex({
   t,
   expandedCountry,
 }: {
-  data: ClientStatusData;
+  data: ClientStatusIndexData;
   locale: string;
   t: Awaited<ReturnType<typeof getTranslations>>;
   expandedCountry: string | null;
@@ -225,8 +216,9 @@ export default async function ClientStatusPage({
   const [t, locale, data] = await Promise.all([
     getTranslations("clientStatus"),
     getLocale(),
-    getClientStatusData(),
+    getClientStatusIndexData(),
   ]);
+  if (data.unavailable) throw new Error("Client status is temporarily unavailable");
   if (!data.authenticated) redirect("/client/login");
 
   const selectedApplicationId = getParam(params.applicationId);
@@ -238,14 +230,12 @@ export default async function ClientStatusPage({
       (candidate) => candidate.id === selectedApplicationId
     );
     if (application?.id) {
-      redirect(
-        buildApplicationLongFormHref({
-          applicationId: application.id,
-          country: application.country,
-          visaType: application.visaType,
-          step: "status",
-        })
-      );
+      redirect(buildApplicationLongFormHref({
+        applicationId: application.id,
+        country: application.country,
+        visaType: application.visaType,
+        step: "status",
+      }));
     }
   }
 
@@ -254,14 +244,12 @@ export default async function ClientStatusPage({
       (candidate) => candidate.packageId === selectedPackageId
     );
     if (application?.id) {
-      redirect(
-        buildApplicationLongFormHref({
-          applicationId: application.id,
-          country: application.country,
-          visaType: application.visaType,
-          step: "status",
-        })
-      );
+      redirect(buildApplicationLongFormHref({
+        applicationId: application.id,
+        country: application.country,
+        visaType: application.visaType,
+        step: "status",
+      }));
     }
   }
 

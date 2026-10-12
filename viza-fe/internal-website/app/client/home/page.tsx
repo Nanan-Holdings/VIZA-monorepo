@@ -18,13 +18,8 @@ import { ApplicationTimelineSection } from "@/components/client/home/Application
 import { QuickActionsCard } from "@/components/client/home/QuickActionsCard";
 import { UniversalInfoCard } from "@/components/client/home/UniversalInfoCard";
 import { ActiveVisaCard } from "@/components/client/home/ActiveVisaCard";
-
-import {
-  loadClientApplicationStatuses,
-  loadClientHomeDashboard,
-} from "@/lib/client/portal-data";
-import { useRouteReady } from "@/lib/client/route-perf";
-import type { StatusApplication } from "@/app/client/status/status-data";
+import { fetchClientHomeDashboard } from "@/lib/client/home-dashboard-client";
+import type { ClientHomeTimelineApplication } from "@/app/client/status/status-data";
 import {
   getDestinationDisplayNameForLocale,
   getFormVisaType,
@@ -75,9 +70,7 @@ function ErrorState({ message }: { message: string }) {
             <CircleAlert />
           </EmptyMedia>
           <EmptyTitle>{message}</EmptyTitle>
-          <EmptyDescription>
-            加载仪表板时出现问题，请刷新页面后重试。
-          </EmptyDescription>
+          <EmptyDescription>{message}</EmptyDescription>
         </EmptyHeader>
       </Empty>
     </div>
@@ -137,8 +130,11 @@ interface UniversalInfoProgress {
 interface ActiveVisaSummary {
   href: string;
   status: string;
-  visaName: string;
+  country: string;
+  visaType: string;
 }
+
+type HomeErrorKey = "authError" | "dashboardError";
 
 const UNIVERSAL_PROFILE_FIELDS: Array<keyof ApplicantProfileSummary> = [
   "surname",
@@ -250,6 +246,7 @@ function buildUniversalInfoProgress(
 
 export default function HomePage() {
   const t = useTranslations("home");
+  const tClientStatus = useTranslations("clientStatus");
   const locale = useLocale();
   const PAGE_SCALE = 1;
   const heroRef = useRef<HTMLDivElement>(null);
@@ -260,8 +257,9 @@ export default function HomePage() {
 
   // 核心业务状态
   const [selectedApplicationStatus, setSelectedApplicationStatus] =
-    useState<StatusApplication | null>(null);
+    useState<ClientHomeTimelineApplication | null>(null);
   const [isTimelineLoading, setIsTimelineLoading] = useState(true);
+  const [isTimelinePartial, setIsTimelinePartial] = useState(false);
   const [universalInfoProgress, setUniversalInfoProgress] =
     useState<UniversalInfoProgress>({
       completedCount: 0,
@@ -269,10 +267,12 @@ export default function HomePage() {
     });
 
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<HomeErrorKey | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const latestLoadRequestId = useRef(0);
   const dashboardLoadInFlightRef = useRef(false);
+  const dashboardAbortRef = useRef<AbortController | null>(null);
+  const retryTimerRef = useRef<number | null>(null);
   const lastDashboardLoadAtRef = useRef(0);
 
   // Handle magic link auth callback
@@ -293,7 +293,7 @@ export default function HomePage() {
           })
           .then(({ data, error: authError }) => {
             if (authError) {
-              setError(t("authError"));
+              setError("authError");
               setIsLoading(false);
               return;
             }
@@ -308,7 +308,7 @@ export default function HomePage() {
     } else {
       setAuthChecked(true);
     }
-  }, [t]);
+  }, []);
 
   const fetchData = useCallback(
     async ({
@@ -319,38 +319,50 @@ export default function HomePage() {
       retryOnAbort?: boolean;
     } = {}) => {
       if (dashboardLoadInFlightRef.current) return;
+      if (retryTimerRef.current !== null) {
+        window.clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = null;
+      }
       dashboardLoadInFlightRef.current = true;
+      const controller = new AbortController();
+      dashboardAbortRef.current = controller;
       const requestId = latestLoadRequestId.current + 1;
       latestLoadRequestId.current = requestId;
       const isLatestRequest = () => latestLoadRequestId.current === requestId;
       let keepLoadingForRetry = false;
       if (showLoading) setIsLoading(true);
+      if (showLoading) setIsTimelinePartial(false);
       setError(null);
 
       try {
-        // Start the expensive lifecycle read at the same time, but do not keep
-        // the whole dashboard behind it. The hero and primary actions only
-        // depend on the compact dashboard query.
-        const statusPromise = loadClientApplicationStatuses().catch(
-          (statusError) => {
-            if (!isIgnorableDashboardLoadError(statusError)) {
-              console.error(
-                "Failed to load client home timeline",
-                statusError,
-              );
-            }
-            return null;
-          },
+        const activeSelection = readActiveApplicationSelection();
+        const formTarget = readApplicationFormTarget(
+          getRecentApplicationFormHref(),
         );
-        const dashboard = await loadClientHomeDashboard();
+        const dashboard = await fetchClientHomeDashboard({
+          applicationId:
+            activeSelection?.applicationId ?? formTarget?.applicationId ?? null,
+          country: activeSelection?.country ?? formTarget?.country ?? null,
+          visaType: activeSelection?.visaType ?? formTarget?.visaType ?? null,
+        }, { signal: controller.signal });
         lastDashboardLoadAtRef.current = Date.now();
+        if (dashboard.error) throw new Error(dashboard.error);
         if (!dashboard.authenticated) {
-          if (isLatestRequest()) setIsTimelineLoading(false);
+          if (isLatestRequest()) {
+            setApplicantName(null);
+            setHeroCountry(null);
+            setActiveVisa(null);
+            setSelectedApplicationStatus(null);
+            setUniversalInfoProgress({
+              completedCount: 0,
+              totalCount: UNIVERSAL_PROFILE_FIELDS.length,
+            });
+            setIsTimelinePartial(false);
+            setIsTimelineLoading(false);
+          }
           if (showLoading && isLatestRequest()) setIsLoading(false);
           return;
         }
-
-        if (dashboard.error) throw new Error(dashboard.error);
 
         const profile = dashboard.profile;
         const authName = dashboard.authEmail?.split("@")[0] ?? null;
@@ -367,9 +379,11 @@ export default function HomePage() {
           full_name: string | null;
         } | null;
         if (!profileTyped) {
-          if (authName) setApplicantName(authName);
+          setApplicantName(authName);
+          setHeroCountry(null);
           setActiveVisa(null);
           setSelectedApplicationStatus(null);
+          setIsTimelinePartial(false);
           setIsTimelineLoading(false);
           return;
         }
@@ -380,13 +394,21 @@ export default function HomePage() {
         const loadedApplications = dashboard.applications as ApplicationRow[];
         const loadedPayments = dashboard.payments as PaymentRow[];
 
-        // Current application = explicit active selection, then last-visited
-        // form context, then the newest ongoing application.
-        const activeSelection = readActiveApplicationSelection();
-        const formTarget = readApplicationFormTarget(
-          getRecentApplicationFormHref()
+        // The server selects from the owner-scoped rows it just read. Prefer
+        // that verified identity so an expired client hint cannot make the
+        // cards and timeline describe different applications.
+        const serverSelectedApplication = dashboard.timelineApplicationId
+          ? loadedApplications.find(
+              (application) => application.id === dashboard.timelineApplicationId,
+            ) ?? null
+          : null;
+        const serverSelectionMismatch = Boolean(
+          dashboard.timelineApplicationId && !serverSelectedApplication,
         );
-        const currentApplication =
+
+        // Fallback selection is used only when the server did not return a
+        // timeline identity (for example, there are no ongoing applications).
+        const clientSelectedApplication =
           loadedApplications.find((application) =>
             activeSelection?.applicationId
               ? application.id === activeSelection.applicationId
@@ -405,38 +427,40 @@ export default function HomePage() {
           }) ??
           loadedApplications.find((application) => isOngoingApplicationState(application.status)) ??
           null;
+        const currentApplication = serverSelectedApplication ?? clientSelectedApplication;
         if (!currentApplication) {
           setSelectedApplicationStatus(null);
+          setIsTimelinePartial(serverSelectionMismatch);
           setIsTimelineLoading(false);
         } else {
-          setIsTimelineLoading(true);
-          void statusPromise
-            .then((statusResult) => {
-              if (!isLatestRequest() || !statusResult) return;
-              const currentStatus =
-                statusResult.applications.find(
-                  (application) => application.id === currentApplication.id,
-                ) ?? null;
-              setSelectedApplicationStatus(currentStatus);
-              if (
-                currentStatus &&
-                activeSelection?.applicationId !== currentApplication.id
-              ) {
-                setActiveApplicationSelection({
-                  applicationId: currentApplication.id,
-                  packageId: currentApplication.visa_package_id,
-                  country: currentApplication.country,
-                  visaType: currentApplication.visa_type,
-                  href: getNextApplicationHref(
-                    currentApplication,
-                    loadedPayments,
-                  ),
-                });
-              }
-            })
-            .finally(() => {
-              if (isLatestRequest()) setIsTimelineLoading(false);
+          const timelineMatchesApplication = Boolean(
+            dashboard.timelineApplicationId === currentApplication.id &&
+              dashboard.timeline?.id === currentApplication.id,
+          );
+          const statusResult = timelineMatchesApplication ? dashboard.timeline : null;
+          if (isLatestRequest()) setSelectedApplicationStatus(statusResult);
+          setIsTimelinePartial(
+            Boolean(
+              dashboard.timelinePartialData ||
+                serverSelectionMismatch ||
+                !dashboard.timelineApplicationId ||
+                dashboard.timelineApplicationId !== currentApplication.id ||
+                !timelineMatchesApplication,
+            ),
+          );
+          setIsTimelineLoading(false);
+          if (serverSelectedApplication && activeSelection?.applicationId !== currentApplication.id) {
+            setActiveApplicationSelection({
+              applicationId: currentApplication.id,
+              packageId: currentApplication.visa_package_id,
+              country: currentApplication.country,
+              visaType: currentApplication.visa_type,
+              href: getNextApplicationHref(
+                currentApplication,
+                loadedPayments,
+              ),
             });
+          }
         }
         setHeroCountry(currentApplication?.country ?? null);
         setActiveVisa(
@@ -447,11 +471,8 @@ export default function HomePage() {
                   loadedPayments
                 ),
                 status: currentApplication.status,
-                visaName: getVisaPackageTitle(
-                  currentApplication.country,
-                  currentApplication.visa_type,
-                  locale
-                ),
+                country: currentApplication.country,
+                visaType: currentApplication.visa_type,
               }
             : null
         );
@@ -464,6 +485,7 @@ export default function HomePage() {
             )
           );
           setSelectedApplicationStatus(null);
+          setIsTimelinePartial(serverSelectionMismatch);
           setIsTimelineLoading(false);
           return;
         }
@@ -487,21 +509,24 @@ export default function HomePage() {
         if (isIgnorableDashboardLoadError(loadError)) {
           if (retryOnAbort) {
             keepLoadingForRetry = true;
-            window.setTimeout(() => {
+            retryTimerRef.current = window.setTimeout(() => {
+              retryTimerRef.current = null;
+              if (!isLatestRequest()) return;
               void fetchData({ showLoading, retryOnAbort: false });
             }, 100);
           }
           return;
         }
         console.error("Failed to load client home dashboard", loadError);
-        setError(t("dashboardError"));
+        setError("dashboardError");
       } finally {
+        if (dashboardAbortRef.current === controller) dashboardAbortRef.current = null;
         dashboardLoadInFlightRef.current = false;
         if (showLoading && isLatestRequest() && !keepLoadingForRetry)
           setIsLoading(false);
       }
     },
-    [locale, t]
+    []
   );
 
   useEffect(() => {
@@ -521,6 +546,17 @@ export default function HomePage() {
       document.removeEventListener("visibilitychange", refreshIfStale);
     };
   }, [authChecked, fetchData]);
+
+  // Abort the private read when leaving Home. Keep its in-flight guard until
+  // settlement and prevent a late response from applying after unmount.
+  useEffect(() => () => {
+    latestLoadRequestId.current += 1;
+    dashboardAbortRef.current?.abort();
+    if (retryTimerRef.current !== null) {
+      window.clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
+  }, []);
 
   // Keep the immersive navigation white until the hero has fully left the viewport.
   useEffect(() => {
@@ -545,10 +581,8 @@ export default function HomePage() {
     };
   }, [isLoading]);
 
-  useRouteReady(!isLoading);
-
   if (isLoading) return <LoadingState />;
-  if (error) return <ErrorState message={error} />;
+  if (error) return <ErrorState message={t(error)} />;
 
   // The hero keeps the shared blue gradient and reflects the country through its artwork.
   const heroTheme = getCountryHeroTheme(heroCountry);
@@ -628,7 +662,15 @@ export default function HomePage() {
             <ActiveVisaCard
               href={activeVisa?.href ?? "/client/destinations"}
               status={activeVisa?.status ?? null}
-              visaName={activeVisa?.visaName ?? null}
+              visaName={
+                activeVisa
+                  ? getVisaPackageTitle(
+                      activeVisa.country,
+                      activeVisa.visaType,
+                      locale,
+                    )
+                  : null
+              }
             />
             <UniversalInfoCard {...universalInfoProgress} />
             <QuickActionsCard />
@@ -639,7 +681,17 @@ export default function HomePage() {
           {isTimelineLoading ? (
             <TimelineLoadingState />
           ) : (
-            <ApplicationTimelineSection application={selectedApplicationStatus} />
+            <>
+              {isTimelinePartial ? (
+                <p
+                  className="mx-auto mb-4 w-full max-w-[1090px] rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900"
+                  role="status"
+                >
+                  {tClientStatus("partialData")}
+                </p>
+              ) : null}
+              <ApplicationTimelineSection application={selectedApplicationStatus} />
+            </>
           )}
         </div>
       </div>

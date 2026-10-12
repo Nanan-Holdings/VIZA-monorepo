@@ -3,7 +3,7 @@ import "server-only";
 import { createHash, randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { ProxyAgent, type Dispatcher } from "undici";
-import { evaluateShowIf } from "@/lib/form-utils";
+import { evaluateShowIf, getRepeatInstanceValues } from "@/lib/form-utils";
 import { getMissingDynamicFormFields } from "@/lib/application-tab-completion";
 import type { MissingApplicationField } from "@/lib/application-tab-completion";
 import type { VisaFormFieldOption, VisaFormFieldRow, WizardStep } from "@/types/visa-form-fields";
@@ -11,7 +11,6 @@ import type {
   FormAssistantAppliedPatch,
   FormAssistantDocumentReadiness,
   FormAssistantMessage,
-  FormAssistantSource,
   FormAssistantState,
   FormAssistantTurnResponse,
 } from "@/types/form-assistant";
@@ -19,19 +18,21 @@ import { FORM_ASSISTANT_PROVIDERS_UNAVAILABLE_CODE } from "@/types/form-assistan
 import {
   buildFieldExplanation,
   buildFieldClarificationFallback,
-  buildReviewedChoiceAnswerHint,
   fieldClarificationInstruction,
   getFormAssistantFallbackSources,
   hasFieldSpecificExplanation,
   isFormAssistantConfirmationField,
   isFieldClarificationRequest,
   isUsefulFieldClarificationReply,
-  getReviewedChoiceAnswerLabels,
 } from "./constants";
+import { loadApplicationKnowledge } from "./knowledge";
 import {
   canonicalizeApplicationOptionAnswers,
   getAssistantProgress,
 } from "./validator";
+import {
+  getFormFieldSentinelState,
+} from "@/lib/form-field-sentinels";
 
 export { isFieldClarificationRequest } from "./constants";
 
@@ -115,12 +116,6 @@ type ProposedTurn = {
   intent: ProposedTurnIntent;
   reply: string;
   patches: ProposedPatch[];
-};
-
-type PendingUnsupportedOption = {
-  fieldName: string;
-  value: string;
-  reason: "sgac_singapore_residence";
 };
 
 const PRODUCT_TIME_ZONES: Record<string, string> = {
@@ -307,130 +302,10 @@ function buildStalledFieldMessage(field: VisaFormFieldRow, locale: string): stri
         `你也可以直接在下方表单里填写这一项，然后我们继续下一题。`,
       ].filter(Boolean).join(" ")
     : [
-        `Sorry — I haven't been able to map your answer onto “${label}”.`,
+        `Sorry, I haven't been able to map your answer onto “${label}”.`,
         explanation,
         `You can also type this one straight into the form below, and we'll carry on from the next question.`,
       ].filter(Boolean).join(" ");
-}
-
-function readPendingUnsupportedOption(state: Record<string, unknown> | null): PendingUnsupportedOption | null {
-  const pending = state?.pendingUnsupportedOption;
-  if (!pending || typeof pending !== "object" || Array.isArray(pending)) return null;
-  const value = pending as Record<string, unknown>;
-  return value.reason === "sgac_singapore_residence" &&
-    typeof value.fieldName === "string" &&
-    typeof value.value === "string"
-    ? {
-        fieldName: value.fieldName,
-        value: value.value,
-        reason: value.reason,
-      }
-    : null;
-}
-
-function isStandaloneAffirmation(text: string): boolean {
-  const normalized = normalizedNaturalLanguageValue(text);
-  return new Set(["yes", "yep", "yeah", "correct", "right", "是", "是的", "对", "对的", "正确"])
-    .has(normalized);
-}
-
-function identifiesSingaporeResidence(text: string): boolean {
-  const normalized = normalizedNaturalLanguageValue(text);
-  return new Set([
-    "singapore",
-    "singaporeitself",
-    "iliveinsingapore",
-    "currentlyliveinsingapore",
-    "myresidenceissingapore",
-    "新加坡",
-    "我住在新加坡",
-    "我现在住在新加坡",
-  ]).has(normalized);
-}
-
-function recentAssistantConfirmedSingaporeResidence(messages: ModelConversationMessage[]): boolean {
-  const lastAssistantMessage = messages.findLast((message) => message.role === "assistant")?.content ?? "";
-  return /(?:place of residence|residence option).{0,80}singapore|singapore.{0,80}(?:place of residence|residence option)/i
-    .test(lastAssistantMessage);
-}
-
-function unsupportedSgacSingaporeResidence(params: {
-  visaType: string;
-  currentField: VisaFormFieldRow | undefined;
-  message: string;
-  pending: PendingUnsupportedOption | null;
-  recentConversation: ModelConversationMessage[];
-}): PendingUnsupportedOption | null {
-  if (
-    params.visaType.trim().toUpperCase() !== "SG_ARRIVAL_CARD" ||
-    params.currentField?.fieldName !== "place_of_residence" ||
-    !params.currentField.options?.length
-  ) return null;
-
-  const singaporeIsAnOfficialOption = matchingOptionsForAnswer(
-    "Singapore",
-    params.currentField.options,
-    params.currentField.fieldName,
-  ).length > 0;
-  if (singaporeIsAnOfficialOption) return null;
-
-  const confirmsPendingSingapore = isStandaloneAffirmation(params.message) && (
-    (
-      params.pending?.fieldName === params.currentField.fieldName &&
-      params.pending.reason === "sgac_singapore_residence"
-    ) || recentAssistantConfirmedSingaporeResidence(params.recentConversation)
-  );
-  if (!identifiesSingaporeResidence(params.message) && !confirmsPendingSingapore) return null;
-  return {
-    fieldName: params.currentField.fieldName,
-    value: "Singapore",
-    reason: "sgac_singapore_residence",
-  };
-}
-
-function unsupportedSgacSingaporeResidenceReply(locale: string): string {
-  return locale.startsWith("zh")
-    ? "新加坡不在 ICA 外国访客新加坡入境卡的官方“居住地”选项中，所以我不能把它保存为有效表单值。如果你是新加坡公民、永久居民或长期准证持有人，请在“居留身份类型”中选择对应的居民选项；居民路径不使用此字段。"
-    : "Singapore is not available in ICA’s official Place of Residence list for foreign visitors, so I can’t save it as a valid form value. If you are a Singapore Citizen, Permanent Resident, or Long-Term Pass holder, choose the matching Residency Type; resident routes do not use this field.";
-}
-
-async function loadApplicationKnowledge(params: {
-  admin: SupabaseClient;
-  releaseKey: string | null;
-  country: string;
-  visaType: string;
-}): Promise<{ context: string; sources: FormAssistantSource[] }> {
-  const fallbackSources = getFormAssistantFallbackSources(params.country, params.visaType);
-  if (!params.releaseKey) return { context: "", sources: fallbackSources };
-  const { data: release } = await params.admin
-    .from("visa_knowledge_releases")
-    .select("id")
-    .eq("release_key", params.releaseKey)
-    .eq("status", "active")
-    .maybeSingle();
-  if (!release) return { context: "", sources: fallbackSources };
-  const { data: documents } = await params.admin
-    .from("visa_documents")
-    .select("id, title, source_url")
-    .eq("release_id", release.id)
-    .ilike("country", params.country)
-    .ilike("visa_type", params.visaType)
-    .limit(5);
-  const documentIds = (documents ?? []).map((document) => document.id);
-  if (documentIds.length === 0) return { context: "", sources: fallbackSources };
-  const { data: chunks } = await params.admin
-    .from("visa_chunks")
-    .select("content, document_type")
-    .in("document_id", documentIds)
-    .in("document_type", ["form_requirements", "requirements", "process", "faq"])
-    .limit(8);
-  const sources = (documents ?? [])
-    .map((document) => ({ title: document.title || "Official source", url: document.source_url ?? null }))
-    .filter((source, index, list) => list.findIndex((item) => item.url === source.url && item.title === source.title) === index);
-  return {
-    context: (chunks ?? []).map((chunk) => chunk.content.slice(0, 900)).join("\n\n"),
-    sources: sources.length > 0 ? sources : fallbackSources,
-  };
 }
 
 function optionValue(option: VisaFormFieldOption): string {
@@ -1123,12 +998,94 @@ function parseRelativeDateAnswer(text: string, now: Date, timeZone: string): str
   return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
+const DOES_NOT_APPLY_SENTINEL = "DOES_NOT_APPLY";
+const DO_NOT_KNOW_SENTINEL = "DO_NOT_KNOW";
+
+function parseDirectSentinelAnswer(
+  text: string,
+  field: VisaFormFieldRow | undefined,
+): ProposedPatch | null {
+  if (!field || field.options?.length || field.fieldType === "checkbox") return null;
+
+  const rules = field.validationRules;
+  const allowsDoesNotApply = rules?.allow_does_not_apply === true || rules?.has_does_not_apply === true;
+  const allowsDoNotKnow = rules?.allow_do_not_know === true || rules?.allow_unknown === true;
+  if (!allowsDoesNotApply && !allowsDoNotKnow) return null;
+
+  // Keep this deterministic and schema-gated. A short answer such as “无” is
+  // meaningful for a field that exposes an official NA branch, but must never
+  // be turned into a magic value for an ordinary free-text field.
+  const normalized = normalizedNaturalLanguageValue(text);
+  const doesNotApplyAnswers = new Set([
+    "无",
+    "没有",
+    "没",
+    "没有号码",
+    "我没有",
+    "我没有号码",
+    "我没有这个号码",
+    "我没有ssn",
+    "无号码",
+    "无此号码",
+    "没有这个",
+    "无此项",
+    "没有此项",
+    "不适用",
+    "na",
+    "n/a",
+    "none",
+    "notapplicable",
+    "doesnotapply",
+    "nonumber",
+    "nossn",
+    "nosocialsecuritynumber",
+    "idonthaveone",
+    "idonthaveit",
+    "ihavenone",
+    "dont have one",
+    "dont have it",
+    "no",
+    "nope",
+  ].map(normalizedNaturalLanguageValue));
+  const doNotKnowAnswers = new Set([
+    "不知道",
+    "不清楚",
+    "记不清",
+    "不记得",
+    "unknown",
+    "dontknow",
+    "idontknow",
+    "not sure",
+    "notsure",
+  ].map(normalizedNaturalLanguageValue));
+
+  if (allowsDoesNotApply && doesNotApplyAnswers.has(normalized)) {
+    return {
+      fieldName: field.fieldName,
+      value: DOES_NOT_APPLY_SENTINEL,
+      confidence: "high",
+      modelSource: "deterministic",
+    };
+  }
+  if (allowsDoNotKnow && doNotKnowAnswers.has(normalized)) {
+    return {
+      fieldName: field.fieldName,
+      value: DO_NOT_KNOW_SENTINEL,
+      confidence: "high",
+      modelSource: "deterministic",
+    };
+  }
+  return null;
+}
+
 export function parseDirectCurrentFieldAnswer(
   text: string,
   field: VisaFormFieldRow | undefined,
   options: { now?: Date; timeZone?: string } = {},
 ): ProposedPatch | null {
   if (!field) return null;
+  const sentinel = parseDirectSentinelAnswer(text, field);
+  if (sentinel) return sentinel;
   const yesNo = parseDirectYesNoAnswer(text, field);
   if (yesNo) return { ...yesNo, modelSource: "deterministic" };
 
@@ -1213,7 +1170,7 @@ export function parseDirectCurrentFieldAnswer(
       withinMaxLength &&
       (hasHan ? value.length <= 8 && !looksLikeProse : value.length <= 60) &&
       // Letters, spaces and name punctuation only: anything else could be a
-      // correction or two answers at once — leave those to the model.
+      // correction or two answers at once, so leave those to the model.
       /^[\p{Script=Han}\p{L}][\p{Script=Han}\p{L}''\-. ]*$/u.test(value) &&
       !isVagueFormAnswer(value)
     ) {
@@ -1256,10 +1213,6 @@ function parseUniqueVisibleFieldAnswer(
 }
 
 const FRIENDLY_FIELD_QUESTIONS: Record<string, { zh: string; en: string }> = {
-  sgac_applicant_type: {
-    zh: "请选择 ICA 居留身份类型：新加坡公民 / 永久居民、长期准证持有人，或外国访客 / 原则批准函持有人？",
-    en: "Which ICA Residency Type applies: Singapore Citizen / Permanent Resident, Long-Term Pass Holder, or Foreign Visitor / In-Principle Approval Holder?",
-  },
   full_name: {
     zh: "先确认一下，你护照上的英文全名是什么？请按护照原样告诉我。",
     en: "First, what is your full name exactly as it appears in your passport?",
@@ -1659,22 +1612,6 @@ function genericFieldQuestion(field: VisaFormFieldRow, label: string, locale: st
   return directFieldQuestion(label, locale);
 }
 
-function appendReviewedChoicesToQuestion(
-  question: string,
-  field: VisaFormFieldRow,
-  locale: string,
-): string {
-  const labels = getReviewedChoiceAnswerLabels(field, locale);
-  const hint = buildReviewedChoiceAnswerHint(field, locale);
-  if (!labels || !hint) return question;
-  const normalizedQuestion = normalizedNaturalLanguageValue(question);
-  const alreadyNamesEveryChoice = labels.every((label) => {
-    const normalizedLabel = normalizedNaturalLanguageValue(label);
-    return normalizedLabel.length > 0 && normalizedQuestion.includes(normalizedLabel);
-  });
-  return alreadyNamesEveryChoice ? question : `${question} ${hint}`;
-}
-
 function friendlyQuestion(
   field: VisaFormFieldRow,
   locale: string,
@@ -1687,16 +1624,14 @@ function friendlyQuestion(
       ? PH_ETRAVEL_FIELD_QUESTIONS[field.fieldName]
       : undefined;
   const resolvedCopy = copy ?? COMMON_FIELD_QUESTIONS[field.fieldName];
+  if (resolvedCopy) return locale.startsWith("zh") ? resolvedCopy.zh : resolvedCopy.en;
   const label = localizedLabel(field, locale);
   if (isFormAssistantConfirmationField(field)) {
     return locale.startsWith("zh")
       ? "请查看并确认下方显示的完整声明。"
       : "Please review and confirm the complete declaration shown below.";
   }
-  const question = resolvedCopy
-    ? locale.startsWith("zh") ? resolvedCopy.zh : resolvedCopy.en
-    : genericFieldQuestion(field, label, locale);
-  return appendReviewedChoicesToQuestion(question, field, locale);
+  return genericFieldQuestion(field, label, locale);
 }
 
 export function buildFormAssistantFieldQuestion(
@@ -1715,15 +1650,60 @@ function localizedLabel(field: VisaFormFieldRow, locale: string): string {
   return field.label;
 }
 
+function fieldForAnswerKey(
+  fields: Map<string, VisaFormFieldRow>,
+  answerKey: string | null | undefined,
+): VisaFormFieldRow | undefined {
+  if (!answerKey) return undefined;
+  return fields.get(answerKey) ?? fields.get(answerKey.replace(/__\d+$/u, ""));
+}
+
+function scopePatchToAnswerKey(
+  patch: ProposedPatch | null,
+  field: VisaFormFieldRow | undefined,
+  answerKey: string | null | undefined,
+): ProposedPatch | null {
+  if (!patch || !field || !answerKey || patch.fieldName !== field.fieldName) return patch;
+  const suffix = answerKey.startsWith(`${field.fieldName}__`)
+    ? answerKey.slice(field.fieldName.length)
+    : "";
+  return suffix ? { ...patch, fieldName: `${field.fieldName}${suffix}` } : patch;
+}
+
+function scopeFieldToAnswerKey(
+  field: VisaFormFieldRow | undefined,
+  answerKey: string | null | undefined,
+): VisaFormFieldRow | undefined {
+  if (!field || !answerKey || answerKey === field.fieldName) return field;
+  if (!answerKey.startsWith(`${field.fieldName}__`)) return field;
+  return { ...field, fieldName: answerKey };
+}
+
+function valuesForAnswerKey(
+  field: VisaFormFieldRow,
+  answerKey: string | null | undefined,
+  values: Record<string, string>,
+  stepFields: VisaFormFieldRow[],
+): Record<string, string> {
+  const instance = Number(answerKey?.match(/__(\d+)$/u)?.[1] ?? "1") - 1;
+  return instance > 0 ? getRepeatInstanceValues(field, instance, values, stepFields) : values;
+}
+
 function localizeMissingFields(
   missing: MissingApplicationField[],
   fields: Map<string, VisaFormFieldRow>,
   locale: string,
 ): MissingApplicationField[] {
-  return missing.map((item) => ({
-    ...item,
-    label: fields.has(item.fieldName) ? localizedLabel(fields.get(item.fieldName)!, locale) : item.label,
-  }));
+  return missing.map((item) => {
+    const field = fieldForAnswerKey(fields, item.fieldName);
+    const instance = item.fieldName.match(/__(\d+)$/u)?.[1];
+    return {
+      ...item,
+      label: field
+        ? `${localizedLabel(field, locale)}${instance ? ` #${instance}` : ""}`
+        : item.label,
+    };
+  });
 }
 
 export function fingerprintSchema(steps: WizardStep[]): string {
@@ -1813,6 +1793,21 @@ export async function getOrCreateAssistantSession(params: {
   }
   if (error || !created) throw new Error(error?.message ?? "Failed to create assistant session");
   return created as SessionRow;
+}
+
+export async function loadAssistantSession(
+  admin: SupabaseClient,
+  applicationId: string,
+): Promise<SessionRow | null> {
+  const { data, error } = await admin
+    .from("form_assistant_sessions")
+    .select("id, schema_fingerprint, knowledge_release_key, state_json")
+    .eq("application_id", applicationId)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data as SessionRow | null) ?? null;
 }
 
 export async function loadAssistantMessages(
@@ -2101,8 +2096,26 @@ function canRunApplicationFinalCheck(
   return missingFieldCount === 0 && documentReadiness?.documentCollectionComplete !== false;
 }
 
-function buildTurnAcknowledgement(appliedCount: number, locale: string, sequence: number): string {
-  if (appliedCount === 0) return "";
+function buildTurnAcknowledgement(
+  appliedPatches: FormAssistantAppliedPatch[],
+  fields: Map<string, VisaFormFieldRow>,
+  locale: string,
+  sequence: number,
+): string {
+  if (appliedPatches.length === 0) return "";
+  const sentinelPatch = appliedPatches.find((patch) =>
+    patch.value === DOES_NOT_APPLY_SENTINEL || patch.value === DO_NOT_KNOW_SENTINEL,
+  );
+  if (sentinelPatch) {
+    const field = fieldForAnswerKey(fields, sentinelPatch.fieldName);
+    const label = field ? localizedLabel(field, locale) : sentinelPatch.fieldName;
+    if (locale.startsWith("zh")) {
+      const displayValue = sentinelPatch.value === DOES_NOT_APPLY_SENTINEL ? "不适用" : "不知道";
+      return `已将“${label}”标记为“${displayValue}”。`;
+    }
+    const displayValue = sentinelPatch.value === DOES_NOT_APPLY_SENTINEL ? "Does Not Apply" : "Do Not Know";
+    return `Marked “${label}” as “${displayValue}”.`;
+  }
   return turnAcknowledgement(locale, sequence);
 }
 
@@ -2120,7 +2133,7 @@ export function buildAssistantState(params: {
   const rawMissingFields = getMissingDynamicFormFields(params.steps, values);
   const fieldByName = new Map(params.steps.flatMap((step) => step.fields).map((field) => [field.fieldName, field]));
   const missingFields = localizeMissingFields(rawMissingFields, fieldByName, params.locale);
-  const nextFields = missingFields.slice(0, 1).map((item) => fieldByName.get(item.fieldName)).filter(Boolean) as VisaFormFieldRow[];
+  const nextFields = missingFields.slice(0, 1).map((item) => fieldForAnswerKey(fieldByName, item.fieldName)).filter(Boolean) as VisaFormFieldRow[];
   const optionalFields = params.steps.flatMap((step) => step.fields.filter((field) =>
     !field.required && !values[field.fieldName]?.trim() && evaluateShowIf(field, values, step.fields),
   ));
@@ -2557,12 +2570,20 @@ async function proposeTurn(params: {
   throw new Error(FORM_ASSISTANT_PROVIDERS_UNAVAILABLE_CODE);
 }
 
-function validateProposal(
+export function validateProposal(
   field: VisaFormFieldRow,
   patch: ProposedPatch,
   answers: Record<string, string>,
 ): boolean {
   if (patch.confidence !== "high" || !patch.value?.trim()) return false;
+  const trimmedValue = patch.value.trim();
+  const sentinelState = getFormFieldSentinelState(trimmedValue, field.validationRules, field.options);
+  if (sentinelState !== "none") {
+    // Sentinel values are schema-controlled answers. Keep this check shared
+    // with final validation so casing variants cannot pass ordinary text
+    // patterns or be persisted into fields without the official branch.
+    return sentinelState === "allowed";
+  }
   if (isVagueFormAnswer(patch.value)) return false;
   if (field.fieldType === "date" && !/^\d{4}-\d{2}-\d{2}$/.test(patch.value)) return false;
   if (field.options?.length && !field.options.map(optionValue).includes(patch.value)) return false;
@@ -2703,19 +2724,26 @@ export async function runAssistantTurn(params: {
         requestsPreviousAnswerCorrection(message) ? lastAssistantFilledField : null
       );
   const requestedCorrectionCandidate = requestedCorrectionFieldName
-    ? fieldByName.get(requestedCorrectionFieldName)
+    ? fieldForAnswerKey(fieldByName, requestedCorrectionFieldName)
     : undefined;
   let requestedCorrectionField = requestedCorrectionCandidate;
   if (requestedCorrectionField) {
     const correctionField = requestedCorrectionField;
     const stepFields = params.steps.find((step) => step.fields.includes(correctionField))?.fields ?? allFields;
-    if (!evaluateShowIf(correctionField, existingValues, stepFields)) {
+    if (!evaluateShowIf(
+      correctionField,
+      valuesForAnswerKey(correctionField, requestedCorrectionFieldName, existingValues, stepFields),
+      stepFields,
+    )) {
       requestedCorrectionField = undefined;
     }
   }
   const currentQuestionField = requestedCorrectionField ?? (missing.length > 0
-    ? fieldByName.get(missing[0]?.fieldName ?? "")
+    ? fieldForAnswerKey(fieldByName, missing[0]?.fieldName)
     : allFields.find((field) => optionalNames.has(field.fieldName)));
+  const currentQuestionAnswerKey = requestedCorrectionField
+    ? requestedCorrectionFieldName
+    : missing[0]?.fieldName ?? currentQuestionField?.fieldName;
   let confirmationField: VisaFormFieldRow | null = null;
   let confirmationPatch: ProposedPatch | null = null;
   if (params.inputMode === "confirmation") {
@@ -2724,7 +2752,11 @@ export async function runAssistantTurn(params: {
       : null;
     if (currentConfirmationPatch && currentQuestionField) {
       confirmationField = currentQuestionField;
-      confirmationPatch = currentConfirmationPatch;
+      confirmationPatch = scopePatchToAnswerKey(
+        currentConfirmationPatch,
+        currentQuestionField,
+        currentQuestionAnswerKey,
+      );
     } else {
       for (const field of allFields) {
         if (existingValues[field.fieldName]?.trim().toLocaleLowerCase() !== "true") continue;
@@ -2754,7 +2786,7 @@ export async function runAssistantTurn(params: {
     const nextMissing = localizeMissingFields(missing, fieldByName, params.locale);
     const nextFields = nextMissing
       .slice(0, 1)
-      .map((item) => fieldByName.get(item.fieldName))
+      .map((item) => fieldForAnswerKey(fieldByName, item.fieldName))
       .filter(Boolean) as VisaFormFieldRow[];
     const optionalFields = params.steps.flatMap((step) => step.fields.filter((field) =>
       !field.required && !existingValues[field.fieldName]?.trim() &&
@@ -2781,10 +2813,19 @@ export async function runAssistantTurn(params: {
   }
   const visibleCandidatePool = allFields.filter((field) => {
     const stepFields = params.steps.find((step) => step.fields.includes(field))?.fields ?? allFields;
-    if (!evaluateShowIf(field, existingValues, stepFields)) return false;
+    if (!evaluateShowIf(
+      field,
+      valuesForAnswerKey(field, currentQuestionAnswerKey, existingValues, stepFields),
+      stepFields,
+    )) return false;
     // The model sees only currently missing fields plus fields that the
     // assistant previously filled and the user may now explicitly correct.
-    return field === requestedCorrectionField ||
+    // A repeat row is represented by a suffixed answer key (for example
+    // `education_name__2`) while the schema still contains one base field.
+    // Keep that base field in the model pool when it is the current question;
+    // the persistence loop scopes any returned patch back to the same row.
+    return field === currentField ||
+      field === requestedCorrectionField ||
       missingNames.has(field.fieldName) ||
       (missingNames.size === 0 && optionalNames.has(field.fieldName)) ||
       params.answers[field.fieldName]?.source === "form_assistant";
@@ -2793,15 +2834,11 @@ export async function runAssistantTurn(params: {
     ...(currentField && visibleCandidatePool.includes(currentField) ? [currentField] : []),
     ...visibleCandidatePool.filter((field) => field !== currentField),
   ].slice(0, 5);
+  const modelCurrentField = scopeFieldToAnswerKey(currentField, currentQuestionAnswerKey);
+  const modelVisibleCandidates = visibleCandidates.map((field) =>
+    field === currentField ? modelCurrentField ?? field : field,
+  );
   const recentConversation = await loadRecentModelConversation(params.admin, params.session.id);
-  const pendingUnsupportedOption = readPendingUnsupportedOption(params.session.state_json);
-  const unsupportedResidence = unsupportedSgacSingaporeResidence({
-    visaType: params.visaType,
-    currentField,
-    message,
-    pending: pendingUnsupportedOption,
-    recentConversation,
-  });
   const relevantExistingAnswers = relevantExistingAnswerContext(
     params.steps,
     currentField,
@@ -2836,7 +2873,11 @@ export async function runAssistantTurn(params: {
   });
   const timeZone = formAssistantTimeZone(params.country, params.visaType);
   const referenceDate = isoDateInTimeZone(new Date(), timeZone);
-  const exactVagueAnswer = isVagueFormAnswer(message);
+  const directSchemaChoice = parseDirectCurrentFieldAnswer(message, currentField, { timeZone });
+  // “不知道” is normally a vague answer, but it is an explicit official
+  // branch for some text/date fields and a declared option for some selects.
+  // Let either schema-defined choice advance without guessing ordinary text.
+  const exactVagueAnswer = isVagueFormAnswer(message) && !directSchemaChoice;
   const fieldClarificationRequest = isFieldClarificationRequest(message);
   const applicationReadinessQuestion = missing.length === 0 && isApplicationReadinessQuestion(message);
   const deterministicOptionClarification = Boolean(
@@ -2849,10 +2890,15 @@ export async function runAssistantTurn(params: {
   const explicitMultiPatches = multiAnswerMessage
     ? parseExplicitMultiFieldAnswers(message, visibleCandidates, { timeZone })
     : [];
-  const directCurrentChoice = correctionCancellation || exactVagueAnswer || fieldClarificationRequest || promptInjectionAttempt ||
+  const directCurrentCandidate = correctionCancellation || exactVagueAnswer || fieldClarificationRequest || promptInjectionAttempt ||
     ambiguousAlternativeAnswer || multiAnswerMessage
     ? null
-    : parseDirectCurrentFieldAnswer(message, currentField, { timeZone });
+    : directSchemaChoice;
+  const directCurrentChoice = scopePatchToAnswerKey(
+    directCurrentCandidate,
+    currentField,
+    currentQuestionAnswerKey,
+  );
   const directChoice = confirmationPatch ?? directCurrentChoice ?? (
     correctionCancellation || exactVagueAnswer || fieldClarificationRequest || promptInjectionAttempt ||
     ambiguousAlternativeAnswer || multiAnswerMessage
@@ -2874,9 +2920,7 @@ export async function runAssistantTurn(params: {
       : findAccommodationOptionCandidates(message, currentField);
   let proposed: ProposedTurn;
   try {
-    proposed = unsupportedResidence
-      ? { intent: "clarification", reply: unsupportedSgacSingaporeResidenceReply(params.locale), patches: [] }
-      : applicationReadinessQuestion || correctionCancellation || exactVagueAnswer || promptInjectionAttempt || ambiguousAlternativeAnswer ||
+    proposed = applicationReadinessQuestion || correctionCancellation || exactVagueAnswer || promptInjectionAttempt || ambiguousAlternativeAnswer ||
       deterministicOptionClarification || optionDisambiguationCandidates.length > 0
       ? { intent: "unclear", reply: "", patches: [] }
       : explicitMultiPatches.length >= 2
@@ -2888,8 +2932,8 @@ export async function runAssistantTurn(params: {
       : await proposeTurn({
           text: message,
           locale: params.locale,
-          candidates: visibleCandidates,
-          currentField,
+          candidates: modelVisibleCandidates,
+          currentField: modelCurrentField,
           recentConversation,
           relevantExistingAnswers,
           knowledgeContext: knowledge.context,
@@ -2912,9 +2956,18 @@ export async function runAssistantTurn(params: {
 
   const appliedPatches: FormAssistantAppliedPatch[] = [];
   const skippedConflicts: string[] = [];
+  const failedSaves: string[] = [];
   const assistantMessageId = randomUUID();
-  for (const patch of proposed.patches) {
-    const field = fieldByName.get(patch.fieldName);
+  for (const rawPatch of proposed.patches) {
+    // The model receives the suffixed current field when possible, but keep
+    // this boundary defensive: a provider may still return the schema's base
+    // name. Never let that fallback overwrite repeat row 1.
+    const patch = scopePatchToAnswerKey(
+      rawPatch,
+      currentField,
+      currentQuestionAnswerKey,
+    ) ?? rawPatch;
+    const field = fieldForAnswerKey(fieldByName, patch.fieldName);
     if (!field || !validateProposal(field, patch, existingValues)) continue;
     const current = params.answers[patch.fieldName];
     const invalidReusablePrefill = Boolean(
@@ -2926,6 +2979,7 @@ export async function runAssistantTurn(params: {
         confidence: "high",
       }, existingValues),
     );
+    const hasExistingEmptyAnswerRow = Boolean(current && !current.value?.trim());
     if (current?.value && current.source !== "form_assistant" && !invalidReusablePrefill) {
       skippedConflicts.push(patch.fieldName);
       continue;
@@ -2938,27 +2992,33 @@ export async function runAssistantTurn(params: {
       model: patch.modelSource ?? FORM_ASSISTANT_MODEL,
       previousValue: current?.source === "form_assistant" || invalidReusablePrefill ? current.value : null,
     };
-    if (current?.source === "form_assistant" || invalidReusablePrefill) {
+    if (current?.source === "form_assistant" || invalidReusablePrefill || hasExistingEmptyAnswerRow) {
       const answerUpdate = {
         value_text: patch.value,
         source: "form_assistant",
         source_metadata: provenance,
         updated_at: new Date().toISOString(),
       };
-      const { data, error } = await params.admin
+      const answerUpdateQuery = params.admin
         .from("visa_application_answers")
         .update(answerUpdate)
         .eq("application_id", params.applicationId)
-        .eq("field_name", patch.fieldName)
-        .eq("source", current.source)
+        .eq("field_name", patch.fieldName);
+      if (current.source === null) {
+        answerUpdateQuery.is("source", null);
+      } else {
+        answerUpdateQuery.eq("source", current.source);
+      }
+      const { data, error } = await answerUpdateQuery
         .eq("value_text", current.value)
         .select("field_name")
         .maybeSingle();
       let persisted = Boolean(data);
-      if (!error && !persisted && invalidReusablePrefill) {
-        // Some reusable-profile answers are merged into the request in memory
-        // and do not yet have an application answer row. Insert only after the
-        // compare-and-swap update found nothing; a concurrent manual save then
+      let saveFailed = Boolean(error && error.code !== "23505");
+      if (!error && !persisted && (invalidReusablePrefill || hasExistingEmptyAnswerRow)) {
+        // Reusable-profile answers may exist only in memory, and a cleared
+        // manual answer may have an empty row. Insert only after the
+        // compare-and-swap update found nothing; a concurrent manual save
         // wins via the unique application/field constraint.
         const { error: insertError } = await params.admin.from("visa_application_answers").insert({
           application_id: params.applicationId,
@@ -2966,8 +3026,10 @@ export async function runAssistantTurn(params: {
           ...answerUpdate,
         });
         persisted = !insertError;
+        saveFailed = Boolean(insertError && insertError.code !== "23505");
       }
       if (error || !persisted) {
+        if (saveFailed) failedSaves.push(patch.fieldName);
         skippedConflicts.push(patch.fieldName);
         continue;
       }
@@ -2981,6 +3043,7 @@ export async function runAssistantTurn(params: {
         updated_at: new Date().toISOString(),
       });
       if (error) {
+        if (error.code !== "23505") failedSaves.push(patch.fieldName);
         skippedConflicts.push(patch.fieldName);
         continue;
       }
@@ -3029,7 +3092,7 @@ export async function runAssistantTurn(params: {
     fieldByName,
     params.locale,
   );
-  const nextFields = nextMissing.slice(0, 1).map((item) => fieldByName.get(item.fieldName)).filter(Boolean) as VisaFormFieldRow[];
+  const nextFields = nextMissing.slice(0, 1).map((item) => fieldForAnswerKey(fieldByName, item.fieldName)).filter(Boolean) as VisaFormFieldRow[];
   const optionalFields = params.steps.flatMap((step) => step.fields.filter((field) =>
     !field.required && !nextValues[field.fieldName]?.trim() && evaluateShowIf(field, nextValues, step.fields),
   ));
@@ -3048,7 +3111,7 @@ export async function runAssistantTurn(params: {
 
   const nextProgress = getAssistantProgress(params.steps, nextValues);
   const correctionConflict = requestedCorrectionField
-    ? skippedConflicts.includes(requestedCorrectionField.fieldName)
+    ? skippedConflicts.includes(requestedCorrectionFieldName ?? requestedCorrectionField.fieldName)
     : false;
   const correctionNeedsAnotherAnswer = Boolean(requestedCorrectionField && appliedPatches.length === 0);
   const correctionLabel = requestedCorrectionField
@@ -3064,8 +3127,14 @@ export async function runAssistantTurn(params: {
     ? "好的，我会保留原来的酒店信息。"
     : "Okay, I’ll keep your existing hotel information.";
   let assistantMessage: string;
-  if (unsupportedResidence) {
-    assistantMessage = proposed.reply;
+  if (failedSaves.length > 0) {
+    const labels = failedSaves.map((key) => {
+      const field = fieldForAnswerKey(fieldByName, key);
+      return field ? localizedLabel(field, params.locale) : key;
+    }).join(params.locale.startsWith("zh") ? "、" : ", ");
+    assistantMessage = params.locale.startsWith("zh")
+      ? `未能保存“${labels}”的答案，请重新发送这项答案。${nextQuestion}`
+      : `I couldn't save the answer for “${labels}”. Please send that answer again. ${nextQuestion}`;
   } else if (applicationReadinessQuestion) {
     assistantMessage = buildApplicationReadinessAnswer(params.documentReadiness, params.locale);
   } else if (correctionCancellation) {
@@ -3113,7 +3182,7 @@ export async function runAssistantTurn(params: {
     assistantMessage = buildStalledFieldMessage(currentField, params.locale);
   } else {
     assistantMessage = [
-      buildTurnAcknowledgement(appliedPatches.length, params.locale, nextProgress.completed),
+      buildTurnAcknowledgement(appliedPatches, fieldByName, params.locale, nextProgress.completed),
       nextQuestion,
     ].filter(Boolean).join(" ");
   }
@@ -3144,9 +3213,8 @@ export async function runAssistantTurn(params: {
         missingFields: nextMissing,
         progress: response.progress,
         pendingCorrectionField: correctionNeedsAnotherAnswer && !correctionConflict
-          ? requestedCorrectionField?.fieldName ?? null
+          ? requestedCorrectionFieldName ?? null
           : null,
-        pendingUnsupportedOption: unsupportedResidence,
         assistantStall: stalledOnSameField
           ? { fieldName: currentField?.fieldName ?? null, count: stallCount }
           : { fieldName: null, count: 0 },

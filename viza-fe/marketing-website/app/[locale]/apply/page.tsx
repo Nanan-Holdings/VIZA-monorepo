@@ -663,7 +663,10 @@ export default function ApplyPage() {
   }
 
   return (
-    <>
+    // data-clarity-mask: this page shows passport scans and the details read
+    // from them, so Clarity never records its text or images, only clicks.
+    // `display: contents` keeps the wrapper out of layout.
+    <div data-clarity-mask="True" style={{ display: "contents" }}>
       <SiteNav />
 
       <div className="progress-bar">
@@ -1173,6 +1176,6 @@ export default function ApplyPage() {
       </div>
 
       <SiteFooter />
-    </>
+    </div>
   );
 }

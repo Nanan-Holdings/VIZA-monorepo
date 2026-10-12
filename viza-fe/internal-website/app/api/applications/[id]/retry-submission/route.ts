@@ -3,8 +3,12 @@ import { resolveMx } from "node:dns/promises";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getClientSessionFromRequest } from "@/lib/client-session";
+import { clientSessionOwnsApplicant } from "@/lib/application-api-auth";
 import { compareFaces } from "@/lib/face/match";
-import { wakeCloudSubmissionWorker } from "@/lib/submission-worker-wake.server";
+import {
+  wakeCloudSubmissionWorker,
+  wakeDs160SubmissionWorker,
+} from "@/lib/submission-worker-wake.server";
 import { isRunnerCutoverPaused } from "@/lib/runner-cutover-pause.server";
 import { ensureFlyMachineStarted } from "@/lib/fly-machine-wake.server";
 import { documentVersion } from "@/lib/legal/document-versions";
@@ -68,7 +72,6 @@ import {
 } from "@/lib/applications/qa-safety";
 import {
   evaluateSubmissionAccess,
-  submissionAccessHttpBody,
 } from "@/lib/payments/submission-access";
 
 type ApplicationForRetry = {
@@ -122,6 +125,10 @@ type RetryQueueInsertResult = {
   supersededCount: number;
 };
 
+function isWakeableDs160QueueStatus(status: SubmissionQueueStatus | null): boolean {
+  return status === "ds160_prefill_pending" || status === "ds160_live_assisted_pending";
+}
+
 type SgacScheduleDecision =
   | { action: "submit"; arrivalDate: string; departureDate: string }
   | {
@@ -169,7 +176,12 @@ const VIETNAM_PASSPORT_DOCUMENT_TYPES = ["passport_copy", "passport_bio_page", "
 const VIETNAM_PORTRAIT_DOCUMENT_TYPES = ["photo", "applicant_photo", "portrait_photo"] as const;
 const DEFAULT_MANAGED_INBOX_DOMAIN = "viza.it.com";
 const LEGACY_MANAGED_INBOX_DOMAINS = new Set(["haggstorm.com"]);
-const MAX_SUBMISSION_ANSWER_FIELDS = 200;
+// Dynamic forms preserve official values, Chinese display values, English
+// review companions, and legacy aliases in one snapshot. Mature arrival-card
+// applications can legitimately exceed 200 keys even though the visible form
+// is much shorter. Keep a bounded ceiling while allowing that synchronized
+// representation to cross the final submission boundary intact.
+const MAX_SUBMISSION_ANSWER_FIELDS = 500;
 const MAX_SUBMISSION_ANSWER_VALUE_LENGTH = 20_000;
 const MAX_SUBMISSION_ANSWER_TOTAL_LENGTH = 500_000;
 
@@ -1707,33 +1719,16 @@ export async function POST(
   }
 
   const legacySession = await getClientSessionFromRequest(request);
-  let authUserId: string | null = null;
-  if (!legacySession) {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    authUserId = user?.id ?? null;
-  }
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const authUserId = user?.id ?? null;
   if (!legacySession && !authUserId) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
   const admin = createAdminClient();
-  const profileQuery = admin
-    .from("applicant_profiles")
-    .select("id, auth_user_id, full_name, date_of_birth, place_of_birth, gender, nationality, passport_number, passport_issue_date, passport_expiry_date, email, phone, address, inbox_alias");
-  const { data: profile, error: profileError } = legacySession
-    ? await profileQuery.eq("id", legacySession.userId).maybeSingle()
-    : await profileQuery.eq("auth_user_id", authUserId!).maybeSingle();
-
-  if (profileError) {
-    return NextResponse.json({ error: profileError.message }, { status: 500 });
-  }
-  if (!profile) {
-    return NextResponse.json({ error: "Applicant profile not found" }, { status: 404 });
-  }
-
   const { data: application, error: applicationError } = await admin
     .from("applications")
     .select("id, applicant_id, country, visa_type, arrival_date, departure_date, purpose, accommodation_name, accommodation_address, submission_result, submission_result_status")
@@ -1747,8 +1742,32 @@ export async function POST(
   if (!ownedApplication) {
     return NextResponse.json({ error: "Application not found" }, { status: 404 });
   }
+
+  // Load the target application's owner first, then let either independently
+  // valid login session prove ownership. Selecting a profile from whichever
+  // credential happened to be checked first caused mixed legacy/Supabase
+  // sessions to reject an application that the same page had just loaded.
+  const { data: profile, error: profileError } = await admin
+    .from("applicant_profiles")
+    .select("id, auth_user_id, full_name, date_of_birth, place_of_birth, gender, nationality, passport_number, passport_issue_date, passport_expiry_date, email, phone, address, inbox_alias")
+    .eq("id", ownedApplication.applicant_id)
+    .maybeSingle();
+
+  if (profileError) {
+    return NextResponse.json({ error: profileError.message }, { status: 500 });
+  }
+  if (!profile) {
+    return NextResponse.json({ error: "Applicant profile not found" }, { status: 404 });
+  }
+
   const ownedProfile = profile as ProfileForRetry;
-  if (ownedApplication.applicant_id !== ownedProfile.id) {
+  const legacyOwnsApplication = Boolean(
+    legacySession && clientSessionOwnsApplicant(ownedProfile, legacySession),
+  );
+  const supabaseOwnsApplication = Boolean(
+    authUserId && ownedProfile.auth_user_id === authUserId,
+  );
+  if (!legacyOwnsApplication && !supabaseOwnsApplication) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -1893,39 +1912,18 @@ export async function POST(
 
   try {
     const returnTo = `/client/application/long-form?applicationId=${encodeURIComponent(applicationId)}&step=review`;
-    const access = await evaluateSubmissionAccess(admin, applicationId, {
+    await evaluateSubmissionAccess(admin, applicationId, {
       payerAuthUserId: legacySession?.authUserId ?? authUserId ?? ownedProfile.auth_user_id,
-      lockHighAccess: true,
       returnTo,
     });
-    if (access.status !== "ready") {
-      const checkoutUrl = new URL(
-        `/api/applications/${encodeURIComponent(applicationId)}/submission-checkout`,
-        request.nextUrl.origin,
-      );
-      checkoutUrl.searchParams.set("returnTo", returnTo);
-      const responseDecision = {
-        ...access,
-        checkoutUrl: access.status === "payment_required" ? checkoutUrl.toString() : null,
-      };
-      return NextResponse.json(
-        {
-          ...submissionAccessHttpBody(responseDecision),
-          code: access.status === "review_required"
-            ? "application_payment_review_required"
-            : "application_payment_required",
-        },
-        { status: access.status === "review_required" ? 409 : 402 },
-      );
-    }
   } catch (error) {
-    console.error("[retry-submission] payment eligibility unavailable", {
+    console.error("[retry-submission] submission access unavailable", {
       applicationId: applicationId.slice(0, 8),
       message: error instanceof Error ? error.message : String(error),
     });
     return NextResponse.json(
       {
-        error: "Submission payment eligibility is temporarily unavailable.",
+        error: "Submission access is temporarily unavailable.",
         code: "submission_access_unavailable",
       },
       { status: 503 },
@@ -2435,12 +2433,6 @@ export async function POST(
     return NextResponse.json({ error: queueResult.error }, { status: 500 });
   }
   if (queueResult.reusedExisting) {
-    const stickyWake = isIndonesiaEVisaApplication(
-      ownedApplication.country,
-      ownedApplication.visa_type,
-    )
-      ? await ensureFlyMachineStarted("indonesia")
-      : null;
     if (freshDs160Submission) {
       const { error: appUpdateError } = await admin
         .from("applications")
@@ -2458,6 +2450,18 @@ export async function POST(
         return NextResponse.json({ error: appUpdateError.message }, { status: 500 });
       }
     }
+    const stickyWake = isIndonesiaEVisaApplication(
+      ownedApplication.country,
+      ownedApplication.visa_type,
+    )
+      ? await ensureFlyMachineStarted("indonesia")
+      : null;
+    const ds160Wake =
+      isDs160VisaType(ownedApplication.visa_type) &&
+      isWakeableDs160QueueStatus(queueResult.queueStatus) &&
+      queueResult.jobId
+        ? await wakeDs160SubmissionWorker(queueResult.jobId)
+        : null;
     return NextResponse.json({
       ok: true,
       applicationId,
@@ -2471,7 +2475,7 @@ export async function POST(
       result: ownedApplication.submission_result,
       queueTransport: isTaiwanFormalSubmit ? "runner_job" : poolEnqueue?.transport ?? "submission_queue",
       queueBackend: isTaiwanFormalSubmit ? "runner_job" : undefined,
-      workerTriggered: poolEnqueue?.workerTriggered ?? stickyWake?.ok ?? false,
+      workerTriggered: poolEnqueue?.workerTriggered ?? stickyWake?.ok ?? ds160Wake?.ok ?? false,
     });
   }
 
@@ -2517,14 +2521,16 @@ export async function POST(
     ? false
     : poolEnqueue
       ? poolEnqueue.workerTriggered
-      : isIndonesiaEVisaApplication(
-          ownedApplication.country,
-          ownedApplication.visa_type,
-        )
-        ? (await ensureFlyMachineStarted("indonesia")).ok
-        : (await wakeCloudSubmissionWorker(queueResult.jobId, {
-            target: ownedApplication.country ?? "legacy",
-          })).ok;
+      : isDs160VisaType(ownedApplication.visa_type)
+        ? (await wakeDs160SubmissionWorker(queueResult.jobId)).ok
+        : isIndonesiaEVisaApplication(
+            ownedApplication.country,
+            ownedApplication.visa_type,
+          )
+          ? (await ensureFlyMachineStarted("indonesia")).ok
+          : (await wakeCloudSubmissionWorker(queueResult.jobId, {
+              target: ownedApplication.country ?? "legacy",
+            })).ok;
 
   return NextResponse.json({
     ok: true,

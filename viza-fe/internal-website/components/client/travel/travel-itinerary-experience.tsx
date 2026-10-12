@@ -31,7 +31,7 @@ import {
   Users,
   Cards as WalletCards,
 } from "@phosphor-icons/react";
-import { alertToast } from "@/components/ui/alert-toast";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -65,7 +65,6 @@ import {
 import {
   TRAVEL_ITINERARY_SHARE_PARAM,
   buildTravelItinerarySharePayload,
-  createTripTitle,
   encodeTravelItinerarySharePayload,
 } from "@/components/client/travel/travel-itinerary-data";
 import {
@@ -83,7 +82,6 @@ import type {
   TravelGoogleAttraction,
   TravelGoogleEnrichedDestination,
 } from "@/lib/travel/google-places-enrichment-types";
-import { TravelApplicationDraftAutofill } from "@/components/client/travel/travel-application-draft-autofill";
 
 type ItineryTableRow = {
   time?: string;
@@ -204,7 +202,8 @@ type RouteNode = {
 };
 
 type TravelDownloadEndpoint =
-  "/api/travel/download-word" | "/api/travel/download-pdf";
+  | "/api/travel/download-word"
+  | "/api/travel/download-pdf";
 
 type TravelExportLanguage = "zh" | "en" | "bilingual";
 type TravelInterfaceLocale = "zh" | "en";
@@ -410,7 +409,8 @@ const TRAVEL_ITINERARY_COPY = {
     flightOptionsSheetHint: "点击候选卡片后会替换当天默认航班。",
     hotelOptionsSheetHint: "点击候选卡片后会替换当天默认酒店。",
     flightLoadingTitle: "航班还没有加载出来",
-    flightLoadingDescription: "正在查询这段交通，加载完成后会显示默认航班。",
+    flightLoadingDescription:
+      "正在查询这段交通，加载完成后会显示默认航班。",
     hotelLoadingTitle: "酒店还没有加载出来",
     hotelLoadingDescription: "正在查询这段住宿，加载完成后会显示默认酒店。",
     networkErrorTitle: "网络出错了",
@@ -420,7 +420,8 @@ const TRAVEL_ITINERARY_COPY = {
     publicTransportDescription:
       "这段暂时没有航班候选，建议优先查看火车、巴士或本地交通。",
     hotelPendingTitle: "暂无酒店候选",
-    hotelPendingDescription: "这座城市暂时没有酒店候选，行程会先保留当前安排。",
+    hotelPendingDescription:
+      "这座城市暂时没有酒店候选，行程会先保留当前安排。",
     optionalHotels: "可选酒店",
     optionalHotelsHint: "地址和电话会同步到行程表",
     returnFlight: "返程航班",
@@ -696,7 +697,7 @@ const LOCAL_AIRLINE_LABELS: Record<string, string> = {
   "viza economy flight": "待确认航司",
   "api flight": "待确认航司",
   "unknown airline": "待确认航司",
-  待确认航司: "待确认航司",
+  "待确认航司": "待确认航司",
   "air china": "中国国际航空",
   "cathay pacific airways": "国泰航空",
   "cathay pacific": "国泰航空",
@@ -713,9 +714,9 @@ const LOCAL_AIRLINE_LABELS: Record<string, string> = {
   "american airlines": "美国航空",
   "delta air lines": "达美航空",
   "all nippon airways": "全日空航空",
-  ana: "全日空航空",
+  "ana": "全日空航空",
   "japan airlines": "日本航空",
-  jal: "日本航空",
+  "jal": "日本航空",
 };
 
 const SPECIFIC_ATTRACTIONS_BY_KEY: Record<string, string[]> = {
@@ -1049,17 +1050,14 @@ function isFiniteLatLng(
 }
 
 function isRealGooglePhoto(
-  photo:
-    | { url?: string | null; isPlaceholder?: boolean; provider?: string }
-    | null
-    | undefined
+  photo: { url?: string | null; isPlaceholder?: boolean; provider?: string } | null | undefined
 ): photo is { url: string; isPlaceholder?: boolean; provider?: string } {
   return Boolean(
     photo?.url &&
-    photo.provider === "google_places" &&
-    photo.isPlaceholder !== true &&
-    !photo.url.includes("travel-fallback") &&
-    !photo.url.includes("placeholder")
+      photo.provider === "google_places" &&
+      photo.isPlaceholder !== true &&
+      !photo.url.includes("travel-fallback") &&
+      !photo.url.includes("placeholder")
   );
 }
 
@@ -1096,9 +1094,11 @@ function enrichmentMatchesCity(
 ): boolean {
   if (!enrichment) return false;
   const cityKey = normalizeLookupKey(city);
-  return [enrichment.canonicalName, enrichment.nameEn, enrichment.nameZh].some(
-    (value) => normalizeLookupKey(value) === cityKey
-  );
+  return [
+    enrichment.canonicalName,
+    enrichment.nameEn,
+    enrichment.nameZh,
+  ].some((value) => normalizeLookupKey(value) === cityKey);
 }
 
 function getEnrichmentForCity(
@@ -1116,9 +1116,7 @@ function getEnrichedAttractionForName(
   const key = normalizeLookupKey(attractionName);
   return (
     enrichment.attractions.find((item) =>
-      [item.nameZh, item.nameEn].some(
-        (name) => normalizeLookupKey(name) === key
-      )
+      [item.nameZh, item.nameEn].some((name) => normalizeLookupKey(name) === key)
     ) ?? null
   );
 }
@@ -1240,6 +1238,18 @@ function getAttractionNameForLanguage(
   fallback = "-"
 ): string {
   if (language === "en") {
+    const knownAttraction = value ? findTravelAttraction(city, value) : null;
+    const englishAlias = [
+      ...(knownAttraction?.aliases ?? []),
+      knownAttraction?.name,
+   ].find(
+     (candidate): candidate is string =>
+        typeof candidate === "string" &&
+        Boolean(candidate.trim()) &&
+       containsLatinLetters(candidate) &&
+       !containsCjk(candidate)
+   );
+    if (englishAlias) return englishAlias.trim();
     return getTravelTextForLanguage(value, language, fallback);
   }
 
@@ -1285,7 +1295,17 @@ function getDurationForLanguage(
 ): string {
   const raw = value?.trim();
   if (!raw) return fallback;
-  if (language === "en") return raw;
+  if (language === "en") {
+    const english = raw
+      .replace(/小时/g, " hours")
+      .replace(/分钟/g, " minutes")
+      .replace(/天/g, " days")
+      .replace(/，/g, ", ")
+      .replace(/。/g, ".")
+      .replace(/\s+/g, " ")
+      .trim();
+    return containsCjk(english) ? fallback : english;
+  }
   return raw
     .replace(/(\d+)\s*h(?:ours?)?/gi, "$1小时")
     .replace(/(\d+)\s*m(?:in(?:utes?)?)?/gi, "$1分钟")
@@ -1298,17 +1318,16 @@ function getCabinClassForLanguage(
   language: TravelInterfaceLocale
 ): string {
   const raw = value?.trim() ?? "";
-  if (language === "en") return raw;
+  if (language === "en") {
+    return raw && !containsCjk(raw) ? raw : "Cabin pending";
+  }
   const labels: Record<string, string> = {
     ECONOMY: "经济舱",
     PREMIUM_ECONOMY: "高级经济舱",
     BUSINESS: "商务舱",
     FIRST: "头等舱",
   };
-  return (
-    labels[raw.toUpperCase()] ??
-    (containsLatinLetters(raw) ? "舱位待确认" : raw)
-  );
+  return labels[raw.toUpperCase()] ?? (containsLatinLetters(raw) ? "舱位待确认" : raw);
 }
 
 function getChineseCurrencyLabel(value: string): string {
@@ -1652,12 +1671,8 @@ function buildCitySegments(
       dayEnd,
       rangeLabel: formatCityRange(partialSegment, hotel, language),
       imageSrc: enrichedCover ?? getCityImage(city, `segment-${index}`),
-      lat: hasEnrichedCoordinates
-        ? (enrichment?.latitude ?? undefined)
-        : undefined,
-      lng: hasEnrichedCoordinates
-        ? (enrichment?.longitude ?? undefined)
-        : undefined,
+      lat: hasEnrichedCoordinates ? enrichment?.latitude ?? undefined : undefined,
+      lng: hasEnrichedCoordinates ? enrichment?.longitude ?? undefined : undefined,
       enrichment,
     };
   });
@@ -1716,8 +1731,7 @@ function buildFallbackFlightLegsForDisplay(
     const isFinalReturnLeg =
       index === route.length - 2 &&
       Boolean(travelState.return_city?.trim()) &&
-      normalizeLookupKey(to) ===
-        normalizeLookupKey(travelState.return_city ?? "");
+      normalizeLookupKey(to) === normalizeLookupKey(travelState.return_city ?? "");
     const offsetDays = isFinalReturnLeg
       ? Math.max(0, totalTripDays - 1)
       : priorCities.reduce(
@@ -1749,9 +1763,7 @@ function buildFallbackHotelStaysForDisplay(
   cities.forEach((city, index) => {
     const cityDayCount = Math.max(1, travelState.city_days[city] ?? 1);
     const nights =
-      index === cities.length - 1
-        ? Math.max(0, cityDayCount - 1)
-        : cityDayCount;
+      index === cities.length - 1 ? Math.max(0, cityDayCount - 1) : cityDayCount;
     if (nights === 0) {
       elapsedDays += cityDayCount;
       return;
@@ -1770,10 +1782,7 @@ function buildFallbackHotelStaysForDisplay(
   return stays;
 }
 
-function travelRouteKey(
-  from: string | null | undefined,
-  to: string | null | undefined
-): string {
+function travelRouteKey(from: string | null | undefined, to: string | null | undefined): string {
   return `${normalizeLookupKey(from ?? "")}->${normalizeLookupKey(to ?? "")}`;
 }
 
@@ -1869,7 +1878,7 @@ function reconcileSelectedFlightsForSchedule(
         departure_date: leg.departure_date,
         option: existing.skip
           ? null
-          : (realignFlightOptionDate(existing.option, leg) ?? undefined),
+          : realignFlightOptionDate(existing.option, leg) ?? undefined,
       };
     })
     .filter((flight): flight is SelectedFlightOption => Boolean(flight));
@@ -2041,6 +2050,21 @@ function createRouteNodes(
   return nodes;
 }
 
+function createTripTitle(
+  totalDays: number,
+  cities: string[],
+  language: TravelInterfaceLocale
+): string {
+  if (language === "en") {
+    const cityTitle = cities.map((city) => getCityLabel(city, "en")).join(" ");
+    if (cityTitle) return `${totalDays}-day ${cityTitle} classic trip`;
+    return `${totalDays}-day custom trip`;
+  }
+  const cityTitle = cities.map((city) => getCityLabel(city, "zh")).join("");
+  if (cityTitle) return `${totalDays}天${cityTitle}经典游`;
+  return `${totalDays}天定制旅行`;
+}
+
 function summarizeDay(
   day: ItineraryDay,
   language: TravelInterfaceLocale
@@ -2085,9 +2109,7 @@ function getDayImage(
 ): string {
   const enrichment = getEnrichmentForCity(destinationEnrichment, day.city);
   const enrichedActivityPhoto = day.activities
-    .map(
-      (activity) => getEnrichedAttractionForName(enrichment, activity)?.photo
-    )
+    .map((activity) => getEnrichedAttractionForName(enrichment, activity)?.photo)
     .find((photo) => isRealGooglePhoto(photo));
   if (enrichedActivityPhoto) return enrichedActivityPhoto.url;
 
@@ -2177,8 +2199,7 @@ function buildFallbackRouteCoordinates(
       normalizeLookupKey(
         typeof routeItems[routeItems.length - 1] === "string"
           ? (routeItems[routeItems.length - 1] as string)
-          : ((routeItems[routeItems.length - 1] as CitySegment | undefined)
-              ?.city ?? "")
+          : (routeItems[routeItems.length - 1] as CitySegment | undefined)?.city ?? ""
       )
   ) {
     routeItems.push(travelState.return_city);
@@ -2186,8 +2207,7 @@ function buildFallbackRouteCoordinates(
 
   return routeItems.map((item) => {
     if (typeof item === "string") return getCityCoordinates(item);
-    if (isFiniteLatLng(item.lat, item.lng))
-      return [item.lat as number, item.lng as number];
+    if (isFiniteLatLng(item.lat, item.lng)) return [item.lat as number, item.lng as number];
     return getCityCoordinates(item.city);
   });
 }
@@ -2288,7 +2308,7 @@ function getAttractionChoicesForCity(
     .filter((name) => !knownKeys.has(normalizeLookupKey(name)))
     .map((name, index) => ({
       name,
-      location: `${getLocalCityLabel(city)} · Google Maps 精准定位`,
+      location: `${city} · Google Maps location`,
       imageSrc: getAttractionImage(
         city,
         name,
@@ -2433,10 +2453,12 @@ function getSelectedHotelForDay(
   const cityKey = normalizeLookupKey(city);
   return (
     hotels.find(
-      (hotel) => hotel.stay_index === stayIndex && hotel.day_index === dayNumber
+      (hotel) =>
+        hotel.stay_index === stayIndex && hotel.day_index === dayNumber
     ) ??
     hotels.find(
-      (hotel) => hotel.stay_index === stayIndex && hotel.day_index === undefined
+      (hotel) =>
+        hotel.stay_index === stayIndex && hotel.day_index === undefined
     ) ??
     hotels.find(
       (hotel) =>
@@ -2769,10 +2791,7 @@ function getActivityTimesForDay(
   );
 }
 
-function haveSameActivities(
-  first: ItineraryDay,
-  second: ItineraryDay
-): boolean {
+function haveSameActivities(first: ItineraryDay, second: ItineraryDay): boolean {
   if (first.activities.length !== second.activities.length) return false;
   return first.activities.every(
     (activity, index) => activity === second.activities[index]
@@ -3083,7 +3102,8 @@ function getSpecificAttraction(
   dayIndex: number,
   activityIndex: number,
   excludedAttractionsOrLanguage:
-    Set<string> | TravelInterfaceLocale = new Set(),
+    | Set<string>
+    | TravelInterfaceLocale = new Set(),
   language: TravelInterfaceLocale = "zh"
 ): string {
   const selectedLanguage =
@@ -3224,10 +3244,7 @@ function buildAttractionMapPoints(
       language,
       activity
     );
-    const enrichedAttraction = getEnrichedAttractionForName(
-      enrichment,
-      activity
-    );
+    const enrichedAttraction = getEnrichedAttractionForName(enrichment, activity);
     const attraction = findTravelAttraction(city, activity);
     const googleCoordinate =
       googleCoordinates[getAttractionCoordinateKey(city, activity)];
@@ -3253,10 +3270,16 @@ function buildAttractionMapPoints(
     }
     const [lat, lng] = coordinate;
     const locationText =
-      googleCoordinate?.formattedAddress ??
-      enrichedAttraction?.googleMapsUri ??
-      attraction?.location ??
-      cityLabel;
+      language === "zh"
+        ? cityLabel
+        : googleCoordinate?.formattedAddress ??
+          enrichedAttraction?.googleMapsUri ??
+          attraction?.location ??
+          cityLabel;
+    const localizedAttractionDescription =
+      language === "zh"
+        ? enrichedAttraction?.descriptionZh ?? attraction?.description
+        : enrichedAttraction?.descriptionEn;
     return {
       id: `${seedPrefix}-${cityKey}-${index}`,
       kind: "hotspot",
@@ -3267,8 +3290,7 @@ function buildAttractionMapPoints(
           : `${cityLabel} stop ${index + 1}`,
       localName: cityLabel,
       intro:
-        enrichedAttraction?.descriptionZh ??
-        attraction?.description ??
+        localizedAttractionDescription ??
         (language === "zh"
           ? `${activityLabel} 位于 ${locationText}，地图路线会按当天顺序串联这些景点。`
           : `${activityLabel} is near ${locationText}. The map follows the day order.`),
@@ -3500,7 +3522,7 @@ function buildSelectedFlightRows(
       const flightNumber =
         option?.provider === "api-default"
           ? copy.flightNumberPending
-          : (option?.flight_number ?? getFlightNumberFallback(route));
+          : option?.flight_number ?? getFlightNumberFallback(route);
       const detailItems = [
         option?.departure
           ? `出发：${option.departure}`
@@ -3548,9 +3570,17 @@ function buildSelectedFlightRows(
                       ? `arrival: ${arrivalTime}`
                       : "",
                   airports ? `airports: ${airports}` : "",
-                  option?.duration ? `duration: ${option.duration}` : "",
+                  option?.duration
+                    ? `duration: ${getDurationForLanguage(
+                        option.duration,
+                        language,
+                        copy.durationPending
+                      )}`
+                    : "",
                   `stops: ${stops}`,
-                  option?.cabin_class ? `cabin: ${option.cabin_class}` : "",
+                  option?.cabin_class
+                    ? `cabin: ${getCabinClassForLanguage(option.cabin_class, language)}`
+                    : "",
                   option?.price
                     ? `price: ${option.price} ${option.currency ?? ""}`.trim()
                     : "",
@@ -3824,13 +3854,9 @@ function coerceApiHotelStays(payload: unknown): HotelStayResult[] {
       if (!city || !checkIn || !checkOut) return null;
 
       const adults = numberField(stay, "adults");
-      const rawOptions = Array.isArray(stay.options)
+      const options = Array.isArray(stay.options)
         ? stay.options.map(coerceHotelOption)
         : [];
-      const options = rawOptions.filter(
-        (option) =>
-          option.estimated !== true && option.provider_status !== "unavailable"
-      );
       return {
         city,
         check_in: checkIn,
@@ -3838,15 +3864,6 @@ function coerceApiHotelStays(payload: unknown): HotelStayResult[] {
         nights,
         ...(adults === undefined ? {} : { adults }),
         options,
-        provider_unavailable:
-          booleanField(stay, "provider_unavailable") ??
-          rawOptions.some(
-            (option) =>
-              option.estimated === true ||
-              option.provider_status === "unavailable"
-          ),
-        estimated: booleanField(stay, "estimated"),
-        provider_message: stringField(stay, "provider_message"),
       };
     })
     .filter((stay): stay is HotelStayResult => stay !== null);
@@ -3923,9 +3940,7 @@ function buildApiOptionsPayload(
   const travelOrder =
     travelState.travel_order.length > 0 ? travelState.travel_order : cities;
   const providerCities = cities.map((city) => getCityLabel(city, "en"));
-  const providerTravelOrder = travelOrder.map((city) =>
-    getCityLabel(city, "en")
-  );
+  const providerTravelOrder = travelOrder.map((city) => getCityLabel(city, "en"));
   const providerCityDays = Object.fromEntries(
     Object.entries(travelState.city_days).map(([city, days]) => [
       getCityLabel(city, "en"),
@@ -4140,7 +4155,7 @@ export function TravelItineraryExperience({
     () =>
       createTripTitle(
         editableItinerary.length,
-        segments.map((segment) => segment.label),
+        segments.map((segment) => segment.city),
         interfaceLocale
       ),
     [editableItinerary.length, interfaceLocale, segments]
@@ -4281,12 +4296,7 @@ export function TravelItineraryExperience({
             destinationEnrichment
           )
         : [],
-    [
-      activeDay,
-      destinationEnrichment,
-      googleAttractionCoordinates,
-      interfaceLocale,
-    ]
+    [activeDay, destinationEnrichment, googleAttractionCoordinates, interfaceLocale]
   );
   const fallbackFlightLegs = useMemo(
     () =>
@@ -4465,10 +4475,7 @@ export function TravelItineraryExperience({
   useEffect(() => {
     const nextVersionId = activeVersionId ?? "";
     const versionChanged = lastLoadedVersionIdRef.current !== nextVersionId;
-    if (
-      !versionChanged &&
-      incomingItinerarySignature === editableItinerarySignature
-    ) {
+    if (!versionChanged && incomingItinerarySignature === editableItinerarySignature) {
       return;
     }
 
@@ -4794,11 +4801,7 @@ export function TravelItineraryExperience({
       const nextDays = reconciliation.itinerary;
       setEditableItinerary(nextDays);
       setActivityTimesByDay((currentTimes) =>
-        remapActivityTimesForItinerary(
-          editableItinerary,
-          nextDays,
-          currentTimes
-        )
+        remapActivityTimesForItinerary(editableItinerary, nextDays, currentTimes)
       );
       setLocalSelectedFlights(reconciliation.selectedFlights);
       setLocalSelectedHotels(reconciliation.selectedHotels);
@@ -4994,9 +4997,9 @@ export function TravelItineraryExperience({
         selectedHotels: effectiveSelectedHotels,
         reason: "flight_selection",
       });
-      alertToast(isZh ? "已更新这段航班。" : "This flight has been updated.", {
-        variant: "success",
-      });
+      toast.success(
+        isZh ? "已更新这段航班。" : "This flight has been updated."
+      );
     },
     [
       editableItinerary,
@@ -5027,7 +5030,9 @@ export function TravelItineraryExperience({
       const seed = localSelectedHotels ?? effectiveSelectedHotels;
       const withoutStay = seed.filter(
         (hotel) =>
-          !(hotel.stay_index === stayIndex && hotel.day_index === dayIndex)
+          !(
+            hotel.stay_index === stayIndex && hotel.day_index === dayIndex
+          )
       );
       const nextHotels = [...withoutStay, nextHotel].sort(
         (first, second) =>
@@ -5047,11 +5052,8 @@ export function TravelItineraryExperience({
         selectedHotels: nextHotels,
         reason: "hotel_selection",
       });
-      alertToast(
-        isZh
-          ? `已更新第 ${dayIndex} 天的住宿。`
-          : `Day ${dayIndex} hotel updated.`,
-        { variant: "success" }
+      toast.success(
+        isZh ? `已更新第 ${dayIndex} 天的住宿。` : `Day ${dayIndex} hotel updated.`
       );
     },
     [
@@ -5241,12 +5243,19 @@ export function TravelItineraryExperience({
 
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(url.toString());
-        alertToast("分享链接已复制。", { variant: "success" });
+        toast.success(isZh ? "分享链接已复制。" : "Share link copied.");
       } else {
-        window.prompt("复制分享链接", url.toString());
+        window.prompt(
+          isZh ? "复制分享链接" : "Copy share link",
+          url.toString()
+        );
       }
     } catch {
-      alertToast("分享链接生成失败，请稍后再试。", { variant: "destructive" });
+      toast.error(
+        isZh
+          ? "分享链接生成失败，请稍后再试。"
+          : "Could not create the share link. Please try again."
+      );
     } finally {
       setIsSharingLink(false);
     }
@@ -5260,13 +5269,22 @@ export function TravelItineraryExperience({
     setBusy(true);
     try {
       await downloadBlob(endpoint, exportPayload, fallbackFilename);
-      alertToast(`${fallbackFilename} 已开始下载。`, { variant: "success" });
+      toast.success(
+        isZh
+          ? `${fallbackFilename} 已开始下载。`
+          : `${fallbackFilename} download started.`
+      );
     } catch (error) {
       const message =
         error instanceof Error
           ? error.message
           : `${fallbackFilename} 下载失败。`;
-      alertToast(message, { variant: "destructive" });
+      toast.error(
+        message ||
+          (isZh
+            ? `${fallbackFilename} 下载失败。`
+            : `Could not download ${fallbackFilename}.`)
+      );
     } finally {
       setBusy(false);
     }
@@ -5299,7 +5317,7 @@ export function TravelItineraryExperience({
   const renderCityTabs = (placement: "map" | "sticky") => (
     <div
       className={cn(
-        "flex max-w-full items-center gap-2 overflow-x-auto rounded-full bg-white/95 p-2 shadow-[0_14px_36px_rgba(3,52,110,0.16)] backdrop-blur [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+        "flex max-w-full items-center gap-2 overflow-x-auto rounded-full bg-white/95 p-2 shadow-[0_14px_36px_rgba(32,20,43,0.16)] backdrop-blur [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
         placement === "map"
           ? "absolute left-1/2 top-4 z-20 -translate-x-1/2"
           : "sticky top-4 z-30 mx-auto w-fit"
@@ -5314,8 +5332,8 @@ export function TravelItineraryExperience({
           <button
             aria-current={active ? "location" : undefined}
             className={cn(
-              "flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm font-bold text-[#01214A] transition-colors",
-              active ? "bg-[#AABFDF]" : "hover:bg-[#EEF3FA]"
+              "flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm font-bold text-[#2d1635] transition-colors",
+              active ? "bg-[#d9c2ff]" : "hover:bg-[#f5f0fb]"
             )}
             data-testid={`travel-itinerary-city-tab-${placement}-${cityKey}`}
             key={`city-tab-${cityKey}-${placement}`}
@@ -5326,8 +5344,8 @@ export function TravelItineraryExperience({
               className={cn(
                 "flex h-6 w-6 items-center justify-center rounded-full border text-xs",
                 active
-                  ? "border-white bg-white text-[#01214A]"
-                  : "border-[#D4E0F0] bg-white text-[#52657A]"
+                  ? "border-white bg-white text-[#2d1635]"
+                  : "border-[#d8d2dd] bg-white text-[#5f5166]"
               )}
             >
               {index + 1}
@@ -5341,7 +5359,7 @@ export function TravelItineraryExperience({
 
   const renderExportLanguageSwitch = (placement: string) => (
     <div
-      className="flex max-w-full overflow-x-auto rounded-full bg-[#EEF3FA] p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="flex rounded-full bg-[#f6efff] p-1"
       data-testid={`travel-itinerary-export-language-${placement}`}
     >
       {exportLanguageOptions.map((option) => (
@@ -5349,8 +5367,8 @@ export function TravelItineraryExperience({
           className={cn(
             "rounded-full px-3 py-1.5 text-xs font-bold transition-colors",
             exportLanguage === option.value
-              ? "bg-white text-[#01214A] shadow-sm"
-              : "text-[#3D6DAD] hover:bg-white/70"
+              ? "bg-white text-[#2d1635] shadow-sm"
+              : "text-[#7b4de8] hover:bg-white/70"
           )}
           key={`${placement}-${option.value}`}
           onClick={() => setExportLanguage(option.value)}
@@ -5366,23 +5384,23 @@ export function TravelItineraryExperience({
     kind: "flight" | "hotel",
     routeLabel: string
   ) => (
-    <article className="rounded-[22px] border border-[#D4E0F0] bg-white px-4 py-3 shadow-[0_10px_28px_rgba(3,52,110,0.08)]">
+    <article className="rounded-[22px] border border-[#eadfff] bg-white px-4 py-3 shadow-[0_10px_28px_rgba(32,20,43,0.08)]">
       <div className="flex items-start gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#D4E0F0] text-[#03346E]">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#efe5ff] text-[#6f40cc]">
           <Loader2 className="h-5 w-5 animate-spin" />
         </span>
         <span className="min-w-0">
-          <span className="block text-sm font-bold text-[#01214A]">
+          <span className="block text-sm font-bold text-[#2d1635]">
             {kind === "flight"
               ? copy.flightLoadingTitle
               : copy.hotelLoadingTitle}
           </span>
-          <span className="mt-1 block text-xs font-semibold text-[#64748B]">
+          <span className="mt-1 block text-xs font-semibold text-[#756a7b]">
             {kind === "flight"
               ? copy.flightLoadingDescription
               : copy.hotelLoadingDescription}
           </span>
-          <span className="mt-2 block text-xs font-bold text-[#3D6DAD]">
+          <span className="mt-2 block text-xs font-bold text-[#8d5df7]">
             {routeLabel}
           </span>
         </span>
@@ -5394,7 +5412,7 @@ export function TravelItineraryExperience({
     kind: "flight" | "hotel",
     routeLabel: string
   ) => (
-    <article className="rounded-[22px] border border-[#ffd0d8] bg-[#fff7f8] px-4 py-3 shadow-[0_10px_28px_rgba(3,52,110,0.08)]">
+    <article className="rounded-[22px] border border-[#ffd0d8] bg-[#fff7f8] px-4 py-3 shadow-[0_10px_28px_rgba(32,20,43,0.08)]">
       <div className="flex items-start gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-[#b42348]">
           {kind === "flight" ? (
@@ -5422,44 +5440,44 @@ export function TravelItineraryExperience({
 
   const renderPublicTransportCard = (leg: FlightLegResult) => (
     <article
-      className="rounded-[22px] border border-[#D4E0F0] bg-white p-4 shadow-[0_10px_28px_rgba(3,52,110,0.08)]"
+      className="rounded-[22px] border border-[#eadfff] bg-white p-4 shadow-[0_10px_28px_rgba(32,20,43,0.08)]"
       data-testid={`travel-itinerary-public-transport-${getCitySectionKey(
         leg.from
       )}-${getCitySectionKey(leg.to)}`}
     >
       <div className="flex items-center justify-between gap-4">
         <span className="min-w-0">
-          <span className="block text-xl font-bold text-[#01214A]">
+          <span className="block text-xl font-bold text-[#2d1635]">
             {getCityLabel(leg.from, interfaceLocale)}
           </span>
-          <span className="block text-sm font-semibold text-[#64748B]">
+          <span className="block text-sm font-semibold text-[#8d8391]">
             {formatMonthDay(leg.departure_date, interfaceLocale)}
           </span>
         </span>
-        <span className="flex min-w-[140px] flex-1 items-center justify-center gap-3 text-[#01214A]">
-          <span className="h-1 flex-1 rounded-full bg-[#D4E0F0]" />
+        <span className="flex min-w-[140px] flex-1 items-center justify-center gap-3 text-[#2d1635]">
+          <span className="h-1 flex-1 rounded-full bg-[#eadcff]" />
           <TrainFront className="h-8 w-8 shrink-0" />
-          <span className="h-1 flex-1 rounded-full bg-[#D4E0F0]" />
+          <span className="h-1 flex-1 rounded-full bg-[#eadcff]" />
         </span>
         <span className="min-w-0 text-right">
-          <span className="block text-xl font-bold text-[#01214A]">
+          <span className="block text-xl font-bold text-[#2d1635]">
             {getCityLabel(leg.to, interfaceLocale)}
           </span>
-          <span className="block text-sm font-semibold text-[#64748B]">
+          <span className="block text-sm font-semibold text-[#8d8391]">
             {formatMonthDay(leg.departure_date, interfaceLocale)}
           </span>
         </span>
       </div>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <p className="inline-flex items-center gap-2 text-sm font-bold text-[#01214A]">
-          <TrainFront className="h-4 w-4 text-[#03346E]" />
+        <p className="inline-flex items-center gap-2 text-sm font-bold text-[#2d1635]">
+          <TrainFront className="h-4 w-4 text-[#6f40cc]" />
           {copy.publicTransport}
         </p>
-        <span className="rounded-full border border-[#AABFDF] px-3 py-1 text-xs font-bold text-[#03346E]">
+        <span className="rounded-full border border-[#d8c5ff] px-3 py-1 text-xs font-bold text-[#6f40cc]">
           {copy.suggestedTransport}
         </span>
       </div>
-      <p className="mt-2 text-sm font-semibold leading-relaxed text-[#52657A]">
+      <p className="mt-2 text-sm font-semibold leading-relaxed text-[#5f5166]">
         {leg.provider_message || copy.publicTransportDescription}
       </p>
     </article>
@@ -5484,7 +5502,7 @@ export function TravelItineraryExperience({
     if (selectedFlight?.option) {
       return (
         <button
-          className="w-full rounded-[22px] border border-transparent bg-white p-4 text-left shadow-[0_10px_28px_rgba(3,52,110,0.08)] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3D6DAD]"
+          className="w-full rounded-[22px] border border-transparent bg-white p-4 text-left shadow-[0_10px_28px_rgba(32,20,43,0.08)] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b990ff]"
           data-testid={`travel-itinerary-day-flight-card-${legIndex}`}
           key={`day-flight-${legIndex}`}
           onClick={() =>
@@ -5494,12 +5512,12 @@ export function TravelItineraryExperience({
         >
           <span className="flex items-start justify-between gap-3">
             <span className="min-w-0">
-              <span className="inline-flex items-center gap-2 text-sm font-bold text-[#03346E]">
+              <span className="inline-flex items-center gap-2 text-sm font-bold text-[#6f40cc]">
                 <Plane className="h-4 w-4" />
                 {copy.flight} ·{" "}
                 {formatMonthDay(selectedFlight.departure_date, interfaceLocale)}
               </span>
-              <span className="mt-2 block truncate text-lg font-bold text-[#01214A]">
+              <span className="mt-2 block truncate text-lg font-bold text-[#2d1635]">
                 {getAirlineNameForLanguage(
                   selectedFlight.option,
                   interfaceLocale
@@ -5507,49 +5525,46 @@ export function TravelItineraryExperience({
               </span>
               {selectedFlight.option.provider === "api-default" ? (
                 <span className="mt-2 inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">
-                  {isZh
-                    ? "实时供应商暂未返回 · 备用估算"
-                    : "Live provider unavailable · estimate"}
+                  {isZh ? "实时供应商暂未返回 · 备用估算" : "Live provider unavailable · estimate"}
                 </span>
               ) : null}
             </span>
-            <span className="shrink-0 rounded-full bg-[#EEF3FA] px-3 py-1 text-sm font-bold text-[#03346E]">
+            <span className="shrink-0 rounded-full bg-[#f6efff] px-3 py-1 text-sm font-bold text-[#6f40cc]">
               {getFlightDisplayPrice(selectedFlight, interfaceLocale)}
             </span>
           </span>
           <span className="mt-4 grid items-center gap-3 sm:grid-cols-[1fr_auto_1fr]">
             <span>
-              <span className="block text-xl font-bold text-[#01214A]">
+              <span className="block text-xl font-bold text-[#2d1635]">
                 {getCityLabel(selectedFlight.from, interfaceLocale)}
               </span>
-              <span className="block text-sm font-semibold text-[#64748B]">
+              <span className="block text-sm font-semibold text-[#756a7b]">
                 {extractClockTime(selectedFlight.option.departure, "08:00")}{" "}
                 {copy.depart}
               </span>
             </span>
-            <span className="flex items-center gap-2 text-[#03346E]">
-              <span className="h-1 w-14 rounded-full bg-[#D4E0F0]" />
+            <span className="flex items-center gap-2 text-[#6f40cc]">
+              <span className="h-1 w-14 rounded-full bg-[#eadcff]" />
               <Plane className="h-7 w-7" />
-              <span className="h-1 w-14 rounded-full bg-[#D4E0F0]" />
+              <span className="h-1 w-14 rounded-full bg-[#eadcff]" />
             </span>
             <span className="sm:text-right">
-              <span className="block text-xl font-bold text-[#01214A]">
+              <span className="block text-xl font-bold text-[#2d1635]">
                 {getCityLabel(selectedFlight.to, interfaceLocale)}
               </span>
-              <span className="block text-sm font-semibold text-[#64748B]">
+              <span className="block text-sm font-semibold text-[#756a7b]">
                 {extractClockTime(selectedFlight.option.arrival, copy.pending)}{" "}
                 {copy.arrive}
               </span>
             </span>
           </span>
-          <span className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm font-semibold text-[#52657A]">
+          <span className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm font-semibold text-[#5f5166]">
             <span>
               {getDurationForLanguage(
                 selectedFlight.option.duration,
                 interfaceLocale,
                 copy.durationPending
-              )}{" "}
-              ·{" "}
+              )} ·{" "}
               {selectedFlight.option.stops === 0
                 ? copy.direct
                 : typeof selectedFlight.option.stops === "number"
@@ -5558,7 +5573,7 @@ export function TravelItineraryExperience({
                     : `${selectedFlight.option.stops} ${copy.transfer}`
                   : copy.stopsPending}
             </span>
-            <span className="font-bold text-[#03346E]">
+            <span className="font-bold text-[#6f40cc]">
               {copy.openFlightOptions}
             </span>
           </span>
@@ -5596,7 +5611,7 @@ export function TravelItineraryExperience({
     if (selectedHotel) {
       return (
         <button
-          className="w-full rounded-[22px] border border-transparent bg-white p-4 text-left shadow-[0_10px_28px_rgba(3,52,110,0.08)] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3D6DAD]"
+          className="w-full rounded-[22px] border border-transparent bg-white p-4 text-left shadow-[0_10px_28px_rgba(32,20,43,0.08)] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b990ff]"
           data-testid={`travel-itinerary-day-hotel-card-${stayIndex}`}
           key={`day-hotel-${stayIndex}`}
           onClick={() =>
@@ -5611,12 +5626,12 @@ export function TravelItineraryExperience({
         >
           <span className="flex items-start justify-between gap-3">
             <span className="min-w-0">
-              <span className="inline-flex items-center gap-2 text-sm font-bold text-[#03346E]">
+              <span className="inline-flex items-center gap-2 text-sm font-bold text-[#6f40cc]">
                 <BedDouble className="h-4 w-4" />
                 {copy.hotel} ·{" "}
                 {formatMonthDay(selectedHotel.check_in, interfaceLocale)}
               </span>
-              <span className="mt-2 block truncate text-lg font-bold text-[#01214A]">
+              <span className="mt-2 block truncate text-lg font-bold text-[#2d1635]">
                 {getHotelNameForLanguage(
                   selectedHotel.option,
                   selectedHotel.city,
@@ -5624,27 +5639,27 @@ export function TravelItineraryExperience({
                 )}
               </span>
             </span>
-            <span className="shrink-0 rounded-full bg-[#EEF3FA] px-3 py-1 text-sm font-bold text-[#03346E]">
+            <span className="shrink-0 rounded-full bg-[#f6efff] px-3 py-1 text-sm font-bold text-[#6f40cc]">
               {getHotelDisplayPrice(selectedHotel, interfaceLocale)}
             </span>
           </span>
-          <span className="mt-3 block text-sm font-semibold text-[#64748B]">
+          <span className="mt-3 block text-sm font-semibold text-[#756a7b]">
             {selectedHotel.nights} {copy.nights} ·{" "}
             {formatMonthDay(selectedHotel.check_in, interfaceLocale)} -{" "}
             {formatMonthDay(selectedHotel.check_out, interfaceLocale)}
           </span>
-          <span className="mt-2 line-clamp-1 block text-sm text-[#64748B]">
+          <span className="mt-2 line-clamp-1 block text-sm text-[#756a7b]">
             {getHotelAddressForLanguage(
               selectedHotel.option,
               selectedHotel.city,
               interfaceLocale
             )}
           </span>
-          <span className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm font-semibold text-[#52657A]">
+          <span className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm font-semibold text-[#5f5166]">
             <span className="line-clamp-1">
               {getHotelContactLabel(selectedHotel.option, interfaceLocale)}
             </span>
-            <span className="font-bold text-[#03346E]">
+            <span className="font-bold text-[#6f40cc]">
               {copy.openHotelOptions}
             </span>
           </span>
@@ -5662,21 +5677,21 @@ export function TravelItineraryExperience({
 
     return (
       <article
-        className="rounded-[22px] border border-[#D4E0F0] bg-white px-4 py-3 shadow-[0_10px_28px_rgba(3,52,110,0.08)]"
+        className="rounded-[22px] border border-[#eadfff] bg-white px-4 py-3 shadow-[0_10px_28px_rgba(32,20,43,0.08)]"
         data-testid={`travel-itinerary-hotel-pending-${stayIndex}`}
       >
         <div className="flex items-start gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#D4E0F0] text-[#03346E]">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#efe5ff] text-[#6f40cc]">
             <BedDouble className="h-5 w-5" />
           </span>
           <span className="min-w-0">
-            <span className="block text-sm font-bold text-[#01214A]">
+            <span className="block text-sm font-bold text-[#2d1635]">
               {copy.hotelPendingTitle}
             </span>
-            <span className="mt-1 block text-xs font-semibold text-[#64748B]">
+            <span className="mt-1 block text-xs font-semibold text-[#756a7b]">
               {copy.hotelPendingDescription}
             </span>
-            <span className="mt-2 block text-xs font-bold text-[#3D6DAD]">
+            <span className="mt-2 block text-xs font-bold text-[#8d5df7]">
               {stayLabel}
             </span>
           </span>
@@ -5705,17 +5720,17 @@ export function TravelItineraryExperience({
 
       return (
         <>
-          <SheetHeader className="border-b border-[#D4E0F0] bg-white px-6 py-5 pr-12">
-            <SheetTitle className="text-xl font-bold text-[#01214A]">
+          <SheetHeader className="border-b border-[#eadfff] bg-white px-6 py-5 pr-12">
+            <SheetTitle className="text-xl font-bold text-[#2d1635]">
               {copy.flightOptionsSheetTitle}
             </SheetTitle>
-            <SheetDescription className="text-sm font-semibold text-[#64748B]">
+            <SheetDescription className="text-sm font-semibold text-[#756a7b]">
               {routeLabel} ·{" "}
               {formatMonthDay(leg.departure_date, interfaceLocale)}
             </SheetDescription>
           </SheetHeader>
           <div className="space-y-4 px-6 py-5">
-            <p className="text-sm font-semibold text-[#64748B]">
+            <p className="text-sm font-semibold text-[#756a7b]">
               {copy.flightOptionsSheetHint}
             </p>
             {apiFlightStatus === "loading" && !leg.options.length
@@ -5744,8 +5759,8 @@ export function TravelItineraryExperience({
                   className={cn(
                     "w-full rounded-2xl border p-4 text-left transition-colors",
                     selected
-                      ? "border-[#3D6DAD] bg-[#EEF3FA]"
-                      : "border-[#D4E0F0] bg-white hover:border-[#7A9DCE]"
+                      ? "border-[#b990ff] bg-[#f7efff]"
+                      : "border-[#eadfff] bg-white hover:border-[#c9a8ff]"
                   )}
                   key={`sheet-flight-option-${getFlightOptionKey(
                     legIndex,
@@ -5765,22 +5780,21 @@ export function TravelItineraryExperience({
                 >
                   <span className="flex items-start justify-between gap-3">
                     <span className="min-w-0">
-                      <span className="block text-xs font-bold text-[#3D6DAD]">
+                      <span className="block text-xs font-bold text-[#8d5df7]">
                         {routeLabel}
                       </span>
-                      <span className="mt-1 block truncate text-base font-bold text-[#01214A]">
+                      <span className="mt-1 block truncate text-base font-bold text-[#2d1635]">
                         {getAirlineNameForLanguage(option, interfaceLocale) ||
                           copy.apiAirline}
                       </span>
-                      <span className="mt-2 block text-sm font-semibold text-[#64748B]">
+                      <span className="mt-2 block text-sm font-semibold text-[#756a7b]">
                         {extractClockTime(option.departure, "08:00")}{" "}
                         {copy.depart} ·{" "}
                         {getDurationForLanguage(
                           option.duration,
                           interfaceLocale,
                           copy.durationPending
-                        )}{" "}
-                        ·{" "}
+                        )} ·{" "}
                         {option.stops === 0
                           ? copy.direct
                           : typeof option.stops === "number"
@@ -5791,18 +5805,16 @@ export function TravelItineraryExperience({
                       </span>
                       {option.provider === "api-default" ? (
                         <span className="mt-2 inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">
-                          {isZh
-                            ? "备用估算，非实时票价"
-                            : "Estimate, not live fare"}
+                          {isZh ? "备用估算，非实时票价" : "Estimate, not live fare"}
                         </span>
                       ) : null}
                     </span>
                     <span className="flex shrink-0 items-center gap-2">
-                      <span className="rounded-full bg-[#D4E0F0] px-3 py-1 text-sm font-bold text-[#03346E]">
+                      <span className="rounded-full bg-[#efe5ff] px-3 py-1 text-sm font-bold text-[#6f40cc]">
                         {getFlightOptionDisplayPrice(option, interfaceLocale)}
                       </span>
                       {selected ? (
-                        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#03346E] text-white">
+                        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#6f40cc] text-white">
                           <Check className="h-4 w-4" />
                         </span>
                       ) : null}
@@ -5819,12 +5831,7 @@ export function TravelItineraryExperience({
     const { stay, stayIndex, dayIndex } = resourceOptionsSheet;
     const liveStay = displayHotelStays[stayIndex - 1];
     const resolvedStay: HotelStayResult = liveStay
-      ? {
-          ...liveStay,
-          check_in: stay.check_in,
-          check_out: stay.check_out,
-          nights: 1,
-        }
+      ? { ...liveStay, check_in: stay.check_in, check_out: stay.check_out, nights: 1 }
       : stay;
     const selectedHotel = getSelectedHotelForDay(
       effectiveTravelState.selected_hotels,
@@ -5839,16 +5846,16 @@ export function TravelItineraryExperience({
 
     return (
       <>
-        <SheetHeader className="border-b border-[#D4E0F0] bg-white px-6 py-5 pr-12">
-          <SheetTitle className="text-xl font-bold text-[#01214A]">
+        <SheetHeader className="border-b border-[#eadfff] bg-white px-6 py-5 pr-12">
+          <SheetTitle className="text-xl font-bold text-[#2d1635]">
             {copy.hotelOptionsSheetTitle}
           </SheetTitle>
-          <SheetDescription className="text-sm font-semibold text-[#64748B]">
+          <SheetDescription className="text-sm font-semibold text-[#756a7b]">
             {stayLabel}
           </SheetDescription>
         </SheetHeader>
         <div className="space-y-4 px-6 py-5">
-          <p className="text-sm font-semibold text-[#64748B]">
+          <p className="text-sm font-semibold text-[#756a7b]">
             {copy.hotelOptionsSheetHint}
           </p>
           {apiHotelStatus === "loading" && !resolvedStay.options.length
@@ -5860,16 +5867,16 @@ export function TravelItineraryExperience({
           {apiHotelStatus !== "loading" &&
           apiHotelStatus !== "error" &&
           !resolvedStay.options.length ? (
-            <article className="rounded-[22px] border border-[#D4E0F0] bg-white px-4 py-3 shadow-[0_10px_28px_rgba(3,52,110,0.08)]">
+            <article className="rounded-[22px] border border-[#eadfff] bg-white px-4 py-3 shadow-[0_10px_28px_rgba(32,20,43,0.08)]">
               <div className="flex items-start gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#D4E0F0] text-[#03346E]">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#efe5ff] text-[#6f40cc]">
                   <BedDouble className="h-5 w-5" />
                 </span>
                 <span className="min-w-0">
-                  <span className="block text-sm font-bold text-[#01214A]">
+                  <span className="block text-sm font-bold text-[#2d1635]">
                     {copy.hotelPendingTitle}
                   </span>
-                  <span className="mt-1 block text-xs font-semibold text-[#64748B]">
+                  <span className="mt-1 block text-xs font-semibold text-[#756a7b]">
                     {copy.hotelPendingDescription}
                   </span>
                 </span>
@@ -5891,8 +5898,8 @@ export function TravelItineraryExperience({
                 className={cn(
                   "w-full rounded-2xl border p-4 text-left transition-colors",
                   selected
-                    ? "border-[#3D6DAD] bg-[#EEF3FA]"
-                    : "border-[#D4E0F0] bg-white hover:border-[#7A9DCE]"
+                    ? "border-[#b990ff] bg-[#f7efff]"
+                    : "border-[#eadfff] bg-white hover:border-[#c9a8ff]"
                 )}
                 key={`sheet-hotel-option-${getHotelOptionKey(
                   stayIndex,
@@ -5913,14 +5920,14 @@ export function TravelItineraryExperience({
               >
                 <span className="flex items-start justify-between gap-3">
                   <span className="min-w-0">
-                    <span className="block truncate text-base font-bold text-[#01214A]">
+                    <span className="block truncate text-base font-bold text-[#2d1635]">
                       {getHotelNameForLanguage(
                         option,
                         resolvedStay.city,
                         interfaceLocale
                       )}
                     </span>
-                    <span className="mt-1 line-clamp-2 block text-xs font-semibold text-[#64748B]">
+                    <span className="mt-1 line-clamp-2 block text-xs font-semibold text-[#756a7b]">
                       {getHotelAddressForLanguage(
                         option,
                         resolvedStay.city,
@@ -5930,11 +5937,11 @@ export function TravelItineraryExperience({
                     </span>
                   </span>
                   <span className="flex shrink-0 items-center gap-2">
-                    <span className="rounded-full bg-[#D4E0F0] px-3 py-1 text-sm font-bold text-[#03346E]">
+                    <span className="rounded-full bg-[#efe5ff] px-3 py-1 text-sm font-bold text-[#6f40cc]">
                       {getHotelOptionDisplayPrice(option, interfaceLocale)}
                     </span>
                     {selected ? (
-                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#03346E] text-white">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#6f40cc] text-white">
                         <Check className="h-4 w-4" />
                       </span>
                     ) : null}
@@ -5951,23 +5958,19 @@ export function TravelItineraryExperience({
   return (
     <>
       <div
-        className="travel-itinerary-experience-container h-full min-h-0 overflow-y-auto bg-[#F5F8FC] px-5 py-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="h-full min-h-0 overflow-y-auto bg-[#f7f6f2] px-5 py-6 [scrollbar-width:none] md:px-8 md:py-8 [&::-webkit-scrollbar]:hidden"
         data-testid="travel-itinerary-experience"
         ref={scrollContainerRef}
       >
         <div className="mx-auto flex min-h-full max-w-5xl flex-col gap-6">
-          <TravelApplicationDraftAutofill
-            interfaceLocale={interfaceLocale}
-            travelState={effectiveTravelState}
-          />
-          <section className="travel-itinerary-card-padding rounded-[28px] bg-white px-5 py-6 shadow-[0_22px_70px_rgba(3,52,110,0.12)]">
+          <section className="rounded-[28px] bg-white px-5 py-6 shadow-[0_22px_70px_rgba(32,20,43,0.12)] md:px-8 md:py-8">
             <button
-              className="travel-itinerary-cover-grid grid w-full gap-6 text-left outline-none transition-transform hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-[#3D6DAD]"
+              className="grid w-full gap-6 text-left outline-none transition-transform hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-[#c5a8ff] lg:grid-cols-[270px_1fr]"
               data-testid="travel-itinerary-cover-card"
               onClick={() => openDetailAtDay(0)}
               type="button"
             >
-              <div className="relative aspect-[4/3] overflow-hidden rounded-[22px] bg-slate-200 shadow-[0_16px_35px_rgba(3,52,110,0.18)]">
+              <div className="relative aspect-[4/3] overflow-hidden rounded-[22px] bg-slate-200 shadow-[0_16px_35px_rgba(32,20,43,0.18)]">
                 <Image
                   alt={title}
                   className="h-full w-full object-cover"
@@ -5978,7 +5981,7 @@ export function TravelItineraryExperience({
                   width={480}
                 />
                 <div className="absolute inset-0 bg-black/18" />
-                <span className="absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/92 text-[#01214A] shadow-lg">
+                <span className="absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/92 text-[#271431] shadow-lg">
                   <Play className="h-8 w-8 fill-current" />
                 </span>
                 <span className="absolute bottom-4 left-1/2 -translate-x-1/2 text-sm font-semibold text-white underline underline-offset-4">
@@ -5987,17 +5990,14 @@ export function TravelItineraryExperience({
               </div>
 
               <div className="flex min-w-0 flex-col justify-center">
-                <p className="inline-flex w-fit items-center gap-2 rounded-full bg-[#D4E0F0] px-3 py-1 text-xs font-semibold text-[#03346E]">
+                <p className="inline-flex w-fit items-center gap-2 rounded-full bg-[#efe5ff] px-3 py-1 text-xs font-semibold text-[#6f40cc]">
                   <Sparkles className="h-3.5 w-3.5" />
                   {copy.latest}
                 </p>
-                <h2
-                  className="travel-itinerary-cover-title mt-4 line-clamp-3 break-words text-2xl font-bold leading-tight text-[#01214A]"
-                  title={title}
-                >
+                <h2 className="mt-4 text-2xl font-bold text-[#2d1635] md:text-4xl">
                   {title}
                 </h2>
-                <div className="travel-itinerary-cover-metrics mt-6 flex flex-wrap gap-x-5 gap-y-3 text-sm font-semibold text-[#01214A]">
+                <div className="mt-6 flex flex-wrap gap-x-5 gap-y-3 text-sm font-semibold text-[#2d1635] md:text-lg">
                   <span className="inline-flex items-center gap-2">
                     <CalendarDays className="h-5 w-5" />
                     {editableItinerary.length} {copy.days}
@@ -6035,7 +6035,7 @@ export function TravelItineraryExperience({
             <div className="mt-6 flex flex-wrap items-center justify-end gap-2">
               {renderExportLanguageSwitch("hero")}
               <Button
-                className="rounded-full border-[#AABFDF] bg-white text-[#01214A] hover:bg-[#EEF3FA]"
+                className="rounded-full border-[#d8c5ff] bg-white text-[#2d1635] hover:bg-[#f6efff]"
                 data-testid="travel-itinerary-share-link-button"
                 disabled={isSharingLink}
                 onClick={handleShareLink}
@@ -6046,7 +6046,7 @@ export function TravelItineraryExperience({
                 {copy.shareLink}
               </Button>
               <Button
-                className="rounded-full border-[#AABFDF] bg-white text-[#01214A] hover:bg-[#EEF3FA]"
+                className="rounded-full border-[#d8c5ff] bg-white text-[#2d1635] hover:bg-[#f6efff]"
                 data-testid="travel-itinerary-download-word-button"
                 disabled={isDownloadingWord}
                 onClick={() =>
@@ -6063,7 +6063,7 @@ export function TravelItineraryExperience({
                 Word
               </Button>
               <Button
-                className="rounded-full border-[#AABFDF] bg-white text-[#01214A] hover:bg-[#EEF3FA]"
+                className="rounded-full border-[#d8c5ff] bg-white text-[#2d1635] hover:bg-[#f6efff]"
                 data-testid="travel-itinerary-download-pdf-button"
                 disabled={isDownloadingPdf}
                 onClick={() =>
@@ -6094,16 +6094,16 @@ export function TravelItineraryExperience({
                   node.city !== undefined &&
                   getCitySectionKey(node.city) === activeCityKey;
                 const nodeClasses = cn(
-                  "flex min-w-[132px] items-center gap-3 rounded-2xl px-4 py-3 text-[#01214A]",
+                  "flex min-w-[132px] items-center gap-3 rounded-2xl px-4 py-3 text-[#2d1635]",
                   node.kind === "city"
-                    ? "bg-white shadow-[0_8px_28px_rgba(3,52,110,0.08)] transition-colors hover:bg-[#EEF3FA]"
+                    ? "bg-white shadow-[0_8px_28px_rgba(32,20,43,0.08)] transition-colors hover:bg-[#f8f3ff]"
                     : "bg-transparent",
-                  active && "bg-[#D4E0F0]"
+                  active && "bg-[#dcc7ff]"
                 );
                 const nodeContent = (
                   <>
                     {node.kind === "city" ? (
-                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#D4E0F0] text-xs font-bold text-[#03346E]">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#efe5ff] text-xs font-bold text-[#6f40cc]">
                         {cityIndex + 1}
                       </span>
                     ) : (
@@ -6113,7 +6113,7 @@ export function TravelItineraryExperience({
                       <span className="block text-base font-bold">
                         {node.label}
                       </span>
-                      <span className="block text-sm text-[#52657A]">
+                      <span className="block text-sm text-[#5f5166]">
                         {node.caption}
                       </span>
                     </span>
@@ -6140,14 +6140,14 @@ export function TravelItineraryExperience({
                       <div className={nodeClasses}>{nodeContent}</div>
                     )}
                     {index < routeNodes.length - 1 ? (
-                      <div className="flex items-center gap-3 text-[#AABFDF]">
-                        <span className="h-px w-9 bg-[#D4E0F0]" />
+                      <div className="flex items-center gap-3 text-[#bcb5c2]">
+                        <span className="h-px w-9 bg-[#d8d2dd]" />
                         {index === 0 || index === routeNodes.length - 2 ? (
-                          <Plane className="h-5 w-5 text-[#01214A]" />
+                          <Plane className="h-5 w-5 text-[#2d1635]" />
                         ) : (
-                          <TrainFront className="h-5 w-5 text-[#03346E]" />
+                          <TrainFront className="h-5 w-5 text-[#6f40cc]" />
                         )}
-                        <span className="h-px w-9 bg-[#D4E0F0]" />
+                        <span className="h-px w-9 bg-[#d8d2dd]" />
                       </div>
                     ) : null}
                   </div>
@@ -6157,19 +6157,19 @@ export function TravelItineraryExperience({
           </section>
 
           <section
-            className="rounded-[28px] bg-white p-5 shadow-[0_16px_46px_rgba(3,52,110,0.08)] md:p-6"
+            className="rounded-[28px] bg-white p-5 shadow-[0_16px_46px_rgba(32,20,43,0.08)] md:p-6"
             data-testid="travel-itinerary-itinery-table"
           >
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-0">
-                <h3 className="text-2xl font-bold text-[#01214A]">
+                <h3 className="text-2xl font-bold text-[#2d1635]">
                   {copy.tableTitle}
                 </h3>
               </div>
             </div>
-            <div className="mt-4 max-h-[360px] overflow-auto rounded-2xl border border-[#D4E0F0] [scrollbar-width:thin]">
+            <div className="mt-4 max-h-[360px] overflow-auto rounded-2xl border border-[#e6dff0] [scrollbar-width:thin]">
               <table className="min-w-[1180px] w-full border-collapse text-left text-sm">
-                <thead className="sticky top-0 bg-[#D4E0F0] text-[#01214A]">
+                <thead className="sticky top-0 bg-[#efe5ff] text-[#2d1635]">
                   <tr>
                     {copy.tableHeaders.map((header) => (
                       <th className="px-4 py-3 font-bold" key={header}>
@@ -6178,21 +6178,21 @@ export function TravelItineraryExperience({
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#EEF3FA]">
+                <tbody className="divide-y divide-[#eee7f5]">
                   {editableItineryRows.length ? (
                     editableItineryRows.map((row, index) => (
                       <tr
-                        className="align-top text-[#0F2747]"
+                        className="align-top text-[#3a273f]"
                         key={`${row.type}-${index}`}
                       >
                         {(
-                          [
-                            ["time", "时间"],
-                            ["type", "类型"],
-                            ["date", "日期/天数"],
-                            ["route", "城市/路线"],
-                            ["name", "名称"],
-                            ["details", "详情"],
+                         [
+                            ["time", copy.tableHeaders[0]],
+                            ["type", copy.tableHeaders[1]],
+                            ["date", copy.tableHeaders[2]],
+                            ["route", copy.tableHeaders[3]],
+                            ["name", copy.tableHeaders[4]],
+                            ["details", copy.tableHeaders[5]],
                             ["contact", copy.tableHeaders[6]],
                           ] as const
                         ).map(([field, label]) => (
@@ -6200,7 +6200,7 @@ export function TravelItineraryExperience({
                             {field === "details" ? (
                               <textarea
                                 aria-label={`${label}-${index + 1}`}
-                                className="min-h-16 w-full resize-none rounded-xl border border-transparent bg-transparent px-3 py-2 font-semibold text-[#52657A] outline-none transition-colors hover:border-[#D4E0F0] hover:bg-white focus:border-[#3D6DAD] focus:bg-white"
+                                className="min-h-16 w-full resize-none rounded-xl border border-transparent bg-transparent px-3 py-2 font-semibold text-[#5f5166] outline-none transition-colors hover:border-[#e6dff0] hover:bg-white focus:border-[#b990ff] focus:bg-white"
                                 onChange={(event) =>
                                   updateItineryRow(
                                     index,
@@ -6214,12 +6214,12 @@ export function TravelItineraryExperience({
                               <input
                                 aria-label={`${label}-${index + 1}`}
                                 className={cn(
-                                  "w-full rounded-xl border border-transparent bg-transparent px-3 py-2 outline-none transition-colors hover:border-[#D4E0F0] hover:bg-white focus:border-[#3D6DAD] focus:bg-white",
+                                  "w-full rounded-xl border border-transparent bg-transparent px-3 py-2 outline-none transition-colors hover:border-[#e6dff0] hover:bg-white focus:border-[#b990ff] focus:bg-white",
                                   field === "type" ||
                                     field === "name" ||
                                     field === "contact"
-                                    ? "font-bold text-[#01214A]"
-                                    : "font-semibold text-[#52657A]"
+                                    ? "font-bold text-[#2d1635]"
+                                    : "font-semibold text-[#5f5166]"
                                 )}
                                 onChange={(event) =>
                                   updateItineryRow(
@@ -6235,8 +6235,8 @@ export function TravelItineraryExperience({
                         ))}
                         <td className="whitespace-nowrap px-4 py-3">
                           <Button
-                            aria-label={`删除第 ${index + 1} 项`}
-                            className="h-9 w-9 rounded-full border-[#AABFDF] text-[#03346E] hover:bg-[#EEF3FA]"
+                            aria-label={`${copy.delete} ${index + 1}`}
+                            className="h-9 w-9 rounded-full border-[#d8c5ff] text-[#6f40cc] hover:bg-[#f6efff]"
                             onClick={() => removeItineryRow(index)}
                             size="icon"
                             type="button"
@@ -6249,7 +6249,7 @@ export function TravelItineraryExperience({
                     ))
                   ) : (
                     <tr>
-                      <td className="px-4 py-4 text-[#52657A]" colSpan={8}>
+                      <td className="px-4 py-4 text-[#5f5166]" colSpan={8}>
                         {copy.emptyRows}
                       </td>
                     </tr>
@@ -6259,7 +6259,7 @@ export function TravelItineraryExperience({
             </div>
           </section>
 
-          <section className="relative min-h-[260px] overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_18px_55px_rgba(3,52,110,0.1)]">
+          <section className="relative min-h-[260px] overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_18px_55px_rgba(32,20,43,0.1)]">
             {segments.length > 1 ? renderCityTabs("map") : null}
             <TripRouteMap
               activePointId={
@@ -6272,7 +6272,7 @@ export function TravelItineraryExperience({
             />
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-white/8 via-transparent to-white/10" />
             <Button
-              className="travel-itinerary-map-cta absolute bottom-4 right-4 h-12 max-w-[calc(100%-2rem)] rounded-full bg-white px-4 text-sm font-bold text-[#01214A] shadow-[0_12px_32px_rgba(3,52,110,0.18)] hover:bg-white"
+              className="absolute bottom-5 right-5 h-14 rounded-full bg-white px-6 text-base font-bold text-[#2d1635] shadow-[0_12px_32px_rgba(32,20,43,0.18)] hover:bg-white"
               data-testid="travel-itinerary-full-map-button"
               onClick={() => handleFullMapOpenChange(true)}
               type="button"
@@ -6297,9 +6297,9 @@ export function TravelItineraryExperience({
                 return (
                   <section
                     className={cn(
-                      "travel-itinerary-city-section grid scroll-mt-28 gap-5 rounded-[30px] transition-shadow duration-500",
+                      "grid scroll-mt-28 gap-5 rounded-[30px] transition-shadow duration-500 md:grid-cols-[164px_minmax(0,1fr)]",
                       highlightCityKey === cityKey &&
-                        "ring-4 ring-[#AABFDF] ring-offset-4 ring-offset-[#F5F8FC]"
+                        "ring-4 ring-[#d9c2ff] ring-offset-4 ring-offset-[#f7f6f2]"
                     )}
                     data-city-key={cityKey}
                     data-testid={`travel-itinerary-city-section-${cityKey}`}
@@ -6309,21 +6309,21 @@ export function TravelItineraryExperience({
                       citySectionRefs.current[cityKey] = node;
                     }}
                   >
-                    <aside className="travel-itinerary-city-rail relative hidden">
+                    <aside className="relative hidden md:block">
                       {segmentIndex < segments.length - 1 ? (
-                        <span className="absolute left-[31px] top-16 h-[calc(100%+48px)] w-px bg-[#D4E0F0]" />
+                        <span className="absolute left-[31px] top-16 h-[calc(100%+48px)] w-px bg-[#d7d1dc]" />
                       ) : null}
                       <div className="sticky top-24 flex items-start gap-4">
-                        <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[#01214A] text-white shadow-[0_12px_28px_rgba(3,52,110,0.2)]">
+                        <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[#2d1635] text-white shadow-[0_12px_28px_rgba(32,20,43,0.2)]">
                           <MapPin className="h-8 w-8" />
                         </span>
-                        <span className="pt-2 text-[#01214A]">
+                        <span className="pt-2 text-[#2d1635]">
                           <span className="block text-base font-bold">
                             {isZh
                               ? `天数 ${segment.dayStart}-${segment.dayEnd}`
                               : `Days ${segment.dayStart}-${segment.dayEnd}`}
                           </span>
-                          <span className="block text-sm font-semibold text-[#52657A]">
+                          <span className="block text-sm font-semibold text-[#5f5166]">
                             {segment.rangeLabel}
                           </span>
                         </span>
@@ -6331,19 +6331,19 @@ export function TravelItineraryExperience({
                     </aside>
 
                     <div className="space-y-5">
-                      <div className="travel-itinerary-city-card rounded-[28px] bg-white p-5 shadow-[0_16px_46px_rgba(3,52,110,0.08)]">
+                      <div className="rounded-[28px] bg-white p-5 shadow-[0_16px_46px_rgba(32,20,43,0.08)] md:p-7">
                         <div className="flex flex-wrap items-start justify-between gap-4">
                           <div className="min-w-0">
-                            <p className="text-sm font-bold text-[#3D6DAD]">
+                            <p className="text-sm font-bold text-[#8d5df7]">
                               {segment.rangeLabel}
                             </p>
-                            <h3 className="mt-1 text-3xl font-bold text-[#01214A]">
+                            <h3 className="mt-1 text-3xl font-bold text-[#2d1635]">
                               {segment.label}
                             </h3>
                           </div>
                           <div className="flex flex-wrap gap-2">
                             <Button
-                              className="rounded-full border-[#AABFDF] text-[#03346E] hover:bg-[#EEF3FA]"
+                              className="rounded-full border-[#d8c5ff] text-[#6f40cc] hover:bg-[#f6efff]"
                               onClick={() => addItineraryDay(segment.city)}
                               type="button"
                               variant="outline"
@@ -6352,7 +6352,7 @@ export function TravelItineraryExperience({
                               {isZh ? "添加天数" : "Add day"}
                             </Button>
                             <Button
-                              className="rounded-full border-[#AABFDF] text-[#03346E] hover:bg-[#EEF3FA]"
+                              className="rounded-full border-[#d8c5ff] text-[#6f40cc] hover:bg-[#f6efff]"
                               onClick={() => openDetailAtDay(firstDayIndex)}
                               type="button"
                               variant="outline"
@@ -6362,11 +6362,11 @@ export function TravelItineraryExperience({
                             </Button>
                           </div>
                         </div>
-                        <p className="mt-4 max-w-3xl text-base font-medium leading-relaxed text-[#0F2747]">
+                        <p className="mt-4 max-w-3xl text-base font-medium leading-relaxed text-[#3a273f]">
                           {getCityIntro(segment, days, interfaceLocale)}
                         </p>
 
-                        <div className="travel-itinerary-city-gallery mt-6 grid gap-4">
+                        <div className="mt-6 grid gap-4 md:grid-cols-[minmax(0,1.4fr)_minmax(160px,0.6fr)]">
                           <div className="relative aspect-[16/9] overflow-hidden rounded-[22px] bg-slate-200">
                             <Image
                               alt={`${segment.label} itinerary hero`}
@@ -6379,7 +6379,7 @@ export function TravelItineraryExperience({
                               width={760}
                             />
                           </div>
-                          <div className="travel-itinerary-city-gallery-thumbs grid grid-cols-2 gap-4">
+                          <div className="grid grid-cols-2 gap-4 md:grid-cols-1">
                             {(galleryImages.length > 1
                               ? galleryImages.slice(1, 3)
                               : [segment.imageSrc, segment.imageSrc]
@@ -6440,11 +6440,11 @@ export function TravelItineraryExperience({
 
                           return (
                             <article
-                              className="travel-itinerary-day-card grid w-full gap-4 rounded-[24px] bg-white p-3 text-left shadow-[0_12px_36px_rgba(3,52,110,0.08)] transition-transform hover:-translate-y-0.5"
+                              className="grid w-full gap-4 rounded-[24px] bg-white p-3 text-left shadow-[0_12px_36px_rgba(32,20,43,0.08)] transition-transform hover:-translate-y-0.5 md:grid-cols-[150px_1fr_auto]"
                               data-testid={`travel-itinerary-day-card-${cityKey}-${day.day}`}
                               key={`${cityKey}-day-${day.day}`}
                             >
-                              <div className="travel-itinerary-day-image relative h-24 overflow-hidden rounded-[18px]">
+                              <div className="relative h-24 overflow-hidden rounded-[18px] md:h-full">
                                 <Image
                                   alt={`${getCityLabel(day.city, interfaceLocale)} itinerary`}
                                   className="h-full w-full object-cover"
@@ -6465,27 +6465,27 @@ export function TravelItineraryExperience({
                                 />
                               </div>
                               <div className="min-w-0 py-1">
-                                <p className="text-sm font-semibold text-[#3D6DAD]">
+                                <p className="text-sm font-semibold text-[#8d5df7]">
                                   {formatDayTab(day, interfaceLocale)} ·{" "}
                                   {day.activities.length} {copy.experiences} ·{" "}
                                   {day.cost}
                                 </p>
-                                <p className="mt-1 text-lg font-bold text-[#01214A]">
+                                <p className="mt-1 text-lg font-bold text-[#2d1635]">
                                   {summarizeDay(day, interfaceLocale)}
                                 </p>
-                                <p className="mt-1 line-clamp-1 text-sm leading-relaxed text-[#52657A]">
+                                <p className="mt-1 line-clamp-1 text-sm leading-relaxed text-[#5f5166]">
                                   {getCityLabel(day.city, interfaceLocale)}
                                 </p>
-                                <div className="travel-itinerary-day-timeline mt-3 grid gap-2">
+                                <div className="mt-3 grid gap-2 sm:grid-cols-2">
                                   {timelineItems.map((item) => (
                                     <div
-                                      className="rounded-2xl bg-[#EEF3FA] px-3 py-2"
+                                      className="rounded-2xl bg-[#f8f3ff] px-3 py-2"
                                       key={`${cityKey}-${day.day}-${item.time}-${item.label}`}
                                     >
-                                      <p className="text-xs font-bold text-[#3D6DAD]">
+                                      <p className="text-xs font-bold text-[#8d5df7]">
                                         {item.time} · {item.label}
                                       </p>
-                                      <p className="mt-0.5 line-clamp-1 text-sm font-semibold text-[#01214A]">
+                                      <p className="mt-0.5 line-clamp-1 text-sm font-semibold text-[#2d1635]">
                                         {item.value}
                                       </p>
                                     </div>
@@ -6517,7 +6517,7 @@ export function TravelItineraryExperience({
                                     day,
                                     interfaceLocale
                                   )}`}
-                                  className="rounded-full border-[#AABFDF] text-[#03346E] hover:bg-[#EEF3FA]"
+                                  className="rounded-full border-[#d8c5ff] text-[#6f40cc] hover:bg-[#f6efff]"
                                   onClick={() => openDetailAtDay(safeDayIndex)}
                                   size="sm"
                                   type="button"
@@ -6647,66 +6647,66 @@ export function TravelItineraryExperience({
                     </div>
 
                     {activeDayIndex < editableItinerary.length - 1 ? (
-                      <div className="rounded-2xl border border-[#d9e5f2] bg-white px-4 py-3 shadow-[0_8px_24px_rgba(3,52,110,0.06)]">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-xs font-semibold text-[#64748B]">
-                              {isZh ? "当晚酒店" : "Tonight's hotel"}
-                            </p>
-                            <p className="mt-1 truncate text-sm font-bold text-[#0f2747]">
-                              {activeDayHotel
-                                ? getHotelNameForLanguage(
-                                    activeDayHotel.option,
-                                    activeDayHotel.city,
-                                    interfaceLocale
-                                  )
-                                : isZh
-                                  ? "待选择酒店"
-                                  : "Hotel pending"}
-                            </p>
-                            {activeDayHotel ? (
-                              <p className="mt-1 text-xs font-semibold text-[#64748B]">
-                                {formatMonthDay(
-                                  activeDayHotel.check_in,
-                                  interfaceLocale
-                                )}{" "}
-                                -{" "}
-                                {formatMonthDay(
-                                  activeDayHotel.check_out,
-                                  interfaceLocale
-                                )}
-                              </p>
-                            ) : activeDayHotelStay ? (
-                              <p className="mt-1 text-xs font-semibold text-[#64748B]">
-                                {formatMonthDay(
-                                  activeDayHotelStay.stay.check_in,
-                                  interfaceLocale
-                                )}{" "}
-                                -{" "}
-                                {formatMonthDay(
-                                  activeDayHotelStay.stay.check_out,
-                                  interfaceLocale
-                                )}
-                              </p>
-                            ) : null}
-                          </div>
-                          <Button
-                            className="rounded-full border-[#b8cde3] text-[#03346E] hover:bg-[#eef5fb]"
-                            onClick={() => setDetailResourceTab("hotels")}
-                            size="sm"
-                            type="button"
-                            variant="outline"
-                          >
+                    <div className="rounded-2xl border border-[#d9e5f2] bg-white px-4 py-3 shadow-[0_8px_24px_rgba(3,52,110,0.06)]">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-[#8d8391]">
+                            {isZh ? "当晚酒店" : "Tonight's hotel"}
+                          </p>
+                          <p className="mt-1 truncate text-sm font-bold text-[#0f2747]">
                             {activeDayHotel
-                              ? isZh
-                                ? "修改酒店"
-                                : "Change hotel"
+                              ? getHotelNameForLanguage(
+                                  activeDayHotel.option,
+                                  activeDayHotel.city,
+                                  interfaceLocale
+                                )
                               : isZh
-                                ? "选择酒店"
-                                : "Choose hotel"}
-                          </Button>
+                                ? "待选择酒店"
+                                : "Hotel pending"}
+                          </p>
+                          {activeDayHotel ? (
+                            <p className="mt-1 text-xs font-semibold text-[#756a7b]">
+                              {formatMonthDay(
+                                activeDayHotel.check_in,
+                                interfaceLocale
+                              )}{" "}
+                              -{" "}
+                              {formatMonthDay(
+                                activeDayHotel.check_out,
+                                interfaceLocale
+                              )}
+                            </p>
+                          ) : activeDayHotelStay ? (
+                            <p className="mt-1 text-xs font-semibold text-[#756a7b]">
+                              {formatMonthDay(
+                                activeDayHotelStay.stay.check_in,
+                                interfaceLocale
+                              )}{" "}
+                              -{" "}
+                              {formatMonthDay(
+                                activeDayHotelStay.stay.check_out,
+                                interfaceLocale
+                              )}
+                            </p>
+                          ) : null}
                         </div>
+                        <Button
+                          className="rounded-full border-[#b8cde3] text-[#03346E] hover:bg-[#eef5fb]"
+                          onClick={() => setDetailResourceTab("hotels")}
+                          size="sm"
+                          type="button"
+                          variant="outline"
+                        >
+                          {activeDayHotel
+                            ? isZh
+                              ? "修改酒店"
+                              : "Change hotel"
+                            : isZh
+                              ? "选择酒店"
+                              : "Choose hotel"}
+                        </Button>
                       </div>
+                    </div>
                     ) : null}
 
                     <div className="grid grid-cols-3 gap-2 rounded-[22px] bg-[#eaf2fb] p-1">
@@ -6736,10 +6736,10 @@ export function TravelItineraryExperience({
                     {detailResourceTab === "attractions" ? (
                       <>
                         {activeDayAttractionChoices.length ? (
-                          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_12px_36px_rgba(3,52,110,0.08)]">
+                          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_12px_36px_rgba(32,20,43,0.08)]">
                             <div className="flex items-center justify-between gap-3">
-                              <p className="inline-flex items-center gap-2 text-sm font-bold text-[#01214A]">
-                                <MapPinned className="h-4 w-4 text-[#03346E]" />
+                              <p className="inline-flex items-center gap-2 text-sm font-bold text-[#2d1635]">
+                                <MapPinned className="h-4 w-4 text-[#6f40cc]" />
                                 {isZh ? "景点库" : "Attraction library"}
                               </p>
                               <span className="flex items-center gap-2">
@@ -6750,9 +6750,7 @@ export function TravelItineraryExperience({
                                 </span>
                                 <Button
                                   className="h-8 rounded-full border-[#b8cde3] text-[#03346E] hover:bg-[#eef5fb]"
-                                  onClick={() =>
-                                    addItineraryActivity(activeDayIndex)
-                                  }
+                                  onClick={() => addItineraryActivity(activeDayIndex)}
                                   size="sm"
                                   type="button"
                                   variant="outline"
@@ -6765,7 +6763,7 @@ export function TravelItineraryExperience({
                             <div className="mt-4 grid gap-3 sm:grid-cols-2">
                               {activeDayAttractionChoices.map((attraction) => (
                                 <button
-                                  className="grid min-h-28 grid-cols-[88px_1fr] gap-3 rounded-2xl border border-[#D4E0F0] bg-[#F5F8FC] p-2 text-left transition-colors hover:border-[#3D6DAD] hover:bg-white"
+                                  className="grid min-h-28 grid-cols-[88px_1fr] gap-3 rounded-2xl border border-[#eadfff] bg-[#fbf8ff] p-2 text-left transition-colors hover:border-[#b990ff] hover:bg-white"
                                   key={`${activeDay.city}-${attraction.name}`}
                                   onClick={() =>
                                     addKnowledgeAttractionToDay(
@@ -6796,7 +6794,7 @@ export function TravelItineraryExperience({
                                     />
                                   </span>
                                   <span className="min-w-0 py-1">
-                                    <span className="line-clamp-2 text-sm font-bold text-[#01214A]">
+                                    <span className="line-clamp-2 text-sm font-bold text-[#2d1635]">
                                       {getAttractionNameForLanguage(
                                         activeDay.city,
                                         attraction.name,
@@ -6807,7 +6805,7 @@ export function TravelItineraryExperience({
                                           : attraction.name
                                       )}
                                     </span>
-                                    <span className="mt-1 line-clamp-2 block text-xs font-semibold text-[#64748B]">
+                                    <span className="mt-1 line-clamp-2 block text-xs font-semibold text-[#756a7b]">
                                       {isZh
                                         ? `${getLocalCityLabel(activeDay.city)}景点`
                                         : attraction.location}
@@ -6856,7 +6854,7 @@ export function TravelItineraryExperience({
 
                             return (
                               <div
-                                className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_12px_36px_rgba(3,52,110,0.08)] sm:grid-cols-[96px_1fr]"
+                                className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_12px_36px_rgba(32,20,43,0.08)] sm:grid-cols-[96px_1fr]"
                                 key={`${activeDay.city}-activity-${index}`}
                               >
                                 <div className="relative h-24 overflow-hidden rounded-xl bg-slate-200">
@@ -6872,13 +6870,13 @@ export function TravelItineraryExperience({
                                   />
                                 </div>
                                 <div className="flex items-start gap-4">
-                                  <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#D4E0F0] font-bold text-[#03346E]">
+                                  <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#efe5ff] font-bold text-[#6f40cc]">
                                     {index + 1}
                                   </span>
                                   <div className="min-w-0 flex-1">
                                     {customizeDayEditor ? (
                                       <div className="flex flex-wrap items-center gap-2">
-                                        <label className="inline-flex min-h-9 items-center gap-2 rounded-full bg-[#EEF3FA] px-3 py-1 text-xs font-bold text-[#03346E]">
+                                        <label className="inline-flex min-h-9 items-center gap-2 rounded-full bg-[#f6efff] px-3 py-1 text-xs font-bold text-[#6f40cc]">
                                           <Clock3 className="h-3.5 w-3.5" />
                                           <span>{copy.time}</span>
                                           <input
@@ -6887,7 +6885,7 @@ export function TravelItineraryExperience({
                                                 ? `景点 ${index + 1} 时间`
                                                 : `Attraction ${index + 1} time`
                                             }
-                                            className="w-[82px] bg-transparent font-semibold text-[#01214A] outline-none"
+                                            className="w-[82px] bg-transparent font-semibold text-[#2d1635] outline-none"
                                             onChange={(event) =>
                                               updateItineraryActivityTime(
                                                 activeDayIndex,
@@ -6906,7 +6904,7 @@ export function TravelItineraryExperience({
                                                 ? `上移景点 ${index + 1}`
                                                 : `Move attraction ${index + 1} up`
                                             }
-                                            className="h-9 w-9 rounded-full border-[#AABFDF] text-[#03346E] hover:bg-[#EEF3FA]"
+                                            className="h-9 w-9 rounded-full border-[#d8c5ff] text-[#6f40cc] hover:bg-[#f6efff]"
                                             disabled={index === 0}
                                             onClick={() =>
                                               moveItineraryActivity(
@@ -6927,7 +6925,7 @@ export function TravelItineraryExperience({
                                                 ? `下移景点 ${index + 1}`
                                                 : `Move attraction ${index + 1} down`
                                             }
-                                            className="h-9 w-9 rounded-full border-[#AABFDF] text-[#03346E] hover:bg-[#EEF3FA]"
+                                            className="h-9 w-9 rounded-full border-[#d8c5ff] text-[#6f40cc] hover:bg-[#f6efff]"
                                             disabled={
                                               index ===
                                               activeDay.activities.length - 1
@@ -6948,7 +6946,7 @@ export function TravelItineraryExperience({
                                         </div>
                                       </div>
                                     ) : (
-                                      <p className="text-xs font-semibold text-[#64748B]">
+                                      <p className="text-xs font-semibold text-[#756a7b]">
                                         {formatActivityTimeLabel(
                                           activityTime,
                                           interfaceLocale
@@ -6962,7 +6960,7 @@ export function TravelItineraryExperience({
                                             ? `景点 ${index + 1} 名称`
                                             : `Attraction ${index + 1} name`
                                         }
-                                        className="mt-2 w-full rounded-xl border border-[#D4E0F0] bg-white px-3 py-2 text-lg font-bold text-[#01214A] outline-none transition-colors focus:border-[#3D6DAD]"
+                                        className="mt-2 w-full rounded-xl border border-[#eadfff] bg-white px-3 py-2 text-lg font-bold text-[#2d1635] outline-none transition-colors focus:border-[#b990ff]"
                                         onChange={(event) =>
                                           updateItineraryActivity(
                                             activeDayIndex,
@@ -6973,7 +6971,7 @@ export function TravelItineraryExperience({
                                         value={activity}
                                       />
                                     ) : (
-                                      <p className="mt-1 text-lg font-bold text-[#01214A]">
+                                      <p className="mt-1 text-lg font-bold text-[#2d1635]">
                                         {localizedActivity}
                                       </p>
                                     )}
@@ -6983,7 +6981,7 @@ export function TravelItineraryExperience({
                                         activity
                                       )
                                     ]?.formattedAddress ? (
-                                      <p className="mt-1 line-clamp-1 text-xs font-semibold text-[#64748B]">
+                                      <p className="mt-1 line-clamp-1 text-xs font-semibold text-[#8d8391]">
                                         {
                                           googleAttractionCoordinates[
                                             getAttractionCoordinateKey(
@@ -7021,15 +7019,15 @@ export function TravelItineraryExperience({
                         </div>
 
                         {activeDay.food.length ? (
-                          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_12px_36px_rgba(3,52,110,0.08)]">
+                          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_12px_36px_rgba(32,20,43,0.08)]">
                             <div className="flex items-center justify-between gap-3">
-                              <p className="inline-flex items-center gap-2 text-sm font-bold text-[#01214A]">
-                                <Utensils className="h-4 w-4 text-[#03346E]" />
+                              <p className="inline-flex items-center gap-2 text-sm font-bold text-[#2d1635]">
+                                <Utensils className="h-4 w-4 text-[#6f40cc]" />
                                 {isZh ? "今日餐厅" : "Dining today"}
                               </p>
                               {customizeDayEditor ? (
                                 <Button
-                                  className="h-8 rounded-full border-[#AABFDF] text-[#03346E] hover:bg-[#EEF3FA]"
+                                  className="h-8 rounded-full border-[#d8c5ff] text-[#6f40cc] hover:bg-[#f6efff]"
                                   onClick={() =>
                                     addItineraryFood(activeDayIndex)
                                   }
@@ -7045,13 +7043,13 @@ export function TravelItineraryExperience({
                             <div className="mt-3 grid gap-2">
                               {activeDay.food.map((food, index) => (
                                 <div
-                                  className="flex items-center gap-2 rounded-2xl bg-[#EEF3FA] px-3 py-2"
+                                  className="flex items-center gap-2 rounded-2xl bg-[#f6efff] px-3 py-2"
                                   key={`${activeDay.city}-food-${food}-${index}`}
                                 >
                                   {customizeDayEditor ? (
                                     <input
-                                      aria-label={`餐饮 ${index + 1}`}
-                                      className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-[#03346E] outline-none"
+                                      aria-label={`${copy.dining} ${index + 1}`}
+                                      className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-[#6f40cc] outline-none"
                                       onChange={(event) =>
                                         updateItineraryFood(
                                           activeDayIndex,
@@ -7062,7 +7060,7 @@ export function TravelItineraryExperience({
                                       value={food}
                                     />
                                   ) : (
-                                    <span className="min-w-0 flex-1 text-sm font-semibold text-[#03346E]">
+                                    <span className="min-w-0 flex-1 text-sm font-semibold text-[#6f40cc]">
                                       {getDiningNameForLanguage(
                                         activeDay.city,
                                         food,
@@ -7072,7 +7070,7 @@ export function TravelItineraryExperience({
                                     </span>
                                   )}
                                   <Button
-                                    aria-label={`删除餐饮 ${index + 1}`}
+                                    aria-label={`${copy.delete} ${copy.dining} ${index + 1}`}
                                     className="h-8 w-8 rounded-full text-[#b42348] hover:bg-white"
                                     onClick={() =>
                                       removeItineraryFood(activeDayIndex, index)
@@ -7107,7 +7105,7 @@ export function TravelItineraryExperience({
                             </div>
                           ))
                         ) : (
-                          <div className="rounded-2xl border border-[#D4E0F0] bg-white p-5 text-sm font-semibold text-[#52657A]">
+                          <div className="rounded-2xl border border-[#eadfff] bg-white p-5 text-sm font-semibold text-[#5f5166]">
                             {isZh
                               ? "这个城市暂时没有航班候选。若这是陆路移动城市，地图会继续显示景点动线。"
                               : "No API flight options are available for this city yet. If this is a ground-transfer leg, the map will keep showing the attraction route."}
@@ -7128,7 +7126,7 @@ export function TravelItineraryExperience({
                             })}
                           </div>
                         ) : (
-                          <div className="rounded-2xl border border-[#D4E0F0] bg-white p-5 text-sm font-semibold text-[#52657A]">
+                          <div className="rounded-2xl border border-[#eadfff] bg-white p-5 text-sm font-semibold text-[#5f5166]">
                             {activeDayIndex >= editableItinerary.length - 1
                               ? isZh
                                 ? "最后一天是返程日，不需要额外安排住宿。"
@@ -7141,12 +7139,12 @@ export function TravelItineraryExperience({
                       </div>
                     ) : null}
 
-                    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_12px_36px_rgba(3,52,110,0.08)]">
-                      <p className="inline-flex items-center gap-2 text-sm font-bold text-[#01214A]">
-                        <Compass className="h-4 w-4 text-[#03346E]" />
+                    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_12px_36px_rgba(32,20,43,0.08)]">
+                      <p className="inline-flex items-center gap-2 text-sm font-bold text-[#2d1635]">
+                        <Compass className="h-4 w-4 text-[#6f40cc]" />
                         {isZh ? "备注" : "Note"}
                       </p>
-                      <p className="mt-3 text-base font-semibold text-[#01214A]">
+                      <p className="mt-3 text-base font-semibold text-[#2d1635]">
                         {isZh
                           ? "建议把同区域体验排在一起，减少跨城折返。"
                           : "Group nearby experiences together to reduce backtracking between areas."}
@@ -7176,7 +7174,7 @@ export function TravelItineraryExperience({
         }}
         open={Boolean(resourceOptionsSheet)}
       >
-        <SheetContent className="w-full overflow-y-auto bg-[#F5F8FC] p-0 sm:max-w-xl">
+        <SheetContent className="w-full overflow-y-auto bg-[#faf9f7] p-0 sm:max-w-xl">
           {renderResourceOptionsSheetContent()}
         </SheetContent>
       </Sheet>
@@ -7198,16 +7196,8 @@ export function TravelItineraryExperience({
           </DialogHeader>
           <div className="flex h-full min-h-0 flex-col bg-white">
             <div className="shrink-0 border-b border-slate-200 px-6 py-5 text-center">
-              <h3
-                className="line-clamp-2 break-words text-2xl font-bold leading-tight text-[#01214A]"
-                title={title}
-              >
-                {title}
-              </h3>
-              <p
-                className="mt-1 line-clamp-2 text-sm font-semibold text-[#64748B]"
-                title={routeNodes.map((node) => node.label).join(" → ")}
-              >
+              <h3 className="text-2xl font-bold text-[#2d1635]">{title}</h3>
+              <p className="mt-1 text-sm font-semibold text-[#756a7b]">
                 {routeNodes.map((node) => node.label).join(" → ")}
               </p>
             </div>
@@ -7232,7 +7222,7 @@ export function TravelItineraryExperience({
                         ? "播放动态行程"
                         : "Play route"
                   }
-                  className="h-14 w-14 shrink-0 rounded-full bg-[#AABFDF] text-[#01214A] shadow-[0_18px_45px_rgba(3,52,110,0.2)] hover:bg-[#7A9DCE]"
+                  className="h-14 w-14 shrink-0 rounded-full bg-[#d9c2ff] text-[#2d1635] shadow-[0_18px_45px_rgba(32,20,43,0.2)] hover:bg-[#cdb0ff]"
                   data-testid="travel-itinerary-full-map-play-toggle"
                   onClick={() => setIsRoutePlaying((playing) => !playing)}
                   size="icon"
@@ -7244,9 +7234,9 @@ export function TravelItineraryExperience({
                     <Play className="h-6 w-6 fill-current" />
                   )}
                 </Button>
-                <div className="max-w-[min(620px,calc(100vw-150px))] rounded-2xl bg-white/95 p-4 shadow-[0_18px_45px_rgba(3,52,110,0.18)] backdrop-blur">
-                  <p className="inline-flex items-center gap-2 text-sm font-bold text-[#01214A]">
-                    <WalletCards className="h-4 w-4 text-[#03346E]" />
+                <div className="max-w-[min(620px,calc(100vw-150px))] rounded-2xl bg-white/95 p-4 shadow-[0_18px_45px_rgba(32,20,43,0.18)] backdrop-blur">
+                  <p className="inline-flex items-center gap-2 text-sm font-bold text-[#2d1635]">
+                    <WalletCards className="h-4 w-4 text-[#6f40cc]" />
                     {isZh ? "动态行程" : "Dynamic itinerary"}
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
@@ -7260,8 +7250,8 @@ export function TravelItineraryExperience({
                           className={cn(
                             "rounded-full px-3 py-1 text-sm font-semibold transition-colors",
                             active
-                              ? "bg-[#AABFDF] text-[#01214A]"
-                              : "bg-[#EEF3FA] text-[#03346E] hover:bg-[#D4E0F0]"
+                              ? "bg-[#d9c2ff] text-[#2d1635]"
+                              : "bg-[#f6efff] text-[#6f40cc] hover:bg-[#eadcff]"
                           )}
                           key={`full-map-${segment.city}`}
                           onClick={() => setFullMapActiveCity(segment.city)}

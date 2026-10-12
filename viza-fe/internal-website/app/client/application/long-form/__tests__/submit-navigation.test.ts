@@ -68,17 +68,57 @@ describe("application submit navigation", () => {
     expect(dynamicSubmit.indexOf("queueAccepted = true;")).toBeGreaterThan(
       dynamicSubmit.indexOf("await insertSubmissionQueueJob"),
     );
-    expect(dynamicSubmit.indexOf("submissionResultStatus: queueJob.submissionResultStatus")).toBeGreaterThan(
+    expect(dynamicSubmit.indexOf("queueJob.submissionResultStatus")).toBeGreaterThan(
       dynamicSubmit.indexOf("queueAccepted = true;"),
     );
-    expect(dynamicSubmit).toContain("submissionResultStatus: queueJob.submissionResultStatus");
+    expect(dynamicSubmit).toContain("queueJob.submissionResultStatus");
     expect(dynamicSubmit).toContain("if (queueAccepted) return;");
+    expect(dynamicSubmit).not.toContain("markApplicationSubmissionQueued");
+    expect(fallbackSubmit).not.toContain("markApplicationSubmissionQueued");
     expect(fallbackSubmit).toMatch(
       /submissionResultStatus: "waiting",[\s\S]*submissionResult: null,/,
     );
     expect(
       pageSource.match(/submissionStarting=\{saving && submittingMode !== null\}/g),
     ).toHaveLength(2);
+  });
+
+  it("reconciles an ambiguous DS-160 enqueue response without posting twice", () => {
+    const pageSource = readFileSync(
+      join(process.cwd(), "app/client/application/long-form/page.tsx"),
+      "utf8",
+    );
+    const dynamicSubmit = sourceBetween(
+      pageSource,
+      "const handleDynamicReviewComplete = async",
+      "const handleReviewComplete = async",
+    );
+
+    expect(dynamicSubmit).toContain("submissionRequestStarted = true;");
+    expect(dynamicSubmit).toContain("isDs160VisaType(resolvedVisaType)");
+    expect(dynamicSubmit).toContain("reconcileSubmissionStatus(applicationId)");
+    expect(dynamicSubmit).toContain("isSubmissionTransportError(err)");
+    expect(dynamicSubmit).toContain("request was not resubmitted automatically");
+    expect(dynamicSubmit.match(/insertSubmissionQueueJob\(\{/g)).toHaveLength(1);
+  });
+
+  it("uses a synchronous ref lock to reject rapid duplicate submit clicks", () => {
+    const pageSource = readFileSync(
+      join(process.cwd(), "app/client/application/long-form/page.tsx"),
+      "utf8",
+    );
+    const submitCheck = sourceBetween(
+      pageSource,
+      "const checkAndSubmit = async",
+      "const activeCountry =",
+    );
+
+    expect(pageSource).toContain("const submitCheckInFlightRef = useRef(false);");
+    expect(submitCheck).toContain("if (saving || submitCheckInFlightRef.current");
+    expect(submitCheck).toContain("submitCheckInFlightRef.current = true;");
+    expect(submitCheck).toMatch(
+      /finally \{\s*submitCheckInFlightRef\.current = false;\s*\}/,
+    );
   });
 
   it("shows specific Chinese Korea queue errors instead of leaking English server copy", () => {
@@ -89,12 +129,44 @@ describe("application submit navigation", () => {
     const queueHelper = sourceBetween(
       pageSource,
       "async function insertSubmissionQueueJob",
-      "async function insertOfficialFeeSubmissionQueueJobWithCard",
+      "async function prepareSubmissionAccess",
     );
 
     expect(queueHelper).toContain("kr_eac_stay_address_required");
     expect(queueHelper).toContain("确认韩文地址、英文地址和 5 位邮编均已自动填写");
     expect(queueHelper).toContain("登录状态已过期，请刷新页面或重新登录后再提交");
     expect(queueHelper).toContain("input.locale.toLowerCase().startsWith(\"zh\")");
+  });
+
+  it("keeps the form assistant visible but read-only after a reliable success", () => {
+    const pageSource = readFileSync(
+      join(process.cwd(), "app/client/application/long-form/page.tsx"),
+      "utf8",
+    );
+    const assistantEligibility = sourceBetween(
+      pageSource,
+      "const formAssistantSchemaFieldCount =",
+      "useEffect(() => {",
+    );
+
+    expect(assistantEligibility).toContain("const formAssistantReadOnly = hasSuccessfulFormSubmission");
+    expect(assistantEligibility).toContain("koreaPreflightTrusted || formAssistantReadOnly");
+    expect(assistantEligibility).not.toContain("!formAssistantReadOnly");
+    expect(pageSource).toContain("readOnly={formAssistantReadOnly}");
+    expect(pageSource).toContain("prepareFormAssistantState(state, { readOnly: formAssistantReadOnly })");
+    expect(pageSource).toMatch(
+      /if \(formAssistantReadOnly\) \{\s*return \{ completed: formProgress\.total, total: formProgress\.total \};/,
+    );
+    expect(pageSource).toMatch(
+      /function prepareFormAssistantState\([\s\S]{0,220}if \(options\.readOnly\) return toSubmittedFormAssistantState\(state\);/,
+    );
+
+    const assistantRouteSource = readFileSync(
+      join(process.cwd(), "app/api/applications/[id]/form-assistant/route.ts"),
+      "utf8",
+    );
+    expect(assistantRouteSource).toMatch(
+      /loadAssistantAnswers\([\s\S]{0,180}owned\.formAssistantReadOnly\s*\? \{\}\s*: \{/,
+    );
   });
 });

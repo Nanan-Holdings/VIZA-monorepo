@@ -1,13 +1,16 @@
-import { getTranslations } from "next-intl/server";
-import { HelpArticleFromMessages } from "@/components/client/help-article-from-messages";
-
-const ARTICLE_KEY = "accountSecurityTips";
+import { getLocale } from "next-intl/server";
+import { HelpArticle } from "@/components/client/help-article";
+import { getStaticHelpArticleCopy } from "@/app/client/help/static-article-copy";
 
 export async function generateMetadata() {
-  const t = await getTranslations(`help.articles.${ARTICLE_KEY}`);
-  return { title: t("metaTitle") };
+  const locale = await getLocale();
+  const copy = getStaticHelpArticleCopy("accountSecurityTips", locale);
+  return {
+    title: `${copy.title} | ${locale.toLowerCase().startsWith("zh") ? "帮助中心" : "Help Center"}`,
+  };
 }
 
-export default function AccountSecurityTipsPage() {
-  return <HelpArticleFromMessages articleKey={ARTICLE_KEY} />;
+export default async function AccountSecurityTipsPage() {
+  const locale = await getLocale();
+  return <HelpArticle {...getStaticHelpArticleCopy("accountSecurityTips", locale)} />;
 }

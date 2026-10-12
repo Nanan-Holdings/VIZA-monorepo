@@ -1,6 +1,8 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getClientSessionWithFallback } from "@/lib/client-session";
+import { getImpersonationSession } from "@/lib/impersonation-session";
 import {
   type VisaFormFieldDbRow,
   type WizardStep,
@@ -16,6 +18,10 @@ import { augmentVietnamEVisaOfficialParitySteps } from "@/lib/vietnam-evisa-form
 import { augmentThailandTouristEVisaSteps } from "@/lib/thailand-tourist-evisa-form-overrides";
 import { compileApplicationSchemaForUi } from "@/lib/application-schema-ui-contract";
 import { getCanonicalApplicationProductCountry } from "@/lib/visa-destinations";
+import {
+  getCachedStaticVisaMetadata,
+  PUBLIC_VISA_FORM_SCHEMA_CACHE_TTL_MS,
+} from "@/lib/static-visa-metadata-cache";
 
 const STEP_NAMES: Record<number, string> = {
   1: "Visa Selection",
@@ -37,67 +43,82 @@ export async function getVisaFormSteps(
   options: { country?: string | null } = {},
 ): Promise<WizardStep[]> {
   try {
-    const supabase = await createClient();
+    const impersonation = await getImpersonationSession();
+    const session = impersonation ? null : await getClientSessionWithFallback();
+    if (!impersonation && !session) return [];
+
     const schemaCountry = getCanonicalApplicationProductCountry(
       options.country ?? "",
       visaType,
     );
     const schemaVisaType = resolveVisaFormSchemaVisaType(visaType, schemaCountry);
+    return await getCachedStaticVisaMetadata<WizardStep[]>(
+      `visa-form-steps:v1:${schemaVisaType}`,
+      async () => {
+        const rows = await getCachedStaticVisaMetadata<VisaFormFieldDbRow[]>(
+          `visa-form-fields:v1:${schemaVisaType}`,
+          async () => {
+            const { data, error } = await createAdminClient({
+              // DS-160 includes the complete conditional schema. Its cold read
+              // can exceed the small metadata deadline; retry this GET once.
+              requestTimeoutMs: schemaVisaType === "DS160" ? 15_000 : 4_000,
+              retryDelaysMs: schemaVisaType === "DS160" ? [300] : [],
+            })
+              .from("visa_form_fields")
+              .select("*")
+              .eq("visa_type", schemaVisaType)
+              .order("step_number", { ascending: true })
+              .order("display_order", { ascending: true });
+            if (error) throw new Error(error.message);
+            return (data ?? []) as VisaFormFieldDbRow[];
+          },
+          {
+            shouldCache: (schemaRows) => schemaRows.length > 0,
+            ttlMs: PUBLIC_VISA_FORM_SCHEMA_CACHE_TTL_MS,
+          },
+        );
 
-    const { data, error } = await supabase
-      .from("visa_form_fields")
-      .select("*")
-      .eq("visa_type", schemaVisaType)
-      .order("step_number", { ascending: true })
-      .order("display_order", { ascending: true });
+        if (rows.length === 0) {
+          return shouldUseRagVisitorIntakeFallback(schemaVisaType)
+            ? normalizeBilingualWizardSteps(getRagVisitorIntakeSteps(schemaVisaType))
+            : [];
+        }
 
-    if (error) {
-      console.error("[getVisaFormSteps] Supabase error:", error.message);
-      return [];
-    }
+        const stepMap = new Map<number, WizardStep>();
+        for (const row of rows) {
+          const step = row.step_number;
+          if (!stepMap.has(step)) {
+            stepMap.set(step, {
+              stepNumber: step,
+              stepName: row.step_name || STEP_NAMES[step] || `Step ${step}`,
+              fields: [],
+            });
+          }
+          stepMap.get(step)!.fields.push(normalizeBilingualFormField(dbRowToFormField(row)));
+        }
 
-    if (!data || data.length === 0) {
-      return shouldUseRagVisitorIntakeFallback(schemaVisaType)
-        ? normalizeBilingualWizardSteps(getRagVisitorIntakeSteps(schemaVisaType))
-        : [];
-    }
+        const steps = Array.from(stepMap.values()).sort((a, b) => a.stepNumber - b.stepNumber);
+        const vietnamPatched = schemaVisaType === "VN_E_VISA"
+          ? augmentVietnamEVisaOfficialParitySteps(steps)
+          : steps;
+        const patchedSteps = schemaVisaType === "TH_TOURIST_E_VISA"
+          ? augmentThailandTouristEVisaSteps(vietnamPatched)
+          : vietnamPatched;
+        const localizedSteps = schemaVisaType === "VN_E_VISA"
+          ? normalizeBilingualWizardSteps(patchedSteps)
+          : patchedSteps;
+        const compiled = compileApplicationSchemaForUi(localizedSteps);
 
-    // Group by step_number
-    const stepMap = new Map<number, WizardStep>();
+        if (process.env.NODE_ENV !== "production" && compiled.report.summary.errors > 0) {
+          console.warn(
+            `[getVisaFormSteps] ${schemaVisaType} has ${compiled.report.summary.errors} schema/UI contract error(s). Run npm run qa:audit-schema-ui for guidance.`,
+          );
+        }
 
-    for (const row of data as VisaFormFieldDbRow[]) {
-      const step = row.step_number;
-      if (!stepMap.has(step)) {
-        stepMap.set(step, {
-          stepNumber: step,
-          stepName: row.step_name || STEP_NAMES[step] || `Step ${step}`,
-          fields: [],
-        });
-      }
-      stepMap.get(step)!.fields.push(normalizeBilingualFormField(dbRowToFormField(row)));
-    }
-
-    const steps = Array.from(stepMap.values()).sort((a, b) => a.stepNumber - b.stepNumber);
-    const vietnamPatched = schemaVisaType === "VN_E_VISA"
-      ? augmentVietnamEVisaOfficialParitySteps(steps)
-      : steps;
-    const patchedSteps =
-      schemaVisaType === "TH_TOURIST_E_VISA"
-        ? augmentThailandTouristEVisaSteps(vietnamPatched)
-        : vietnamPatched;
-
-    const localizedSteps = schemaVisaType === "VN_E_VISA"
-      ? normalizeBilingualWizardSteps(patchedSteps)
-      : patchedSteps;
-    const compiled = compileApplicationSchemaForUi(localizedSteps);
-
-    if (process.env.NODE_ENV !== "production" && compiled.report.summary.errors > 0) {
-      console.warn(
-        `[getVisaFormSteps] ${schemaVisaType} has ${compiled.report.summary.errors} schema/UI contract error(s). Run npm run qa:audit-schema-ui for guidance.`,
-      );
-    }
-
-    return compiled.steps;
+        return compiled.steps;
+      },
+      { shouldCache: (steps) => steps.length > 0 },
+    );
   } catch (err) {
     console.error("[getVisaFormSteps] Unexpected error:", err);
     return [];

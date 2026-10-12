@@ -3,6 +3,9 @@
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useLocale } from "next-intl";
+import { normalizeInterfaceLocale } from "@/lib/i18n/locale";
+import { getCuratedCityLabel } from "@/lib/travel/locations";
 import {
   Calendar as CalendarDays,
   Download,
@@ -15,7 +18,7 @@ import {
   Star,
   Users,
 } from "@phosphor-icons/react";
-import { alertToast } from "@/components/ui/alert-toast";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   TRAVEL_ITINERARY_SHARE_PARAM,
@@ -166,11 +169,11 @@ function hashString(value: string): number {
 function getLocalCityLabel(city: string): string {
   const localized = LOCAL_CITY_LABELS[normalizeLookupKey(city)];
   if (localized) return localized;
-  return /[A-Za-z]/.test(city) ? "待确认城市" : city;
+  return city;
 }
 
 function getDisplayCityLabel(city: string, locale: "zh" | "en"): string {
-  return locale === "zh" ? getLocalCityLabel(city) : city;
+  return getCuratedCityLabel(city, locale) ?? (locale === "zh" ? getLocalCityLabel(city) : city);
 }
 
 function getChineseShareName(
@@ -198,23 +201,57 @@ function getChineseShareAirline(value: string): string {
     normalizeLookupKey(source).includes(normalizeLookupKey(candidate))
   )?.[1];
   if (exact) return exact;
-  return /[A-Za-z]/.test(source) ? "待确认航司" : source || "待确认航司";
+  return source || "待确认航司";
 }
+
+function getEnglishShareName(city: string, value: string): string {
+  const known = findTravelAttraction(city, value);
+  const alias = [known?.name, ...(known?.aliases ?? [])].find(
+    (candidate): candidate is string => Boolean(candidate) && !/[\p{Script=Han}]/u.test(candidate ?? "")
+  );
+  if (alias) return alias;
+  const mapped = Object.entries({ ...LOCAL_SHARE_TEXT, ...LOCAL_SHARE_AIRLINES })
+    .find(([, translated]) => translated === value)?.[0];
+  if (mapped) return mapped.replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
+  return getCuratedCityLabel(value, "en") ?? value;
+}
+
+function getShareRoute(route: string, locale: "zh" | "en"): string {
+  return route.split(/(\s*(?:→|↔|\||–|—)\s*)/).map((part) =>
+    getCuratedCityLabel(part.trim(), locale) ?? part
+  ).join("");
+}
+
+const SHARE_ROW_TYPES = [
+  ["Flight", "航班"], ["Hotel", "酒店"], ["Attraction", "景点"], ["Dining", "餐饮"],
+] as const;
 
 function localizeShareRows(
   rows: TravelItineryShareRow[],
   locale: "zh" | "en"
 ): TravelItineryShareRow[] {
-  if (locale === "en") return rows;
   return rows.map((row) => {
-    const route = row.route
+    const rowType = SHARE_ROW_TYPES.find(([en, zh]) => row.type.toLowerCase() === en.toLowerCase() || row.type === zh);
+    const normalized = {
+      ...row,
+      type: rowType ? rowType[locale === "en" ? 0 : 1] : row.type,
+      date: locale === "en" ? row.date.replace(/(?:第\s*)?(\d+)\s*天/g, "Day $1").replace(/天\s*(\d+)/g, "Day $1") : row.date.replace(/Day\s*(\d+)/gi, "第$1天"),
+      time: locale === "en" ? row.time?.replace(/上午/g, "Morning").replace(/下午/g, "Afternoon").replace(/午餐/g, "Lunch").replace(/晚餐/g, "Dinner") : row.time?.replace(/Morning/gi, "上午").replace(/Afternoon/gi, "下午").replace(/Lunch/gi, "午餐").replace(/Dinner/gi, "晚餐"),
+    };
+    if (locale === "en") return {
+      ...normalized,
+      route: getShareRoute(row.route, locale),
+      name: getEnglishShareName(row.route, row.name),
+      details: row.details.replace(/经济舱/g, "Economy").replace(/(\d+)小时/g, "$1h ").replace(/(\d+)分钟/g, "$1m"),
+    };
+    const route = getShareRoute(row.route, locale)
       .replace(/Koto-ku/gi, "东京江东区")
       .replace(/San Francisco/gi, "旧金山")
       .replace(/Tokyo/gi, "东京")
       .replace(/Paris/gi, "巴黎");
     if (/航班|flight/i.test(row.type)) {
       return {
-        ...row,
+        ...normalized,
         route,
         name: getChineseShareAirline(row.name),
         details: row.details
@@ -225,20 +262,19 @@ function localizeShareRows(
     }
     if (/景点|attraction/i.test(row.type)) {
       return {
-        ...row,
+        ...normalized,
         route,
         name: getChineseShareName(route, row.name, "attraction"),
       };
     }
     if (/餐饮|dining/i.test(row.type)) {
       return {
-        ...row,
+        ...normalized,
         route,
         name: getChineseShareName(route, row.name, "dining"),
       };
     }
-    if (/酒店|hotel/i.test(row.type)) return { ...row, route };
-    return { ...row, route };
+    return { ...normalized, route };
   });
 }
 
@@ -292,11 +328,11 @@ function buildRowsFromItinerary(
     const firstActivity =
       locale === "zh"
         ? getChineseShareName(day.city, firstActivityRaw, "attraction")
-        : firstActivityRaw;
+        : getEnglishShareName(day.city, firstActivityRaw);
     const secondActivity =
       locale === "zh"
         ? getChineseShareName(day.city, secondActivityRaw, "attraction")
-        : secondActivityRaw;
+        : getEnglishShareName(day.city, secondActivityRaw);
 
     rows.push({
       time: locale === "zh" ? "09:00 上午" : "09:00 Morning",
@@ -320,11 +356,11 @@ function buildRowsFromItinerary(
         name:
           locale === "zh"
             ? getChineseShareName(day.city, day.food[0], "dining")
-            : day.food[0],
+            : getEnglishShareName(day.city, day.food[0]),
         details:
           locale === "zh"
             ? `午餐：${getChineseShareName(day.city, day.food[0], "dining")}。`
-            : `Lunch: ${day.food[0]}.`,
+            : `Lunch: ${getEnglishShareName(day.city, day.food[0])}.`,
         contact: "-",
       });
     }
@@ -351,11 +387,11 @@ function buildRowsFromItinerary(
         name:
           locale === "zh"
             ? getChineseShareName(day.city, day.food[1], "dining")
-            : day.food[1],
+            : getEnglishShareName(day.city, day.food[1]),
         details:
           locale === "zh"
             ? `晚餐：${getChineseShareName(day.city, day.food[1], "dining")}。`
-            : `Dinner: ${day.food[1]}.`,
+            : `Dinner: ${getEnglishShareName(day.city, day.food[1])}.`,
         contact: "-",
       });
     }
@@ -436,20 +472,22 @@ function Metric({
   label: string;
 }) {
   return (
-    <span className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-bold text-[#01214A] shadow-[0_8px_24px_rgba(3,52,110,0.08)]">
-      <Icon className="h-4 w-4 text-[#3D6DAD]" />
+    <span className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-bold text-[#2d1635] shadow-[0_8px_24px_rgba(32,20,43,0.08)]">
+      <Icon className="h-4 w-4 text-[#7b4de8]" />
       {label}
     </span>
   );
 }
 
 export function TravelItineraryShareRenderer() {
+  const interfaceLocale = normalizeInterfaceLocale(useLocale());
   const searchParams = useSearchParams();
   const encoded = searchParams.get(TRAVEL_ITINERARY_SHARE_PARAM);
   const [hasMounted, setHasMounted] = useState(false);
   const [isDownloadingWord, setIsDownloadingWord] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
-  const [exportLanguage, setExportLanguage] = useState<TravelExportLanguage>("zh");
+  const [chosenExportLanguage, setExportLanguage] = useState<TravelExportLanguage | null>(null);
+  const exportLanguage = interfaceLocale === "en" ? "en" : chosenExportLanguage ?? interfaceLocale;
   const payload = useMemo(
     () => (hasMounted ? decodeTravelItinerarySharePayload(encoded) : null),
     [encoded, hasMounted]
@@ -459,7 +497,6 @@ export function TravelItineraryShareRenderer() {
     setHasMounted(true);
   }, []);
 
-  const interfaceLocale = payload?.locale === "en" ? "en" : "zh";
   const isZh = interfaceLocale === "zh";
   const exportLanguageOptions = useMemo(
     () =>
@@ -468,10 +505,6 @@ export function TravelItineraryShareRenderer() {
         : EXPORT_LANGUAGE_OPTIONS,
     [interfaceLocale]
   );
-
-  useEffect(() => {
-    setExportLanguage(interfaceLocale === "en" ? "en" : "zh");
-  }, [interfaceLocale]);
 
   const rows = useMemo(
     () => {
@@ -490,7 +523,7 @@ export function TravelItineraryShareRenderer() {
 
   if (!hasMounted) {
     return (
-      <main className="min-h-screen bg-[#F5F8FC] px-5 py-8 text-[#01214A]">
+      <main className="min-h-screen bg-[#f7f4f0] px-5 py-8 text-[#2d1635]">
         <div className="mx-auto h-64 max-w-6xl animate-pulse rounded-[30px] bg-white" />
       </main>
     );
@@ -498,11 +531,11 @@ export function TravelItineraryShareRenderer() {
 
   if (!payload || !exportPayload) {
     return (
-      <main className="min-h-screen bg-[#F5F8FC] px-5 py-10 text-[#01214A]">
-        <section className="mx-auto max-w-3xl rounded-[28px] bg-white p-8 text-center shadow-[0_18px_55px_rgba(3,52,110,0.1)]">
-          <h1 className="text-3xl font-bold">行程链接不可用</h1>
-          <p className="mt-3 text-base font-semibold text-[#64748B]">
-            请确认分享链接完整，或让分享者重新生成链接。
+      <main className="min-h-screen bg-[#f7f4f0] px-5 py-10 text-[#2d1635]">
+        <section className="mx-auto max-w-3xl rounded-[28px] bg-white p-8 text-center shadow-[0_18px_55px_rgba(32,20,43,0.1)]">
+          <h1 className="text-3xl font-bold">{isZh ? "行程链接不可用" : "Itinerary link unavailable"}</h1>
+          <p className="mt-3 text-base font-semibold text-[#756a7b]">
+            {isZh ? "请确认分享链接完整，或让分享者重新生成链接。" : "Check that the full link was copied, or ask the sender to share it again."}
           </p>
         </section>
       </main>
@@ -525,7 +558,7 @@ export function TravelItineraryShareRenderer() {
   const handleCopyLink = async () => {
     if (!navigator.clipboard?.writeText) return;
     await navigator.clipboard.writeText(window.location.href);
-    alertToast(isZh ? "分享链接已复制。" : "Share link copied.", { variant: "success" });
+    toast.success(isZh ? "分享链接已复制。" : "Share link copied.");
   };
 
   const handleDownload = async (
@@ -536,18 +569,12 @@ export function TravelItineraryShareRenderer() {
     setBusy(true);
     try {
       await downloadBlob(endpoint, exportPayload, filename);
-      alertToast(
-        isZh ? `${filename} 已开始下载。` : `${filename} download started.`,
-        { variant: "success" },
+      toast.success(
+        isZh ? `${filename} 已开始下载。` : `${filename} download started.`
       );
-    } catch (error) {
-      alertToast(
-        error instanceof Error
-          ? error.message
-          : isZh
-            ? `${filename} 下载失败。`
-            : `${filename} download failed.`,
-        { variant: "destructive" },
+    } catch {
+      toast.error(
+        isZh ? `${filename} 下载失败，请稍后重试。` : `${filename} download failed. Please try again.`
       );
     } finally {
       setBusy(false);
@@ -555,9 +582,9 @@ export function TravelItineraryShareRenderer() {
   };
 
   return (
-    <main className="min-h-screen bg-[#F5F8FC] px-4 py-6 text-[#01214A] md:px-8 md:py-10">
+    <main className="min-h-screen bg-[#f7f4f0] px-4 py-6 text-[#2d1635] md:px-8 md:py-10">
       <div className="mx-auto max-w-6xl space-y-6">
-        <section className="grid overflow-hidden rounded-[30px] bg-white shadow-[0_24px_70px_rgba(3,52,110,0.12)] md:grid-cols-[360px_minmax(0,1fr)]">
+        <section className="grid overflow-hidden rounded-[30px] bg-white shadow-[0_24px_70px_rgba(32,20,43,0.12)] md:grid-cols-[360px_minmax(0,1fr)]">
           <div className="relative h-[260px] bg-slate-200 md:h-[320px]">
             <Image
               alt={title}
@@ -567,13 +594,13 @@ export function TravelItineraryShareRenderer() {
               src={heroImage}
               width={720}
             />
-            <div className="absolute left-5 top-5 rounded-full bg-white/92 px-4 py-2 text-sm font-bold text-[#01214A] shadow-lg">
+            <div className="absolute left-5 top-5 rounded-full bg-white/92 px-4 py-2 text-sm font-bold text-[#2d1635] shadow-lg">
               {isZh ? "分享行程" : "Shared itinerary"}
             </div>
           </div>
           <div className="flex flex-col justify-between gap-5 p-6 md:p-8">
             <div>
-              <div className="flex flex-wrap items-center gap-2 text-sm font-bold text-[#3D6DAD]">
+              <div className="flex flex-wrap items-center gap-2 text-sm font-bold text-[#7b4de8]">
                 <Sparkles className="h-4 w-4" />
                 {cities
                   .map((city) => getDisplayCityLabel(city, interfaceLocale))
@@ -606,13 +633,13 @@ export function TravelItineraryShareRenderer() {
             </div>
 
             <div className="flex flex-wrap gap-3">
-              <div className="flex rounded-full bg-[#EEF3FA] p-1">
+              <div className="flex rounded-full bg-[#f6efff] p-1">
                 {exportLanguageOptions.map((option) => (
                   <button
                     className={`rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${
                       exportLanguage === option.value
-                        ? "bg-white text-[#01214A] shadow-sm"
-                        : "text-[#3D6DAD] hover:bg-white/70"
+                        ? "bg-white text-[#2d1635] shadow-sm"
+                        : "text-[#7b4de8] hover:bg-white/70"
                     }`}
                     key={option.value}
                     onClick={() => setExportLanguage(option.value)}
@@ -623,7 +650,7 @@ export function TravelItineraryShareRenderer() {
                 ))}
               </div>
               <Button
-                className="rounded-full border-[#AABFDF] text-[#03346E] hover:bg-[#EEF3FA]"
+                className="rounded-full border-[#d8c5ff] text-[#6f40cc] hover:bg-[#f6efff]"
                 onClick={handleCopyLink}
                 type="button"
                 variant="outline"
@@ -632,7 +659,7 @@ export function TravelItineraryShareRenderer() {
                 {isZh ? "分享" : "Share"}
               </Button>
               <Button
-                className="rounded-full bg-[#AABFDF] text-[#01214A] hover:bg-[#7A9DCE]"
+                className="rounded-full bg-[#d9c2ff] text-[#2d1635] hover:bg-[#c9acff]"
                 disabled={isDownloadingWord}
                 onClick={() =>
                   handleDownload(
@@ -647,7 +674,7 @@ export function TravelItineraryShareRenderer() {
                 Word
               </Button>
               <Button
-                className="rounded-full bg-[#01214A] text-white hover:bg-[#022B5C]"
+                className="rounded-full bg-[#2d1635] text-white hover:bg-[#42214d]"
                 disabled={isDownloadingPdf}
                 onClick={() =>
                   handleDownload(
@@ -665,18 +692,18 @@ export function TravelItineraryShareRenderer() {
           </div>
         </section>
 
-        <section className="rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(3,52,110,0.08)] md:p-6">
+        <section className="rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(32,20,43,0.08)] md:p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-3xl font-bold">
               {isZh ? "itinery" : "itinerary"}
             </h2>
-            <span className="rounded-full bg-[#EEF3FA] px-4 py-2 text-sm font-bold text-[#03346E]">
+            <span className="rounded-full bg-[#f6efff] px-4 py-2 text-sm font-bold text-[#6f40cc]">
               {rows.length} {isZh ? "项" : "items"}
             </span>
           </div>
-          <div className="mt-5 overflow-auto rounded-2xl border border-[#D4E0F0]">
+          <div className="mt-5 overflow-auto rounded-2xl border border-[#e6dff0]">
             <table className="w-full min-w-[1040px] border-collapse text-left text-sm">
-              <thead className="bg-[#D4E0F0] text-[#01214A]">
+              <thead className="bg-[#efe5ff] text-[#2d1635]">
                 <tr>
                   {[
                     isZh ? "时间" : "Time",
@@ -693,23 +720,23 @@ export function TravelItineraryShareRenderer() {
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#EEF3FA]">
+              <tbody className="divide-y divide-[#eee7f5]">
                 {rows.map((row, index) => (
                   <tr className="align-top" key={`${row.type}-${row.name}-${index}`}>
-                    <td className="whitespace-nowrap px-4 py-4 font-semibold text-[#52657A]">
+                    <td className="whitespace-nowrap px-4 py-4 font-semibold text-[#5f5166]">
                       {row.time ?? "-"}
                     </td>
                     <td className="whitespace-nowrap px-4 py-4 font-bold">
                       {row.type}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-4 font-semibold text-[#52657A]">
+                    <td className="whitespace-nowrap px-4 py-4 font-semibold text-[#5f5166]">
                       {row.date}
                     </td>
-                    <td className="px-4 py-4 font-semibold text-[#52657A]">
+                    <td className="px-4 py-4 font-semibold text-[#5f5166]">
                       {row.route}
                     </td>
                     <td className="px-4 py-4 font-bold">{row.name}</td>
-                    <td className="px-4 py-4 text-[#52657A]">{row.details}</td>
+                    <td className="px-4 py-4 text-[#5f5166]">{row.details}</td>
                     <td className="px-4 py-4 font-bold">{row.contact}</td>
                   </tr>
                 ))}
@@ -721,16 +748,16 @@ export function TravelItineraryShareRenderer() {
         <section className="grid gap-4 md:grid-cols-2">
           {hotelRows.map((row, index) => (
             <article
-              className="flex items-center gap-4 rounded-[24px] bg-white p-5 shadow-[0_14px_45px_rgba(3,52,110,0.08)]"
+              className="flex items-center gap-4 rounded-[24px] bg-white p-5 shadow-[0_14px_45px_rgba(32,20,43,0.08)]"
               key={`hotel-${row.name}-${index}`}
             >
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#D4E0F0] text-[#03346E]">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#efe5ff] text-[#6f40cc]">
                 <Hotel className="h-6 w-6" />
               </span>
               <div className="min-w-0">
-                <p className="text-sm font-bold text-[#3D6DAD]">{row.date}</p>
+                <p className="text-sm font-bold text-[#7b4de8]">{row.date}</p>
                 <h3 className="mt-1 text-xl font-bold">{row.name}</h3>
-                <p className="mt-1 line-clamp-2 text-sm font-semibold text-[#64748B]">
+                <p className="mt-1 line-clamp-2 text-sm font-semibold text-[#756a7b]">
                   {row.route} · {row.details}
                 </p>
               </div>
@@ -738,16 +765,16 @@ export function TravelItineraryShareRenderer() {
           ))}
           {flightRows.map((row, index) => (
             <article
-              className="flex items-center gap-4 rounded-[24px] bg-white p-5 shadow-[0_14px_45px_rgba(3,52,110,0.08)]"
+              className="flex items-center gap-4 rounded-[24px] bg-white p-5 shadow-[0_14px_45px_rgba(32,20,43,0.08)]"
               key={`flight-${row.route}-${index}`}
             >
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#01214A] text-white">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#2d1635] text-white">
                 <Plane className="h-6 w-6" />
               </span>
               <div className="min-w-0">
-                <p className="text-sm font-bold text-[#3D6DAD]">{row.date}</p>
+                <p className="text-sm font-bold text-[#7b4de8]">{row.date}</p>
                 <h3 className="mt-1 text-xl font-bold">{row.route}</h3>
-                <p className="mt-1 line-clamp-2 text-sm font-semibold text-[#64748B]">
+                <p className="mt-1 line-clamp-2 text-sm font-semibold text-[#756a7b]">
                   {row.name} · {row.details} · {row.contact}
                 </p>
               </div>
@@ -758,7 +785,7 @@ export function TravelItineraryShareRenderer() {
         <section className="space-y-4 pb-8">
           {payload.itinerary.map((day, index) => (
             <article
-              className="grid gap-4 rounded-[28px] bg-white p-4 shadow-[0_14px_45px_rgba(3,52,110,0.08)] md:grid-cols-[220px_minmax(0,1fr)]"
+              className="grid gap-4 rounded-[28px] bg-white p-4 shadow-[0_14px_45px_rgba(32,20,43,0.08)] md:grid-cols-[220px_minmax(0,1fr)]"
               key={`${day.city}-${day.day}-${index}`}
             >
               <div className="relative h-36 overflow-hidden rounded-[22px] bg-slate-200 md:h-full">
@@ -766,7 +793,7 @@ export function TravelItineraryShareRenderer() {
                   alt={
                     isZh
                       ? `${getLocalCityLabel(day.city)}第${day.day}天`
-                      : `${day.city} day ${day.day}`
+                      : `${getDisplayCityLabel(day.city, interfaceLocale)} day ${day.day}`
                   }
                   className="h-full w-full object-cover"
                   height={220}
@@ -775,7 +802,7 @@ export function TravelItineraryShareRenderer() {
                 />
               </div>
               <div className="min-w-0 p-2">
-                <p className="text-sm font-bold text-[#3D6DAD]">
+                <p className="text-sm font-bold text-[#7b4de8]">
                   {formatDayTab(day, interfaceLocale)} ·{" "}
                   {getDisplayCityLabel(day.city, interfaceLocale)} · {day.cost}
                 </p>
@@ -785,31 +812,31 @@ export function TravelItineraryShareRenderer() {
                     .map((activity) =>
                       isZh
                         ? getChineseShareName(day.city, activity, "attraction")
-                        : activity
+                        : getEnglishShareName(day.city, activity)
                     )
                     .join(" · ")}
                 </h3>
                 <div className="mt-4 flex flex-wrap gap-2">
                   {day.activities.map((activity) => (
                     <span
-                      className="rounded-full bg-[#EEF3FA] px-3 py-1 text-sm font-bold text-[#03346E]"
+                      className="rounded-full bg-[#f6efff] px-3 py-1 text-sm font-bold text-[#6f40cc]"
                       key={`${day.day}-${activity}`}
                     >
                       {isZh
                         ? getChineseShareName(day.city, activity, "attraction")
-                        : activity}
+                        : getEnglishShareName(day.city, activity)}
                     </span>
                   ))}
                 </div>
                 {day.food.length ? (
-                  <p className="mt-4 text-sm font-semibold text-[#64748B]">
+                  <p className="mt-4 text-sm font-semibold text-[#756a7b]">
                     {isZh ? "餐饮：" : "Dining: "}
                     {joinList(
                       isZh
                         ? day.food.map((food) =>
                             getChineseShareName(day.city, food, "dining")
                           )
-                        : day.food,
+                        : day.food.map((food) => getEnglishShareName(day.city, food)),
                       interfaceLocale
                     )}
                   </p>

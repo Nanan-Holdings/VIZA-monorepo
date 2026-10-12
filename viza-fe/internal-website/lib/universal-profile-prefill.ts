@@ -596,8 +596,21 @@ export function mergeUniversalProfileIntoAnswers(
   const patch = buildUniversalProfileAnswerPatch(profile);
   if (options.force) return { ...answers, ...patch };
 
+  const blockedMirrors = new Set<string>();
+  for (const key of Object.keys(patch)) {
+    const mirror = key.match(/^(.*)_(zh|en)$/);
+    if (!mirror) continue;
+    const canonicalKey = mirror[1];
+    const currentCanonical = clean(answers[canonicalKey]);
+    const profileCanonical = clean(patch[canonicalKey]);
+    if (currentCanonical && profileCanonical && currentCanonical !== profileCanonical) {
+      blockedMirrors.add(key);
+    }
+  }
+
   const next = { ...answers };
   for (const [key, value] of Object.entries(patch)) {
+    if (blockedMirrors.has(key)) continue;
     if (!next[key]?.trim()) next[key] = value;
   }
   return next;

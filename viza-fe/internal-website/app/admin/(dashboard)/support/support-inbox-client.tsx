@@ -14,7 +14,6 @@ import {
   UserRound,
   UserCheck,
 } from "lucide-react";
-import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
 import {
   assignTicket,
   closeAdminTicket,
@@ -541,10 +540,9 @@ export function AdminSupportInboxClient({
 
             <form onSubmit={submitReply} className="border-t border-[#e5e7eb] bg-white p-4">
               {error && (
-                <Alert className="mb-3" variant="destructive">
-                  <AlertIcon variant="destructive" />
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
+                <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {error}
+                </div>
               )}
               <div className="mb-3 grid gap-3 lg:grid-cols-2">
                 <label className="text-xs font-semibold text-[#64748b]">

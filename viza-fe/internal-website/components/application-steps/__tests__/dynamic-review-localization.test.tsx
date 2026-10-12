@@ -1,14 +1,16 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, test, vi } from "vitest";
 import type { WizardStep } from "@/types/visa-form-fields";
 import {
   DynamicReviewStep,
   getBilingualReviewValue,
+  getReviewBooleanText,
   getLocalizedReviewSectionTitle,
   getLocalizedOptionText,
   getReviewOptionText,
   getReviewOfficialLabel,
   getReviewSourceLabel,
+  toReviewOfficialOptions,
 } from "../dynamic-review-step";
 import { BilingualReviewPanel } from "../bilingual-review-panel";
 
@@ -19,6 +21,10 @@ vi.mock("next-intl", () => ({
       "review.missingInformation": "缺失信息",
       "review.optionalInformation": "选填信息未填写",
       "review.notProvided": "未填写",
+      "savingOfficialValue": "正在保存…",
+      "officialValueSaveFailed": "保存失败，请重试。",
+      "dynamicField.doesNotApply": "不适用",
+      "dynamicField.doNotKnow": "不知道",
     })[key] ?? key;
     translate.has = () => false;
     return translate;
@@ -45,9 +51,88 @@ function baseField(overrides: Partial<WizardStep["fields"][number]>): WizardStep
 }
 
 describe("dynamic review localization", () => {
-  test("renders a compact field-and-answer table instead of input-like controls", () => {
+  test("reviews corrected DS-160 identity numbers instead of stale language copies", () => {
+    const field = baseField({ fieldName: "national_id_number", visaType: "DS160" });
+    const answers = { national_id_number: "CURRENT-ID-X", national_id_number_zh: "OLD-ID", national_id_number_en: "OLD-ID" };
+    for (const side of ["zh", "en"] as const) {
+      expect(getBilingualReviewValue(answers, field.fieldName, answers.national_id_number, field, side)).toBe("CURRENT-ID-X");
+    }
+  });
+  test.each([
+    ["us_social_security_number", "DOES_NOT_APPLY", "不适用", "text", { allow_does_not_apply: true }],
+    ["father_date_of_birth", "DO_NOT_KNOW", "不知道", "date", { allow_do_not_know: true }],
+  ] as const)("reviews %s with localized sentinel and authoritative canonical value", (fieldName, value, label, fieldType, validationRules) => {
+    const field = baseField({ fieldName, visaType: "DS160", fieldType, validationRules });
+    const answers = { [fieldName]: value, [`${fieldName}_zh`]: "旧答案", [`${fieldName}_en`]: "OLD ANSWER" };
+    expect(getBilingualReviewValue(answers, fieldName, value, field, "zh")).toBe(value);
+    expect(getBilingualReviewValue(answers, fieldName, value, field, "en")).toBe(value);
+    render(<DynamicReviewStep
+      applicationId="test-only" visaType="DS160" dynamicAnswers={answers}
+      dbSteps={[{ stepNumber: 1, stepName: "Personal Information", fields: [field] }]}
+      photoPath={null} onEdit={vi.fn()} onPhotoEdit={vi.fn()} onComplete={vi.fn()}
+      showAction={false} readOnly
+    />);
+    expect(screen.getByText(label)).toBeInTheDocument();
+    expect(screen.getByText(value)).toBeInTheDocument();
+    expect(screen.queryByText("旧答案")).not.toBeInTheDocument();
+    expect(screen.queryByText("translation.dateFormatWarning")).not.toBeInTheDocument();
+  });
+
+  test.each([
+    ["no", "yes", false, true],
+    ["yes", "no", true, false],
+  ])("reviews each repeated passport branch independently (%s / %s)", (first, second, showFirst, showSecond) => {
+    const fields = [
+      baseField({ fieldName: "has_passport", fieldType: "radio", options: ["yes", "no"], validationRules: { repeat_group: "nationalities" } }),
+      baseField({
+        fieldName: "other_passport", label: "Other passport",
+        validationRules: { repeat_group: "nationalities" },
+        conditionalLogic: { showIf: "has_other_nationality === yes && has_passport === yes" },
+      }),
+    ];
+    const props = {
+      applicationId: "test-only",
+      dynamicAnswers: {
+        has_other_nationality: "yes", has_passport: first, has_passport__2: second,
+        other_passport: "FIRST-PASSPORT", other_passport__2: "SECOND-PASSPORT",
+      },
+      dbSteps: [{ stepNumber: 1, stepName: "Nationalities", fields }],
+      photoPath: null, onEdit: vi.fn(), onPhotoEdit: vi.fn(), onComplete: vi.fn(),
+      showAction: false, readOnly: true,
+    };
+    const { rerender } = render(<DynamicReviewStep {...props} />);
+    expect(screen.queryAllByText("FIRST-PASSPORT").length > 0).toBe(showFirst);
+    expect(screen.queryAllByText("SECOND-PASSPORT").length > 0).toBe(showSecond);
+    rerender(<DynamicReviewStep {...props} dynamicAnswers={{ ...props.dynamicAnswers, has_other_nationality: "no" }} />);
+    expect(screen.queryByText("FIRST-PASSPORT")).not.toBeInTheDocument();
+    expect(screen.queryByText("SECOND-PASSPORT")).not.toBeInTheDocument();
+  });
+
+  test("reviews a missing required field in a partially filled repeat row", () => {
+    const fields = [
+      baseField({ fieldName: "has_passport", fieldType: "radio", options: ["yes", "no"], validationRules: { repeat_group: "nationalities" } }),
+      baseField({
+        fieldName: "other_passport", label: "Other passport",
+        validationRules: { repeat_group: "nationalities" },
+        conditionalLogic: { showIf: "has_passport === yes" },
+      }),
+    ];
+    render(<DynamicReviewStep
+      applicationId="test-only"
+      dynamicAnswers={{ has_passport: "no", has_passport__2: "yes" }}
+      dbSteps={[{ stepNumber: 1, stepName: "Nationalities", fields }]}
+      photoPath={null} onEdit={vi.fn()} onPhotoEdit={vi.fn()} onComplete={vi.fn()}
+      showAction={false} readOnly
+    />);
+    expect(screen.getByRole("heading", { name: "国籍 · 缺失信息" })).toBeInTheDocument();
+    expect(screen.getByRole("row", { name: /Other passport #2.*未填写/ })).toBeInTheDocument();
+  });
+
+  test("renders a compact field-and-answer table with an editable English value", () => {
+    const onSaveOfficialValue = vi.fn();
     const { container } = render(
       <BilingualReviewPanel
+        onSaveOfficialValue={onSaveOfficialValue}
         onEditSection={vi.fn()}
         rows={[{
           section: "个人信息 / Personal Information",
@@ -69,9 +154,22 @@ describe("dynamic review localization", () => {
     const row = within(table).getByRole("row");
 
     expect(within(row).getByRole("rowheader")).toHaveTextContent("姓Surname");
-    expect(within(row).getByRole("rowheader")).toHaveClass("w-[56%]", "px-0", "text-left");
-    expect(within(row).getByRole("cell")).toHaveTextContent("李LI");
+    expect(within(row).getByRole("rowheader")).toHaveClass("w-full", "sm:w-[56%]", "px-0", "text-left");
+    expect(within(row).getByRole("cell")).toHaveTextContent("李");
     expect(within(row).getByRole("cell")).toHaveClass("px-0", "text-right");
+    const englishEditor = within(row).getByDisplayValue("LI");
+    expect(englishEditor).toHaveAttribute("lang", "en");
+    expect(englishEditor).toHaveClass(
+      "h-8",
+      "w-auto",
+      "max-w-full",
+      "rounded-md",
+      "text-sm",
+      "leading-5",
+      "text-muted-foreground",
+    );
+    expect(englishEditor).not.toHaveClass("h-12", "w-full", "text-[15px]");
+    expect(englishEditor.style.width).toMatch(/ch$/u);
     expect(screen.getByRole("button", { name: "修改个人信息 / Personal Information" }))
       .toHaveClass("justify-end", "p-0");
     expect(screen.getByRole("heading", { name: "个人信息 / Personal Information" }))
@@ -79,14 +177,354 @@ describe("dynamic review localization", () => {
     expect(screen.getByText("姓")).toHaveClass("text-sm");
     expect(screen.getByText("Surname")).toHaveClass("text-sm");
     expect(screen.getByText("李")).toHaveClass("text-sm");
-    expect(screen.getByText("LI")).toHaveClass("text-sm");
     expect(screen.getByRole("heading", { name: "个人信息 / Personal Information" }).parentElement)
       .not.toHaveClass("px-3", "pl-3");
     expect(container.firstElementChild).toHaveClass("gap-0");
     expect(screen.queryByText("修改")).not.toBeInTheDocument();
     expect(container.querySelector("section")).not.toHaveClass("border", "bg-card");
-    expect(container.querySelector("input")).not.toBeInTheDocument();
-    expect(container.querySelector("textarea")).not.toBeInTheDocument();
+    expect(container.querySelector("input")).toBeInTheDocument();
+  });
+
+  test("saves an edited English value without replacing the Chinese answer", async () => {
+    const onSaveOfficialValue = vi.fn().mockResolvedValue(undefined);
+    const onUpdated = vi.fn();
+
+    render(
+      <BilingualReviewPanel
+        onSaveOfficialValue={onSaveOfficialValue}
+        onUpdated={onUpdated}
+        rows={[{
+          section: "个人信息 / Personal Information",
+          fieldName: "surname",
+          label: "姓 / Surname",
+          sourceLabel: "姓",
+          officialLabel: "Surname",
+          sourceValue: "李",
+          officialValue: "LI",
+          badges: [],
+          warnings: [],
+          editable: true,
+          editStepIndex: 0,
+        }]}
+      />,
+    );
+
+    const row = within(screen.getByRole("table")).getByRole("row");
+    const englishInput = within(row).getByDisplayValue("LI");
+    fireEvent.change(englishInput, { target: { value: "LEE" } });
+
+    expect(englishInput).toHaveValue("LEE");
+    expect(within(row).getByText("李")).toBeInTheDocument();
+
+    fireEvent.blur(englishInput);
+
+    await waitFor(() => {
+      expect(onSaveOfficialValue).toHaveBeenCalledWith("surname", "LEE");
+      expect(onUpdated).toHaveBeenCalledWith("surname", "LEE");
+    });
+    expect(within(row).getByText("李")).toBeInTheDocument();
+  });
+
+  test("keeps an active editor draft when a sibling review row changes", () => {
+    const onSaveOfficialValue = vi.fn();
+    const initialRows = [
+      {
+        section: "个人信息",
+        fieldName: "surname",
+        label: "姓 / Surname",
+        sourceLabel: "姓",
+        officialLabel: "Surname",
+        sourceValue: "李",
+        officialValue: "LI",
+        officialEditorKind: "text" as const,
+        officialEditorValue: "LI",
+        badges: [],
+        warnings: [],
+        editable: true,
+      },
+      {
+        section: "个人信息",
+        fieldName: "given_names",
+        label: "名 / Given names",
+        sourceLabel: "名",
+        officialLabel: "Given names",
+        sourceValue: "明",
+        officialValue: "MING",
+        officialEditorKind: "text" as const,
+        officialEditorValue: "MING",
+        badges: [],
+        warnings: [],
+        editable: true,
+      },
+    ];
+    const { rerender } = render(
+      <BilingualReviewPanel
+        rows={initialRows}
+        onSaveOfficialValue={onSaveOfficialValue}
+      />,
+    );
+
+    fireEvent.change(screen.getByDisplayValue("LI"), { target: { value: "LEE" } });
+    rerender(
+      <BilingualReviewPanel
+        rows={[
+          { ...initialRows[0] },
+          { ...initialRows[1], officialValue: "MING (UPDATED)", officialEditorValue: "MING (UPDATED)" },
+        ]}
+        onSaveOfficialValue={onSaveOfficialValue}
+      />,
+    );
+
+    expect(screen.getByDisplayValue("LEE")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("MING (UPDATED)")).toBeInTheDocument();
+  });
+
+  test("disables the English value editor while saving", async () => {
+    let resolveSave!: () => void;
+    const onSaveOfficialValue = vi.fn(() => new Promise<void>((resolve) => {
+      resolveSave = resolve;
+    }));
+
+    render(
+      <BilingualReviewPanel
+        onSaveOfficialValue={onSaveOfficialValue}
+        rows={[{
+          section: "个人信息 / Personal Information",
+          fieldName: "surname",
+          label: "姓 / Surname",
+          sourceLabel: "姓",
+          officialLabel: "Surname",
+          sourceValue: "李",
+          officialValue: "LI",
+          badges: [],
+          warnings: [],
+          editable: true,
+          editStepIndex: 0,
+        }]}
+      />,
+    );
+
+    const row = within(screen.getByRole("table")).getByRole("row");
+    const englishInput = within(row).getByDisplayValue("LI");
+    fireEvent.change(englishInput, { target: { value: "LEE" } });
+    fireEvent.blur(englishInput);
+
+    await waitFor(() => {
+      expect(onSaveOfficialValue).toHaveBeenCalledWith("surname", "LEE");
+    });
+    expect(englishInput).toBeDisabled();
+    expect(screen.getByText("正在保存…")).toBeInTheDocument();
+
+    resolveSave();
+    await waitFor(() => {
+      expect(englishInput).not.toBeDisabled();
+    });
+  });
+
+  test("persists the canonical and English companion values while preserving Chinese", async () => {
+    const onSaveOfficialValue = vi.fn().mockResolvedValue(undefined);
+    const field = baseField({
+      fieldName: "purpose_of_entry",
+      label: "Purpose of entry",
+      fieldType: "text",
+    });
+
+    render(
+      <DynamicReviewStep
+        applicationId="application-id"
+        dynamicAnswers={{
+          purpose_of_entry: "Tourism",
+          purpose_of_entry_zh: "旅游",
+          purpose_of_entry_en: "Tourism",
+        }}
+        dbSteps={[{ stepNumber: 1, stepName: "Visit", fields: [field] }]}
+        photoPath={null}
+        onEdit={vi.fn()}
+        onPhotoEdit={vi.fn()}
+        onComplete={vi.fn()}
+        onSaveOfficialValue={onSaveOfficialValue}
+        showAction={false}
+      />,
+    );
+
+    const englishInput = screen.getByDisplayValue("Tourism");
+    fireEvent.change(englishInput, { target: { value: "Leisure travel" } });
+    fireEvent.blur(englishInput);
+
+    await waitFor(() => {
+      expect(onSaveOfficialValue).toHaveBeenCalledWith({
+        purpose_of_entry: "Leisure travel",
+        purpose_of_entry_en: "Leisure travel",
+      });
+    });
+    expect(screen.getByText("旅游")).toBeInTheDocument();
+  });
+
+  test("keeps a submitted review readable while removing editing and submit actions", () => {
+    const field = baseField({
+      fieldName: "surname",
+      label: "Surname",
+    });
+    const onEdit = vi.fn();
+    const onPhotoEdit = vi.fn();
+    const onComplete = vi.fn();
+    const onSaveOfficialValue = vi.fn();
+
+    render(
+      <DynamicReviewStep
+        applicationId="submitted-application"
+        dynamicAnswers={{
+          surname: "LI",
+          surname_zh: "李",
+          surname_en: "LI",
+        }}
+        dbSteps={[{ stepNumber: 1, stepName: "Personal", fields: [field] }]}
+        photoPath="uploads/photo.jpg"
+        onEdit={onEdit}
+        onPhotoEdit={onPhotoEdit}
+        onComplete={onComplete}
+        onSaveOfficialValue={onSaveOfficialValue}
+        readOnly
+        showAction
+      />,
+    );
+
+    expect(screen.getByText("李")).toBeInTheDocument();
+    expect(screen.getByText("LI")).toBeInTheDocument();
+    expect(screen.getByText("uploads/photo.jpg")).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("LI")).not.toBeInTheDocument();
+    expect(screen.queryAllByRole("button")).toHaveLength(0);
+    expect(onEdit).not.toHaveBeenCalled();
+    expect(onPhotoEdit).not.toHaveBeenCalled();
+    expect(onComplete).not.toHaveBeenCalled();
+    expect(onSaveOfficialValue).not.toHaveBeenCalled();
+  });
+
+  test("keeps the official date format visible and saves its canonical ISO value", async () => {
+    const onSaveOfficialValue = vi.fn().mockResolvedValue(undefined);
+    const field = baseField({
+      fieldName: "date_of_birth",
+      label: "Date of birth",
+      fieldType: "date",
+    });
+
+    render(
+      <DynamicReviewStep
+        applicationId="application-id"
+        dynamicAnswers={{ date_of_birth: "2006-07-27" }}
+        dbSteps={[{ stepNumber: 1, stepName: "Personal", fields: [field] }]}
+        photoPath={null}
+        onEdit={vi.fn()}
+        onPhotoEdit={vi.fn()}
+        onComplete={vi.fn()}
+        onSaveOfficialValue={onSaveOfficialValue}
+        showAction={false}
+      />,
+    );
+
+    const dateInput = screen.getByDisplayValue("27/07/2006");
+    fireEvent.change(dateInput, { target: { value: "28/07/2006" } });
+    fireEvent.blur(dateInput);
+
+    await waitFor(() => {
+      expect(onSaveOfficialValue).toHaveBeenCalledWith({ date_of_birth: "2006-07-28" });
+    });
+  });
+
+  test("edits a month-precision official date without inventing a day", async () => {
+    const onSaveOfficialValue = vi.fn().mockResolvedValue(undefined);
+    const field = baseField({
+      fieldName: "intended_arrival_date",
+      label: "Intended arrival date",
+      fieldType: "date",
+      validationRules: { minimum_date_precision: "month" },
+    });
+
+    render(
+      <DynamicReviewStep
+        applicationId="application-id"
+        dynamicAnswers={{ intended_arrival_date: "2026-11" }}
+        dbSteps={[{ stepNumber: 1, stepName: "Travel", fields: [field] }]}
+        photoPath={null}
+        onEdit={vi.fn()}
+        onPhotoEdit={vi.fn()}
+        onComplete={vi.fn()}
+        onSaveOfficialValue={onSaveOfficialValue}
+        showAction={false}
+      />,
+    );
+
+    const dateInput = screen.getByDisplayValue("2026-11");
+    fireEvent.change(dateInput, { target: { value: "2026年12月" } });
+    fireEvent.blur(dateInput);
+
+    await waitFor(() => {
+      expect(onSaveOfficialValue).toHaveBeenCalledWith({ intended_arrival_date: "2026-12" });
+    });
+  });
+
+  test("edits a year-precision official date as a year-only value", async () => {
+    const onSaveOfficialValue = vi.fn().mockResolvedValue(undefined);
+    const field = baseField({
+      fieldName: "previous_visit_date_arrived",
+      label: "Previous visit date arrived",
+      fieldType: "date",
+      validationRules: { minimum_date_precision: "year" },
+    });
+
+    render(
+      <DynamicReviewStep
+        applicationId="application-id"
+        dynamicAnswers={{ previous_visit_date_arrived: "2020" }}
+        dbSteps={[{ stepNumber: 1, stepName: "Previous travel", fields: [field] }]}
+        photoPath={null}
+        onEdit={vi.fn()}
+        onPhotoEdit={vi.fn()}
+        onComplete={vi.fn()}
+        onSaveOfficialValue={onSaveOfficialValue}
+        showAction={false}
+      />,
+    );
+
+    const dateInput = screen.getByDisplayValue("2020");
+    fireEvent.change(dateInput, { target: { value: "2021" } });
+    fireEvent.blur(dateInput);
+
+    await waitFor(() => {
+      expect(onSaveOfficialValue).toHaveBeenCalledWith({ previous_visit_date_arrived: "2021" });
+    });
+  });
+
+  test("allows an explicitly permitted unknown date sentinel in the official editor", async () => {
+    const onSaveOfficialValue = vi.fn().mockResolvedValue(undefined);
+    const field = baseField({
+      fieldName: "father_date_of_birth",
+      label: "Father's Date of Birth",
+      fieldType: "date",
+      validationRules: { allow_do_not_know: true },
+    });
+
+    render(
+      <DynamicReviewStep
+        applicationId="application-id"
+        dynamicAnswers={{ father_date_of_birth: "2006-07-27" }}
+        dbSteps={[{ stepNumber: 1, stepName: "Family", fields: [field] }]}
+        photoPath={null}
+        onEdit={vi.fn()}
+        onPhotoEdit={vi.fn()}
+        onComplete={vi.fn()}
+        onSaveOfficialValue={onSaveOfficialValue}
+        showAction={false}
+      />,
+    );
+
+    const dateInput = screen.getByDisplayValue("27/07/2006");
+    fireEvent.change(dateInput, { target: { value: "DO_NOT_KNOW" } });
+    fireEvent.blur(dateInput);
+
+    await waitFor(() => {
+      expect(onSaveOfficialValue).toHaveBeenCalledWith({ father_date_of_birth: "DO_NOT_KNOW" });
+    });
   });
 
   test("renders section headings in the active language only", () => {
@@ -296,6 +734,69 @@ describe("dynamic review localization", () => {
     expect(getLocalizedOptionText("single", options, "zh")).toBe("单次入境");
     expect(getLocalizedOptionText("single", options, "en")).toBe("Single-entry");
     expect(getLocalizedOptionText("official", [{ value: "official", text: "Official" }], "zh")).toBe("公务人员");
+  });
+
+  test("drops blank enum placeholders before rendering official select items", () => {
+    const rawOptions = [
+      { value: "", text: "Select one" },
+      { value: "   ", text: "Placeholder" },
+      { value: "single", text: "Single-entry" },
+      { value: "official", text: "Official" },
+    ];
+    const options = toReviewOfficialOptions(rawOptions);
+
+    expect(options.map((option) => option.value)).toEqual(["single", "official"]);
+    expect(options.every((option) => option.value.trim().length > 0)).toBe(true);
+    expect(toReviewOfficialOptions(rawOptions)).toBe(options);
+  });
+
+  test("preserves first-match labels for case-insensitive duplicate option values", () => {
+    const rawOptions = [
+      { value: "YES", text: "First", official_label: "First official" },
+      { value: "yes", text: "Second", official_label: "Second official" },
+    ];
+
+    expect(toReviewOfficialOptions(rawOptions)).toEqual([
+      { value: "YES", label: "First official" },
+      { value: "yes", label: "First official" },
+    ]);
+  });
+
+  test("localizes stored checkbox booleans on both review sides", () => {
+    expect(getReviewBooleanText("true", "zh")).toBe("是");
+    expect(getReviewBooleanText("false", "zh")).toBe("否");
+    expect(getReviewBooleanText("true", "en")).toBe("Yes");
+    expect(getReviewBooleanText("false", "en")).toBe("No");
+    expect(getReviewBooleanText("unexpected", "zh")).toBeNull();
+  });
+
+  test("renders a confirmation checkbox as Chinese and official English text", () => {
+    const field = baseField({
+      fieldName: "arrival_information_confirmed",
+      label: "The above entry is true and correct.",
+      fieldType: "checkbox",
+      validationRules: {
+        label_zh: "我确认上述填写内容真实且正确",
+        label_en: "The above entry is true and correct.",
+      },
+    });
+
+    render(
+      <DynamicReviewStep
+        applicationId="application-id"
+        dynamicAnswers={{ arrival_information_confirmed: "true" }}
+        dbSteps={[{ stepNumber: 1, stepName: "Review", fields: [field] }]}
+        photoPath={null}
+        onEdit={vi.fn()}
+        onPhotoEdit={vi.fn()}
+        onComplete={vi.fn()}
+        showAction={false}
+      />,
+    );
+
+    expect(screen.getByText("是")).toBeInTheDocument();
+    expect(screen.getByText("Yes")).toBeInTheDocument();
+    expect(screen.queryByText("true")).not.toBeInTheDocument();
   });
 
   test("prefers explicit Chinese companion values on the review left side", () => {

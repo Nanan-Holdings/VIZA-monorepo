@@ -10,25 +10,55 @@ and internal admin flows.
 ## Key Routes
 
 - `field-guidance.routes.ts`: `POST /api/field-guidance`.
+- `field-guidance.routes.test.ts`: date-sentinel validation regressions for
+  schema-allowed unknown/not-applicable answers.
+- `field-guidance-cache.ts`: bounded, expiring single-flight cache for static
+  field guidance. Cache keys and values may contain field metadata and public
+  knowledge only; applicant answers, questions, and chat history remain
+  request-scoped and must never enter this shared cache.
 - `validate-application.ts`: `POST /api/validate-application`.
+- `validate-application-knowledge-cache.ts`: bounded, expiring single-flight
+  cache for the fixed public knowledge retrieval used by application
+  validation. Every key must include the active knowledge release identity and
+  all retrieval parameters. Never cache applicant data or failed lookups.
 - `translation.routes.ts`: translation generation/read/update under
   `/api/applications/:id/...`.
+- `submission-result.routes.ts`: owner-authorized result artifacts plus the
+  explicit POST-only Visit Japan Web account reveal boundary.
+- `jp-vjw-credentials.ts`: application-scoped Visit Japan Web vault-key and
+  strict legacy-alias compatibility policy. Plaintext credentials must never
+  enter logs, GET responses, or `submission_result`.
 - `application-answers.routes.ts`: application answer persistence helpers.
 - `profile-prefill.routes.ts`: profile prefill APIs.
 - `user-packages.routes.ts`: package/destination APIs.
 - `internal-automation/**`: external status ingest, packet handoff, lifecycle
   summaries, and website automation admin/customer APIs.
-- `official-fee.routes.ts`: official visa fee quote, consent, dry-run/manual
-  payment intent, approval, execution, retry, and status APIs.
+- `official-fee.routes.ts`: retained historical official-fee API source. Its
+  routers are no longer mounted by `src/app.ts`; database payment execution is
+  disabled by migration `0194_disable_payment_execution.sql`.
 - `us-appointment.routes.ts`: U.S. B1/B2 appointment consent, dry-run job,
   manual checkpoint, slot selection, final approval, mock booking, and
   user-triggered status/slot check APIs.
 - `france-appointment.routes.ts`: France Schengen TLScontact China consent,
-  job creation, user-triggered slot check, observed-slot selection, redacted
-  payment authorization, final approval, booking request, cancellation, and
-  status APIs.
+  job creation, user-triggered slot check, observed-slot selection, final
+  approval, booking request, cancellation, and status APIs. Payment-session
+  authorization is not exposed.
 - `supabase-user-auth-config.ts`: shared Supabase URL/anon-key env resolver for
   applicant bearer-token verification in browser-facing backend routes.
+- `request-abort.ts`: converts HTTP upload aborts and premature response closes
+  into a request-scoped `AbortSignal` for bounded provider operations.
+- `passport-scan-admission.ts`: instance-local admission before the OCR JSON
+  and URL-encoded parsers. `PASSPORT_SCAN_MAX_IN_FLIGHT` defaults to 4 and is
+  capped at 16. Overflow receives 503, `Retry-After: 2`, and a closing connection
+  without entering a parser or another queue. Release once on response finish,
+  response close, or upload abort; a complete request's `close` event alone
+  must not release admission while OCR is running. Lifecycle and configuration
+  regressions live in `passport-scan-admission.test.ts`; full app HTTP/parser
+  coverage lives in `../app.passport-admission.test.ts`.
+- `passport-scan-draining.test.ts`: local HTTP smoke of the real OCR route and
+  provider gate with a simulated delayed provider. A timed-out operation must
+  retain capacity until it settles; retries receive redacted 503 responses and
+  OCR recovers after the old work finishes. Never call a live provider here.
 - `chat-save-block.routes.ts`: chat block persistence. Application identity
   fields are rejected by `chat-save-block-application-identity.ts`; country,
   product, package, and ownership changes must use the canonical application
@@ -38,7 +68,8 @@ and internal admin flows.
 - `telegram-webhook.ts`: Telegram approval webhook.
 - `public-status.routes.ts`: unauthenticated redacted status snapshot and the
   separate bearer-secret-protected scheduled probe trigger. Its protected
-  `/capacity` snapshot contains only aggregate chat-gate, DB-pool, and hashed
+  `/capacity` snapshot contains only aggregate chat-gate, non-chat AI provider
+  gate, RAG request/cancellation, process runtime, DB-pool, and hashed
   query-latency metrics; never add user/session/message/SQL/parameter values.
 
 ## Ownership Boundaries
@@ -50,6 +81,12 @@ and internal admin flows.
   routes.
 - Keep Socket.IO event handling in `src/socket/**`, not REST routes.
 - Do not log PII or secrets.
+- Non-chat OpenAI/provider calls must use `runWithProviderCapacity()`. Keep chat
+  on its separate request-level gate so OCR or field-guidance spikes cannot
+  consume the chat turn budget. Pass the request-scoped abort signal through
+  the gate and into the provider client. Capacity rejection may degrade
+  optional AI guidance/validation to deterministic behavior; required OCR must
+  return a retryable redacted error without exposing provider details.
 - Do not implement official portal automation, CAPTCHA solving, proxy handling,
   real official-site payment submission, or browser runner behavior in route
   handlers. Official-fee, U.S. appointment, and France TLS appointment routes

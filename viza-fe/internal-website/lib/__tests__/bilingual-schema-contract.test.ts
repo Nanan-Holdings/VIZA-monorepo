@@ -6,7 +6,11 @@ import {
   resolveLocalizedFieldLabel,
   resolveLocalizedOptions,
   resolveOptionDisplayLabel,
+  usesBilingualAnswerPair,
 } from "../bilingual-schema-contract";
+import { DS160_US_REGION_ZH_BY_CODE, translateUsRegionName } from "../ds160-translations";
+import { evaluateShowIf } from "../form-utils";
+import { shouldSkipTranslation } from "../translation/translation-field-rules";
 import { TW_CITY_OPTIONS, TW_DISTRICTS_BY_CITY, TW_DISTRICT_COUNT } from "../taiwan-administrative-units";
 import type { VisaFormFieldRow } from "../../types/visa-form-fields";
 
@@ -30,6 +34,37 @@ function field(overrides: Partial<VisaFormFieldRow>): VisaFormFieldRow {
 }
 
 describe("bilingual schema contract", () => {
+  it("keeps DS-160 national identity numbers literal in every language", () => {
+    expect(usesBilingualAnswerPair(field({
+      fieldName: "national_id_number", visaType: "DS160",
+      validationRules: { maxLength: 20 },
+    }))).toBe(false);
+    expect(usesBilingualAnswerPair(field({ fieldName: "surname", visaType: "DS160" }))).toBe(true);
+  });
+  it("uses DS-160 field context for ambiguous option values and stale translations", () => {
+    for (const [fieldName, value, text, staleLabel, expected] of [
+      ["passport_document_type", "official", "OFFICIAL", "公务人员", "公务护照"],
+      ["primary_occupation", "medical", "MEDICAL/HEALTH", "医疗原因", "医疗卫生"],
+    ]) {
+      const normalized = normalizeBilingualFormField(field({
+        visaType: "DS160", fieldName, fieldType: "select",
+        options: [{ value, text, label_zh: staleLabel }],
+      }));
+      expect(normalized.options?.[0]).toMatchObject({ value, text, label_zh: expected });
+    }
+    const journey = normalizeBilingualFormField(field({
+      fieldName: "purpose_of_journey", fieldType: "select",
+      options: [{ value: "medical", text: "Medical reasons" }],
+    }));
+    expect(journey.options?.[0]).toMatchObject({ value: "medical", label_zh: "医疗原因" });
+  });
+
+  it("keeps the official native-alphabet name in its original script", () => {
+    expect(usesBilingualAnswerPair(field({ fieldName: "full_name_native_alphabet", visaType: "DS160" }))).toBe(false);
+    expect(shouldSkipTranslation("full_name_native_alphabet", "张三", "text")).toBe(true);
+    expect(usesBilingualAnswerPair(field({ fieldName: "surname", visaType: "DS160" }))).toBe(true);
+    expect(shouldSkipTranslation("surname", "张", "text")).toBe(false);
+  });
   it("expands long declaration fields into clear Chinese labels and helpers", () => {
     const normalized = normalizeBilingualFormField(field({
       fieldName: "declaration_fee_not_refunded_awareness",
@@ -68,6 +103,202 @@ describe("bilingual schema contract", () => {
     expect(enOptions?.[0]).toMatchObject({ value: "tourism", text: "Tourism" });
     expect(resolveOptionDisplayLabel(normalized.options, "family_visit", "zh")).toBe("探亲访友");
     expect(resolveOptionDisplayLabel(normalized.options, "family_visit", "en")).toBe("Family visit");
+  });
+
+  it("localizes the complete DS-160 US region list by display label", () => {
+    expect(Object.keys(DS160_US_REGION_ZH_BY_CODE)).toHaveLength(62);
+    expect(translateUsRegionName("Alabama", "AL")).toBe("阿拉巴马州");
+    expect(translateUsRegionName("American Samoa", "AS")).toBe("美属萨摩亚");
+    expect(translateUsRegionName("Idaho", "ID")).toBe("爱达荷州");
+    expect(translateUsRegionName("Northern Mariana Islands", "MP")).toBe("北马里亚纳群岛");
+    expect(translateUsRegionName("Armed Forces Pacific", "AP")).toBe("驻太平洋武装部队");
+    expect(translateUsRegionName("Unknown region", "ZZ")).toBe("Unknown region");
+  });
+
+  it("keeps DS-160 Chinese options Chinese-only while preserving official values", () => {
+    const normalized = normalizeBilingualFormField(field({
+      visaType: "DS160",
+      fieldName: "trip_payer_type",
+      label: "Person/Entity Paying for Your Trip",
+      fieldType: "select",
+      options: [
+        { value: "self", text: "SELF" },
+        { value: "other_person", text: "OTHER PERSON", label_zh: "其他人 (OTHER PERSON)" },
+        { value: "present_employer", text: "PRESENT EMPLOYER" },
+      ],
+    }));
+
+    const zhOptions = resolveLocalizedOptions(normalized.options, "zh");
+    const enOptions = resolveLocalizedOptions(normalized.options, "en");
+
+    expect(zhOptions?.map((option) => typeof option === "string" ? option : option.text)).toEqual([
+      "本人承担",
+      "其他人",
+      "现雇主",
+    ]);
+    expect(enOptions?.map((option) => typeof option === "string" ? option : option.text)).toEqual([
+      "SELF",
+      "OTHER PERSON",
+      "PRESENT EMPLOYER",
+    ]);
+    expect(normalized.options).toEqual([
+      expect.objectContaining({ value: "self", text: "SELF", label_zh: "本人承担", official_label: "SELF" }),
+      expect.objectContaining({ value: "other_person", text: "OTHER PERSON", label_zh: "其他人", official_label: "OTHER PERSON" }),
+      expect.objectContaining({ value: "present_employer", text: "PRESENT EMPLOYER", label_zh: "现雇主", official_label: "PRESENT EMPLOYER" }),
+    ]);
+    expect(zhOptions?.every((option) => typeof option === "string" || !/[A-Za-z]\s*[()（）]/.test(option.text ?? ""))).toBe(true);
+  });
+
+  it("uses the DS-160 marital meaning for SINGLE without changing entry meanings", () => {
+    const marital = normalizeBilingualFormField(field({
+      visaType: "DS160",
+      fieldName: "marital_status",
+      label: "Marital Status",
+      fieldType: "select",
+      options: [{ value: "SINGLE", text: "SINGLE", label_zh: "单次" }, { value: "MARRIED", text: "MARRIED" }],
+    }));
+    const entries = normalizeBilingualFormField(field({
+      fieldName: "number_of_entries",
+      label: "Number of entries",
+      fieldType: "select",
+      options: [{ value: "single", text: "Single" }, { value: "multiple", text: "Multiple" }],
+    }));
+
+    expect(resolveOptionDisplayLabel(marital.options, "SINGLE", "zh")).toBe("未婚");
+    expect(resolveOptionDisplayLabel(marital.options, "SINGLE", "zh")).not.toContain("单次");
+    expect(resolveOptionDisplayLabel(marital.options, "SINGLE", "zh")).not.toMatch(/[A-Za-z()（）]/);
+    expect(resolveOptionDisplayLabel(entries.options, "single", "zh")).toBe("单次");
+    expect(resolveOptionDisplayLabel(normalizeBilingualFormField(marital).options, "SINGLE", "zh")).toBe("未婚");
+  });
+
+  it("keeps the exact DS-160 human-trafficking translations ahead of generic offense wording", () => {
+    const questions = [
+      [
+        "Have you ever committed or conspired to commit a human trafficking offense in the United States or outside the United States?",
+        "您是否曾在美国境内或境外实施或密谋实施人口贩运罪行？",
+      ],
+      [
+        "Have you ever knowingly aided, abetted, assisted or colluded with an individual who has committed, or conspired to commit a severe human trafficking offense in the United States or outside the United States?",
+        "您是否曾故意帮助、教唆、协助或与在美国境内或境外实施或密谋实施严重人口贩运罪行的个人合谋？",
+      ],
+      [
+        "Are you the spouse, son, or daughter of an individual who has committed or conspired to commit a human trafficking offense in the United States or outside the United States and have you within the last five years, knowingly benefited from the trafficking activities?",
+        "您是否是在美国境内或境外实施或密谋实施人口贩运罪行的个人的配偶、儿子或女儿，并且在过去五年内是否故意从贩运活动中获益？",
+      ],
+    ] as const;
+
+    for (const [label, expected] of questions) {
+      const normalized = normalizeBilingualFormField(field({
+        visaType: "DS160",
+        fieldName: "human_trafficking_question",
+        label,
+        fieldType: "radio",
+        validationRules: { label_zh: "是否有需要申报的犯罪、逮捕或定罪记录？" },
+      }));
+
+      expect(resolveLocalizedFieldLabel(normalized, "zh")).toBe(expected);
+      expect(resolveLocalizedFieldLabel(normalized, "zh")).not.toContain("犯罪、逮捕或定罪");
+      expect(resolveLocalizedFieldLabel(normalized, "zh")).not.toMatch(/[A-Za-z]/);
+      expect(resolveLocalizedFieldLabel(normalizeBilingualFormField(normalized), "zh")).toBe(expected);
+    }
+  });
+
+  it("restores complete DS-160 questions instead of cached generated fragments", () => {
+    const questions = [
+      ["Have you ever been issued a U.S. Visa?", "您是否曾获发美国签证？"],
+      ["Have you ever lost a passport or had one stolen?", "您是否曾丢失护照或护照被盗？"],
+      ["Are you a member or representative of a terrorist organization?", "您是否是恐怖组织的成员或代表？"],
+      ["Are you the spouse, son, or daughter of an individual who has engaged in terrorist activity, including providing financial assistance or other support to terrorists or terrorist organizations, in the last five years?", "您是否是在过去五年内从事过恐怖活动（包括向恐怖分子或恐怖组织提供财务援助或其他支持）的个人的配偶、儿子或女儿？"],
+    ] as const;
+    for (const [label, expected] of questions) {
+      const normalized = normalizeBilingualFormField(field({
+        visaType: "DS160", label, fieldType: "radio",
+        validationRules: { label_zh: "是否家庭？" },
+      }));
+      expect(resolveLocalizedFieldLabel(normalized, "zh")).toBe(expected);
+      expect(resolveLocalizedFieldLabel(normalizeBilingualFormField(normalized), "zh")).toBe(expected);
+    }
+  });
+
+  it("uses Chinese DS-160 labels for state options without changing codes", () => {
+    const normalized = normalizeBilingualFormField(field({
+      visaType: "DS160",
+      fieldName: "us_address_state",
+      label: "State",
+      fieldType: "select",
+      validationRules: { source: "US_STATES" },
+      options: [
+        { value: "AL", text: "Alabama" },
+        { value: "AS", text: "American Samoa" },
+        { value: "ID", text: "Idaho" },
+      ],
+    }));
+
+    expect(resolveLocalizedOptions(normalized.options, "zh")).toEqual(expect.arrayContaining([
+      expect.objectContaining({ value: "AL", text: "阿拉巴马州" }),
+      expect.objectContaining({ value: "AS", text: "美属萨摩亚" }),
+      expect.objectContaining({ value: "ID", text: "爱达荷州" }),
+    ]));
+    expect(normalized.options).toHaveLength(56);
+    expect(normalized.validationRules?.source).toBe("CEAC_US_STATES");
+  });
+
+  it("requires DS-160 Social Security Number to be explicit or Does Not Apply", () => {
+    const normalized = normalizeBilingualFormField(field({
+      visaType: "DS160",
+      fieldName: "us_social_security_number",
+      label: "U.S. Social Security Number",
+      fieldType: "text",
+      required: false,
+      validationRules: null,
+    }));
+
+    expect(normalized.required).toBe(true);
+    expect(normalized.validationRules).toMatchObject({
+      allow_does_not_apply: true,
+      has_does_not_apply: true,
+    });
+    expect(normalized.options).toBeNull();
+  });
+
+  it("does not make a non-DS-160 Social Security Number field required", () => {
+    const normalized = normalizeBilingualFormField(field({
+      fieldName: "us_social_security_number",
+      label: "U.S. Social Security Number",
+      fieldType: "text",
+      required: false,
+      validationRules: null,
+    }));
+
+    expect(normalized.required).toBe(false);
+    expect(normalized.validationRules).not.toHaveProperty("allow_does_not_apply");
+  });
+
+  it("does not confuse a country named Georgia with the US state", () => {
+    const normalized = normalizeBilingualFormField(field({
+      visaType: "DS160",
+      fieldName: "nationality_country",
+      label: "Country/Region of Origin (Nationality)",
+      fieldType: "select",
+      options: [{ value: "GEO", text: "Georgia" }, { value: "FM", text: "Micronesia" }],
+    }));
+
+    expect(resolveLocalizedOptions(normalized.options, "zh")).toEqual([
+      expect.objectContaining({ value: "GEO", text: "格鲁吉亚" }),
+      expect.objectContaining({ value: "FM", text: "密克罗尼西亚联邦" }),
+    ]);
+  });
+
+  it("does not alter parenthesized labels for non-DS-160 products", () => {
+    const normalized = normalizeBilingualFormField(field({
+      fieldName: "other_person",
+      fieldType: "select",
+      options: [{ value: "other", text: "OTHER PERSON", label_zh: "其他人 (OTHER PERSON)" }],
+    }));
+
+    expect(resolveLocalizedOptions(normalized.options, "zh")).toEqual([
+      expect.objectContaining({ value: "other", text: "其他人 (OTHER PERSON)" }),
+    ]);
   });
 
   it("uses specific Vietnamese province and border-gate labels instead of generic fallbacks", () => {
@@ -135,6 +366,30 @@ describe("bilingual schema contract", () => {
     expect(resolveLocalizedFieldLabel(city, "zh")).toBe("出生城市");
   });
 
+  it("keeps DS-160 duties required only inside the applicable occupation branch", () => {
+    const duties = normalizeBilingualFormField(field({
+      visaType: "DS160",
+      fieldName: "job_duties",
+      label: "Briefly Describe Your Duties",
+      fieldType: "textarea",
+      required: true,
+      conditionalLogic: {
+        showIf: "primary_occupation !== _empty && primary_occupation !== retired && primary_occupation !== homemaker && primary_occupation !== not_employed",
+      },
+    }));
+
+    expect(resolveLocalizedFieldLabel(duties, "zh")).toBe("简要描述您的职责");
+    expect(resolveLocalizedFieldLabel(duties, "zh")).not.toContain("如适用");
+    expect(duties.required).toBe(true);
+
+    for (const occupation of ["student", "business", "other"]) {
+      expect(evaluateShowIf(duties, { primary_occupation: occupation }), occupation).toBe(true);
+    }
+    for (const occupation of ["", "retired", "homemaker", "not_employed"]) {
+      expect(evaluateShowIf(duties, { primary_occupation: occupation }), occupation).toBe(false);
+    }
+  });
+
   it("uses curated labels for Schengen surname-at-birth fields", () => {
     const normalized = normalizeBilingualFormField(field({
       fieldName: "surname_at_birth_different",
@@ -187,6 +442,37 @@ describe("bilingual schema contract", () => {
       expect(isVagueChineseLabel(labelZh)).toBe(false);
       expect(isEnglishOnlyText(labelZh)).toBe(false);
     }
+  });
+
+  it("keeps DS-160 other-nationality repeat children distinct from their parent question", () => {
+    const samples = [
+      field({
+        visaType: "DS160",
+        fieldName: "other_nationality_country__1",
+        label: "Do you hold or have you held any nationality other than the one indicated above on nationality?",
+        validationRules: { label_zh: "是否持有或曾持有其他国籍？", repeatable: true, repeat_group: "other_nationality" },
+        fieldType: "select",
+      }),
+      field({
+        visaType: "DS160",
+        fieldName: "other_nationality_has_passport__1",
+        label: "Do you hold or have you held any nationality other than the one indicated above on nationality?",
+        validationRules: { label_zh: "是否持有或曾持有其他国籍？", repeatable: true, repeat_group: "other_nationality" },
+        fieldType: "radio",
+      }),
+      field({
+        visaType: "DS160",
+        fieldName: "other_nationality_passport_number__1",
+        label: "Do you hold or have you held any nationality other than the one indicated above on nationality?",
+        validationRules: { label_zh: "是否持有或曾持有其他国籍？", repeatable: true, repeat_group: "other_nationality" },
+      }),
+    ].map(normalizeBilingualFormField);
+
+    expect(samples.map((sample) => resolveLocalizedFieldLabel(sample, "zh"))).toEqual([
+      "其他国籍的国家/地区",
+      "是否持有该国籍的护照？",
+      "护照号码",
+    ]);
   });
 
   it("keeps Korea C-3-9 curated Chinese labels and options specific", () => {

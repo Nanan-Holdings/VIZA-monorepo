@@ -150,6 +150,59 @@ describe("Japan Visit Japan Web form seed", () => {
     }
   });
 
+  it("gives every official airline a specific Chinese identity label", () => {
+    expect(JP_VJW_AIRLINE_OPTIONS).toHaveLength(174);
+
+    for (const optionEntry of JP_VJW_AIRLINE_OPTIONS) {
+      expect(optionEntry.label_zh, optionEntry.official_label).not.toMatch(/^航空公司（/);
+      expect(optionEntry.label_zh, optionEntry.official_label).toMatch(/[\u3400-\u9fff]/);
+    }
+  });
+
+  it("keeps carrier identities distinct for critical VJW airline codes", () => {
+    expect(JP_VJW_AIRLINE_OPTIONS.find((entry) => entry.value === "NQ")).toMatchObject({
+      value: "NQ",
+      label_zh: "AirJapan航空（NQ）",
+      official_label: "NQ：AIR JAPAN(AJX)",
+    });
+    expect(JP_VJW_AIRLINE_OPTIONS.find((entry) => entry.value === "JL")).toMatchObject({
+      value: "JL",
+      label_zh: "日本航空（JL）",
+      official_label: "JL：JAPAN AIRLINES(JAL)",
+    });
+    expect(JP_VJW_AIRLINE_OPTIONS.find((entry) => entry.value === "NH")).toMatchObject({
+      value: "NH",
+      label_zh: "全日空航空（NH）",
+      official_label: "NH：ALL NIPPON AIRWAYS(ANA)",
+    });
+    expect(JP_VJW_AIRLINE_OPTIONS.find((entry) => entry.value === "NQ")?.label_zh)
+      .not.toBe("日本航空（NQ）");
+    expect(JP_VJW_AIRLINE_OPTIONS.find((entry) => entry.value === "4G")).toMatchObject({
+      value: "4G",
+      label_zh: "俄罗斯天然气工业航空（4G）",
+    });
+    expect(JP_VJW_AIRLINE_OPTIONS.find((entry) => entry.value === "N8")).toMatchObject({
+      value: "N8",
+      label_zh: "美国国家航空（N8）",
+    });
+    expect(JP_VJW_AIRLINE_OPTIONS.find((entry) => entry.value === "6J")).toMatchObject({
+      value: "6J",
+      label_zh: "空之子航空（6J）",
+    });
+    expect(JP_VJW_AIRLINE_OPTIONS.find((entry) => entry.value === "7G")).toMatchObject({
+      value: "7G",
+      label_zh: "星悦航空（7G）",
+    });
+    expect(JP_VJW_AIRLINE_OPTIONS.find((entry) => entry.value === "3V")).toMatchObject({
+      value: "3V",
+      label_zh: "ASL比利时航空（3V）",
+    });
+    expect(JP_VJW_AIRLINE_OPTIONS.find((entry) => entry.value === "ZZ")).toMatchObject({
+      value: "ZZ",
+      label_zh: "其他航空公司（ZZ）",
+    });
+  });
+
   it("matches the official optional postal code and single final confirmation", () => {
     expect(field("accommodation_postal_code")).toMatchObject({ field_type: "text", required: false });
     expect(field("accommodation_address")).toMatchObject({ field_type: "text", required: true });

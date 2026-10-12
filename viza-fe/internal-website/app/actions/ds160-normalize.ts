@@ -2,6 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { hasSuccessfulFormSubmission } from "@/lib/form-assistant/submission-readonly";
 import type { PersonalInfoData } from "@/components/application-steps/personal-info-step";
 import type { PassportData } from "@/components/application-steps/passport-step";
 import type { TravelInfoData } from "@/components/application-steps/travel-info-step";
@@ -165,13 +166,13 @@ export async function persistDS160AnswerSet(
     // Verify ownership
     let { data: app, error: appError } = await adminClient
       .from("applications")
-      .select("id, applicant_id, group_id")
+      .select("id, applicant_id, group_id, country, visa_type, submission_result_status, submission_result")
       .eq("id", applicationId)
       .single();
     if (appError && isMissingColumnError(appError.message, "group_id")) {
       const fallbackResult = await adminClient
         .from("applications")
-        .select("id, applicant_id")
+        .select("id, applicant_id, country, visa_type, submission_result_status, submission_result")
         .eq("id", applicationId)
         .single();
       app = fallbackResult.data ? { ...fallbackResult.data, group_id: null } : null;
@@ -210,6 +211,14 @@ export async function persistDS160AnswerSet(
 
     if (!profile || (!ownsProfile && !ownsGroup)) {
       return { error: "Unauthorized" };
+    }
+    if (hasSuccessfulFormSubmission({
+      country: app.country,
+      visaType: app.visa_type,
+      submissionResultStatus: app.submission_result_status,
+      submissionResult: app.submission_result,
+    })) {
+      return { error: "Application is already submitted and read-only" };
     }
 
     // Flatten hardcoded step data into DS-160 keys

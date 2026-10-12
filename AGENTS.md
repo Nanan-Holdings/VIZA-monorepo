@@ -17,6 +17,37 @@ D:\NUS_Bachelor\Study\Y2S2\VIZA-monorepo
 Production Vercel uploads use the root `.vercelignore` because the linked
 project's `rootDirectory` is `viza-fe/internal-website`. Keep local build
 artifacts and non-frontend services out of the deployment bundle.
+Before CLI uploads, inspect `vercel deploy --dry --json`; local browser evidence,
+temporary documents, `.dev-logs`, and `.next*` backup caches must be excluded at
+every directory depth, along with environment files and MCP configuration.
+
+Production Vercel deployments must authenticate with the organization-owned
+VIZA Google account. Never deploy from a personal Google identity or personal
+Vercel account. Before releasing, verify the linked project is `viza-internal`
+under the configured VIZA team, and do not persist Google credentials or Vercel
+tokens in the repository, shell history, logs, screenshots, or agent output.
+The expected release identity is `nananviza2016-8879` with organization email
+`nanan.viza2016@gmail.com` (`viza-gmail`). Verify it through the CLI account API
+before deploying; a browser's existing personal Google session is not evidence
+of the correct release account. The linked team is `viza-gmail-s-projects`.
+
+Always use the nananviza organization Google account for VIZA authentication
+and deployment. Never select a personal Google account or continue a default
+CLI/browser login flow without first selecting nananviza. On this workstation,
+use the organization Vercel CLI config at
+`%LOCALAPPDATA%\VizaVercelCodex` explicitly with `--global-config`; do not fall
+back to the default CLI account. Before any release, call `/v2/user` through
+that CLI configuration and require the exact username and email above. If the
+organization credentials are missing or expired, authenticate nananviza only;
+never substitute another account to unblock deployment.
+
+The current Vercel team uses Hobby, which also checks the Git commit author.
+Before a release, verify the author of the release commit as well as the CLI
+identity. For new release changes authored on behalf of VIZA, use the verified
+organization identity (`viza-gmail <nanan.viza2016@gmail.com>`) for that commit
+without changing the workstation's global Git identity. Preserve existing
+commit authors; never amend history or strip Git metadata to evade this check.
+Adding external contributors requires an explicitly approved collaboration plan.
 
 ## Local Test Admin
 
@@ -75,8 +106,11 @@ viza-be/
                           VIZA AI, RAG, field guidance, seeds/migrations
   email-worker/           Cloudflare Email Routing worker for per-applicant
                           aliases, OTP ingestion, R2 retention, and forwarding
-  submission-service/     Playwright worker for e-visa and DS-160 CEAC prefill
-  travel-service/         Python FastAPI travel planner and export service
+  resilience-worker/     Cloudflare encrypted outbox, Durable Objects and Queues
+  submission-service/     Playwright queue runners, gated official submission,
+                          health/wake endpoints, recovery and artifacts
+  travel-service/         FastAPI itinerary/search/export service; current Web
+                          conversation coordination lives in Next.js
 
 knowledge-base/
   visa-rag-seeds/         Country-level visa RAG source JSON files
@@ -117,49 +151,6 @@ README sections when they conflict.
 
 If the user asks for a specific change, do that change. Keep edits scoped, read
 the relevant code first, and update docs/AGENTS when the module map changes.
-
-### Authorization Continuity
-
-The user's direct request is authorization to perform every normal, necessary
-step needed to complete it. Act by default; do not ask for confirmation,
-restate consent, or pause at intermediate milestones. This applies to local
-changes, configuration, credentials, browser actions, external service setup,
-testing, deployment, and other in-scope execution. Treat an approval anywhere
-in the active conversation as still valid until the user withdraws or changes
-it.
-
-Only stop for direction when the target or requested outcome cannot be
-determined from the conversation, or when the next action would make a
-material financial, legal, public, destructive, or otherwise irreversible
-commitment that the user did not directly request. Ask one precise question
-about that new decision only. Never turn routine persistence, a dependent
-action, or an internal safety checklist into a separate permission gate.
-
-### Multi-Agent Default
-
-For every non-trivial direct request, the lead agent must first identify
-independent, non-overlapping tracks and delegate them in parallel when capacity
-is available. The lead agent remains accountable for scope, shared contracts,
-integration, final checks, and the user-facing result.
-
-- Use a single agent directly only for a tiny mechanical change, a request with
-  one clear low-risk file owner, or work whose parts cannot be separated
-  without editing the same files.
-- Every delegated task must state its goal, exclusive owned paths, forbidden
-  paths, frozen interface/behavior, acceptance checks, and report format.
-- Never assign two writers to the same file or leave a shared API/type/schema
-  without a named owner. Read-only discovery and review may run concurrently.
-- Keep database migrations, auth/RLS, payments, official-portal actions,
-  deployments, and the final integration single-writer. Parallel agents may
-  perform read-only evidence gathering or review for these lanes.
-- Treat a contract conflict, an overlapping dirty change, or an unverified
-  external dependency as a fan-in point: stop that lane, resolve it with the
-  lead agent, then continue.
-
-The full coordination model, audit rationale, task-brief template, and
-success metrics are in `docs/agent-development-framework.md`. `CODEX.md`,
-root `CLAUDE.md`, and `.claude/CLAUDE.md` are compatibility entry points; this
-file remains authoritative when they disagree.
 
 ### PRD Story Queue
 
@@ -355,13 +346,11 @@ checks:
 - VIZA AI user-facing answers should be plain text by default.
 - RAG answers must not invent official requirements. State uncertainty and point
   to official sources when data is missing.
-- For every electronically payable official fee, VIZA provisions an
-  application-scoped, limited virtual card and pays the government portal on
-  the applicant's behalf. Applicant-facing UI must never ask for an official-
-  portal card number or tell the applicant to pay the portal directly. Keep
-  the commercial agency-fee checkout and official-fee allocation/receipt as
-  separate records.
-- Website internal automation covers payment, consent, documents, OCR, packet
+- Payments have been removed by product decision (2026-09-15). Do not collect
+  fees, sell paid plans, issue payment cards, or gate applications on payment.
+  Preserve historical financial records. Official portal fee checkpoints must
+  remain honest needs-attention states without executing payment.
+- Website internal automation covers consent, documents, OCR, packet
   generation, status display, notifications, staff monitoring, and external
   status ingestion only.
 - For `viza-be/submission-service`, official portal automation should use

@@ -3,6 +3,15 @@ import { findOngoingApplicationByIdentity } from "@/lib/applications/ongoing-app
 import { hasSuccessfulArrivalCardSubmission } from "@/features/arrival-cards/application-lifecycle";
 import { getCanonicalVisaDestinationCountry } from "@/lib/visa-destinations";
 
+const ARRIVAL_CARD_DB_REQUEST_TIMEOUT_MS = 5_000;
+
+function createArrivalCardAdminClient() {
+  return createAdminClient({
+    requestTimeoutMs: ARRIVAL_CARD_DB_REQUEST_TIMEOUT_MS,
+    retryDelaysMs: [],
+  });
+}
+
 const ARRIVAL_CARD_CONFIG = {
   SG_ARRIVAL_CARD: {
     country: "singapore",
@@ -32,12 +41,22 @@ const ARRIVAL_CARD_CONFIG = {
     country: "south_korea",
     errorName: "Korea e-Arrival Card",
   },
+  JP_VISIT_JAPAN_WEB: {
+    country: "japan",
+    errorName: "Visit Japan Web",
+  },
 } as const;
 
 const REUSABLE_ANSWER_KEYS = [
   "full_name",
   "full_name_zh",
   "full_name_en",
+  "surname",
+  "surname_zh",
+  "surname_en",
+  "given_names",
+  "given_names_zh",
+  "given_names_en",
   "first_name",
   "middle_name",
   "last_name",
@@ -71,6 +90,12 @@ const KR_REUSABLE_ANSWER_KEYS = [
   "full_name",
   "full_name_zh",
   "full_name_en",
+  "surname",
+  "surname_zh",
+  "surname_en",
+  "given_names",
+  "given_names_zh",
+  "given_names_en",
   "first_name",
   "middle_name",
   "last_name",
@@ -96,7 +121,7 @@ function isArrivalCardVisaType(value: string | null): value is ArrivalCardVisaTy
 }
 
 export async function createNewArrivalCardApplication(userId: string, sourceApplicationId: string) {
-  const admin = createAdminClient();
+  const admin = createArrivalCardAdminClient();
   const { data: profile } = await admin
     .from("applicant_profiles")
     .select("id")
@@ -247,7 +272,7 @@ export async function createNewArrivalCardApplicationForApplicant(
   applicantProfileId: string,
   sourceApplicationId: string,
 ) {
-  const admin = createAdminClient();
+  const admin = createArrivalCardAdminClient();
   const { data: profile } = await admin
     .from("applicant_profiles")
     .select("auth_user_id")

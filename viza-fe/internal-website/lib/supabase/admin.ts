@@ -3,11 +3,13 @@ import { requireAdmin } from "@/lib/rbac";
 import type { Database } from "@/types/database";
 import { normalizeSupabaseEnvValue } from "./env";
 import { createFetchWithTransientRetry } from "./fetch-with-timeout";
+import { observePortalFetch } from "@/lib/observability/portal-read";
 
 type UserRole = Database["public"]["Tables"]["users"]["Row"]["role"];
 type SupabaseAdminClientOptions = {
   requestTimeoutMs?: number;
   retryDelaysMs?: readonly number[];
+  requestSignal?: AbortSignal;
 };
 
 /**
@@ -35,8 +37,10 @@ export function createAdminClient(options: SupabaseAdminClientOptions = {}) {
     },
     global: {
       fetch: createFetchWithTransientRetry({
+        fetchImplementation: observePortalFetch(),
         requestTimeoutMs: options.requestTimeoutMs,
         retryDelaysMs: options.retryDelaysMs,
+        requestSignal: options.requestSignal,
       }),
     },
   });
@@ -332,4 +336,3 @@ export async function deleteUserWithAdmin(
     };
   }
 }
-

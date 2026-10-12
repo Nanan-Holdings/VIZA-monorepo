@@ -39,8 +39,8 @@ import {
   ds160SecurityBackground4Mappings,
   ds160SecurityBackground5Mappings,
 } from "../ds160-form-mappings";
-import { detectPage, type CeacPageId } from "./pages";
-import { advance, saveCurrent } from "./navigator";
+import { detectPage, isOfficialDs160ConfirmationPage, type CeacPageId } from "./pages";
+import { advance, navigateSecurityFiveToPhoto, saveCurrent } from "./navigator";
 import {
   recordSectionCheckpoint,
   type CheckpointEmitOptions,
@@ -60,7 +60,7 @@ import {
   type PreservedRecovery,
 } from "./artifacts";
 import { buildSuccessResult, buildFailureResult, type CeacRunResult } from "./result";
-import { serializeError } from "./errors";
+import { CeacError, OfficialReviewVerificationError, serializeError, UnexpectedPageError } from "./errors";
 import type { CeacSession } from "./session";
 import { rebuildSessionForResume } from "./session";
 import { tryCaptureScreenshot } from "./diagnostics";
@@ -68,15 +68,43 @@ import {
   fillRetrieveApplicationForm,
   type RecoveryCredentials,
 } from "./resume-application";
-import { waitForAspNetPostback } from "./aspnet";
+import {
+  assertCeacPostbackHealthy,
+  installCeacPostbackMonitor,
+  waitForAspNetPostback,
+  waitForAspNetPostbackStable,
+} from "./aspnet";
 import {
   handleUploadPhotoPage,
+  IdentixPhotoServiceError,
   PhotoRejectedError,
   type PhotoFile,
 } from "./upload-photo";
 import { signAndSubmitApplication } from "./final-submit";
+import { prepareConfirmationContinuation, waitForDs160SubmissionConfirmation } from "./confirmation-navigation";
+import type { Ds160FinalSubmissionGuard } from "./final-submission-guard";
 import { solveImageCaptcha } from "../captcha";
 import { CEAC_APPLICATION_ID_PATTERN } from "./selectors";
+import { DS160_EXTENDED_MAPPING_GROUPS } from "../ds160-extended-mappings";
+import { assertDs160RequiredAnswers, createDs160BranchPolicy, ds160MappingRepeatGroup, ds160RepeatAnswers } from "./field-contract";
+import { fillDs160RepeatGroups } from "./repeat-browser-adapter";
+import { resolvePreviousTravelMappings } from "./previous-travel-branch";
+import {
+  clearDs160NaCompanionBeforeTextFill,
+  hasMeaningfulDs160TextAnswer,
+  observeDs160Control,
+  type Ds160ControlObservation,
+} from "./ds160-field-fill";
+import { snapshotDs160Fields } from "./field-snapshot";
+import { captureOfficialReviewPage, verifyOfficialReview, type ReviewExpectation, type ReviewSnapshot } from "./review-verification";
+import { applyExplicitPreparerAnswer, fillVerifiedPassportSignature, type Ds160PreparerAnswers } from "./signature-fields";
+import { reconnectVerifiedCeacPage, RECOVERABLE_DS160_PAGE_IDS } from "./recovered-application";
+import {
+  isDs160UsContactPage,
+  isDs160UsContactVisible,
+  isDs160WorkEducationPage,
+  isDs160WorkEducationVisible,
+} from "../ds160-age-gate";
 
 /**
  * Map from CeacPageId to the DS160_MAPPING_GROUPS entry that should be
@@ -104,6 +132,11 @@ const PAGE_FILL_MAP: Partial<Record<CeacPageId, Record<string, FormFieldMapping>
   security_background_5: ds160SecurityBackground5Mappings,
 };
 
+for (const group of DS160_EXTENDED_MAPPING_GROUPS) {
+  const existing = PAGE_FILL_MAP[group.page];
+  PAGE_FILL_MAP[group.page] = { ...existing, ...group.mappings, ...existing };
+}
+
 /**
  * Pages that the orchestrator navigates through in order. The DS-160 flow
  * is linear from personal_information_1 through sign_and_submit. Some pages
@@ -120,9 +153,124 @@ const TERMINAL_PAGES: ReadonlySet<CeacPageId> = new Set([
 /** Maximum pages to traverse before aborting (safety valve). */
 const MAX_PAGE_TRANSITIONS = 30;
 
+/**
+ * A mapped field was present and visible, but CEAC did not accept or retain
+ * the answer. Keep this error free of answer values so applicant data cannot
+ * leak through logs or exception text while still making the run fail closed.
+ */
+class FieldFillError extends Error {
+  constructor(fieldName: string, label: string) {
+    super(`CEAC field "${label}" (${fieldName}) could not be filled or verified.`);
+    this.name = "FieldFillError";
+  }
+}
+
+class FieldLengthError extends FieldFillError {
+  constructor(fieldName: string, label: string, maxLength: number) {
+    super(fieldName, label);
+    this.name = "FieldLengthError";
+    this.message = `CEAC field "${label}" (${fieldName}) exceeds the official maximum length of ${maxLength} characters.`;
+  }
+}
+
+interface FamilyParentUnknownBranch {
+  parent: "father" | "mother";
+  surnameField: string;
+  givenNamesField: string;
+  nameUnknownFields: readonly string[];
+  hiddenFields: readonly string[];
+  inUsQuestion: string;
+}
+
+const FAMILY_PARENT_UNKNOWN_BRANCHES: readonly FamilyParentUnknownBranch[] = [
+  {
+    parent: "father",
+    surnameField: "father_surname",
+    givenNamesField: "father_given_names",
+    nameUnknownFields: ["father_surname_unknown", "father_given_names_unknown"],
+    hiddenFields: ["father_dob_day", "father_dob_month", "father_dob_year", "father_dob_unknown", "father_in_us"],
+    inUsQuestion: "Is your father in the U.S.?",
+  },
+  {
+    parent: "mother",
+    surnameField: "mother_surname",
+    givenNamesField: "mother_given_names",
+    nameUnknownFields: ["mother_surname_unknown", "mother_given_names_unknown"],
+    hiddenFields: ["mother_dob_day", "mother_dob_month", "mother_dob_year", "mother_dob_unknown", "mother_in_us"],
+    inUsQuestion: "Is your mother in the U.S.?",
+  },
+];
+
+function isDoNotKnow(value: string | undefined): boolean {
+  return value?.trim().replace(/\s+/g, "_").toUpperCase() === "DO_NOT_KNOW";
+}
+
+async function visibleMatches(page: Page, selector: string): Promise<Locator[]> {
+  const all = page.locator(selector);
+  const matches: Locator[] = [];
+  for (let index = 0; index < await all.count(); index += 1) {
+    const candidate = all.nth(index);
+    if (await candidate.isVisible().catch(() => false)) matches.push(candidate);
+  }
+  return matches;
+}
+
+/**
+ * Assert the official family page applied CEAC's both-name-unknown branch.
+ * The name checkboxes are required evidence; dependent controls may be
+ * absent or hidden, but a visible contradiction is always a hard failure.
+ */
+export async function assertFamilyUnknownParentBranches(
+  page: Page,
+  values: Readonly<Record<string, string>>,
+): Promise<void> {
+  const activeBranches = FAMILY_PARENT_UNKNOWN_BRANCHES.filter((branch) =>
+    isDoNotKnow(values[branch.surnameField]) && isDoNotKnow(values[branch.givenNamesField]),
+  );
+  if (activeBranches.length === 0) return;
+
+  await waitForAspNetPostback(page, 8_000);
+  if ((await detectPage(page)).id !== "family_relatives") {
+    throw new Error("CEAC family branch assertion requires the verified Family Information: Relatives page.");
+  }
+
+  for (const branch of activeBranches) {
+    for (const fieldName of branch.nameUnknownFields) {
+      const mapping = ds160FamilyRelativesMappings[fieldName];
+      if (!mapping) throw new Error(`Missing CEAC family unknown-checkbox mapping for ${fieldName}.`);
+      const candidates: Locator[] = [];
+      for (const selector of mapping.selector.split(",").map((item) => item.trim()).filter(Boolean)) {
+        candidates.push(...await visibleMatches(page, selector));
+      }
+      if (candidates.length !== 1) {
+        throw new Error(`CEAC ${branch.parent} name-unknown checkbox is not uniquely visible.`);
+      }
+      if (!(await candidates[0].isChecked().catch(() => false))) {
+        throw new Error(`CEAC ${branch.parent} name-unknown checkbox was not checked.`);
+      }
+    }
+
+    for (const fieldName of branch.hiddenFields) {
+      const mapping = ds160FamilyRelativesMappings[fieldName];
+      if (!mapping) throw new Error(`Missing CEAC family branch mapping for ${fieldName}.`);
+      for (const selector of mapping.selector.split(",").map((item) => item.trim()).filter(Boolean)) {
+        if ((await visibleMatches(page, selector)).length > 0) {
+          throw new Error(`CEAC ${branch.parent} dependent family control remained visible.`);
+        }
+      }
+    }
+
+    if ((await visibleMatches(page, `text=${branch.inUsQuestion}`)).length > 0) {
+      throw new Error(`CEAC ${branch.parent} in-US question remained visible.`);
+    }
+  }
+}
+
 export interface OrchestrateOptions {
   /** Answers from visa_application_answers keyed by field_name. */
   answers: Record<string, string>;
+  /** Original saved values used for branch conditions before CEAC encoding. */
+  branchAnswers?: Record<string, string>;
   /** Applicant profile for fallback field values. */
   profile: Record<string, unknown>;
   /** Recovery tracker to accumulate checkpoints and Application ID. */
@@ -131,6 +279,8 @@ export interface OrchestrateOptions {
   runId?: string;
   /** Directory for .dat and screenshot artifacts. */
   outputDir?: string;
+  /** Stop before recovery or official actions when the caller loses its job lease. */
+  assertActive?: () => void;
   /**
    * Credentials needed to auto-resume after a mid-fill session timeout.
    * Required if the run may take longer than CEAC's ~10-minute idle
@@ -155,7 +305,11 @@ export interface OrchestrateOptions {
    */
   finalSubmit?: {
     passportNumber: string;
+    savedPreparerAssistance?: string;
+    savedPreparerDetails?: Ds160PreparerAnswers;
     maxCaptchaAttempts?: number;
+    finalSubmissionGuard?: Ds160FinalSubmissionGuard;
+    confirmationTimeoutMs?: number;
   };
 }
 
@@ -205,11 +359,23 @@ export async function orchestrateFill(
   let resumeAttempts = 0;
   const sectionsFilled: string[] = [];
   const sectionsSkipped: string[] = [];
+  const reviewExpectations = new Map<string, ReviewExpectation>();
+  const reviewSnapshots: ReviewSnapshot[] = [];
 
   try {
+    if (options.branchAnswers) assertDs160RequiredAnswers(options.branchAnswers);
+    const workEducationVisible = isDs160WorkEducationVisible(options.branchAnswers ?? answers);
+    const usContactVisible = isDs160UsContactVisible(options.branchAnswers ?? answers);
     // Fill-and-advance loop: detect current page, fill if we have mappings,
     // advance to the next page. Stop when we reach a terminal page.
     while (transitions < MAX_PAGE_TRANSITIONS) {
+      options.assertActive?.();
+      if (session.browser?.isConnected?.() === false && options.recoveryCredentials && resumeAttempts < maxResumeAttempts) {
+        if (await reconnectVerifiedCeacPage(session, options.recoveryCredentials.applicationId, RECOVERABLE_DS160_PAGE_IDS)) {
+          resumeAttempts++;
+          console.log("[orchestrator] Reconnected the same verified CEAC draft before page detection");
+        }
+      }
       // Always use session.page — rebuildSessionForResume may have
       // swapped the Page ref between iterations after a recovery.
       const page = session.page;
@@ -224,7 +390,9 @@ export async function orchestrateFill(
       ) {
         console.log(`[orchestrator] Session expired mid-fill — attempting resume (attempt ${resumeAttempts + 1}/${maxResumeAttempts})`);
         resumeAttempts++;
+        options.assertActive?.();
         await rebuildSessionForResume(session);
+        options.assertActive?.();
         await fillRetrieveApplicationForm(session.page, options.recoveryCredentials);
         // Fall through: next iteration will re-probe the page identity
         // and pick up fill at the section CEAC restored to.
@@ -237,7 +405,9 @@ export async function orchestrateFill(
       if (currentPageId === "session_expired" && options.recoveryCredentials && resumeAttempts < maxResumeAttempts) {
         console.log(`[orchestrator] session_expired page detected — attempting resume (attempt ${resumeAttempts + 1}/${maxResumeAttempts})`);
         resumeAttempts++;
+        options.assertActive?.();
         await rebuildSessionForResume(session);
+        options.assertActive?.();
         await fillRetrieveApplicationForm(session.page, options.recoveryCredentials);
         continue;
       }
@@ -276,6 +446,13 @@ export async function orchestrateFill(
               `[orchestrator] Photo upload did not complete (${reason})`,
             );
             if (options.finalSubmit?.passportNumber) {
+              if (err instanceof IdentixPhotoServiceError) {
+                // Preserve the provider-specific error so the queue/UI can
+                // distinguish an official service error from photo rejection.
+                // The throw still exits before review/sign and the outer
+                // failure path keeps the upload diagnostic.
+                throw err;
+              }
               throw new PhotoRejectedError(
                 `Automatic DS-160 submission stopped because the official photo step failed: ${reason}`,
                 reason,
@@ -389,12 +566,30 @@ export async function orchestrateFill(
       // signature step), we still terminate as handoff_ready — going
       // beyond is a contract violation.
       if (currentPageId === "sign_and_submit") {
+        if (options.finalSubmit?.passportNumber) {
+          const expected = [...reviewExpectations.values()];
+          const diff = verifyOfficialReview(expected, reviewSnapshots);
+          if (!sectionsFilled.includes("personal_information_1") || !sectionsFilled.includes("passport")) {
+            diff.status = "unverified";
+            diff.issues.push({ fieldName: "identity", reason: "identity_pages_not_verified_in_this_run" });
+          }
+          fs.writeFileSync(path.join(outputDir, "official-review-expectations.json"), JSON.stringify(expected, null, 2));
+          fs.writeFileSync(path.join(outputDir, "official-review-diff.json"), JSON.stringify(diff, null, 2));
+          if (diff.status !== "passed") {
+            throw new OfficialReviewVerificationError(diff.status, diff.issues.length);
+          }
+          await recordSectionCheckpoint(page, {
+            ...checkpointOpts,
+            details: { section: "official_review", reviewDiffStatus: "passed", matchedFields: diff.matched },
+          });
+        }
         if (!datArtifact) {
           try { datArtifact = await captureDatArtifact(page, { outputDir }); } catch { /* best effort */ }
         }
         const signIdentity = await detectSignAndSubmit(page);
         if (signIdentity) {
           if (options.finalSubmit?.passportNumber) {
+            options.assertActive?.();
             const submitResult = await signAndSubmitApplication(page, options.finalSubmit);
             const tracked = tracker.snapshot();
             const checkpoint = {
@@ -443,9 +638,15 @@ export async function orchestrateFill(
           console.log(
             `[orchestrator] Sign certification page detected — advancing to final signature controls`,
           );
+          options.assertActive?.();
           const finalSignaturePage = await certifySignAndSubmitPage(page, {
             passportNumber: options.finalSubmit.passportNumber,
+            savedPreparerAssistance: options.finalSubmit.savedPreparerAssistance,
+            savedPreparerDetails: options.finalSubmit.savedPreparerDetails,
             diagnosticPath: path.join(outputDir, "sign-certify-dom.json"),
+            finalSubmissionGuard: options.finalSubmit.finalSubmissionGuard,
+            expectedApplicationId: tracker.snapshot().applicationId,
+            confirmationTimeoutMs: options.finalSubmit.confirmationTimeoutMs,
           });
           session.page = finalSignaturePage;
           const afterSignCertify = await detectPage(finalSignaturePage);
@@ -524,19 +725,76 @@ export async function orchestrateFill(
       }
 
       // Fill fields if we have mappings for this page
-      const mappings = currentPageId !== "unknown"
+      const ageGatedWorkPage = !workEducationVisible && isDs160WorkEducationPage(currentPageId);
+      const branchGatedUsContactPage = !usContactVisible && isDs160UsContactPage(currentPageId);
+      const mappings = currentPageId !== "unknown" && !ageGatedWorkPage && !branchGatedUsContactPage
         ? PAGE_FILL_MAP[currentPageId]
         : undefined;
 
       if (mappings) {
         console.log(`[orchestrator] Filling page: ${currentPageId}`);
-        await fillPageFields(page, mappings, answers, profile);
+        const branch = createDs160BranchPolicy(options.branchAnswers ?? answers);
+        const observeVerified = (field: Omit<ReviewExpectation, "section">) => {
+          const expected = { ...field, section: currentPageId };
+          reviewExpectations.set(`${currentPageId}:${field.controlId}:${field.fieldName}`, expected);
+        };
+        let nonRepeatMappings = Object.fromEntries(Object.entries(mappings).filter(([key]) =>
+          !ds160MappingRepeatGroup(key) && branch.isMappingActive(key)));
+        if (currentPageId === "previous_us_travel") {
+          nonRepeatMappings = await resolvePreviousTravelMappings(page, nonRepeatMappings, branch.values);
+        }
+        const fillStartedAt = Date.now();
+        const fillStats = { compared: 0, unchanged: 0, writeAttempts: 0 };
+        const phaseMs = { fields: 0, repeats: 0, readback: 0 };
+        const observeStats = (stats: Ds160FillStats): void => {
+          fillStats.compared += stats.compared;
+          fillStats.unchanged += stats.unchanged;
+          fillStats.writeAttempts += stats.writeAttempts;
+        };
+        try {
+          await fillPageFields(page, nonRepeatMappings, answers, profile, { requireMappedAnswers: true, observeStats });
+          phaseMs.fields = Date.now() - fillStartedAt;
+          const repeatStartedAt = Date.now();
+          await fillDs160RepeatGroups({
+          page, pageId: currentPageId, answers: ds160RepeatAnswers(branch.values, answers), mappings,
+          fillRow: async row => fillPageFields(page, row.mappings, row.answers, {}, {
+            scope: row.scope, resolveScope: row.resolveScope, requireMappedAnswers: true, observeStats,
+          }),
+          verifyRow: async row => verifyPageFieldValues(row.scope ?? page, row.mappings, row.answers, {}, {
+            requireMappedAnswers: true, observeVerified,
+          }),
+          });
+          phaseMs.repeats = Date.now() - repeatStartedAt;
+          const readbackStartedAt = Date.now();
+          await verifyPageFieldValues(page, nonRepeatMappings, answers, profile, { requireMappedAnswers: true, observeVerified });
+          phaseMs.readback = Date.now() - readbackStartedAt;
+        } catch (fillError) {
+          options.assertActive?.();
+          if (currentPageId !== "unknown" && options.recoveryCredentials && resumeAttempts < maxResumeAttempts &&
+            await reconnectVerifiedCeacPage(session, options.recoveryCredentials.applicationId, [currentPageId])) {
+            resumeAttempts++;
+            console.log(`[orchestrator] Reconnected the same CEAC page; repeating verified fill for ${currentPageId}`);
+            continue;
+          }
+          throw fillError;
+        }
+        if (currentPageId === "family_relatives") {
+          await assertFamilyUnknownParentBranches(page, branch.values);
+        }
+        console.log(`[orchestrator] Page verified: ${currentPageId}; elapsedMs=${Date.now() - fillStartedAt}; compared=${fillStats.compared}; unchanged=${fillStats.unchanged}; writeAttempts=${fillStats.writeAttempts}; fieldsMs=${phaseMs.fields}; repeatsMs=${phaseMs.repeats}; readbackMs=${phaseMs.readback}`);
         sectionsFilled.push(currentPageId);
       } else {
-        console.log(`[orchestrator] No mappings for page: ${currentPageId} — advancing`);
-        if (currentPageId !== "unknown") {
+        if (ageGatedWorkPage || branchGatedUsContactPage) {
           sectionsSkipped.push(currentPageId);
+        } else if (currentPageId !== "review") {
+          throw new UnexpectedPageError("CEAC page has no verified filling path; automatic navigation stopped.", {
+            detected: currentPageId,
+          });
         }
+        const applicationId = tracker.snapshot().applicationId;
+        if (!applicationId) throw new Error("Official review cannot be verified without the captured application identity.");
+        reviewSnapshots.push(await captureOfficialReviewPage(page, applicationId, outputDir, reviewSnapshots.length));
+        sectionsSkipped.push(currentPageId);
       }
 
       // Record section checkpoint after filling
@@ -552,17 +810,29 @@ export async function orchestrateFill(
         try {
           datArtifact = await captureDatArtifact(page, { outputDir });
           console.log(`[orchestrator] .dat captured at ${currentPageId}`);
-          await waitForAspNetPostback(page, 8_000);
-        } catch {
+        } catch (err) {
+          assertCeacPostbackHealthy(page);
+          // An unavailable optional backup must not prevent normal Next
+          // navigation. Preserve portal gates, identity errors and failed
+          // postbacks instead of treating them as download failures.
+          if (err instanceof CeacError && !(
+            err.code === "NAVIGATION_FAILED" &&
+            err.context.details?.action === "save_to_file" &&
+            err.context.details?.phase !== "aspnet_postback"
+          )) throw err;
           console.warn(`[orchestrator] .dat capture failed at ${currentPageId} — continuing`);
-          await waitForAspNetPostback(page, 5_000);
         }
+        // Settlement failures are never optional, even if capture failed.
+        await waitForAspNetPostback(page, 8_000);
       }
 
       // Determine next page and advance.
       // We don't hardcode the expected destination since CEAC may skip
       // conditional pages. Instead we accept any known DS-160 page.
-      const nextPageCandidates = getExpectedNextPages(currentPageId);
+      const nextPageCandidates = getExpectedNextPages(currentPageId, {
+        skipWorkEducation: !workEducationVisible,
+        skipUsContact: !usContactVisible,
+      });
 
       // Wait for the primary Next button to be attached before advancing.
       // Some CEAC pages re-render their button row asynchronously after
@@ -576,11 +846,34 @@ export async function orchestrateFill(
       }
 
       try {
+        // CEAC disables Next: PHOTO on Security and Background: Part 5. The
+        // Back postback is the observed save boundary for this page; only
+        // after it lands on Part 4 do we follow the official PHOTO sidebar
+        // link. Run this after the shared Next wait so late-mounted controls
+        // are classified by their actual disabled/value state. Keeping it in
+        // the navigation try preserves the normal recovery path on failure.
+        if (currentPageId === "security_background_5") {
+          const photoFallbackUsed = await navigateSecurityFiveToPhoto(page, {
+            assertActive: options.assertActive,
+          });
+          if (photoFallbackUsed) {
+            transitions++;
+            continue;
+          }
+        }
+
         await advance(page, {
           from: currentPageId !== "unknown" ? currentPageId : "start",
           to: nextPageCandidates,
         });
       } catch (navErr) {
+        options.assertActive?.();
+        if (currentPageId !== "unknown" && options.recoveryCredentials && resumeAttempts < maxResumeAttempts &&
+          await reconnectVerifiedCeacPage(session, options.recoveryCredentials.applicationId, [currentPageId, ...nextPageCandidates])) {
+          resumeAttempts++;
+          console.log("[orchestrator] Reconnected and verified the official page after navigation");
+          continue;
+        }
         // Navigation failed — check what we actually landed on.
         const recheck = await detectPage(page);
         if (recheck.id === "sign_and_submit") {
@@ -607,6 +900,7 @@ export async function orchestrateFill(
   } catch (err) {
     // Preserve recovery metadata on any failure. Use session.page since
     // we moved the per-iteration page binding into the loop body.
+    console.warn(`[orchestrator] Failure transportConnected=${session.browser?.isConnected?.()} pageClosed=${session.page?.isClosed?.()}`);
     const recovery = await preserveRecoveryOnFailure({
       tracker,
       error: err,
@@ -633,21 +927,27 @@ async function selectCeacOption(el: Locator, value: string): Promise<void> {
     return;
   } catch (firstError) {
     const normalizedTarget = value.trim().toLowerCase();
-    const matchedValue = await el.evaluate((select, target) => {
+    if (!normalizedTarget) throw firstError;
+    const match = await el.evaluate((select, target) => {
       if (!(select instanceof HTMLSelectElement)) return null;
-      const options = Array.from(select.options);
-      const match = options.find((option) => {
+      const options = Array.from(select.options).filter((option) => !option.disabled);
+      const exactMatches = options.filter((option) => {
         if (option.disabled) return false;
         const optionValue = option.value.trim().toLowerCase();
         const optionText = option.text.trim().toLowerCase();
-        return optionValue === target || optionText === target || optionText.includes(target);
+        return optionValue === target || optionText === target;
       });
-      return match?.value ?? null;
+      if (exactMatches.length === 1) {
+        return { kind: "match" as const, value: exactMatches[0].value };
+      }
+      if (exactMatches.length > 1) return { kind: "ambiguous" as const };
+
+      return { kind: "none" as const };
     }, normalizedTarget).catch(() => null);
 
-    if (!matchedValue) throw firstError;
+    if (!match || match.kind !== "match") throw firstError;
     try {
-      await el.selectOption(matchedValue, { timeout: 5_000 });
+      await el.selectOption(match.value, { timeout: 5_000 });
       return;
     } catch {
       await el.evaluate((node, nextValue) => {
@@ -655,110 +955,119 @@ async function selectCeacOption(el: Locator, value: string): Promise<void> {
         select.value = nextValue;
         select.dispatchEvent(new Event("input", { bubbles: true }));
         select.dispatchEvent(new Event("change", { bubbles: true }));
-      }, matchedValue);
+      }, match.value);
     }
   }
 }
+
+const SIGN_CERTIFY_SUBMIT_SELECTOR = [
+  'input[type="submit"][value*="Sign and Submit" i]',
+  'input[type="button"][value*="Sign and Submit" i]',
+  'button:has-text("Sign and Submit")',
+  'input[id*="Sign"][type="submit"]',
+].join(", ");
 
 async function certifySignAndSubmitPage(
   page: Page,
-  options: { passportNumber: string; diagnosticPath?: string },
+  options: {
+    passportNumber: string;
+    savedPreparerAssistance?: string;
+    savedPreparerDetails?: Ds160PreparerAnswers;
+    diagnosticPath?: string;
+    finalSubmissionGuard?: Ds160FinalSubmissionGuard;
+    expectedApplicationId?: string | null;
+    confirmationTimeoutMs?: number;
+  },
 ): Promise<Page> {
   if (options.diagnosticPath) await dumpSignCertifyDom(page, options.diagnosticPath);
-  await choosePreparerNo(page);
-  await fillSignCertifyPassportNumber(page, options.passportNumber.trim());
+  await applyExplicitPreparerAnswer(page, options.savedPreparerAssistance, options.savedPreparerDetails);
+  await fillVerifiedPassportSignature(page, options.passportNumber);
   await solveSignCertifyCaptcha(page);
-  const activePage = await clickSignCertifySubmit(page);
 
-  await activePage.evaluate(() => {
-    const maybeValidNavigation = (window as unknown as { ValidNavigation?: () => unknown }).ValidNavigation;
-    if (typeof maybeValidNavigation === "function") maybeValidNavigation();
-    const maybeValidatorUpdate = (window as unknown as { ValidatorUpdateIsValid?: () => unknown }).ValidatorUpdateIsValid;
-    if (typeof maybeValidatorUpdate === "function") maybeValidatorUpdate();
-  }).catch(() => undefined);
-
-  const afterSubmit = await detectPage(activePage);
-  if (afterSubmit.id === "confirmation") return activePage;
-
-  const next = activePage
-    .locator('input[type="submit"].next, input[type="submit"][value^="Next:"], input[id*="UpdateButton"]')
-    .first();
-  await next.waitFor({ state: "visible", timeout: 10_000 });
-  await activePage.waitForFunction(
-    (selector) => {
-      const button = document.querySelector(selector) as HTMLInputElement | null;
-      return Boolean(button && !button.disabled);
-    },
-    'input[type="submit"].next, input[type="submit"][value^="Next:"], input[id*="UpdateButton"]',
-    { timeout: 10_000 },
-  ).catch(async () => {
-    await next.evaluate((el) => {
-      (el as HTMLInputElement).disabled = false;
-      el.removeAttribute("disabled");
-    });
-  });
-  return activePage;
-}
-
-async function choosePreparerNo(page: Page): Promise<void> {
-  const noRadio = page
-    .locator(
-      [
-        'input[type="radio"][value="N"]',
-        'input[type="radio"][value="NO"]',
-        'input[type="radio"][value="No"]',
-        'input[type="radio"][id$="_rblPreparer_1"]',
-        'input[type="radio"][name*="Preparer"][value="N"]',
-      ].join(", "),
-    )
-    .first();
-  if ((await noRadio.count().catch(() => 0)) > 0) {
-    await noRadio.check({ force: true, timeout: 5_000 }).catch(async () => {
-      await noRadio.click({ force: true, timeout: 5_000 });
-    });
-    return;
+  const signButton = page.locator(SIGN_CERTIFY_SUBMIT_SELECTOR).first();
+  const hasSignButton = (await signButton.count().catch(() => 0)) > 0;
+  const continuation = hasSignButton ? await prepareConfirmationContinuation(page) : null;
+  let guardReserved = false;
+  let guardOutcomeAttempted = false;
+  if (hasSignButton) {
+    if (!options.finalSubmissionGuard) {
+      throw new Error("Persistent DS-160 final submission guard is required before the final click.");
+    }
+    const reservation = await options.finalSubmissionGuard.begin();
+    if (reservation.kind !== "acquired") {
+      throw new Error(
+        `DS-160 final submission is already ${reservation.kind.replace("already_", "")}; recover the existing CEAC attempt before retrying.`,
+      );
+    }
+    guardReserved = true;
   }
 
-  await page.evaluate(() => {
-    const radios = Array.from(document.querySelectorAll('input[type="radio"]')) as HTMLInputElement[];
-    for (const radio of radios) {
-      const text = (radio.closest("label, td, span, div")?.textContent ?? "").trim();
-      const isNo = /^no$/i.test(text) || /\bno\b/i.test(text);
-      radio.checked = isNo;
-      radio.dispatchEvent(new Event("input", { bubbles: true }));
-      radio.dispatchEvent(new Event("change", { bubbles: true }));
+  try {
+    const activePage = await clickSignCertifySubmit(page);
+
+    await activePage.evaluate(() => {
+      const maybeValidNavigation = (window as unknown as { ValidNavigation?: () => unknown }).ValidNavigation;
+      if (typeof maybeValidNavigation === "function") maybeValidNavigation();
+      const maybeValidatorUpdate = (window as unknown as { ValidatorUpdateIsValid?: () => unknown }).ValidatorUpdateIsValid;
+      if (typeof maybeValidatorUpdate === "function") maybeValidatorUpdate();
+    }).catch(() => undefined);
+
+    const expectedApplicationId = options.expectedApplicationId?.trim().toUpperCase() ?? null;
+    const confirmationTimeoutMs = options.confirmationTimeoutMs ?? 45_000;
+    if (!Number.isFinite(confirmationTimeoutMs) || confirmationTimeoutMs <= 0) {
+      throw new Error("confirmationTimeoutMs must be a positive number.");
     }
-  }).catch(() => undefined);
-}
+    const officialConfirmation = expectedApplicationId
+      ? await waitForDs160SubmissionConfirmation(activePage, expectedApplicationId, confirmationTimeoutMs, continuation)
+      : false;
+    if (officialConfirmation) {
+      const bodyText = await activePage.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+      const applicationId = extractApplicationId(bodyText);
+      if (!applicationId || applicationId.toUpperCase() !== expectedApplicationId) {
+        throw new Error("CEAC confirmation did not contain the expected Application ID.");
+      }
+      if (!options.finalSubmissionGuard || !guardReserved) {
+        throw new Error("CEAC confirmation was reached without a guarded final submission attempt.");
+      }
+      guardOutcomeAttempted = true;
+      await options.finalSubmissionGuard.markConfirmed({
+        officialApplicationId: applicationId,
+        confirmationNumber: extractConfirmationNumber(bodyText),
+        confirmationPageUrl: activePage.url(),
+      });
+      return activePage;
+    }
 
-async function fillSignCertifyPassportNumber(page: Page, passportNumber: string): Promise<void> {
-  const filled = await page.evaluate((value) => {
-    const inputs = Array.from(
-      document.querySelectorAll('input[type="text"], input[type="password"], input:not([type])'),
-    ) as HTMLInputElement[];
-    const editable = inputs.filter((input) => {
-      if (input.disabled || input.readOnly) return false;
-      const rect = input.getBoundingClientRect();
-      if (rect.width <= 0 || rect.height <= 0) return false;
-      const key = `${input.id} ${input.name}`.toLowerCase();
-      return !/captcha|code|answer/i.test(key);
-    });
-    const passportInput =
-      editable.find((input) => /passport|travel/i.test(`${input.id} ${input.name}`)) ??
-      editable[0] ??
-      null;
-    if (!passportInput) return false;
+    if (guardReserved && options.finalSubmissionGuard) {
+      guardOutcomeAttempted = true;
+      await options.finalSubmissionGuard.markUnknown("confirmation_unknown").catch(() => undefined);
+      throw new Error("CEAC final submission click did not reach a verified confirmation page.");
+    }
 
-    passportInput.value = value;
-    passportInput.dispatchEvent(new Event("input", { bubbles: true }));
-    passportInput.dispatchEvent(new Event("change", { bubbles: true }));
-    passportInput.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true }));
-    passportInput.dispatchEvent(new Event("blur", { bubbles: true }));
-    return true;
-  }, passportNumber);
+    const afterSubmit = await detectPage(activePage);
+    if (afterSubmit.id === "confirmation") {
+      throw new Error("CEAC confirmation was reached without a guarded final submission attempt.");
+    }
 
-  if (!filled) {
-    throw new Error("Could not find SignCertify passport/travel document field.");
+    const next = activePage
+      .locator('input[type="submit"].next, input[type="submit"][value^="Next:"], input[id*="UpdateButton"]')
+      .first();
+    await next.waitFor({ state: "visible", timeout: 10_000 });
+    await activePage.waitForFunction(
+      (selector) => {
+        const button = document.querySelector(selector) as HTMLInputElement | null;
+        return Boolean(button && !button.disabled);
+      },
+      'input[type="submit"].next, input[type="submit"][value^="Next:"], input[id*="UpdateButton"]',
+      { timeout: 10_000 },
+    );
+    return activePage;
+  } catch (error) {
+    if (guardReserved && options.finalSubmissionGuard && !guardOutcomeAttempted) {
+      guardOutcomeAttempted = true;
+      await options.finalSubmissionGuard.markUnknown("confirmation_unknown").catch(() => undefined);
+    }
+    throw error;
   }
 }
 
@@ -785,16 +1094,7 @@ async function solveSignCertifyCaptcha(page: Page): Promise<void> {
 }
 
 async function clickSignCertifySubmit(page: Page): Promise<Page> {
-  const signButton = page
-    .locator(
-      [
-        'input[type="submit"][value*="Sign and Submit" i]',
-        'input[type="button"][value*="Sign and Submit" i]',
-        'button:has-text("Sign and Submit")',
-        'input[id*="Sign"][type="submit"]',
-      ].join(", "),
-    )
-    .first();
+  const signButton = page.locator(SIGN_CERTIFY_SUBMIT_SELECTOR).first();
   if ((await signButton.count().catch(() => 0)) === 0) return page;
 
   const context = page.context();
@@ -841,7 +1141,7 @@ async function buildSubmittedResultFromConfirmation(
   const tracked = options.tracker.snapshot();
   const submittedAt = new Date().toISOString();
   const applicationId = extractApplicationId(bodyText) ?? tracked.applicationId ?? null;
-  const confirmationNumber = extractConfirmationNumber(bodyText) ?? applicationId;
+  const confirmationNumber = extractConfirmationNumber(bodyText);
   const checkpoint = {
     action: "manual" as const,
     at: submittedAt,
@@ -929,21 +1229,136 @@ async function forceTextValue(el: Locator, value: string): Promise<void> {
   }, value);
 }
 
-const RADIO_FIELDS_REQUIRING_CLICK: ReadonlySet<string> = new Set([
-  "has_immediate_us_relatives",
-  // CEAC's passport lost/stolen RadioButtonList participates in WebForms
-  // client validation. A DOM-only checked assignment looks selected but
-  // does not run the control's click handler, so Next can remain on Passport.
-  "passport_lost_or_stolen",
-]);
+async function findVisibleField(
+  page: Page | Locator,
+  selector: string,
+  mapping: FormFieldMapping,
+): Promise<Locator | null> {
+  const all = page.locator(selector);
+  const count = await all.count();
+  let match: Locator | null = null;
+  for (let i = 0; i < count; i += 1) {
+    const candidate = all.nth(i);
+    const [visible, enabled, editable] = await Promise.all([
+      candidate.isVisible().catch(() => false),
+      candidate.isEnabled().catch(() => false),
+      mapping.type === "text" || mapping.type === "date"
+        ? candidate.isEditable().catch(() => false) : Promise.resolve(true),
+    ]);
+    if (!visible || !enabled || !editable) continue;
+    if (mapping.type === "radio") return candidate;
+    if (match) throw new Error("mapped field selector is ambiguous within its row");
+    match = candidate;
+  }
+  return match;
+}
 
-async function fillPageFields(
+async function findVisibleRadio(
+  page: Page | Locator,
+  selector: string,
+  value: string,
+): Promise<Locator | null> {
+  const options = page.locator(`${selector}[value="${value}"]`);
+  const count = await options.count();
+  let match: Locator | null = null;
+  for (let i = 0; i < count; i += 1) {
+    const candidate = options.nth(i);
+    const [visible, enabled] = await Promise.all([
+      candidate.isVisible().catch(() => false), candidate.isEnabled().catch(() => false),
+    ]);
+    if (!visible || !enabled) continue;
+    if (match) throw new Error("radio selector is ambiguous within its row");
+    match = candidate;
+  }
+  return match;
+}
+
+async function verifyFilledField(
+  page: Page | Locator,
+  selector: string,
+  mapping: FormFieldMapping,
+  value: string,
+  candidate?: Locator,
+): Promise<Ds160ControlObservation> {
+  const field = mapping.type === "radio"
+    ? await findVisibleRadio(page, selector, value)
+    : candidate ?? await findVisibleField(page, selector, mapping);
+  if (!field) throw new Error("field could not be located after fill");
+  const observed = await observeDs160Control(field, mapping.type, value);
+  if (!observed.matches) throw new Error("field value could not be verified");
+  return observed;
+}
+
+export interface Ds160FillStats {
+  compared: number;
+  unchanged: number;
+  writeAttempts: number;
+}
+
+export interface FillPageFieldsOptions {
+  /** Scope repeated controls to one observed official row. */
+  scope?: Locator;
+  /** Keep the same repeated row, but rediscover its conditional controls. */
+  resolveScope?: () => Promise<Locator>;
+  /** Evaluate against the applicant's selected branch before touching DOM. */
+  isFieldActive?: (fieldName: string) => boolean;
+  /** An active supplied answer must have a visible, verifiable control. */
+  requireMappedAnswers?: boolean;
+  /** Aggregate operation counts only; never applicant answers or control values. */
+  observeStats?: (stats: Ds160FillStats) => void;
+}
+
+/** A successful batch replaces reads only. Any uncertainty keeps the old path. */
+async function readMatchingPageSnapshot(
+  scope: Page | Locator,
+  mappings: Record<string, FormFieldMapping>,
+  answers: Record<string, string>,
+  profile: Record<string, unknown>,
+  choicesOnly = false,
+): Promise<Array<Omit<ReviewExpectation, "section">> | null> {
+  const page = "mainFrame" in scope ? scope : scope.page();
+  assertCeacPostbackHealthy(page);
+  const snapshot = await snapshotDs160Fields(scope, mappings, answers, profile, { choicesOnly });
+  assertCeacPostbackHealthy(page);
+  if (!snapshot.usedBatchedEvaluation || !snapshot.complete) return null;
+  const verified: Array<Omit<ReviewExpectation, "section">> = [];
+  for (const fieldName of snapshot.requestedFieldNames) {
+    const field = snapshot.fields[fieldName];
+    const observed = field.observation;
+    const value = answers[fieldName] ?? (profile[fieldName] as string | undefined);
+    if (field.status !== "verified" || !field.sawEligible || field.ambiguous ||
+      !observed?.canSkipWrite || !observed.controlId ||
+      ((field.type === "text" || field.type === "date") && observed.maxLength >= 0 &&
+        value !== undefined && value.length > observed.maxLength)) return null;
+    verified.push({ fieldName, controlId: observed.controlId, value: observed.displayValue,
+      ...(value === "" ? { allowEmptyValue: true } : {}) });
+  }
+  return verified;
+}
+
+export async function fillPageFields(
   page: Page,
   mappings: Record<string, FormFieldMapping>,
   answers: Record<string, string>,
   profile: Record<string, unknown>,
+  options: FillPageFieldsOptions = {},
 ): Promise<void> {
   const debug = process.env.CEAC_FILL_DEBUG === "1";
+  const stats: Ds160FillStats = { compared: 0, unchanged: 0, writeAttempts: 0 };
+  installCeacPostbackMonitor(page);
+  assertCeacPostbackHealthy(page);
+  let scope = options.scope ?? page;
+  mappings = Object.fromEntries(Object.entries(mappings).filter(([key]) =>
+    options.isFieldActive?.(key) !== false));
+  const hasRequestedAnswer = Object.entries(mappings).some(([key, mapping]) => {
+    const value = answers[key] ?? (profile[key] as string | undefined) ?? null;
+    return value !== null && (value !== "" || (answers[key] === "" &&
+      (mapping.type === "text" || mapping.type === "date")));
+  });
+  if (!hasRequestedAnswer) {
+    options.observeStats?.(stats);
+    return;
+  }
 
   // Warm-up wait: CEAC sections rendered inside an ASP.NET FormView
   // (e.g. passport) sometimes take an extra postback cycle to bind their
@@ -958,14 +1373,15 @@ async function fillPageFields(
   if (allSelectors.length > 0) {
     const combinedSelector = allSelectors.join(", ");
     try {
-      await page
+      await scope
         .locator(combinedSelector)
+        .filter({ visible: true })
         .first()
         .waitFor({ state: "visible", timeout: 10_000 });
     } catch {
-      // If nothing ever appears, fall through — fillPageFields will warn
-      // per field and the orchestrator's downstream Next click will still
-      // surface a CEAC validation error if values are required.
+      // If nothing ever appears, fall through — the per-field visibility
+      // check below preserves conditional skips while visible failures become
+      // hard errors instead of being carried into the Next click.
       if (debug) console.log(`[fill] warm-up wait timed out — no mapping selector became visible`);
     }
     // Give CEAC's MSAJAX one more tick to finish binding any companion
@@ -973,117 +1389,104 @@ async function fillPageFields(
     await waitForAspNetPostback(page, 3_000);
   }
 
+  // A recovered page often already contains every requested value. Read it
+  // atomically once instead of making several cross-region calls per field.
+  // A single mismatch/unsupported selector falls through to the existing
+  // sequential filler, including NA clearing and controller settlement.
+  if (options.resolveScope) scope = await options.resolveScope();
+  const unchangedPage = await readMatchingPageSnapshot(scope, mappings, answers, profile);
+  if (unchangedPage !== null) {
+    if (options.resolveScope) await options.resolveScope();
+    assertCeacPostbackHealthy(page);
+    stats.compared = unchangedPage.length;
+    stats.unchanged = unchangedPage.length;
+    options.observeStats?.(stats);
+    return;
+  }
+
   for (const [fieldName, mapping] of Object.entries(mappings)) {
+    assertCeacPostbackHealthy(page);
     const value = answers[fieldName]
       ?? (profile[fieldName] as string | undefined)
       ?? null;
 
-    if (!value) continue;
+    // An explicitly cleared text answer must clear the retrieved draft too.
+    // Missing answers and empty choice values do not authorize a replacement.
+    if (value === null || (value === "" &&
+      (answers[fieldName] !== "" || (mapping.type !== "text" && mapping.type !== "date")))) continue;
+
+    if (options.resolveScope) scope = await options.resolveScope();
+
+    // Retrieve restores the official draft's control state, including a
+    // checked Does Not Apply/Unknown companion. An explicit current text/date
+    // answer must first clear that companion so CEAC re-enables the field.
+    // Missing answers and explicit NA tokens intentionally leave the draft
+    // untouched.
+    if (
+      (mapping.type === "text" || mapping.type === "date") &&
+      Object.prototype.hasOwnProperty.call(answers, fieldName) &&
+      hasMeaningfulDs160TextAnswer(answers[fieldName])
+    ) {
+      await clearDs160NaCompanionBeforeTextFill({
+        page,
+        scope,
+        fieldName,
+        mappings,
+        findVisibleField,
+        resolveScope: options.resolveScope,
+        waitForPostback: currentPage => waitForAspNetPostback(currentPage, 8_000),
+      });
+      if (options.resolveScope) scope = await options.resolveScope();
+    }
 
     const selectors = mapping.selector.split(",").map((s) => s.trim());
     let filled = false;
-    let lastErr: unknown = null;
-    // True when at least one selector branch matched DOM nodes but every
-    // match was either hidden or non-editable — i.e., the field exists
-    // on the page but doesn't apply to this applicant (e.g., the social
-    // media identifier when "NONE" is the chosen platform). We suppress
-    // the missing-field warning in that case.
-    let skippedAsInapplicable = false;
+    // A selector can match a hidden template or a disabled conditional field.
+    // Those are legitimate skips; a visible field is different and must fail
+    // closed if its value cannot be applied and verified.
+    let sawVisibleCandidate = false;
 
     for (const selector of selectors) {
       try {
-        const all = page.locator(selector);
-        let count = await all.count();
-        if (count === 0) {
-          await all.first().waitFor({ state: "attached", timeout: 2_500 }).catch(() => undefined);
-          count = await all.count();
+        const el = await findVisibleField(scope, selector, mapping);
+        if (!el) continue;
+        sawVisibleCandidate = true;
+        if (debug) console.log(`[fill] ${fieldName} (${mapping.type}) → matched selector "${selector}"`);
+
+        const target = mapping.type === "radio" ? await findVisibleRadio(scope, selector, value) : el;
+        if (!target) throw new Error("radio option is unavailable");
+        const existing = await observeDs160Control(target, mapping.type, value);
+        stats.compared++;
+        if (existing.ambiguousSelect) throw new Error("official option is ambiguous");
+        if ((mapping.type === "text" || mapping.type === "date") &&
+          Number.isInteger(existing.maxLength) && existing.maxLength >= 0 && value.length > existing.maxLength) {
+          throw new FieldLengthError(fieldName, mapping.label, existing.maxLength);
         }
-        if (count === 0) continue;
-        // Pick the first VISIBLE match. CEAC repeaters (e.g. dtlSocial)
-        // sometimes leave a hidden template row in the DOM that matches
-        // our selector but isn't fillable — skipping silently here
-        // keeps the warning-noise floor low without changing behavior
-        // for the common case where the matched element is the only
-        // one and is visible.
-        let el: ReturnType<typeof page.locator> | null = null;
-        for (let i = 0; i < count; i += 1) {
-          const candidate = all.nth(i);
-          if (mapping.type === "checkbox" || mapping.type === "radio") {
-            el = candidate;
-            break;
-          }
-          if (mapping.type === "select") {
-            const enabled = await candidate.isEnabled().catch(() => false);
-            if (!enabled) continue;
-            el = candidate;
-            break;
-          }
-          const visible = await candidate.isVisible().catch(() => false);
-          if (!visible) continue;
-          // For text fills, also require the element to be editable:
-          // CEAC disables fields like social_media_identifier when its
-          // sibling dropdown is set to "NONE", and we don't want to burn
-          // the 5s actionability timeout on those.
-          if (mapping.type === "text") {
-            const editable = await candidate.isEditable().catch(() => false);
-            if (!editable) continue;
-          }
-          el = candidate;
+        if (existing.canSkipWrite) {
+          // Retrieved drafts usually contain the requested value already.
+          // Avoid generating change events/postbacks for identical values;
+          // the complete page is still re-read after all dependent fields.
+          assertCeacPostbackHealthy(page);
+          stats.unchanged++;
+          filled = true;
           break;
         }
-        if (!el && mapping.type === "text") {
-          // Some CEAC controls are rendered below the initial viewport or
-          // inside tables that confuse actionability checks. As a fallback,
-          // use the first enabled text input and assign through DOM events.
-          for (let i = 0; i < count; i += 1) {
-            const candidate = all.nth(i);
-            const enabled = await candidate.isEnabled().catch(() => false);
-            if (!enabled) continue;
-            el = candidate;
-            break;
-          }
-        }
-        if (!el) {
-          skippedAsInapplicable = true;
-          continue;
-        }
-        if (debug) console.log(`[fill] ${fieldName} (${mapping.type}) → matched selector "${selector}", trying value="${value}"`);
+
+        stats.writeAttempts++;
 
         if (mapping.type === "radio") {
           // Radio: selector targets the RadioButtonList base. Append
           // [value="<val>"] so we target only the option with the
           // matching value. (The outer loop already split the selector
           // by comma so `selector` here is a single branch.)
-          const specific = `${selector}[value="${value}"]`;
-          const radio = page.locator(specific).first();
-          const radioCount = await radio.count();
-          if (radioCount > 0) {
-            if (RADIO_FIELDS_REQUIRING_CLICK.has(fieldName)) {
-              await radio.click({ timeout: 5_000 });
-            } else {
-              await radio.evaluate((node) => {
-                const input = node as HTMLInputElement;
-                input.checked = true;
-                input.dispatchEvent(new Event("input", { bubbles: true }));
-                input.dispatchEvent(new Event("change", { bubbles: true }));
-              });
-            }
-          } else {
-            continue; // No matching radio option
-          }
+          await target.check({ timeout: 5_000 });
         } else if (mapping.type === "select") {
-          await selectCeacOption(el, value);
+          await selectCeacOption(el, existing.resolvedSelectValue ?? value);
         } else if (mapping.type === "checkbox") {
           // Checkbox: interpret the value as a truthy/falsy flag. "Y",
           // "true", "1", "yes" → check; everything else → uncheck.
           const shouldCheck = /^(Y|1|true|yes)$/i.test(value);
-          await el.evaluate((node, checked) => {
-            const input = node as HTMLInputElement;
-            input.checked = Boolean(checked);
-            input.dispatchEvent(new Event("input", { bubbles: true }));
-            input.dispatchEvent(new Event("change", { bubbles: true }));
-            input.checked = Boolean(checked);
-          }, shouldCheck);
+          await el.setChecked(shouldCheck, { timeout: 5_000 });
         } else {
           try {
             await el.fill(value, { timeout: 5_000 });
@@ -1097,70 +1500,101 @@ async function fillPageFields(
         // or enables dependent fields. Wait for it to settle before we
         // try the next mapping — otherwise subsequent fills target a
         // transient DOM and silently miss.
-        await waitForAspNetPostback(page, 8_000);
+        if (mapping.type === "select" && fieldName === "purpose_of_trip_specify") {
+          // CEAC's subtype select schedules its AutoPostBack on a later task.
+          // Keep Next from racing that update and opening the blank visa-class
+          // modal observed during live B1/B2 discovery.
+          await waitForAspNetPostbackStable(page, 8_000);
+        } else {
+          await waitForAspNetPostback(page, 8_000);
+        }
         if (mapping.type === "checkbox") {
           await page.waitForTimeout(750);
         }
 
+        if (options.resolveScope) scope = await options.resolveScope();
+        await verifyFilledField(scope, selector, mapping, value);
+
         filled = true;
         break;
       } catch (err) {
-        lastErr = err;
-        if (debug) console.log(`[fill]   selector "${selector}" threw: ${err instanceof Error ? err.message.slice(0, 120) : String(err)}`);
+        assertCeacPostbackHealthy(page);
+        if (err instanceof FieldLengthError || err instanceof CeacError) throw err;
+        if (debug) console.log(`[fill] ${fieldName} (${mapping.type}) selector branch failed`);
       }
     }
 
-    if (!filled && !skippedAsInapplicable) {
-      const hint = lastErr instanceof Error ? ` — last err: ${lastErr.message.slice(0, 100)}` : "";
-      console.warn(`[orchestrator] Could not fill "${mapping.label}" on current page${hint}`);
+    if (!filled && (sawVisibleCandidate || (options.requireMappedAnswers && value !== ""))) {
+      assertCeacPostbackHealthy(page);
+      throw new FieldFillError(fieldName, mapping.label);
     }
   }
 
-  await reinforceChoiceFields(page, mappings, answers, profile, debug);
+  if (options.resolveScope) scope = await options.resolveScope();
+  await verifyPageFieldValues(scope, mappings, answers, profile, {
+    requireMappedAnswers: options.requireMappedAnswers,
+    choicesOnly: !options.requireMappedAnswers,
+  });
+  options.observeStats?.(stats);
 }
 
-async function reinforceChoiceFields(
-  page: Page,
+/** Re-read after all postbacks, including those caused by later repeat rows. */
+export async function verifyPageFieldValues(
+  page: Page | Locator,
   mappings: Record<string, FormFieldMapping>,
   answers: Record<string, string>,
   profile: Record<string, unknown>,
-  debug: boolean,
+  options: {
+    requireMappedAnswers?: boolean;
+    choicesOnly?: boolean;
+    observeVerified?: (field: Omit<ReviewExpectation, "section">) => void;
+  } = {},
 ): Promise<void> {
+  const activePage = "mainFrame" in page ? page : page.page();
+  // This is a new snapshot after the last write/repeat postback. Never reuse
+  // the pre-fill snapshot: a later controller can replace an earlier field.
+  const matching = await readMatchingPageSnapshot(page, mappings, answers, profile, options.choicesOnly);
+  if (matching !== null) {
+    for (const field of matching) options.observeVerified?.(field);
+    return;
+  }
   for (const [fieldName, mapping] of Object.entries(mappings)) {
-    if (mapping.type !== "checkbox" && mapping.type !== "radio") continue;
+    assertCeacPostbackHealthy(activePage);
+    if (options.choicesOnly && mapping.type !== "checkbox" && mapping.type !== "radio") continue;
     const value = answers[fieldName]
       ?? (profile[fieldName] as string | undefined)
       ?? null;
-    if (!value) continue;
+    if (value === null || (value === "" &&
+      (answers[fieldName] !== "" || (mapping.type !== "text" && mapping.type !== "date")))) continue;
 
     const selectors = mapping.selector.split(",").map((s) => s.trim());
+    let sawVisibleCandidate = false;
+    let verified = false;
     for (const selector of selectors) {
       try {
-        if (mapping.type === "checkbox") {
-          const shouldCheck = /^(Y|1|true|yes)$/i.test(value);
-          const candidate = page.locator(selector).first();
-          if ((await candidate.count()) === 0) continue;
-          await candidate.evaluate((node, checked) => {
-            const input = node as HTMLInputElement;
-            input.checked = Boolean(checked);
-          }, shouldCheck);
-          if (debug) console.log(`[fill] ${fieldName} final checkbox state=${shouldCheck ? "checked" : "unchecked"}`);
-          break;
+        const candidate = await findVisibleField(page, selector, mapping);
+        if (!candidate) continue;
+        sawVisibleCandidate = true;
+        const observed = await verifyFilledField(page, selector, mapping, value, candidate);
+        if (options.observeVerified) {
+          const { controlId, displayValue } = observed;
+          if (!controlId) throw new Error("Verified control has no stable review identity");
+          options.observeVerified({
+            fieldName, controlId, value: displayValue,
+            ...(value === "" ? { allowEmptyValue: true } : {}),
+          });
         }
-
-        const candidate = page.locator(`${selector}[value="${value}"]`).first();
-        if ((await candidate.count()) === 0) continue;
-        await candidate.evaluate((node) => {
-          const input = node as HTMLInputElement;
-          input.checked = true;
-        });
-        if (debug) console.log(`[fill] ${fieldName} final radio value="${value}"`);
+        verified = true;
         break;
       } catch {
-        // Final reinforcement is best effort. The primary fill path above
-        // still reports missing fields and CEAC validation remains the
-        // source of truth.
+        assertCeacPostbackHealthy(activePage);
+        // Try the next selector alias; a visible field is reported below if
+        // none of the aliases can be verified.
       }
+    }
+    if ((sawVisibleCandidate || (options.requireMappedAnswers && value !== "")) && !verified) {
+      assertCeacPostbackHealthy(activePage);
+      throw new FieldFillError(fieldName, mapping.label);
     }
   }
 }
@@ -1170,7 +1604,10 @@ async function reinforceChoiceFields(
  * The DS-160 flow is mostly linear but some pages are conditional, so we
  * accept multiple possible destinations rather than one rigid target.
  */
-function getExpectedNextPages(current: CeacPageId | "unknown"): CeacPageId[] {
+export function getExpectedNextPages(
+  current: CeacPageId | "unknown",
+  options: { skipWorkEducation?: boolean; skipUsContact?: boolean } = {},
+): CeacPageId[] {
   // Ordered DS-160 page progression (simplified — conditional pages may be skipped)
   const pageOrder: CeacPageId[] = [
     "start",
@@ -1198,11 +1635,15 @@ function getExpectedNextPages(current: CeacPageId | "unknown"): CeacPageId[] {
     "sign_and_submit",
   ];
 
-  const currentIdx = pageOrder.indexOf(current as CeacPageId);
+  const effectivePageOrder = pageOrder.filter((page) =>
+    !(options.skipWorkEducation && isDs160WorkEducationPage(page)) &&
+    !(options.skipUsContact && isDs160UsContactPage(page))
+  );
+  const currentIdx = effectivePageOrder.indexOf(current as CeacPageId);
 
-  if (currentIdx === -1 || currentIdx >= pageOrder.length - 1) {
+  if (currentIdx === -1 || currentIdx >= effectivePageOrder.length - 1) {
     // Unknown page or at the end — accept any page after personal_information_1
-    return pageOrder.slice(1);
+    return effectivePageOrder.slice(1);
   }
 
   // Review is a chain of sub-pages (Personal → Travel → … → Spouse) all
@@ -1213,5 +1654,5 @@ function getExpectedNextPages(current: CeacPageId | "unknown"): CeacPageId[] {
   }
 
   // Accept the next 3 pages (to handle skipped conditional pages)
-  return pageOrder.slice(currentIdx + 1, currentIdx + 4);
+  return effectivePageOrder.slice(currentIdx + 1, currentIdx + 4);
 }

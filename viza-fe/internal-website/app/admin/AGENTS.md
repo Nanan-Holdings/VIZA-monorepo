@@ -5,10 +5,23 @@ Scope: this file applies to `viza-fe/internal-website/app/admin/**`.
 ## Purpose
 
 The admin portal is the internal operations surface for VIZA staff/admin users.
-It manages accounts, products, orders, consultations, user package assignment,
-website automation monitoring, coverage, and billing support.
+It manages accounts, products, package coverage, consultations, user package
+assignment, website automation monitoring, support, privacy, and audit
+operations. Commercial orders, billing, refunds, and payment support are
+retired compatibility routes.
+
+## Current Navigation
+
+`admin-layout-content.tsx` groups the active sidebar into Control tower, Cases,
+Customers, Platform, Catalogue, and Administration. Catalogue includes the
+read-only Coverage route at `/admin/packages`, along with Products and
+Marketing publication. There are no active Billing, Orders, or Refunds
+destinations; legacy URLs must preserve their retired behavior without
+financial access.
 
 ## Key Flows
+
+- `(marketing)/marketing/**`: staff and admin blog drafting and social composition. Staff may edit drafts; publishing and provider delivery require admin. Keep this route outside the admin-only dashboard layout and enforce roles in server actions.
 
 - `login/page.tsx`: centered admin login form using `app/actions/auth.ts` and
   the shared auth form primitives. Keep it visually distinct from the client
@@ -25,7 +38,7 @@ website automation monitoring, coverage, and billing support.
 - `admin-layout-content.tsx`: fixed desktop admin shell and sidebar.
 - `(dashboard)/page.tsx`: live operations control tower across work items,
   provisioning, submissions, support, privacy, appointments, portal health,
-  refunds, takeovers, and notification failures.
+  takeovers, and notification failures.
 - `(dashboard)/metrics/concurrency-health.ts`: pure shared-pool health and alert
   derivation used by the metrics page and its unit tests; keep helpers outside
   the Next.js page module so the route exports only supported page fields.
@@ -35,29 +48,27 @@ website automation monitoring, coverage, and billing support.
   qualification, conversion, and loss workflow.
 - `(dashboard)/privacy/**`: data-rights identity verification, private exports,
   legal hold, two-admin/2FA erasure execution, evidence, and decisions.
-- `(dashboard)/refunds/**`: request decision, line-based Stripe refunds, and
-  Stripe dispute synchronization/evidence submission.
+- `(dashboard)/refunds/**`: retired payment compatibility route. Refund
+  requests, Stripe refunds, and dispute synchronization/evidence mutations
+  have been removed; the route must perform no financial reads or writes.
 - `(dashboard)/team/**`, `(dashboard)/audit/**`: staff workload visibility,
   admin registration invitations, and redacted operational command history.
 - `(dashboard)/users/**`: user list/detail and package assignment.
 - `(dashboard)/applications/**`: staff monitoring queue and application watch
   detail for website-owned automation.
 - `(dashboard)/packages/**`: country/package coverage matrix and supported
-  automation capability flags.
-- `(dashboard)/billing/**`: payment, receipt, invoice, and refund support
-  visibility.
+  nonfinancial automation capability flags.
+- `(dashboard)/billing/**`: retired compatibility route that redirects to
+  `/admin/applications`; billing support UI and financial reads/writes have
+  been removed.
 - `(dashboard)/support/**`: staff support inbox for customer questions and
   replies.
-- `(dashboard)/orders/page.tsx`: commercial payment, provisioning,
-  official-fee allocation, and order exception management.
+- `(dashboard)/orders/page.tsx`: retired compatibility route that redirects to
+  `/admin/applications`; commercial order, payment, and official-fee
+  allocation management has been removed.
 - `(dashboard)/products/page.tsx`: catalogue control and readiness entry point.
 - `(dashboard)/catalogue-publication/**`: draft, readiness, publish, retire,
   and version visibility for the public marketing catalogue.
-- `(dashboard)/marketing/**`: VIZA marketing control room for GA4/Search
-  Console reporting, blog drafting/generation/publication, managed public
-  assets, campaign short-link attribution, scheduled-run monitoring, and
-  platform-specific Zernio social distribution. It consumes typed server
-  actions and must never expose provider credentials to client components.
 - `(dashboard)/cal-bookings/page.tsx`: appointment case ownership, persisted
   manual-action expiry, and official-confirmation recovery controls.
 - `(dashboard)/takeovers/[id]/**`: protected, AAL2-gated operator takeover

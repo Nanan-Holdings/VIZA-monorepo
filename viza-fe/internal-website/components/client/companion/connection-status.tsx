@@ -5,30 +5,36 @@ import type { ConnectionStatus as ConnectionStatusType } from "@/types/agent-tes
 
 interface ConnectionStatusProps {
   status: ConnectionStatusType;
+  locale?: string;
   className?: string;
 }
 
-const statusConfig: Record<ConnectionStatusType, { color: string; label: string }> = {
+const statusConfig: Record<ConnectionStatusType, { color: string; en: string; zh: string }> = {
   connected: {
     color: "bg-green-500",
-    label: "Connected",
+    en: "Connected",
+    zh: "已连接",
   },
   connecting: {
     color: "bg-amber-500 animate-pulse",
-    label: "Connecting...",
+    en: "Connecting...",
+    zh: "正在连接……",
   },
   disconnected: {
     color: "bg-gray-400",
-    label: "Disconnected",
+    en: "Disconnected",
+    zh: "已断开",
   },
   error: {
     color: "bg-red-500",
-    label: "Connection error",
+    en: "Connection error",
+    zh: "连接错误",
   },
 };
 
-export function ConnectionStatus({ status, className }: ConnectionStatusProps) {
+export function ConnectionStatus({ status, locale = "en", className }: ConnectionStatusProps) {
   const config = statusConfig[status];
+  const label = locale.toLowerCase().startsWith("zh") ? config.zh : config.en;
 
   return (
     <div
@@ -37,8 +43,8 @@ export function ConnectionStatus({ status, className }: ConnectionStatusProps) {
         config.color,
         className
       )}
-      title={config.label}
-      aria-label={config.label}
+      title={label}
+      aria-label={label}
     />
   );
 }

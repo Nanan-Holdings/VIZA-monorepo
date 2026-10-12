@@ -28,7 +28,9 @@ generation, lifecycle advancement, notifications, and external status display.
   rights.
 - `lifecycle.ts`: customer lifecycle summaries and customer status summaries.
 - `documents.ts`: customer document checklist/readiness reads.
-- `payments.ts`: customer payment state, invoice requests, and refund requests.
+- `payments.ts`: retired customer payment state, invoice, and refund action
+  exports. They return `PAYMENT_REMOVED` without reading or mutating financial
+  records.
 - `consent.ts`: customer consent acceptance and signature persistence.
 - `packets.ts`: customer packet/external/result state reads.
 - `notifications.ts`: customer notification reads and admin notification event

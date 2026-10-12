@@ -51,6 +51,89 @@ vi.mock("../socket/chat-concurrency.js", async () => {
   };
 });
 
+vi.mock("../utils/provider-capacity.js", () => ({
+  getLatestProviderCapacityStats: () => ({
+    active: 1,
+    queued: 2,
+    peakActive: 3,
+    peakQueued: 4,
+    maxActive: 8,
+    maxQueued: 32,
+    queueTimeoutMs: 5_000,
+    executionTimeoutMs: 60_000,
+    accepted: 12,
+    completed: 9,
+    failed: 1,
+    rejectedFull: 1,
+    timedOut: 0,
+    aborted: 0,
+    executionTimedOut: 0,
+    executionAborted: 0,
+    queueWaitP50Ms: 5,
+    queueWaitP95Ms: 12,
+    executionP50Ms: 300,
+    executionP95Ms: 800,
+  }),
+}));
+
+vi.mock("../services/visa-knowledge-capacity.js", () => ({
+  getVisaKnowledgeCapacityMetrics: () => ({
+    active: 1,
+    peakActive: 3,
+    total: 12,
+    completed: 9,
+    degraded: 2,
+    failed: 1,
+    aborted: 2,
+    externalRequests: { embedding: 10, vector: 8, rest: 3 },
+    externalFailures: { embedding: 1, vector: 1, rest: 0 },
+    broadFallbacks: { vector: 2, rest: 1 },
+    results: { vector: 7, rest: 2, empty: 0 },
+    abortedByPhase: {
+      beforeExternal: 0,
+      embedding: 1,
+      vector: 1,
+      rest: 0,
+      between: 0,
+    },
+    durationP50Ms: 220,
+    durationP95Ms: 840,
+    durationMaxMs: 1_200,
+  }),
+}));
+
+vi.mock("../observability/runtime-capacity.js", () => ({
+  getRuntimeCapacityMetrics: () => ({
+    monitoring: true,
+    uptimeSeconds: 120,
+    eventLoop: {
+      delayMeanMs: 1,
+      delayP95Ms: 4,
+      delayP99Ms: 7,
+      delayMaxMs: 10,
+      utilizationPercent: 25,
+    },
+    memory: {
+      rssBytes: 100_000_000,
+      heapUsedBytes: 25_000_000,
+      heapTotalBytes: 50_000_000,
+      heapLimitBytes: 100_000_000,
+      externalBytes: 4_000_000,
+      arrayBuffersBytes: 1_000_000,
+      heapUtilizationPercent: 25,
+    },
+  }),
+}));
+
+vi.mock("../socket/socket-scaling.js", () => ({
+  getSocketScalingStatus: () => ({
+    mode: "memory",
+    multiReplicaEnabled: false,
+    adapterReady: true,
+    transports: ["polling", "websocket"],
+  }),
+}));
+
 vi.mock("../services/portal-health.service.js", () => ({
   getPublicPortalStatus: vi.fn(),
   runPortalHealthProbes: vi.fn(),
@@ -82,7 +165,7 @@ describe("capacity status route", () => {
     await request(app).get("/capacity").expect(401);
   });
 
-  it("returns only aggregate chat and database capacity metrics", async () => {
+  it("returns only aggregate process and dependency capacity metrics", async () => {
     const { statusOperationsRouter } = await import("./public-status.routes.js");
     const app = express().use(statusOperationsRouter);
     const response = await request(app)
@@ -94,9 +177,31 @@ describe("capacity status route", () => {
       ok: true,
       instanceId: expect.stringMatching(/^[0-9a-f-]{36}$/u),
       chat: { active: 2, queued: 3 },
+      provider: { active: 1, queued: 2, failed: 1 },
+      rag: {
+        active: 1,
+        total: 12,
+        degraded: 2,
+        aborted: 2,
+        externalRequests: { embedding: 10, vector: 8, rest: 3 },
+        abortedByPhase: { embedding: 1, vector: 1 },
+      },
+      runtime: {
+        monitoring: true,
+        eventLoop: { delayP95Ms: 4, utilizationPercent: 25 },
+        memory: { heapUtilizationPercent: 25 },
+      },
+      socket: {
+        mode: "memory",
+        multiReplicaEnabled: false,
+        adapterReady: true,
+        transports: ["polling", "websocket"],
+      },
       database: { pool: { activeConnections: 1 }, queries: { totalQueries: 4 } },
     });
-    expect(JSON.stringify(response.body)).not.toMatch(/userId|sessionId|queryText|parameters/i);
+    expect(JSON.stringify(response.body)).not.toMatch(
+      /userId|sessionId|queryText|parameters|country|visaType|message|content/i,
+    );
   });
 
   it("uses a dedicated secret and runs only a synthetic read while enabled", async () => {

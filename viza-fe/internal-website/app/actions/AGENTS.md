@@ -10,6 +10,8 @@ application lifecycle state.
 
 ## Key Flows
 
+- `admin-marketing.ts`: staff may edit blog and social drafts; only admins may publish or send provider posts. Scheduled generation records drafts for review.
+
 - `auth.ts`: admin auth and password change/signout.
 - `admin-access.ts`: database-backed admin registration invitations and
   auditable account-wide high-access grants. Invitation tokens are hashed and
@@ -20,25 +22,33 @@ application lifecycle state.
   application, answer, document, and queue tables.
 - `client-home-dashboard.ts`: server-side home dashboard reads using the same
   client session/profile identity resolution as authenticated customer routes.
+  `getClientHomeDashboardWithTimeline()` retains its aggregate action contract
+  for existing callers; Home uses the private GET route backed by the same
+  server-only reader and authorized rows for a slim timeline.
+  Keep the legacy dashboard-only export for existing callers. Required read
+  errors use fixed codes; timeline degradation remains explicit to the UI.
+  Keep application- and package-linked payment discovery in one owner-scoped,
+  sanitized PostgREST OR query so a dashboard load does not spend two payment
+  reads; payment and applicant data must remain uncached.
 - `applicant-inbox.ts`: resolves current and legacy client-session identities,
   initializes applicant inbox aliases, and records explicit forwarding consent.
+  Initialization may reuse an active, non-legacy alias from that call's profile
+  read; missing, retired, legacy, or incomplete alias state must use the original
+  assignment path. Explicit authorization always reruns assignment and consent
+  checks. Do not cache alias state across requests or bypass the consent lookup.
   Keep its client-facing failures typed and covered by
   `applicant-inbox.test.ts`.
-- `inbox.ts`: the applicant mailbox API behind `/client/settings/inbox`.
-  Beyond listing and `.eml` downloads it owns read/star/archive state,
-  mark-all-read, queued replies and consultant flags (`inbound_email_replies`
-  — replies are staff-reviewed before any outbound send), the cached AI
-  reading pass (`ai_meta`, `lib/inbox/ai-summary.ts`), cached body
-  translations (`translations`, Google v2), and the lazily parsed attachment
-  manifest (`attachments_meta`, `lib/inbox/attachments.ts`). Every read and
-  write resolves the signed Supabase or legacy VIZA session to its exact
-  active inbox alias first and must retain the alias, non-quarantine, and
-  non-retired ownership predicates covered by `inbox.test.ts` and
-  `inbox-mailbox.test.ts`; do not rely on anonymous table grants for
-  legacy-session compatibility.
+- `inbox.ts`: lists and downloads applicant email only after resolving the
+  signed Supabase or legacy VIZA session to its exact active inbox alias. Its
+  service-role reads must retain the alias, non-quarantine, and non-retired
+  ownership predicates covered by `inbox.test.ts`; do not rely on anonymous
+  table grants for legacy-session compatibility.
 - `client-application-status.ts`: customer-safe application timeline, file,
-  and update reads shared by the home dashboard and the submitted application
-  view.
+  and update reads for the submitted application view. Home uses its own
+  aggregate action. The single-application action validates and passes an exact ID to the
+  owner-scoped loader; invalid IDs must not trigger a full history read.
+  `client-application-status.test.ts` covers this boundary and the unchanged
+  all-applications action.
 - `application-group.ts`: group application and team companion creation,
   companion review state, and authorized companion application reads. Explicit
   application-form context must accept the signed VIZA client session as well
@@ -47,17 +57,51 @@ application lifecycle state.
 - `visa-application-answers.ts`: draft app creation and dynamic answer storage.
   Critical answer reads refresh an encrypted independent cache; transient save
   failures enqueue encrypted, idempotent replay events instead of losing work.
+  Form-context loads return answers only after resolving the owned applicant,
+  and ordinary answer reads/autosaves embed that same minimal ownership identity
+  in the application query so they do not spend a second database request on
+  `applicant_profiles`. Keep the legacy relationship fallback fail-closed and
+  cover the query budget plus unauthorized no-write path in
+  `visa-application-answers.query-budget.test.ts`.
+  Explicit-country/visa draft resolution (`preferExplicit: true`) must not read
+  the active package, whose values that path ignores; package-driven resolution
+  must retain the owner-filtered active package read and association behavior.
+  Universal Profile schema definitions may reuse the shared static visa
+  metadata cache, but applicant profile values and answers must remain
+  uncached and request-scoped.
   Reusable-profile prefill/sync and ordinary answer saves must reject synthetic
   QA markers, and QA dry-run applications must never sync into Universal Profile.
   Korea e-Arrival Card preflight completion also lives here so ownership,
   active-application identity, draft creation, and audit-answer persistence happen
   behind one authenticated server boundary.
-- `visa-form-fields.ts`: loads DB-driven visa form fields, then runs the shared
-  schema/UI compiler so component mapping and conditional-panel ownership are
-  deterministic across countries.
+- `ds160-normalize.ts`: deterministic hardcoded-step to DS-160 answer mapping;
+  `persistDS160AnswerSet()` must preserve the same owner and successful-submission
+  read-only boundary as dynamic answer autosaves. Coverage lives in
+  `ds160-normalize.test.ts`.
+- `visa-form-fields.ts`: authenticates the caller, loads DB-driven visa form
+  fields through the bounded static-metadata singleflight cache, then runs the
+  shared schema/UI compiler so component mapping and conditional-panel
+  ownership are deterministic across countries.
+  DS-160 cold schema reads have a 15-second deadline and one bounded GET retry.
+  `visa-form-fields.integration.test.ts` exercises delayed/transient responses
+  through the actual Supabase SDK against a local HTTP server, without credentials.
 - `companion-sessions.ts`: VIZA chat sessions, messages, title markers, search,
   and history.
+  Sidebar history reads 30 owned session candidates with precise columns, then
+  batches first-user-message previews through a left embedding with a per-session
+  limit of one. Keep title-marker decoding and partial read failure behavior;
+  an invalid newest marker must not hide an older valid title. Coverage lives
+  in `companion-sessions.test.ts` and the SDK loopback test under `lib/supabase`.
+  `getSessionMessages()` combines ownership and message selection in one
+  `visa_chat_sessions!inner(applicant_id)` query. Preserve the joined owner
+  predicate, selected session, hidden system messages, limit 50, and block data.
+  `companion-session-messages.test.ts` covers this action's isolation and DTO.
 - `user-package.ts`: package/destination assignment and active package reads.
+  The latest-only getter filters missing embedded packages with an inner join
+  before limiting to one row; the full-list getter must retain all valid active
+  packages. Both resolve the authenticated owner independently on every call.
+  `user-package.test.ts` covers ownership, legacy sessions, query limits,
+  missing relationships, normalization, and read failures.
 - `internal-automation/**`: trusted mutations and reads for payment, consent,
   document readiness, packet lifecycle, status events, notifications, and
   admin/customer status summaries.
@@ -67,6 +111,11 @@ application lifecycle state.
   ticket submission, admin P2 support inbox reads/replies, and the temporary
   Storage fallback used when a Supabase project has not applied
   `support_ticket` migrations yet.
+  `loadTicketThread()` skips the staff-role read only for the authenticated
+  applicant who owns the ticket. Non-owner reads must freshly check staff role
+  and soft deletion before loading messages, including the Storage fallback.
+  `support.test.ts` covers this query budget, authorization and legacy fallback;
+  posting messages still resolves staff role to preserve the author kind.
 - `takeover.ts`: admin 2FA-gated operator takeover listing, claims, and
   bounded answer capture. Claims use `claim_takeover_session`; completion and
   abandonment settle the session and runner job only through the guarded
@@ -75,8 +124,9 @@ application lifecycle state.
   coverage lives in `takeover.test.ts`.
 - `admin-work-items.ts`: reconciles durable operational exceptions into the
   staff queue and owns auditable assignment/status transitions.
-- `admin-commerce.ts`: audited provisioning retry, refund decision, and
-  approved line-based refund execution commands.
+- `admin-commerce.ts`: legacy payment provisioning and refund commands. All
+  payment mutations now return the stable payment-removed error and never
+  access provider or payment-record state.
 - `admin-documents.ts`, `admin-privacy.ts`, `admin-leads.ts`: auditable admin
   decisions for document review, data rights, and marketing lead handling.
   UAE transaction-783 bank/insurance approval is a distinct immutable staff
@@ -86,13 +136,12 @@ application lifecycle state.
   to race an active operator takeover.
 - `admin-catalogue.ts`: validates public catalogue drafts and executes atomic,
   auditable publish/retire commands through database functions.
-- `admin-marketing.ts`: authenticated marketing operations for analytics,
-  editorial drafts/publication, grounded AI generation, and per-platform
-  Zernio publication/synchronization plus VIZA short-link management. External
-  mutations must remain admin-only, auditable, idempotent, and fail closed when
-  VIZA provider configuration is absent.
-- `admin-disputes.ts`: synchronizes Stripe disputes, stages evidence, uploads
-  evidence files, and submits the reviewed response without exposing API keys.
+- `admin-disputes.ts`: legacy Stripe dispute commands. They now fail with the
+  stable payment-removed error before reading or uploading evidence.
+- `card-checkout.ts`, `wechat-checkout.ts`, `payments.ts`, `refunds.ts`,
+  `refund-request.ts`, `receipts.ts`, and `wechat-provisioning.ts`: retired
+  payment server-action exports retained only for stale callers; each fails
+  before authentication, database access, provider calls, or outbound mail.
 - `admin-appointments.ts`: owns the staff-side appointment case, expires only
   persisted-overdue actions, and captures missing official confirmation evidence.
 

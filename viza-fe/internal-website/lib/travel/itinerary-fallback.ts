@@ -16,6 +16,10 @@ import {
 import type { TravelGoogleEnrichedDestination } from "./google-places-enrichment-types";
 import type { ItineraryDay } from "./planner";
 import {
+  normalizeTravelLocale,
+  type TravelLocale,
+} from "./travel-locale";
+import {
   createTravelDebugId,
   getErrorMessage,
   logTravelPipelineEvent,
@@ -98,10 +102,8 @@ function stringArray(value: unknown): string[] {
     .filter(Boolean);
 }
 
-function normalizeLocale(value: unknown): "zh" | "en" {
-  return typeof value === "string" && value.toLowerCase().startsWith("en")
-    ? "en"
-    : "zh";
+function normalizeLocale(value: unknown): TravelLocale {
+  return normalizeTravelLocale(value);
 }
 
 export function normalizeItineraryFromResponse(raw: unknown): ItineraryDay[] {
@@ -522,7 +524,9 @@ export async function generateItineraryWithFallback(
   dependencies: GenerateDependencies = {}
 ): Promise<TravelItineraryFallbackResponse | TravelItineraryFailureResponse> {
   const debugId = createTravelDebugId();
-  const payload = isRecord(rawPayload) ? rawPayload : {};
+  const payload: Record<string, unknown> = isRecord(rawPayload)
+    ? { ...rawPayload, locale: normalizeLocale(rawPayload.locale) }
+    : { locale: "zh" as const };
   const payloadWithContext = primaryPayloadWithLocalContext(payload);
   const fallbackUsed: string[] = [];
   const warnings: string[] = [];
@@ -567,9 +571,7 @@ export async function generateItineraryWithFallback(
             city,
             country: getCountry(requestPayload),
             locale:
-              typeof requestPayload.locale === "string"
-                ? requestPayload.locale
-                : "zh-CN",
+              normalizeLocale(requestPayload.locale) === "en" ? "en" : "zh-CN",
             debugId: requestDebugId,
           })))(payload, debugId);
       diagnostics.googleFallbackSucceeded = true;

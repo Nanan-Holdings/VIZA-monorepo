@@ -1,3 +1,6 @@
+import type { Ds160SeedField } from "./ds160-parity";
+import { DS160_REPEAT_GROUP_CONTRACT_LIST } from "./ds160-repeat-contract";
+
 /**
  * DS-160 Coverage Audit
  *
@@ -451,8 +454,492 @@ function pct(n: number, total: number): string {
   return `${((n / total) * 100).toFixed(1)}%`;
 }
 
-// Run audit when executed directly
-runAudit();
+// Run audit when executed directly.  Keep imports side-effect free so the
+// machine-readable evidence builder can be consumed by tests and CI scripts.
+if (typeof require !== "undefined" && require.main === module) runAudit();
 
 export { DS160_FIELDS, runAudit };
 export type { DS160Field, SimplifiedSource, CoverageStatus };
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 3. OFFICIAL EVIDENCE MANIFEST
+//
+// The legacy audit above measures the historical simplified-form mapping.  It
+// is intentionally retained for existing callers.  The manifest below is a
+// separate, fail-closed contract for answering the stronger question: has
+// each current seed field, branch direction, and repeat control been observed
+// on the official portal?  Internal mappings never populate this evidence.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export type Ds160EvidenceSourceKind =
+  | "current_live_dom"
+  | "official_published"
+  | "historical_review";
+
+export type Ds160EvidenceComparison = "match" | "mismatch" | "not_observed";
+
+/**
+ * The comparison made by the internal evidence manifest.  A structural
+ * singleton such as a conditional explanation is deliberately distinct from
+ * an observed repeat-row Add/Remove match.
+ */
+export type Ds160ContractComparison =
+  | Ds160EvidenceComparison
+  | "structure_not_applicable";
+
+export type Ds160EvidenceValue =
+  | string
+  | readonly string[]
+  | Readonly<Record<string, string>>
+  | null;
+
+/** A redacted, reviewer-supplied official observation. Never put applicant answers here. */
+export interface Ds160OfficialEvidenceRecord {
+  sourceKind: Ds160EvidenceSourceKind;
+  sourceUrl: string | null;
+  observedOn: string | null;
+  expected: Ds160EvidenceValue;
+  actual: Ds160EvidenceValue;
+  comparison: Ds160EvidenceComparison;
+  notes?: string | null;
+}
+
+export interface Ds160EvidenceSlot {
+  /** Primary observation fields are explicit in the template; full history remains in evidence. */
+  sourceKind: Ds160EvidenceSourceKind | null;
+  sourceUrl: string | null;
+  observedOn: string | null;
+  expected: Ds160EvidenceValue;
+  actual: Ds160EvidenceValue;
+  /** Comparison against the internal seed/contract, not server-side proof. */
+  contractComparison: Ds160ContractComparison | null;
+  evidence: readonly Ds160OfficialEvidenceRecord[];
+  /** A current live-DOM match was observed for this slot. */
+  liveDomObserved: boolean;
+  publishedEvidence: boolean;
+  missingEvidence: readonly string[];
+}
+
+export interface Ds160FieldEvidenceEntry {
+  fieldName: string;
+  page: string;
+  step: number;
+  type: string;
+  label: string;
+  required: boolean;
+  showIf: string | null;
+  repeatGroup: string | null;
+  evidence: Ds160EvidenceSlot;
+}
+
+export interface Ds160BranchEvidenceEntry {
+  expression: string;
+  fields: readonly string[];
+  positive: Ds160EvidenceSlot;
+  negative: Ds160EvidenceSlot;
+  contractComparison: Ds160ContractComparison | null;
+  missingEvidence: readonly string[];
+}
+
+export type Ds160RepeatStructure = "repeat" | "structure_not_applicable";
+
+export interface Ds160RepeatEvidenceInput {
+  rowAdded?: readonly Ds160OfficialEvidenceRecord[];
+  rowDeleted?: readonly Ds160OfficialEvidenceRecord[];
+  /** Override the inferred structure only for a repeat-contract extension. */
+  structure?: Ds160RepeatStructure;
+}
+
+export interface Ds160RepeatEvidenceEntry {
+  group: string;
+  page: string;
+  rowFieldKeys: readonly string[];
+  activation: string | null;
+  structure: Ds160RepeatStructure;
+  rowAdded: Ds160EvidenceSlot;
+  rowDeleted: Ds160EvidenceSlot;
+  contractComparison: Ds160ContractComparison | null;
+  missingEvidence: readonly string[];
+}
+
+export interface Ds160OfficialScopeGapInput {
+  key: string;
+  category: "field" | "branch" | "repeat_group" | "page_control" | "other";
+  description: string;
+  evidence?: readonly Ds160OfficialEvidenceRecord[];
+}
+
+export interface Ds160OfficialScopeGap extends Omit<Ds160OfficialScopeGapInput, "evidence"> {
+  evidence: Ds160EvidenceSlot;
+  missingEvidence: readonly string[];
+}
+
+export interface Ds160OfficialEvidenceInput {
+  fields?: Readonly<Record<string, readonly Ds160OfficialEvidenceRecord[]>>;
+  branches?: Readonly<Record<string, {
+    positive?: readonly Ds160OfficialEvidenceRecord[];
+    negative?: readonly Ds160OfficialEvidenceRecord[];
+  }>>;
+  repeats?: Readonly<Record<string, Ds160RepeatEvidenceInput>>;
+  /** Explicit review of whether the current B1/B2 official scope has extra controls. */
+  scopeReviewComplete?: boolean;
+  /** Official controls found outside the current seed; never infer this list from mappings. */
+  scopeGaps?: readonly Ds160OfficialScopeGapInput[];
+}
+
+export interface Ds160OfficialEvidenceManifest {
+  schemaVersion: 1;
+  generatedAt: string;
+  scope: "ds160_b1_b2_current_seed_and_repeat_contract";
+  officialParityVerified: boolean;
+  scopeReviewComplete: boolean;
+  scopeReviewMissing: readonly string[];
+  counts: {
+    fields: { total: number; liveDomObserved: number; publishedEvidence: number; missingEvidence: number };
+    branches: {
+      total: number;
+      positiveLiveDomObserved: number;
+      negativeLiveDomObserved: number;
+      fullyLiveDomObserved: number;
+      missingEvidence: number;
+    };
+    repeatGroups: {
+      total: number;
+      structureNotApplicable: number;
+      rowAddedLiveDomObserved: number;
+      rowDeletedLiveDomObserved: number;
+      fullyLiveDomObserved: number;
+      missingEvidence: number;
+    };
+    scopeGaps: { total: number; liveDomObserved: number; missingEvidence: number };
+    evidenceSlots: {
+      total: number;
+      liveDomObserved: number;
+      structureNotApplicable: number;
+      missingEvidence: number;
+    };
+  };
+  missingEvidence: readonly {
+    kind: "field" | "branch_positive" | "branch_negative" | "repeat_row_added" | "repeat_row_deleted" | "scope_gap";
+    key: string;
+    missing: readonly string[];
+  }[];
+  fields: readonly Ds160FieldEvidenceEntry[];
+  branches: readonly Ds160BranchEvidenceEntry[];
+  repeatGroups: readonly Ds160RepeatEvidenceEntry[];
+  scopeGaps: readonly Ds160OfficialScopeGap[];
+}
+
+const EVIDENCE_REQUIREMENTS = [
+  "sourceUrl",
+  "observedOn",
+  "expected",
+  "actual",
+  "current_live_dom_match",
+] as const;
+
+function hasValue(value: Ds160EvidenceValue): boolean {
+  if (value === null) return false;
+  if (typeof value === "string") return value.trim().length > 0;
+  if (Array.isArray(value)) return value.length > 0;
+  return Object.keys(value).length > 0;
+}
+
+function isCurrentLiveMatch(record: Ds160OfficialEvidenceRecord): boolean {
+  return (
+    record.sourceKind === "current_live_dom" &&
+    typeof record.sourceUrl === "string" &&
+    record.sourceUrl.trim().length > 0 &&
+    typeof record.observedOn === "string" &&
+    record.observedOn.trim().length > 0 &&
+    hasValue(record.expected) &&
+    hasValue(record.actual) &&
+    record.comparison === "match"
+  );
+}
+
+function isPublishedEvidence(record: Ds160OfficialEvidenceRecord): boolean {
+  return (
+    record.sourceKind === "official_published" &&
+    typeof record.sourceUrl === "string" &&
+    record.sourceUrl.trim().length > 0 &&
+    typeof record.observedOn === "string" &&
+    record.observedOn.trim().length > 0 &&
+    hasValue(record.expected) &&
+    hasValue(record.actual) &&
+    record.comparison === "match"
+  );
+}
+
+function missingForEvidence(records: readonly Ds160OfficialEvidenceRecord[]): string[] {
+  if (records.length === 0) return [...EVIDENCE_REQUIREMENTS];
+  const missing: string[] = [];
+  if (!records.some(record => typeof record.sourceUrl === "string" && record.sourceUrl.trim().length > 0)) {
+    missing.push("sourceUrl");
+  }
+  if (!records.some(record => typeof record.observedOn === "string" && record.observedOn.trim().length > 0)) {
+    missing.push("observedOn");
+  }
+  if (!records.some(record => hasValue(record.expected))) missing.push("expected");
+  if (!records.some(record => hasValue(record.actual))) missing.push("actual");
+  if (!records.some(isCurrentLiveMatch)) missing.push("current_live_dom_match");
+  return missing;
+}
+
+const STRUCTURE_NOT_APPLICABLE_REPEAT_GROUPS = new Set([
+  "visa_refused",
+  "immigrant_petition",
+]);
+
+function contractComparisonForEvidence(
+  evidence: readonly Ds160OfficialEvidenceRecord[],
+): Ds160ContractComparison | null {
+  if (evidence.some(record => record.comparison === "mismatch")) return "mismatch";
+  return evidence.find(isCurrentLiveMatch)?.comparison ?? evidence[0]?.comparison ?? null;
+}
+
+function buildEvidenceSlot(
+  records: readonly Ds160OfficialEvidenceRecord[] | undefined,
+): Ds160EvidenceSlot {
+  const evidence = records ?? [];
+  const primary = evidence.find(isCurrentLiveMatch) ?? evidence[0] ?? null;
+  const hasMismatch = evidence.some(record => record.comparison === "mismatch");
+  const liveDomObserved = evidence.some(isCurrentLiveMatch) && !hasMismatch;
+  return {
+    sourceKind: primary?.sourceKind ?? null,
+    sourceUrl: primary?.sourceUrl ?? null,
+    observedOn: primary?.observedOn ?? null,
+    expected: primary?.expected ?? null,
+    actual: primary?.actual ?? null,
+    contractComparison: contractComparisonForEvidence(evidence),
+    evidence,
+    liveDomObserved,
+    publishedEvidence: evidence.some(isPublishedEvidence) && !hasMismatch,
+    missingEvidence: [
+      ...missingForEvidence(evidence),
+      ...(hasMismatch ? ["no_mismatch"] : []),
+    ],
+  };
+}
+
+function buildStructureNotApplicableSlot(
+  records: readonly Ds160OfficialEvidenceRecord[] | undefined,
+): Ds160EvidenceSlot {
+  const slot = buildEvidenceSlot(records);
+  return {
+    ...slot,
+    // A singleton's DOM observation documents that Add/Remove is absent; it
+    // must never be counted as an observed repeat-row operation.
+    liveDomObserved: false,
+    contractComparison:
+      slot.contractComparison === "mismatch"
+        ? "mismatch"
+        : slot.evidence.length > 0
+          ? "structure_not_applicable"
+          : null,
+  };
+}
+
+function combineContractComparisons(
+  slots: readonly Ds160EvidenceSlot[],
+): Ds160ContractComparison | null {
+  if (slots.some(slot => slot.contractComparison === "mismatch")) return "mismatch";
+  if (slots.every(slot => slot.contractComparison === "structure_not_applicable")) {
+    return "structure_not_applicable";
+  }
+  if (slots.every(slot => slot.contractComparison === "match")) return "match";
+  if (slots.some(slot => slot.contractComparison !== null)) return "not_observed";
+  return null;
+}
+
+function addMissingEvidence(
+  output: Array<{
+    kind: "field" | "branch_positive" | "branch_negative" | "repeat_row_added" | "repeat_row_deleted" | "scope_gap";
+    key: string;
+    missing: readonly string[];
+  }>,
+  kind: "field" | "branch_positive" | "branch_negative" | "repeat_row_added" | "repeat_row_deleted" | "scope_gap",
+  key: string,
+  slot: Ds160EvidenceSlot,
+): void {
+  if (slot.missingEvidence.length > 0) output.push({ kind, key, missing: slot.missingEvidence });
+}
+
+/**
+ * Build a complete, redacted official evidence manifest from seed metadata.
+ * The default input is deliberately empty; no internal mapping or prior
+ * applicant run can mark a field, branch, or repeat control as verified.
+ */
+export function buildDs160OfficialEvidenceManifest(
+  fields: readonly Ds160SeedField[],
+  input: Ds160OfficialEvidenceInput = {},
+  generatedAt = new Date().toISOString(),
+): Ds160OfficialEvidenceManifest {
+  const evidenceMissing: Array<{
+    kind: "field" | "branch_positive" | "branch_negative" | "repeat_row_added" | "repeat_row_deleted" | "scope_gap";
+    key: string;
+    missing: readonly string[];
+  }> = [];
+
+  const fieldEntries = fields.map(field => {
+    const slot = buildEvidenceSlot(input.fields?.[field.name]);
+    addMissingEvidence(evidenceMissing, "field", field.name, slot);
+    return {
+      fieldName: field.name,
+      page: field.page,
+      step: field.step,
+      type: field.type,
+      label: field.label,
+      required: field.required,
+      showIf: field.showIf ?? null,
+      repeatGroup: field.repeatGroup ?? null,
+      evidence: slot,
+    };
+  });
+
+  const branchExpressions = [...new Set(fields.flatMap(field => field.showIf ? [field.showIf] : []))];
+  const branchEntries = branchExpressions.map(expression => {
+    const branchFields = fields.filter(field => field.showIf === expression).map(field => field.name);
+    const supplied = input.branches?.[expression];
+    const positive = buildEvidenceSlot(supplied?.positive);
+    const negative = buildEvidenceSlot(supplied?.negative);
+    addMissingEvidence(evidenceMissing, "branch_positive", expression, positive);
+    addMissingEvidence(evidenceMissing, "branch_negative", expression, negative);
+    return {
+      expression,
+      fields: branchFields,
+      positive,
+      negative,
+      contractComparison: combineContractComparisons([positive, negative]),
+      missingEvidence: [...positive.missingEvidence, ...negative.missingEvidence],
+    };
+  });
+
+  const repeatEntries = DS160_REPEAT_GROUP_CONTRACT_LIST.map(contract => {
+    const supplied = input.repeats?.[contract.group];
+    const structure: Ds160RepeatStructure =
+      STRUCTURE_NOT_APPLICABLE_REPEAT_GROUPS.has(contract.group)
+        ? "structure_not_applicable"
+        : supplied?.structure ?? "repeat";
+    const buildRowSlot = structure === "structure_not_applicable"
+      ? buildStructureNotApplicableSlot
+      : buildEvidenceSlot;
+    const rowAdded = buildRowSlot(supplied?.rowAdded);
+    const rowDeleted = buildRowSlot(supplied?.rowDeleted);
+    addMissingEvidence(evidenceMissing, "repeat_row_added", contract.group, rowAdded);
+    addMissingEvidence(evidenceMissing, "repeat_row_deleted", contract.group, rowDeleted);
+    return {
+      group: contract.group,
+      page: contract.page,
+      rowFieldKeys: contract.rowFieldKeys,
+      activation: contract.activation ?? null,
+      structure,
+      rowAdded,
+      rowDeleted,
+      contractComparison: combineContractComparisons([rowAdded, rowDeleted]),
+      missingEvidence: [...rowAdded.missingEvidence, ...rowDeleted.missingEvidence],
+    };
+  });
+
+  const scopeGaps = (input.scopeGaps ?? []).map(gap => {
+    const evidence = buildEvidenceSlot(gap.evidence);
+    addMissingEvidence(evidenceMissing, "scope_gap", gap.key, evidence);
+    return {
+      key: gap.key,
+      category: gap.category,
+      description: gap.description,
+      evidence,
+      missingEvidence: evidence.missingEvidence,
+    };
+  });
+
+  const fieldLive = fieldEntries.filter(field => field.evidence.liveDomObserved).length;
+  const fieldPublished = fieldEntries.filter(field => field.evidence.publishedEvidence).length;
+  const positiveLive = branchEntries.filter(branch => branch.positive.liveDomObserved).length;
+  const negativeLive = branchEntries.filter(branch => branch.negative.liveDomObserved).length;
+  const branchFullyLive = branchEntries.filter(
+    branch => branch.positive.liveDomObserved && branch.negative.liveDomObserved,
+  ).length;
+  const addedLive = repeatEntries.filter(
+    group => group.structure === "repeat" && group.rowAdded.liveDomObserved,
+  ).length;
+  const deletedLive = repeatEntries.filter(
+    group => group.structure === "repeat" && group.rowDeleted.liveDomObserved,
+  ).length;
+  const repeatFullyLive = repeatEntries.filter(
+    group => group.structure === "repeat" && group.rowAdded.liveDomObserved && group.rowDeleted.liveDomObserved,
+  ).length;
+  const structureNotApplicable = repeatEntries.filter(
+    group => group.structure === "structure_not_applicable",
+  ).length;
+  const scopeLive = scopeGaps.filter(gap => gap.evidence.liveDomObserved).length;
+  const scopeReviewComplete = input.scopeReviewComplete === true;
+  const scopeReviewMissing = scopeReviewComplete ? [] : ["scope_review_complete"];
+  const evidenceSlotsTotal =
+    fields.length +
+    branchEntries.length * 2 +
+    repeatEntries.length * 2 +
+    scopeGaps.length;
+  const evidenceSlotsLive = fieldLive + positiveLive + negativeLive + addedLive + deletedLive + scopeLive;
+  const repeatStructureComplete = repeatEntries.every(group =>
+    group.structure === "structure_not_applicable"
+      ? group.contractComparison === "structure_not_applicable" && group.missingEvidence.length === 0
+      : group.rowAdded.liveDomObserved && group.rowDeleted.liveDomObserved,
+  );
+
+  return {
+    schemaVersion: 1,
+    generatedAt,
+    scope: "ds160_b1_b2_current_seed_and_repeat_contract",
+    // This is the one global parity claim. Individual slots intentionally
+    // expose only live-DOM observation and contract comparison; a DOM match is
+    // never emitted as per-field server-side verification.
+    officialParityVerified:
+      scopeReviewComplete &&
+      fieldLive === fieldEntries.length &&
+      branchFullyLive === branchEntries.length &&
+      repeatStructureComplete &&
+      scopeLive === scopeGaps.length,
+    scopeReviewComplete,
+    scopeReviewMissing,
+    counts: {
+      fields: {
+        total: fieldEntries.length,
+        liveDomObserved: fieldLive,
+        publishedEvidence: fieldPublished,
+        missingEvidence: fieldEntries.filter(field => field.evidence.missingEvidence.length > 0).length,
+      },
+      branches: {
+        total: branchEntries.length,
+        positiveLiveDomObserved: positiveLive,
+        negativeLiveDomObserved: negativeLive,
+        fullyLiveDomObserved: branchFullyLive,
+        missingEvidence: branchEntries.filter(branch => branch.missingEvidence.length > 0).length,
+      },
+      repeatGroups: {
+        total: repeatEntries.length,
+        structureNotApplicable,
+        rowAddedLiveDomObserved: addedLive,
+        rowDeletedLiveDomObserved: deletedLive,
+        fullyLiveDomObserved: repeatFullyLive,
+        missingEvidence: repeatEntries.filter(group => group.missingEvidence.length > 0).length,
+      },
+      scopeGaps: {
+        total: scopeGaps.length,
+        liveDomObserved: scopeLive,
+        missingEvidence: scopeGaps.filter(gap => gap.missingEvidence.length > 0).length,
+      },
+      evidenceSlots: {
+        total: evidenceSlotsTotal,
+        liveDomObserved: evidenceSlotsLive,
+        structureNotApplicable: structureNotApplicable * 2,
+        missingEvidence: evidenceMissing.length,
+      },
+    },
+    missingEvidence: evidenceMissing,
+    fields: fieldEntries,
+    branches: branchEntries,
+    repeatGroups: repeatEntries,
+    scopeGaps,
+  };
+}

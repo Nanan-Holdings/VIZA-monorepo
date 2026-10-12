@@ -10,6 +10,8 @@
 import type { Page } from "@playwright/test";
 import {
   CEAC_HEADING_SELECTOR,
+  CEAC_APPLICATION_ID_PATTERN,
+  CEAC_APPLICATION_ID_SELECTORS,
   CEAC_SESSION_EXPIRED_MARKERS,
   CEAC_SIGN_AND_SUBMIT_MARKERS,
 } from "./selectors";
@@ -82,6 +84,32 @@ const PAGE_URL_PATTERNS: ReadonlyArray<[CeacPageId, RegExp]> = [
 ];
 
 /**
+ * These three controls are the official confirmation surface exposed by
+ * CEAC. A generic heading or a URL containing "Confirmation" is insufficient
+ * because recovery and outage pages reuse that wording.
+ */
+const CONFIRMATION_CONTROL_GROUPS: ReadonlyArray<string> = [
+  [
+    'input[type="submit"][value*="Print Confirmation" i]',
+    'input[type="button"][value*="Print Confirmation" i]',
+    'button:has-text("Print Confirmation")',
+    'a:has-text("Print Confirmation")',
+  ].join(", "),
+  [
+    'input[type="submit"][value*="Print Application" i]',
+    'input[type="button"][value*="Print Application" i]',
+    'button:has-text("Print Application")',
+    'a:has-text("Print Application")',
+  ].join(", "),
+  [
+    'input[type="submit"][value*="Email Confirmation" i]',
+    'input[type="button"][value*="Email Confirmation" i]',
+    'button:has-text("Email Confirmation")',
+    'a:has-text("Email Confirmation")',
+  ].join(", "),
+];
+
+/**
  * Regex patterns that match the H2 heading text for each page identity.
  * Order matters: more specific patterns must appear before more general
  * ones (e.g. "Personal Information 2" before "Personal Information").
@@ -126,41 +154,64 @@ export interface PageIdentityResult {
   url: string;
 }
 
+export interface PageDetectionOptions {
+  /** Application ID that the official confirmation must contain. */
+  expectedApplicationId?: string | null;
+}
+
+/**
+ * Confirm that the current page exposes CEAC's official print controls and
+ * contains a valid Application ID. When an expected ID is supplied, it must
+ * match exactly. This is intentionally stricter than ordinary page identity
+ * detection because callers use it to authorize the terminal submitted state.
+ */
+export async function isOfficialDs160ConfirmationPage(
+  page: Page,
+  expectedApplicationId?: string | null,
+): Promise<boolean> {
+  // The three control groups are independent. Probe them in one batch so a
+  // cross-region Playwright connection pays one scheduling round trip instead
+  // of three sequential visibility probes. The helper retains Playwright's
+  // own visible-filter semantics.
+  const controlsPresent = await Promise.all(
+    CONFIRMATION_CONTROL_GROUPS.map((selector) => hasVisibleLocator(page, selector)),
+  );
+  if (controlsPresent.some((present) => !present)) return false;
+
+  const applicationId = await readApplicationId(page);
+  if (!applicationId) return false;
+  if (expectedApplicationId == null) return true;
+  const expected = expectedApplicationId.trim().toUpperCase();
+  return Boolean(expected) && applicationId.toUpperCase() === expected;
+}
+
 /**
  * Read the current page's heading and resolve it to a `CeacPageId`. This is
  * an explicit DOM-based check — it does not rely on timing or implicit
  * `waitForLoadState` side effects. It also detects session-expired states
  * and reports them as their own identity so callers can branch cleanly.
  */
-export async function detectPage(page: Page): Promise<PageIdentityResult> {
+export async function detectPage(
+  page: Page,
+  options: PageDetectionOptions = {},
+): Promise<PageIdentityResult> {
   const url = page.url();
 
   // Pick the first non-empty heading text from any matching heading node.
   // Using the locator API (instead of `page.evaluate`) keeps this file free
   // of DOM lib dependencies in tsconfig.
   const headingLocator = page.locator(CEAC_HEADING_SELECTOR);
-  const headingCount = await headingLocator.count();
-  let heading: string | null = null;
-  for (let i = 0; i < headingCount; i += 1) {
-    const text = (await headingLocator.nth(i).textContent())?.trim() ?? "";
-    if (text.length > 0) {
-      heading = text;
-      break;
-    }
-  }
+  // allTextContents preserves DOM order and the old textContent semantics,
+  // while reducing count + N per-node reads to one browser-side operation.
+  const [headingTexts, bodyText] = await Promise.all([
+    headingLocator.allTextContents(),
+    page.locator("body").innerText({ timeout: 2_000 }).catch(() => ""),
+  ]);
+  const heading = headingTexts.map((text) => text.trim()).find((text) => text.length > 0) ?? null;
 
   // Session-expired detection takes precedence: CEAC sometimes preserves the
   // old heading but stamps an expiry banner onto the page. `innerText()` on
   // the body returns visible text only, which is what we need for markers.
-  let bodyText = "";
-  try {
-    bodyText = await page.locator("body").innerText({ timeout: 2_000 });
-  } catch {
-    // If the body is not yet attached (e.g. navigation mid-flight), treat
-    // the page as unknown rather than throwing — the caller will retry via
-    // `waitForPage` if appropriate.
-  }
-
   if (CEAC_SESSION_EXPIRED_MARKERS.some((re) => re.test(bodyText))) {
     return { id: "session_expired", heading, url };
   }
@@ -184,8 +235,22 @@ export async function detectPage(page: Page): Promise<PageIdentityResult> {
     return { id: "sign_and_submit", heading, url };
   }
 
+  const confirmationHeading = Boolean(
+    heading && /thank you|confirmation|your application id is/i.test(heading),
+  );
+  const confirmationUrl = PAGE_URL_PATTERNS.some(
+    ([id, pattern]) => id === "confirmation" && pattern.test(url),
+  );
+  if (
+    (confirmationHeading || confirmationUrl) &&
+    (await isOfficialDs160ConfirmationPage(page, options.expectedApplicationId))
+  ) {
+    return { id: "confirmation", heading, url };
+  }
+
   if (heading) {
     for (const [id, pattern] of PAGE_HEADING_PATTERNS) {
+      if (id === "confirmation") continue;
       if (pattern.test(heading)) {
         return { id, heading, url };
       }
@@ -196,12 +261,50 @@ export async function detectPage(page: Page): Promise<PageIdentityResult> {
   // pages that render their title as a <span> (rather than <h2>) are
   // indistinguishable via the heading locator; URL is authoritative.
   for (const [id, pattern] of PAGE_URL_PATTERNS) {
+    if (id === "confirmation") continue;
     if (pattern.test(url)) {
       return { id, heading, url };
     }
   }
 
   return { id: "unknown", heading, url };
+}
+
+async function hasVisibleLocator(page: Page, selector: string): Promise<boolean> {
+  try {
+    // Filter visibility in Playwright so matching nodes are checked in the
+    // browser rather than through one isVisible RPC per node.
+    return (await page.locator(selector).filter({ visible: true }).count()) > 0;
+  } catch {
+    // A partially-loaded document is not a verified confirmation surface.
+  }
+  return false;
+}
+
+async function readApplicationId(page: Page): Promise<string | null> {
+  // Read each selector's text in parallel, then inspect results in the
+  // original selector/DOM order. This preserves precedence while avoiding
+  // count + per-node textContent round trips.
+  const selectorTexts = await Promise.all(CEAC_APPLICATION_ID_SELECTORS.map(async (selector) => {
+    try {
+      return await page.locator(selector).allTextContents();
+    } catch {
+      return [];
+    }
+  }));
+  for (const texts of selectorTexts) {
+    for (const text of texts) {
+      const match = text.match(CEAC_APPLICATION_ID_PATTERN);
+      if (match) return match[0].toUpperCase();
+    }
+  }
+
+  try {
+    const bodyText = await page.locator("body").innerText({ timeout: 2_000 });
+    return bodyText.match(CEAC_APPLICATION_ID_PATTERN)?.[0]?.toUpperCase() ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /**

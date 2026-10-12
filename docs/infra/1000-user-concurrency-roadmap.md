@@ -1,5 +1,10 @@
 # 1,000-user concurrency infrastructure roadmap
 
+> Current follow-up: [2026-09-07 free concurrency review](2026-09-07-free-concurrency-review.md)
+> records the current `bom1` frontend region, bounded public-read caches, Travel
+> provider admission, and fresh verification. The original topology observations
+> below are historical; they are not a current production configuration audit.
+
 > Reviewed: 2026-08-04. This is a recommendation document only. No plan,
 > region, instance size, deployment setting, or production database object was
 > changed as part of this review.
@@ -56,6 +61,18 @@ The following changes require no paid plan or additional service:
 - Reused one OpenAI client per backend replica, disabled hidden SDK retries,
   added a streaming deadline and disconnect cancellation, and bounded active
   and queued Socket.IO chat turns with per-connection duplicate suppression.
+- Added a separate instance-local budget for non-chat OpenAI/provider work
+  (passport OCR, field guidance, validation, and embeddings), with bounded
+  active/queued work, queue timeout/abort handling, retryable OCR overload,
+  deterministic optional-feature degradation, and aggregate metrics on the
+  protected capacity endpoint. This protects chat fairness but is not a
+  cross-replica global quota.
+- Added secret-protected, per-instance runtime capacity metrics for bounded
+  event-loop delay windows, event-loop utilization, V8 heap/RSS, and uptime.
+  The isolated authenticated 100-user gate now fails closed when the monitor is
+  disabled or restarts, event-loop p95 reaches 100 ms, event-loop utilization
+  reaches 80%, or V8 heap utilization reaches 80%. RSS remains evidence-only
+  because it needs an explicit container limit before a safe threshold exists.
 
 These changes reduce request amplification and protect latency fairness. They
 do not change the Free-plan hard quotas of Supabase Realtime, database compute,

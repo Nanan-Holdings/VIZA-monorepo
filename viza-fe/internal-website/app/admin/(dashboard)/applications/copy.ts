@@ -6,7 +6,6 @@ import type {
   ExternalState,
   LifecycleState,
   PacketState,
-  PaymentState,
   ResultState,
 } from "./data";
 
@@ -18,7 +17,6 @@ function shortenId(value: string | null | undefined) {
 export interface AdminApplicationCopy {
   status: {
     lifecycle: Record<LifecycleState, string>;
-    payment: Record<PaymentState, string>;
     consent: Record<ConsentState, string>;
     documents: Record<DocumentState, string>;
     packet: Record<PacketState, string>;
@@ -70,7 +68,6 @@ export interface AdminApplicationCopy {
     search: string;
     searchPlaceholder: string;
     lifecycle: string;
-    payment: string;
     consent: string;
     missingDocuments: string;
     packet: string;
@@ -100,7 +97,6 @@ export interface AdminApplicationCopy {
     noPackagesBody: string;
     supportItemsDescription: string;
     assigned: string;
-    price: string;
     applications: string;
     applicationsDescription: string;
     recentEvents: string;
@@ -128,7 +124,6 @@ export interface AdminApplicationCopy {
     };
     applicationCard: {
       package: string;
-      paymentConsent: string;
       documentsPacket: string;
       externalResult: string;
     };
@@ -138,7 +133,6 @@ export interface AdminApplicationCopy {
       noRunnerJobs: string;
       attempts: string;
       app: string;
-      paymentOrders: string;
       noRecords: string;
       inboundEmail: string;
       noAlias: string;
@@ -167,7 +161,6 @@ export const ADMIN_APPLICATION_COPY: Record<InterfaceLocale, AdminApplicationCop
     status: {
       lifecycle: {
         intake: "Intake",
-        payment_pending: "Payment pending",
         consent_pending: "Consent pending",
         document_collection: "Document collection",
         packet_generation: "Packet generation",
@@ -176,13 +169,6 @@ export const ADMIN_APPLICATION_COPY: Record<InterfaceLocale, AdminApplicationCop
         result_delivery: "Result delivery",
         completed: "Completed",
         attention: "Needs attention",
-      },
-      payment: {
-        missing: "Missing",
-        pending: "Pending",
-        paid: "Paid",
-        failed: "Failed",
-        refunded: "Refunded",
       },
       consent: {
         missing: "Missing consent",
@@ -266,7 +252,6 @@ export const ADMIN_APPLICATION_COPY: Record<InterfaceLocale, AdminApplicationCop
       search: "Search applicant",
       searchPlaceholder: "Search by ID, name, or email...",
       lifecycle: "Lifecycle",
-      payment: "Payment",
       consent: "Consent",
       missingDocuments: "Missing documents",
       packet: "Packet",
@@ -298,7 +283,6 @@ export const ADMIN_APPLICATION_COPY: Record<InterfaceLocale, AdminApplicationCop
       noPackagesBody: "No package assignment is linked to this user yet.",
       supportItemsDescription: "Aggregated blockers across all applications for this user.",
       assigned: "Assigned",
-      price: "Price",
       applications: "Applications",
       applicationsDescription: "All visa applications linked to this user.",
       recentEvents: "Recent events",
@@ -326,7 +310,6 @@ export const ADMIN_APPLICATION_COPY: Record<InterfaceLocale, AdminApplicationCop
       },
       applicationCard: {
         package: "Package",
-        paymentConsent: "Payment / Consent",
         documentsPacket: "Documents / Packet",
         externalResult: "External / Result",
       },
@@ -336,7 +319,6 @@ export const ADMIN_APPLICATION_COPY: Record<InterfaceLocale, AdminApplicationCop
         noRunnerJobs: "No runner jobs yet.",
         attempts: "attempts",
         app: "app",
-        paymentOrders: "Payment orders & transactions",
         noRecords: "No records found.",
         inboundEmail: "Inbound email communications",
         noAlias: "no email alias allocated",
@@ -363,7 +345,6 @@ export const ADMIN_APPLICATION_COPY: Record<InterfaceLocale, AdminApplicationCop
     status: {
       lifecycle: {
         intake: "资料填写",
-        payment_pending: "等待付款",
         consent_pending: "等待授权",
         document_collection: "材料收集中",
         packet_generation: "材料包生成中",
@@ -372,13 +353,6 @@ export const ADMIN_APPLICATION_COPY: Record<InterfaceLocale, AdminApplicationCop
         result_delivery: "结果交付",
         completed: "已完成",
         attention: "需要关注",
-      },
-      payment: {
-        missing: "缺少付款",
-        pending: "付款待处理",
-        paid: "已付款",
-        failed: "付款失败",
-        refunded: "已退款",
       },
       consent: {
         missing: "缺少授权",
@@ -461,7 +435,6 @@ export const ADMIN_APPLICATION_COPY: Record<InterfaceLocale, AdminApplicationCop
       search: "搜索申请人",
       searchPlaceholder: "按 ID、姓名或邮箱搜索...",
       lifecycle: "生命周期",
-      payment: "付款",
       consent: "授权",
       missingDocuments: "缺少材料",
       packet: "材料包",
@@ -491,7 +464,6 @@ export const ADMIN_APPLICATION_COPY: Record<InterfaceLocale, AdminApplicationCop
       noPackagesBody: "该用户尚未关联任何套餐分配。",
       supportItemsDescription: "汇总该用户所有申请中的阻塞性事项。",
       assigned: "分配时间",
-      price: "价格",
       applications: "申请",
       applicationsDescription: "该用户关联的所有签证申请。",
       recentEvents: "最近事件",
@@ -519,7 +491,6 @@ export const ADMIN_APPLICATION_COPY: Record<InterfaceLocale, AdminApplicationCop
       },
       applicationCard: {
         package: "套餐",
-        paymentConsent: "付款 / 授权",
         documentsPacket: "材料 / 材料包",
         externalResult: "外部状态 / 结果",
       },
@@ -529,7 +500,6 @@ export const ADMIN_APPLICATION_COPY: Record<InterfaceLocale, AdminApplicationCop
         noRunnerJobs: "暂无 runner 任务。",
         attempts: "尝试次数",
         app: "申请",
-        paymentOrders: "付款订单与交易",
         noRecords: "暂无记录。",
         inboundEmail: "入站邮件通信",
         noAlias: "未分配邮箱别名",
@@ -565,9 +535,6 @@ export function localizeMissingItem(item: string, copy: AdminApplicationCopy): s
 
   const translations: Record<string, string> = {
     "Application answers not started": "申请表尚未开始填写",
-    "Agency fee payment missing": "缺少 VIZA 服务费付款",
-    "Agency fee payment pending": "VIZA 服务费付款待处理",
-    "Payment needs customer support": "付款需要客服跟进",
     "Consent not accepted": "授权尚未接受",
     "Signature not captured": "签名尚未采集",
     "Consent was declined": "授权已被拒绝",
@@ -621,7 +588,6 @@ export function buildLocalizedStatusSummary(
       : `Application ${shortenId(application.id)} for ${applicantName}`,
     `${application.countryLabel} - ${application.visaTypeLabel}`,
     `${isZh ? "生命周期" : "Lifecycle"}: ${copy.status.lifecycle[application.lifecycleState]}`,
-    `${isZh ? "付款" : "Payment"}: ${copy.status.payment[application.payment.state]}`,
     `${isZh ? "授权" : "Consent"}: ${copy.status.consent[application.consent.state]}`,
     `${isZh ? "材料" : "Documents"}: ${copy.status.documents[application.documents.state]}`,
     `${isZh ? "材料包" : "Packet"}: ${copy.status.packet[application.packet.state]}`,

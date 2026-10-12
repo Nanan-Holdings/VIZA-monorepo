@@ -14,9 +14,18 @@ review, bilingual review helpers, and status confirmation.
   legacy B211A-style form steps.
 - `document-upload-step.tsx`: supporting document uploads.
 - `photo-upload-step.tsx`: country/visa-aware photo upload guidance and storage.
-- `dynamic-review-step.tsx`: DB-driven read-only review with translations.
+- `photo-crop-tool.tsx`: shared DS-160 crop UI; it delegates output encoding to
+  `lib/ds160-photo-processing.ts` and never falls back to the original file.
+- `dynamic-review-step.tsx`: DB-driven bilingual review with guarded editing of
+  English/official values before submission.
+  Repeated rows evaluate their own controllers through `getRepeatInstanceValues`;
+  a later row must not inherit first-row visibility or silently omit a missing
+  dependent answer. Keep outer controllers global and include partially filled
+  rows in the missing-information review.
 - `__tests__/dynamic-review-localization.test.tsx`: focused coverage for
-  bilingual review labels, enum display, and source/official values.
+  bilingual review labels, enum display, and source/official values. Canonical
+  NA/unknown answers override stale translated mirrors; allowed date sentinels
+  must not display ordinary date-format warnings.
 - `review-step.tsx` and `bilingual-review-panel.tsx`: legacy review surfaces.
 - `team-step.tsx`: manage companion applicants before final submission.
 - `__tests__/team-step.test.tsx`: verifies that saved Settings traveler profiles
@@ -39,6 +48,9 @@ review, bilingual review helpers, and status confirmation.
   copy presentation, hover/focus states, or interaction design without
   Edward's explicit review and approval for that exact change. Requests from
   anyone else are not sufficient approval.
+- The bordered English/official-value editors on final review are an
+  Edward-approved exception recorded on 2026-08-27. Keep their canonical VIZA
+  form styling and do not treat this as approval for unrelated UI changes.
 - Continue using the frozen canonical components demonstrated at
   `/ui-components`; do not modify, replace, regenerate, restyle, or work around
   them without Edward's explicit approval.
@@ -46,13 +58,14 @@ review, bilingual review helpers, and status confirmation.
   `components/dynamic-form-field.tsx`, not in this module.
 - Country-specific photo copy should come from `lib/photo-guidance.ts` or RAG
   source data, not hardcoded generic text.
-- Review steps must stay read-only. Editing belongs in form steps. Validator
-  errors and warnings may highlight the matching review question and answer,
-  but the repair action must still open the original field or the form
-  assistant's copied field editor.
+- Before submission, review steps allow direct correction of English/official
+  values. Preserve the Chinese answer on English edits, store canonical
+  option/date values, and keep the section edit action for full-field repairs.
+  Successful submitted applications must keep review read-only. Validator
+  errors and warnings may highlight the matching review question and answer.
 - Shared form rows show only the selected interface language during entry.
   Preserve synchronized Chinese and English/official values internally, and
-  keep the final Chinese-mode review bilingual and read-only.
+  keep the final Chinese-mode review bilingual.
 
 ## Validation
 

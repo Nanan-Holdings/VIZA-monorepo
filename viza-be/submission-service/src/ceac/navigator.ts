@@ -17,7 +17,7 @@
  * `goBack` / `saveCurrent` rather than clicking Next directly.
  */
 
-import type { Locator, Page } from "@playwright/test";
+import type { Frame, Locator, Page, Request } from "@playwright/test";
 import {
   CEAC_FIELD_ERROR_SELECTOR,
   CEAC_NAV_SELECTORS,
@@ -25,6 +25,7 @@ import {
 } from "./selectors";
 import { assertPage, detectPage, waitForPage, type CeacPageId } from "./pages";
 import { NavigationError, ValidationFailedError } from "./errors";
+import { assertCeacPostbackHealthy, installCeacPostbackMonitor, waitForAspNetPostback } from "./aspnet";
 
 /**
  * Subset of CEAC navigation buttons the navigator knows how to click.
@@ -51,6 +52,11 @@ export interface NavigateOptions {
   assertFrom?: boolean;
 }
 
+export interface SecurityFivePhotoNavigationOptions extends NavigateOptions {
+  /** Lease/ownership fence checked before and between official actions. */
+  assertActive?: () => void;
+}
+
 /**
  * Validation messages surfaced by CEAC on the current page, separated into
  * the summary block (rendered by `asp:ValidationSummary`) and the per-field
@@ -69,6 +75,20 @@ const DEFAULT_TIMEOUT_MS = 45_000;
 const DEFAULT_POLL_INTERVAL_MS = 500;
 const PRIMARY_CLICK_SETTLE_MS = 10_000;
 const REQUEST_SUBMIT_SETTLE_MS = 10_000;
+const PAGE_COMPLETE_PROMPT_CLICK_TIMEOUT_MS = 5_000;
+
+interface ContinueAfterPageCompletePromptResult {
+  handled: boolean;
+  /** The click action was dispatched, but Playwright timed out waiting for its navigation. */
+  clickTimedOutAfterDispatch: boolean;
+}
+
+interface ContinuationNavigationEvidence {
+  beforeUrl: string;
+  requestObserved: boolean;
+  mainFrameNavigated: boolean;
+  dispose: () => void;
+}
 
 interface ClientValidationDiagnostic {
   pageIsValid: boolean | null;
@@ -137,6 +157,78 @@ export async function goBack(
 }
 
 /**
+ * Leave Security and Background: Part 5 when CEAC disables its Next: PHOTO
+ * submit control.  CEAC saves this page through the Back postback, then keeps
+ * the official PHOTO sidebar link available from Part 4.  The caller must
+ * only invoke this fallback after it has observed a visible disabled Next.
+ *
+ * Returning false is deliberately side-effect free: an enabled Next (or no
+ * visible Next) belongs to the ordinary page-order navigation path.
+ */
+export async function navigateSecurityFiveToPhoto(
+  page: Page,
+  options: SecurityFivePhotoNavigationOptions = {},
+): Promise<boolean> {
+  const { assertActive, ...navigationOptions } = options;
+  assertActive?.();
+  await assertPage(page, "security_background_5");
+  const next = await resolveNavButton(page, "next");
+  if (!next || await next.isEnabled()) return false;
+  const nextValue = ((await next.getAttribute("value")) ?? "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+  if (nextValue !== "next: photo") return false;
+
+  assertActive?.();
+  await goBack(page, {
+    from: "security_background_5",
+    to: "security_background_4",
+    ...navigationOptions,
+  });
+
+  assertActive?.();
+  const photoLink = await resolveVisiblePhotoLink(page);
+  if (!photoLink) {
+    throw new NavigationError(
+      "CEAC PHOTO link was not uniquely visible after saving Security and Background: Part 5",
+      {
+        expected: "upload_photo",
+        detected: "security_background_4",
+        url: page.url(),
+        details: { action: "security_five_photo_link", selector: 'a#PHOTO[href]' },
+      },
+    );
+  }
+
+  const href = await photoLink.getAttribute("href");
+  const photoUrl = resolveOfficialPhotoUrl(page.url(), href);
+  if (!photoUrl) {
+    throw new NavigationError(
+      "CEAC PHOTO link did not target the official upload-photo path",
+      {
+        expected: "upload_photo",
+        detected: "security_background_4",
+        url: page.url(),
+        details: { action: "security_five_photo_link", selector: 'a#PHOTO[href]' },
+      },
+    );
+  }
+
+  assertActive?.();
+  await photoLink.click({ timeout: options.timeoutMs ?? DEFAULT_TIMEOUT_MS });
+  await waitForAspNetPostback(page, options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+  assertCeacPostbackHealthy(page);
+  await waitForPage(page, "upload_photo", {
+    timeoutMs: options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+    pollIntervalMs: options.pollIntervalMs,
+  });
+  assertCeacPostbackHealthy(page);
+  assertActive?.();
+  return true;
+}
+
+/**
  * Click Save and verify we stayed on (or landed back on) `at`.
  *
  * CEAC's Save flow typically re-renders the same page; some versions show a
@@ -180,6 +272,9 @@ async function runTransition(
   const timeoutMs = params.options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const pollIntervalMs = params.options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
   const assertFrom = params.options.assertFrom ?? true;
+  const expectedList = Array.isArray(params.to) ? params.to : [params.to];
+  installCeacPostbackMonitor(page);
+  assertCeacPostbackHealthy(page);
 
   if (assertFrom) {
     // If the page is not where we thought it was, fail loudly with origin
@@ -198,9 +293,8 @@ async function runTransition(
       },
     );
   }
-  const navButtonId = (await navButton.getAttribute("id")) ?? "";
-  const navButtonName = (await navButton.getAttribute("name")) ?? "";
-  const navButtonValue = (await navButton.getAttribute("value")) ?? "";
+  const [navButtonId, navButtonName, navButtonValue] = await navButton.evaluate(node =>
+    ["id", "name", "value"].map(attribute => node.getAttribute(attribute) ?? ""));
 
   // Click + wait for either the destination identity or a ValidationSummary
   // to appear. `Promise.race` is not quite right here because we want to
@@ -214,6 +308,7 @@ async function runTransition(
       () => navButton.click(),
     );
   } catch (err) {
+    assertCeacPostbackHealthy(page);
     throw new NavigationError(
       `Failed to click CEAC ${params.action} button on page "${params.from}"`,
       {
@@ -227,10 +322,58 @@ async function runTransition(
     );
   }
 
-  let pageCompletePromptHandled = await continueAfterPageCompletePrompt(
+  // CEAC can render its "Your DS-160 is complete" prompt as a same-document
+  // modal before it starts the ASP.NET postback.  The modal's "No – Continue
+  // Form" button is the second half of the navigation action.  Handle it
+  // before waiting for a postback so that the click we are waiting on is the
+  // actual form transition rather than the prompt that gates it.  Keep the
+  // postback-time check as a bounded fallback for portals that render the
+  // modal after the first response.
+  const firstPromptEvidence = observeContinuationNavigation(page);
+  let firstPromptResult: ContinueAfterPageCompletePromptResult;
+  try {
+    firstPromptResult = await continueAfterPageCompletePrompt(page);
+  } catch (error) {
+    firstPromptEvidence.dispose();
+    throw error;
+  }
+  await settlePageCompletePrompt(
     page,
+    firstPromptResult,
+    firstPromptEvidence,
     params.from,
+    expectedList,
+    timeoutMs,
   );
+  let pageCompletePromptHandled = firstPromptResult.handled;
+  let continuationClickAmbiguous = firstPromptResult.clickTimedOutAfterDispatch;
+
+  if (!firstPromptResult.clickTimedOutAfterDispatch) {
+    const secondPromptEvidence = observeContinuationNavigation(page);
+    let secondPromptResult: ContinueAfterPageCompletePromptResult;
+    try {
+      secondPromptResult = await continueAfterPageCompletePrompt(page);
+    } catch (error) {
+      secondPromptEvidence.dispose();
+      throw error;
+    }
+    if (secondPromptResult.handled) {
+      // A delayed modal click starts the real ASP.NET transition.  Wait for
+      // that second action before reading validators or probing the destination.
+      await settlePageCompletePrompt(
+        page,
+        secondPromptResult,
+        secondPromptEvidence,
+        params.from,
+        expectedList,
+        timeoutMs,
+      );
+      pageCompletePromptHandled = true;
+      continuationClickAmbiguous ||= secondPromptResult.clickTimedOutAfterDispatch;
+    } else {
+      secondPromptEvidence.dispose();
+    }
+  }
 
   // Give CEAC a moment to either navigate or render validators. Using
   // `waitForLoadState('networkidle')` with a short budget is safe: if the
@@ -245,7 +388,6 @@ async function runTransition(
   // Short-circuit on validation failure before spending the full timeout
   // budget polling for a page identity that will never change.
   const probe = await detectPage(page);
-  const expectedList = Array.isArray(params.to) ? params.to : [params.to];
   const alreadyOnDestination = probe.id !== "unknown" && expectedList.includes(probe.id);
 
   if (!alreadyOnDestination) {
@@ -276,11 +418,14 @@ async function runTransition(
   // gives the browser a standards-based form-submit fallback.
   const primaryWindowMs = Math.min(PRIMARY_CLICK_SETTLE_MS, timeoutMs);
   try {
-    return await waitForPage(page, expectedList, {
+    const destination = await waitForPage(page, expectedList, {
       timeoutMs: primaryWindowMs,
       pollIntervalMs,
     });
+    assertCeacPostbackHealthy(page);
+    return destination;
   } catch {
+    assertCeacPostbackHealthy(page);
     // Continue into the same-page diagnostic/fallback path below.
   }
 
@@ -288,6 +433,7 @@ async function runTransition(
   let currentProbe = await detectPage(page);
   const canRetrySubmit =
     params.action === "next" &&
+    !continuationClickAmbiguous &&
     currentProbe.id === params.from &&
     validationDiagnostic.pageIsValid !== false &&
     validationDiagnostic.invalidValidators.length === 0 &&
@@ -295,6 +441,7 @@ async function runTransition(
 
   let requestSubmitAttempted = false;
   if (canRetrySubmit) {
+    assertCeacPostbackHealthy(page);
     requestSubmitAttempted = true;
     pageCompleteDialogHandled =
       (await performWithPageCompleteDialogAcceptance(
@@ -310,21 +457,44 @@ async function runTransition(
             }
           }),
       ).catch(() => false)) || pageCompleteDialogHandled;
-    pageCompletePromptHandled =
-      (await continueAfterPageCompletePrompt(page, params.from)) ||
-      pageCompletePromptHandled;
+    const retryPromptEvidence = observeContinuationNavigation(page);
+    let retryPromptResult: ContinueAfterPageCompletePromptResult;
+    try {
+      retryPromptResult = await continueAfterPageCompletePrompt(page);
+    } catch (error) {
+      retryPromptEvidence.dispose();
+      throw error;
+    }
+    if (retryPromptResult.handled) {
+      await settlePageCompletePrompt(
+        page,
+        retryPromptResult,
+        retryPromptEvidence,
+        params.from,
+        expectedList,
+        timeoutMs,
+      );
+      pageCompletePromptHandled = true;
+      continuationClickAmbiguous ||= retryPromptResult.clickTimedOutAfterDispatch;
+    } else {
+      retryPromptEvidence.dispose();
+    }
   }
 
   if (requestSubmitAttempted) {
     try {
-      return await waitForPage(page, expectedList, {
+      await waitForAspNetPostback(page, timeoutMs);
+      const destination = await waitForPage(page, expectedList, {
         timeoutMs: Math.min(
           REQUEST_SUBMIT_SETTLE_MS,
           timeoutMs - primaryWindowMs,
         ),
         pollIntervalMs,
       });
+      assertCeacPostbackHealthy(page);
+      return destination;
     } catch {
+      assertCeacPostbackHealthy(page);
       // Continue into the WebForms-specific postback fallback below.
     }
   }
@@ -333,11 +503,13 @@ async function runTransition(
   currentProbe = await detectPage(page);
   const canRetryWebFormsPostback =
     requestSubmitAttempted &&
+    !continuationClickAmbiguous &&
     currentProbe.id === params.from &&
     validationDiagnostic.pageIsValid !== false &&
     validationDiagnostic.invalidValidators.length === 0;
 
   if (canRetryWebFormsPostback) {
+    assertCeacPostbackHealthy(page);
     pageCompleteDialogHandled =
       (await performWithPageCompleteDialogAcceptance(
         page,
@@ -360,15 +532,35 @@ async function runTransition(
             }
           }),
       ).catch(() => false)) || pageCompleteDialogHandled;
-    pageCompletePromptHandled =
-      (await continueAfterPageCompletePrompt(page, params.from)) ||
-      pageCompletePromptHandled;
+    const webFormsPromptEvidence = observeContinuationNavigation(page);
+    let webFormsPromptResult: ContinueAfterPageCompletePromptResult;
+    try {
+      webFormsPromptResult = await continueAfterPageCompletePrompt(page);
+    } catch (error) {
+      webFormsPromptEvidence.dispose();
+      throw error;
+    }
+    if (webFormsPromptResult.handled) {
+      await settlePageCompletePrompt(
+        page,
+        webFormsPromptResult,
+        webFormsPromptEvidence,
+        params.from,
+        expectedList,
+        timeoutMs,
+      );
+      pageCompletePromptHandled = true;
+      continuationClickAmbiguous ||= webFormsPromptResult.clickTimedOutAfterDispatch;
+    } else {
+      webFormsPromptEvidence.dispose();
+    }
   }
 
   // Poll the remaining timeout budget after the optional WebForms postback.
   // `waitForPage` throws on timeout; translate it below.
   try {
-    return await waitForPage(page, expectedList, {
+    await waitForAspNetPostback(page, timeoutMs);
+    const destination = await waitForPage(page, expectedList, {
       timeoutMs: Math.max(
         pollIntervalMs,
         timeoutMs - primaryWindowMs -
@@ -376,7 +568,10 @@ async function runTransition(
       ),
       pollIntervalMs,
     });
+    assertCeacPostbackHealthy(page);
+    return destination;
   } catch (err) {
+    assertCeacPostbackHealthy(page);
     const detected = (err as { context?: { detected?: CeacPageId | "unknown" } })?.context?.detected;
     // ASP.NET validators can be rendered by a late UpdatePanel response after
     // the initial post-click probe. Re-read them at the failure boundary so a
@@ -454,31 +649,172 @@ async function performWithPageCompleteDialogAcceptance(
   return handled;
 }
 
-async function continueAfterPageCompletePrompt(
-  page: Page,
-  from: CeacPageId,
-): Promise<boolean> {
-  // CEAC can show a section-boundary prompt or a passport-country warning
-  // after Passport. "No – Continue Form" and "Save and Continue" both mean
-  // continue to U.S. Contact; they are required second clicks, not the page's
-  // primary Next button.
-  if (from !== "passport") return false;
+function isPlaywrightTimeoutError(error: unknown): error is Error {
+  return error instanceof Error && error.name === "TimeoutError";
+}
 
-  const candidates = page.locator(CEAC_NAV_SELECTORS.continueAfterPageComplete);
+function isClickActionDispatched(error: unknown): boolean {
+  return error instanceof Error && /click action done/i.test(error.message);
+}
+
+function isOfficialNavigationRequest(page: Page, request: Request): boolean {
   try {
-    await candidates.first().waitFor({ state: "visible", timeout: 5_000 });
+    const requestUrl = new URL(request.url());
+    const pageUrl = new URL(page.url());
+    if (requestUrl.origin !== pageUrl.origin || !/^\/GenNIV\//i.test(requestUrl.pathname)) {
+      return false;
+    }
   } catch {
     return false;
   }
 
-  const count = await candidates.count();
-  for (let index = 0; index < count; index += 1) {
-    const candidate = candidates.nth(index);
-    if (!(await candidate.isVisible().catch(() => false))) continue;
-    await candidate.click({ timeout: 5_000 });
-    return true;
+  try {
+    return (
+      (request.isNavigationRequest() && request.frame() === page.mainFrame()) ||
+      (request.method() === "POST" && ["xhr", "fetch"].includes(request.resourceType()))
+    );
+  } catch {
+    return false;
   }
-  return false;
+}
+
+function isValidContinuationUrl(beforeUrl: string, currentUrl: string): boolean {
+  try {
+    const before = new URL(beforeUrl);
+    const current = new URL(currentUrl);
+    return current.origin === before.origin && /^\/GenNIV\//i.test(current.pathname);
+  } catch {
+    return false;
+  }
+}
+
+function observeContinuationNavigation(page: Page): ContinuationNavigationEvidence {
+  const evidence: ContinuationNavigationEvidence = {
+    beforeUrl: page.url(),
+    requestObserved: false,
+    mainFrameNavigated: false,
+    dispose: () => {
+      page.off("request", onRequest);
+      page.off("framenavigated", onFrameNavigated);
+    },
+  };
+  const onRequest = (request: Request): void => {
+    if (isOfficialNavigationRequest(page, request)) evidence.requestObserved = true;
+  };
+  const onFrameNavigated = (frame: Frame): void => {
+    try {
+      if (frame === page.mainFrame()) evidence.mainFrameNavigated = true;
+    } catch {
+      // The page may close while an ambiguous navigation is settling.
+    }
+  };
+  page.on("request", onRequest);
+  page.on("framenavigated", onFrameNavigated);
+  return evidence;
+}
+
+async function findVisiblePageCompletePrompt(page: Page): Promise<Locator | null> {
+  // CEAC can show this section-boundary prompt after any completed form page,
+  // not only after Passport. "No – Continue Form" and "Save and Continue"
+  // both mean continue with the requested navigation; they are the required
+  // second click, not the page's primary Next button.
+
+  const candidates = page.locator(CEAC_NAV_SELECTORS.continueAfterPageComplete).filter({ visible: true });
+  const labels = await candidates.evaluateAll(nodes => nodes.map(node =>
+    (node.getAttribute("value") ?? node.textContent ?? "").trim()));
+  for (let index = 0; index < labels.length; index += 1) {
+    const label = labels[index];
+    // Keep the candidate list tolerant of CEAC's markup variants, but only
+    // click the explicit continuation action.  In particular, never treat a
+    // visible review/return button or an unrelated element with a similar id
+    // as the answer to this prompt.
+    if (!/(?:continue form|save and continue)/i.test(label)) continue;
+    return candidates.nth(index);
+  }
+  return null;
+}
+
+async function hasVisiblePageCompletePrompt(page: Page): Promise<boolean> {
+  return Boolean(await findVisiblePageCompletePrompt(page));
+}
+
+async function continueAfterPageCompletePrompt(
+  page: Page,
+): Promise<ContinueAfterPageCompletePromptResult> {
+  const candidate = await findVisiblePageCompletePrompt(page);
+  if (!candidate) return { handled: false, clickTimedOutAfterDispatch: false };
+
+  try {
+    await candidate.click({ timeout: PAGE_COMPLETE_PROMPT_CLICK_TIMEOUT_MS });
+    return { handled: true, clickTimedOutAfterDispatch: false };
+  } catch (error) {
+    // Playwright may dispatch the official click and then time out while
+    // waiting for a slow document navigation. Never click the continuation a
+    // second time: reconcile the ambiguous action through the postback gate
+    // and destination checks in settlePageCompletePrompt instead.
+    if (!isPlaywrightTimeoutError(error) || !isClickActionDispatched(error)) {
+      assertCeacPostbackHealthy(page);
+      throw error;
+    }
+    assertCeacPostbackHealthy(page);
+    return { handled: true, clickTimedOutAfterDispatch: true };
+  }
+}
+
+async function settlePageCompletePrompt(
+  page: Page,
+  result: ContinueAfterPageCompletePromptResult,
+  evidence: ContinuationNavigationEvidence,
+  from: CeacPageId,
+  expectedList: CeacPageId[],
+  timeoutMs: number,
+): Promise<void> {
+  try {
+    await waitForAspNetPostback(page, timeoutMs);
+    if (!result.clickTimedOutAfterDispatch) return;
+
+    assertCeacPostbackHealthy(page);
+    const probe = await detectPage(page);
+    const currentUrl = page.url();
+    const validContinuationUrl = isValidContinuationUrl(evidence.beforeUrl, currentUrl);
+    const reachedExpectedNextPage =
+      validContinuationUrl &&
+      probe.id !== "unknown" &&
+      expectedList.includes(probe.id) &&
+      probe.id !== from;
+    if (reachedExpectedNextPage) return;
+
+    const promptVisible = await hasVisiblePageCompletePrompt(page);
+    const navigationEvidence = evidence.requestObserved
+      || evidence.mainFrameNavigated
+      || currentUrl !== evidence.beforeUrl;
+    const remainedOnExpectedMappedPage =
+      validContinuationUrl &&
+      probe.id === from &&
+      expectedList.includes(from) &&
+      !promptVisible &&
+      navigationEvidence;
+    if (remainedOnExpectedMappedPage) return;
+
+    throw new NavigationError(
+      `CEAC continuation click from "${from}" did not reach an expected page after its action timed out`,
+      {
+        expected: expectedList,
+        detected: probe.id,
+        details: {
+          action: "continue_after_page_complete",
+          clickOutcome: "timeout_after_dispatch",
+          continuationPromptVisible: promptVisible,
+          validContinuationUrl,
+          requestObserved: evidence.requestObserved,
+          mainFrameNavigated: evidence.mainFrameNavigated,
+          urlChanged: currentUrl !== evidence.beforeUrl,
+        },
+      },
+    );
+  } finally {
+    evidence.dispose();
+  }
 }
 
 async function readClientValidationDiagnostic(
@@ -552,6 +888,32 @@ async function resolveNavButton(page: Page, action: CeacNavAction): Promise<Loca
   return null;
 }
 
+async function resolveVisiblePhotoLink(page: Page): Promise<Locator | null> {
+  const candidates = page.locator('a#PHOTO[href]');
+  const count = await candidates.count();
+  let visible: Locator | null = null;
+  for (let index = 0; index < count; index += 1) {
+    const candidate = candidates.nth(index);
+    if (!(await candidate.isVisible().catch(() => false))) continue;
+    if (visible) return null;
+    visible = candidate;
+  }
+  return visible;
+}
+
+function resolveOfficialPhotoUrl(currentUrl: string, href: string | null): string | null {
+  if (!href) return null;
+  try {
+    const current = new URL(currentUrl);
+    const target = new URL(href, currentUrl);
+    if (current.origin !== "https://ceac.state.gov" || target.origin !== current.origin) return null;
+    if (target.pathname.toLowerCase() !== "/genniv/general/photo/photo_uploadthephoto.aspx") return null;
+    return target.toString();
+  } catch {
+    return null;
+  }
+}
+
 function navSelectorFor(action: CeacNavAction): string {
   switch (action) {
     case "next":
@@ -564,17 +926,11 @@ function navSelectorFor(action: CeacNavAction): string {
 }
 
 async function collectVisibleTexts(locator: Locator): Promise<string[]> {
-  const count = await locator.count();
-  const out: string[] = [];
-  for (let i = 0; i < count; i += 1) {
-    const node = locator.nth(i);
-    // Invisible validators are spans with `display: none` until triggered;
-    // `isVisible` filters those out without a `getComputedStyle` round-trip.
-    if (!(await node.isVisible())) continue;
-    const text = (await node.textContent())?.trim() ?? "";
-    if (text.length > 0) out.push(text);
-  }
-  return out;
+  // CEAC leaves many hidden validators in every form. Filtering in the
+  // browser retains Playwright visibility semantics without one remote
+  // isVisible command for each inactive validator on every navigation poll.
+  return locator.filter({ visible: true }).evaluateAll(nodes => nodes
+    .map(node => (node.textContent ?? "").trim()).filter(text => text.length > 0));
 }
 
 function dedupe(values: string[]): string[] {

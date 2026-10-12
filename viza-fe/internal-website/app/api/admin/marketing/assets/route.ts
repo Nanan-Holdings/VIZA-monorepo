@@ -3,13 +3,21 @@ import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/rbac";
 import { MARKETING_ASSET_BUCKET, validateMarketingAsset } from "@/lib/marketing/assets";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { rehostMarketingCover } from "@/lib/marketing/cover";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   try {
-    const actor = await requireRole("admin");
+    const actor = await requireRole("admin", "staff");
+    if (request.headers.get("content-type")?.includes("application/json")) {
+      const body = await request.json().catch(() => null) as { url?: unknown } | null;
+      if (typeof body?.url !== "string") return NextResponse.json({ error: "Image URL is required" }, { status: 400 });
+      const url = await rehostMarketingCover(body.url);
+      if (!url) return NextResponse.json({ error: "Image could not be safely imported" }, { status: 400 });
+      return NextResponse.json({ url, kind: "image" }, { headers: { "Cache-Control": "private, no-store" } });
+    }
     const form = await request.formData();
     const file = form.get("file");
     const kind = String(form.get("kind") ?? "");

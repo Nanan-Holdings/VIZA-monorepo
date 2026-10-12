@@ -4,6 +4,7 @@ import {
   getApplicationStepSectionKey,
   type ApplicationStepSectionKey,
   type ApplicationStepRef,
+  initializeExpandedSectionState,
 } from "../application-step-sections";
 
 const titles: Record<ApplicationStepSectionKey, string> = {
@@ -118,5 +119,19 @@ describe("application step sections", () => {
     expect(sections.find((section) => section.key === "review")?.steps.map((sectionStep) => sectionStep.sourceName)).toEqual([
       "Review",
     ]);
+  });
+
+  it("returns the same expansion state when sections have already been initialized", () => {
+    const sections = buildApplicationStepSections([
+      step(0, "Personal Information"),
+      step(1, "Travel Information"),
+    ], titles);
+
+    const initialized = initializeExpandedSectionState({}, sections, 1);
+    expect(initialized).toEqual({
+      "personal-0": false,
+      "travel-1": true,
+    });
+    expect(initializeExpandedSectionState(initialized, sections, 1)).toBe(initialized);
   });
 });

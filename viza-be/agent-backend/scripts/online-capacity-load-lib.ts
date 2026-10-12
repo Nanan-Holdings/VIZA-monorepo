@@ -5,6 +5,7 @@ export { percentile };
 export const ONLINE_CAPACITY_RELEASE_USERS = 100;
 export const ONLINE_CAPACITY_RELEASE_DURATION_MS = 300_000;
 export const ONLINE_CAPACITY_RELEASE_RAMP_MS = 30_000;
+export const ONLINE_CAPACITY_RELEASE_PACING_MS = 5_000;
 
 export type OnlineCapacityScope =
 	| "public_edge_read_only"
@@ -36,6 +37,7 @@ export interface OnlineCapacityRunInput {
 	users: number;
 	sustainedForMs: number;
 	rampUpMs: number;
+	pacingMs: number;
 	completedUsers: number;
 	scenarios: readonly OnlineCapacityScenarioResult[];
 	databaseTelemetry?: OnlineCapacityDatabaseTelemetry;
@@ -56,6 +58,13 @@ export interface OnlineCapacityDatabaseTelemetry {
 	failedQueryDelta: number;
 	slowQueryDelta: number;
 	metricResetDetected: boolean;
+	allRuntimeMonitorsEnabled: boolean;
+	runtimeMetricResetDetected: boolean;
+	peakEventLoopDelayP95Ms: number;
+	peakEventLoopDelayMaxMs: number;
+	peakEventLoopUtilizationPercent: number;
+	peakHeapUtilizationPercent: number;
+	peakRssBytes: number;
 	topSlowFingerprints: Array<{
 		fingerprint: string;
 		count: number;
@@ -139,6 +148,16 @@ function hasValidDatabaseTelemetry(value: OnlineCapacityDatabaseTelemetry): bool
 		isNonNegativeInteger(value.failedQueryDelta) &&
 		isNonNegativeInteger(value.slowQueryDelta) &&
 		typeof value.metricResetDetected === "boolean" &&
+		typeof value.allRuntimeMonitorsEnabled === "boolean" &&
+		typeof value.runtimeMetricResetDetected === "boolean" &&
+		isNonNegativeFinite(value.peakEventLoopDelayP95Ms) &&
+		isNonNegativeFinite(value.peakEventLoopDelayMaxMs) &&
+		value.peakEventLoopDelayP95Ms <= value.peakEventLoopDelayMaxMs &&
+		isNonNegativeFinite(value.peakEventLoopUtilizationPercent) &&
+		value.peakEventLoopUtilizationPercent <= 100 &&
+		isNonNegativeFinite(value.peakHeapUtilizationPercent) &&
+		value.peakHeapUtilizationPercent <= 100 &&
+		isNonNegativeInteger(value.peakRssBytes) &&
 		Array.isArray(value.topSlowFingerprints) &&
 		value.topSlowFingerprints.length <= 10 &&
 		value.topSlowFingerprints.every(
@@ -174,7 +193,8 @@ export function evaluateOnlineCapacityRun(
 		input.completedUsers === input.users &&
 		(!authenticated ||
 			(input.sustainedForMs >= ONLINE_CAPACITY_RELEASE_DURATION_MS &&
-				input.rampUpMs >= ONLINE_CAPACITY_RELEASE_RAMP_MS));
+				input.rampUpMs >= ONLINE_CAPACITY_RELEASE_RAMP_MS &&
+				input.pacingMs === ONLINE_CAPACITY_RELEASE_PACING_MS));
 
 	if (!Number.isInteger(input.users) || input.users < 1) {
 		failures.push("invalid_users");
@@ -184,6 +204,10 @@ export function evaluateOnlineCapacityRun(
 	}
 	if (!isNonNegativeFinite(input.sustainedForMs) || !isNonNegativeFinite(input.rampUpMs)) {
 		failures.push("invalid_timing");
+	}
+	if (!isNonNegativeFinite(input.pacingMs)) failures.push("invalid_pacing");
+	if (authenticated && input.pacingMs !== ONLINE_CAPACITY_RELEASE_PACING_MS) {
+		failures.push("release_pacing_mismatch");
 	}
 	if (!releaseMatrixComplete) {
 		failures.push("release_matrix_incomplete");
@@ -217,6 +241,17 @@ export function evaluateOnlineCapacityRun(
 			if (telemetry.metricResetDetected) failures.push("database_query_metric_reset");
 			if (telemetry.failedQueryDelta !== 0) failures.push("database_query_errors");
 			if (telemetry.slowQueryDelta !== 0) failures.push("database_slow_queries");
+			if (!telemetry.allRuntimeMonitorsEnabled) failures.push("runtime_monitoring_disabled");
+			if (telemetry.runtimeMetricResetDetected) failures.push("runtime_metric_reset");
+			if (telemetry.peakEventLoopDelayP95Ms >= 100) {
+				failures.push("runtime_event_loop_delay");
+			}
+			if (telemetry.peakEventLoopUtilizationPercent >= 80) {
+				failures.push("runtime_event_loop_utilization");
+			}
+			if (telemetry.peakHeapUtilizationPercent >= 80) {
+				failures.push("runtime_heap_utilization");
+			}
 		}
 	}
 

@@ -1,6 +1,8 @@
 import { getTravelBackendUrl } from "@/lib/travel/backend";
+import { createFetchWithTransientRetry } from "@/lib/supabase/fetch-with-timeout";
 
 const HEALTH_TIMEOUT_MS = 2_500;
+const SESSION_DATABASE_RETRY_DELAYS_MS = [150, 500] as const;
 
 type ServiceHealth = {
   configured: boolean;
@@ -8,10 +10,7 @@ type ServiceHealth = {
   probed?: boolean;
 };
 
-async function boundedFetch(
-  url: string,
-  init: RequestInit
-): Promise<boolean> {
+async function boundedFetch(url: string, init: RequestInit): Promise<boolean> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), HEALTH_TIMEOUT_MS);
   try {
@@ -34,10 +33,10 @@ async function checkOpenAI(activeProbe: boolean): Promise<ServiceHealth> {
   if (!activeProbe) {
     return { configured: true, reachable: true, probed: false };
   }
-  const reachable = await boundedFetch(
-    "https://api.openai.com/v1/models",
-    { method: "GET", headers: { Authorization: `Bearer ${apiKey}` } }
-  );
+  const reachable = await boundedFetch("https://api.openai.com/v1/models", {
+    method: "GET",
+    headers: { Authorization: `Bearer ${apiKey}` },
+  });
   return { configured: true, reachable, probed: true };
 }
 
@@ -55,16 +54,27 @@ async function checkSessionDatabase(): Promise<ServiceHealth> {
   if (!supabaseUrl || !serviceRoleKey) {
     return { configured: false, reachable: false };
   }
-  const reachable = await boundedFetch(
-    `${supabaseUrl.replace(/\/$/, "")}/rest/v1/travel_agent_sessions?select=id&limit=1`,
-    {
-      method: "GET",
-      headers: {
-        apikey: serviceRoleKey,
-        Authorization: `Bearer ${serviceRoleKey}`,
-      },
-    }
-  );
+  const fetchWithRetry = createFetchWithTransientRetry({
+    requestTimeoutMs: HEALTH_TIMEOUT_MS,
+    retryDelaysMs: SESSION_DATABASE_RETRY_DELAYS_MS,
+    circuitBreakerScope: null,
+  });
+  let reachable = false;
+  try {
+    const response = await fetchWithRetry(
+      `${supabaseUrl.replace(/\/$/, "")}/rest/v1/travel_agent_sessions?select=id&limit=1`,
+      {
+        method: "GET",
+        headers: {
+          apikey: serviceRoleKey,
+          Authorization: `Bearer ${serviceRoleKey}`,
+        },
+      }
+    );
+    reachable = response.ok;
+  } catch {
+    reachable = false;
+  }
   return { configured: true, reachable };
 }
 
@@ -77,7 +87,8 @@ function placesHealth(): ServiceHealth {
 }
 
 function clientSessionHealth(): ServiceHealth {
-  const configured = (process.env.CLIENT_SESSION_SECRET?.trim().length ?? 0) >= 32;
+  const configured =
+    (process.env.CLIENT_SESSION_SECRET?.trim().length ?? 0) >= 32;
   return { configured, reachable: configured };
 }
 
@@ -91,10 +102,19 @@ export async function GET(request: Request) {
   ]);
   const places = placesHealth();
   const clientSession = clientSessionHealth();
-  const services = { openai, travelService, sessionDatabase, places, clientSession };
+  const services = {
+    openai,
+    travelService,
+    sessionDatabase,
+    places,
+    clientSession,
+  };
   return Response.json(
     {
-      ok: openai.reachable && sessionDatabase.reachable && clientSession.reachable,
+      ok:
+        openai.reachable &&
+        sessionDatabase.reachable &&
+        clientSession.reachable,
       services,
       // Compatibility fields for clients during the protocol rollout.
       llmConfigured: openai.configured,
