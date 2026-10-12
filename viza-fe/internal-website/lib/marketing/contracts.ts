@@ -6,10 +6,12 @@ export const MARKETING_SOCIAL_PLATFORMS = [
   "google-business-sg",
   "instagram",
   "linkedin",
+  "facebook",
   "pinterest",
   "reddit",
 ] as const;
 export type MarketingSocialPlatform = (typeof MARKETING_SOCIAL_PLATFORMS)[number];
+export const VIZA_CONTENT_PLATFORMS = ["linkedin", "facebook", "instagram", "pinterest"] as const satisfies readonly MarketingSocialPlatform[];
 
 export interface MarketingBlogSummary {
   id: string;
@@ -43,6 +45,7 @@ export interface MarketingBlogAdminRecord {
   authorName: string;
   seoTitle: string | null;
   seoDescription: string | null;
+  editorial: { sourceUrl: string | null; topics: string[]; seoKeyword: string | null; keywordMeasured: boolean; monthlySearches: number | null; rankScore: number | null };
   generationBrief: string | null;
   generatedByModel: string | null;
   version: number;
@@ -96,6 +99,8 @@ export interface MarketingSocialCompositionRecord {
   platforms: MarketingSocialPlatform[];
   platformContent: Partial<Record<MarketingSocialPlatform, string>>;
   zernioPosts: Partial<Record<MarketingSocialPlatform, string>>;
+  zernioPostUrls: Partial<Record<MarketingSocialPlatform, string>>;
+  uploadPostPosts: Partial<Record<"instagram" | "pinterest", { status: "pending" | "published" | "failed"; requestId: string | null; postId: string | null; postUrl: string | null }>>;
   scheduledFor: string | null;
   lastSyncedAt: string | null;
   createdAt: string;
@@ -170,6 +175,8 @@ export interface MarketingBlogDraftInput {
   authorName: string;
   seoTitle?: string;
   seoDescription?: string;
+  topics?: string[];
+  seoKeyword?: string;
   reason: string;
 }
 

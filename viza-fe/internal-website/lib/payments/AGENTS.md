@@ -33,5 +33,8 @@ This module holds shared payment-domain helpers used by client and API routes.
 - Never accept payment evidence from a different application. A ready decision
   requires the exact application entitlement plus matching amount/currency for
   managed official-fee allocations.
+- A beta agency-fee waiver is valid only for a zero-value, application-scoped
+  `payment_records` row whose metadata resolves to the same applicant's
+  friends/all-countries/100%-discount grant. Never trust waiver metadata alone.
 - Payment confirmation prepares the entitlement but never enqueues an official
   submission. The applicant must return to Review and explicitly submit again.

@@ -13,6 +13,15 @@ zero-downtime rollover procedures in [`secret-rotation.md`](./secret-rotation.md
 > Deliverable = this committed file. No console/dashboard actions are performed
 > by the agent.
 
+> **Deploy topology corrected 2026-09-04.** This table previously pointed at
+> Cloud Run for the backend. It is not there: `viza-be/agent-backend` deploys to
+> **Render** (`viza-agent-backend`, singapore) per `render.yaml`; the
+> `cloudbuild.yaml` beside it is stale (last touched 2026-08-13) and `gcloud` is
+> not even installed on the maintainer's machine. `viza-fe/internal-website`
+> deploys to **Vercel** (`viza-internal`, team `viza-gmail's projects`) and
+> production is git-driven off `main` — never `vercel --prod` from a feature
+> branch. `viza-be/submission-service` deploys to **Fly.io**.
+
 ## Pre-flight (every rotation)
 
 1. Announce in `#oncall`: `Rotating $SECRET, ETA $duration`.
@@ -27,14 +36,15 @@ Legend — **Consumer** = workspace + env var. **Redeploy** = command(s) after t
 
 | Secret | Consumer (workspace · env var) | Rotate at | Redeploy |
 | --- | --- | --- | --- |
-| `ANTHROPIC_API_KEY` | agent-backend · `ANTHROPIC_API_KEY` | console.anthropic.com → API keys → create, then delete old | `gcloud run services update viza-agent-backend --update-secrets "ANTHROPIC_API_KEY = anthropic-key:latest"` |
-| `OPENAI_API_KEY` | agent-backend + internal-website · `OPENAI_API_KEY` / `PASSPORT_OCR_OPENAI_API_KEY` | platform.openai.com → API keys → rotate | redeploy Cloud Run + `vercel --prod` |
+| `ANTHROPIC_API_KEY` | agent-backend · `ANTHROPIC_API_KEY` | console.anthropic.com → API keys → create, then delete old | Render dashboard → `viza-agent-backend` → Environment (auto-redeploys) |
+| `OPENAI_API_KEY` | agent-backend · `OPENAI_API_KEY` | platform.openai.com → API keys → rotate | redeploy Render `viza-agent-backend` |
+| `PASSPORT_OCR_OPENAI_API_KEY` | internal-website · `app/api/passport-ocr/provider.ts` (**separate** `sk-proj-` key — not the same as `OPENAI_API_KEY`) | platform.openai.com → API keys → rotate | redeploy Vercel `viza-internal` |
 | `GOOGLE_AI_API_KEY`, `GOOGLE_TRANSLATE_API_KEY` | agent-backend | Google Cloud Console → Credentials → regenerate | redeploy Cloud Run |
-| `SUPABASE_SERVICE_ROLE_KEY` | all backends + internal-website | Supabase → Settings → API → Reset service_role (⚠ two-key rollover — see [secret-rotation.md §2](./secret-rotation.md)) | set everywhere → redeploy all → reset in Supabase |
+| `SUPABASE_SERVICE_ROLE_KEY` | internal-website (Vercel) + agent-backend (Render) + submission-service (Fly) + local scripts | Supabase → Settings → API Keys → add a 2nd `sb_secret_` key (zero-downtime) — see [secret-rotation.md §2](./secret-rotation.md) | deploy new key everywhere → verify → revoke old |
 | `DATABASE_URL` | agent-backend, submission-service | Supabase → Database → connection pooling → reset password | redeploy backends |
-| `STRIPE_SECRET_KEY` (live) | internal-website · `STRIPE_SECRET_KEY` | Stripe → Developers → API keys → roll (restricted key) | `vercel env add` per env → `vercel --prod` |
+| `STRIPE_SECRET_KEY` (live) | internal-website + agent-backend reconciliation scripts | Stripe → Developers → API keys → roll | Vercel env vars → redeploy current prod deployment |
 | `STRIPE_WEBHOOK_SECRET` (live) | internal-website | Stripe → Developers → Webhooks → endpoint → roll signing secret | `vercel --prod` |
-| `AIRWALLEX_API_KEY`, `AIRWALLEX_CLIENT_ID`, `AIRWALLEX_WEBHOOK_SECRET` | internal-website · `AIRWALLEX_*` | Airwallex → Developer → API keys / webhooks → regenerate | `vercel env add AIRWALLEX_* ...` → `vercel --prod` |
+| `AIRWALLEX_API_KEY`, `AIRWALLEX_CLIENT_ID`, `AIRWALLEX_WEBHOOK_SECRET` | internal-website · `AIRWALLEX_*` (client_id + api_key are a **pair** — rotate both) | Airwallex → Developer → API keys / webhooks → regenerate | Vercel env vars → redeploy current prod deployment |
 | `ALIPAY_PRIVATE_KEY`, `ALIPAY_PUBLIC_KEY`, `ALIPAY_APP_ID` | internal-website · `ALIPAY_*` | Alipay Open Platform → app → re-generate keypair; re-upload public key | `vercel --prod` |
 | `WECHAT_PAY_API_V3_KEY`, `WECHAT_PAY_PRIVATE_KEY`, `WECHAT_PAY_MERCHANT_SERIAL_NO` | internal-website · `WECHAT_PAY_*` | WeChat Pay merchant platform → API security → reset APIv3 key / re-issue cert | `vercel --prod` (clears platform-cert cache via TTL) |
 | `SHOPIFY_ACCESS_TOKEN`, `SHOPIFY_WEBHOOK_SECRET` | internal-website · `SHOPIFY_*` (cloudbuild `_SHOPIFY_*`) | Shopify admin → Apps → rotate token / webhook secret | rebuild via Cloud Build trigger |

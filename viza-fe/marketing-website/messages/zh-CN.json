@@ -20,6 +20,8 @@
     "blog": "指南"
   },
   "footer": {
+    "followUs": "关注我们：",
+    "followOn": "在{platform}关注 VIZA",
     "product": "产品",
     "company": "公司",
     "legal": "法律",
@@ -207,13 +209,29 @@
       "title": "把签证信息讲清楚。",
       "lede": "来自一线签证服务团队的实用解读、官方政策更新与申请准备建议。",
       "readArticle": "阅读文章",
+      "featuredLabel": "最新文章",
+      "articlesTitle": "文章与指南",
+      "articlesDescription": "签证解读、旅行动态与实用申请建议。",
+      "allPosts": "全部文章",
+      "noMorePosts": "更多指南即将发布。",
       "emptyTitle": "暂无已发布文章",
       "emptyBody": "首批指南正在准备中，欢迎稍后再来查看。",
       "unavailableTitle": "指南暂时无法加载",
       "unavailableBody": "我们暂时无法获取最新已发布文章，请稍后再试。",
       "backToBlog": "返回指南列表",
       "by": "作者：",
-      "updated": "更新于"
+      "updated": "更新于",
+      "categoriesLabel": "文章分类",
+      "topicLabel": "主题",
+      "relatedTitle": "继续阅读",
+      "relatedDescription": "更多 VIZA 指南。",
+      "ctaEyebrow": "安心规划旅程",
+      "ctaTitle": "准备开始申请签证？",
+      "ctaBody": "告诉我们您的目的地，VIZA 会引导您了解所需材料和后续步骤。",
+      "ctaAction": "开始申请",
+      "categoryMetaTitle": "{category}指南 — VIZA",
+      "categoryMetaDescription": "阅读 VIZA 关于{category}的指南与动态。",
+      "categoryLede": "关于{category}的指南与动态。"
     }
   },
   "common": {
@@ -463,7 +481,6 @@
     "mapLegendTitle": "图例"
   },
   "cities": {
-    "viza-test": "生产支付测试",
     "indonesia": "巴厘岛 · 雅加达",
     "egypt": "开罗 · 吉萨",
     "australia": "悉尼 · 墨尔本",
@@ -522,7 +539,6 @@
     "indonesia-voa": "巴厘岛 · 雅加达"
   },
   "validity": {
-    "viza-test": "仅用于演示",
     "indonesia": "90 天",
     "egypt": "90 天",
     "australia": "1 年",
@@ -603,7 +619,6 @@
     "TW": "中国台湾"
   },
   "countries": {
-    "viza-test": "VIZA 测试",
     "indonesia": "印度尼西亚",
     "egypt": "埃及",
     "australia": "澳大利亚",

@@ -6353,6 +6353,10 @@
     "payment": "付款",
     "confirmPackage": "确认这份方案无误后，再开始支付 VIZA 服务费。",
     "payButton": "通过 Stripe 支付服务费",
+    "promo": {
+      "label": "优惠码（可选）",
+      "placeholder": "输入专属优惠码"
+    },
     "noAgencyFee": "该方案尚未配置服务费，暂时无法结账。",
     "stripeOnly": "卡号只会填写在 Stripe 自己的支付页面上。",
     "stripeUnconfigured": {
@@ -6390,6 +6394,18 @@
       "cta": "选择签证路径"
     },
     "errors": {
+      "beta_invalid": {
+        "title": "优惠码无效",
+        "description": "此优惠码无效或已过期，请检查后重试。"
+      },
+      "beta_used": {
+        "title": "优惠码已使用",
+        "description": "每个内测优惠码只能兑换一次。"
+      },
+      "beta_wrong_channel": {
+        "title": "优惠方式不匹配",
+        "description": "请使用收到优惠码时指定的兑换方式。"
+      },
       "generic": {
         "title": "结账遇到问题",
         "description": "结账过程被中断。请重试，或联系客服。"

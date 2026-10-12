@@ -659,7 +659,7 @@ export default function CareersPage() {
             </div>
 
             <div style={{ display: "flex", gap: "12px" }}>
-              <a className="btn-hero-primary" href="#">
+              <a className="btn-hero-primary" href="/contact">
                 {t("fellowship.apply")}
                 <svg
                   width="14"
@@ -674,7 +674,7 @@ export default function CareersPage() {
                   <polyline points="9 18 15 12 9 6" />
                 </svg>
               </a>
-              <a className="btn-hero-ghost" href="#">
+              <a className="btn-hero-ghost" href="/contact">
                 {t("fellowship.readCohort")}
               </a>
             </div>
@@ -774,7 +774,7 @@ export default function CareersPage() {
           <span className="lead">{t("ctaStrip.lead")}</span>
           <a
             className="btn-hero-primary"
-            href="#"
+            href="/contact"
             style={{
               color: "#fff",
               background: "var(--brand-500)",

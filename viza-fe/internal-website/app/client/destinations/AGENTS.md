@@ -17,7 +17,9 @@ region from the client home dashboard.
   Add Destination section.
 - `[region]/page.tsx`: generic regional picker for North America, South
   America, Middle East, Africa, non-Schengen Europe, Southeast Asia, East Asia,
-  South Asia, and Oceania.
+  South Asia, and Oceania. It is explicitly dynamic because selected-package
+  hydration reads the authenticated client cookie; do not statically prerender
+  this route.
 - Philippines mirrors Indonesia's country-category entry: the home group opens
   `/client/destinations/philippines`, where arrival and departure eTravel
   packages remain separate selectable cards.

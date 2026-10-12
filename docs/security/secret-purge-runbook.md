@@ -70,6 +70,58 @@ git log --all --full-history -- viza-fe/internal-website/.env.local.bak   # expe
 > sessions were active at discovery time; do NOT rewrite history until they are
 > committed/pushed and the branch is frozen, or their work will be orphaned.
 
+### Containment update — 2026-09-04
+
+The 2026-08-29 history rewrite + force-push did **not** end the exposure. GitHub
+pins pre-rewrite commits behind `refs/pull/*`, so all four commits above still
+resolved by SHA on a **public** repo. Verified that day by unauthenticated
+`curl` against `raw.githubusercontent.com`: **HTTP 200**, full blob served to
+anonymous callers. Public since 2026-04-25; blob committed 2026-06-10 —
+roughly **3 months** of anonymous availability.
+
+**Action taken (2026-09-04):** repository visibility set to **private**
+(`gh repo edit --visibility private`). Fork count was 0, so no fork network kept
+the objects reachable. Re-verified anonymously with cache-busting:
+
+```
+25a4c6a7  api=404  raw=404
+79ab783c  api=404  raw=404
+acc8491f  api=404  raw=404
+4cf11bd4  api=404  raw=404
+```
+
+(An initial re-test returned 200 from a `raw.githubusercontent.com` Varnish edge
+cache — `x-cache: HIT`, `max-age=300`. It is cache, not an access path; it
+expires within 5 minutes. Always cache-bust when verifying.)
+
+**This is containment, not remediation.** Going private does not delete the
+objects, does not reach anyone who already cloned or scraped the repo, and
+reverses instantly if the repo is ever made public again. Every key in the blob
+must still be treated as compromised and rotated.
+
+**Aggravating factor:** GitHub secret scanning is **disabled** on this repo
+(`GET /secret-scanning/alerts` → 404 "Secret scanning is disabled"). No partner
+alert was ever raised, so Stripe never auto-revoked the leaked `sk_live_` key —
+it should be assumed live and valid until manually rolled.
+
+**Two secrets missing from the 2026-08-29 rotation list**, confirmed present in
+the blob: `PASSPORT_OCR_OPENAI_API_KEY` (a second `sk-proj-` key, distinct from
+`OPENAI_API_KEY`) and `AIRWALLEX_CLIENT_ID` (Airwallex auth is client_id + api_key
+as a pair — rotating only the key is insufficient).
+
+**Severity corrections from blob inspection** (prefixes only, values not read):
+`STRIPE_SECRET_KEY` is `sk_live_` → live money movement, rotate first.
+`ALIPAY_GATEWAY_URL` is `openapi.alipay.com` → **production** Alipay, so
+`ALIPAY_PRIVATE_KEY` is a production signing key. `AIRWALLEX_ENV=demo` /
+`api-demo.airwallex.com` → demo tenant, lower severity, still rotate.
+`NEXT_PUBLIC_SUPABASE_ANON_KEY` / `..._PUBLISHABLE_KEY` are public by design and
+need no rotation.
+
+Full-history sweep for other secret-bearing paths found none:
+`viza-fe/internal-website/.env.local.bak` is the only file that ever carried real
+credentials. All other `secret`/`credential`-named paths are source, tests, docs,
+or migrations.
+
 ## Step 1 — Untrack a currently-tracked secret (working tree)
 
 If the audit above lists a real secret file, untrack it (keeps the local copy,

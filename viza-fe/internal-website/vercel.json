@@ -2,7 +2,8 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "regions": ["bom1"],
   "crons": [
-    { "path": "/api/internal/marketing/blog/generate", "schedule": "0 1 * * 1,4" },
+    { "path": "/api/payment-provisioning/worker", "schedule": "*/5 * * * *" },
+    { "path": "/api/internal/marketing/blog/generate", "schedule": "0 1 * * 2,4" },
     { "path": "/api/internal/marketing/social/reconcile", "schedule": "15 * * * *" },
     { "path": "/api/internal/marketing/stuck-check", "schedule": "0 5 * * *" }
   ]

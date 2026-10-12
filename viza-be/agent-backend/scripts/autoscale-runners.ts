@@ -259,7 +259,7 @@ async function alertViolations(decision: PoolScaleDecision): Promise<void> {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: "VIZA OPS <ops@haggstorm.com>",
+      from: process.env.RESEND_OPS_FROM?.trim() || "VIZA OPS <ops@viza.it.com>",
       to,
       subject: "[VIZA] shared runner concurrency violation",
       text: `Shared-pool concurrency violation detected.\n\n${body}`,

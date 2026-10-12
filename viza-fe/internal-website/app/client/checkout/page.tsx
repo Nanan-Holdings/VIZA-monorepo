@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { startStripeCheckout } from "./actions";
 import { CheckoutSubmitButton } from "./submit-button";
+import { PurchaseAnalytics } from "./purchase-analytics";
 import {
   type CheckoutPackageSummary,
   type CheckoutReturnState,
@@ -16,6 +17,13 @@ import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { Button } from "@/components/ui/button";
 import { ApplicationFormPanel } from "@/components/ui/application-form-panel";
 import { cn } from "@/lib/utils";
+import { checkoutBetaParams } from "./beta-params";
+import { cookies } from "next/headers";
+import {
+  CLIENT_CHECKOUT_BETA_COOKIE,
+  openCheckoutBeta,
+} from "@/lib/auth/client-checkout-return";
+import { safeClientReturnTarget } from "@/lib/auth/safe-client-return-target";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("clientCheckout");
@@ -24,6 +32,10 @@ export async function generateMetadata(): Promise<Metadata> {
 
 type CheckoutSearchParams = {
   applicationId?: string | string[];
+  beta?: string | string[];
+  betaToken?: string | string[];
+  betaDeliveryMethod?: string | string[];
+  deliveryMethod?: string | string[];
   error?: string | string[];
   packageId?: string | string[];
   session_id?: string | string[];
@@ -43,6 +55,9 @@ function getParam(params: CheckoutSearchParams | undefined, key: keyof CheckoutS
 type CheckoutT = Awaited<ReturnType<typeof getTranslations<"clientCheckout">>>;
 
 const ERROR_KEYS = new Set([
+  "beta_invalid",
+  "beta_used",
+  "beta_wrong_channel",
   "checkout_unavailable",
   "missing_package",
   "package_not_found",
@@ -87,14 +102,19 @@ function ReturnStateAlert({ state }: { state: CheckoutReturnState }) {
   if (!state) return null;
 
   return (
-    <Alert
-      variant={state.tone === "success" ? "success" : state.tone === "warning" ? "warning" : "destructive"}
-      className="shadow-sm"
-    >
-      <AlertIcon variant={state.tone === "success" ? "success" : state.tone === "warning" ? "warning" : "destructive"} />
-      <AlertTitle>{state.title}</AlertTitle>
-      <AlertDescription>{state.description}</AlertDescription>
-    </Alert>
+    <>
+      {state.purchase ? <PurchaseAnalytics purchase={state.purchase} /> : null}
+      <Alert
+        variant={state.tone === "success" ? "success" : state.tone === "warning" ? "warning" : "destructive"}
+        className="shadow-sm"
+      >
+        <AlertIcon
+          variant={state.tone === "success" ? "success" : state.tone === "warning" ? "warning" : "destructive"}
+        />
+        <AlertTitle>{state.title}</AlertTitle>
+        <AlertDescription>{state.description}</AlertDescription>
+      </Alert>
+    </>
   );
 }
 
@@ -132,13 +152,17 @@ function CheckoutContent({
   stripeConfigured,
   returnState,
   t,
+  betaToken,
+  betaDeliveryMethod,
 }: {
   selectedPackage: CheckoutPackageSummary;
   stripeConfigured: boolean;
   returnState: CheckoutReturnState;
   t: CheckoutT;
+  betaToken: string;
+  betaDeliveryMethod: string;
 }) {
-  const canStartPayment = Boolean(selectedPackage.agencyFee) && stripeConfigured && !selectedPackage.isPaid;
+  const canStartPayment = Boolean(selectedPackage.agencyFee) && !selectedPackage.isPaid;
   const agencyFeeLabel = selectedPackage.agencyFee?.label ?? t("notConfigured");
   const paidAt = selectedPackage.latestPayment?.updated_at ?? selectedPackage.latestPayment?.created_at ?? null;
 
@@ -264,6 +288,26 @@ function CheckoutContent({
                   {selectedPackage.applicationId ? (
                     <input type="hidden" name="applicationId" value={selectedPackage.applicationId} />
                   ) : null}
+                  {betaDeliveryMethod === "link_suffix" ? (
+                    <input type="hidden" name="betaToken" value={betaToken} />
+                  ) : (
+                    <label className="block space-y-2 text-sm font-medium text-foreground">
+                      <span>{t("promo.label")}</span>
+                      <input
+                        className="h-11 w-full rounded-md border bg-background px-3 font-normal outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                        defaultValue={betaDeliveryMethod === "promo_code" ? betaToken : ""}
+                        name="betaToken"
+                        placeholder={t("promo.placeholder")}
+                        type="text"
+                        autoComplete="off"
+                      />
+                    </label>
+                  )}
+                  {betaDeliveryMethod === "link_suffix" ? (
+                    <input type="hidden" name="betaDeliveryMethod" value={betaDeliveryMethod} />
+                  ) : (
+                    <input type="hidden" name="betaDeliveryMethod" value="promo_code" />
+                  )}
                   <CheckoutSubmitButton disabled={!canStartPayment}>{t("payButton")}</CheckoutSubmitButton>
                   {!selectedPackage.agencyFee ? (
                     <p className="text-sm leading-6 text-muted-foreground">{t("noAgencyFee")}</p>
@@ -291,6 +335,11 @@ function CheckoutContent({
 export default async function CheckoutPage({ searchParams }: CheckoutPageProps) {
   const t = await getTranslations("clientCheckout");
   const params = await searchParams;
+  const urlBeta = checkoutBetaParams(params ?? {});
+  const storedBeta = urlBeta.token
+    ? null
+    : await openCheckoutBeta((await cookies()).get(CLIENT_CHECKOUT_BETA_COOKIE)?.value ?? "");
+  const beta = storedBeta ?? urlBeta;
   const returnState = await getReturnState(params, t);
   const context = await getCheckoutContext({
     packageId: getParam(params, "packageId"),
@@ -298,7 +347,13 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
   });
 
   if (!context.user) {
-    redirect("/client/login");
+    const returnTo = safeClientReturnTarget(`/client/checkout?${new URLSearchParams(
+      Object.entries(params ?? {}).flatMap(([key, value]) => {
+        const firstValue = Array.isArray(value) ? value[0] : value;
+        return firstValue ? [[key, firstValue] as [string, string]] : [];
+      }),
+    )}`);
+    redirect(`/client/login?returnTo=${encodeURIComponent(returnTo)}`);
   }
 
   return (
@@ -320,6 +375,8 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
           stripeConfigured={context.stripeConfigured}
           returnState={returnState}
           t={t}
+          betaToken={beta.token}
+          betaDeliveryMethod={beta.deliveryMethod}
         />
       ) : (
         <div className="space-y-6">

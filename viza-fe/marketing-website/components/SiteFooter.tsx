@@ -9,9 +9,7 @@ import "./site-footer.css";
  * All user-facing copy comes from the `footer` message namespace; office addresses
  * are intentionally left untranslated (proper nouns).
  *
- * Every link here must resolve to a page that exists and match its own label. The
- * decorative "ask AI" chips and the App Store / Google Play badges were removed —
- * the chips did nothing when clicked and there are no native apps to download.
+ * Every link here must resolve to a page that exists and match its own label.
  */
 export default function SiteFooter() {
   const t = useTranslations("footer");
@@ -19,6 +17,15 @@ export default function SiteFooter() {
   const offices: Array<[string, string]> = [
     ["中国（上海）自由贸易试验区罗山路1502弄", "No. 67, Kangcheng Road, Lane 958, Xinsong Road, Minhang District, Shanghai, China"],
     ["225 Pasir Panjang Rd,", "Singapore"],
+  ];
+
+  const socialLinks = [
+    { platform: "Facebook", href: "https://www.facebook.com/profile.php?id=61592698634582", icon: "/assets/social/facebook.svg" },
+    { platform: "Pinterest", href: "https://www.pinterest.com/viza_com/", icon: "/assets/social/pinterest.svg" },
+    { platform: "Instagram", href: "https://www.instagram.com/viza_com/?hl=en", icon: "/assets/social/instagram.svg" },
+    { platform: "LinkedIn", href: "https://www.linkedin.com/company/viza-com/home/?viewAsMember=true", icon: "/assets/social/linkedin.svg" },
+    { platform: "X", href: "https://x.com/viza_it_com", icon: "/assets/social/x.svg" },
+    { platform: "Reddit", href: "https://www.reddit.com/user/viza_com/", icon: "/assets/social/reddit.svg" },
   ];
 
   return (
@@ -32,6 +39,23 @@ export default function SiteFooter() {
             <img src="/assets/viza-logo-black.svg" alt="VIZA" />
           </a>
           <p className="foot-tag">{t("tagline")}</p>
+          <div className="foot-social">
+            <p className="social-label">{t("followUs")}</p>
+            <div className="social-links">
+              {socialLinks.map(({ platform, href, icon }) => (
+                <a
+                  className="social-link"
+                  href={href}
+                  key={platform}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={t("followOn", { platform })}
+                >
+                  <img src={icon} alt="" width="20" height="20" />
+                </a>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Company — every entry must resolve to a page that exists. */}

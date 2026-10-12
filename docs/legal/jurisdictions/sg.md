@@ -13,7 +13,7 @@ obligations on data breaches apply.
 | Obligation | VIZA posture |
 |---|---|
 | Notification + consent | Privacy Policy §3 + signup gate (LEGAL-002). |
-| DPO designation (PDPA §11(3)) | Required. **Open:** designate a DPO and publish the contact alias (`dpo@haggstorm.com`). |
+| DPO designation (PDPA §11(3)) | Required. **Open:** designate a DPO and publish the contact alias (`dpo@viza.it.com`). |
 | Data Breach Notification (PDPA Part VIA, from Feb 2021) | 3 calendar days from assessment of a notifiable breach. |
 | Do Not Call Registry | We send transactional mail only; marketing requires DNC checks if we expand. |
 | Cross-border transfer (Part VI) | Standards comparable to PDPA (Cloudflare, Stripe, Anthropic). Documented in DPA §8. |

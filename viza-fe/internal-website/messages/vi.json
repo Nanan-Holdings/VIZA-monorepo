@@ -3874,6 +3874,10 @@
     "payment": "[VI] Payment",
     "confirmPackage": "[VI] Check this package over before starting Stripe Checkout for the VIZA service fee.",
     "payButton": "[VI] Pay service fee with Stripe",
+    "promo": {
+      "label": "Mã ưu đãi (không bắt buộc)",
+      "placeholder": "Nhập mã ưu đãi"
+    },
     "noAgencyFee": "[VI] Checkout is disabled because this package has no service fee configured.",
     "stripeOnly": "[VI] You'll enter card details only on Stripe's own checkout page.",
     "stripeUnconfigured": {
@@ -3911,6 +3915,18 @@
       "cta": "[VI] Choose a visa route"
     },
     "errors": {
+      "beta_invalid": {
+        "title": "Mã không hợp lệ",
+        "description": "Mã này không hợp lệ hoặc đã hết hạn."
+      },
+      "beta_used": {
+        "title": "Mã đã được sử dụng",
+        "description": "Mỗi mã beta chỉ có thể được đổi một lần."
+      },
+      "beta_wrong_channel": {
+        "title": "Sai phương thức mời",
+        "description": "Hãy dùng phương thức đổi mã ghi trong lời mời."
+      },
       "generic": {
         "title": "[VI] Checkout needs attention",
         "description": "[VI] Something interrupted checkout. Try again, or contact support."

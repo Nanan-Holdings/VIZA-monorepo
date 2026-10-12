@@ -22,8 +22,12 @@ Gates the first real-client launch on US (CEAC DS-160) + France (Schengen via VF
 - [x] All cross-cutting tracks `passes: true` for the US + France slice.
 - [x] 5 staff-internal end-to-end submissions through US (CEAC DS-160).
 - [x] 5 staff-internal end-to-end submissions through France (VFS Global Schengen).
-- [x] Privacy policy + ToS counsel-reviewed (Singapore counsel: 2026-04-22).
-- [x] Stripe live mode enabled; refund policy operative (`PAY-004`).
+- [ ] Privacy policy + ToS counsel-reviewed. The authoritative
+  `docs/legal/review-log.md` currently records placeholder drafts only; the
+  historical Singapore-counsel claim is unverified and must not be used as a
+  launch approval.
+- [ ] Stripe live mode and discount-aware refund policy verified end-to-end
+  (`PAY-004`), including beta orders and dispute pausing for active runners.
 - [x] OPS canary + alerting live for ceac.state.gov + visa.vfsglobal.com/chn/zh/fra.
 - [x] Pre-commit secret-leak hook active (gitleaks + regex fallback).
 - [x] Backup + retention policy documented (`docs/operations/data-retention.md`).

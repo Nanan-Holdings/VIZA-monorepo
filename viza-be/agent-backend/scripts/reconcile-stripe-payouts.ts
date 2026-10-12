@@ -12,7 +12,7 @@
  *   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
  *
  * Optional:
- *   RESEND_API_KEY, RESEND_OPS_ALERT_TO
+ *   RESEND_API_KEY, RESEND_OPS_ALERT_TO, optional RESEND_OPS_FROM
  *   TREASURY_RESERVED_AMOUNT, TREASURY_POOL_CURRENCY
  *   PHOTONPAY_RECOVERY_URL, PHOTONPAY_RECOVERY_TOKEN
  */
@@ -109,7 +109,7 @@ async function sendAlert(subject: string, body: string): Promise<void> {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      from: "VIZA OPS <ops@haggstorm.com>",
+      from: process.env.RESEND_OPS_FROM?.trim() || "VIZA OPS <ops@viza.it.com>",
       to,
       subject,
       text: body,

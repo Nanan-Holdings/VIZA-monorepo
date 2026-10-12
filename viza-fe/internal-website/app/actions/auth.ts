@@ -8,6 +8,7 @@ import { createClientSession } from "@/lib/client-session";
 import { normalizeInterfaceLocale, type InterfaceLocale } from "@/lib/i18n/locale";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { safeClientReturnTarget } from "@/lib/auth/safe-client-return-target";
 
 function authErrorMessage(message: string, locale: InterfaceLocale): string {
   const normalized = message.toLowerCase();
@@ -37,6 +38,7 @@ export async function signIn(formData: FormData) {
   const portal = formData.get("portal") === "admin" ? "admin" : "client";
   const email = formData.get("email")?.toString().trim() ?? "";
   const password = formData.get("password")?.toString() ?? "";
+  const returnTo = safeClientReturnTarget(formData.get("returnTo")?.toString());
 
   if (!email || !password) {
     return {
@@ -73,17 +75,24 @@ export async function signIn(formData: FormData) {
       userRole === "admin" && (await hasActiveAdminMembership(supabase, user.id));
 
     if (portal === "admin") {
-      if (userRole !== "admin" || !hasAdminMembership) {
-        await supabase.auth.signOut();
-        return {
-          error:
-            locale === "zh"
-              ? "此账号没有管理后台访问权限。"
-              : "This account does not have admin portal access.",
-        };
+      if (userRole === "admin" && hasAdminMembership) {
+        redirect("/admin");
       }
 
-      redirect("/admin");
+      // Operational staff share the authenticated work-login entry point but
+      // land in the separately guarded support console. They never receive the
+      // full /(dashboard) admin layout, whose own role check remains admin-only.
+      if (userRole === "staff" || userRole === "customer_service") {
+        redirect("/admin/cs");
+      }
+
+      await supabase.auth.signOut();
+      return {
+        error:
+          locale === "zh"
+            ? "此账号没有管理后台访问权限。"
+            : "This account does not have admin portal access.",
+      };
     }
 
     const adminClient = createAdminClient();
@@ -112,7 +121,7 @@ export async function signIn(formData: FormData) {
       // Create the client JWT session so they can access /client/* routes
       await createClientSession(applicant.id, normalizedEmail, user.id);
 
-      redirect("/client/home");
+      redirect(returnTo);
     }
 
     if (userRole === "admin" && hasAdminMembership) {

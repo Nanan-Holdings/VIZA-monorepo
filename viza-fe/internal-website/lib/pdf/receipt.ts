@@ -60,7 +60,7 @@ function buildHeader(
 ): PdfLine[] {
   const lines: PdfLine[] = [
     { text: "VIZA Pte. Ltd.", size: 16, bold: true },
-    { text: "support@haggstorm.com  •  haggstorm.com" },
+    { text: "support@viza.it.com  •  viza.it.com" },
     { text: "" },
     { text: title, size: 18, bold: true },
     { text: `Order: ${order.id}` },

@@ -2,6 +2,7 @@ import {
   MARKETING_BLOG_LOCALES,
   MARKETING_SOCIAL_PLATFORMS,
   type MarketingBlogDraftInput,
+  type MarketingBlogAdminRecord,
   type MarketingBlogLocale,
   type MarketingSocialCompositionInput,
   type MarketingSocialPlatform,
@@ -14,6 +15,7 @@ const SOCIAL_LIMITS: Record<MarketingSocialPlatform, number> = {
   "google-business-sg": 1_500,
   instagram: 2_200,
   linkedin: 3_000,
+  facebook: 5_000,
   pinterest: 500,
   reddit: 10_000,
 };
@@ -73,7 +75,18 @@ export function validateBlogDraft(input: MarketingBlogDraftInput): MarketingBlog
     category: input.category?.trim().slice(0, 120) || undefined,
     seoTitle: input.seoTitle?.trim().slice(0, 180) || undefined,
     seoDescription: input.seoDescription?.trim().slice(0, 500) || undefined,
+    topics: Array.isArray(input.topics) ? [...new Set(input.topics.filter((item): item is string => typeof item === "string").map((item) => item.trim().slice(0, 80)).filter(Boolean))].slice(0, 6) : [],
+    seoKeyword: typeof input.seoKeyword === "string" ? input.seoKeyword.trim().slice(0, 120) || undefined : undefined,
   };
+}
+
+export function validatePublishableBlog(post: MarketingBlogAdminRecord): void {
+  if (post.bodyMarkdown.trim().length < 300) throw new Error("Article needs at least 300 characters before publication");
+  if (!post.category?.trim()) throw new Error("Choose a category before publication");
+  if (!post.seoTitle?.trim() || !post.seoDescription?.trim()) throw new Error("SEO title and description are required before publication");
+  if (post.editorial.sourceUrl && !post.bodyMarkdown.includes(post.editorial.sourceUrl)) throw new Error("Article must retain its source link");
+  if (post.generationBrief && !post.coverImageUrl) throw new Error("Add a reviewed cover image before publishing an AI draft");
+  if (post.bodyMarkdown.includes("—")) throw new Error("Replace em dashes before publication");
 }
 
 export function validateSocialComposition(input: MarketingSocialCompositionInput): MarketingSocialCompositionInput {
@@ -93,6 +106,7 @@ export function validateSocialComposition(input: MarketingSocialCompositionInput
   }
   let scheduledFor: string | undefined;
   if (input.scheduledFor) {
+    if (platforms.includes("instagram") || platforms.includes("pinterest")) throw new Error("Instagram and Pinterest posts publish when approved; remove the scheduled time");
     const timestamp = Date.parse(input.scheduledFor);
     if (!Number.isFinite(timestamp)) throw new Error("Scheduled time is invalid");
     scheduledFor = new Date(timestamp).toISOString();

@@ -61,6 +61,7 @@ export function mapBlogPost(value: unknown): MarketingBlogPost {
 
 export function mapBlogAdminRecord(value: unknown): MarketingBlogAdminRecord {
   const row = record(value);
+  const metadata = row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata) ? row.metadata as Record<string, unknown> : {};
   const locale = text(row, "locale");
   const status = text(row, "status");
   if (locale !== "en" && locale !== "zh-CN") throw new Error("Invalid blog locale");
@@ -70,7 +71,14 @@ export function mapBlogAdminRecord(value: unknown): MarketingBlogAdminRecord {
     title: text(row, "title"), excerpt: text(row, "excerpt"), bodyMarkdown: text(row, "body_markdown"),
     coverImageUrl: nullableText(row, "cover_image_url"), category: nullableText(row, "category"),
     authorName: text(row, "author_name"), seoTitle: nullableText(row, "seo_title"),
-    seoDescription: nullableText(row, "seo_description"), generationBrief: nullableText(row, "generation_brief"),
+    seoDescription: nullableText(row, "seo_description"), editorial: {
+      sourceUrl: typeof metadata.source_url === "string" ? metadata.source_url : null,
+      topics: Array.isArray(metadata.topics) ? metadata.topics.filter((item): item is string => typeof item === "string") : [],
+      seoKeyword: typeof metadata.seo_keyword === "string" ? metadata.seo_keyword : null,
+      keywordMeasured: metadata.keyword_measured === true,
+      monthlySearches: typeof metadata.keyword_monthly_searches === "number" ? metadata.keyword_monthly_searches : null,
+      rankScore: typeof metadata.source_rank_score === "number" ? metadata.source_rank_score : null,
+    }, generationBrief: nullableText(row, "generation_brief"),
     generatedByModel: nullableText(row, "generated_by_model"), version: typeof row.version === "number" ? row.version : 1,
     publishedAt: nullableText(row, "published_at"), createdAt: text(row, "created_at"), updatedAt: text(row, "updated_at"),
   };
@@ -86,9 +94,22 @@ export function mapSocialComposition(value: unknown): MarketingSocialComposition
     id: text(row, "id"), blogPostId: nullableText(row, "blog_post_id"), shortLinkId: nullableText(row, "short_link_id"), title: text(row, "title"),
     brief: text(row, "brief"), destinationUrl: nullableText(row, "destination_url"), mediaUrl: nullableText(row, "media_url"),
     documentUrl: nullableText(row, "document_url"), status, platforms, platformContent: platformContent(row.platform_content),
-    zernioPosts: platformContent(row.zernio_posts), scheduledFor: nullableText(row, "scheduled_for"),
+    zernioPosts: platformContent(row.zernio_posts), zernioPostUrls: platformContent(row.zernio_post_urls), uploadPostPosts: uploadPostPosts(row.upload_post_posts), scheduledFor: nullableText(row, "scheduled_for"),
     lastSyncedAt: nullableText(row, "last_synced_at"), createdAt: text(row, "created_at"), updatedAt: text(row, "updated_at"),
   };
+}
+
+function uploadPostPosts(value: unknown): MarketingSocialCompositionRecord["uploadPostPosts"] {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const output: MarketingSocialCompositionRecord["uploadPostPosts"] = {};
+  for (const platform of ["instagram", "pinterest"] as const) {
+    const item = (value as Record<string, unknown>)[platform];
+    if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+    const row = item as Record<string, unknown>;
+    if (row.status !== "pending" && row.status !== "published" && row.status !== "failed") continue;
+    output[platform] = { status: row.status, requestId: typeof row.requestId === "string" ? row.requestId : null, postId: typeof row.postId === "string" ? row.postId : null, postUrl: typeof row.postUrl === "string" ? row.postUrl : null };
+  }
+  return output;
 }
 
 export function mapShortLink(value: unknown): MarketingShortLinkRecord {

@@ -19,9 +19,10 @@ export default async function AdminCsPage({
             <h1 className="text-2xl font-semibold text-foreground">Support tickets</h1>
             <p className="mt-1 text-sm text-muted-foreground">Assign, reply, track SLA.</p>
           </div>
-          <a href="/admin/cs/kpis" className="text-sm font-medium text-brand-500 hover:underline">
-            KPIs →
-          </a>
+          <div className="flex items-center gap-4 text-sm font-medium text-brand-500">
+            <a href="/admin/cs/beta" className="hover:underline">Beta invites →</a>
+            <a href="/admin/cs/kpis" className="hover:underline">KPIs →</a>
+          </div>
         </header>
         {error ? (
           <Alert variant="destructive"><AlertIcon variant="destructive" /><AlertDescription>{error}</AlertDescription></Alert>

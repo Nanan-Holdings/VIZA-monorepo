@@ -25,6 +25,11 @@ export interface PublishedCatalogueEntry {
   publishedAt: string;
 }
 
+// Internal QA SKUs may exist in the portal catalogue for payment smoke tests,
+// but they must never become public destinations even if accidentally marked
+// published in production.
+const NON_PUBLIC_SLUGS = new Set(["viza-test"]);
+
 function validEntry(value: unknown): value is PublishedCatalogueEntry {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const row = value as Record<string, unknown>;
@@ -56,7 +61,7 @@ export async function getPublishedCatalogue(): Promise<PublishedCatalogueEntry[]
     if (!response.ok) return [];
     const body = await response.json() as { ok?: unknown; entries?: unknown };
     if (body.ok !== true || !Array.isArray(body.entries)) return [];
-    return body.entries.filter(validEntry);
+    return body.entries.filter(validEntry).filter((entry) => !NON_PUBLIC_SLUGS.has(entry.slug));
   } catch {
     return [];
   }

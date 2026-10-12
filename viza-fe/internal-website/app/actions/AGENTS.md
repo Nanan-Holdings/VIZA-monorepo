@@ -10,7 +10,9 @@ application lifecycle state.
 
 ## Key Flows
 
-- `auth.ts`: admin auth and password change/signout.
+- `auth.ts`: admin auth and password change/signout. Client return targets are
+  limited to the explicit safe local allowlist; raw beta tokens must never be
+  nested in authentication URLs.
 - `admin-access.ts`: database-backed admin registration invitations and
   auditable account-wide high-access grants. Invitation tokens are hashed and
   returned in plaintext only once; existing client accounts must authenticate
@@ -85,12 +87,36 @@ application lifecycle state.
 - `admin-submission.ts`: audited, state-checked runner retry commands that refuse
   to race an active operator takeover.
 - `admin-catalogue.ts`: validates public catalogue drafts and executes atomic,
-  auditable publish/retire commands through database functions.
+  auditable publish/retire commands through database functions. Publication
+  fails closed unless the public currency and fee amounts exactly match both
+  the single `package_pricing` row and the pricing used by portal checkout;
+  discounts may not exceed the agency fee or create a negative total.
 - `admin-marketing.ts`: authenticated marketing operations for analytics,
   editorial drafts/publication, grounded AI generation, and per-platform
-  Zernio publication/synchronization plus VIZA short-link management. External
+  Zernio and Upload-Post publication/synchronization plus VIZA short-link management. External
   mutations must remain admin-only, auditable, idempotent, and fail closed when
-  VIZA provider configuration is absent.
+  VIZA provider configuration is absent. Staff may prepare and edit unpublished
+  drafts; publication and external post changes require admin role checks.
+- `admin-beta.ts`: admin/staff/customer-service launch-beta invitation issuance and
+  A/B funnel reads. An admin initializes the single 100-slot social cohort with
+  a cryptographically shuffled 50/50 promo-code/link allocation; operators can
+  issue only the next database-assigned slot after recording platform,
+  recipient, intended applicant email digest, and proof references. Issuance
+  does not count as delivery: operators must record actual delivery evidence,
+  while lost plaintext invitations are explicitly cancelled and revoked before
+  their slot is released. Metrics use delivered social assignments as their
+  denominator. Friend promo codes remain a separate one-at-a-time 100%
+  VIZA-service-fee benefit. Plaintext values are returned once, while only
+  SHA-256 digests are stored; government fees must never be discounted.
+- `card-checkout.ts` and `wechat-checkout.ts`: guest checkout creation. Persist
+  the exact provider minor-unit total and currency in `order.metadata` before
+  redirect/QR creation so payment callbacks validate what was actually
+  collected instead of reconstructing totals from accounting columns.
+- `refunds.ts`: line-based Stripe and WeChat refunds must subtract any beta
+  agency-fee discount and cap the request to `order.metadata.checkout_payment`
+  so a refund can never exceed the amount collected by the provider. Admin
+  requests remain approved after provider acceptance and become refunded only
+  from a verified provider callback.
 - `admin-disputes.ts`: synchronizes Stripe disputes, stages evidence, uploads
   evidence files, and submits the reviewed response without exposing API keys.
 - `admin-appointments.ts`: owns the staff-side appointment case, expires only

@@ -18,12 +18,22 @@ plane issue use bounded GitHub Actions schedules and are listed separately.
 | Workflow | Schedule (UTC) | Endpoint | Purpose | Pause |
 | --- | --- | --- | --- | --- |
 | `portal-health-canary.yml` | `*/5 * * * *` | `POST /api/internal/status/probe` | Record public VIZA/government endpoint observations and incident transitions | Disable the GitHub Actions workflow |
+| Portal Vercel Cron | `*/5 * * * *` | `GET /api/payment-provisioning/worker` | Retry bounded durable provisioning jobs and reconcile dead-letter/stale admin work items | Remove/pause the cron in the linked Vercel project during an approved incident |
 
 The portal-health workflow uses an ephemeral hosted runner, a four-minute job
 timeout, and no checkout or dependency installation. The backend performs at
 most five probes concurrently and caps every request timeout. It requires
 GitHub secrets `STATUS_PROBE_URL` and `STATUS_CRON_SECRET`; the latter must
 match the backend `STATUS_CRON_SECRET` environment value.
+
+The payment-provisioning cron is declared in
+`viza-fe/internal-website/vercel.json` and requires the portal project's
+`CRON_SECRET`; Vercel sends it as `Authorization: Bearer <CRON_SECRET>`. Confirm
+the production plan supports the configured five-minute cadence. Its in-process
+alert sweep cannot detect that the cron itself stopped running, so production
+must also have an independent watchdog that pages on missed/failed invocations.
+That watchdog must run outside the portal deployment and must not reuse the
+admin work queue as its only notification channel.
 
 ## Required extensions
 

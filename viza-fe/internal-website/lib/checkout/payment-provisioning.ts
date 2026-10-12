@@ -53,6 +53,22 @@ export interface GovernmentFeeAllocationPlan {
   description: string;
 }
 
+export function checkoutCollectedGovernmentFee(
+  metadata: unknown,
+  expectedAmountCents: number,
+): boolean {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return false;
+  const checkout = (metadata as Record<string, unknown>).checkout_payment;
+  if (!checkout || typeof checkout !== "object" || Array.isArray(checkout)) return false;
+  const row = checkout as Record<string, unknown>;
+  return typeof row.expected_amount_minor === "number"
+    && Number.isSafeInteger(row.expected_amount_minor)
+    && row.expected_amount_minor > 0
+    && typeof row.government_fee_passthrough_cents === "number"
+    && Number.isSafeInteger(row.government_fee_passthrough_cents)
+    && row.government_fee_passthrough_cents === expectedAmountCents;
+}
+
 export function governmentFeeAllocationPlan(
   country: string,
   visaType: string,
@@ -205,7 +221,7 @@ async function updateJobStep(
 export async function ensureGovernmentFeeAllocation(admin: SupabaseClient, orderId: string): Promise<void> {
   const { data: order, error: orderError } = await admin
     .from("order")
-    .select("id, application_id")
+    .select("id, application_id, metadata")
     .eq("id", orderId)
     .single();
   if (orderError || !order) throw new Error(`allocation order lookup: ${orderError?.message ?? "not found"}`);
@@ -223,6 +239,7 @@ export async function ensureGovernmentFeeAllocation(admin: SupabaseClient, order
     String(application.visa_type ?? ""),
   );
   if (!plan) return;
+  if (!checkoutCollectedGovernmentFee(order.metadata, plan.amountCents)) return;
 
   const { data: existing, error: existingError } = await admin
     .from("government_fee_allocations")
@@ -284,6 +301,7 @@ export async function ensureGovernmentFeeAllocation(admin: SupabaseClient, order
     metadata_redacted: {
       funding_class: "viza_managed_card",
       official_fee_catalog_key: plan.catalogKey,
+      collection_evidence: "order.metadata.checkout_payment.government_fee_passthrough_cents",
       created_by: "payment_provisioning",
     },
   });

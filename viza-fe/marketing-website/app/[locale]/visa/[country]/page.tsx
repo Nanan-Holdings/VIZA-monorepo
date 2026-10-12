@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import VisaCountryPageClient from "@/components/VisaCountryPageClient";
 import { COUNTRIES } from "@/lib/countries";
 import { getPublishedCatalogue } from "@/lib/public-catalogue";
@@ -34,6 +35,7 @@ export async function generateMetadata({
   return {
     title,
     description,
+    robots: entry ? undefined : { index: false, follow: true },
     alternates: {
       canonical: localizedPath,
       languages: { en: path, "zh-CN": `/zh-CN${path}` },
@@ -42,6 +44,12 @@ export async function generateMetadata({
   };
 }
 
-export default function VisaCountryPage() {
+export default async function VisaCountryPage({
+  params,
+}: {
+  params: Promise<{ country: string }>;
+}) {
+  const { country } = await params;
+  if (country === "viza-test") notFound();
   return <VisaCountryPageClient />;
 }

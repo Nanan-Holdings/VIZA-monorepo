@@ -48,6 +48,8 @@ document steps.
 - **Deployment**: Google Cloud Run
 - **Build Status**: ✅ Passing
 - **Authentication**: ✅ Supabase Auth with Role-Based Access Control
+- **Marketing content pipeline**: `scripts/README.md` covers the twice-weekly
+  news drafts, staff review, and four-network social publishing workflow.
 
 ---
 

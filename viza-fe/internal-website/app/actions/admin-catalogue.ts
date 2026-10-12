@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { CatalogueReadiness, PublicCataloguePayload } from "@/lib/admin/catalogue";
+import { pricingFor } from "@/lib/pricing";
 
 export type CatalogueActionResult = { success: true; readiness?: CatalogueReadiness } | { success: false; error: string; readiness?: CatalogueReadiness };
 
@@ -24,6 +25,13 @@ function validatePayload(payload: PublicCataloguePayload): string[] {
   for (const [key, value] of Object.entries(payload.pricing)) {
     if (key !== "currency" && (!Number.isInteger(value) || Number(value) < 0)) blockers.push(`${key} must be a non-negative minor-unit integer.`);
   }
+  if (payload.pricing.firstTimeDiscountMinor > payload.pricing.agencyFeeMinor) {
+    blockers.push("Public discount cannot exceed the advertised agency fee.");
+  }
+  const advertisedTotal = payload.pricing.governmentFeeMinor
+    + payload.pricing.agencyFeeMinor
+    - payload.pricing.firstTimeDiscountMinor;
+  if (advertisedTotal < 0) blockers.push("Public advertised total cannot be negative.");
   return blockers;
 }
 
@@ -43,6 +51,7 @@ async function calculateReadiness(
   if (!pkg) blockers.push("Visa package does not exist.");
   else {
     if (!pkg.is_active) blockers.push("Visa package is inactive.");
+    if (String(pkg.country).toLowerCase() !== payload.portalCountry.toLowerCase()) blockers.push("Published portal country does not match the package country.");
     if (String(pkg.visa_type).toUpperCase() !== payload.visaType.toUpperCase()) blockers.push("Published visa type does not match the package visa type.");
     const coverage = typeof pkg.metadata === "object" && pkg.metadata !== null && !Array.isArray(pkg.metadata)
       ? (pkg.metadata as Record<string, unknown>).coverage
@@ -50,12 +59,45 @@ async function calculateReadiness(
     if (!coverage) warnings.push("Package coverage metadata is not explicit.");
   }
   if (pricing.error || !pricing.data?.length) blockers.push("No package_pricing row exists.");
+  else if (pricing.data.length !== 1) blockers.push("Exactly one authoritative package_pricing row is required.");
   if (fields.error || !fields.count) blockers.push("No visa form fields exist for this visa type.");
   if (documents.error || !documents.count) blockers.push("No document requirements exist for this package.");
   if (payload.pricing.agencyFeeMinor === 0 && payload.pricing.governmentFeeMinor === 0) warnings.push("Public display price is free; confirm this is intentional.");
-  const canonical = pricing.data?.[0];
-  if (canonical && String(canonical.currency).toUpperCase() !== payload.pricing.currency) {
-    warnings.push(`Canonical package pricing is ${canonical.currency}; the public display snapshot is SGD.`);
+  const canonical = pricing.data?.length === 1 ? pricing.data[0] : null;
+  const checkoutPricing = pkg ? pricingFor(payload.portalCountry, payload.visaType) : null;
+  if (!checkoutPricing) {
+    blockers.push("No authoritative checkout pricing exists for this package country and visa type.");
+  } else {
+    const checkoutCurrency = checkoutPricing.currency.toUpperCase();
+    if (payload.pricing.currency !== checkoutCurrency) {
+      blockers.push(`Public currency must exactly match checkout pricing currency (${checkoutCurrency}).`);
+    }
+    if (payload.pricing.agencyFeeMinor !== checkoutPricing.agencyFeeCents) {
+      blockers.push("Public agency fee must exactly match checkout pricing.");
+    }
+    if (payload.pricing.governmentFeeMinor !== checkoutPricing.govtFeeCents) {
+      blockers.push("Public government fee must exactly match checkout pricing.");
+    }
+  }
+  if (canonical) {
+    const canonicalCurrency = String(canonical.currency).toUpperCase();
+    const canonicalAgencyFee = Number(canonical.agency_fee_cents);
+    const canonicalGovernmentFee = Number(canonical.government_fee_cents);
+    if (
+      !checkoutPricing
+      || canonicalCurrency !== checkoutPricing.currency.toUpperCase()
+      || canonicalAgencyFee !== checkoutPricing.agencyFeeCents
+      || canonicalGovernmentFee !== checkoutPricing.govtFeeCents
+    ) {
+      blockers.push("The package_pricing row must exactly match the pricing used by portal checkout.");
+    }
+    if (
+      canonicalCurrency !== payload.pricing.currency
+      || canonicalAgencyFee !== payload.pricing.agencyFeeMinor
+      || canonicalGovernmentFee !== payload.pricing.governmentFeeMinor
+    ) {
+      blockers.push("Public currency and fees must exactly match the authoritative package_pricing row.");
+    }
   }
   return {
     blockers,
@@ -63,6 +105,16 @@ async function calculateReadiness(
     evidence: {
       packageActive: Boolean(pkg?.is_active),
       pricingRows: pricing.data?.length ?? 0,
+      checkoutPricingMatched: Boolean(
+        canonical
+        && checkoutPricing
+        && String(canonical.currency).toUpperCase() === checkoutPricing.currency.toUpperCase()
+        && Number(canonical.agency_fee_cents) === checkoutPricing.agencyFeeCents
+        && Number(canonical.government_fee_cents) === checkoutPricing.govtFeeCents
+        && payload.pricing.currency === checkoutPricing.currency.toUpperCase()
+        && payload.pricing.agencyFeeMinor === checkoutPricing.agencyFeeCents
+        && payload.pricing.governmentFeeMinor === checkoutPricing.govtFeeCents
+      ),
       formFieldCount: fields.count ?? 0,
       documentRequirementCount: documents.count ?? 0,
       checkedAt: new Date().toISOString(),

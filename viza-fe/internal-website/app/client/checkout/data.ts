@@ -10,6 +10,7 @@ import {
   getVisaTypeDisplayName,
 } from "@/lib/visa-destinations";
 import { pricingFor } from "@/lib/pricing";
+import { toMajorUnits, type PurchaseEvent } from "@/lib/analytics/google";
 import { visaTypesReferToSameApplication } from "@/lib/submission-queue";
 import {
   advanceApplicationAfterConfirmedPayment,
@@ -54,6 +55,8 @@ interface CheckoutAdminClient {
   from(table: "applications"): CheckoutQueryBuilder<ApplicationRow>;
   from(table: "consent_events"): CheckoutQueryBuilder<ConsentEventRow>;
   from(table: "payment_records"): CheckoutQueryBuilder<PaymentRecordRow>;
+  from(table: "order"): CheckoutQueryBuilder<OrderRow>;
+  from(table: "beta_access_grants"): CheckoutQueryBuilder<BetaAccessGrantRow>;
   from(table: "user_packages"): CheckoutQueryBuilder<UserPackageRow>;
   from(table: "visa_packages"): CheckoutQueryBuilder<VisaPackageRow>;
 }
@@ -110,6 +113,7 @@ export interface PaymentRecordRow {
   id: string;
   application_id: string | null;
   applicant_id: string | null;
+  order_id: string | null;
   visa_package_id: string | null;
   provider: string;
   provider_session_id: string | null;
@@ -122,6 +126,33 @@ export interface PaymentRecordRow {
   metadata: Json | null;
   created_at: string | null;
   updated_at: string | null;
+}
+
+export interface OrderRow {
+  id: string;
+  application_id: string;
+  applicant_id: string;
+  agency_fee_cents: number;
+  govt_fee_cents: number;
+  currency: string;
+  status: string;
+  metadata: Json | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface BetaAccessGrantRow {
+  id: string;
+  applicant_id: string;
+  first_application_id: string;
+  first_order_id: string;
+  country: string;
+  audience: "social" | "friends";
+  delivery_method: "promo_code" | "link_suffix";
+  discount_percent: 50 | 100;
+  access_scope: "one_country" | "all_countries";
+  base_agency_fee_cents: number;
+  discount_cents: number;
 }
 
 export interface ConsentEventRow {
@@ -179,6 +210,7 @@ export interface CheckoutPackageSummary {
   visaType: string;
   visaTypeLabel: string;
   agencyFee: MoneyAmount | null;
+  governmentFeeAmount: Pick<MoneyAmount, "cents" | "currency"> | null;
   governmentFee: GovernmentFeeDisclosure;
   applicationId: string | null;
   applicationStatus: string | null;
@@ -231,6 +263,11 @@ export type CheckoutReturnState =
       tone: "success" | "warning" | "error";
       title: string;
       description: string;
+      /**
+       * Present only on a payment Stripe has confirmed as paid. Carries the
+       * real order value so analytics does not fall back to a placeholder.
+       */
+      purchase?: PurchaseEvent;
     }
   | null;
 
@@ -483,6 +520,34 @@ export function resolveGovernmentFee(
   };
 }
 
+export function resolveGovernmentFeeAmount(
+  packageRow: VisaPackageRow,
+  application: ApplicationRow | null,
+): Pick<MoneyAmount, "cents" | "currency"> | null {
+  const metadata = getGovernmentFeeMetadata(packageRow);
+  const configuredPricing = pricingFor(packageRow.country, packageRow.visa_type);
+  const persistedAmountCents = application?.government_fee_cents ?? null;
+  const configuredAmountCents = configuredPricing?.govtFeeCents ?? null;
+  const applicationAmountCents =
+    persistedAmountCents === 0 && configuredAmountCents !== null && configuredAmountCents > 0
+      ? null
+      : persistedAmountCents;
+  const cents =
+    applicationAmountCents ??
+    getNumber(metadata, ["amount_cents", "amountCents", "cents", "estimated_amount_cents"]) ??
+    configuredAmountCents ??
+    null;
+  if (cents === null || cents < 0 || !Number.isInteger(cents)) return null;
+  return {
+    cents,
+    currency: normalizeCurrency(
+      application?.government_fee_currency ??
+        getString(metadata, ["currency", "estimated_currency"]) ??
+        configuredPricing?.currency,
+    ),
+  };
+}
+
 function buildNextStep(
   summary: Pick<
     CheckoutPackageSummary,
@@ -611,6 +676,7 @@ function buildPackageSummaries({
         visaType: packageRow.visa_type,
         visaTypeLabel: getVisaTypeDisplayName(packageRow.visa_type),
         agencyFee,
+        governmentFeeAmount: resolveGovernmentFeeAmount(packageRow, application),
         governmentFee: resolveGovernmentFee(packageRow, application, copy),
         applicationId: application?.id ?? assignment.application_id,
         applicationStatus: application?.status ?? null,
@@ -752,7 +818,7 @@ export async function getCheckoutContext(selection: CheckoutSelection = {}): Pro
     const paymentQuery = adminClient
       .from("payment_records")
       .select(
-        "id, application_id, applicant_id, visa_package_id, provider, provider_session_id, provider_payment_id, amount_cents, currency, status, fee_type, receipt_url, metadata, created_at, updated_at",
+        "id, application_id, applicant_id, order_id, visa_package_id, provider, provider_session_id, provider_payment_id, amount_cents, currency, status, fee_type, receipt_url, metadata, created_at, updated_at",
       )
       .eq("fee_type", "agency_fee")
       .in("visa_package_id", packageIds)
@@ -891,6 +957,39 @@ export async function reconcileStripeCheckoutSession(sessionId: string | null): 
       .eq("provider_session_id", session.id)
       .eq("fee_type", "agency_fee");
 
+    const orderId = session.metadata?.orderId;
+    if (isPaid && orderId) {
+      const { data: order, error: orderError } = await adminClient
+        .from("order")
+        .select("id,application_id,applicant_id,currency,status,metadata")
+        .eq("id", orderId)
+        .maybeSingle();
+      const orderMetadata = asRecord(order?.metadata ?? undefined);
+      const checkoutPayment = asRecord(orderMetadata?.checkout_payment as Json | undefined);
+      const expectedAmount = checkoutPayment?.expected_amount_minor;
+      const expectedCurrency = typeof checkoutPayment?.currency === "string"
+        ? checkoutPayment.currency.toUpperCase()
+        : null;
+      if (
+        orderError
+        || !order
+        || order.application_id !== session.metadata?.applicationId
+        || order.applicant_id !== session.metadata?.applicantId
+        || !Number.isInteger(expectedAmount)
+        || expectedAmount !== session.amount_total
+        || expectedCurrency !== normalizeCurrency(session.currency)
+      ) {
+        throw orderError ?? new Error("Stripe return does not match the canonical beta order");
+      }
+      if (order.status === "draft" || order.status === "pending") {
+        await adminClient
+          .from("order")
+          .update({ status: "paid", paid_at: now, updated_at: now })
+          .eq("id", orderId)
+          .in("status", ["draft", "pending"]);
+      }
+    }
+
     if (isPaid && session.metadata?.applicationId) {
       const { data: existingEvents } = await adminClient
         .from("application_events")
@@ -938,10 +1037,26 @@ export async function reconcileStripeCheckoutSession(sessionId: string | null): 
       };
     }
 
+    // Coarse, non-identifying context for the purchase event. Read from the
+    // packages already loaded above rather than widening the Stripe metadata,
+    // which is on the payment path.
+    const paidPackage =
+      checkoutContext.packages.find((row) => row.packageId === session.metadata?.visaPackageId) ?? null;
+
     return {
       tone: "success",
       title: "Agency fee payment confirmed",
       description: "VIZA has recorded the Stripe Checkout confirmation for the agency fee only.",
+      purchase:
+        typeof session.amount_total === "number"
+          ? ({
+              transactionId: session.id,
+              value: toMajorUnits(session.amount_total),
+              currency: normalizeCurrency(session.currency),
+              country: paidPackage?.country ?? null,
+              visaType: paidPackage?.visaType ?? null,
+            } satisfies PurchaseEvent)
+          : undefined,
     };
   } catch (error) {
     console.error("[checkout] Failed to reconcile Stripe session:", error);

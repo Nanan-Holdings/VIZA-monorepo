@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Globe, Check } from "lucide-react";
 import { useLocale } from "next-intl";
+import { useSearchParams } from "next/navigation";
 import { usePathname, useRouter } from "@/navigation";
 import type { Locale } from "@/i18n";
 
@@ -14,6 +15,7 @@ const LANGUAGES: { code: Locale; label: string }[] = [
 export default function LanguageToggle() {
   const locale = useLocale();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -29,7 +31,8 @@ export default function LanguageToggle() {
 
   const select = (code: Locale) => {
     setOpen(false);
-    if (code !== locale) router.replace(pathname, { locale: code });
+    const query = searchParams.toString();
+    if (code !== locale) router.replace(query ? `${pathname}?${query}` : pathname, { locale: code });
   };
 
   return (

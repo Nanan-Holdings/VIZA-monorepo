@@ -38,3 +38,28 @@ PostHog at MVP. `NEXT_PUBLIC_POSTHOG_KEY` + `NEXT_PUBLIC_POSTHOG_HOST` envs cont
 2. Document the required properties in the table above.
 3. Call `track({ name: EVENT.<key>, properties: { ... } })` from the producing code.
 4. Update `/admin/analytics` if the new event belongs in the funnel.
+
+## GA4 / Google Ads sink (`google.ts`)
+
+A **second** sink, for attribution rather than product analytics. The marketing
+site (viza.it.com) reports to GA4; checkout completes here on app.viza.it.com.
+Without a tag on this origin the purchase cannot be tied back to the channel
+that produced the visit.
+
+Two things differ from the PostHog taxonomy above, both deliberate:
+
+- **Event names are Google's.** GA4 ecommerce reporting and Google Ads
+  conversion import key off the literal recommended name `purchase`, so it does
+  not come from the `EVENT` enum. Product events still belong in `events.ts`.
+- **Cross-domain linking.** `ANALYTICS_LINKER_DOMAINS` must be identical in this
+  app and the marketing site, and both must report to the same GA4 property, or
+  the two origins are recorded as separate unattributed sessions.
+
+Same consent rule: `hasAnalyticsConsent()` gates it on `viza_cookie_consent`,
+checked server-side before the tag is injected in `app/layout.tsx` and again
+client-side before the purchase event fires. Unset `NEXT_PUBLIC_GA_MEASUREMENT_ID`
+disables the sink entirely.
+
+| Name       | Where fired                                            | Required properties                        |
+| ---------- | ------------------------------------------------------ | ------------------------------------------ |
+| `purchase` | `app/client/checkout` return, Stripe-confirmed as paid | transaction_id, value, currency            |

@@ -7,7 +7,7 @@
 **Effective date:** _to be set on first counsel-reviewed publish._
 
 **Provider:** VIZA Pte. Ltd. ("VIZA", "we", "us"), a Singapore-incorporated
-private limited company. Contact: support@haggstorm.com.
+private limited company. Contact: support@viza.it.com.
 
 ## 1. Scope of service
 
@@ -21,7 +21,7 @@ VIZA is an AI-assisted visa-application service. The platform:
   the applicant's behalf, where the portal supports automated
   submission. Where it does not, VIZA delivers a print-ready,
   signed-by-the-applicant submission packet.
-- Holds an inbox alias on the applicant's behalf at the haggstorm.com
+- Holds an inbox alias on the applicant's behalf at the viza.it.com
   domain to receive portal correspondence (OTPs, confirmations).
 
 VIZA is **not** a law firm and does **not** provide immigration legal

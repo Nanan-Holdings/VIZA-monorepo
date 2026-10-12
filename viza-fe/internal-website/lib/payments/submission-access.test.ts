@@ -90,6 +90,7 @@ function baseTables(overrides: Tables = {}): Tables {
     application_submission_entitlements: [],
     order: [],
     payment_records: [],
+    beta_access_grants: [],
     government_fee_allocations: [],
     visa_packages: [],
     package_pricing: [],
@@ -399,6 +400,211 @@ describe("submission access evaluator", () => {
     expect(decision.agencyFee.status).toBe("paid");
     expect(decision.agencyFee.amountDueCents).toBe(0);
     expect(decision.officialFee.amountDueCents).toBe(2_500);
+  });
+
+  it("accepts a zero-value friend waiver only when its application metadata and grant match", async () => {
+    const admin = fakeAdmin(baseTables({
+      applications: [{
+        id: "app-1",
+        applicant_id: "profile-1",
+        country: "south_korea",
+        visa_type: "KR_E_ARRIVAL_CARD",
+        purpose: null,
+        visa_package_id: "package-1",
+        group_id: null,
+        government_fee_cents: 0,
+        government_fee_currency: "USD",
+      }],
+      visa_packages: [{ id: "package-1", price_cents: 9_900, currency: "USD" }],
+      beta_access_grants: [{
+        id: "beta-grant-1",
+        applicant_id: "profile-1",
+        audience: "friends",
+        access_scope: "all_countries",
+        discount_percent: 100,
+      }],
+      payment_records: [{
+        id: "beta-payment-1",
+        application_id: "app-1",
+        applicant_id: "profile-1",
+        visa_package_id: "package-1",
+        order_id: null,
+        provider: "beta",
+        status: "paid",
+        fee_type: "agency_fee",
+        amount_cents: 0,
+        currency: "USD",
+        metadata: {
+          application_id: "app-1",
+          applicant_id: "profile-1",
+          visa_package_id: "package-1",
+          beta: {
+            grant_id: "beta-grant-1",
+            audience: "friends",
+            access_scope: "all_countries",
+            discount_percent: 100,
+          },
+        },
+        updated_at: "2026-09-09T00:00:00.000Z",
+      }],
+    }));
+
+    const decision = await evaluateSubmissionAccess(admin.client as never, "app-1");
+    expect(decision.status).toBe("ready");
+    expect(decision.agencyFee.status).toBe("waived");
+    expect(decision.paymentRecordId).toBe("beta-payment-1");
+  });
+
+  it("accepts the first free friend order as a waiver only with the matching bound grant", async () => {
+    const admin = fakeAdmin(baseTables({
+      applications: [{
+        id: "app-1",
+        applicant_id: "profile-1",
+        country: "south_korea",
+        visa_type: "KR_E_ARRIVAL_CARD",
+        purpose: null,
+        visa_package_id: "package-1",
+        group_id: null,
+        government_fee_cents: 0,
+        government_fee_currency: "USD",
+      }],
+      visa_packages: [{ id: "package-1", price_cents: 9_900, currency: "USD" }],
+      beta_access_grants: [{
+        id: "beta-grant-first",
+        applicant_id: "profile-1",
+        first_application_id: "app-1",
+        first_order_id: "order-beta-first",
+        audience: "friends",
+        access_scope: "all_countries",
+        discount_percent: 100,
+      }],
+      order: [{
+        id: "order-beta-first",
+        application_id: "app-1",
+        applicant_id: "profile-1",
+        status: "paid",
+        agency_fee_cents: 9_900,
+        govt_fee_cents: 0,
+        currency: "USD",
+        metadata: {
+          beta: {
+            grant_id: "beta-grant-first",
+            audience: "friends",
+            access_scope: "all_countries",
+            discount_percent: 100,
+          },
+        },
+        created_at: "2026-09-09T00:00:00.000Z",
+      }],
+    }));
+
+    const decision = await evaluateSubmissionAccess(admin.client as never, "app-1");
+    expect(decision.status).toBe("ready");
+    expect(decision.agencyFee.status).toBe("waived");
+    expect(decision.orderId).toBe("order-beta-first");
+  });
+
+  it("accepts a paid first social order only with its matching 50%-off grant", async () => {
+    const admin = fakeAdmin(baseTables({
+      beta_access_grants: [{
+        id: "beta-grant-social",
+        applicant_id: "profile-1",
+        first_application_id: "app-1",
+        first_order_id: "order-beta-social",
+        audience: "social",
+        access_scope: "one_country",
+        discount_percent: 50,
+      }],
+      order: [{
+        id: "order-beta-social",
+        application_id: "app-1",
+        applicant_id: "profile-1",
+        status: "paid",
+        agency_fee_cents: 9_900,
+        govt_fee_cents: 2_500,
+        currency: "USD",
+        metadata: {
+          beta: {
+            grant_id: "beta-grant-social",
+            audience: "social",
+            access_scope: "one_country",
+            discount_percent: 50,
+          },
+        },
+        created_at: "2026-09-09T00:00:00.000Z",
+      }],
+    }));
+
+    const decision = await evaluateSubmissionAccess(admin.client as never, "app-1");
+    expect(decision.agencyFee.status).toBe("paid");
+    expect(decision.agencyFee.amountDueCents).toBe(0);
+    expect(decision.officialFee.status).toBe("required");
+  });
+
+  it("does not mistake unverified beta order metadata for a paid full-price order", async () => {
+    const admin = fakeAdmin(baseTables({
+      order: [{
+        id: "order-forged-beta",
+        application_id: "app-1",
+        applicant_id: "profile-1",
+        status: "paid",
+        agency_fee_cents: 9_900,
+        govt_fee_cents: 2_500,
+        currency: "USD",
+        metadata: {
+          beta: {
+            grant_id: "missing-grant",
+            audience: "friends",
+            access_scope: "all_countries",
+            discount_percent: 100,
+          },
+        },
+        created_at: "2026-09-09T00:00:00.000Z",
+      }],
+    }));
+
+    const decision = await evaluateSubmissionAccess(admin.client as never, "app-1");
+    expect(decision.agencyFee.status).toBe("required");
+    expect(decision.orderId).toBe("order-forged-beta");
+  });
+
+  it("rejects a forged beta waiver whose grant belongs to another applicant", async () => {
+    const admin = fakeAdmin(baseTables({
+      beta_access_grants: [{
+        id: "beta-grant-other",
+        applicant_id: "profile-other",
+        audience: "friends",
+        access_scope: "all_countries",
+        discount_percent: 100,
+      }],
+      payment_records: [{
+        id: "beta-payment-forged",
+        application_id: "app-1",
+        applicant_id: "profile-1",
+        visa_package_id: null,
+        order_id: null,
+        provider: "beta",
+        status: "paid",
+        fee_type: "agency_fee",
+        amount_cents: 0,
+        currency: "USD",
+        metadata: {
+          application_id: "app-1",
+          applicant_id: "profile-1",
+          beta: {
+            grant_id: "beta-grant-other",
+            audience: "friends",
+            access_scope: "all_countries",
+            discount_percent: 100,
+          },
+        },
+        updated_at: "2026-09-09T00:00:00.000Z",
+      }],
+    }));
+
+    const decision = await evaluateSubmissionAccess(admin.client as never, "app-1");
+    expect(decision.agencyFee.status).toBe("required");
+    expect(decision.paymentRecordId).toBeNull();
   });
 
   it("does not accept a payment belonging to another application", async () => {

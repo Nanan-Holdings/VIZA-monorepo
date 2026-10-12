@@ -284,6 +284,7 @@ function isTravelActionResidenceSegment(value: string): boolean {
 function extractResidenceCountry(message: string): string | null {
   const residencePatterns = [
     /(?:人在|目前在|现在在|当前在|我在)\s*([^,，、;；。.!?\n]+)/iu,
+    /(?:^|[，,。；;]|国籍|护照|身份|holder)\s*(?:居住在|住在|常住(?:在)?)\s*([^,，、;；。.!?\n]+)/iu,
     /(?:我(?:住在|居住在|住)|目前(?:住在|居住在)|现在(?:住在|居住在)|常住(?:在)?)\s*([^,，、;；。.!?\n]+)/iu,
     /(?:从)\s*([^,，、;；。.!?\n]+?)\s*(?:出发|申请)/iu,
     /([^,，、;；。.!?\n]+?)\s*(?:PR|pr|永久居民)/iu,
@@ -306,6 +307,7 @@ function extractResidenceCountry(message: string): string | null {
 function extractResidenceCountries(message: string): SupportedKnowledgeCountry[] {
   const residenceTextMatches = [
     ...message.matchAll(/(?:人在|目前在|现在在|当前在|我在)([^,，、;；。.!?\n]*)/giu),
+    ...message.matchAll(/(?:^|[，,。；;]|国籍|护照|身份|holder)\s*(?:居住在|住在|常住(?:在)?)([^,，、;；。.!?\n]*)/giu),
     ...message.matchAll(/(?:我(?:住在|居住在|住)|目前(?:住在|居住在)|现在(?:住在|居住在)|常住(?:在)?)([^,，、;；。.!?\n]*)/giu),
     ...message.matchAll(/(?:从)\s*([^,，、;；。.!?\n]+?)\s*(?:出发|申请)/giu),
     ...message.matchAll(/([^,，、;；。.!?\n]+?)\s*(?:PR|pr|永久居民)/giu),

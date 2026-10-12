@@ -1,0 +1,51 @@
+{
+  "business": "VIZA helps international travellers understand visa and entry requirements, prepare applications, and use an assisted application service. Readers include individual applicants and travel planners across English-speaking markets.",
+  "moneyPages": ["/apply", "/product", "/contact", "/visa/indonesia", "/visa/japan", "/visa/kenya"],
+  "voice": [
+    "Use calm, practical English and explain uncertainty plainly.",
+    "Never promise approval, processing time, eligibility, or a fee without a direct official source.",
+    "Keep agency services distinct from government decisions and official fees.",
+    "No em dashes or invented urgency."
+  ],
+  "taxonomy": {
+    "categories": ["Visa Updates", "Application Guides", "Entry Requirements", "Travel Planning", "Documents", "Policy Explainers", "Destination Guides"],
+    "audiences": ["First-time applicants", "Families", "Business travellers", "International students", "Frequent travellers", "Travel planners"]
+  },
+  "news": {
+    "searchQueries": [
+      "visa application policy official update",
+      "Schengen visa entry rule change",
+      "UK ETA official update",
+      "Canada eTA visa official update",
+      "Japan eVisa entry official update",
+      "Australia visitor visa official update",
+      "Singapore arrival card official update",
+      "travel document passport entry rule official update"
+    ],
+    "tradeFeeds": [
+      { "name": "Skift", "url": "https://skift.com/feed/" },
+      { "name": "Travel Tomorrow", "url": "https://traveltomorrow.com/feed/" }
+    ],
+    "subreddits": ["travel"],
+    "maxAgeDays": 14,
+    "maxPerFeed": 20,
+    "googleNewsEdition": "SG:en",
+    "relevanceRules": [
+      "Prefer changes that affect application preparation, entry documents, or trip planning.",
+      "Reject generic tourism promotion, opinion-only stories, and unverified rumours.",
+      "Prefer original official announcements or source articles with a direct official link."
+    ]
+  },
+  "content": {
+    "author": "VIZA Editorial",
+    "locale": "en",
+    "autoPublish": false,
+    "autoSocial": false,
+    "minimumRankScore": 65,
+    "platforms": ["linkedin", "facebook", "instagram", "pinterest"]
+  },
+  "validation": {
+    "reservedSlugs": ["new", "category", "admin", "api"],
+    "requireSourceUrl": true
+  }
+}

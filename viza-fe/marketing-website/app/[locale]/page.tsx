@@ -387,8 +387,9 @@ export default function ExplorePage() {
             <a className="icon-btn" href="/contact" title={t("explore.help")} aria-label={t("explore.help")}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><path d="M12 17h.01" /></svg>
             </a>
-            <a className="avatar" href={portalUrl("/client/login")} title={t("nav.signIn")} aria-label={t("nav.signIn")}>
+            <a className="login-btn" href={portalUrl("/client/login")} title={t("nav.signIn")} aria-label={t("nav.signIn")}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+              <span>{t("nav.signIn")}</span>
             </a>
           </div>
         </div>

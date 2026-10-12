@@ -25,6 +25,10 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 
 ## Key Flows
 
+- Report-only CSP violations are accepted at `app/api/csp-report/route.ts` and
+  reduced by `lib/security/csp-report.ts` to bounded aggregate dimensions only.
+  Never retain or log document/blocked URLs, query strings, samples, referrers,
+  cookies, request identity, or submitted user data.
 - Public beta feedback lives under `app/feedback/**` and is submitted through
   the server-only `app/api/feedback/route.ts` boundary into `beta_feedback`.
   Keep this route public, avoid browser-side Supabase writes, and do not store
@@ -33,7 +37,11 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 - Client dashboard country hero artwork under `public/country-heroes/**`, mapped
   to application country slugs by `lib/client/country-hero-theme.ts`. Germany's
   hero uses the transparent Brandenburg Gate artwork at
-  `public/country-heroes/germany.png`.
+  `public/country-heroes/germany.png`. Every selectable visa destination must
+  resolve to its own transparent, slug-named country artwork; keep the mapping
+  and destination catalogue aligned, including every Schengen country.
+  Preserve third-party source and license credits in
+  `public/country-heroes/README.md` when adding adapted photography.
 - Arrival-card preview entries under `app/client/arrival-cards/**`, routed to
   dedicated DB-driven application packages and kept separate from visa packages.
 - Admin portal under `app/admin/**`.
@@ -143,6 +151,23 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   and future forms consume it only as non-overwriting prefill.
 - Commercial and agency payment records are stored in `payment_records`,
   created by `supabase/migrations/*create_payment_records.sql`.
+- Durable payment-provisioning retries run through the Vercel Cron `GET`
+  boundary at `app/api/payment-provisioning/worker/route.ts`, authenticated by
+  Vercel's `Authorization: Bearer CRON_SECRET`. Its existing manual `POST`
+  boundary remains separately authenticated with
+  `PAYMENT_PROVISIONING_WORKER_TOKEN`; neither route may expose job contents.
+  The cron sweep also reconciles one deduplicated `admin_work_items` alert per
+  provisioning job: dead letters alert immediately, retry/running jobs alert
+  after 15 minutes, and recovered jobs resolve without sending externally.
+- Launch-beta invitations are stored as hashed, single-person codes in
+  `beta_access_codes` and applicant-bound grants in `beta_access_grants`.
+  Social invites discount one country's VIZA service fee by 50%; friend
+  invites discount VIZA service fees by 100% across countries after the first
+  claim. Official government fees always remain separate and payable.
+- Public marketing checkout uses `app/api/checkout/handoff/route.ts` and
+  `lib/checkout/handoff.ts` to move applicant PII in an HTTPS POST into a
+  short-lived encrypted HttpOnly cookie. Email, passport prefill, names, phone
+  data, and beta tokens must never be placed in checkout URLs.
 - Client Settings privacy deduplication, single-owner traveler enforcement,
   and account-wide payment defaults are enforced by
   `supabase/migrations/20260829032221_client_settings_integrity.sql` and
@@ -185,6 +210,12 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   call only Supabase Auth `getUser()` and returns an exact synthetic user ID plus
   an `@viza.test` boolean. It must not call client-session continuity/profile
   helpers or expose the email/cookie, so capacity preflight remains read-only.
+- `/api/health/payment-providers` is restricted to authenticated admin/staff
+  users and returns only provider names, modes, and readiness issues. It must
+  never expose credential values; incomplete or known-test production config
+  returns HTTP 503. Optional rails are declared with
+  `VIZA_ENABLED_PAYMENT_PROVIDERS`, while `PHOTONPAY_ENABLED` remains the
+  authoritative card-routing switch (otherwise card checkout uses Stripe).
 - Auth and session protection through `proxy.ts`, `lib/supabase/**`,
   `lib/client-session.ts`, `lib/impersonation-session.ts`, and the fail-closed
   dynamic admin membership check in `lib/admin-membership.ts`. Admin invite
@@ -716,6 +747,23 @@ Smoke URLs:
   idempotent scheduled generation, reconciliation, and watchdog runs.
 - `supabase/migrations/20260828174939_marketing_automation_actor_index.sql`:
   indexes the automation actor foreign key for operational queries.
+- `supabase/migrations/20260923103000_marketing_deepseek_provider.sql`: allows
+  DeepSeek provider activity records for marketing generation.
+- `supabase/migrations/20260923110000_marketing_upload_post_delivery.sql`: stores
+  image-network delivery state and provider post URLs.
+- `scripts/pipeline.config.json`: VIZA news sources, editorial defaults,
+  categories, social channels, and minimum article relevance.
+- `scripts/build-seo-keywords.mjs`: imports VIZA CSV/TSV measured volumes
+  without treating ranges as exact monthly searches.
+- `content/seo-keywords.json`: measured keyword input; leave volumes empty
+  until a VIZA export has been imported.
+- `supabase/migrations/20260908180226_enforce_beta_social_cohort.sql`: seals
+  the launch social beta at exactly 100 randomized slots (50 promo and 50
+  link), records support verification/delivery evidence, and restricts atomic
+  initialization and next-slot issuance RPCs to the service role.
+- `supabase/migrations/20260908180848_fix_beta_social_issue_ambiguity.sql`:
+  qualifies PL/pgSQL assignment columns that collide with the issuance RPC's
+  output names; a rollback-only production smoke must leave all slots unissued.
 
 ## Client Portal Navigation Performance (PERF-001)
 

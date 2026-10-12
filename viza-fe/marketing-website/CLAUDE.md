@@ -63,10 +63,10 @@ choice: card / WeChat buttons deep-link to the portal checkout. Payment always h
 
 ## Shared CTA components
 
-- `components/PayByCardButton.tsx` / `components/WechatPayButton.tsx` — deep-link to the
-  portal's guest checkout (`portalUrl('/checkout/{card|wechat}?country=&visa=&locale=')`).
+- `components/PayByCardButton.tsx` / `components/WechatPayButton.tsx` — POST to the
+  portal's encrypted guest-checkout handoff (`portalUrl('/api/checkout/handoff')`).
   Used **only** on the final step of `/apply`, never on country/landing pages. Marketing-side
-  has zero payment / SDK imports — the buttons are plain `<a>`. The `wechat` / `wechat-hover`
+  has zero payment / SDK imports, and sensitive wizard data must never appear in a URL. The `wechat` / `wechat-hover`
   tailwind colors are third-party brand tokens used **only** by the WeChat CTA; do not reuse them.
 
 ## Cross-references

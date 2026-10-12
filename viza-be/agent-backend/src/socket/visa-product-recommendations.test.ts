@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { resolveReviewedVisaEntryRule } from '../services/visa-entry-rule.service.js';
-import { createEmptyVisaConversationState } from '../services/visa-conversation-state.service.js';
+import {
+  createEmptyVisaConversationState,
+  updateVisaConversationState,
+} from '../services/visa-conversation-state.service.js';
 import {
   buildApplicationRedirectPromptNote,
   buildRuleProductRecommendationBlocks,
+  buildTaiwanEntryPermitEligibilityBlock,
   buildVizaServiceCapabilityPrompt,
+  inferVisaKnowledgeIntent,
 } from './visa-namespace.js';
 
 function reviewedRule(destinationCountry: string, passportCountryIso3: string) {
@@ -83,14 +88,91 @@ describe('reviewed visa product recommendation blocks', () => {
     expect(exemptArrivalDeclaration.some((block) => block.productKind === 'visa')).toBe(false);
   });
 
-  it('does not emit CTAs for conditional, unknown, or not-applicable outcomes', () => {
-    expect(
-      buildRuleProductRecommendationBlocks(reviewedRule('taiwan', 'CHN'), 'zh')
-    ).toEqual([]);
+  it('offers the internal Taiwan permit eligibility flow instead of an official portal for conditional China routes', () => {
+    const blocks = buildRuleProductRecommendationBlocks(
+      reviewedRule('taiwan', 'CHN'),
+      'zh'
+    );
+
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0]).toMatchObject({
+      productCode: 'TW_ENTRY_PERMIT',
+      provider: 'viza',
+      requirement: 'conditional',
+      redirectUrl: '/client/application?country=taiwan&visaType=TW_ENTRY_PERMIT',
+      ctaLabel: '确认资格并开始',
+    });
+    expect(blocks[0]?.redirectUrl).not.toMatch(/^https?:\/\//);
+
+    const state = createEmptyVisaConversationState();
+    state.destinationCountries = ['taiwan'];
+    state.mainDestination = 'taiwan';
+    const promptNote = buildApplicationRedirectPromptNote(blocks, state, 'zh');
+
+    expect(promptNote).toContain('不要将用户引导至政府门户');
+    expect(promptNote).not.toContain('coa.immigration.gov.tw');
+  });
+
+  it('does not emit CTAs for unknown or not-applicable outcomes', () => {
     expect(
       buildRuleProductRecommendationBlocks(reviewedRule('us', 'USA'), 'zh')
     ).toEqual([]);
     expect(buildRuleProductRecommendationBlocks(null, 'zh')).toEqual([]);
+  });
+
+  it('keeps conditional external products suppressed', () => {
+    const taiwanRule = reviewedRule('taiwan', 'CHN');
+    expect(taiwanRule).not.toBeNull();
+    const [taiwanProduct] = taiwanRule!.productRecommendations;
+
+    expect(
+      buildRuleProductRecommendationBlocks(
+        {
+          ...taiwanRule!,
+          productRecommendations: [
+            {
+              ...taiwanProduct!,
+              provider: 'official',
+              supportLevel: 'official_redirect',
+            },
+          ],
+        },
+        'zh'
+      )
+    ).toEqual([]);
+  });
+
+  it('offers the Taiwan VIZA eligibility card when a Chinese overseas resident omits passport subtype in chat', () => {
+    const message =
+      '我是中国国籍，居住在新加坡 EP holder，旅行去台湾参加朋友的婚礼，台北 10月16日到10月20日。';
+    const state = updateVisaConversationState(
+      createEmptyVisaConversationState(),
+      [],
+      message
+    );
+
+    expect(state.passportCountryIso3).toBe('CHN');
+    expect(state.passportType).toBeNull();
+    expect(state.residenceCountry).toBe('Singapore');
+    expect(state.mainDestination).toBe('taiwan');
+    expect(inferVisaKnowledgeIntent(message, state.missingSlots)).toBe(
+      'route_recommendation'
+    );
+
+    expect(buildTaiwanEntryPermitEligibilityBlock(state, 'taiwan', 'zh')).toMatchObject({
+      productCode: 'TW_ENTRY_PERMIT',
+      provider: 'viza',
+      requirement: 'conditional',
+      redirectUrl: '/client/application?country=taiwan&visaType=TW_ENTRY_PERMIT',
+    });
+  });
+
+  it('does not offer the Taiwan overseas-residence product to a mainland resident', () => {
+    const state = createEmptyVisaConversationState();
+    state.passportCountryIso3 = 'CHN';
+    state.residenceCountry = 'China';
+
+    expect(buildTaiwanEntryPermitEligibilityBlock(state, 'taiwan', 'zh')).toBeNull();
   });
 
   it('uses official metadata for external product recommendations', () => {

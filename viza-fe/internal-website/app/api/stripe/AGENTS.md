@@ -31,6 +31,8 @@ ingestion.
   configures or initiates payouts.
 - `_shared.ts`: server-only Stripe/Supabase helpers for payment-record
   idempotency, application advancement, and event/notification inserts.
+- `_shared.test.ts`: focused coverage for exact, replay-safe settlement of an
+  authenticated checkout's linked canonical order.
 
 ## Environment
 
@@ -52,6 +54,9 @@ eligible one-time Checkout sessions can use them. The application sends
   application-scoped virtual card; never direct applicants to enter a card on
   the official portal.
 - Do not log full Stripe payloads.
+- A Stripe dispute must mark the order disputed and pause both
+  `submission_queue` and `runner_job`; clearing the runner lease prevents a
+  queued worker from being treated as eligible after the financial hold.
 
 ## Validation
 

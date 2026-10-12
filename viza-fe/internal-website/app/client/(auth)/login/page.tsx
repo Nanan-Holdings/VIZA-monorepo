@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button'
 import { InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group'
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
 import { useTranslations } from 'next-intl'
+import { safeClientReturnTarget } from '@/lib/auth/safe-client-return-target'
 
 type Step = 'email' | 'otp'
 type LoginMethod = 'password' | 'otp'
@@ -52,7 +53,7 @@ type ClientAuthOperation = 'password' | 'send_otp' | 'verify_otp'
 type ClientAuthResult = { success: boolean; error?: string; code?: string }
 
 function getPostLoginPath(returnTo: string | null) {
-  return returnTo === '/feedback' ? returnTo : '/client/home'
+  return safeClientReturnTarget(returnTo)
 }
 
 function waitForRetry(): Promise<void> {

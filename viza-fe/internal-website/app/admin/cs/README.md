@@ -7,6 +7,7 @@ Single staff surface for managing applicant tickets — assign, reply, capture i
 | Path                                                                      | Owns                                          |
 | ------------------------------------------------------------------------- | --------------------------------------------- |
 | `app/admin/cs/page.tsx`                                                   | Ticket queue (tabs + table)                   |
+| `app/admin/cs/beta/page.tsx`                                              | One-time beta invites and A/B funnel          |
 | `app/admin/cs/_components/CsQueueClient.tsx`                              | Tab switcher + queue table                    |
 | `app/admin/cs/[ticketId]/page.tsx`                                        | Per-ticket reply + macros + internal notes    |
 | `app/admin/cs/kpis/page.tsx`                                              | Median first-response / SLA / WoW             |
@@ -49,3 +50,14 @@ Apply via a one-off `npx ts-node scripts/seed-support-macros.ts` (not yet implem
 `loadKpis(windowDays=7)` returns five headline numbers. Aggregation runs in TS because window sizes are small (≤200 tickets typical). When volume grows, swap to a Postgres RPC to avoid PostgREST's 1k-row cap (`get_support_kpis(start_date, end_date)` is the placeholder name).
 
 KPIs render under `/admin/cs/kpis`. Cards: brand-50 background, brand-500 numerals, no charts at MVP (charts come with PRODUCT-006 vNext).
+
+## Beta launch invitations
+
+`/admin/cs/beta` is available to `admin`, `staff`, and `customer_service` roles. It issues
+the same one-time promo codes and unique links as the marketing console and
+shows the launch-beta conversion funnel. Social issuance requires the intended
+applicant email, which is converted to a keyed digest before persistence.
+Plaintext invitation values appear only in the issuance response and must be
+sent before leaving the page; delivery is confirmed separately with an audited
+reference. Lost undelivered values must be cancelled with a reason so the code
+is revoked and the randomized slot can be released.

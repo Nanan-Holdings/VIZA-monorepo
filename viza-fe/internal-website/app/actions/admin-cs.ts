@@ -45,10 +45,10 @@ export interface AdminSupportMessageRow {
 async function assertStaff(): Promise<{ userId?: string; error?: string }> {
   // Canonical, revocation-aware check: `getCurrentUser` returns null for an
   // admin whose `admin_memberships` grant has been revoked, so a revoked
-  // admin can no longer pass this guard. Role set is unchanged (admin/staff).
+  // admin can no longer pass this guard.
   const user = await getCurrentUser();
   if (!user) return { error: "Not authenticated" };
-  if (user.role !== "admin" && user.role !== "staff") return { error: "Staff role required" };
+  if (!["admin", "staff", "customer_service"].includes(user.role)) return { error: "Staff role required" };
   return { userId: user.id };
 }
 

@@ -30,6 +30,12 @@ type PassportExtraction = {
   warnings?: string[];
 };
 
+declare global {
+  interface Window {
+    __vizaPendingBetaToken?: string;
+  }
+}
+
 type ExtractStage = "idle" | "reading" | "extracting" | "verifying" | "done";
 
 /**
@@ -236,9 +242,21 @@ export default function ApplyPage() {
   // Defaults to Indonesia for a bare /apply (back-compat). Read from the URL on
   // the client to keep this page statically renderable.
   const [countrySlug, setCountrySlug] = useState("indonesia");
+  const [betaToken, setBetaToken] = useState("");
+  const betaTokenInitializedRef = useRef(false);
   useEffect(() => {
-    const c = new URLSearchParams(window.location.search).get("country");
+    const query = new URLSearchParams(window.location.search);
+    const c = query.get("country");
     if (c && countryBySlug(c)) setCountrySlug(c);
+    if (!betaTokenInitializedRef.current) {
+      betaTokenInitializedRef.current = true;
+      setBetaToken(
+        (query.get("betaToken") || query.get("beta") || window.__vizaPendingBetaToken || "")
+          .trim()
+          .slice(0, 128),
+      );
+      delete window.__vizaPendingBetaToken;
+    }
   }, [countryBySlug]);
   const country = countryBySlug(countrySlug) ?? countryBySlug("indonesia")!;
   const publishedPricing = country.pricing;
@@ -1076,6 +1094,7 @@ export default function ApplyPage() {
                 email={email.trim() || undefined}
                 fullName={fullName || undefined}
                 prefill={checkoutPrefill}
+                betaToken={betaToken || undefined}
               />
               <WechatPayButton
                 country={country.portalCountry}
@@ -1083,6 +1102,7 @@ export default function ApplyPage() {
                 email={email.trim() || undefined}
                 fullName={fullName || undefined}
                 prefill={checkoutPrefill}
+                betaToken={betaToken || undefined}
               />
             </div>
           </section>

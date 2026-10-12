@@ -89,21 +89,37 @@ interface EntitlementRow {
 
 interface OrderRow {
   id: string;
+  applicant_id: string;
   status: string;
   agency_fee_cents: number;
   govt_fee_cents: number;
   currency: string;
+  metadata: unknown;
   created_at: string;
 }
 
 interface PaymentRecordRow {
   id: string;
+  applicant_id: string | null;
+  visa_package_id: string | null;
   order_id: string | null;
+  provider: string;
   status: string;
   fee_type: string;
   amount_cents: number;
   currency: string;
+  metadata: unknown;
   updated_at: string;
+}
+
+interface BetaGrantRow {
+  id: string;
+  applicant_id: string;
+  first_application_id: string;
+  first_order_id: string;
+  audience: string;
+  access_scope: string;
+  discount_percent: number;
 }
 
 interface AllocationRow {
@@ -257,7 +273,7 @@ async function applicationOrders(
 ): Promise<OrderRow[]> {
   const { data, error } = await admin
     .from("order")
-    .select("id, status, agency_fee_cents, govt_fee_cents, currency, created_at")
+    .select("id, applicant_id, status, agency_fee_cents, govt_fee_cents, currency, metadata, created_at")
     .eq("application_id", applicationId)
     .order("created_at", { ascending: false });
   if (error) throw new Error(`submission order lookup: ${error.message}`);
@@ -270,11 +286,112 @@ async function applicationPayments(
 ): Promise<PaymentRecordRow[]> {
   const { data, error } = await admin
     .from("payment_records")
-    .select("id, order_id, status, fee_type, amount_cents, currency, updated_at")
+    .select("id, applicant_id, visa_package_id, order_id, provider, status, fee_type, amount_cents, currency, metadata, updated_at")
     .eq("application_id", applicationId)
     .order("updated_at", { ascending: false });
   if (error) throw new Error(`submission payment lookup: ${error.message}`);
   return (data as PaymentRecordRow[] | null) ?? [];
+}
+
+function record(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+async function validBetaWaiverPayment(
+  admin: SupabaseClient,
+  application: ApplicationRow,
+  payments: PaymentRecordRow[],
+  currency: string,
+): Promise<PaymentRecordRow | null> {
+  const candidates = payments.filter((payment) => {
+    const metadata = record(payment.metadata);
+    const beta = record(metadata?.beta);
+    return payment.provider === "beta"
+      && PAID_PAYMENT_STATUSES.has(payment.status)
+      && payment.fee_type === "agency_fee"
+      && payment.amount_cents === 0
+      && normalizeCurrency(payment.currency) === currency
+      && payment.applicant_id === application.applicant_id
+      && (!application.visa_package_id || payment.visa_package_id === application.visa_package_id)
+      && metadata?.application_id === application.id
+      && metadata?.applicant_id === application.applicant_id
+      && (!application.visa_package_id || metadata?.visa_package_id === application.visa_package_id)
+      && beta?.audience === "friends"
+      && beta?.access_scope === "all_countries"
+      && beta?.discount_percent === 100
+      && typeof beta?.grant_id === "string";
+  });
+
+  for (const payment of candidates) {
+    const metadata = record(payment.metadata);
+    const beta = record(metadata?.beta);
+    const grantId = String(beta?.grant_id ?? "");
+    const { data, error } = await admin
+      .from("beta_access_grants")
+      .select("id, applicant_id, audience, access_scope, discount_percent")
+      .eq("id", grantId)
+      .eq("applicant_id", application.applicant_id)
+      .maybeSingle();
+    if (error) throw new Error(`beta waiver lookup: ${error.message}`);
+    const grant = data as BetaGrantRow | null;
+    if (
+      grant
+      && grant.audience === "friends"
+      && grant.access_scope === "all_countries"
+      && Number(grant.discount_percent) === 100
+    ) {
+      return payment;
+    }
+  }
+
+  return null;
+}
+
+async function validBetaFirstOrder(
+  admin: SupabaseClient,
+  application: ApplicationRow,
+  paidOrders: OrderRow[],
+): Promise<{ order: OrderRow; audience: "social" | "friends" } | null> {
+  for (const order of paidOrders) {
+    const metadata = record(order.metadata);
+    const beta = record(metadata?.beta);
+    if (
+      order.applicant_id !== application.applicant_id
+      || typeof beta?.grant_id !== "string"
+      || !["social", "friends"].includes(String(beta.audience))
+      || ![50, 100].includes(Number(beta.discount_percent))
+    ) {
+      continue;
+    }
+    const { data, error } = await admin
+      .from("beta_access_grants")
+      .select("id, applicant_id, first_application_id, first_order_id, audience, access_scope, discount_percent")
+      .eq("id", beta.grant_id)
+      .eq("applicant_id", application.applicant_id)
+      .eq("first_application_id", application.id)
+      .eq("first_order_id", order.id)
+      .maybeSingle();
+    if (error) throw new Error(`beta order grant lookup: ${error.message}`);
+    const grant = data as BetaGrantRow | null;
+    const isSocial = grant?.audience === "social"
+      && grant.access_scope === "one_country"
+      && Number(grant.discount_percent) === 50
+      && beta.audience === "social"
+      && beta.access_scope === "one_country"
+      && Number(beta.discount_percent) === 50;
+    const isFriend = grant?.audience === "friends"
+      && grant.access_scope === "all_countries"
+      && Number(grant.discount_percent) === 100
+      && beta.audience === "friends"
+      && beta.access_scope === "all_countries"
+      && Number(beta.discount_percent) === 100;
+    if (isSocial || isFriend) {
+      return { order, audience: isFriend ? "friends" : "social" };
+    }
+  }
+  return null;
 }
 
 async function applicationAllocations(
@@ -453,10 +570,19 @@ export async function evaluateSubmissionAccess(
   );
   const paidAgencyRecord = payments.find(
     (payment) =>
+      payment.provider !== "beta"
+      &&
       PAID_PAYMENT_STATUSES.has(payment.status)
       && payment.fee_type === "agency_fee"
       && normalizeCurrency(payment.currency) === currency,
   ) ?? null;
+  const betaWaiverRecord = await validBetaWaiverPayment(
+    admin,
+    application,
+    payments,
+    currency,
+  );
+  const betaFirstOrder = await validBetaFirstOrder(admin, application, paidOrders);
 
   const configuredAgencyAmount = pricing?.agencyFeeCents
     ?? packagePricing?.agency_fee_cents
@@ -468,7 +594,7 @@ export async function evaluateSubmissionAccess(
     && Number(packagePricing.agency_fee_cents) === 0
     && Number(packagePricing.government_fee_cents) === 0;
   const paidAgencyOrder = paidOrders.find(
-    (order) => Number(order.agency_fee_cents) >= agencyAmount,
+    (order) => !record(order.metadata)?.beta && Number(order.agency_fee_cents) >= agencyAmount,
   ) ?? null;
   let agency: SubmissionFeeDecision;
   if (explicitlyFreePackage) {
@@ -480,6 +606,10 @@ export async function evaluateSubmissionAccess(
     agency = fee("review_required", agencyAmount, currency);
   } else if (accessLevel === "high") {
     agency = fee("waived", agencyAmount, currency);
+  } else if (betaWaiverRecord || betaFirstOrder?.audience === "friends") {
+    agency = fee("waived", agencyAmount, currency);
+  } else if (betaFirstOrder?.audience === "social") {
+    agency = fee("paid", agencyAmount, currency);
   } else if (agencyPricingConfigured && agencyAmount === 0) {
     // A published zero-price package is intentionally free. Do not turn its
     // explicit package_pricing row into a manual-review/payment blocker.
@@ -556,10 +686,14 @@ export async function evaluateSubmissionAccess(
   const reason = decisionReason(status, agency, official);
   const orderId = matchingAllocation?.order_id
     ?? paidOfficialOrder?.id
+    ?? betaFirstOrder?.order.id
     ?? paidAgencyOrder?.id
     ?? existing?.order_id
     ?? null;
-  const paymentRecordId = paidAgencyRecord?.id ?? existing?.payment_record_id ?? null;
+  const paymentRecordId = betaWaiverRecord?.id
+    ?? paidAgencyRecord?.id
+    ?? existing?.payment_record_id
+    ?? null;
   const entitlementId = await persistDecision(admin, {
     application,
     payerAuthUserId,

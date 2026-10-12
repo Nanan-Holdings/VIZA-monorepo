@@ -1,4 +1,9 @@
 import "server-only";
+import {
+  hasFreshPublicStatusEvidence,
+  resolvePublicStatusBaseUrl,
+  type PublicStatusReadinessReason,
+} from "./public-status-readiness";
 
 export type PublicMonitorStatus = "ok" | "degraded" | "down" | "unknown";
 
@@ -126,12 +131,17 @@ export function unavailableStatusSnapshot(): PublicStatusSnapshot {
   };
 }
 
-export async function getPublicStatusSnapshot(options?: { noStore?: boolean }): Promise<PublicStatusSnapshot> {
-  const baseUrl = (
-    process.env.AGENT_BACKEND_URL
-    ?? process.env.NEXT_PUBLIC_AGENT_BACKEND_URL
-    ?? "http://localhost:3002"
-  ).replace(/\/$/, "");
+export interface PublicStatusResult {
+  snapshot: PublicStatusSnapshot;
+  ready: boolean;
+  reason: PublicStatusReadinessReason;
+}
+
+export async function getPublicStatusResult(options?: { noStore?: boolean }): Promise<PublicStatusResult> {
+  const baseUrl = resolvePublicStatusBaseUrl(process.env);
+  if (!baseUrl) {
+    return { snapshot: unavailableStatusSnapshot(), ready: false, reason: "configuration_missing" };
+  }
   try {
     const response = await fetch(`${baseUrl}/api/public/status`, {
       headers: { Accept: "application/json" },
@@ -139,10 +149,20 @@ export async function getPublicStatusSnapshot(options?: { noStore?: boolean }): 
       next: options?.noStore ? undefined : { revalidate: 60 },
       signal: AbortSignal.timeout(5_000),
     });
-    if (!response.ok) return unavailableStatusSnapshot();
+    if (!response.ok) {
+      return { snapshot: unavailableStatusSnapshot(), ready: false, reason: "upstream_unavailable" };
+    }
     const payload: unknown = await response.json();
-    return isPublicStatusSnapshot(payload) ? payload : unavailableStatusSnapshot();
+    if (!isPublicStatusSnapshot(payload)) {
+      return { snapshot: unavailableStatusSnapshot(), ready: false, reason: "invalid_payload" };
+    }
+    const ready = hasFreshPublicStatusEvidence(payload);
+    return { snapshot: payload, ready, reason: ready ? "ready" : "no_fresh_evidence" };
   } catch {
-    return unavailableStatusSnapshot();
+    return { snapshot: unavailableStatusSnapshot(), ready: false, reason: "upstream_unavailable" };
   }
+}
+
+export async function getPublicStatusSnapshot(options?: { noStore?: boolean }): Promise<PublicStatusSnapshot> {
+  return (await getPublicStatusResult(options)).snapshot;
 }

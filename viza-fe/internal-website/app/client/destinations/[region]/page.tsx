@@ -11,6 +11,11 @@ type PageProps = {
   params: Promise<{ region: string }>;
 };
 
+// The selected-package lookup reads the authenticated client cookie. Declaring
+// this explicitly prevents Next from attempting a static render for every
+// generated region during production builds.
+export const dynamic = "force-dynamic";
+
 export function generateStaticParams() {
   return VISA_DESTINATION_REGION_GROUPS
     .filter((region) => region.id !== "schengen")

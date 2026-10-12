@@ -1,7 +1,13 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { StatusApplication } from "@/app/client/status/status-data";
 import { getCountryHeroTheme } from "@/lib/client/country-hero-theme";
+import {
+  NON_SCHENGEN_VISA_DESTINATIONS,
+  SCHENGEN_VISA_DESTINATIONS,
+} from "@/lib/visa-destinations";
 import { ApplicationTimelineSection } from "./ApplicationTimelineSection";
 
 vi.mock("next/image", () => ({
@@ -82,6 +88,18 @@ describe("ApplicationTimelineSection", () => {
       to: indonesiaTheme.to,
       image: "/country-heroes/germany.png",
     });
+    const selectableCountries = new Set(
+      [...NON_SCHENGEN_VISA_DESTINATIONS, ...SCHENGEN_VISA_DESTINATIONS]
+        .filter((destination) => destination.recommendable !== false)
+        .map((destination) => destination.country),
+    );
+
+    expect(selectableCountries.size).toBe(70);
+    for (const country of selectableCountries) {
+      const image = getCountryHeroTheme(country).image;
+      expect(image, country).toBe(`/country-heroes/${country}.png`);
+      expect(existsSync(join(process.cwd(), "public", image!.slice(1))), country).toBe(true);
+    }
     expect(unknownTheme).toMatchObject({
       from: indonesiaTheme.from,
       to: indonesiaTheme.to,

@@ -3,6 +3,7 @@ import { locales, defaultLocale } from "@/i18n";
 import { visaHref } from "@/lib/countries";
 import { getPublishedCatalogue } from "@/lib/public-catalogue";
 import { getMarketingBlogFeed } from "@/lib/marketing-blog";
+import { blogCategories } from "@/lib/blog-taxonomy";
 
 /**
  * Static marketing routes + every launched visa country page (MKT-012).
@@ -49,6 +50,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "monthly" as const,
       priority: 0.7,
     }));
-    return [...baseRoutes, ...postRoutes];
+    const categoryRoutes = blogCategories(blogPosts).map((category) => ({
+      url: `${base}${locale === defaultLocale ? "" : `/${locale}`}/blog/category/${category.slug}`,
+      lastModified: now,
+      changeFrequency: "weekly" as const,
+      priority: 0.6,
+    }));
+    return [...baseRoutes, ...categoryRoutes, ...postRoutes];
   });
 }

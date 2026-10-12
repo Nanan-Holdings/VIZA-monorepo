@@ -3874,6 +3874,10 @@
     "payment": "[ES] Payment",
     "confirmPackage": "[ES] Check this package over before starting Stripe Checkout for the VIZA service fee.",
     "payButton": "[ES] Pay service fee with Stripe",
+    "promo": {
+      "label": "Código promocional (opcional)",
+      "placeholder": "Introduce tu código"
+    },
     "noAgencyFee": "[ES] Checkout is disabled because this package has no service fee configured.",
     "stripeOnly": "[ES] You'll enter card details only on Stripe's own checkout page.",
     "stripeUnconfigured": {
@@ -3911,6 +3915,18 @@
       "cta": "[ES] Choose a visa route"
     },
     "errors": {
+      "beta_invalid": {
+        "title": "Código no válido",
+        "description": "Este código no es válido o ha caducado."
+      },
+      "beta_used": {
+        "title": "Código ya utilizado",
+        "description": "Cada código beta solo puede canjearse una vez."
+      },
+      "beta_wrong_channel": {
+        "title": "Método de invitación incorrecto",
+        "description": "Usa el método de canje indicado en tu invitación."
+      },
       "generic": {
         "title": "[ES] Checkout needs attention",
         "description": "[ES] Something interrupted checkout. Try again, or contact support."

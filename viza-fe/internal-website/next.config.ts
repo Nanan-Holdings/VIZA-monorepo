@@ -70,6 +70,8 @@ function buildContentSecurityPolicy(): string {
     ],
     "worker-src": ["'self'", "blob:"],
     "manifest-src": ["'self'"],
+    "report-uri": ["/api/csp-report"],
+    "report-to": ["csp-endpoint"],
   };
 
   return Object.entries(directives)
@@ -102,6 +104,7 @@ const SECURITY_HEADERS = [
     ].join(", "),
   },
   { key: "Content-Security-Policy-Report-Only", value: buildContentSecurityPolicy() },
+  { key: "Reporting-Endpoints", value: 'csp-endpoint="/api/csp-report"' },
 ];
 
 const nextConfig: NextConfig = {
@@ -160,9 +163,6 @@ const nextConfig: NextConfig = {
   },
   turbopack: {
     root: projectRoot,
-  },
-  typescript: {
-    ignoreBuildErrors: true,
   },
 };
 

@@ -39,7 +39,7 @@ export async function applyStripeEvent(
       }
       const { data: existingOrder, error: existingOrderError } = await admin
         .from("order")
-        .select("status, agency_fee_cents, govt_fee_cents, currency")
+        .select("status, agency_fee_cents, govt_fee_cents, currency, metadata")
         .eq("id", orderId)
         .maybeSingle();
       if (existingOrderError) {
@@ -59,9 +59,26 @@ export async function applyStripeEvent(
       // On mismatch we refuse to confirm and log for investigation rather than
       // marking a wrong-priced order paid.
       if (existingOrder) {
-        const expectedNet =
+        const orderMetadata = existingOrder.metadata && typeof existingOrder.metadata === "object" && !Array.isArray(existingOrder.metadata)
+          ? existingOrder.metadata as Record<string, unknown>
+          : {};
+        const betaMetadata = orderMetadata.beta && typeof orderMetadata.beta === "object" && !Array.isArray(orderMetadata.beta)
+          ? orderMetadata.beta as Record<string, unknown>
+          : {};
+        const betaDiscountCents = Number.isInteger(betaMetadata.discount_cents)
+          ? Math.max(0, Number(betaMetadata.discount_cents))
+          : 0;
+        const checkoutMetadata = orderMetadata.checkout_payment && typeof orderMetadata.checkout_payment === "object" && !Array.isArray(orderMetadata.checkout_payment)
+          ? orderMetadata.checkout_payment as Record<string, unknown>
+          : {};
+        const recordedExpected = Number.isInteger(checkoutMetadata.expected_amount_minor)
+          ? Math.max(0, Number(checkoutMetadata.expected_amount_minor))
+          : null;
+        const expectedNet = recordedExpected ?? (
           ((existingOrder.agency_fee_cents as number | null) ?? 0) +
-          ((existingOrder.govt_fee_cents as number | null) ?? 0);
+          ((existingOrder.govt_fee_cents as number | null) ?? 0) -
+          betaDiscountCents
+        );
         const collectedNet = amountTotal - taxCents;
         const expectedCurrency =
           (existingOrder.currency as string | null)?.toLowerCase() ?? null;
@@ -205,14 +222,27 @@ export async function applyStripeEvent(
       // Pause any in-flight automation. We use a sentinel status so the
       // runner skips the row; ops can resume by flipping back manually.
       if (order.application_id) {
-        await admin
+        const reason = `Stripe dispute ${dispute.id ?? "unknown"}: ${dispute.reason ?? ""}`.trim();
+        const { error: queuePauseError } = await admin
           .from("submission_queue")
           .update({
             status: "paused_dispute",
-            last_error: `Stripe dispute ${dispute.id ?? "unknown"}: ${dispute.reason ?? ""}`.trim(),
+            last_error: reason,
             updated_at: new Date().toISOString(),
           })
           .eq("application_id", order.application_id);
+        if (queuePauseError) throw new Error(`submission queue dispute pause: ${queuePauseError.message}`);
+
+        const { error: runnerPauseError } = await admin
+          .from("runner_job")
+          .update({
+            status: "paused",
+            last_error: reason,
+            leased_by: null,
+            leased_until: null,
+          })
+          .eq("application_id", order.application_id);
+        if (runnerPauseError) throw new Error(`runner job dispute pause: ${runnerPauseError.message}`);
       }
       return { kind: "disputed", orderId: order.id as string };
     }

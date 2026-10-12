@@ -20,6 +20,19 @@ function sessionFromCookie(header: string | null): string | null {
   return value ?? null;
 }
 
+function isAllowedDestination(destination: URL, request: Request, portal: URL): boolean {
+  if (destination.protocol !== "https:") return false;
+  const requestHost = new URL(request.url).hostname;
+  const allowedHosts = new Set([
+    "viza.it.com",
+    "www.viza.it.com",
+    "app.viza.it.com",
+    requestHost,
+    portal.hostname,
+  ]);
+  return allowedHosts.has(destination.hostname);
+}
+
 export async function GET(request: Request, context: { params: Promise<{ code: string }> }) {
   const { code } = await context.params;
   if (!/^[A-Za-z0-9_-]{6,32}$/.test(code)) return new NextResponse("Not found", { status: 404 });
@@ -49,7 +62,7 @@ export async function GET(request: Request, context: { params: Promise<{ code: s
   if (typeof body?.destinationUrl !== "string") return new NextResponse("Not found", { status: 404 });
   let destination: URL;
   try { destination = new URL(body.destinationUrl); } catch { return new NextResponse("Not found", { status: 404 }); }
-  if (destination.protocol !== "https:") return new NextResponse("Not found", { status: 404 });
+  if (!isAllowedDestination(destination, request, portal)) return new NextResponse("Not found", { status: 404 });
 
   const response = NextResponse.redirect(destination, 307);
   response.cookies.set("viza_marketing_session", session, {

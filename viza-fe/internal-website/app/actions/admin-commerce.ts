@@ -134,13 +134,43 @@ export async function executeApprovedRefund(input: {
     if (!output.refundId || output.refundedCents <= 0) {
       return { success: false, error: "Selected lines are not refundable under the current policy", output };
     }
-    const { error: statusError } = await admin.from("refund_request").update({ status: "refunded", stripe_refund_id: output.refundId, updated_at: new Date().toISOString() }).eq("id", input.refundRequestId).eq("status", "approved");
-    const { error: completionAuditError } = await admin.from("admin_command_events").insert({ actor_user_id: actor.id, command: "refund.execute_completed", target_type: "refund_request", target_id: input.refundRequestId, reason: input.reason.trim(), before_state: safeRequest, after_state: output });
+    // Keep the request approved until the signed provider callback confirms the
+    // terminal refund. `stripe_refund_id` is the legacy provider-refund-id
+    // column and is also used to correlate WeChat callbacks.
+    const { data: correlatedRequest, error: correlationError } = await admin
+      .from("refund_request")
+      .update({ stripe_refund_id: output.refundId, updated_at: new Date().toISOString() })
+      .eq("id", input.refundRequestId)
+      .eq("status", "approved")
+      .select("id")
+      .maybeSingle();
+    let statusError = correlationError;
+    if (!statusError && !correlatedRequest) {
+      // A Stripe callback can win this race because it correlates by payment
+      // intent. Accept that terminal state only when it contains this exact
+      // provider refund id; every other zero-row update remains retryable.
+      const { data: currentRequest, error: currentRequestError } = await admin
+        .from("refund_request")
+        .select("id, status, stripe_refund_id")
+        .eq("id", input.refundRequestId)
+        .maybeSingle();
+      if (
+        currentRequestError
+        || currentRequest?.status !== "refunded"
+        || currentRequest.stripe_refund_id !== output.refundId
+      ) {
+        statusError = {
+          message: currentRequestError?.message
+            ?? "refund request changed before provider correlation was stored",
+        } as typeof correlationError;
+      }
+    }
+    const { error: completionAuditError } = await admin.from("admin_command_events").insert({ actor_user_id: actor.id, command: "refund.execute_accepted", target_type: "refund_request", target_id: input.refundRequestId, reason: input.reason.trim(), before_state: safeRequest, after_state: { ...output, status: "awaiting_provider_callback" } });
     if (statusError) {
-      return { success: false, error: `Stripe refund ${output.refundId} succeeded, but request state sync failed: ${statusError.message}`, output };
+      return { success: false, error: `${output.provider} refund ${output.refundId} was accepted, but request state sync failed: ${statusError.message}`, output };
     }
     if (completionAuditError) {
-      return { success: false, error: `Stripe refund ${output.refundId} succeeded, but completion audit failed: ${completionAuditError.message}`, output };
+      return { success: false, error: `${output.provider} refund ${output.refundId} was accepted, but audit recording failed: ${completionAuditError.message}`, output };
     }
     revalidatePath("/admin/refunds");
     revalidatePath("/admin/billing");

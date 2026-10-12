@@ -20,6 +20,8 @@
     "blog": "Guides"
   },
   "footer": {
+    "followUs": "Follow us:",
+    "followOn": "Follow VIZA on {platform}",
     "product": "Products",
     "company": "Company",
     "legal": "Legal",
@@ -207,13 +209,29 @@
       "title": "Visa guidance, without the fine-print fog.",
       "lede": "Practical explanations, official-policy updates, and preparation tips from the team that handles visa applications every day.",
       "readArticle": "Read article",
+      "featuredLabel": "Latest article",
+      "articlesTitle": "Articles & guides",
+      "articlesDescription": "Visa explainers, travel updates, and practical application advice.",
+      "allPosts": "All posts",
+      "noMorePosts": "More guides are on the way.",
       "emptyTitle": "No articles published yet",
       "emptyBody": "Our first guides are being prepared. Please check back soon.",
       "unavailableTitle": "The journal is temporarily unavailable",
       "unavailableBody": "We couldn't load the latest published articles. Please try again shortly.",
       "backToBlog": "Back to the journal",
       "by": "By",
-      "updated": "Updated"
+      "updated": "Updated",
+      "categoriesLabel": "Article categories",
+      "topicLabel": "Topic",
+      "relatedTitle": "Keep reading",
+      "relatedDescription": "More guidance from VIZA.",
+      "ctaEyebrow": "Plan with confidence",
+      "ctaTitle": "Ready to start your application?",
+      "ctaBody": "Tell us where you want to go. VIZA will guide you through the requirements and next steps.",
+      "ctaAction": "Start an application",
+      "categoryMetaTitle": "{category} guides — VIZA",
+      "categoryMetaDescription": "Read VIZA guides and updates about {category}.",
+      "categoryLede": "Guides and updates about {category}."
     }
   },
   "common": {
@@ -463,7 +481,6 @@
     "mapLegendTitle": "Legend"
   },
   "cities": {
-    "viza-test": "Live checkout test",
     "indonesia": "Bali · Jakarta",
     "egypt": "Cairo · Giza",
     "australia": "Sydney · Melbourne",
@@ -522,7 +539,6 @@
     "indonesia-voa": "Bali · Jakarta"
   },
   "validity": {
-    "viza-test": "Demo only",
     "indonesia": "90 days",
     "egypt": "90 days",
     "australia": "1 year",
@@ -603,7 +619,6 @@
     "TW": "Taiwan"
   },
   "countries": {
-    "viza-test": "VIZA Test",
     "indonesia": "Indonesia",
     "egypt": "Egypt",
     "australia": "Australia",

@@ -20,6 +20,17 @@ official portal on the applicant's behalf when that later step becomes due.
   silently to another application.
 - Start Stripe Checkout through trusted server actions or route handlers.
 - Create/update `payment_records` for pending and paid sessions.
+- Apply an existing friends/all-countries beta grant automatically on later
+  applications, recording an auditable zero-value agency-fee waiver instead of
+  opening Stripe.
+- Accept first-claim beta tokens only with an explicit `promo_code` or
+  `link_suffix` channel. Bind the grant to one deterministic canonical order so
+  concurrent retries converge, discount only the agency fee, and persist only
+  the grant/A-B descriptors—not the plaintext token.
+- Before authentication, move URL-delivered beta state into the short-lived
+  encrypted `viza_client_checkout_beta` HttpOnly cookie and carry only a
+  bounded, token-free `/client/checkout` target through login. Never copy the
+  plaintext token into analytics, retry URLs, or Stripe return URLs.
 - After successful payment, move the application toward the next internal
   automation state.
 - Provide clear missing-configuration messaging when Stripe env vars are not
@@ -73,5 +84,9 @@ gracefully.
 - `data.ts`: server-only checkout data loading, payment-state reconciliation,
   government-fee disclosure helpers, and scoped Supabase typing.
 - `data.test.ts`: regression coverage for exact application/package selection.
+- `beta-params.ts`: strict URL parsing for beta token handoff and explicit A/B
+  delivery-channel attribution.
+- `actions.test.ts` and `beta-params.test.ts`: authenticated beta discount,
+  concurrency/retry, token-redaction, and handoff parsing coverage.
 - `submit-button.tsx`: client submit button with pending state for the Stripe
   Checkout form.

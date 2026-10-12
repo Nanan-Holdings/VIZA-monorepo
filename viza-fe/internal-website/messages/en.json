@@ -6258,6 +6258,10 @@
     "payment": "Payment",
     "confirmPackage": "Check this package over before starting Stripe Checkout for the VIZA service fee.",
     "payButton": "Pay service fee with Stripe",
+    "promo": {
+      "label": "Promo code (optional)",
+      "placeholder": "Enter your promo code"
+    },
     "noAgencyFee": "Checkout is disabled because this package has no service fee configured.",
     "stripeOnly": "You'll enter card details only on Stripe's own checkout page.",
     "stripeUnconfigured": {
@@ -6295,6 +6299,18 @@
       "cta": "Choose a visa route"
     },
     "errors": {
+      "beta_invalid": {
+        "title": "Promo code is invalid",
+        "description": "This promo code is invalid or has expired."
+      },
+      "beta_used": {
+        "title": "Promo code already used",
+        "description": "Each beta code can be redeemed only once."
+      },
+      "beta_wrong_channel": {
+        "title": "Invitation method does not match",
+        "description": "Use the redemption method specified in your invitation."
+      },
       "generic": {
         "title": "Checkout needs attention",
         "description": "Something interrupted checkout. Try again, or contact support."

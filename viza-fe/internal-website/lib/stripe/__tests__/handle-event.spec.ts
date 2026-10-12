@@ -132,6 +132,63 @@ test("checkout.session.completed without payment_status=paid is ignored", async 
   assert.equal(updates.length, 0);
 });
 
+test("checkout.session.completed accepts the net amount for a beta discount", async () => {
+  const { client, selectStubs, rpcCalls } = fakeAdmin();
+  selectStubs.set("order|id=ord_beta", {
+    status: "pending",
+    agency_fee_cents: 10_000,
+    govt_fee_cents: 2_500,
+    currency: "USD",
+    metadata: { beta: { discount_cents: 5_000 } },
+  });
+  const result = await applyStripeEvent(client as never, {
+    id: "evt_beta",
+    type: "checkout.session.completed",
+    data: { object: {
+      id: "cs_beta",
+      payment_status: "paid",
+      payment_intent: "pi_beta",
+      amount_total: 7_500,
+      currency: "usd",
+      metadata: { order_id: "ord_beta" },
+    } },
+  });
+  assert.deepEqual(result, { kind: "paid", orderId: "ord_beta" });
+  assert.equal(rpcCalls.length, 1);
+});
+
+test("checkout.session.completed uses the recorded provider total instead of an uncollected official fee", async () => {
+  const { client, selectStubs, rpcCalls } = fakeAdmin();
+  selectStubs.set("order|id=ord_direct_govt", {
+    status: "pending",
+    agency_fee_cents: 5_000,
+    govt_fee_cents: 3_500,
+    currency: "USD",
+    metadata: {
+      checkout_payment: {
+        provider: "stripe",
+        expected_amount_minor: 5_000,
+        currency: "USD",
+        government_fee_passthrough_cents: 0,
+      },
+    },
+  });
+  const result = await applyStripeEvent(client as never, {
+    id: "evt_direct_govt",
+    type: "checkout.session.completed",
+    data: { object: {
+      id: "cs_direct_govt",
+      payment_status: "paid",
+      payment_intent: "pi_direct_govt",
+      amount_total: 5_000,
+      currency: "usd",
+      metadata: { order_id: "ord_direct_govt" },
+    } },
+  });
+  assert.deepEqual(result, { kind: "paid", orderId: "ord_direct_govt" });
+  assert.equal(rpcCalls.length, 1);
+});
+
 test("checkout.session.completed fails closed when atomic confirmation fails", async () => {
   const { client, setRpcError } = fakeAdmin();
   setRpcError("allocation amount mismatch");
@@ -219,7 +276,7 @@ test("charge.refunded marks order refunded", async () => {
   assert.equal(updates[0].patch.status, "refunded");
 });
 
-test("charge.dispute.created marks order disputed + pauses submission_queue", async () => {
+test("charge.dispute.created marks order disputed + pauses both execution queues", async () => {
   const { client, updates, selectStubs } = fakeAdmin();
   selectStubs.set(
     "order|stripe_payment_intent_id=pi_test_xyz",
@@ -238,11 +295,15 @@ test("charge.dispute.created marks order disputed + pauses submission_queue", as
     },
   });
   assert.deepEqual(result, { kind: "disputed", orderId: "ord_123" });
-  assert.equal(updates.length, 2);
+  assert.equal(updates.length, 3);
   assert.equal(updates[0].table, "order");
   assert.equal(updates[0].patch.status, "disputed");
   assert.equal(updates[1].table, "submission_queue");
   assert.equal(updates[1].patch.status, "paused_dispute");
+  assert.equal(updates[2].table, "runner_job");
+  assert.equal(updates[2].patch.status, "paused");
+  assert.equal(updates[2].patch.leased_by, null);
+  assert.equal(updates[2].patch.leased_until, null);
 });
 
 test("unknown event type is ignored without DB writes", async () => {

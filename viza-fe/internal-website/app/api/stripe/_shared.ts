@@ -30,6 +30,7 @@ type StripeDatabase = {
       consent_events: StripeTable<ConsentEventRow>;
       document_requirements: StripeTable<DocumentRequirementRow>;
       notification_events: StripeTable<NotificationEventRow>;
+      order: StripeTable<OrderRow>;
       payment_records: StripeTable<PaymentRecordRow>;
       visa_application_answers: StripeTable<VisaApplicationAnswerRow>;
       visa_packages: StripeTable<VisaPackageRow>;
@@ -78,6 +79,7 @@ export interface PaymentRecordRow extends Record<string, unknown> {
   id: string;
   application_id: string | null;
   applicant_id: string | null;
+  order_id: string | null;
   visa_package_id: string | null;
   provider: string;
   provider_session_id: string | null;
@@ -89,6 +91,18 @@ export interface PaymentRecordRow extends Record<string, unknown> {
   receipt_url: string | null;
   metadata: Json | null;
   created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface OrderRow extends Record<string, unknown> {
+  id: string;
+  application_id: string;
+  applicant_id: string;
+  agency_fee_cents: number;
+  currency: string;
+  status: string;
+  metadata: Json | null;
+  paid_at: string | null;
   updated_at: string | null;
 }
 
@@ -196,6 +210,7 @@ export const PAYMENT_RECORD_SELECT = [
   "id",
   "application_id",
   "applicant_id",
+  "order_id",
   "visa_package_id",
   "provider",
   "provider_session_id",
@@ -777,6 +792,80 @@ export async function resolveNextApplicationStatusAfterPayment(
   return "ready_for_packet";
 }
 
+/**
+ * Settle the canonical order linked by an authenticated agency-fee payment.
+ *
+ * Stripe is authoritative for the payment record, but the order status drives
+ * beta conversion timestamps and downstream provisioning. Validate the exact
+ * checkout snapshot before updating so an unrelated or tampered order_id can
+ * never be marked paid by a webhook.
+ */
+export async function settleLinkedOrderAfterConfirmedPayment(
+  adminClient: StripeSupabaseClient,
+  record: PaymentRecordRow,
+): Promise<boolean> {
+  if (!record.order_id) return false;
+
+  const columns = "id, application_id, applicant_id, agency_fee_cents, currency, status, metadata, paid_at, updated_at";
+  const { data: order, error } = await adminClient
+    .from("order")
+    .select(columns)
+    .eq("id", record.order_id)
+    .maybeSingle();
+  if (error) throw error;
+  if (!order) throw new Error("Linked checkout order was not found.");
+
+  const metadata = asJsonObject(order.metadata);
+  const checkoutPayment = asJsonObject(metadata.checkout_payment as Json | undefined);
+  const expectedAmount = checkoutPayment.expected_amount_minor;
+  const expectedCurrency = typeof checkoutPayment.currency === "string"
+    ? normalizeCurrency(checkoutPayment.currency)
+    : null;
+
+  if (
+    order.application_id !== record.application_id
+    || order.applicant_id !== record.applicant_id
+    || record.fee_type !== AGENCY_FEE_TYPE
+    || record.provider !== STRIPE_PROVIDER
+    || record.status !== "paid"
+    || checkoutPayment.provider !== STRIPE_PROVIDER
+    || typeof expectedAmount !== "number"
+    || !Number.isInteger(expectedAmount)
+    || expectedAmount !== record.amount_cents
+    || expectedCurrency !== normalizeCurrency(record.currency)
+    || normalizeCurrency(order.currency) !== normalizeCurrency(record.currency)
+  ) {
+    throw new Error("Linked checkout order does not match the confirmed payment.");
+  }
+
+  if (order.status === "paid") return true;
+  if (!['draft', 'pending'].includes(order.status)) {
+    throw new Error(`Linked checkout order cannot settle from status ${order.status}.`);
+  }
+
+  const now = new Date().toISOString();
+  const { data: settled, error: settleError } = await adminClient
+    .from("order")
+    .update({ status: "paid", paid_at: now, updated_at: now })
+    .eq("id", record.order_id)
+    .in("status", ["draft", "pending"])
+    .select("id")
+    .maybeSingle();
+  if (settleError) throw settleError;
+  if (settled) return true;
+
+  const { data: concurrent, error: concurrentError } = await adminClient
+    .from("order")
+    .select("status")
+    .eq("id", record.order_id)
+    .maybeSingle();
+  if (concurrentError) throw concurrentError;
+  if (concurrent?.status !== "paid") {
+    throw new Error("Linked checkout order did not settle.");
+  }
+  return true;
+}
+
 export async function advanceApplicationAfterConfirmedPayment(
   adminClient: StripeSupabaseClient,
   context: {
@@ -784,6 +873,7 @@ export async function advanceApplicationAfterConfirmedPayment(
     applicantId: string | null;
     paymentRecordId: string;
     stripeEventId: string;
+    provider?: "stripe" | "beta";
   },
 ): Promise<{ advanced: boolean; status: string | null }> {
   if (!context.applicationId) return { advanced: false, status: null };
@@ -830,7 +920,7 @@ export async function advanceApplicationAfterConfirmedPayment(
     eventType: "application_state_advanced",
     message: `Application state advanced to ${nextStatus} after agency fee payment.`,
     metadata: {
-      provider: STRIPE_PROVIDER,
+      provider: context.provider ?? STRIPE_PROVIDER,
       payment_record_id: context.paymentRecordId,
       stripe_event_id: context.stripeEventId,
       from_status: application.status,

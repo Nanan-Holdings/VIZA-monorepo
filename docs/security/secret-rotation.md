@@ -39,22 +39,42 @@ If a webhook is in flight during the rollover, Stripe retries for 3 days — no 
 ⚠ Service role bypasses RLS. Treat rotation as a **two-key** rolling cutover.
 
 ```bash
-# 1. In Supabase Dashboard → Project Settings → API → "Reset service_role key".
-#    Note: this immediately invalidates the old key. So use a stage rollover:
-#      a. First add the new key to ALL deploys (Vercel, Cloud Run, GitHub Actions).
-#      b. Then reset in Supabase.
-NEW_SRK="eyJ..."
+# ⚠ CORRECTED 2026-09-04 — the previous version of this block was unrunnable:
+#   it told you to deploy the new key BEFORE generating it (impossible with a
+#   legacy service_role reset), targeted Cloud Run (the backend is on Render),
+#   and named a repo that does not exist.
+#
+# PREFERRED — true zero-downtime, if this project has the new API-key system
+# enabled (it does: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY is already in use).
+# New-style secret keys (sb_secret_...) can coexist, so you get a clean overlap:
+#   1. Dashboard → Project Settings → API Keys → create a SECOND secret key.
+#   2. Deploy it everywhere (below). Old key still valid the whole time.
+#   3. Verify traffic is healthy on the new key.
+#   4. Revoke the old key. No downtime at any point.
+#
+# FALLBACK — legacy service_role reset. There is NO overlap window: the reset
+# invalidates the old key at the instant it mints the new one. Accept a short
+# outage and sequence it tightly — reset first, then paste into all consumers
+# as fast as possible. Announce it; do not do this at peak.
 
-# 2. Update every consumer (replace placeholder commands per platform).
-vercel env add SUPABASE_SERVICE_ROLE_KEY production
-gcloud run services update viza-agent-backend \
-  --region us-central1 \
-  --update-secrets "SUPABASE_SERVICE_ROLE_KEY = projects/viza-prod/secrets/supabase-srk:latest"
-gh secret set SUPABASE_SERVICE_ROLE_KEY -b "$NEW_SRK" -R viza/internal-website
+# Consumers (verified 2026-09-04 by grepping process.env across the monorepo):
+#   viza-fe/internal-website   → Vercel, project `viza-internal`
+#                                team `viza-gmail's projects`
+#   viza-be/agent-backend      → Render, service `viza-agent-backend` (singapore)
+#   viza-be/submission-service → Fly.io (scripts/fly/)
+#   plus repo-local scripts in knowledge-base/ and scripts/ that read it from
+#   a local .env — rotate your own shell env too, or they break silently.
 
-# 3. Trigger a redeploy on each.
-# 4. Click "Reset service_role key" in Supabase. Old key dies.
-# 5. Watch /admin/portal-health for any RLS-bypass errors for 30 min.
+# Vercel  — set in the dashboard (Settings → Environment Variables), then
+#           redeploy the CURRENT production deployment. Do NOT run
+#           `vercel --prod` from a feature-branch checkout: prod here is
+#           git-driven off `main`, and a local --prod push would ship whatever
+#           branch you happen to have checked out.
+# Render  — Dashboard → viza-agent-backend → Environment → edit → Save
+#           (Render redeploys automatically on env change).
+# Fly     — viza-be/submission-service/scripts/fly/sync-runtime-secrets.sh
+
+# Then: watch /admin/portal-health for RLS-bypass errors for 30 min.
 ```
 
 `DATABASE_URL` rotation: use Supabase Dashboard → Database → Connection pooling → reset connection pool password. Procedure identical to the SRK rollover.

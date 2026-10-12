@@ -61,7 +61,7 @@ type AdminNavKey =
   | "support" | "orders" | "products" | "cataloguePublication"
   | "consultations" | "work" | "takeovers" | "chat" | "revenue"
   | "pricing" | "metrics" | "portalHealth" | "notificationDlq" | "backups"
-  | "costs" | "analytics" | "marketing" | "privacy" | "refunds" | "leads" | "audit" | "team";
+  | "costs" | "analytics" | "marketing" | "supportConsole" | "privacy" | "refunds" | "leads" | "audit" | "team";
 
 type AdminNavSectionKey =
   | "control" | "growth" | "cases" | "customers" | "commerce" | "platform" | "catalogue" | "administration";
@@ -80,7 +80,7 @@ const ADMIN_COPY = {
       takeovers: "Takeovers", chat: "Live chat", revenue: "Revenue", pricing: "Pricing",
       metrics: "Runner metrics", portalHealth: "Portal health", notificationDlq: "Notification DLQ",
       backups: "Backups", costs: "Costs", analytics: "Analytics", marketing: "Marketing ops", privacy: "Privacy requests",
-      refunds: "Refunds & disputes", leads: "Leads", audit: "Audit log", team: "Team & workload",
+      refunds: "Refunds & disputes", leads: "Leads", audit: "Audit log", team: "Team & workload", supportConsole: "Support console",
     },
     sections: {
       control: "Control tower", growth: "Growth", cases: "Cases", customers: "Customers", commerce: "Commerce",
@@ -103,7 +103,7 @@ const ADMIN_COPY = {
       takeovers: "人工接管", chat: "在线聊天", revenue: "收入", pricing: "定价",
       metrics: "自动化指标", portalHealth: "门户健康", notificationDlq: "通知死信队列",
       backups: "备份", costs: "成本", analytics: "分析", marketing: "营销运营", privacy: "隐私请求",
-      refunds: "退款与争议", leads: "销售线索", audit: "审计日志", team: "团队与工作量",
+      refunds: "退款与争议", leads: "销售线索", audit: "审计日志", team: "团队与工作量", supportConsole: "客服工作台",
     },
     sections: {
       control: "运营控制台", growth: "增长", cases: "申请案件", customers: "客户", commerce: "交易",
@@ -167,19 +167,23 @@ const adminNavSections: AdminNavSection[] = [
 ];
 
 const adminRoutes = adminNavSections.flatMap((section) => section.routes);
+const staffNavSections: AdminNavSection[] = [
+  { labelKey: "control", routes: [{ labelKey: "supportConsole", icon: Headphones, href: "/admin/cs" }] },
+  { labelKey: "growth", routes: [{ labelKey: "marketing", icon: Megaphone, href: "/admin/marketing" }] },
+];
 
 function initialsFor(name: string) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "VA";
 }
 
-function AdminNavigation({ onNavigate }: { onNavigate?: () => void }) {
+function AdminNavigation({ onNavigate, userRole }: { onNavigate?: () => void; userRole: string }) {
   const locale = normalizeInterfaceLocale(useLocale());
   const copy = ADMIN_COPY[locale];
   const pathname = usePathname();
 
   return (
     <nav className="space-y-5 px-3 py-4" aria-label={copy.admin}>
-      {adminNavSections.map((section) => (
+      {(userRole === "staff" ? staffNavSections : adminNavSections).map((section) => (
         <section key={section.labelKey}>
           <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">
             {copy.sections[section.labelKey]}
@@ -266,7 +270,7 @@ function AdminSidebar({ userName, userRole }: { userName: string; userRole: stri
         <Image src="/logo/viza-logo-black.svg" alt="VIZA" width={88} height={25} priority />
         <Badge variant="secondary" className="font-medium">{copy.admin}</Badge>
       </div>
-      <ScrollArea className="min-h-0 flex-1"><AdminNavigation /></ScrollArea>
+      <ScrollArea className="min-h-0 flex-1"><AdminNavigation userRole={userRole} /></ScrollArea>
       <div className="border-t border-sidebar-border p-3">
         <div className="flex items-center gap-2 rounded-lg p-2">
           <AdminIdentity userName={userName} userRole={userRole} />
@@ -286,7 +290,7 @@ function AdminTopBar({ userName, userRole }: { userName: string; userRole: strin
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-  const route = adminRoutes.find((item) => pathname === item.href || (item.href !== "/admin" && pathname.startsWith(`${item.href}/`)));
+  const route = [...staffNavSections.flatMap((section) => section.routes), ...adminRoutes].find((item) => pathname === item.href || (item.href !== "/admin" && pathname.startsWith(`${item.href}/`)));
   const pageTitle = route ? copy.nav[route.labelKey] : copy.nav.dashboard;
 
   return (
@@ -302,7 +306,7 @@ function AdminTopBar({ userName, userRole }: { userName: string; userRole: strin
               <Image src="/logo/viza-logo-black.svg" alt="VIZA" width={88} height={25} />
               <Badge variant="secondary">{copy.admin}</Badge>
             </div>
-            <ScrollArea className="min-h-0 flex-1"><AdminNavigation onNavigate={() => setOpen(false)} /></ScrollArea>
+            <ScrollArea className="min-h-0 flex-1"><AdminNavigation userRole={userRole} onNavigate={() => setOpen(false)} /></ScrollArea>
             <Separator />
             <div className="p-4"><AdminIdentity userName={userName} userRole={userRole} /></div>
           </SheetContent>
@@ -313,12 +317,12 @@ function AdminTopBar({ userName, userRole }: { userName: string; userRole: strin
         <p className="hidden text-xs text-muted-foreground sm:block">{copy.admin}</p>
       </div>
       <AdminLanguageSwitcher />
-      <Button asChild variant="ghost" size="icon" className="hidden sm:inline-flex">
+      {userRole === "admin" ? <Button asChild variant="ghost" size="icon" className="hidden sm:inline-flex">
         <Link href="/admin/notifications/dlq" aria-label={copy.nav.notificationDlq}><Bell className="size-4" /></Link>
-      </Button>
-      <Button asChild variant="ghost" size="icon" className="hidden sm:inline-flex">
+      </Button> : null}
+      {userRole === "admin" ? <Button asChild variant="ghost" size="icon" className="hidden sm:inline-flex">
         <Link href="/admin/team" aria-label={copy.nav.team}><Settings className="size-4" /></Link>
-      </Button>
+      </Button> : null}
       <Separator orientation="vertical" className="hidden h-8 sm:block" />
       <AdminIdentity userName={userName} userRole={userRole} compact />
     </header>

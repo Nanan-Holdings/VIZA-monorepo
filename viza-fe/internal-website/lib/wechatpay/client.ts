@@ -1,8 +1,9 @@
 /**
- * Tiny WeChat Pay v3 REST client (Native QR flow).
+ * Tiny WeChat Pay v3 REST client (Native QR and domestic refunds).
  *
  * Avoids the `wechatpay-node-v3` npm package — Phase 1 only uses
- * /v3/pay/transactions/native, /v3/certificates, and the notify
+ * /v3/pay/transactions/native, /v3/refund/domestic/refunds,
+ * /v3/certificates, and notify
  * callback decryption, all of which are small enough to do with
  * `fetch` + `node:crypto`. Mirrors the shape of `lib/stripe/client.ts`.
  *
@@ -30,6 +31,7 @@ import {
 const WECHAT_PAY_API = "https://api.mch.weixin.qq.com";
 const PLATFORM_CERTS_PATH = "/v3/certificates";
 const NATIVE_PATH = "/v3/pay/transactions/native";
+const DOMESTIC_REFUNDS_PATH = "/v3/refund/domestic/refunds";
 
 export class WechatPaySignatureError extends Error {
   constructor(message: string) {
@@ -175,6 +177,123 @@ export async function createNativeOrder(
     throw new Error("WeChat Pay native: no code_url in response");
   }
   return { codeUrl: res.code_url };
+}
+
+// =============================================================================
+// Public: create a domestic refund
+// =============================================================================
+
+export interface CreateDomesticRefundInput {
+  /** WeChat Pay transaction id. Supply exactly one original-payment id. */
+  transactionId?: string;
+  /** Merchant order id. Supply exactly one original-payment id. */
+  outTradeNo?: string;
+  /** Stable merchant refund id supplied by the caller; never generated here. */
+  outRefundNo: string;
+  /** Refund amount in integer CNY fen. */
+  refundFen: number;
+  /** Original order amount in integer CNY fen. */
+  totalFen: number;
+  reason?: string;
+  notifyUrl?: string;
+}
+
+export type DomesticRefundStatus =
+  | "PROCESSING"
+  | "SUCCESS"
+  | "CLOSED"
+  | "ABNORMAL";
+
+const DOMESTIC_REFUND_STATUSES = new Set<DomesticRefundStatus>([
+  "PROCESSING",
+  "SUCCESS",
+  "CLOSED",
+  "ABNORMAL",
+]);
+
+export interface DomesticRefundResponse {
+  refund_id: string;
+  out_refund_no: string;
+  transaction_id?: string;
+  out_trade_no?: string;
+  channel?: string;
+  user_received_account?: string;
+  success_time?: string;
+  create_time?: string;
+  status: DomesticRefundStatus;
+  funds_account?: string;
+  amount?: {
+    total?: number;
+    refund?: number;
+    payer_total?: number;
+    payer_refund?: number;
+    settlement_refund?: number;
+    settlement_total?: number;
+    discount_refund?: number;
+    currency?: "CNY";
+  };
+}
+
+function assertFen(name: string, value: number): void {
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    throw new Error(`WeChat Pay ${name} must be a positive integer in CNY fen`);
+  }
+}
+
+export async function createDomesticRefund(
+  input: CreateDomesticRefundInput,
+): Promise<DomesticRefundResponse> {
+  const hasTransactionId = Boolean(input.transactionId?.trim());
+  const hasOutTradeNo = Boolean(input.outTradeNo?.trim());
+  if (hasTransactionId === hasOutTradeNo) {
+    throw new Error(
+      "WeChat Pay refund requires exactly one of transactionId or outTradeNo",
+    );
+  }
+  if (!input.outRefundNo.trim()) {
+    throw new Error("WeChat Pay refund outRefundNo is required");
+  }
+  if (input.outRefundNo.length > 64) {
+    throw new Error("WeChat Pay refund outRefundNo must not exceed 64 characters");
+  }
+  assertFen("refundFen", input.refundFen);
+  assertFen("totalFen", input.totalFen);
+  if (input.refundFen > input.totalFen) {
+    throw new Error("WeChat Pay refundFen must not exceed totalFen");
+  }
+
+  const env = loadEnv();
+  const notifyUrl = input.notifyUrl ?? env.notifyUrl;
+  if (!notifyUrl?.trim()) {
+    throw new Error("WeChat Pay refund notify URL is not configured");
+  }
+
+  const response = await request<DomesticRefundResponse>({
+    method: "POST",
+    path: DOMESTIC_REFUNDS_PATH,
+    body: {
+      ...(hasTransactionId
+        ? { transaction_id: input.transactionId }
+        : { out_trade_no: input.outTradeNo }),
+      out_refund_no: input.outRefundNo,
+      ...(input.reason ? { reason: input.reason } : {}),
+      notify_url: notifyUrl,
+      amount: {
+        refund: input.refundFen,
+        total: input.totalFen,
+        currency: "CNY",
+      },
+    },
+  });
+
+  if (
+    !response.refund_id ||
+    response.out_refund_no !== input.outRefundNo ||
+    !DOMESTIC_REFUND_STATUSES.has(response.status)
+  ) {
+    throw new Error("WeChat Pay refund: invalid response");
+  }
+  return response;
 }
 
 // =============================================================================

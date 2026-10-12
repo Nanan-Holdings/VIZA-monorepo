@@ -44,7 +44,10 @@ import {
   resolveVisaEntryRule,
   type VisaEntryRule,
 } from '../services/visa-entry-rule.service.js';
-import type { VisaProductRecommendation } from '../config/visa-product-registry.js';
+import {
+  recommendVisaProduct,
+  type VisaProductRecommendation,
+} from '../config/visa-product-registry.js';
 import {
   ChatCapacityError,
   ChatConcurrencyGate,
@@ -829,19 +832,25 @@ function buildProductRecommendationBlock(
   const productName =
     locale === 'zh' ? recommendation.displayNameZh : recommendation.displayNameEn;
   const isOfficial = recommendation.provider === 'official';
+  const isConditionalInternalRoute =
+    recommendation.provider === 'viza' && recommendation.requirement === 'conditional';
   return {
     blockType: 'application_redirect',
     title:
       locale === 'zh'
-        ? `${isOfficial ? '前往官方页面办理' : '填写'}${productName}`
-        : `${isOfficial ? 'Continue to' : 'Open'} ${productName}`,
+        ? `${isOfficial ? '前往官方页面办理' : isConditionalInternalRoute ? '确认资格并申请' : '填写'}${productName}`
+        : `${isOfficial ? 'Continue to' : isConditionalInternalRoute ? 'Check eligibility and apply for' : 'Open'} ${productName}`,
     description:
       locale === 'zh'
         ? isOfficial
           ? 'VIZA 暂未提供该手续的内部表单，请在政府官方网站继续办理。'
+          : isConditionalInternalRoute
+            ? '该路线取决于您的居住资格。请在 VIZA 的专用表单中确认资格并继续申请；聊天顾问不会在对话中收集详细申请字段。'
           : '前往 VIZA 专用表单继续填写；聊天顾问不会在对话中收集详细申请字段。'
         : isOfficial
           ? 'VIZA does not currently provide an internal form for this step. Continue on the official government website.'
+          : isConditionalInternalRoute
+            ? 'This route depends on your residence eligibility. Confirm it and continue your application in the dedicated VIZA form; the chat adviser will not collect detailed application fields here.'
           : 'Continue in the dedicated VIZA form. The chat adviser will not collect detailed application fields here.',
     saveTarget: 'application_redirect',
     fields: [],
@@ -850,9 +859,13 @@ function buildProductRecommendationBlock(
       locale === 'zh'
         ? isOfficial
           ? '打开官方页面'
+          : isConditionalInternalRoute
+            ? '确认资格并开始'
           : '开始填写'
         : isOfficial
           ? 'Open official website'
+          : isConditionalInternalRoute
+            ? 'Check eligibility and start'
           : 'Open form',
     country: recommendation.country,
     visaType: recommendation.productCode,
@@ -871,7 +884,6 @@ export function buildRuleProductRecommendationBlocks(
   if (
     !rule ||
     rule.reviewStatus !== 'reviewed' ||
-    rule.outcome === 'conditional' ||
     rule.outcome === 'unknown' ||
     rule.outcome === 'not_applicable'
   ) {
@@ -879,12 +891,59 @@ export function buildRuleProductRecommendationBlocks(
   }
 
   return rule.productRecommendations
-    .filter((recommendation) => recommendation.requirement === 'required')
+    // A conditional VIZA product is an internal eligibility-and-application
+    // flow, not a conclusion that the traveller qualifies.  It is safe to
+    // offer this card while the form confirms its outstanding conditions.
+    // External conditional products remain suppressed so chat never sends an
+    // unverified traveller to a government portal as a default action.
+    .filter(
+      (recommendation) =>
+        rule.outcome === 'conditional'
+          ? recommendation.provider === 'viza' &&
+            recommendation.requirement === 'conditional'
+          : recommendation.requirement === 'required'
+    )
     .filter(
       (recommendation) =>
         !(rule.outcome === 'visa_exempt' && recommendation.kind === 'visa')
     )
     .map((recommendation) => buildProductRecommendationBlock(recommendation, locale));
+}
+
+const MAINLAND_CHINA_RESIDENCE_VALUES = new Set([
+  'china',
+  'mainland china',
+  'prc',
+  '中国',
+  '中国大陆',
+  '大陆',
+]);
+
+/**
+ * A traveller can state Chinese nationality but omit a passport subtype in
+ * chat.  For the Taiwan overseas-residence route, that must not suppress the
+ * VIZA product entirely: the dedicated form is where the passport and
+ * residence evidence are verified.  This deliberately remains a conditional
+ * card and never makes an eligibility conclusion or links to the official
+ * application portal.
+ */
+export function buildTaiwanEntryPermitEligibilityBlock(
+  state: VisaConversationState,
+  country: SupportedKnowledgeCountry | null,
+  locale: ResponseLocale = 'en'
+): ApplicationBlockPayload | null {
+  const normalizedResidence = state.residenceCountry?.trim().toLowerCase();
+  if (
+    country !== 'taiwan' ||
+    state.passportCountryIso3 !== 'CHN' ||
+    !normalizedResidence ||
+    MAINLAND_CHINA_RESIDENCE_VALUES.has(normalizedResidence)
+  ) {
+    return null;
+  }
+
+  const recommendation = recommendVisaProduct('TW_ENTRY_PERMIT', 'conditional');
+  return recommendation ? buildProductRecommendationBlock(recommendation, locale) : null;
 }
 
 function asksAboutVizaServiceCoverage(message: string): boolean {
@@ -937,7 +996,13 @@ function shouldOfferApplicationRedirect(
   return Boolean(
     rule &&
       rule.reviewStatus === 'reviewed' &&
-      !['conditional', 'unknown', 'not_applicable'].includes(rule.outcome) &&
+      !['unknown', 'not_applicable'].includes(rule.outcome) &&
+      (rule.outcome !== 'conditional' ||
+        rule.productRecommendations.some(
+          (recommendation) =>
+            recommendation.provider === 'viza' &&
+            recommendation.requirement === 'conditional'
+        )) &&
       ['form_intake', 'route_recommendation', 'eligibility', 'requirements'].includes(intent)
   );
 }
@@ -948,6 +1013,8 @@ export function buildApplicationRedirectPromptNote(
   locale: ResponseLocale
 ): string | null {
   if (blocks.length === 0) return null;
+
+  const hasOnlyInternalBlocks = blocks.every((block) => block.provider === 'viza');
 
   const blockLines = blocks
     .map((block) => {
@@ -974,6 +1041,11 @@ export function buildApplicationRedirectPromptNote(
     locale === 'zh'
       ? '正文只需说明“请使用下方申请卡片继续填写”。不得输出 VIZA 内部路径、URL、产品代码、表单链接字样或可复制的申请地址。'
       : 'Tell the user to use the application card below. Do not repeat any VIZA URL, route, internal product code, generic link label, or copyable application address in the assistant text.',
+    hasOnlyInternalBlocks
+      ? locale === 'zh'
+        ? '本轮已有 VIZA 内部申请卡片。不要将用户引导至政府门户、官方申请网址或外部申请页面；资格仍未确认时，只说明需在卡片后的 VIZA 流程中核验。'
+        : 'An internal VIZA application card is available this turn. Do not direct the user to a government portal, official application URL, or external application page. If eligibility remains conditional, say it will be checked in the VIZA flow after the card.'
+      : null,
     blockLines,
     nonSchengenNote,
     'Provide a rough overview of requirements and timing from retrieved knowledge. Do not ask the user to fill an inline chat form.',
@@ -1342,12 +1414,26 @@ export function registerVisaNamespace(nsp: Namespace): void {
             : '';
         const statePrompt = buildVisaConversationStatePrompt(conversationState);
         const stateSummary = summarizeVisaConversationState(conversationState);
-        const applicationRedirects = shouldOfferApplicationRedirect(
+        const ruleProductRedirects = shouldOfferApplicationRedirect(
           knowledgeIntent,
           entryRule
         )
           ? buildRuleProductRecommendationBlocks(entryRule, responseLocale)
           : [];
+        const taiwanEligibilityRedirect =
+          ruleProductRedirects.length === 0 &&
+          ['form_intake', 'route_recommendation', 'eligibility', 'requirements'].includes(
+            knowledgeIntent
+          )
+            ? buildTaiwanEntryPermitEligibilityBlock(
+                conversationState,
+                knowledgeCountry,
+                responseLocale
+              )
+            : null;
+        const applicationRedirects = taiwanEligibilityRedirect
+          ? [taiwanEligibilityRedirect]
+          : ruleProductRedirects;
         for (const applicationRedirect of applicationRedirects) {
           try {
             await emitAndSaveApplicationBlock(socket, session_id, applicationRedirect);

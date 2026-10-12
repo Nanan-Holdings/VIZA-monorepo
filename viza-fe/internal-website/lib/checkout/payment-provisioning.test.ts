@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  checkoutCollectedGovernmentFee,
   executePaymentProvisioningSteps,
   ensureGovernmentFeeAllocation,
   governmentFeeAllocationPlan,
@@ -65,6 +66,22 @@ function fakeRunner(params: {
 }
 
 describe("payment provisioning state machine", () => {
+  it("requires explicit checkout evidence before reserving government funds", () => {
+    expect(checkoutCollectedGovernmentFee({
+      checkout_payment: {
+        expected_amount_minor: 12_400,
+        government_fee_passthrough_cents: 2_500,
+      },
+    }, 2_500)).toBe(true);
+    expect(checkoutCollectedGovernmentFee({
+      checkout_payment: {
+        expected_amount_minor: 9_900,
+        government_fee_passthrough_cents: 0,
+      },
+    }, 13_500)).toBe(false);
+    expect(checkoutCollectedGovernmentFee({}, 2_500)).toBe(false);
+  });
+
   it("provisions managed government fees even when pricing still says portal_direct", () => {
     expect(governmentFeeAllocationPlan("united_kingdom", "UK_STANDARD_VISITOR")).toMatchObject({
       amountCents: 13_500,
@@ -88,7 +105,7 @@ describe("payment provisioning state machine", () => {
     expect(governmentFeeAllocationPlan("maldives", "MV_IMUGA")).toBeNull();
   });
 
-  it("creates a separate GBP government line and allocation after a UK agency order", async () => {
+  it("does not allocate a portal-direct government fee that checkout did not collect", async () => {
     const inserts: Array<{ table: string; row: Record<string, unknown> }> = [];
     const admin = {
       from(table: string) {
@@ -109,7 +126,19 @@ describe("payment provisioning state machine", () => {
               };
             }
             if (table === "order") {
-              return { data: { id: "agency-order", application_id: "uk-app" }, error: null };
+              return {
+                data: {
+                  id: "agency-order",
+                  application_id: "uk-app",
+                  metadata: {
+                    checkout_payment: {
+                      expected_amount_minor: 9_900,
+                      government_fee_passthrough_cents: 0,
+                    },
+                  },
+                },
+                error: null,
+              };
             }
             if (table === "applications") {
               return {
@@ -130,28 +159,7 @@ describe("payment provisioning state machine", () => {
 
     await ensureGovernmentFeeAllocation(admin as never, "agency-order");
 
-    expect(inserts).toEqual([
-      {
-        table: "order_line",
-        row: expect.objectContaining({
-          order_id: "agency-order",
-          kind: "govt",
-          amount_cents: 13_500,
-          currency: "GBP",
-        }),
-      },
-      {
-        table: "government_fee_allocations",
-        row: expect.objectContaining({
-          order_id: "agency-order",
-          order_line_id: "govt-line",
-          application_id: "uk-app",
-          amount_cents: 13_500,
-          currency: "GBP",
-          state: "reserved_pending_treasury",
-        }),
-      },
-    ]);
+    expect(inserts).toEqual([]);
   });
 
   it("resumes after a partial failure without repeating completed account work", async () => {
