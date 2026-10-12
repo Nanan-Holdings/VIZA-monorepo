@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { CircleFlag } from "react-circle-flags";
 import SiteNav from "@/components/SiteNav";
 import { visaHref, type CountryMeta } from "@/lib/countries";
-import { priceBreakdownSgd } from "@/lib/pricing";
+import { displayGovernmentFeeSgd, governmentFeeSgd } from "@/lib/pricing";
 import { useCatalogue, type CatalogueCountry } from "@/components/CatalogueProvider";
 import type { IconName, VisaContent } from "@/lib/visa-content/types";
 import "./visa-rich.css";
@@ -128,7 +128,8 @@ export default function VisaCountryRich({
   }, []);
 
   const nearby = launchedCountries.filter((c) => c.slug !== country.slug).slice(0, 4);
-  const price = priceBreakdownSgd(country.pricing);
+  const govFeeValue = governmentFeeSgd(country.pricing);
+  const govFeeLabel = govFeeValue === 0 ? t("priceFree") : displayGovernmentFeeSgd(country.pricing) ?? t("govFeeSetByAuthorityShort");
   const localName = tc.has(country.slug) ? tc(country.slug) : country.name;
 
   // Group FAQ by category, preserving authoring order.
@@ -438,23 +439,20 @@ export default function VisaCountryRich({
             </div>
             <p className="price-sub">{content.price.sub}</p>
 
-            {price ? (
-              <div className="price-rows">
-                {/* Fully free products (e.g. the test-checkout demo) read "Free", not "SGD 0". */}
-                <div className="price-row">
-                  <span className="lk">{t("priceGovt")} <span className="pill">{t("pillCheckout")}</span></span>
-                  <span className="vk">{price.totalSgd === 0 ? t("priceFree") : `SGD ${price.govtSgd}`}</span>
-                </div>
-                <div className="price-row">
-                  <span className="lk">{t("priceProcessing")} <span className="pill later">{t("pillAllInclusive")}</span></span>
-                  <span className="vk">{price.totalSgd === 0 ? t("priceFree") : `SGD ${price.agencySgd}`}</span>
-                </div>
-                <div className="price-total">
-                  <span className="lk">{t("priceTotal")}</span>
-                  <span className="vk">{price.totalSgd === 0 ? t("priceFree") : `SGD ${price.totalSgd}`}</span>
-                </div>
+            <div className="price-rows">
+              <div className="price-row">
+                <span className="lk">{t("priceService")}</span>
+                <span className="vk">{t("priceFree")}</span>
               </div>
-            ) : null}
+              <div className="price-row">
+                <span className="lk">{t("priceGovt")} <span className="pill later">{t("pillPaidToAuthority")}</span></span>
+                <span className="vk">{govFeeLabel}</span>
+              </div>
+              <div className="price-total">
+                <span className="lk">{t("priceTotalToViza")}</span>
+                <span className="vk">{t("priceFree")}</span>
+              </div>
+            </div>
 
             <a href={applyHref(locale, country.slug)} className="price-cta" style={{ textDecoration: "none" }}>
               {t("priceCta")}

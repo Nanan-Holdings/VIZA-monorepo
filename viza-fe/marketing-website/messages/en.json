@@ -1,7 +1,6 @@
 {
   "cta": {
-    "payWithWechat": "Pay with WeChat",
-    "payByCard": "Apply & pay by card"
+    "startFreeApplication": "Start your free application"
   },
   "nav": {
     "home": "Home",
@@ -27,15 +26,12 @@
     "askAi": "Ask AI about VIZA",
     "security": "Security",
     "status": "Status",
-    "refunds": "Refunds",
     "privacy": "Privacy",
     "terms": "Terms",
-    "pricing": "Pricing",
     "rights": "All rights reserved.",
     "tagline": "VIZA helps you plan, apply, and track visas seamlessly across the world.",
     "careers": "Careers",
     "contact": "Contact",
-    "refundsPolicy": "Refunds Policy",
     "copyright": "© VIZA, All rights reserved",
     "prodMockInterview": "U.S. Mock Interview",
     "prodVisaReq": "Visa Requirements",
@@ -97,11 +93,6 @@
       "description": "WhatsApp, WeChat, Phone, Email. Four channels, four desks, a real human within 5 minutes.",
       "rightCta": "Write to us"
     },
-    "refunds": {
-      "title": "Refunds policy — VIZA",
-      "description": "If we miss, you don't pay. Our service-fee refund policy, the matrix, and how to file a claim.",
-      "rightCta": "Open a refund claim"
-    },
     "security": {
       "title": "Security at VIZA",
       "description": "Private. Transparent. Secure by default. How we protect customer data, our vulnerability disclosure program, and safe harbour.",
@@ -136,8 +127,6 @@
   "visa": {
     "heroTitle": "{country} visa",
     "validity": "Validity",
-    "fromFee": "from {fee}",
-    "seePricing": "See pricing",
     "howItWorks": "How it works",
     "step1": "Tell us your trip details and upload your passport.",
     "step2": "We complete and check your application against the latest rules.",
@@ -147,9 +136,8 @@
     "doc1": "A passport valid for at least 6 months.",
     "doc2": "A recent passport-style photo.",
     "doc3": "Your travel dates and accommodation.",
-    "doc4": "A payment method for the agency + government fee.",
+    "doc4": "If the destination charges a visa fee, a payment card to pay it directly to the government.",
     "nearby": "Nearby destinations",
-    "allInclusive": "Agency + government fee, all-inclusive",
     "startApplication": "Start your application",
     "comingSoonTitle": "{country} — coming soon",
     "comingSoonBody": "We're putting the finishing touches on {country}. Create an account and we'll let you know the moment it's live.",
@@ -173,22 +161,26 @@
     "editorialLink": "Read how we review",
     "sourcesTitle": "Sources",
     "priceGovt": "Government fee",
-    "priceProcessing": "VIZA processing",
-    "priceTotal": "Total",
     "priceFree": "Free",
-    "pillCheckout": "At checkout",
     "pillAllInclusive": "All-inclusive",
     "priceCta": "Start application",
-    "onTime": "On time"
+    "onTime": "On time",
+    "freeService": "Free VIZA service",
+    "freeServiceNote": "VIZA charges nothing for its help",
+    "govFeePaidDirect": "Government fee {fee}, paid directly to the issuing authority.",
+    "govFeeSetByAuthority": "Any government fee is set by the issuing authority and paid directly to it.",
+    "govFeeSetByAuthorityShort": "Set by the authority",
+    "priceService": "VIZA service",
+    "pillPaidToAuthority": "Paid to the authority",
+    "priceTotalToViza": "You pay VIZA"
   },
   "apply": {
     "stepOf": "Step {n} of 3",
     "back": "Back",
     "continue": "Continue",
-    "continueToCheckout": "Continue to checkout",
     "step1Name": "Upload passport",
     "step2Name": "Confirm details",
-    "step3Name": "Travel & checkout",
+    "step3Name": "Start application",
     "s1Title": "Upload your passport",
     "s1Desc": "We’ll read your details automatically — no typing required. Use the bio page (the one with your photo).",
     "segUpload": "Upload file",
@@ -228,52 +220,21 @@
     "email": "Email",
     "phone": "Phone",
     "consent": "I confirm the details above match my passport, and I authorise VIZA to submit this application on my behalf to the immigration authorities of {country}.",
-    "s3Title": "Travel & checkout",
-    "s3Desc": "Pick your arrival window. We’ll guarantee your visa is approved before you fly — or we refund every cent.",
-    "arrival": "Arrival in {country}",
-    "speed": "Processing speed",
-    "stdTitle": "Standard processing",
-    "stdSub": "Guaranteed by 12 May, 8:00 AM SGT · ~5 business days",
-    "included": "Included",
-    "expTitle": "Express processing",
-    "recommended": "Recommended",
-    "expSub": "Guaranteed by 8 May, 3:00 PM SGT · ~24 hours",
-    "rushTitle": "Super rush",
-    "rushSub": "Guaranteed by 6 May, 6:00 PM SGT · ~4 hours",
-    "addons": "Add-ons",
-    "insTitle": "Travel insurance",
-    "insSub": "Trip cancellation, medical, lost baggage — Allianz, 7-day cover",
-    "esimTitle": "{country} eSIM · 5 GB",
-    "esimSub": "Activates the moment you land — no roaming fees",
+    "s3Title": "Start your application",
+    "s3Desc": "VIZA's service is free. Sign in to the VIZA portal and we take it from here.",
     "headsUp": "Heads up:",
-    "headsUpBody": "the {country} government charges its visa fee separately when they approve your application. We don’t mark up that amount.",
-    "payTitle": "Choose how to pay",
-    "paySub": "Secure checkout is handled by VIZA’s portal. Pick a method to continue — your application details carry over automatically.",
+    "headsUpBody": "if the {country} government charges a visa fee, you pay it directly to them. VIZA never collects or marks up that amount.",
     "yourApp": "Your application",
     "guaranteedBy": "Guaranteed delivery by",
-    "onTimeRefund": "On time, or your money back",
     "govFee": "Government fee",
-    "vizaProcessing": "VIZA processing",
     "expressUpgrade": "Express upgrade",
-    "firstDiscount": "First-time discount",
     "total": "Total",
-    "footEncrypted": "Encrypted end-to-end. Charged only once your application is queued with the {country} government.",
-    "upgrades": "Upgrades",
-    "express": "Express",
-    "superRush": "Super rush",
-    "insurance": "Insurance",
-    "esim": "eSIM",
+    "footEncrypted": "Encrypted end-to-end. VIZA does not charge you for this application.",
     "helpOnline": "Priya is online",
     "helpTap": "Tap to chat with your VIZA consultant",
-    "payAmount": "Pay SGD {amount}",
     "totalAmount": "SGD {amount}",
-    "payFree": "Free — no payment needed",
     "totalFree": "Free",
-    "pricingAtCheckout": "Shown at checkout",
-    "upgradeAmount": "+ SGD {amount}",
     "etaStandard": "12 May 2026, 8:00 AM SGT",
-    "etaExpress": "8 May 2026, 3:00 PM SGT",
-    "etaSuperrush": "6 May 2026, 6:00 PM SGT",
     "emailPh": "you@example.com",
     "phonePh": "9123 4567",
     "failTitle": "We couldn't read that document",
@@ -289,7 +250,13 @@
     "emailInvalid": "Enter a valid email address — your visa updates and sign-in link go here.",
     "phoneInvalid": "Enter a valid phone number.",
     "consentRequired": "Please confirm the declaration to continue.",
-    "completeBeforeCheckout": "Please complete the highlighted items above before continuing to checkout."
+    "continueToStart": "Continue",
+    "startTitle": "Continue in the VIZA portal",
+    "startSub": "Sign in or create your free account. Your application for this destination opens straight away.",
+    "vizaService": "VIZA service",
+    "govFeeSetByAuthority": "Set by the authority",
+    "govFeeNote": "Any government visa fee is paid directly to the issuing authority, not to VIZA.",
+    "completeBeforeStart": "Please complete the highlighted items above before continuing."
   },
   "explore": {
     "help": "Help",
@@ -309,16 +276,15 @@
     "mapHint": "Hover a highlighted dot to preview a destination",
     "sectionTitle": "For {country} passports",
     "seeAll": "See all {n}",
-    "footnote": "Government visa fees are charged separately and vary by country.",
+    "footnote": "VIZA's service is free. Any government visa fee is paid directly to the issuing authority and varies by country.",
     "fastTrack": "Fast track",
     "cardType": "Type",
     "cardValid": "Valid",
-    "cardFee": "VIZA fee",
+    "cardFee": "VIZA service",
     "guaranteedBy": "Guaranteed by",
     "guarantor": "VIZA",
     "save": "Save",
     "startApplication": "Start application",
-    "seePricing": "See pricing",
     "catalogueUnavailable": "No destinations are open for online applications right now. Please check back soon.",
     "choosePassport": "Choose your passport",
     "searchPassport": "Search passport country…",
@@ -363,7 +329,6 @@
     },
     "sorts": {
       "guaranteed": "Guaranteed delivery",
-      "feeLow": "Visa fee (low to high)",
       "duration": "Visa duration",
       "popular": "Popular destinations",
       "recent": "Recently added"
@@ -568,7 +533,7 @@
         {
           "title": "Tell the truth, especially when it costs us.",
           "body": "If a visa won’t come through in time, say so today, not the day before the flight. We’d rather lose a sale than ship a lie.",
-          "kicker": "In practice → published refund policy, fee change audit"
+          "kicker": "In practice → published policies, change audit"
         },
         {
           "title": "Earn velocity. Don’t just feel busy.",
@@ -697,7 +662,7 @@
         "dxb": "Shanghai"
       },
       "jobs": {
-        "backendPayments": "Senior Backend Engineer — Payments",
+        "backendPayments": "Senior Backend Engineer, Platform",
         "staffDocPipeline": "Staff Engineer — Document Pipeline",
         "iosApplicant": "iOS Engineer — Applicant App",
         "platformInfra": "Platform Engineer — Infra & Security",
@@ -856,7 +821,6 @@
       "careers": "Careers",
       "contact": "Contact",
       "security": "Security",
-      "refunds": "Refunds Policy",
       "privacy": "Privacy",
       "terms": "Terms",
       "prodVisaReq": "Visa Requirements",
@@ -875,7 +839,7 @@
       "status": "All four desks online",
       "statusMeta": "· 24 consultants live now",
       "headline": "We pick up<br></br>the phone. <em>And</em><br></br><u>we mean it.</u>",
-      "lead": "Tricky Schengen rejection. Visa expiring on Monday. Just a pricing question. <strong>Pick a channel below</strong> — phone, WhatsApp, WeChat, or email — and a consultant who handles that exact corridor will be with you in minutes, not days.",
+      "lead": "Tricky Schengen rejection. Visa expiring on Monday. Just a quick question. <strong>Pick a channel below</strong> — phone, WhatsApp, WeChat, or email — and a consultant who handles that exact corridor will be with you in minutes, not days.",
       "sendBrief": "Send a brief",
       "seeChannels": "See all channels",
       "channelsLabel": "Choose your channel",
@@ -968,7 +932,7 @@
         "Start a new application",
         "Status of an existing one",
         "Urgent / time-sensitive",
-        "Refund or cancellation",
+        "Cancel an application",
         "Partnership",
         "Press",
         "Just a question"
@@ -1003,7 +967,7 @@
         }
       ],
       "includeTitle": "What to include",
-      "includeBody": "The more of these you share up front, the faster we can quote a price and timeline.",
+      "includeBody": "The more of these you share up front, the faster we can give you a timeline.",
       "includeItems": [
         "Passport country & expiry",
         "Destination & intended travel dates",
@@ -1056,8 +1020,8 @@
         "a": "Median: 2 minutes on WhatsApp, 5 minutes on WeChat, and under 4 hours on email. Phone is always live. If your trip is in the next 48 hours, call the emergency line — it skips the queue."
       },
       "q2": {
-        "q": "Do you charge for an initial consult?",
-        "a": "No. Quotes and corridor-specific advice are free. You only pay once you decide to file an application through us, and we publish the full fee breakdown before you commit."
+        "q": "Does VIZA charge for its service?",
+        "a": "No. VIZA's advice and application service are free. If a destination charges a government visa fee, you pay it directly to that government."
       },
       "q3": {
         "q": "Will my passport be safe?",
@@ -1129,10 +1093,6 @@
           {
             "label": "Supporting documents:",
             "text": "photographs, employment letters, bank statements, invitation letters — whatever the destination embassy asks for."
-          },
-          {
-            "label": "Payment:",
-            "text": "card or bank details processed by our payment provider; we never store full card numbers ourselves."
           }
         ],
         "autoTitle": "Automatically",
@@ -1185,10 +1145,6 @@
             "text": "Where required, we use a regulated KYC provider; their use of the data is restricted to the verification check."
           },
           {
-            "label": "Payment processing.",
-            "text": "Our payment service provider sees the card details needed to charge you, and a non-identifying transaction reference."
-          },
-          {
             "label": "Infrastructure.",
             "text": "Cloud hosting, storage, and email delivery providers operating under written data-processing agreements."
           },
@@ -1209,8 +1165,8 @@
             "text": "— kept while the visa is being processed and for 30 days after issuance so you can download decisions."
           },
           {
-            "label": "Order & payment records",
-            "text": "— 7 years to satisfy tax and finance regulations in Singapore."
+            "label": "Historical order & payment records",
+            "text": "from before VIZA stopped taking payments are kept 7 years to satisfy tax and finance regulations in Singapore."
           },
           {
             "label": "Account profile",
@@ -1319,14 +1275,13 @@
     "footer": {
       "copyright": "© VIZA Pte. Ltd. · All rights reserved",
       "terms": "Terms",
-      "refunds": "Refunds",
       "security": "Security"
     }
   },
   "legalTerms": {
     "eyebrow": "Legal · Terms of service",
     "title": "Terms of service",
-    "lede": "The agreement between you and VIZA when you use our visa application services. We file your application; you provide accurate information and pay the agreed fee. The rest is the detail.",
+    "lede": "The agreement between you and VIZA when you use our visa application services. We help prepare and file your application; you provide accurate information. VIZA's service is free. The rest is the detail.",
     "meta": {
       "effective": "<b>Effective:</b> 1 May 2026",
       "version": "<b>Version:</b> 3.1",
@@ -1338,8 +1293,8 @@
       "02 · Your account",
       "03 · What we do",
       "04 · What you do",
-      "05 · Fees and payment",
-      "06 · Refunds",
+      "05 · Fees",
+      "06 · No charges, no refunds",
       "07 · Government decisions",
       "08 · Timelines and guarantees",
       "09 · Prohibited use",
@@ -1354,7 +1309,7 @@
       "agreement": {
         "num": "§ 01",
         "title": "The agreement",
-        "p1": "By creating a VIZA account, paying for an application, or using the VIZA portal, you agree to these terms together with our<privacy> privacy policy</privacy> and<refunds> refunds policy</refunds>. Together they form the full agreement between you and VIZA Pte. Ltd. (Singapore UEN 202312345A).",
+        "p1": "By creating a VIZA account or using the VIZA portal, you agree to these terms together with our<privacy> privacy policy</privacy>. Together they form the full agreement between you and VIZA Pte. Ltd. (Singapore UEN 202312345A).",
         "p2": "If you are using VIZA on behalf of a company or another person, you confirm that you are authorised to bind them, and references to \"you\" include them."
       },
       "account": {
@@ -1403,34 +1358,34 @@
       },
       "fees": {
         "num": "§ 05",
-        "title": "Fees and payment",
-        "intro": "Each application has two distinct components. We always show both before you pay.",
+        "title": "Fees",
+        "intro": "VIZA does not collect service fees or offer paid subscriptions. Applications do not require payment through VIZA.",
         "items": [
           {
-            "label": "Government fee.",
-            "text": "Set by the destination government. Paid by VIZA on your behalf and passed through at cost."
+            "label": "VIZA service.",
+            "text": "Free. VIZA does not charge for preparing, reviewing, or tracking your application."
           },
           {
-            "label": "VIZA service fee.",
-            "text": "Our charge for handling the application. Includes consultant time, document review, automated checks, and our on-time delivery commitment."
+            "label": "Government fee.",
+            "text": "Set by the destination authority under its own rules. Where one applies, you pay it directly to that authority. VIZA does not collect or automatically pay it, and an unpaid official fee may prevent an application from continuing."
           }
         ],
-        "outro": "Payment is required up front. We accept major card networks and, for enterprise accounts, bank transfer on agreed payment terms. All amounts are in the currency shown at checkout and are inclusive of any applicable Singapore GST."
+        "outro": "Other service providers (for example appointment centres, couriers, or translators) may charge their own fees under their own terms."
       },
       "refunds": {
         "num": "§ 06",
-        "title": "Refunds",
-        "body": "The full refund matrix lives at <a>/refunds</a>. In summary: if VIZA misses its delivery commitment, the service fee is refunded automatically. Government fees are refunded only when the destination government refunds them, since they are not ours to keep."
+        "title": "No charges, no refunds",
+        "body": "Because VIZA does not charge for its service, there is nothing for VIZA to refund. Refunds of government or third-party fees follow the rules of the authority or provider you paid."
       },
       "government": {
         "num": "§ 07",
         "title": "Government decisions",
-        "body": "VIZA does not, and cannot, guarantee a visa outcome. Approval rests entirely with the destination government. A rejection based on the applicant’s personal record (criminal history, prior overstay, ineligibility under destination law, etc.) is not a service failure on our part and does not entitle a service-fee refund. Where the rejection results from a VIZA filing error, the service fee is refunded in full and we will re-file at no additional cost."
+        "body": "VIZA does not, and cannot, guarantee a visa outcome. Approval rests entirely with the destination government. Where a rejection results from a VIZA filing error, we will help you re-file at no cost."
       },
       "timelines": {
         "num": "§ 08",
         "title": "Timelines and guarantees",
-        "body": "Each visa product is sold with a Guaranteed Delivery date based on the destination government’s published service-level and our internal processing buffer. \"Guaranteed\" means we refund the service fee if the visa is not issued by that date, provided you submitted complete information on time. It does not guarantee a positive outcome."
+        "body": "Each visa product shows a Guaranteed Delivery date based on the destination government’s published service-level and our internal processing buffer. It is our delivery commitment, provided you submitted complete information on time. It does not guarantee a positive outcome."
       },
       "prohibited": {
         "num": "§ 09",
@@ -1443,7 +1398,7 @@
           "Reverse-engineer, scrape, or automate access to the portal in a way that disrupts service.",
           "Resell, sublicense, or wrap our service into a third-party offering without a written commercial agreement."
         ],
-        "outro": "Breach of this section is grounds for immediate termination without refund and may be reported to authorities."
+        "outro": "Breach of this section is grounds for immediate termination and may be reported to authorities."
       },
       "ip": {
         "num": "§ 10",
@@ -1453,7 +1408,7 @@
       "liability": {
         "num": "§ 11",
         "title": "Liability",
-        "p1": "To the maximum extent permitted by law, VIZA’s aggregate liability for any claim arising out of or in connection with the service is capped at the greater of (a) the service fee paid for the affected application or (b) SGD 500. We are not liable for indirect, consequential, incidental, or punitive damages, including lost flights, accommodation, or business opportunity.",
+        "p1": "To the maximum extent permitted by law, VIZA’s aggregate liability for any claim arising out of or in connection with the service is capped at SGD 500. We are not liable for indirect, consequential, incidental, or punitive damages, including lost flights, accommodation, or business opportunity.",
         "p2": "Nothing in these terms excludes or limits liability for fraud, gross negligence, death or personal injury caused by negligence, or any other liability that cannot lawfully be excluded."
       },
       "termination": {
@@ -1466,7 +1421,7 @@
           "We reasonably suspect fraud, identity theft, or sanction breach.",
           "Continued service would expose VIZA to legal or regulatory risk."
         ],
-        "p3": "On termination, ongoing applications are completed where possible. Refunds follow the refunds policy."
+        "p3": "On termination, ongoing applications are completed where possible."
       },
       "disputes": {
         "num": "§ 13",
@@ -1490,362 +1445,14 @@
     "footer": {
       "copyright": "© VIZA Pte. Ltd. · All rights reserved",
       "privacy": "Privacy",
-      "refunds": "Refunds",
       "security": "Security"
     }
-  },
-  "refunds": {
-    "crumbs": {
-      "transparency": "Transparency",
-      "here": "Refunds policy"
-    },
-    "hero": {
-      "eyebrow": "Transparency · Refunds Policy",
-      "title1": "If we miss, <em>you don’t pay.</em>",
-      "title2": "If they miss, we still try.",
-      "lede": "Every visa application carries two costs — what the government charges, and what we charge for handling it. This page explains, line by line, <strong>what you get back, when, and why</strong>. No buried clauses, no “subject-to” footnotes."
-    },
-    "meta": {
-      "effective": "Effective",
-      "effectiveValue": "1 May 2026",
-      "version": "Version",
-      "versionValue": "v4.2",
-      "changelogLink": "View changelog",
-      "jurisdiction": "Jurisdiction",
-      "jurisdictionValue": "Singapore (CPA 2003)",
-      "status": "Status",
-      "statusValue": "Active & audited monthly",
-      "coverage": "Coverage",
-      "coverageValue": "All visa applications filed via VIZA"
-    },
-    "promise": {
-      "c1": {
-        "num": "100",
-        "small": "%",
-        "title": "Service fee back if we miss the date",
-        "body": "Our entire handling fee is refunded if your visa arrives after the date we guaranteed at checkout."
-      },
-      "c2": {
-        "num": "7",
-        "small": "days",
-        "title": "Refund settled to your card",
-        "body": "From the moment a refund is approved, you’ll see the amount back on the original payment method within seven business days."
-      },
-      "c3": {
-        "num": "SGD 0",
-        "title": "To re-apply after a rejection",
-        "body": "If a visa is refused for reasons within our control, we re-file once at our cost — including a fresh government fee."
-      },
-      "c4": {
-        "num": "24",
-        "small": "/7",
-        "title": "Human, never a form",
-        "body": "Claims are reviewed by a real consultant in our Singapore office, not a queueing bot. Always."
-      }
-    },
-    "toc": {
-      "heading": "On this page",
-      "summary": "In one line",
-      "fees": "What you’re paying for",
-      "scenarios": "Refund scenarios",
-      "timeline": "How a refund moves",
-      "exceptions": "Edge cases & exclusions",
-      "claim": "Filing a claim",
-      "faq": "Common questions",
-      "changelog": "Changelog",
-      "help": "Need this in writing for an employer or insurer?",
-      "download": "Download as PDF"
-    },
-    "summary": {
-      "num": "§ 01",
-      "title": "The whole policy, in one line.",
-      "intro": "If we don’t deliver on what we promised at checkout, you don’t pay us for it. Government fees follow each embassy’s own rules — we collect them on your behalf and pass on whatever the consulate returns.",
-      "callout": "The single thing worth remembering: <strong>our service fee is fully refundable</strong> if we miss your guaranteed delivery date, lose your documents, or refuse a re-file we promised. Government fees are <strong>refundable only if the embassy issues a refund</strong> — most never do once an application is filed."
-    },
-    "fees": {
-      "num": "§ 02",
-      "title": "What you’re actually paying for.",
-      "intro": "Every checkout total is the sum of three line items. We treat them as separate, refund them separately, and show them separately on your invoice.",
-      "fa": {
-        "title": "Sample: Indonesia e-Visa, Singapore passport",
-        "sub": "A real breakdown of a SGD 84 checkout. Proportions reflect the average across countries we file in.",
-        "segGov": "Government fee · SGD 32",
-        "segService": "VIZA service · SGD 27",
-        "segPartner": "Partner & courier · SGD 25",
-        "cells": {
-          "gov": {
-            "k": "Line item 01",
-            "name": "Government fee",
-            "desc": "Paid directly to the destination consulate or VFS centre. Non-refundable once filed in 92% of jurisdictions.",
-            "badge": "Refunded only if embassy returns it"
-          },
-          "service": {
-            "k": "Line item 02",
-            "name": "VIZA service",
-            "desc": "Application prep, document review, fast-track filing, your consultant, and on-time guarantee.",
-            "badge": "Fully refundable on our promise"
-          },
-          "partner": {
-            "k": "Line item 03",
-            "name": "Partner & courier",
-            "desc": "Biometrics centre, photo studio, doorstep passport courier. Refunded if the service wasn’t rendered.",
-            "badge": "Refunded if service not rendered"
-          }
-        }
-      },
-      "muted": "On your invoice, each line shows the merchant of record on the right. You’ll never see a single opaque “visa fee” — that practice is what the Singapore Consumer Protection Act was written against, and we agree with it."
-    },
-    "scenarios": {
-      "num": "§ 03",
-      "title": "Every scenario, mapped to a refund.",
-      "intro": "The matrix below covers 98% of cases. The remaining 2% — exotic visa categories, dual-applicant family bundles, expedited weekend filings — are documented in §05.",
-      "ariaLabel": "Refund scenarios",
-      "head": {
-        "what": "What happened",
-        "gov": "Government fee",
-        "service": "VIZA service fee",
-        "partner": "Partner & courier"
-      },
-      "rows": {
-        "cancelBefore": {
-          "title": "You cancel before we file",
-          "sub": "Within 24h of payment, no documents reviewed yet",
-          "gov": {
-            "v": "100%",
-            "label": "Refunded in full"
-          },
-          "service": {
-            "v": "100%",
-            "label": "Refunded in full"
-          },
-          "partner": {
-            "v": "100%",
-            "label": "Refunded in full"
-          }
-        },
-        "cancelAfter": {
-          "title": "You cancel after we file",
-          "sub": "Documents lodged with the embassy",
-          "gov": {
-            "v": "0%",
-            "label": "Embassy retains the fee"
-          },
-          "service": {
-            "v": "50%",
-            "label": "Half refunded for unused work"
-          },
-          "partner": {
-            "v": "100%",
-            "label": "If biometrics not yet booked"
-          }
-        },
-        "missDate": {
-          "title": "We miss the guaranteed date",
-          "sub": "Delay caused by VIZA or our network",
-          "gov": {
-            "v": "0%",
-            "label": "Visa was still issued"
-          },
-          "service": {
-            "v": "100%",
-            "label": "Full service fee back"
-          },
-          "partner": {
-            "v": "100%",
-            "label": "Full courier back"
-          }
-        },
-        "rejectedFault": {
-          "title": "Visa rejected — our fault",
-          "sub": "Document error, wrong form, missed deadline",
-          "gov": {
-            "v": "100%",
-            "label": "We re-file at our cost"
-          },
-          "service": {
-            "v": "100%",
-            "label": "Full service fee back"
-          },
-          "partner": {
-            "v": "50%",
-            "label": "Courier re-used where possible"
-          }
-        },
-        "rejectedDiscretion": {
-          "title": "Visa rejected — embassy’s discretion",
-          "sub": "Eligibility, intent, prior travel concerns",
-          "gov": {
-            "v": "0%",
-            "label": "Non-refundable by embassy"
-          },
-          "service": {
-            "v": "25%",
-            "label": "“Did our part” goodwill credit"
-          },
-          "partner": {
-            "v": "0%",
-            "label": "Service was rendered"
-          }
-        },
-        "withdrew": {
-          "title": "Visa rejected — applicant withdrew docs",
-          "sub": "You chose to stop responding after filing",
-          "gov": {
-            "v": "0%",
-            "label": "Embassy retains the fee"
-          },
-          "service": {
-            "v": "0%",
-            "label": "Service was rendered"
-          },
-          "partner": {
-            "v": "0%",
-            "label": "Service was rendered"
-          }
-        },
-        "lostDoc": {
-          "title": "We lose a document",
-          "sub": "Original passport or supporting document misplaced in our chain",
-          "gov": {
-            "v": "100%",
-            "label": "Plus passport-replacement cost"
-          },
-          "service": {
-            "v": "100%",
-            "label": "Plus SGD 200 credit"
-          },
-          "partner": {
-            "v": "100%",
-            "label": "Full courier back"
-          }
-        }
-      },
-      "muted": "“Goodwill credit” means VIZA travel credit redeemable against any future application, valid 24 months. You can convert credit to a cash refund on request — we just default to credit because most travellers come back."
-    },
-    "timeline": {
-      "num": "§ 04",
-      "title": "How a refund actually moves.",
-      "intro": "Most refund pages stop at “we will process within reasonable time”. Here is the real internal SLA — the same one our refunds team is measured against.",
-      "steps": {
-        "file": {
-          "time": "Hour 0",
-          "title": "You file",
-          "desc": "Click <em>Open a claim</em> in your dashboard, or reply to any email from our team."
-        },
-        "ack": {
-          "time": "Hour 4",
-          "title": "Acknowledged",
-          "desc": "A real consultant — not a chatbot — confirms receipt and shares the case ID."
-        },
-        "review": {
-          "time": "Day 1–2",
-          "title": "Reviewed",
-          "desc": "Application log, embassy timestamps, and chat history are checked against the scenarios in §03."
-        },
-        "decision": {
-          "time": "Day 3",
-          "title": "Decision sent",
-          "desc": "A short written outcome lands in your inbox, citing which row of §03 applies and the amount."
-        },
-        "money": {
-          "time": "Day 4–7",
-          "title": "Money back",
-          "desc": "Funds settle on the original payment method. Card refunds may take 1–2 statement cycles to display."
-        }
-      },
-      "overTitle": "If we go over seven days",
-      "overBody": "We add a flat 5% late-handling credit to your refund — automatically, without you asking — for every business day past the seventh. The clock starts when the claim is acknowledged and pauses only if we’re waiting on a document from you (we’ll always say so in writing)."
-    },
-    "exceptions": {
-      "num": "§ 05",
-      "title": "Things we don’t refund, and why.",
-      "intro": "A shorter list than most providers, but we’d rather state it plainly than hide it.",
-      "items": {
-        "govFees": "<strong>Government fees the embassy keeps.</strong> When an embassy explicitly states a fee is non-refundable once filed, we cannot return what we don’t hold. We list this on the country page <em>before</em> you pay.",
-        "misrep": "<strong>Applications voided by misrepresentation.</strong> If a document submitted via VIZA is later found to be falsified, every fee — ours included — is forfeit and may be reported to authorities.",
-        "forceMajeure": "<strong>Force majeure beyond a 14-day window.</strong> Strikes, natural disasters, or sudden embassy closures pause the on-time clock. If service can’t resume within 14 days, the service fee is refunded in full.",
-        "fx": "<strong>Currency conversion losses.</strong> Refunds are issued in the original payment currency. If your bank applied an FX margin on the way in, we cannot recover that — banks rarely return it.",
-        "addons": "<strong>Bundled trip-protection add-ons.</strong> Optional travel insurance and trip-cancellation add-ons follow the partner insurer’s policy, linked at checkout."
-      }
-    },
-    "claim": {
-      "num": "§ 06",
-      "title": "Filing a claim takes ninety seconds.",
-      "intro": "No forms, no ticket numbers, no “kindly revert”. One of three doors, all of them open.",
-      "items": {
-        "inapp": "<strong>In-app.</strong> Open any application in your VIZA dashboard, scroll to <em>Money & receipts</em>, click <em>Open refund claim</em>. Pre-filled with your case ID.",
-        "email": "<strong>By email.</strong> Reply to any thread from your consultant, or write to <link>refunds@viza.co</link> with the application reference.",
-        "person": "<strong>In person.</strong> Walk into any VIZA office — Shanghai or Singapore — between 09:00 and 18:00 local time. Bring your passport."
-      },
-      "escalate": "Unhappy with the outcome? Every decision can be escalated to our refunds committee, chaired by our Chief Customer Officer, who reviews disputed cases weekly. From there, Singapore CASE mediation is available at no cost to you."
-    },
-    "faq": {
-      "num": "§ 07",
-      "title": "Common questions, real answers.",
-      "intro": "Pulled from the most frequent threads our refunds team has handled this year.",
-      "items": {
-        "cancelTrip": {
-          "q": "I had to cancel my trip. Can I get a refund?",
-          "a": "If we haven’t filed yet, you receive a full refund of every line item. If we’ve already filed, the embassy keeps the government fee but you receive a 50% credit of our service fee (see §03, row 2). The courier portion depends on whether biometrics have been booked. The fastest way to know exactly which row applies to your case is to open the claim — our consultant will quote the exact amount within 4 working hours."
-        },
-        "rejected": {
-          "q": "My visa was rejected. Do I get my money back?",
-          "a": "It depends on <strong>why</strong> it was rejected. If the rejection traces back to something we got wrong — a wrong form, an out-of-date supporting document, a missed deadline — we refund our full fee <strong>and</strong> re-file at our cost. If the rejection was the embassy’s own discretion (intent, prior travel, eligibility), the government fee is gone and we apply a 25% goodwill credit toward your next application."
-        },
-        "settleTime": {
-          "q": "How long does the money take to actually show up?",
-          "a": "From the moment the decision is sent, expect <strong>4 to 7 business days</strong> on cards, instant on PayNow, and 1–3 days on bank transfers. Some card issuers batch refunds and only show them on your next statement — if your refund is “approved” but not yet visible after 10 days, that’s almost always why. We can send a refund reference number for you to share with your bank."
-        },
-        "paidDirect": {
-          "q": "What if I paid the government fee directly?",
-          "a": "For a handful of consulates (notably Australia and the UK), you pay the government portal directly. In those cases the embassy’s own refund policy applies and we have no visibility into the transaction. We will, however, help you draft the refund request to the consulate and follow up alongside you — at no charge."
-        },
-        "holiday": {
-          "q": "I missed a deadline because of a public holiday in another country. Is that on me?",
-          "a": "No — that’s on us. Every guaranteed-delivery date already accounts for declared public holidays in the destination country, plus a buffer for embassy processing backlogs. If we got that math wrong, you’re covered under “we miss the guaranteed date” in §03."
-        },
-        "cashCredit": {
-          "q": "Can I get the goodwill credit as cash instead?",
-          "a": "Yes. Reply to the decision email with “convert to cash” and we’ll switch it within one business day. We default to credit because 73% of travellers come back within a year, and credit doesn’t trigger an FX round-trip — but the choice is always yours."
-        }
-      }
-    },
-    "changelog": {
-      "num": "§ 08",
-      "title": "What changed, and when.",
-      "intro": "Every material change to this policy is logged here. Old versions remain accessible — your application is governed by the policy that was live the day you paid.",
-      "items": {
-        "v42": {
-          "tag": "v4.2 · 1 May 2026 —",
-          "text": "Late-handling credit raised from 3% to 5% per overdue day. Force-majeure window extended from 10 to 14 days."
-        },
-        "v41": {
-          "tag": "v4.1 · 12 Feb 2026 —",
-          "text": "Lost-document compensation now includes passport replacement fees in addition to the service refund."
-        },
-        "v40": {
-          "tag": "v4.0 · 4 Nov 2025 —",
-          "text": "Goodwill credit on discretionary rejections raised from 15% to 25% of service fee."
-        },
-        "v36": {
-          "tag": "v3.6 · 30 Jul 2025 —",
-          "text": "CASE mediation pathway added as a no-cost escalation route."
-        }
-      },
-      "cta": {
-        "title": "Have an open application that’s running late?",
-        "body": "Open a claim from your dashboard. A real consultant will review it within 4 working hours — usually faster.",
-        "open": "Open a refund claim",
-        "talk": "Talk to a consultant"
-      }
-    },
-    "updatedStrip": "Last reviewed by VIZA Legal & Customer teams on 1 May 2026 · Next scheduled review 1 Aug 2026 · <link>View the audit log</link>"
   },
   "security": {
     "hero": {
       "eyebrow": "Security at VIZA · last updated May 2026",
       "title": "Private. Transparent.<br></br><em>Secure by default.</em>",
-      "lead": "Customers around the world trust us with millions of sensitive documents — passports, bank statements, photos, payment details. Here’s exactly how we collect them, store them, and prove we’re doing it right.",
+      "lead": "Customers around the world trust us with millions of sensitive documents — passports, bank statements, photos. Here’s exactly how we collect them, store them, and prove we’re doing it right.",
       "ctaPrimary": "How we protect your data",
       "ctaVdp": "Report a vulnerability"
     },
@@ -1914,7 +1521,7 @@
       "cards": {
         "payment": {
           "name": "Payment information",
-          "meta": "tokenised · PCI-DSS"
+          "meta": "not collected"
         },
         "photos": {
           "name": "Visa photos",
@@ -1947,9 +1554,9 @@
         },
         "payments": {
           "tag": "/payments",
-          "title": "Secure payments",
-          "body": "Card data is tokenised through a PCI-DSS Level 1 processor — we never see or store full card numbers. Every transaction goes through 3-D Secure 2.0, multi-factor authentication, and our internal fraud-detection layer.",
-          "why": "<strong>Why:</strong> a stolen VIZA session cannot complete a payment alone."
+          "title": "No payment data",
+          "body": "VIZA's service is free and we do not take payments, so we never ask for, see, or store card numbers.",
+          "why": "<strong>Why:</strong> data we never hold cannot be stolen."
         },
         "atRest": {
           "tag": "/at-rest",
@@ -2062,7 +1669,7 @@
         "heading": "Reports we’ll actively triage",
         "items": {
           "web": "VIZA web applications and APIs at <code>*.viza.com</code> — including the applicant portal, consultant console, and partner endpoints.",
-          "infra": "VIZA-owned infrastructure and services — auth, payments, document pipeline, scheduling.",
+          "infra": "VIZA-owned infrastructure and services: auth, document pipeline, scheduling.",
           "mobile": "Mobile applications (iOS, Android) published under the VIZA developer account.",
           "marketing": "Public-facing marketing and content sites under VIZA-controlled domains."
         }
@@ -2141,7 +1748,6 @@
       "careers": "Careers",
       "contact": "Contact",
       "security": "Security",
-      "refunds": "Refunds Policy",
       "privacy": "Privacy",
       "terms": "Terms",
       "products": "Products",
@@ -2626,7 +2232,6 @@
       "contact": "Contact",
       "security": "Security",
       "systemStatus": "System status",
-      "refunds": "Refunds Policy",
       "privacy": "Privacy",
       "terms": "Terms",
       "products": "Products",

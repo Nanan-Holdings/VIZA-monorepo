@@ -41,7 +41,7 @@ export const france: VisaContent = {
     { k: "Entry", v: "Single · double · multiple" },
   ],
   tags: [
-    { icon: "shield", label: "On-time guarantee" },
+    { icon: "shield", label: "Free VIZA service" },
     { icon: "doc", label: "Full dossier review" },
     { icon: "globe", label: "29-country Schengen access" },
   ],
@@ -193,7 +193,7 @@ export const france: VisaContent = {
     {
       category: "Application process",
       q: "How much does the visa cost?",
-      a: "The government fee is EUR 90 (≈ SGD 131) per adult, EUR 45 (≈ SGD 66) for children 6 – 11, and free under 6 — EU-wide rates since 11 June 2024, non-refundable even if refused. The application centre (VFS Global or TLScontact) charges a service fee of roughly EUR 30 – 40 on top.",
+      a: "The government fee is EUR 90 (≈ SGD 131) per adult, EUR 45 (≈ SGD 66) for children 6 – 11, and free under 6 — EU-wide rates since 11 June 2024, non-refundable even if refused. The application centre (VFS Global or TLScontact) charges a service fee of roughly EUR 30 – 40 on top. You pay both directly; VIZA charges nothing for its help.",
     },
     {
       category: "Application process",
@@ -206,9 +206,9 @@ export const france: VisaContent = {
       a: "Yes. Fingerprints and the paper dossier must be lodged in person — at VFS Global in Singapore (180 Clemenceau Avenue, Haw Par Centre) or a TLScontact centre in mainland China. Biometrics are then reusable for 59 months, so repeat applicants within that window may be able to skip the appointment.",
     },
     {
-      category: "Refunds, rejections & reapplications",
+      category: "Rejections & reapplications",
       q: "What happens if my visa application is refused?",
-      a: "The consulate issues a refusal notice stating the ground; under French rules, no answer after 2 months also counts as an implicit refusal. The EUR 90 government fee is not refunded. VIZA's processing fee is fully refunded, and your consultant will analyse the refusal ground and rebuild the dossier before reapplying or appealing.",
+      a: "The consulate issues a refusal notice stating the ground; under French rules, no answer after 2 months also counts as an implicit refusal. The EUR 90 government fee is not refunded. VIZA charges nothing for its help, and your consultant will analyse the refusal ground and rebuild the dossier before reapplying or appealing.",
     },
   ],
 
@@ -227,8 +227,8 @@ export const france: VisaContent = {
     etaValue: "26 Jun 2026, 03:00 PM",
     title: "Schengen Visa (Type C) · 90-day stay",
     saving: "Full dossier review included",
-    sub: "All-inclusive of document review, France-Visas form preparation, and on-time guarantee.",
-    foot: "Government visa fee (EUR 90 ≈ SGD 131) is collected at checkout and paid to the consulate; the application centre's service fee applies at your appointment. VIZA's fee covers preparation, review, and appointment support.",
+    sub: "VIZA's help is free: document review, France-Visas form preparation, and appointment support.",
+    foot: "VIZA's service is free. The EUR 90 (≈ SGD 131) visa fee is paid directly to the consulate, and the application centre charges its own fee at your appointment.",
   },
 
   aiPlaceholder: "Ask anything about France Schengen visas — fees, documents, the 90/180 rule…",

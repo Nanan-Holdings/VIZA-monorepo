@@ -20,7 +20,6 @@ const STATIC_ROUTES = [
   "/careers",
   "/security",
   "/status",
-  "/refunds",
   "/legal/privacy",
   "/legal/terms",
   "/blog",

@@ -50,7 +50,7 @@ export const malaysia: VisaContent = {
   ],
   tags: [
     { icon: "bolt", label: "Official processing · 48 hrs" },
-    { icon: "shield", label: "On-time guarantee" },
+    { icon: "shield", label: "Free VIZA service" },
     { icon: "doc", label: "Document pre-check" },
   ],
 
@@ -176,17 +176,17 @@ export const malaysia: VisaContent = {
     {
       category: "Application process",
       q: "How long does Malaysian Immigration take to process an eVISA?",
-      a: "The official processing time is 48 hours — counted in working days only, so weekends and public holidays in Malaysia and your home country don't count. Immigration advises applying at least 2 weeks before departure. VIZA files immediately, monitors the queue, and backs the timeline with an on-time guarantee.",
+      a: "The official processing time is 48 hours — counted in working days only, so weekends and public holidays in Malaysia and your home country don't count. Immigration advises applying at least 2 weeks before departure. VIZA files immediately and monitors the queue.",
     },
     {
       category: "Application process",
       q: "How much does the Malaysia eVISA cost?",
-      a: "The government visa fee is set by nationality — RM 20 to RM 50 (≈ SGD 6–15; China RM 30). The online portal adds a processing fee, widely reported at around RM 105 (≈ SGD 32). VIZA quotes you a single all-in price at checkout covering government charges, document review, and our on-time guarantee.",
+      a: "The government visa fee is set by nationality — RM 20 to RM 50 (≈ SGD 6–15; China RM 30). The online portal adds a processing fee, widely reported at around RM 105 (≈ SGD 32). You pay these directly on the official portal. VIZA's help, including document review, is free.",
     },
     {
-      category: "Refunds, rejections & reapplications",
+      category: "Rejections & reapplications",
       q: "What happens if my Malaysia eVISA is refused?",
-      a: "Government fees are non-refundable on refusal, and even fixing a typo after payment requires a fresh, paid application. VIZA's processing fee is fully refunded, and your consultant reviews the refusal, corrects the issue, and manages the reapplication.",
+      a: "Government fees are non-refundable on refusal, and even fixing a typo after payment requires a fresh, paid application. VIZA charges nothing for its help, and your consultant reviews the refusal, corrects the issue, and manages the reapplication.",
     },
   ],
 
@@ -205,8 +205,8 @@ export const malaysia: VisaContent = {
     etaValue: "17 Aug 2026, 10:00 AM",
     title: "Tourist eVISA (SEV) · 30-day stay",
     saving: "1 day faster than filing direct",
-    sub: "All-inclusive of government fee, document review, and on-time guarantee.",
-    foot: "Government fee and VIZA processing are collected together at checkout, backed by our on-time guarantee.",
+    sub: "VIZA's help is free: document review, form filling, and tracking. The government fee is paid directly on the official portal.",
+    foot: "VIZA's service is free. The eVISA fee is paid directly to the Immigration Department of Malaysia.",
   },
 
   aiPlaceholder: "Ask anything about Malaysia eVISAs — eligibility, documents, processing time…",

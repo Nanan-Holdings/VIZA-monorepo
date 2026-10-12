@@ -69,7 +69,6 @@ export default async function TermsPage({
             <p>
               {t.rich("sections.agreement.p1", {
                 privacy: (chunks) => <a href="/legal/privacy">{chunks}</a>,
-                refunds: (chunks) => <a href="/refunds">{chunks}</a>,
               })}
             </p>
             <p>{t("sections.agreement.p2")}</p>
@@ -126,11 +125,7 @@ export default async function TermsPage({
           <section id="refunds" className="legal-section">
             <span className="section-num">{t("sections.refunds.num")}</span>
             <h2>{t("sections.refunds.title")}</h2>
-            <p>
-              {t.rich("sections.refunds.body", {
-                a: (chunks) => <a href="/refunds">{chunks}</a>,
-              })}
-            </p>
+            <p>{t("sections.refunds.body")}</p>
           </section>
 
           <section id="government" className="legal-section">

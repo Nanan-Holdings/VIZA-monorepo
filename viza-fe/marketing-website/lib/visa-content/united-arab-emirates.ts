@@ -44,7 +44,7 @@ export const unitedArabEmirates: VisaContent = {
   ],
   tags: [
     { icon: "bolt", label: "48-hr government processing" },
-    { icon: "shield", label: "On-time guarantee" },
+    { icon: "shield", label: "Free VIZA service" },
     { icon: "doc", label: "Minimal documents" },
   ],
 
@@ -64,7 +64,7 @@ export const unitedArabEmirates: VisaContent = {
   steps: [
     {
       title: "Apply on VIZA",
-      body: "Upload your passport, one white-background photo, travel dates, and onward ticket. Pay only the government fee upfront — VIZA's processing fee is charged on approval.",
+      body: "Upload your passport, one white-background photo, travel dates, and onward ticket. VIZA's help is free. When the government fee is due, your application pauses so you can pay it directly to GDRFA.",
     },
     {
       title: "Eligibility check & document verification",
@@ -182,7 +182,7 @@ export const unitedArabEmirates: VisaContent = {
     {
       category: "General information",
       q: "Do Singapore or Chinese passport holders need this visa?",
-      a: "No. Singapore passports get free visa on arrival for 90 days within any 180-day period (since September 2024). Chinese ordinary passports are visa-free for the same 90-in-180 stay under the 2018 China–UAE mutual exemption. Both need 6+ months' passport validity. VIZA confirms your eligibility before you pay a cent.",
+      a: "No. Singapore passports get free visa on arrival for 90 days within any 180-day period (since September 2024). Chinese ordinary passports are visa-free for the same 90-in-180 stay under the 2018 China–UAE mutual exemption. Both need 6+ months' passport validity. VIZA confirms your eligibility for free.",
     },
     {
       category: "General information",
@@ -192,17 +192,17 @@ export const unitedArabEmirates: VisaContent = {
     {
       category: "Application process",
       q: "How quickly will I receive my UAE tourist visa?",
-      a: "GDRFA Dubai's stated processing time is 48 hours once filed. Through VIZA, most visas are delivered within 2 – 3 business days end-to-end, backed by our on-time guarantee — your money back if we're late.",
+      a: "GDRFA Dubai's stated processing time is 48 hours once filed. Through VIZA, most visas are delivered within 2 – 3 business days end-to-end.",
     },
     {
       category: "Application process",
       q: "How much is the government fee?",
-      a: "For the 30-day visa, GDRFA charges AED 252 + 5% VAT + AED 20 in knowledge/innovation dirhams (≈ SGD 100). The 60-day visa is AED 352 + VAT (≈ SGD 130). A 5-year multi-entry tourist visa also exists at AED 713.50 in fees plus a refundable AED 3,000 guarantee deposit, with a USD 4,000 bank-balance requirement.",
+      a: "For the 30-day visa, GDRFA charges AED 252 + 5% VAT + AED 20 in knowledge/innovation dirhams (≈ SGD 100). The 60-day visa is AED 352 + VAT (≈ SGD 130). A 5-year multi-entry tourist visa also exists at AED 713.50 in fees plus a refundable AED 3,000 guarantee deposit, with a USD 4,000 bank-balance requirement. These fees are paid directly to GDRFA; VIZA charges nothing for its help.",
     },
     {
-      category: "Refunds, rejections & reapplications",
+      category: "Rejections & reapplications",
       q: "What happens if my UAE tourist visa is refused?",
-      a: "The UAE government retains its fee; VIZA's service fee is fully refunded. Your consultant reviews the refusal — the most common causes are unpaid fines from a previous stay or an old visa still open in the system — and helps you clear the blocker and reapply.",
+      a: "The UAE government keeps its fee; VIZA charges nothing for its help. Your consultant reviews the refusal — the most common causes are unpaid fines from a previous stay or an old visa still open in the system — and helps you clear the blocker and reapply.",
     },
   ],
 
@@ -239,8 +239,8 @@ export const unitedArabEmirates: VisaContent = {
     etaValue: "18 Jun 2026, 12:00 PM",
     title: "Tourist visa · 30 or 60-day stay",
     saving: "Faster than applying direct",
-    sub: "All-inclusive of government fee, document review, and on-time guarantee.",
-    foot: "Government fee and VIZA processing are collected together at checkout, backed by our on-time guarantee.",
+    sub: "VIZA's help is free: document review, form filling, and tracking. The government fee is paid directly to GDRFA.",
+    foot: "VIZA's service is free. The UAE visa fee is paid directly to GDRFA Dubai.",
   },
 
   aiPlaceholder: "Ask anything about UAE visas — visa-free entry, fees, extensions…",

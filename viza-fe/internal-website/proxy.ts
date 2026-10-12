@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 import { createServerClient } from "@supabase/ssr";
 import { getClientSessionFromRequest } from "@/lib/client-session";
+import { getPostLoginPath, loginPathReturningTo } from "@/lib/auth/post-login-path";
 import { getImpersonationSessionFromRequest } from "@/lib/impersonation-session";
 import { normalizeSupabaseEnvValue } from "@/lib/supabase/env";
 import { createFetchWithTimeout } from "@/lib/supabase/fetch-with-timeout";
@@ -34,9 +35,7 @@ export async function proxy(request: NextRequest) {
     pathname === "/client/register" ||
     pathname.startsWith("/client/register/")
   ) {
-    const postLoginPath = request.nextUrl.searchParams.get("returnTo") === "/feedback"
-      ? "/feedback"
-      : "/client/home";
+    const postLoginPath = getPostLoginPath(request.nextUrl.searchParams.get("returnTo"));
     // A valid VIZA session does not need a Supabase network request. This keeps
     // existing local sessions usable while Supabase Auth has a transient outage.
     const jwtSession = await getClientSessionFromRequest(request);
@@ -116,10 +115,14 @@ async function handleClientRoutes(request: NextRequest, pathname: string) {
     return supabaseAuth.response;
   }
 
-  // No valid session - redirect to new client login portal
+  // No valid session - redirect to new client login portal. Application
+  // links (e.g. the marketing site's free "start application" hand-off) come
+  // back to the same destination after login.
   return copyResponseCookies(
     supabaseAuth.response,
-    NextResponse.redirect(new URL("/client/login", request.url)),
+    NextResponse.redirect(
+      new URL(loginPathReturningTo(`${pathname}${request.nextUrl.search}`), request.url),
+    ),
   );
 }
 

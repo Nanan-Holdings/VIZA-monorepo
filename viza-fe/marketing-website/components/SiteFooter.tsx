@@ -63,7 +63,6 @@ export default function SiteFooter() {
             <li><a href="/careers">{t("careers")}</a></li>
             <li><a href="/contact">{t("contact")}</a></li>
             <li><a href="/security">{t("security")}</a></li>
-            <li><a href="/refunds">{t("refundsPolicy")}</a></li>
             <li><a href="/status">{t("status")}</a></li>
             <li><a href="/legal/privacy">{t("privacy")}</a></li>
             <li><a href="/legal/terms">{t("terms")}</a></li>

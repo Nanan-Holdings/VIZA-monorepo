@@ -192,11 +192,8 @@ export default async function RootLayout({
                   var label = anchor.getAttribute('aria-label') || (anchor.textContent || '').trim();
                   var country = url.searchParams.get('country') || anchor.dataset.country || undefined;
                   if (url.hostname === ${JSON.stringify(portalHostname)}) {
-                    if (url.pathname.indexOf('/checkout/') === 0) {
-                      push('checkout_start', {
-                        destination_country: country,
-                        payment_method: anchor.dataset.paymentMethod || url.pathname.split('/').pop()
-                      });
+                    if (url.pathname.indexOf('/client/application') === 0) {
+                      push('application_handoff', { destination_country: country });
                     } else {
                       push('portal_click', { link_text: label, destination_path: url.pathname });
                     }

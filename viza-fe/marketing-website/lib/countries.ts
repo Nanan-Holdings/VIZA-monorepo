@@ -12,7 +12,7 @@
 
 export interface CountryMeta {
   slug: string;
-  /** Portal country code (viza-fe/internal-website + payment buttons). Differs from slug for e.g. turkiye→turkey. */
+  /** Portal country code (viza-fe/internal-website application route). Differs from slug for e.g. turkiye→turkey. */
   portalCountry: string;
   name: string;
   city: string;

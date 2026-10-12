@@ -39,7 +39,7 @@ export const japan: VisaContent = {
   ],
   tags: [
     { icon: "bolt", label: "Fast track" },
-    { icon: "shield", label: "On-time guarantee" },
+    { icon: "shield", label: "Free VIZA service" },
     { icon: "doc", label: "Expert document review" },
   ],
 
@@ -171,7 +171,7 @@ export const japan: VisaContent = {
     {
       category: "Application process",
       q: "How much does the Japan visa cost?",
-      a: "For applications lodged from 1 July 2026, the government fee is JPY 15,000 (≈ SGD 130) single-entry or JPY 30,000 (≈ SGD 260) multiple-entry — Japan's first fee revision since 1978. VFS Global Singapore adds a SGD 22 service fee for paper filings. The government fee is payable only if the visa is issued.",
+      a: "For applications lodged from 1 July 2026, the government fee is JPY 15,000 (≈ SGD 130) single-entry or JPY 30,000 (≈ SGD 260) multiple-entry — Japan's first fee revision since 1978. VFS Global Singapore adds a SGD 22 service fee for paper filings. The government fee is payable only if the visa is issued, and you pay it directly. VIZA charges nothing for its help.",
     },
     {
       category: "Application process",
@@ -179,9 +179,9 @@ export const japan: VisaContent = {
       a: "MOFA's official standard is 5 working days from the day after a complete application is received, but the Embassy of Japan in Singapore advises allowing a minimum of 10 business days — and Japan accepts no expedite requests. Apply within 3 months of your travel date; VIZA files a complete package to avoid the back-and-forth that stretches complex cases past a month.",
     },
     {
-      category: "Refunds, rejections & reapplications",
+      category: "Rejections & reapplications",
       q: "What happens if my application is refused?",
-      a: "MOFA does not disclose refusal reasons, and a new application for the same purpose isn't accepted for 6 months from the refusal date. VIZA refunds its processing fee in full, analyses your file for the likely weak points, and prepares a stronger reapplication the moment the 6-month bar lifts.",
+      a: "MOFA does not disclose refusal reasons, and a new application for the same purpose isn't accepted for 6 months from the refusal date. VIZA charges nothing for its help; your consultant analyses your file for the likely weak points and prepares a stronger reapplication the moment the 6-month bar lifts.",
     },
   ],
 
@@ -200,8 +200,8 @@ export const japan: VisaContent = {
     etaValue: "17 Jun 2026, 02:00 PM",
     title: "Temporary Visitor visa · up to 90 days",
     saving: "Faster than going direct",
-    sub: "All-inclusive of document review, preparation, and on-time guarantee.",
-    foot: "Government fee and VIZA processing are collected together at checkout, backed by our on-time guarantee.",
+    sub: "VIZA's help is free: document review and application preparation. Any visa fee is paid directly to the authorities.",
+    foot: "VIZA's service is free. Any Japan visa fee is paid directly to the issuing authority.",
   },
 
   aiPlaceholder: "Ask anything about Japan visas — eVISA eligibility, fees, Singapore exemption…",
