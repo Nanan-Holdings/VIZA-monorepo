@@ -40,7 +40,7 @@ export const turkiye: VisaContent = {
   ],
   tags: [
     { icon: "bolt", label: "e-Visa issued in minutes" },
-    { icon: "shield", label: "On-time guarantee" },
+    { icon: "shield", label: "Free VIZA service" },
     { icon: "photo", label: "No photo required" },
   ],
 
@@ -92,7 +92,7 @@ export const turkiye: VisaContent = {
     },
     {
       name: "e-Visa application details",
-      sub: "Passport data and travel date, entered at evisa.gov.tr · card payment · no photo or document uploads",
+      sub: "Passport data and travel date, entered at evisa.gov.tr · fee paid by card directly on the portal · no photo or document uploads",
     },
     {
       name: "Return or onward ticket",
@@ -194,17 +194,17 @@ export const turkiye: VisaContent = {
     {
       category: "Application process",
       q: "How much does the e-Visa cost?",
-      a: "Free for Singapore and Chinese passport holders — there's nothing to apply for. For e-Visa nationalities the government fee varies by nationality and travel document (commonly USD 20–90, shown during the application), and is officially cheaper than the visa-on-arrival counters at Turkish airports. VIZA confirms your exact fee before you pay.",
+      a: "Free for Singapore and Chinese passport holders — there's nothing to apply for. For e-Visa nationalities the government fee varies by nationality and travel document (commonly USD 20–90, shown during the application), and is officially cheaper than the visa-on-arrival counters at Turkish airports. VIZA confirms your exact fee, which you pay directly on evisa.gov.tr.",
     },
     {
       category: "Application process",
       q: "How quickly will I receive my e-Visa?",
-      a: "The official portal issues most e-Visas within minutes — the form takes about 3 minutes and the PDF downloads right after payment. The government still advises applying at least 48 hours before departure, and VIZA files with that buffer, backed by our on-time guarantee.",
+      a: "The official portal issues most e-Visas within minutes — the form takes about 3 minutes and the PDF downloads right after payment. The government still advises applying at least 48 hours before departure, and VIZA files with that buffer.",
     },
     {
-      category: "Refunds, rejections & reapplications",
+      category: "Rejections & reapplications",
       q: "What happens if my e-Visa application is refused?",
-      a: "The Türkiye government retains its fee. VIZA's service fee is fully refunded, and your consultant will review the refusal reason and advise on next steps, including the consulate route if your nationality needs it.",
+      a: "The Türkiye government retains its fee. VIZA charges nothing for its help, and your consultant will review the refusal reason and advise on next steps, including the consulate route if your nationality needs it.",
     },
   ],
 
@@ -241,8 +241,8 @@ export const turkiye: VisaContent = {
     etaValue: "12 Jun 2026, 09:32 AM",
     title: "e-Visa · Türkiye",
     saving: "Issued in minutes",
-    sub: "All-inclusive of government fee, document review, and on-time guarantee.",
-    foot: "Government fee and VIZA processing are collected together at checkout, backed by our on-time guarantee.",
+    sub: "VIZA's help is free: document review, form filling, and tracking. Any government fee is paid directly on evisa.gov.tr.",
+    foot: "VIZA's service is free. Any e-Visa fee is paid directly to the Türkiye government.",
   },
 
   aiPlaceholder: "Ask anything about Türkiye entry — visa-free rules, e-Visa fees, the 90/180 rule…",

@@ -49,7 +49,7 @@ export const india: VisaContent = {
   ],
   tags: [
     { icon: "bolt", label: "Fully online" },
-    { icon: "shield", label: "On-time guarantee" },
+    { icon: "shield", label: "Free VIZA service" },
     { icon: "doc", label: "Minimal documents" },
   ],
 
@@ -73,7 +73,7 @@ export const india: VisaContent = {
     },
     {
       title: "Your documents are verified",
-      body: "We reformat your photo to the square white-background spec and your passport scan to the required PDF, then file the application and pay the government fee (plus its 2.5% bank charge) on your behalf.",
+      body: "We reformat your photo to the square white-background spec and your passport scan to the required PDF, then file the application. You pay the government fee (plus its 2.5% bank charge) directly on the official portal, and VIZA pauses at that checkpoint until it is done.",
     },
     {
       title: "Application processed by the Bureau of Immigration",
@@ -187,7 +187,7 @@ export const india: VisaContent = {
     {
       category: "General information",
       q: "What does the India e-Tourist Visa cost?",
-      a: "The government fee for the 30-day e-Tourist Visa is USD 25 (≈ SGD 32) for July–March arrivals, reduced to USD 10 (≈ SGD 13) for April–June, plus a 2.5% bank transaction charge. The 1-year multiple-entry visa is USD 40 (≈ SGD 51) and the 5-year is USD 80 (≈ SGD 102).",
+      a: "The government fee for the 30-day e-Tourist Visa is USD 25 (≈ SGD 32) for July–March arrivals, reduced to USD 10 (≈ SGD 13) for April–June, plus a 2.5% bank transaction charge. The 1-year multiple-entry visa is USD 40 (≈ SGD 51) and the 5-year is USD 80 (≈ SGD 102). You pay these directly on the official portal; VIZA charges nothing for its help.",
     },
     {
       category: "General information",
@@ -197,7 +197,7 @@ export const india: VisaContent = {
     {
       category: "Application process",
       q: "How long does the e-Visa take to process?",
-      a: "Decisions are typically emailed within 72 hours of submission. You can apply up to 120 days before arrival, and the government requires application and payment at least 4 days before travel — anything later is not processed. VIZA backs the timeline with an on-time guarantee.",
+      a: "Decisions are typically emailed within 72 hours of submission. You can apply up to 120 days before arrival, and the government requires application and payment at least 4 days before travel — anything later is not processed. VIZA tracks your application until the decision arrives.",
     },
     {
       category: "Application process",
@@ -210,9 +210,9 @@ export const india: VisaContent = {
       a: "Each traveller requires a separate e-Visa application with their own passport and photograph. VIZA manages multiple applications simultaneously so your family travels on the same timeline.",
     },
     {
-      category: "Refunds, rejections & reapplications",
+      category: "Rejections & reapplications",
       q: "What happens if my e-Visa application is rejected?",
-      a: "The Indian government fee is non-refundable. VIZA's processing fee is fully refunded. Your consultant reviews the rejection reason — most stem from upload quality or data mismatches we correct — and refiles once the issue is resolved.",
+      a: "The Indian government fee is non-refundable. VIZA charges nothing for its help. Your consultant reviews the rejection reason — most stem from upload quality or data mismatches we correct — and refiles once the issue is resolved.",
     },
   ],
 
@@ -230,8 +230,8 @@ export const india: VisaContent = {
     etaValue: "23 Jun 2026, 03:00 PM",
     title: "e-Tourist Visa · 30-day stay",
     saving: "Fully online — no consulate visit",
-    sub: "All-inclusive of document review, photo check, and on-time guarantee.",
-    foot: "Government visa fee is collected at checkout and submitted to indianvisaonline.gov.in; VIZA's service fee covers document preparation, photo compliance, and status monitoring.",
+    sub: "VIZA's help is free: document review, photo check, and status tracking. The government fee is paid directly on the official portal.",
+    foot: "VIZA's service is free. The government visa fee is paid directly on indianvisaonline.gov.in.",
   },
 
   aiPlaceholder: "Ask anything about India e-Visas — documents, photo requirements, entry ports…",

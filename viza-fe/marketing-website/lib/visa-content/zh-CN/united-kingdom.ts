@@ -31,7 +31,7 @@ export const unitedKingdom: VisaContent = {
   ],
   tags: [
     { icon: "bolt", label: "快速通道 · 顾问全程协助" },
-    { icon: "shield", label: "准时保证" },
+    { icon: "shield", label: "VIZA 服务免费" },
     { icon: "doc", label: "材料全面审核" },
   ],
 
@@ -159,7 +159,7 @@ export const unitedKingdom: VisaContent = {
     {
       category: "申请流程",
       q: "英国签证费用是多少？",
-      a: "2026 年 4 月 8 日起：6 个月标准访客签证 GBP 135（新加坡官方价 SGD 240，中国大陆 CNY 1,262）。长期多次往返签证：2 年 GBP 506（SGD 900）、5 年 GBP 903（SGD 1,607）、10 年 GBP 1,128（SGD 2,007），每次入境同样最长停留 6 个月。新加坡护照的 ETA 费用为 GBP 20。",
+      a: "2026 年 4 月 8 日起：6 个月标准访客签证 GBP 135（新加坡官方价 SGD 240，中国大陆 CNY 1,262）。长期多次往返签证：2 年 GBP 506（SGD 900）、5 年 GBP 903（SGD 1,607）、10 年 GBP 1,128（SGD 2,007），每次入境同样最长停留 6 个月。新加坡护照的 ETA 费用为 GBP 20。所有费用均由您直接向英国政府缴纳，VIZA 不收取任何费用。",
     },
     {
       category: "申请流程",
@@ -172,9 +172,9 @@ export const unitedKingdom: VisaContent = {
       a: "需要——签证申请人须前往 VFS Global 签证申请中心采集指纹和面部照片，无需上传照片。中国大陆申请人可在境内 15 个 VFS 中心（含北京、上海、广州、深圳）办理；居住在新加坡的中国护照申请人可使用新加坡的 VFS Global 英国签证中心，并按新元价格缴费。ETA 申请人则完全无需到场，在 UK ETA App 中扫描护照并自拍即可。",
     },
     {
-      category: "退款、拒签与重新申请",
+      category: "拒签与重新申请",
       q: "英国签证被拒后如何处理？",
-      a: "UKVI 拒签后不退还申请费，您将收到说明拒签理由的通知。VIZA 的服务费全额退还，顾问将针对拒签理由（最常见为真实访客要求和资金问题）为您的重新申请提出改进方案。",
+      a: "UKVI 拒签后不退还申请费，您将收到说明拒签理由的通知。VIZA 的协助完全免费，顾问将针对拒签理由（最常见为真实访客要求和资金问题）为您的重新申请提出改进方案。",
     },
   ],
 
@@ -192,8 +192,8 @@ export const unitedKingdom: VisaContent = {
     etaValue: "2026年7月3日 14:00",
     title: "标准访客签证 · 最长 6 个月",
     saving: "顾问全程协助 · 减少延误",
-    sub: "含 UKVI 申请费、材料审核、生物采集预约及准时保证，全包价格。",
-    foot: "UKVI 申请费与 VIZA 服务费在结账时一并收取，并附准时保证。",
+    sub: "VIZA 免费提供材料审核、表格填写及生物采集预约，UKVI 申请费由您直接向 UKVI 缴纳。",
+    foot: "VIZA 服务免费。UKVI 申请费由您直接向英国签证与移民局缴纳。",
   },
 
   aiPlaceholder: "关于英国访客签证，随时提问——材料、处理时间、申请资格……",

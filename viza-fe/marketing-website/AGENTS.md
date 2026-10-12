@@ -24,15 +24,15 @@ pages, and portal checkout links.
   collected by the inline `marketing-click-tracking` script in `app/layout.tsx`.
 - Do not send passport values, emails, phone numbers, names, or checkout prefill
   payloads to analytics. Event metadata should stay coarse: event name, page,
-  country slug, payment method, counts, and non-identifying status fields.
+  country slug, counts, and non-identifying status fields.
 - Visa destination structured data is emitted by
   `components/VisaStructuredData.tsx` and mounted from the rich and fallback visa
   templates.
-- Public display pricing must come from `lib/public-catalogue.ts`. On an
-  unavailable or malformed feed, never restore static prices. Known launch
-  destinations may remain available only when their country/visa pair is
-  explicitly backed by the portal's canonical checkout pricing matrix; the
-  portal checkout remains the final purchase gate.
+- VIZA's service is free; there is no checkout. Never display a VIZA fee,
+  paid upgrade, or refund promise. The only fee shown is the published
+  government fee from `lib/public-catalogue.ts`, labelled as paid directly to
+  the issuing authority. On an unavailable or malformed feed, never restore
+  static prices.
 - Public service availability comes from `lib/public-status.ts`, the
   agent-backend `/api/public/status` snapshot, and the same-site
   `app/api/status/route.ts` refresh proxy. The status UI must show missing or

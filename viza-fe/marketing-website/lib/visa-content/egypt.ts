@@ -48,7 +48,7 @@ export const egypt: VisaContent = {
   ],
   tags: [
     { icon: "bolt", label: "Filed within 24 hrs" },
-    { icon: "shield", label: "On-time guarantee" },
+    { icon: "shield", label: "Free VIZA service" },
     { icon: "doc", label: "Minimal documents" },
   ],
 
@@ -68,7 +68,7 @@ export const egypt: VisaContent = {
   steps: [
     {
       title: "Apply on VIZA",
-      body: "Upload your passport bio page, a passport-style photo, and your travel dates. The government fee is USD 30 (single-entry) or USD 65 (multiple-entry) — no embassy visit required.",
+      body: "Upload your passport bio page, a passport-style photo, and your travel dates. The government fee is USD 30 (single-entry) or USD 65 (multiple-entry), paid by you directly on the official portal. No embassy visit required.",
     },
     {
       title: "Your documents are verified",
@@ -176,17 +176,17 @@ export const egypt: VisaContent = {
     {
       category: "Application process",
       q: "How long does the Egypt e-Visa take?",
-      a: "Approvals typically take 5 – 7 business days, longer in peak season, and the official portal asks applicants to file at least 7 days before departure. The embassy route takes 10+ business days. VIZA files your application within 24 hours, tracks it daily, and backs the timeline with an on-time guarantee — your money back if we're late.",
+      a: "Approvals typically take 5 – 7 business days, longer in peak season, and the official portal asks applicants to file at least 7 days before departure. The embassy route takes 10+ business days. VIZA files your application within 24 hours and tracks it daily.",
     },
     {
       category: "Application process",
-      q: "Can I apply for my whole family in one order?",
+      q: "Can I apply for my whole family in one application?",
       a: "Yes. Add each traveller during the application — your consultant submits them together so approvals arrive on the same timeline.",
     },
     {
-      category: "Refunds, rejections & reapplications",
+      category: "Rejections & reapplications",
       q: "What happens if my Egypt e-Visa is rejected?",
-      a: "Egyptian authorities retain the government fee on rejection. VIZA's service fee is fully refunded, and your consultant will review the refusal reason with you — usually a passport-data mismatch or an unreadable scan — and help you reapply once it's fixed.",
+      a: "Egyptian authorities keep the government fee on rejection. VIZA charges nothing for its help, and your consultant will review the refusal reason with you — usually a passport-data mismatch or an unreadable scan — and help you reapply once it's fixed.",
     },
   ],
 
@@ -202,8 +202,8 @@ export const egypt: VisaContent = {
     etaValue: "12 Jul 2026, 02:15 PM",
     title: "Tourist e-Visa · 30-day stay",
     saving: "5+ days faster than embassy",
-    sub: "All-inclusive of government fee, document review, and on-time guarantee.",
-    foot: "Government fee and VIZA processing are collected together at checkout, backed by our on-time guarantee.",
+    sub: "VIZA's help is free: document review, form filling, and tracking. The government fee is paid directly on the official portal.",
+    foot: "VIZA's service is free. The e-Visa fee is paid directly to the Egyptian authorities on visa2egypt.gov.eg.",
   },
 
   aiPlaceholder: "Ask anything about Egypt visas — fees, processing, documents…",

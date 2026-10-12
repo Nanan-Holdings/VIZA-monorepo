@@ -56,7 +56,7 @@ export const australia: VisaContent = {
   ],
   tags: [
     { icon: "bolt", label: "Expert-prepared application" },
-    { icon: "shield", label: "On-time guarantee" },
+    { icon: "shield", label: "Free VIZA service" },
     { icon: "doc", label: "Full document review" },
   ],
 
@@ -189,7 +189,7 @@ export const australia: VisaContent = {
     {
       category: "Application process",
       q: "How much does the visa cost?",
-      a: "From 1 July 2026, the subclass 600 Tourist stream government charge is AUD 250 (≈ SGD 220) applying from outside Australia, or AUD 630 (≈ SGD 555) onshore. The ETA (601) has no visa charge — just a AUD 20 (≈ SGD 18) app service fee. The fee is locked at the rate on your lodgement date.",
+      a: "From 1 July 2026, the subclass 600 Tourist stream government charge is AUD 250 (≈ SGD 220) applying from outside Australia, or AUD 630 (≈ SGD 555) onshore. The ETA (601) has no visa charge — just a AUD 20 (≈ SGD 18) app service fee. The fee is locked at the rate on your lodgement date and is paid directly to Home Affairs. VIZA charges nothing for its help.",
     },
     {
       category: "Application process",
@@ -198,13 +198,13 @@ export const australia: VisaContent = {
     },
     {
       category: "Application process",
-      q: "Can I apply for family members in one order?",
+      q: "Can I apply for family members in one application?",
       a: "Yes. Each traveller requires their own application, but your VIZA consultant coordinates them so they are lodged together and reviewed on the same timeline. Children under 18 need extra documents — a birth certificate naming both parents and Form 1229 consent if a parent isn't travelling.",
     },
     {
-      category: "Refunds, rejections & reapplications",
+      category: "Rejections & reapplications",
       q: "What if my application is refused?",
-      a: "The Department of Home Affairs retains the government application fee on refusal. VIZA's service fee is fully refunded. Your consultant will review the refusal reasons with you — most commonly the genuine-visitor requirement — and advise on strengthening a future application.",
+      a: "The Department of Home Affairs keeps the visa charge you paid it on refusal. VIZA charges nothing for its help. Your consultant will review the refusal reasons with you — most commonly the genuine-visitor requirement — and advise on strengthening a future application.",
     },
   ],
 
@@ -224,8 +224,8 @@ export const australia: VisaContent = {
     etaValue: "21 Jun 2026, 02:15 PM",
     title: "Visitor 600 · Tourist stream · up to 12-month validity",
     saving: "Decision-ready first time",
-    sub: "All-inclusive of government fee, document preparation, and on-time guarantee.",
-    foot: "Government fee and VIZA processing are collected together at checkout, backed by our on-time guarantee.",
+    sub: "VIZA's help is free: document preparation, form filling, and tracking. The visa charge is paid directly to Home Affairs.",
+    foot: "VIZA's service is free. Any government visa charge is paid directly to the Department of Home Affairs.",
   },
 
   aiPlaceholder: "Ask anything about Australia visas — fees, processing, documents…",

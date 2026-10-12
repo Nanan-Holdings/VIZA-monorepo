@@ -25,7 +25,7 @@ export const indonesia: VisaContent = {
   ],
   tags: [
     { icon: "bolt", label: "Fast track · in 24 hrs" },
-    { icon: "shield", label: "On-time guarantee" },
+    { icon: "shield", label: "Free VIZA service" },
     { icon: "doc", label: "Minimal documents" },
   ],
 
@@ -45,7 +45,7 @@ export const indonesia: VisaContent = {
   steps: [
     {
       title: "Apply on VIZA",
-      body: "Upload your passport, a recent photo, and your travel dates. Pay only the government fee upfront — VIZA’s processing fee is charged on approval.",
+      body: "Upload your passport, a recent photo, and your travel dates. VIZA’s help is free. When the government fee is due, your application pauses so you can pay it directly to Indonesian Immigration.",
     },
     {
       title: "Your documents are verified",
@@ -144,7 +144,7 @@ export const indonesia: VisaContent = {
     {
       category: "Application process",
       q: "How long does VIZA take to process an e-VOA?",
-      a: "Most e-VOAs are delivered within 24 hours. Filing direct with Immigration typically takes 2 – 3 days. We back the timeline with an on-time guarantee — your money back if we’re late.",
+      a: "Most e-VOAs are delivered within 24 hours. Filing direct with Immigration typically takes 2 to 3 days. Processing time is ultimately set by Immigration, and VIZA tracks every step so you see delays early.",
     },
     {
       category: "Application process",
@@ -152,9 +152,9 @@ export const indonesia: VisaContent = {
       a: "Yes. Add each traveller in the application — your consultant submits them together so they’re approved on the same timeline.",
     },
     {
-      category: "Refunds, rejections & reapplications",
+      category: "Rejections & reapplications",
       q: "What happens if my e-VOA is rejected?",
-      a: "Indonesian Immigration retains the government fee. VIZA’s processing fee is fully refunded, and your consultant will help you understand the rejection notice and reapply once eligible.",
+      a: "Indonesian Immigration keeps any government fee you paid to it. VIZA charges nothing for its help, and your consultant will help you understand the rejection notice and reapply once eligible.",
     },
   ],
 
@@ -169,8 +169,8 @@ export const indonesia: VisaContent = {
     etaValue: "9 May 2026, 03:03 PM",
     title: "e-VOA · 30-day stay",
     saving: "21 hrs faster",
-    sub: "All-inclusive of government fee, document review, and on-time guarantee.",
-    foot: "Government fee and VIZA processing are collected together at checkout, backed by our on-time guarantee.",
+    sub: "VIZA’s help is free: document review, form filling, and tracking. The government fee is paid directly to Immigration.",
+    foot: "VIZA’s service is free. The e-VOA government fee is paid directly to Indonesian Immigration.",
   },
 
   aiPlaceholder: "Ask anything about Indonesia visas — fees, processing, documents…",

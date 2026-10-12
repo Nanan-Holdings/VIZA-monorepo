@@ -4,7 +4,7 @@ import { useLocale, useTranslations } from "next-intl";
 import SiteNav from "@/components/SiteNav";
 import SiteFooter from "@/components/SiteFooter";
 import { visaHref, type CountryMeta } from "@/lib/countries";
-import { displayFeeSGD, totalSgd } from "@/lib/pricing";
+import { displayGovernmentFeeSgd } from "@/lib/pricing";
 import { useCatalogue, type CatalogueCountry } from "@/components/CatalogueProvider";
 import "./visa-template.css";
 import VisaStructuredData from "@/components/VisaStructuredData";
@@ -25,7 +25,7 @@ export default function VisaCountryTemplate({ country }: { country: CountryMeta 
   const locale = useLocale();
   const { launchedCountries } = useCatalogue();
   const applyHref = `${locale === "en" ? "" : `/${locale}`}/apply?country=${encodeURIComponent(country.slug)}`;
-  const fee = totalSgd(country.pricing) === 0 ? t("priceFree") : displayFeeSGD(country.pricing) ?? t("seePricing");
+  const govFee = displayGovernmentFeeSgd(country.pricing);
   const nearby = launchedCountries.filter((c) => c.slug !== country.slug).slice(0, 4);
   // Localized name/type with English data as the fallback.
   const localName = tc.has(country.slug) ? tc(country.slug) : country.name;
@@ -50,7 +50,7 @@ export default function VisaCountryTemplate({ country }: { country: CountryMeta 
             <div className="vt-badges">
               <span className="vt-badge">{localType}</span>
               <span className="vt-badge">{t("validity")}: {country.validity}</span>
-              <span className="vt-badge">{t("fromFee", { fee })}</span>
+              <span className="vt-badge">{t("freeService")}</span>
             </div>
           </div>
         </header>
@@ -95,9 +95,12 @@ export default function VisaCountryTemplate({ country }: { country: CountryMeta 
           <aside className="vt-side">
             <div className="vt-price-card">
               <div className="vt-price">
-                {fee}
-                <small>{t("allInclusive")}</small>
+                {t("priceFree")}
+                <small>{t("freeServiceNote")}</small>
               </div>
+              <p className="vt-gov-fee">
+                {govFee ? t("govFeePaidDirect", { fee: govFee }) : t("govFeeSetByAuthority")}
+              </p>
               <div className="vt-cta">
                 <a className="vt-btn" href={applyHref}>
                   {t("startApplication")}

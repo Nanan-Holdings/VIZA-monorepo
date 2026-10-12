@@ -21,6 +21,7 @@
 .vt-price-card { border: 1px solid #ececec; border-radius: 16px; padding: 20px; box-shadow: 0 6px 24px rgba(0,0,0,.05); }
 .vt-price { font-size: 2rem; font-weight: 700; }
 .vt-price small { font-size: .8rem; font-weight: 400; color: #888; display: block; }
+.vt-gov-fee { font-size: .8rem; color: #666; margin: 8px 0 0; line-height: 1.5; }
 .vt-cta { display: grid; gap: 10px; margin-top: 16px; }
 .vt-nearby { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
 .vt-nearby a { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid #ececec; border-radius: 10px; text-decoration: none; color: inherit; }

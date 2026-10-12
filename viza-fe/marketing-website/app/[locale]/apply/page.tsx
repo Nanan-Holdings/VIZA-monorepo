@@ -1,11 +1,11 @@
 "use client";
 import "./apply.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { CircleFlag } from "react-circle-flags";
 import SiteNav from "@/components/SiteNav";
-import { PayByCardButton } from "@/components/PayByCardButton";
-import { WechatPayButton } from "@/components/WechatPayButton";
+import { StartApplicationButton } from "@/components/StartApplicationButton";
+import { governmentFeeSgd } from "@/lib/pricing";
 import { useCatalogue } from "@/components/CatalogueProvider";
 import ComingSoon from "@/components/ComingSoon";
 import SiteFooter from "@/components/SiteFooter";
@@ -33,7 +33,7 @@ type PassportExtraction = {
 type ExtractStage = "idle" | "reading" | "extracting" | "verifying" | "done";
 
 /**
- * The six identity fields the visitor must confirm before checkout. Every
+ * The six identity fields the visitor must confirm before starting. Every
  * one is required — extraction may leave any of them empty (partial read),
  * in which case the field opens in edit mode and blocks step 2 → 3.
  */
@@ -74,11 +74,6 @@ const KNOWN_WARNINGS = ["expired", "unreadable_mrz", "photo_too_blurry"] as cons
 type KnownWarning = (typeof KNOWN_WARNINGS)[number];
 
 type Step = 1 | 2 | 3;
-type Speed = "standard" | "express" | "superrush";
-type Addon = "insurance" | "esim";
-
-const SPEED_PRICE: Record<Speed, number> = { standard: 0, express: 28, superrush: 89 };
-const ADDON_PRICE: Record<Addon, number> = { insurance: 32, esim: 12 };
 
 const TEST_CHECKOUT_VISA_TYPE = "TEST_CHECKOUT";
 const TEST_CHECKOUT_PASSPORT: PassportExtraction = {
@@ -157,7 +152,7 @@ const PencilIcon = () => (
  * One cell of the passport review card. Displays the extracted value with a
  * hover pencil; clicking the pencil (or being flagged missing after a
  * partial scan) swaps the value for an inline input/select. Missing fields
- * are highlighted and block the continue-to-checkout action.
+ * are highlighted and block the continue action.
  */
 function ReviewField({
   label,
@@ -232,7 +227,7 @@ export default function ApplyPage() {
   const { countryBySlug } = useCatalogue();
 
   // The wizard is country-aware: /apply?country=<slug> drives the destination
-  // identity (name, flag, visa type) and the final-step checkout deep-links.
+  // identity (name, flag, visa type) and the final-step portal hand-off.
   // Defaults to Indonesia for a bare /apply (back-compat). Read from the URL on
   // the client to keep this page statically renderable.
   const [countrySlug, setCountrySlug] = useState("indonesia");
@@ -241,10 +236,9 @@ export default function ApplyPage() {
     if (c && countryBySlug(c)) setCountrySlug(c);
   }, [countryBySlug]);
   const country = countryBySlug(countrySlug) ?? countryBySlug("indonesia")!;
-  const publishedPricing = country.pricing;
+  const govFeeSgd = governmentFeeSgd(country.pricing);
   const isTestCheckout = country.visaType === TEST_CHECKOUT_VISA_TYPE;
 
-  const locale = useLocale();
   const tA = useTranslations("apply");
   const tc = useTranslations("countries");
   const countryName = tc.has(country.slug) ? tc(country.slug) : country.name;
@@ -253,17 +247,10 @@ export default function ApplyPage() {
   const [step, setStep] = useState<Step>(1);
   const [uploadMode, setUploadMode] = useState<"upload" | "capture">("upload");
   const [dragOver, setDragOver] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(2);
-  const [speed, setSpeed] = useState<Speed>("express");
-  const [addons, setAddons] = useState<Record<Addon, boolean>>({ insurance: false, esim: false });
 
   const goStep = useCallback((n: Step) => {
     setStep(n);
     window.scrollTo({ top: 0, behavior: "smooth" });
-  }, []);
-
-  const toggleAddon = useCallback((a: Addon) => {
-    setAddons((prev) => ({ ...prev, [a]: !prev[a] }));
   }, []);
 
   const [extractStage, setExtractStage] = useState<ExtractStage>("idle");
@@ -292,11 +279,9 @@ export default function ApplyPage() {
     setScanOutcome("success");
     setScanFailure(null);
     setExtractStage("done");
-    setSpeed("standard");
-    setAddons({ insurance: false, esim: false });
   }, [isTestCheckout]);
 
-  // Contact details (step 2) — required before checkout.
+  // Contact details (step 2), required before starting.
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [dialCode, setDialCode] = useState("+65");
@@ -444,41 +429,13 @@ export default function ApplyPage() {
     setDragOver(false);
   }, []);
 
-  // -------------- STEP 3: dates (base date fixed to the demo window) --------------
-  const isZh = locale.toLowerCase().startsWith("zh");
-  const dayNames = isZh
-    ? ["周日", "周一", "周二", "周三", "周四", "周五", "周六"]
-    : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const monthNames = isZh
-    ? ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"]
-    : ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const arrivalDates = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(today);
-      d.setDate(today.getDate() + i);
-      return d;
-    });
-  }, []);
-
-  // -------------- DERIVED PRICING / SUMMARY --------------
-  const summaryGovFee = (publishedPricing?.governmentFeeMinor ?? 0) / 100;
-  const summaryVizaFee = (publishedPricing?.agencyFeeMinor ?? 0) / 100;
-  const summaryDiscount = (publishedPricing?.firstTimeDiscountMinor ?? 0) / 100;
-  const speedAdd = isTestCheckout ? 0 : SPEED_PRICE[speed];
-  const addonsAdd = isTestCheckout ? 0 : (addons.insurance ? ADDON_PRICE.insurance : 0) + (addons.esim ? ADDON_PRICE.esim : 0);
-  const total = summaryGovFee + summaryVizaFee - summaryDiscount + speedAdd + addonsAdd;
-
-  const upgradeParts: string[] = [];
-  if (!isTestCheckout && speed !== "standard") upgradeParts.push(speed === "express" ? tA("express") : tA("superRush"));
-  if (!isTestCheckout && addons.insurance) upgradeParts.push(tA("insurance"));
-  if (!isTestCheckout && addons.esim) upgradeParts.push(tA("esim"));
-
-  const sumEta =
-    speed === "standard" ? tA("etaStandard") :
-    speed === "superrush" ? tA("etaSuperrush") :
-    tA("etaExpress");
+  // -------------- SUMMARY --------------
+  // VIZA's service is free. Only a government fee (if the authority charges
+  // one) remains, and the applicant pays it directly to that authority.
+  const govFeeLabel =
+    govFeeSgd == null ? tA("govFeeSetByAuthority") :
+    govFeeSgd === 0 ? tA("totalFree") :
+    tA("totalAmount", { amount: govFeeSgd.toFixed(2) });
 
   // -------------- DERIVED EXTRACTION VIEW STATE --------------
   const isUploading = !isTestCheckout && extractStage !== "idle";
@@ -500,15 +457,13 @@ export default function ApplyPage() {
   };
   const stepNext: Record<Step, string> = {
     1: tA("continue"),
-    2: tA("continueToCheckout"),
+    2: tA("continueToStart"),
     3: tA("continue"),
   };
 
-  // Step 3 = checkout: payment method is chosen via the inline card/WeChat
-  // buttons, so the bottom Next button is hidden there (label kept in sync
-  // with the running total to mirror the ported design).
+  // Step 3 hands off to the portal through the inline start button, so the
+  // bottom Next button is hidden there.
   const nextLabel =
-    step === 3 ? (total === 0 ? tA("payFree") : tA("payAmount", { amount: total.toFixed(2) })) :
     step === 1 && isUploading ? stageBtnLabel :
     stepNext[step];
 
@@ -522,44 +477,6 @@ export default function ApplyPage() {
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const phoneValid = phone.replace(/\D/g, "").length >= 5;
   const step2Valid = missingFields.length === 0 && emailValid && phoneValid && consent;
-
-  const fullName = `${fields.givenNames} ${fields.surname}`.trim();
-
-  // Wizard payload for the portal checkout: everything the visitor gave us
-  // (passport OCR + corrections, phone, arrival date, tier, add-ons),
-  // base64url-encoded so it survives as one opaque query param. The portal
-  // decodes and persists it server-side (lib/checkout/prefill.ts) so the
-  // OCR work isn't thrown away at the payment hand-off.
-  const checkoutPrefill = useMemo(() => {
-    const arrival = arrivalDates[selectedDate];
-    const iso = (d: Date) =>
-      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    const payload = {
-      surname: fields.surname || undefined,
-      givenNames: fields.givenNames || undefined,
-      passportNumber: fields.passportNumber || undefined,
-      dob: fields.dob || undefined,
-      nationality: fields.nationality || undefined,
-      expiryDate: fields.expiryDate || undefined,
-      issueDate: extracted?.issueDate || undefined,
-      issuingCountry: extracted?.issuingCountry || undefined,
-      sex: extracted?.sex || undefined,
-      phone: phone.trim() ? `${dialCode} ${phone.trim()}` : undefined,
-      arrivalDate: arrival ? iso(arrival) : undefined,
-      speed,
-      addons: (Object.keys(addons) as Addon[]).filter((a) => addons[a]),
-    };
-    try {
-      const json = JSON.stringify(payload);
-      // UTF-8-safe base64url (btoa alone chokes on non-Latin-1 names).
-      const bytes = new TextEncoder().encode(json);
-      let bin = "";
-      bytes.forEach((b) => { bin += String.fromCharCode(b); });
-      return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-    } catch {
-      return undefined;
-    }
-  }, [fields, extracted, phone, dialCode, arrivalDates, selectedDate, speed, addons]);
 
   const onBack = useCallback(() => {
     setStep((s) => {
@@ -581,8 +498,7 @@ export default function ApplyPage() {
       goStep(2);
       return;
     }
-    // Step 3 is the checkout step — payment method (card / WeChat) is chosen
-    // via the inline buttons that deep-link to the portal checkout, so the
+    // Step 3 hands off to the portal through the inline start button, so the
     // bottom Next button does nothing here (it is also hidden).
     if (step === 3) return;
     if (step === 2) {
@@ -599,8 +515,6 @@ export default function ApplyPage() {
       trackEvent("apply_start", {
         destination_country: countrySlug,
         entry_point: "passport_review_complete",
-        selected_speed: speed,
-        addon_count: (Object.keys(addons) as Addon[]).filter((a) => addons[a]).length,
       });
       try {
         sessionStorage.setItem(
@@ -616,7 +530,7 @@ export default function ApplyPage() {
       }
     }
     goStep((step + 1) as Step);
-  }, [canProceed, step, isTestCheckout, goStep, step2Valid, missingFields, extracted, fields, email, dialCode, phone, countrySlug, speed, addons]);
+  }, [canProceed, step, isTestCheckout, goStep, step2Valid, missingFields, extracted, fields, email, dialCode, phone, countrySlug]);
 
   const showWarning = scanOutcome === "partial";
   const knownWarnings = (extracted?.warnings ?? []).filter((w): w is KnownWarning =>
@@ -996,12 +910,12 @@ export default function ApplyPage() {
                   font: "500 13px/1.45 var(--font-sans)",
                 }}
               >
-                {tA("completeBeforeCheckout")}
+                {tA("completeBeforeStart")}
               </div>
             )}
           </section>
 
-          {/* ============= STEP 3: CHECKOUT ============= */}
+          {/* ============= STEP 3: START ============= */}
           <section className={`step step-pane${step === 3 ? " active" : ""}`} data-pane="3">
             <header className="step-head">
               <div className="step-eyebrow">{tA("stepOf", { n: 3 })}</div>
@@ -1009,83 +923,19 @@ export default function ApplyPage() {
               <p>{tA("s3Desc")}</p>
             </header>
 
-            <h2 className="checkout-h2">{tA("arrival", { country: countryName })}</h2>
-            <div className="date-strip" id="dateStrip">
-              {arrivalDates.map((d, i) => (
-                <div
-                  key={i}
-                  className={`date-pill${i === selectedDate ? " active" : ""}`}
-                  data-d={i}
-                  onClick={() => setSelectedDate(i)}
-                >
-                  <div className="dow">{dayNames[d.getDay()]}</div>
-                  <div className="day">{d.getDate()}</div>
-                  <div className="mon">{monthNames[d.getMonth()]}</div>
-                </div>
-              ))}
-            </div>
-
-            <h2 className="checkout-h2">{tA("speed")}</h2>
-            <div id="speedGroup">
-              <div className={`upgrade${speed === "standard" ? " active" : ""}`} data-up="standard" data-group="speed" onClick={() => setSpeed("standard")}>
-                <div className="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
-                <div className="txt"><div className="tt">{tA("stdTitle")}</div><div className="ts">{tA("stdSub")}</div></div>
-                <div className="price"><span className="free">{tA("included")}</span></div>
-                <div className="check"><CheckMark /></div>
-              </div>
-              <div className={`upgrade${speed === "express" ? " active" : ""}`} data-up="express" data-group="speed" onClick={() => setSpeed("express")}>
-                <div className="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
-                <div className="txt"><div className="tt">{tA("expTitle")} <span className="recom">{tA("recommended")}</span></div><div className="ts">{tA("expSub")}</div></div>
-                <div className="price">+ SGD 28</div>
-                <div className="check"><CheckMark /></div>
-              </div>
-              <div className={`upgrade${speed === "superrush" ? " active" : ""}`} data-up="superrush" data-group="speed" onClick={() => setSpeed("superrush")}>
-                <div className="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg></div>
-                <div className="txt"><div className="tt">{tA("rushTitle")}</div><div className="ts">{tA("rushSub")}</div></div>
-                <div className="price">+ SGD 89</div>
-                <div className="check"><CheckMark /></div>
-              </div>
-            </div>
-
-            <h2 className="checkout-h2">{tA("addons")}</h2>
-            <div>
-              <div className={`upgrade${addons.insurance ? " active" : ""}`} data-up="insurance" onClick={() => toggleAddon("insurance")}>
-                <div className="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
-                <div className="txt"><div className="tt">{tA("insTitle")}</div><div className="ts">{tA("insSub")}</div></div>
-                <div className="price">+ SGD 32</div>
-                <div className="check"><CheckMark /></div>
-              </div>
-              <div className={`upgrade${addons.esim ? " active" : ""}`} data-up="esim" onClick={() => toggleAddon("esim")}>
-                <div className="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/></svg></div>
-                <div className="txt"><div className="tt">{tA("esimTitle", { country: countryName })}</div><div className="ts">{tA("esimSub")}</div></div>
-                <div className="price">+ SGD 12</div>
-                <div className="check"><CheckMark /></div>
-              </div>
-            </div>
-
             <div className="info-strip">
               <svg className="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
               <div><strong>{tA("headsUp")}</strong> {tA("headsUpBody", { country: countryName })}</div>
             </div>
 
-            <h2 className="checkout-h2">{tA("payTitle")}</h2>
+            <h2 className="checkout-h2">{tA("startTitle")}</h2>
             <p style={{ fontSize: '13px', color: 'var(--fg-2)', margin: '-8px 0 14px', lineHeight: '1.5' }}>
-              {tA("paySub")}
+              {tA("startSub")}
             </p>
             <div style={{ display: 'grid', gap: '10px', maxWidth: '420px' }}>
-              <PayByCardButton
+              <StartApplicationButton
                 country={country.portalCountry}
                 visaType={country.visaType}
-                email={email.trim() || undefined}
-                fullName={fullName || undefined}
-                prefill={checkoutPrefill}
-              />
-              <WechatPayButton
-                country={country.portalCountry}
-                visaType={country.visaType}
-                email={email.trim() || undefined}
-                fullName={fullName || undefined}
-                prefill={checkoutPrefill}
               />
             </div>
           </section>
@@ -1104,28 +954,17 @@ export default function ApplyPage() {
 
           <div className="sum-eta">
             <div className="lab">{tA("guaranteedBy")}</div>
-            <div className="val" id="sumEta">{sumEta}</div>
-            <div className="sub"><span className="dot"></span> {tA("onTimeRefund")}</div>
+            <div className="val" id="sumEta">{tA("etaStandard")}</div>
           </div>
 
-          {publishedPricing ? (
-            <>
-              <div className="price-row"><span className="k">{tA("govFee")}</span><span className="v">{tA("totalAmount", { amount: summaryGovFee.toFixed(2) })}</span></div>
-              <div className="price-row"><span className="k">{tA("vizaProcessing")}</span><span className="v">{tA("totalAmount", { amount: summaryVizaFee.toFixed(2) })}</span></div>
-            </>
-          ) : null}
-          <div className="price-row" id="sumExpressRow">
-            <span className="k">{upgradeParts.length ? upgradeParts.join(" + ") : tA("upgrades")}</span>
-            <span className="v">{upgradeParts.length ? tA("upgradeAmount", { amount: (speedAdd + addonsAdd).toFixed(2) }) : "—"}</span>
-          </div>
-          {summaryDiscount > 0 && (
-            <div className="price-row discount"><span className="k">{tA("firstDiscount")}</span><span className="v">−{tA("totalAmount", { amount: summaryDiscount.toFixed(2) })}</span></div>
-          )}
+          <div className="price-row"><span className="k">{tA("vizaService")}</span><span className="v">{tA("totalFree")}</span></div>
+          <div className="price-row"><span className="k">{tA("govFee")}</span><span className="v">{govFeeLabel}</span></div>
 
           <div className="price-total">
             <span className="k">{tA("total")}</span>
-            <span className="v" id="sumTotal">{publishedPricing ? (total === 0 ? tA("totalFree") : tA("totalAmount", { amount: total.toFixed(2) })) : tA("pricingAtCheckout")}</span>
+            <span className="v" id="sumTotal">{tA("totalFree")}</span>
           </div>
+          <p style={{ fontSize: '12px', color: 'var(--fg-2)', margin: '6px 0 0', lineHeight: '1.5' }}>{tA("govFeeNote")}</p>
 
           <div className="price-foot">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flex: '0 0 auto', marginTop: '1px' }}><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>

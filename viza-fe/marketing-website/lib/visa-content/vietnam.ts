@@ -50,7 +50,7 @@ export const vietnam: VisaContent = {
   ],
   tags: [
     { icon: "bolt", label: "Fast track · in 72 hrs" },
-    { icon: "shield", label: "On-time guarantee" },
+    { icon: "shield", label: "Free VIZA service" },
     { icon: "doc", label: "Minimal documents" },
   ],
 
@@ -185,12 +185,12 @@ export const vietnam: VisaContent = {
     {
       category: "Application process",
       q: "How much does the Vietnam e-Visa cost?",
-      a: "The government fee is USD 25 for single entry (≈ SGD 32) or USD 50 for multiple entry (≈ SGD 64), charged in VND at conversion and non-refundable even if the application is refused. VIZA's processing fee is collected together with it at checkout and refunded in full if your visa is refused or we miss the timeline.",
+      a: "The government fee is USD 25 for single entry (≈ SGD 32) or USD 50 for multiple entry (≈ SGD 64), charged in VND at conversion and non-refundable even if the application is refused. You pay it directly on the official e-Visa portal. VIZA's help is free.",
     },
     {
       category: "Application process",
       q: "How long does processing take?",
-      a: "The Immigration Department's official turnaround is 3 working days after receiving a complete application and fee. Around peak seasons and Vietnamese public holidays (Tet, 30 Apr – 1 May, 2 Sep) expect 3–7 working days. VIZA monitors your application throughout and backs the timeline with an on-time guarantee — your processing fee is refunded if we're late.",
+      a: "The Immigration Department's official turnaround is 3 working days after receiving a complete application and fee. Around peak seasons and Vietnamese public holidays (Tet, 30 Apr – 1 May, 2 Sep) expect 3–7 working days. VIZA monitors your application throughout.",
     },
     {
       category: "Application process",
@@ -198,9 +198,9 @@ export const vietnam: VisaContent = {
       a: "Yes. Each traveller needs their own e-Visa, but you can add all members of your group in a single VIZA application. Your consultant submits them together so approvals arrive on the same timeline.",
     },
     {
-      category: "Refunds, rejections & reapplications",
+      category: "Rejections & reapplications",
       q: "What happens if my Vietnam e-Visa is refused?",
-      a: "Vietnam Immigration retains the government fee on refusal — it is non-refundable by regulation. VIZA's processing fee is fully refunded. Your consultant will review the refusal reason (most are fixable upload or data-entry issues) and resubmit a corrected application.",
+      a: "Vietnam Immigration retains the government fee on refusal — it is non-refundable by regulation. VIZA charges nothing for its help. Your consultant will review the refusal reason (most are fixable upload or data-entry issues) and resubmit a corrected application.",
     },
   ],
 
@@ -217,8 +217,8 @@ export const vietnam: VisaContent = {
     etaValue: "6 Jul 2026, 11:00 AM",
     title: "e-Visa (EV) · up to 90 days",
     saving: "2 days faster than filing direct",
-    sub: "All-inclusive of government fee, document review, and on-time guarantee.",
-    foot: "Government fee and VIZA processing are collected together at checkout, backed by our on-time guarantee.",
+    sub: "VIZA's help is free: document review, form filling, and tracking. The government fee is paid directly on the official portal.",
+    foot: "VIZA's service is free. The e-Visa fee is paid directly to the Vietnam Immigration Department.",
   },
 
   aiPlaceholder: "Ask anything about Vietnam e-Visas — single vs. multiple entry, processing time, documents…",

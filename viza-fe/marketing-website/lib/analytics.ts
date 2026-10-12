@@ -5,7 +5,7 @@ export type MarketingEvent =
   | "passport_scan_start"
   | "passport_scan_complete"
   | "lead_submit"
-  | "checkout_start"
+  | "application_handoff"
   | "portal_click"
   | "contact_channel_click"
   | "visa_page_view";

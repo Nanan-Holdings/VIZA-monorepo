@@ -25,8 +25,8 @@ is no bespoke per-country page. The pieces:
   for known routes; a launched entry must match the portal's canonical pricing
   matrix.
 - `lib/public-catalogue.ts` + `components/CatalogueProvider.tsx` — fail-closed
-  SGD price snapshots from the portal catalogue API, overlaid onto the reviewed
-  checkout-backed availability list.
+  catalogue snapshots from the portal API (availability plus the published
+  government fee), overlaid onto the reviewed availability list.
 - `lib/visa-content/<slug>.ts` — the rich `VisaContent` (hero, overview, process,
   documents, rejection reasons, entry/exit, extension, reviews, FAQ, sources, price copy).
   `lib/visa-content/types.ts` is the schema; `indonesia.ts` is the reference.
@@ -35,10 +35,11 @@ is no bespoke per-country page. The pieces:
   `app/[locale]/visa/[country]/page.tsx` resolves the slug: launched + has content →
   `VisaCountryRich`; launched without content yet → thin `VisaCountryTemplate` fallback;
   unlaunched/unknown → `ComingSoon`.
-- Price card numbers are computed from the published snapshot by
-  `lib/pricing.ts`; there is no hand-maintained marketing price mirror. When a
-  snapshot is unavailable, the known route remains applicable but shows pricing
-  only at checkout.
+- VIZA's service is free (payments were retired on 2026-09-15, see
+  `architecture.payment`). Price cards show "VIZA service: Free" and, when the
+  published snapshot has one, the government fee via `lib/pricing.ts`, always
+  labelled as paid directly to the issuing authority. Never show a VIZA fee,
+  "all-inclusive" totals, paid upgrades, or refund promises.
 
 ### Adding a new visa destination
 
@@ -60,21 +61,19 @@ is no bespoke per-country page. The pieces:
 ## Application flow
 
 Country pages show a **single** "Start application" CTA → `/apply?country=<slug>`. The
-`/apply` wizard (`app/[locale]/apply/page.tsx`) is country-aware and ends with the payment
-choice: card / WeChat buttons deep-link to the portal checkout. Payment always happens
-*after* the application is started — no pay buttons on the country pages themselves.
+`/apply` wizard (`app/[locale]/apply/page.tsx`) is country-aware and ends with a free
+hand-off to the portal application. There is no checkout and nothing to pay VIZA.
 
 ## Shared CTA components
 
-- `components/PayByCardButton.tsx` / `components/WechatPayButton.tsx` — deep-link to the
-  portal's guest checkout (`portalUrl('/checkout/{card|wechat}?country=&visa=&locale=')`).
-  Used **only** on the final step of `/apply`, never on country/landing pages. Marketing-side
-  has zero payment / SDK imports — the buttons are plain `<a>`. The `wechat` / `wechat-hover`
-  tailwind colors are third-party brand tokens used **only** by the WeChat CTA; do not reuse them.
+- `components/StartApplicationButton.tsx` deep-links to the portal application
+  (`portalUrl('/client/application?country=&visaType=')`). Signed-out visitors are sent to
+  portal login with `returnTo` and come back to that destination. Used **only** on the final
+  step of `/apply`. It is a plain `<a>`; the marketing site has zero payment or auth SDK imports.
 
 ## Cross-references
 
 - Portal app: `../internal-website/CLAUDE.md`
 - Token source: `../internal-website/tailwind.config.ts`, `../internal-website/app/globals.css`
 - Marketing PRD: `../../docs/marketing-site-prd.md`
-- WeChat Pay checkout (server-side, in the portal): `../internal-website/app/checkout/wechat/`
+- Payment removal decision: `../../architecture.payment`

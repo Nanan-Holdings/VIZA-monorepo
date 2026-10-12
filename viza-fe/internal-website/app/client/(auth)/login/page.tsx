@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button'
 import { InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group'
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
 import { useTranslations } from 'next-intl'
+import { getPostLoginPath } from '@/lib/auth/post-login-path'
 
 type Step = 'email' | 'otp'
 type LoginMethod = 'password' | 'otp'
@@ -50,10 +51,6 @@ function getLocalizedAuthError(
 
 type ClientAuthOperation = 'password' | 'send_otp' | 'verify_otp'
 type ClientAuthResult = { success: boolean; error?: string; code?: string }
-
-function getPostLoginPath(returnTo: string | null) {
-  return returnTo === '/feedback' ? returnTo : '/client/home'
-}
 
 function waitForRetry(): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, AUTH_RETRY_DELAY_MS))
@@ -329,7 +326,12 @@ function ClientLoginContent() {
                 </h1>
                 <p className="text-[clamp(12px,1.3vw,15px)] tracking-[-0.24px] leading-[1.5] text-[rgba(0,0,0,0.55)]">
                   {t('noAccount')}{' '}
-                  <Link href="/client/signup" className="text-brand-500 underline decoration-solid">{t('signUp')}</Link>
+                  <Link
+                    href={postLoginPath === '/client/home' ? '/client/signup' : `/client/signup?returnTo=${encodeURIComponent(postLoginPath)}`}
+                    className="text-brand-500 underline decoration-solid"
+                  >
+                    {t('signUp')}
+                  </Link>
                 </p>
               </div>
 

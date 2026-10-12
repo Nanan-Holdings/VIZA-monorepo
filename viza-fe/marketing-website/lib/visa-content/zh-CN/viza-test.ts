@@ -1,14 +1,14 @@
 import type { VisaContent } from "../types";
 
 /**
- * VIZA 测试结账 — 简体中文版本。
+ * VIZA 测试体验，简体中文版本。
  * 免费的真实流程演示：与英文源文件（../viza-test.ts）保持同步。
  * 这不是签证产品 — 文案须如实说明这是演示，不虚构任何政府信息。
  */
 export const vizaTest: VisaContent = {
   slug: "viza-test",
 
-  heroTitle: "VIZA 测试结账",
+  heroTitle: "VIZA 测试体验",
   heroTitleSuffix: "免费体验真实申请流程",
   lede: "完整走一遍我们处理真实签证的申请体验 — 材料上传、顾问审核、实时进度追踪 — 完全免费，最终不会签发任何签证。",
   heroImage: "/assets/heroes/japan.jpg",
@@ -48,7 +48,7 @@ export const vizaTest: VisaContent = {
     },
     {
       title: "跟随实时进度",
-      body: "状态时间线会像真实申请一样更新，让你了解真实订单中的体验。",
+      body: "状态时间线会像真实申请一样更新，让你了解真实申请中的体验。",
       statusRows: [
         { label: "已收到测试申请", ts: "刚刚", onTime: true },
         { label: "演示审核已完成", ts: "片刻之后", onTime: true },
@@ -57,7 +57,7 @@ export const vizaTest: VisaContent = {
     },
     {
       title: "完成 — 不签发任何文件，不收取任何费用",
-      body: "你会到达与真实订单相同的交付页面。准备好后，选择一个真实目的地，开始正式申请。",
+      body: "你会到达与真实申请相同的交付页面。准备好后，选择一个真实目的地，开始正式申请。",
       delivered: true,
     },
   ],
@@ -73,7 +73,7 @@ export const vizaTest: VisaContent = {
   rejectionSub: "几点如实说明，避免任何误解。",
   rejectionReasons: [
     { title: "不会签发签证", body: "演示不会向任何政府提交任何申请 — 它只用于向你展示产品体验。" },
-    { title: "不会分配顾问", body: "审核阶段为模拟。真实订单中，将由一位具名的 VIZA 顾问核对每一项信息。" },
+    { title: "不会分配顾问", body: "审核阶段为模拟。真实申请中，将由一位具名的 VIZA 顾问核对每一项信息。" },
     { title: "演示数据不会保留", body: "测试运行中的示例上传和信息不会成为任何申请记录的一部分。" },
   ],
 
@@ -87,10 +87,10 @@ export const vizaTest: VisaContent = {
 
   extensionTitle: "开始真实申请",
   extensionSub:
-    "真实申请只在你刚才看到的流程上增加两件事：一位真实顾问，和一次真实的政府递交 — 并附带准时出签保证。",
+    "真实申请只在你刚才看到的流程上增加两件事：一位真实顾问，和一次真实的政府递交。VIZA 的协助依然免费。",
   extension: [
     { icon: "extend", k: "真实目的地", v: "17 个国家/地区", sub: "并持续增加" },
-    { icon: "shield", k: "准时出签保证", v: "延误退款", sub: "若未在承诺日期前完成" },
+    { icon: "shield", k: "VIZA 服务", v: "免费", sub: "政府签证费（如有）由您直接向签发机关支付" },
   ],
 
   reviews: {
@@ -107,7 +107,7 @@ export const vizaTest: VisaContent = {
         name: "Priya Lim",
         source: "Trustpilot · 3 天前",
         title: "先试了演示，随后就正式下单",
-        body: "午休时跑了一遍测试结账，想看看到底怎么回事。当晚就申请了巴厘岛电子落地签。",
+        body: "午休时跑了一遍测试流程，想看看到底怎么回事。当晚就申请了巴厘岛电子落地签。",
       },
       {
         initials: "SK",
@@ -123,7 +123,7 @@ export const vizaTest: VisaContent = {
   faq: [
     {
       category: "关于测试",
-      q: "测试结账真的免费吗？",
+      q: "测试流程真的免费吗？",
       a: "是的 — 完全免费。它的存在就是为了让你在把真实签证交给我们之前，完整体验 VIZA 的申请流程。",
     },
     {
@@ -139,7 +139,7 @@ export const vizaTest: VisaContent = {
     {
       category: "正式申请",
       q: "之后如何申请真实签证？",
-      a: "在探索页选择任意目的地 — 向导就是你刚刚用过的那个。正式申请包含具名顾问、真实的政府递交，以及我们的准时出签保证。",
+      a: "在探索页选择任意目的地 — 向导就是你刚刚用过的那个。正式申请包含具名顾问、真实的政府递交，以及实时进度追踪，VIZA 均不收取任何费用。",
     },
   ],
 
@@ -151,13 +151,13 @@ export const vizaTest: VisaContent = {
   price: {
     etaLabel: "现在开始，完成仅需",
     etaValue: "约 3 分钟",
-    title: "测试结账 · 实景演示",
+    title: "测试流程 · 实景演示",
     saving: "免费",
     sub: "完整的申请体验，不收费、不递交任何申请。",
-    foot: "测试流程完全免费。真实申请仅在其自身结账时收费，并附带准时出签保证。",
+    foot: "测试流程完全免费，真实申请中 VIZA 的协助同样免费。政府签证费（如有）由您直接向签发机关支付。",
   },
 
-  aiPlaceholder: "关于 VIZA 的任何问题都可以问 — 流程、追踪、价格…",
+  aiPlaceholder: "关于 VIZA 的任何问题都可以问 — 流程、追踪、费用…",
 };
 
 export default vizaTest;
