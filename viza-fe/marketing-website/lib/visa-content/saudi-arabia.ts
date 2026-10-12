@@ -45,7 +45,7 @@ export const saudiArabia: VisaContent = {
   ],
   tags: [
     { icon: "bolt", label: "Fast track · in 24 hrs" },
-    { icon: "shield", label: "Advisor-checked before filing" },
+    { icon: "shield", label: "Free VIZA service" },
     { icon: "doc", label: "Minimal documents" },
   ],
 
@@ -94,7 +94,7 @@ export const saudiArabia: VisaContent = {
     { name: "Passport bio page", sub: "Eligible-country passport · valid 6+ months from your entry date · arrive on the same passport" },
     { name: "Digital photograph", sub: "200 × 200 px · 5 – 100 KB · plain white background · taken within 6 months" },
     { name: "Travel & accommodation details", sub: "Entered on the online application — must be accurate; false information leads to rejection" },
-    { name: "Payment card & valid email", sub: "Fee paid online by credit/debit card · eVisa delivered as an email attachment" },
+    { name: "Payment card & valid email", sub: "You pay the government fee directly online by credit/debit card · eVisa delivered as an email attachment" },
     { name: "Medical insurance", sub: "Mandatory — auto-assigned from a Saudi-approved insurer and bundled into the fee, nothing to buy separately" },
     { name: "For travellers under 18", sub: "A parent or guardian must apply on the minor's behalf" },
   ],
@@ -175,25 +175,25 @@ export const saudiArabia: VisaContent = {
     {
       category: "General information",
       q: "How much does the eVisa cost, and is insurance included?",
-      a: "SAR 535 online, all-in (≈ SGD 183) — that covers the visa fee, mandatory medical insurance auto-assigned from a Saudi-approved insurer, and VAT. There is nothing to buy separately. Note the government fee is non-refundable even if the application is refused.",
+      a: "SAR 535 online, all-in (≈ SGD 183) — that covers the visa fee, mandatory medical insurance auto-assigned from a Saudi-approved insurer, and VAT. There is nothing to buy separately. Note the government fee is non-refundable even if the application is refused. You pay it directly on the official portal; VIZA charges nothing for its help.",
     },
     {
       category: "Application process",
       q: "How long does VIZA take to process a Saudi eVisa?",
-      a: "The Ministry of Tourism typically issues eVisas within minutes to 24 hours, delivered as an email attachment. We file immediately and recommend applying at least 72 hours before travel as a buffer; the Ministry sets the actual issue time.",
+      a: "The Ministry of Tourism typically issues eVisas within minutes to 24 hours, delivered as an email attachment. We recommend applying at least 72 hours before travel as a buffer.",
     },
     {
       category: "Application process",
-      q: "Can I apply for my whole family in one order?",
+      q: "Can I apply for my whole family in one application?",
       a: "Yes. Add each traveller during the application — your consultant submits them together so approvals arrive on the same timeline. For children under 18, a parent or guardian applies on their behalf, as the official terms require.",
     },
     {
-      category: "Refunds, rejections & reapplications",
+      category: "Rejections & reapplications",
       q: "What happens if my Saudi eVisa is rejected?",
-      a: "Under the official terms, Saudi authorities retain the full government fee on refusal. VIZA's service fee is fully refunded, and your consultant will review the refusal with you and advise whether a corrected reapplication or an embassy application is the right next step.",
+      a: "Under the official terms, Saudi authorities retain the full government fee on refusal. VIZA charges nothing for its help, and your consultant will review the refusal with you and advise whether a corrected reapplication or an embassy application is the right next step.",
     },
     {
-      category: "Refunds, rejections & reapplications",
+      category: "Rejections & reapplications",
       q: "Can I extend my stay beyond 90 days?",
       a: "No — the official terms state the tourist eVisa cannot be extended. Since it's multiple-entry, the practical route for a longer trip is to exit and re-enter. Never overstay: Jawazat fines start at SAR 15,000 for a first offence, rising to SAR 50,000 plus imprisonment and deportation for repeat offences.",
     },
@@ -212,8 +212,8 @@ export const saudiArabia: VisaContent = {
     etaValue: "14 Jun 2026, 02:15 PM",
     title: "Tourist eVisa · 1-year multiple entry · 90-day stays",
     saving: "1 day faster",
-    sub: "All-inclusive of government fee, mandatory medical insurance, document review, and an advisor check before filing.",
-    foot: "Government fee and VIZA processing are collected together at checkout. Turnaround times are estimates, not a promised date.",
+    sub: "VIZA's help is free: document review, form filling, and tracking. The government fee, insurance included, is paid directly.",
+    foot: "VIZA's service is free. The SAR 535 eVisa fee is paid directly on the official Saudi portal.",
   },
 
   aiPlaceholder: "Ask anything about Saudi Arabia visas — fees, processing, documents…",

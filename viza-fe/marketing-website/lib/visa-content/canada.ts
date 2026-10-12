@@ -56,7 +56,7 @@ export const canada: VisaContent = {
   ],
   tags: [
     { icon: "bolt", label: "eTA approved in minutes" },
-    { icon: "shield", label: "Advisor-checked before filing" },
+    { icon: "shield", label: "Free VIZA service" },
     { icon: "doc", label: "Biometrics booked for you" },
   ],
 
@@ -100,7 +100,7 @@ export const canada: VisaContent = {
 
   docsTitle: "Required documents",
   docsSub:
-    "eTA applicants need only a passport, email address, and a credit or debit card. TRV applicants need the full set below — your VIZA consultant checks every item before it reaches IRCC.",
+    "eTA applicants need only a passport, an email address, and a credit or debit card to pay the CAD 7 fee directly to IRCC. TRV applicants need the full set below — your VIZA consultant checks every item before it reaches IRCC.",
   documents: [
     { name: "Valid passport", sub: "Valid for your whole stay · visa and stay are capped at passport expiry, so longer validity is better" },
     { name: "Application form IMM 5257", sub: "Visitor visa application · one per traveller, including children" },
@@ -183,7 +183,7 @@ export const canada: VisaContent = {
     {
       category: "Application process",
       q: "What does the Canada application cost?",
-      a: "eTA: CAD 7 (≈ SGD 6.60). Visitor visa: CAD 100 per person (≈ SGD 94) with a family maximum of CAD 500, plus biometrics at CAD 85 per person (≈ SGD 80, family maximum CAD 170). Biometrics are valid 10 years, so repeat applicants often skip that fee entirely.",
+      a: "eTA: CAD 7 (≈ SGD 6.60). Visitor visa: CAD 100 per person (≈ SGD 94) with a family maximum of CAD 500, plus biometrics at CAD 85 per person (≈ SGD 80, family maximum CAD 170). Biometrics are valid 10 years, so repeat applicants often skip that fee entirely. All of these fees are paid directly to IRCC, and VIZA charges nothing for its help.",
     },
     {
       category: "Application process",
@@ -196,9 +196,9 @@ export const canada: VisaContent = {
       a: "TRV applicants give fingerprints and a photo at a VFS Global Visa Application Centre — available across mainland China, and in Singapore for residents applying from there. eTA applicants give no biometrics at all. Once given, biometrics stay valid for 10 years of visitor applications.",
     },
     {
-      category: "Refunds, rejections & reapplications",
+      category: "Rejections & reapplications",
       q: "What happens if my application is refused?",
-      a: "IRCC retains the government fee. VIZA's processing fee is fully refunded, and your consultant reviews the refusal letter — most refusals are IRPR 179(b) (ties to home country) or funds-related — then strengthens exactly those points before reapplying.",
+      a: "IRCC keeps any government fee you paid it. VIZA charges nothing for its help, and your consultant reviews the refusal letter — most refusals are IRPR 179(b) (ties to home country) or funds-related — then strengthens exactly those points before reapplying.",
     },
   ],
 
@@ -216,8 +216,8 @@ export const canada: VisaContent = {
     etaValue: "25 Sep 2026, 03:15 PM",
     title: "Visitor visa (TRV) · multi-entry",
     saving: "Biometrics booked for you",
-    sub: "All-inclusive of document review, IRCC Portal filing, biometrics booking, and an advisor check before filing.",
-    foot: "IRCC government fee and VIZA processing are collected together at checkout. Turnaround times are estimates, not a promised date.",
+    sub: "VIZA's help is free: document review, IRCC Portal filing, and biometrics booking. Government fees are paid directly to IRCC.",
+    foot: "VIZA's service is free. The eTA, visa, and biometrics fees are paid directly to IRCC.",
   },
 
   aiPlaceholder: "Ask anything about Canada visas — eTA vs TRV, fees, biometrics, processing…",

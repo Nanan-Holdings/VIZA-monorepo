@@ -1,17 +1,17 @@
 import type { VisaContent } from "./types";
 
 /**
- * VIZA Test checkout — a free, live walkthrough of the real application flow.
+ * VIZA Test run: a free, live walkthrough of the real application flow.
  *
  * This is NOT a visa product: it exercises the same rich page template,
- * application wizard, and checkout rails as a real destination so the team
- * (and curious users) can try the end-to-end experience without paying.
+ * application wizard, and tracking flow as a real destination so the team
+ * (and curious users) can try the end-to-end experience. VIZA is free.
  * Keep the copy honest about being a demo — no invented government facts.
  */
 export const vizaTest: VisaContent = {
   slug: "viza-test",
 
-  heroTitle: "VIZA Test checkout",
+  heroTitle: "VIZA Test run",
   heroTitleSuffix: "a free live demo of the real flow",
   lede: "Walk through the exact application experience we use for real visas — document upload, consultant review, live status tracking — free, with no visa issued at the end.",
   heroImage: "/assets/heroes/japan.jpg",
@@ -51,7 +51,7 @@ export const vizaTest: VisaContent = {
     },
     {
       title: "Follow live tracking",
-      body: "The status timeline updates the way a real application would, so you know what to expect on a real order.",
+      body: "The status timeline updates the way a real application would, so you know what to expect on a real application.",
       statusRows: [
         { label: "Test application received", ts: "Just now" },
         { label: "Demo review completed", ts: "Moments later" },
@@ -60,7 +60,7 @@ export const vizaTest: VisaContent = {
     },
     {
       title: "Finish — nothing issued, nothing charged",
-      body: "You reach the same delivery screen as a real order. When you're ready, pick a real destination and apply for the real thing.",
+      body: "You reach the same delivery screen as a real application. When you're ready, pick a real destination and apply for the real thing.",
       delivered: true,
     },
   ],
@@ -76,7 +76,7 @@ export const vizaTest: VisaContent = {
   rejectionSub: "A few honest limits, so there are no surprises.",
   rejectionReasons: [
     { title: "No visa is issued", body: "The demo never files anything with any government — it exists purely to show you the experience." },
-    { title: "No consultant is assigned", body: "The review stage is simulated. On a real order, a named VIZA consultant checks every field." },
+    { title: "No consultant is assigned", body: "The review stage is simulated. On a real application, a named VIZA consultant checks every field." },
     { title: "Demo data is discarded", body: "Sample uploads and details from test runs are not kept as part of any application record." },
   ],
 
@@ -90,10 +90,10 @@ export const vizaTest: VisaContent = {
 
   extensionTitle: "Trying a real application",
   extensionSub:
-    "Real applications add exactly two things to what you just saw: a real consultant, and a real government filing — with a named consultant reviewing it before filing.",
+    "Real applications add exactly two things to what you just saw: a real consultant, and a real government filing. VIZA's help stays free.",
   extension: [
     { icon: "extend", k: "Real destinations", v: "17 countries", sub: "And growing" },
-    { icon: "shield", k: "Advisor check", v: "Before filing", sub: "A person reviews every application" },
+    { icon: "shield", k: "VIZA service", v: "Free", sub: "Any government fee is paid directly to the authority" },
   ],
 
   reviews: {
@@ -110,7 +110,7 @@ export const vizaTest: VisaContent = {
         name: "Priya Lim",
         source: "Trustpilot · 3 days ago",
         title: "Tried the demo, then booked for real",
-        body: "Ran the test checkout on my lunch break to see what the fuss was about. Applied for my Bali e-VOA the same evening.",
+        body: "Ran the test flow on my lunch break to see what the fuss was about. Applied for my Bali e-VOA the same evening.",
       },
       {
         initials: "SK",
@@ -127,7 +127,7 @@ export const vizaTest: VisaContent = {
   faq: [
     {
       category: "About the test",
-      q: "Is the test checkout really free?",
+      q: "Is the test flow really free?",
       a: "Yes — completely free. It exists so you can experience the VIZA application flow end-to-end before trusting us with a real visa.",
     },
     {
@@ -143,7 +143,7 @@ export const vizaTest: VisaContent = {
     {
       category: "Going real",
       q: "How do I apply for a real visa afterwards?",
-      a: "Pick any destination from the explore page — the wizard is the one you just used. Real applications include a named consultant, and a real government filing.",
+      a: "Pick any destination from the explore page — the wizard is the one you just used. Real applications include a named consultant, a real government filing, and live status tracking, all free of VIZA charges.",
     },
   ],
 
@@ -155,13 +155,13 @@ export const vizaTest: VisaContent = {
   price: {
     etaLabel: "Start now, finish in",
     etaValue: "About 3 minutes",
-    title: "Test checkout · live demo",
+    title: "Test run · live demo",
     saving: "Free",
     sub: "The full application experience with nothing charged and nothing filed.",
-    foot: "The test flow is free. Real applications are charged only at their own checkout. Turnaround times are estimates, not a promised date.",
+    foot: "The test flow is free, and so is VIZA's help on real applications. Any government fee is paid directly to the authority.",
   },
 
-  aiPlaceholder: "Ask anything about how VIZA works — flow, tracking, pricing…",
+  aiPlaceholder: "Ask anything about how VIZA works — flow, tracking, fees…",
 };
 
 export default vizaTest;

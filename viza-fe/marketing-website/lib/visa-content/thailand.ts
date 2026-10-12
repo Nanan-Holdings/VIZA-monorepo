@@ -40,7 +40,7 @@ export const thailand: VisaContent = {
   ],
   tags: [
     { icon: "bolt", label: "Fast approval" },
-    { icon: "shield", label: "Advisor-checked before filing" },
+    { icon: "shield", label: "Free VIZA service" },
     { icon: "doc", label: "Minimal documents" },
   ],
 
@@ -184,7 +184,7 @@ export const thailand: VisaContent = {
     {
       category: "General information",
       q: "What is the Thailand Digital Arrival Card (TDAC)?",
-      a: "Since 1 May 2025, every foreign national entering Thailand by air, land, or sea must submit the free TDAC at tdac.immigration.go.th within 72 hours before arrival — it replaced the paper TM.6 card. Only pure transit passengers and Border Pass holders are exempt. VIZA files it for you as part of every Thailand order.",
+      a: "Since 1 May 2025, every foreign national entering Thailand by air, land, or sea must submit the free TDAC at tdac.immigration.go.th within 72 hours before arrival — it replaced the paper TM.6 card. Only pure transit passengers and Border Pass holders are exempt. VIZA files it for you as part of every Thailand application.",
     },
     {
       category: "General information",
@@ -194,12 +194,12 @@ export const thailand: VisaContent = {
     {
       category: "Application process",
       q: "How much does the Thailand eVisa cost?",
-      a: "The government fee for applications lodged from Singapore is SGD 50 for the single-entry TR and SGD 250 for the multiple-entry METV — non-refundable once paid. VIZA's service fee is shown upfront at checkout, and the free TDAC filing is included.",
+      a: "The government fee for applications lodged from Singapore is SGD 50 for the single-entry TR and SGD 250 for the multiple-entry METV — non-refundable once paid. You pay it directly to the Thai government. VIZA's help, including TDAC filing, is free.",
     },
     {
       category: "Application process",
       q: "How long does the Thailand eVisa take?",
-      a: "Consular processing typically takes 5 – 10 working days after payment. The Royal Thai Embassy Singapore advises applying at least 21 working days before travel and remaining in Singapore until the eVisa is approved — so start early. We file as soon as your documents are complete; consular timing is not something we control.",
+      a: "Consular processing typically takes 5 – 10 working days after payment. The Royal Thai Embassy Singapore advises applying at least 21 working days before travel and remaining in Singapore until the eVisa is approved — so start early.",
     },
     {
       category: "Application process",
@@ -207,9 +207,9 @@ export const thailand: VisaContent = {
       a: "Yes. Add each traveller in your VIZA application — your consultant submits them as a group so they're processed on the same timeline. Note the funds requirement is per person: SGD 800 each for the single-entry TR.",
     },
     {
-      category: "Refunds, rejections & reapplications",
+      category: "Rejections & reapplications",
       q: "What happens if my Thailand eVisa is refused?",
-      a: "The Thai government retains its fee — official policy is that visa fees are non-refundable. VIZA's service fee is fully refunded. Your consultant will review the refusal, fix the weak point (usually funds evidence or document quality), and advise on reapplication.",
+      a: "The Thai government retains its fee — official policy is that visa fees are non-refundable. VIZA charges nothing for its help. Your consultant will review the refusal, fix the weak point (usually funds evidence or document quality), and advise on reapplication.",
     },
   ],
 
@@ -251,8 +251,8 @@ export const thailand: VisaContent = {
     etaValue: "17 Jul 2026, 03:00 PM",
     title: "eVisa (TR) · 60-day stay",
     saving: "Faster than applying direct",
-    sub: "All-inclusive of the SGD 50 government fee, document review, TDAC filing, and an advisor check before filing.",
-    foot: "Government fee and VIZA processing are collected together at checkout. Turnaround times are estimates, not a promised date.",
+    sub: "VIZA's help is free: document review, TDAC filing, and tracking. The SGD 50 government fee is paid directly to the Thai government.",
+    foot: "VIZA's service is free. The eVisa government fee is paid directly on the official Thai eVisa portal.",
   },
 
   aiPlaceholder: "Ask anything about Thailand visas — exemptions, TDAC, extensions, documents…",

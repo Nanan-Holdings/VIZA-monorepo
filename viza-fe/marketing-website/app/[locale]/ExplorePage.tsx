@@ -5,7 +5,6 @@ import { createPortal } from "react-dom";
 import { CircleFlag } from "react-circle-flags";
 import { useTranslations } from "next-intl";
 import { visaHref } from "@/lib/countries";
-import { displayFeeSGD, totalSgd } from "@/lib/pricing";
 import { portalUrl } from "@/lib/utils";
 import { useCatalogue } from "@/components/CatalogueProvider";
 import LanguageToggle from "@/components/LanguageToggle";
@@ -15,7 +14,7 @@ import VisaWorldMap from "@/components/VisaWorldMap";
 const FILTER_KEYS = ["delivery", "type", "documents", "dates"] as const;
 type FilterKey = (typeof FILTER_KEYS)[number];
 
-const SORT_KEYS = ["guaranteed", "feeLow", "duration", "popular", "recent"] as const;
+const SORT_KEYS = ["guaranteed", "duration", "popular", "recent"] as const;
 type SortKey = (typeof SORT_KEYS)[number];
 
 /** Passport ranking data (no copy — names resolve from the `passports` namespace). */
@@ -187,7 +186,7 @@ export default function ExplorePage() {
         city: t.has(`cities.${c.slug}`) ? t(`cities.${c.slug}`) : c.city,
         type: t.has(`visaTypes.${c.type}`) ? t(`visaTypes.${c.type}`) : c.type,
         valid: t.has(`validity.${c.slug}`) ? t(`validity.${c.slug}`) : c.validity,
-        fee: totalSgd(c.pricing) === 0 ? t("visa.priceFree") : displayFeeSGD(c.pricing) ?? t("explore.seePricing"),
+        fee: t("visa.priceFree"),
         tag: c.tag,
         img: c.image,
         flagCode: c.flagCode,
@@ -245,7 +244,7 @@ export default function ExplorePage() {
           <div className="card-foot">
             <div className="foot-eta">
               <span className="lk">{c.launched ? t("explore.guaranteedBy") : t("common.comingSoon")}</span>
-              <span className="lv">{c.launched ? t("explore.guarantor") : t("visa.seePricing")}</span>
+              <span className="lv">{c.launched ? t("explore.guarantor") : t("visa.priceFree")}</span>
             </div>
             <button className="foot-cta" aria-label={c.launched ? t("explore.startApplication") : t("common.learnMore")} onClick={(e) => e.preventDefault()}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>

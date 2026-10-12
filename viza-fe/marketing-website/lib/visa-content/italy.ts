@@ -39,7 +39,7 @@ export const italy: VisaContent = {
     { k: "Entry", v: "Single · double · multiple" },
   ],
   tags: [
-    { icon: "shield", label: "Advisor-checked before filing" },
+    { icon: "shield", label: "Free VIZA service" },
     { icon: "doc", label: "Full document review" },
     { icon: "bolt", label: "Schengen-wide access" },
   ],
@@ -198,7 +198,7 @@ export const italy: VisaContent = {
     {
       category: "Application process",
       q: "How much does the visa cost?",
-      a: "The government fee is €90 per adult (≈ SGD 135), €45 for children aged 6 – 11 (≈ SGD 68), and free for children under 6 — non-refundable, paid in local currency. The outsourced visa centre charges its own service fee on top (e.g. RMB 78 at VFS Global China; BLS Singapore sets its own fee).",
+      a: "The government fee is €90 per adult (≈ SGD 135), €45 for children aged 6 – 11 (≈ SGD 68), and free for children under 6 — non-refundable, paid in local currency. The outsourced visa centre charges its own service fee on top (e.g. RMB 78 at VFS Global China; BLS Singapore sets its own fee). You pay both directly; VIZA charges nothing for its help.",
     },
     {
       category: "Application process",
@@ -211,9 +211,9 @@ export const italy: VisaContent = {
       a: "Yes. Fingerprints are captured at lodgement at BLS International Singapore or a VFS Global Italy centre in China — unless your biometrics were taken for a Schengen visa within the previous 59 months. There is no eVisa for Italy.",
     },
     {
-      category: "Refunds, rejections & reapplications",
+      category: "Rejections & reapplications",
       q: "What happens if my visa application is refused?",
-      a: "The consulate issues a refusal notice with the stated ground. The €90 government fee is non-refundable. VIZA's processing fee is fully refunded, and your consultant will review the refusal grounds and advise on reapplying or submitting an appeal.",
+      a: "The consulate issues a refusal notice with the stated ground. The €90 government fee is non-refundable. VIZA charges nothing for its help, and your consultant will review the refusal grounds and advise on reapplying or submitting an appeal.",
     },
   ],
 
@@ -232,8 +232,8 @@ export const italy: VisaContent = {
     etaValue: "29 Jun 2026, 03:00 PM",
     title: "Schengen Visa (Type C) · up to 90 days",
     saving: "Full dossier review included",
-    sub: "All-inclusive of document review, form preparation, and an advisor check before filing.",
-    foot: "Government visa fee (€90 adult) is collected at checkout and paid to the consulate; VIZA's service fee covers preparation, review, and appointment support.",
+    sub: "VIZA's help is free: document review, form preparation, and appointment support.",
+    foot: "VIZA's service is free. The €90 adult visa fee is paid directly at your visa centre appointment.",
   },
 
   aiPlaceholder: "Ask anything about Italy Schengen visas — documents, biometrics, the 90/180 rule…",

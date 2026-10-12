@@ -19,6 +19,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp
 import { PageBackButton } from '@/components/ui/page-back-button'
 import { normalizeAuthEmailLocale } from '@/lib/i18n/locale'
 import { useLocale, useTranslations } from 'next-intl'
+import { getPostLoginPath } from '@/lib/auth/post-login-path'
 
 function isValidEmail(v: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
@@ -440,7 +441,10 @@ export default function ClientSignupPage() {
         console.error('Could not award referral points:', referralError)
       }
       await supabase.auth.signOut()
-      window.location.href = '/client/login?registered=1'
+      const returnTo = getPostLoginPath(new URLSearchParams(window.location.search).get('returnTo'))
+      window.location.href = returnTo === '/client/home'
+        ? '/client/login?registered=1'
+        : `/client/login?registered=1&returnTo=${encodeURIComponent(returnTo)}`
     } catch (err) {
       setError(err instanceof Error ? err.message : t('unexpectedError'))
       setIsSubmitting(false)

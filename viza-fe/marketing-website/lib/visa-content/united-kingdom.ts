@@ -40,7 +40,7 @@ export const unitedKingdom: VisaContent = {
   ],
   tags: [
     { icon: "bolt", label: "Fast track · consultant-guided" },
-    { icon: "shield", label: "Advisor-checked before filing" },
+    { icon: "shield", label: "Free VIZA service" },
     { icon: "doc", label: "Full document check" },
   ],
 
@@ -168,7 +168,7 @@ export const unitedKingdom: VisaContent = {
     {
       category: "Application process",
       q: "How much does the UK visa cost?",
-      a: "From 8 April 2026: GBP 135 (SGD 240 at the Home Office's official Singapore price) for the 6-month Standard Visitor visa. Long-term multi-entry visas cost GBP 506 (SGD 900) for 2 years, GBP 903 (SGD 1,607) for 5 years, and GBP 1,128 (SGD 2,007) for 10 years — each still limited to 6 months per stay. The ETA for Singapore passports is GBP 20.",
+      a: "From 8 April 2026: GBP 135 (SGD 240 at the Home Office's official Singapore price) for the 6-month Standard Visitor visa. Long-term multi-entry visas cost GBP 506 (SGD 900) for 2 years, GBP 903 (SGD 1,607) for 5 years, and GBP 1,128 (SGD 2,007) for 10 years — each still limited to 6 months per stay. The ETA for Singapore passports is GBP 20. All fees are paid directly to the UK government; VIZA charges nothing for its help.",
     },
     {
       category: "Application process",
@@ -181,9 +181,9 @@ export const unitedKingdom: VisaContent = {
       a: "Yes — visa applicants give fingerprints and a facial photo at a VFS Global visa application centre; there's no photo upload. Mainland Chinese applicants can attend any of 15 VFS centres in China (including Beijing, Shanghai, Guangzhou, and Shenzhen), and China-passport residents of Singapore can use the VFS Global UK centre in Singapore. ETA applicants skip this entirely — just a passport scan and selfie in the UK ETA app.",
     },
     {
-      category: "Refunds, rejections & reapplications",
+      category: "Rejections & reapplications",
       q: "What happens if my UK visa application is refused?",
-      a: "UKVI retains the application fee on refusal, and you receive a notice explaining the grounds. VIZA's processing fee is fully refunded, and your consultant reviews the refusal — most commonly the genuine-visitor or funds grounds — to strengthen a reapplication.",
+      a: "UKVI retains the application fee on refusal, and you receive a notice explaining the grounds. VIZA charges nothing for its help, and your consultant reviews the refusal — most commonly the genuine-visitor or funds grounds — to strengthen a reapplication.",
     },
   ],
 
@@ -201,8 +201,8 @@ export const unitedKingdom: VisaContent = {
     etaValue: "3 Jul 2026, 02:00 PM",
     title: "Standard Visitor Visa · up to 6 months",
     saving: "Consultant-guided · fewer delays",
-    sub: "All-inclusive of UKVI application fee, document review, biometric appointment booking, and an advisor check before filing.",
-    foot: "UKVI application fee and VIZA processing are collected together at checkout. Turnaround times are estimates, not a promised date.",
+    sub: "VIZA's help is free: document review, form filling, and biometric appointment booking. The UKVI fee is paid directly to UKVI.",
+    foot: "VIZA's service is free. The UKVI application fee is paid directly to UK Visas and Immigration.",
   },
 
   aiPlaceholder: "Ask anything about UK visitor visas — documents, processing times, eligibility…",

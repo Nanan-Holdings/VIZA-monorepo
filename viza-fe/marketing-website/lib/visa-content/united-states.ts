@@ -67,7 +67,7 @@ export const unitedStates: VisaContent = {
     },
     {
       title: "DS-160 submitted & interview booked",
-      body: "Your VIZA consultant finalises the DS-160 on ceac.state.gov, arranges the USD 185 MRV fee payment via ustraveldocs.com, and secures the earliest interview slot at the U.S. Embassy Singapore — currently under 2 weeks' wait.",
+      body: "Your VIZA consultant finalises the DS-160 on ceac.state.gov, guides you to pay the USD 185 MRV fee directly via ustraveldocs.com, and secures the earliest interview slot at the U.S. Embassy Singapore — currently under 2 weeks' wait.",
     },
     {
       title: "Interview preparation & tracking",
@@ -173,7 +173,7 @@ export const unitedStates: VisaContent = {
     {
       category: "Application process",
       q: "How much does the B1/B2 visa cost?",
-      a: "The government MRV fee is USD 185 (≈ SGD 240), non-refundable, with no extra issuance fee for Singapore or Chinese nationals. A USD 250 'Visa Integrity Fee' was enacted in July 2025 but is not yet being collected — VIZA monitors this and will flag any change before you pay. From July to December 2026 an optional USD 750 expedite fee guarantees an interview within 10 business days at selected posts.",
+      a: "The government MRV fee is USD 185 (≈ SGD 240), non-refundable, with no extra issuance fee for Singapore or Chinese nationals. A USD 250 'Visa Integrity Fee' was enacted in July 2025 but is not yet being collected — VIZA monitors this and will flag any change before you pay the government. From July to December 2026 an optional USD 750 expedite fee guarantees an interview within 10 business days at selected posts.",
     },
     {
       category: "Application process",
@@ -186,7 +186,7 @@ export const unitedStates: VisaContent = {
       a: "Yes. Since September–October 2025, the U.S. State Department has eliminated nearly all interview waivers, including the age-based ones: children under 14 and applicants over 79 must now interview in person. The main surviving waiver is renewing a full-validity B1/B2 within 12 months of its expiry, for applicants who were 18 or older when it was issued. VIZA confirms whether your renewal qualifies.",
     },
     {
-      category: "Refunds, rejections & reapplications",
+      category: "Rejections & reapplications",
       q: "What happens if I'm refused at the interview?",
       a: "The USD 185 MRV fee is non-refundable. The officer will cite the refusal ground — most commonly §214(b). VIZA reviews your file, identifies the weakness, and helps you build a stronger application; most applicants can reapply immediately once their circumstances have materially changed.",
     },
@@ -210,8 +210,8 @@ export const unitedStates: VisaContent = {
     etaValue: "10 Jul 2026, 09:00 AM",
     title: "U.S. B1/B2 Visa · 10-year validity",
     saving: "Expert prep included",
-    sub: "All-inclusive of DS-160 review, interview coaching, and an advisor check before filing.",
-    foot: "MRV application fee and VIZA service fee are collected together at checkout.",
+    sub: "VIZA's help is free: DS-160 review, interview coaching, and appointment support. The MRV fee is paid directly to the U.S. government.",
+    foot: "VIZA's service is free. The USD 185 MRV fee is paid directly to the U.S. government via ustraveldocs.com.",
   },
 
   aiPlaceholder: "Ask anything about the U.S. B1/B2 visa — DS-160, ESTA, interviews, processing times…",
