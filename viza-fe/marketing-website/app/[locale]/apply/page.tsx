@@ -579,8 +579,11 @@ export default function ApplyPage() {
   return (
     // data-clarity-mask: this page shows passport scans and the details read
     // from them, so Clarity never records its text or images, only clicks.
-    // `display: contents` keeps the wrapper out of layout.
-    <div data-clarity-mask="True" style={{ display: "contents" }}>
+    // data-ph-block: PostHog replay also stops on this route (see
+    // components/PostHogAnalytics.tsx); the attribute is its recorder's
+    // blockSelector, so even the first frame after a soft navigation is a
+    // blank placeholder. `display: contents` keeps the wrapper out of layout.
+    <div data-clarity-mask="True" data-ph-block="" style={{ display: "contents" }}>
       <SiteNav />
 
       <div className="progress-bar">

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import { getLocale } from "next-intl/server";
 import { switzer, geist } from "./fonts";
+import { PostHogAnalytics } from "@/components/PostHogAnalytics";
 
 const gtmId = process.env.NEXT_PUBLIC_GTM_ID?.trim();
 /* GA4 property 546131559 ("VIZA", in the Kelin Studio Analytics account).
@@ -20,6 +21,14 @@ const gaMeasurementId =
    passport data; next.config.ts names *.clarity.ms in script-src/connect-src. */
 const clarityProjectId =
   process.env.NEXT_PUBLIC_CLARITY_ID?.trim() || "ypb021bkpf";
+/* PostHog project 662475 (US cloud): product analytics, session replay and
+   exception capture. Constant with an env override for the same reason as the
+   GA4 and Clarity ids above. This is the public, write-only client token that
+   ships in every visitor's bundle, not a secret. Replay is never recorded on
+   /apply or /contact; see components/PostHogAnalytics.tsx for how. Only
+   initialises on viza.it.com and www.viza.it.com. */
+const posthogToken =
+  process.env.NEXT_PUBLIC_POSTHOG_TOKEN?.trim() || "phc_ykbi7hXZrmcm9kDYvsKMf3RgQ4yXPVAxC46WdBp5KiF5";
 
 // Checkout completes on the portal origin, so GA4 has to be told these two
 // hosts are one session — otherwise the purchase is attributed to a referral
@@ -226,6 +235,7 @@ export default async function RootLayout({
             />
           </noscript>
         ) : null}
+        <PostHogAnalytics token={posthogToken} />
         {children}
       </body>
     </html>

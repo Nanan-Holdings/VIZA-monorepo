@@ -211,7 +211,11 @@ export default function ContactPage() {
   const dataPills = t.raw("aside.dataPills") as string[];
 
   return (
-    <>
+    // data-ph-block: this page collects name, email, phone and passport
+    // nationality, so PostHog replay stops here (components/PostHogAnalytics.tsx)
+    // and the recorder's blockSelector skips the subtree.
+    // `display: contents` keeps the wrapper out of layout.
+    <div data-ph-block="" style={{ display: "contents" }}>
       {/* ============================== NAV ============================== */}
       <SiteNav />
 
@@ -605,6 +609,6 @@ export default function ContactPage() {
       </section>
 
       <SiteFooter />
-    </>
+    </div>
   );
 }
