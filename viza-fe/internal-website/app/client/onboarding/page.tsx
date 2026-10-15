@@ -7,7 +7,7 @@ import { ArrowLeft, CircleNotch as Loader2 } from "@phosphor-icons/react";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { createClient } from "@/lib/supabase/client";
 import { getUserVisaPackage } from "@/app/actions/user-package";
-import { ensureDraftApplication } from "@/app/actions/visa-application-answers";
+import { ensureDraftApplicationTracked } from "@/lib/analytics/application-draft";
 import { getOnboardingCopy, type OnboardingCopy } from "./copy";
 
 // ---------------------------------------------------------------------------
@@ -279,7 +279,7 @@ export default function OnboardingPage() {
 
       // Reuse the package-aware draft when onboarding is retried or submitted
       // concurrently. The database also enforces this identity.
-      const draftResult = await ensureDraftApplication(
+      const draftResult = await ensureDraftApplicationTracked(
         assignedPackage?.country ?? "indonesia",
         assignedPackage?.visa_type ?? "ID_C1_TOURIST"
       );

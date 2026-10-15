@@ -1,6 +1,8 @@
 import { timingSafeEqual } from "crypto";
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 
+import { eventCode } from "@/lib/analytics/taxonomy";
+import { captureServerEvent } from "@/lib/analytics/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -84,6 +86,8 @@ interface ApplicationRecord {
   result_status: string | null;
   result_storage_path: string | null;
   result_notes: string | null;
+  country: string | null;
+  visa_type: string | null;
 }
 
 type ApplicationPatch = Record<string, string | null>;
@@ -492,7 +496,7 @@ export async function POST(request: Request) {
   const { data: applicationData, error: applicationError } = await adminClient
     .from("applications")
     .select(
-      "id, applicant_id, external_status, external_reference, result_status, result_storage_path, result_notes",
+      "id, applicant_id, external_status, external_reference, result_status, result_storage_path, result_notes, country, visa_type",
     )
     .eq("id", payload.applicationId)
     .maybeSingle();
@@ -614,10 +618,11 @@ export async function POST(request: Request) {
   }
 
   let recipient: string | null = null;
+  let applicantAuthUserId: string | null = null;
   if (application.applicant_id) {
     const { data: profileData, error: profileError } = await adminClient
       .from("applicant_profiles")
-      .select("email")
+      .select("email, auth_user_id")
       .eq("id", application.applicant_id)
       .maybeSingle();
 
@@ -626,12 +631,13 @@ export async function POST(request: Request) {
         "[external-submission] Failed to load applicant notification recipient:",
         profileError.message,
       );
-    } else if (
-      isRecord(profileData) &&
-      typeof profileData.email === "string" &&
-      profileData.email.trim()
-    ) {
-      recipient = profileData.email.trim();
+    } else if (isRecord(profileData)) {
+      if (typeof profileData.email === "string" && profileData.email.trim()) {
+        recipient = profileData.email.trim();
+      }
+      if (typeof profileData.auth_user_id === "string" && profileData.auth_user_id) {
+        applicantAuthUserId = profileData.auth_user_id;
+      }
     }
   }
 
@@ -673,6 +679,25 @@ export async function POST(request: Request) {
     return serverErrorResponse(
       "notification_event_insert_failed",
       "Application was updated but notification queue insertion failed",
+    );
+  }
+
+  // Product analytics: one event per outcome change, keyed to the applicant's
+  // auth uid. Codes and the outcome label only; never references or notes.
+  const recordedResult = payload.resultStatus;
+  if (
+    recordedResult !== undefined &&
+    recordedResult !== application.result_status &&
+    applicantAuthUserId
+  ) {
+    const distinctId = applicantAuthUserId;
+    after(() =>
+      captureServerEvent(distinctId, "application_result_recorded", {
+        destination_country: eventCode(application.country),
+        visa_type: eventCode(application.visa_type),
+        result: recordedResult,
+        source: "external_submission",
+      }),
     );
   }
 

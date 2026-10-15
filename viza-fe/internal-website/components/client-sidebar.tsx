@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ClipboardText as ClipboardList, FileText, FolderOpen, Headphones, House as Home, SignOut as LogOut } from "@phosphor-icons/react";
 import { signOut } from "@/app/actions/auth";
+import { resetAnalytics } from "@/lib/analytics/posthog";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 
@@ -31,6 +32,7 @@ export function ClientSidebar() {
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
+    resetAnalytics();
     await signOut();
   };
 

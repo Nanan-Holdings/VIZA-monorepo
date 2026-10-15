@@ -73,6 +73,7 @@ import {
   StatusCard,
 } from "@/components/application-steps";
 import type { DocumentType, FormCardField } from "@/components/application-steps";
+import { EVENT, currentRoute, track } from "@/lib/analytics/events";
 
 // Component protocol types
 enum ComponentName {
@@ -1487,6 +1488,8 @@ export function ChatClient({
           ...prev.filter((session) => session.id !== newSession.id),
         ]);
       }
+
+      track(EVENT.chat_assistant_used, { assistant: "visa", source: currentRoute() });
 
       if (status !== "connected") {
         setPendingMessages((prev) => [
