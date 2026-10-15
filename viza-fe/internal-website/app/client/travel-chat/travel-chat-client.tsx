@@ -93,6 +93,7 @@ import {
 } from "@/lib/travel/google-places";
 import type { TravelGoogleEnrichedDestination } from "@/lib/travel/google-places-enrichment-types";
 import { shouldHydrateRemoteTravelArchive } from "@/lib/travel/archive-hydration";
+import { EVENT, currentRoute, track } from "@/lib/analytics/events";
 
 const TravelItineraryExperience = dynamic(
   () =>
@@ -6252,6 +6253,7 @@ export function TravelChatClient({
   const sendMessage = useCallback(
     (message: TravelChatInputMessage) => {
       if (status !== "ready") return;
+      track(EVENT.chat_assistant_used, { assistant: "travel", source: currentRoute() });
       const sessionId = activeSessionId;
       const userMessage: TravelChatMessage = {
         id: createMessageId(),

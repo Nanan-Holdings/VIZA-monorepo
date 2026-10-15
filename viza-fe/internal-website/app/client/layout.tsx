@@ -4,6 +4,7 @@ import { NavBar } from "@/components/client/navbar";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { userSignOut } from "@/app/actions/client-auth";
+import { resetAnalytics } from "@/lib/analytics/posthog";
 import { useTranslations } from "next-intl";
 import clsx from "clsx";
 import { SimplifiedFormProvider } from "@/lib/context/simplified-form-context";
@@ -275,6 +276,7 @@ function ClientLayoutContent({
     sessionStorage.removeItem(CLIENT_SESSION_RECORD_KEY);
     sessionStorage.removeItem(LEGACY_SESSION_USER_KEY);
     sessionStorage.removeItem(LEGACY_SESSION_INVALIDATED_KEY);
+    resetAnalytics();
     await userSignOut();
   };
 

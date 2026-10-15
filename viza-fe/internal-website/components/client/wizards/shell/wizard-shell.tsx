@@ -14,8 +14,8 @@ import {
 } from "@/app/client/documents/actions";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
+import { ensureDraftApplicationTracked } from "@/lib/analytics/application-draft";
 import {
-  ensureDraftApplication,
   loadSimplifiedFormState,
   saveDynamicAnswers,
   saveSimplifiedFormState,
@@ -149,7 +149,7 @@ export function WizardShell<TForm>({
         setApplicationCountry(country);
         setApplicationVisaType(visaType);
 
-        const { applicationId: draftId, created } = await ensureDraftApplication(
+        const { applicationId: draftId, created } = await ensureDraftApplicationTracked(
           country,
           visaType,
         );
@@ -292,7 +292,7 @@ export function WizardShell<TForm>({
     try {
       let appId = applicationId;
       if (!appId) {
-        const { applicationId: ensuredId, error: ensureErr } = await ensureDraftApplication(
+        const { applicationId: ensuredId, error: ensureErr } = await ensureDraftApplicationTracked(
           applicationCountry,
           applicationVisaType,
         );

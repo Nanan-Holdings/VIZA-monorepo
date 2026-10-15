@@ -7,6 +7,7 @@ import { getLocale } from "next-intl/server";
 import { LocaleMessagesProvider } from "@/i18n/client-provider";
 import { RuntimeAbortErrorGuard } from "@/components/runtime-abort-error-guard";
 import { RuntimeAbortErrorScript } from "@/components/runtime-abort-error-script";
+import { PostHogAnalytics } from "@/components/analytics/posthog-analytics";
 
 export const metadata: Metadata = {
   title: "VIZA Portal",
@@ -31,6 +32,7 @@ export default async function RootLayout({
             <RuntimeAbortErrorGuard />
             {children}
             <LocalizedToaster />
+            <PostHogAnalytics />
           </LocaleMessagesProvider>
         </NextIntlClientProvider>
       </body>

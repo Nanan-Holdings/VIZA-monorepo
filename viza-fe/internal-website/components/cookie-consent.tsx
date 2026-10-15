@@ -9,12 +9,12 @@ import { useLocale } from "next-intl";
  * EU cookie-consent banner (PRODUCT-008).
  *
  * Sets a first-party cookie `viza_cookie_consent={accept|reject|configure}`
- * once the user makes a choice. Until then we render the banner and any
- * non-essential script (analytics, Sentry session replay) is held back
- * by reading `getConsent()` before initialising.
+ * once the user makes a choice.
  *
- * Lives in `components/` so it can be mounted from the root layout. Do
- * NOT call analytics SDKs until `getConsent() === 'accept'`.
+ * Not mounted at the moment. PostHog (lib/analytics/posthog.ts) treats the
+ * cookie as an opt-out: it loads unless the value is `reject` or `configure`.
+ * If this banner is mounted and analytics should become opt-in, change
+ * `isAnalyticsEnabled` there to require `accept`.
  */
 
 const COOKIE_KEY = "viza_cookie_consent";

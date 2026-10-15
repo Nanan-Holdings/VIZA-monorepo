@@ -44,6 +44,12 @@ function buildContentSecurityPolicy(allowSameOriginFrame = false): string {
     "https://maps.googleapis.com",
     "https://places.googleapis.com",
     "https://api.stripe.com",
+    // PostHog product analytics (lib/analytics/posthog.ts): events go to
+    // us.i.posthog.com. External script loading is disabled in the client, but
+    // the assets host is allowed so remote config fetches never trip the CSP.
+    originFromEnv(process.env.NEXT_PUBLIC_POSTHOG_HOST),
+    "https://us.i.posthog.com",
+    "https://us-assets.i.posthog.com",
   ].filter(Boolean) as string[];
 
   const directives: Record<string, string[]> = {
@@ -59,6 +65,7 @@ function buildContentSecurityPolicy(allowSameOriginFrame = false): string {
       "'unsafe-eval'",
       "https://js.stripe.com",
       "https://maps.googleapis.com",
+      "https://us-assets.i.posthog.com",
     ],
     "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
     "font-src": ["'self'", "data:", "https://fonts.gstatic.com"],

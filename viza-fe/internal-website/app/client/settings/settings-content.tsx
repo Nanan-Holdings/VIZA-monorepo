@@ -39,6 +39,7 @@ import { PageBackButton } from "@/components/ui/page-back-button";
 import { prepareAuthEmailLocale } from "@/app/actions/client-auth";
 import { normalizeAuthEmailLocale } from "@/lib/i18n/locale";
 import { createClient } from "@/lib/supabase/client";
+import { resetAnalytics } from "@/lib/analytics/posthog";
 import { cn } from "@/lib/utils";
 import { FrequentTravelersTab } from "./components/frequent-travelers-tab";
 import { PrivacyTab } from "./components/privacy-tab";
@@ -440,6 +441,7 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
 
   async function handleSignOut() {
     const supabase = createClient();
+    resetAnalytics();
     await supabase.auth.signOut();
     router.push("/client/login");
   }

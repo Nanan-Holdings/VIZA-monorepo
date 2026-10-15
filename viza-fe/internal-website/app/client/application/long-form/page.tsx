@@ -53,6 +53,8 @@ import {
   loadApplicationFormContext,
   loadDynamicAnswers,
 } from "@/app/actions/visa-application-answers";
+import { ensureDraftApplicationTracked } from "@/lib/analytics/application-draft";
+import { EVENT, currentRoute, eventCode, track } from "@/lib/analytics/events";
 import { persistDS160AnswerSet } from "@/app/actions/ds160-normalize";
 import {
   getCanonicalApplicationProductCountry,
@@ -3113,7 +3115,7 @@ export default function ApplicationPage() {
         if (formAssistantDraftBootstrapRef.current?.key !== bootstrapKey) {
           formAssistantDraftBootstrapRef.current = {
             key: bootstrapKey,
-            promise: ensureDraftApplication(resolvedCountry, resolvedVisaType, {
+            promise: ensureDraftApplicationTracked(resolvedCountry, resolvedVisaType, {
               preferExplicit: preferExplicitPackage,
             }),
           };
@@ -3469,7 +3471,7 @@ export default function ApplicationPage() {
     // Non-team flows should always save to the current user's draft for the
     // active package. Local state can be stale after package/country switches.
     if (!explicitApplicationId) {
-      const result = await ensureDraftApplication(resolvedCountry, resolvedVisaType, {
+      const result = await ensureDraftApplicationTracked(resolvedCountry, resolvedVisaType, {
         preferExplicit: preferExplicitPackage,
       });
       if (result.error || !result.applicationId) {
@@ -4216,7 +4218,7 @@ export default function ApplicationPage() {
               : "Complete the Korea e-Arrival Card eligibility check before creating an application.",
           );
         }
-        const result = await ensureDraftApplication(resolvedCountry, resolvedVisaType, {
+        const result = await ensureDraftApplicationTracked(resolvedCountry, resolvedVisaType, {
           preferExplicit: true,
         });
         if (result.error || !result.applicationId) {
@@ -4280,7 +4282,7 @@ export default function ApplicationPage() {
               : "Complete the Korea e-Arrival Card eligibility check before creating an application.",
           );
         }
-        const result = await ensureDraftApplication(resolvedCountry, resolvedVisaType, {
+        const result = await ensureDraftApplicationTracked(resolvedCountry, resolvedVisaType, {
           preferExplicit: true,
         });
         if (result.error || !result.applicationId) {
@@ -4338,7 +4340,7 @@ export default function ApplicationPage() {
               : "Complete the Korea e-Arrival Card eligibility check before creating an application.",
           );
         }
-        const result = await ensureDraftApplication(resolvedCountry, resolvedVisaType, {
+        const result = await ensureDraftApplicationTracked(resolvedCountry, resolvedVisaType, {
           preferExplicit: true,
         });
         if (result.error || !result.applicationId) {
@@ -4593,7 +4595,7 @@ export default function ApplicationPage() {
         if (isKoreaEArrivalCard) {
           applicationId = await ensureWritableApplicationId();
         } else {
-          const result = await ensureDraftApplication(resolvedCountry, resolvedVisaType, {
+          const result = await ensureDraftApplicationTracked(resolvedCountry, resolvedVisaType, {
             preferExplicit: preferExplicitPackage,
           });
           if (result.error) throw new Error(result.error);
@@ -4713,6 +4715,13 @@ export default function ApplicationPage() {
           submissionResult: krResult,
         }));
       }
+      track(EVENT.application_submitted, {
+        destination_country: eventCode(resolvedCountry),
+        visa_type: eventCode(resolvedVisaType),
+        mode,
+        intent: submissionIntent ?? "initial",
+        source: currentRoute(),
+      });
       setSubmitMissingFields([]);
       const completionPosition = getVisibleStepIndex(effectiveSteps, reviewStepIndex);
       setCompletedUpTo((c) => Math.max(c, completionPosition + 1));
@@ -4750,6 +4759,13 @@ export default function ApplicationPage() {
             submissionResultStatus: reconciliation.submissionResultStatus,
             submissionResult: reconciliation.submissionResult,
           }));
+          track(EVENT.application_submitted, {
+            destination_country: eventCode(resolvedCountry),
+            visa_type: eventCode(resolvedVisaType),
+            mode,
+            intent: submissionIntent ?? "initial",
+            source: currentRoute(),
+          });
           setSubmitMissingFields([]);
           const completionPosition = getVisibleStepIndex(effectiveSteps, reviewStepIndex);
           setCompletedUpTo((c) => Math.max(c, completionPosition + 1));
@@ -4835,7 +4851,7 @@ export default function ApplicationPage() {
             };
           }
         } else {
-          const result = await ensureDraftApplication(resolvedCountry, resolvedVisaType, {
+          const result = await ensureDraftApplicationTracked(resolvedCountry, resolvedVisaType, {
             preferExplicit: preferExplicitPackage,
           });
           if (result.error) throw new Error(result.error);
@@ -4894,6 +4910,13 @@ export default function ApplicationPage() {
         submissionResultStatus: queueJob.submissionResultStatus,
         submissionResult: queueJob.submissionResult,
       }));
+      track(EVENT.application_submitted, {
+        destination_country: eventCode(resolvedCountry),
+        visa_type: eventCode(resolvedVisaType),
+        mode,
+        intent: submissionIntent ?? "initial",
+        source: currentRoute(),
+      });
       setSubmitMissingFields([]);
       const completionPosition = getVisibleStepIndex(effectiveSteps, fallbackReviewStepIndex);
       setCompletedUpTo((c) => Math.max(c, completionPosition + 1));
@@ -5101,7 +5124,7 @@ export default function ApplicationPage() {
     })) {
       return null;
     }
-    const result = await ensureDraftApplication(activeCountry, activeVisaType, {
+    const result = await ensureDraftApplicationTracked(activeCountry, activeVisaType, {
       preferExplicit: preferExplicitPackage,
     });
     if (result.error || !result.applicationId) {

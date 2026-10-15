@@ -36,6 +36,7 @@ import {
   Users,
 } from "@phosphor-icons/react";
 import { adminSignOut } from "@/app/actions/auth";
+import { resetAnalytics } from "@/lib/analytics/posthog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -249,7 +250,7 @@ function AdminSidebar({ userName, userRole }: { userName: string; userRole: stri
   const locale = normalizeInterfaceLocale(useLocale());
   const copy = ADMIN_COPY[locale];
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const handleLogout = async () => { setIsLoggingOut(true); await adminSignOut(); };
+  const handleLogout = async () => { setIsLoggingOut(true); resetAnalytics(); await adminSignOut(); };
 
   return (
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 flex-col border-r border-sidebar-border bg-[hsl(var(--sidebar-background))] text-sidebar-foreground lg:flex">

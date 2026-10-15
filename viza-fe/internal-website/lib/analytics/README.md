@@ -1,72 +1,70 @@
 # Product analytics (OBS-001)
 
-`events.ts` declares the `EVENT` constant object and the `track(event)` helper.
-This module is an event taxonomy and optional transport wrapper; it is not
-evidence that all listed business events are emitted.
+PostHog project 662475 (US cloud), the same project as the marketing site.
+Source baseline: **2026-10-16**.
 
-Source baseline: **2026-09-13**.
+| File | Role |
+| --- | --- |
+| `taxonomy.ts` | `EVENT` names and the typed property shape of each event |
+| `events.ts` | Browser `track(name, props)` helper and `currentRoute()` |
+| `posthog.ts` | posthog-js loader, privacy config, `before_send` URL sanitiser, identify/reset |
+| `server.ts` | posthog-node capture for server-only events, flushed per call |
+| `application-draft.ts` | `ensureDraftApplication` wrapper that emits `application_started` |
+| `components/analytics/posthog-analytics.tsx` | Root-layout component: loads PostHog, identifies on session restore/sign-in, resets on sign-out |
 
-## Current implementation status
+## When it sends
 
-| Area | Current code | Boundary |
+All of these must hold, otherwise every helper is a no-op:
+
+- `NEXT_PUBLIC_POSTHOG_KEY` is set (`NEXT_PUBLIC_POSTHOG_HOST` defaults to
+  `https://us.i.posthog.com`).
+- Browser: the page is served from `app.viza.it.com` (previews and localhost
+  never load PostHog). Server: `VERCEL_ENV === "production"`.
+- Browser: the `viza_cookie_consent` cookie is not `reject` or `configure`.
+  The consent banner (`components/cookie-consent.tsx`) is not mounted today,
+  so in practice this is an opt-out that matches the privacy policy's
+  "Cookies and Analytics Technologies" section and the marketing site.
+
+## Privacy boundary
+
+The portal holds passport scans, photos and identity answers, so:
+
+- Session replay is disabled and the recorder cannot load:
+  `disable_external_dependency_loading` blocks every lazy PostHog script.
+- Autocapture, rage/dead clicks, heatmaps, exception capture and network
+  performance capture are off. `mask_all_text` and `mask_all_element_attributes`
+  stay on as a second fence.
+- Pageviews fire on pathname changes. `before_send` reduces every URL-like
+  property (`*url`, `*referrer`, `*pathname`, including `$set_once` initial
+  values) to origin plus route: no query string, no hash, ids replaced by `:id`.
+- People are created only on identify. Identify sends the Supabase auth uid
+  with `role` (`users.role`, or `applicant`) and `is_staff`. No email, name or
+  profile field. Staff (`admin`, `staff`, `doctor`, or anyone inside `/admin`)
+  are tagged `is_staff: true` and every event they send carries it, so filter
+  them out with `is_staff != true`.
+- Every event carries `app: "portal"` to separate it from marketing traffic.
+
+## Events
+
+| Event | Fired from | Properties |
 | --- | --- | --- |
-| Taxonomy | 13 event names in `EVENT` | A declared name is not an instrumented call site |
-| Transport | Dynamic import of `posthog-js` when `NEXT_PUBLIC_POSTHOG_KEY` is set | The checked package manifest/lock do not include `posthog-js`; import failure is not handled by this wrapper |
-| Call sites | No production imports/calls to this helper found in the current app | Do not claim signup/payment/submission events reach PostHog |
-| Browser consent | `track` returns unless `viza_cookie_consent` ends in `=accept` | This check only runs when `document` exists; it is not a server-side consent or legal-compliance guarantee |
-| Autocapture | Explicitly disabled in `getClient` | Explicit event wiring is still needed |
-| Admin dashboard | Database-backed 30-day operational counts | It does not query the PostHog API or compute cohort conversion |
+| `application_started` | `application-draft.ts`, when `ensureDraftApplication` returns `created: true` (long-form, wizard shell, onboarding) | `destination_country`, `visa_type`, `source` |
+| `documents_uploaded` | `lib/document-upload-client.ts` after `/api/document-upload` returns `ok` | `count`, `doc_types` (snake_case keys, else `other`), `source` |
+| `application_submitted` | long-form review step after the submission queue accepts the job (also the JP/KR direct-submit and reconciled paths) | `destination_country`, `visa_type`, `mode`, `intent`, `source` |
+| `application_result_recorded` | server: `POST /api/external-submission` when `resultStatus` changes and the applicant has an auth uid | `destination_country`, `visa_type`, `result`, `source` |
+| `chat_assistant_used` | VIZA AI `handleSendMessage`, travel planner `sendMessage` | `assistant` (`visa` or `travel`), `source` |
 
-Setting a key alone does not complete installation, consent handling, producer
-instrumentation or end-to-end verification. A missing key makes the helper a
-no-op. A configured key with a missing SDK can reject the call.
+`source` is the current route with ids replaced. Property values are codes,
+counts and labels only; never add names, emails, document numbers, file
+names, free text or record ids.
 
-## Declared event names
-
-The names below exist in `EVENT`; their old proposed producer locations must
-not be treated as implemented fire sites:
-
-- `signup_started`, `signup_verified`
-- `application_created`, `application_step_completed`
-- `payment_intent_created`, `payment_succeeded`
-- `doc_uploaded`, `face_match_decided`, `identity_verified`
-- `application_submitted`, `application_delivered`
-- `refund_requested`, `refund_decided`
-
-`AnalyticsEvent.properties` is currently a generic primitive-value record.
-Per-event required property schemas are not enforced by this module.
+Not instrumented: the universal-info side-effect draft, team companion
+creation, "apply again" result-card applications, submission retries from
+status cards, and results written by the backend worker directly to the
+database (only the `/api/external-submission` path emits a result event).
 
 ## Admin analytics
 
-[AdminAnalyticsPage](../../app/admin/analytics/page.tsx) issues five concurrent
-Supabase count queries for the previous 30 days:
-
-- `marketing_leads.created_at`
-- `applicant_profiles.created_at`
-- `applications.created_at`
-- `order.paid_at`, limited to `paid`, `submitted`, `completed` statuses
-- `runner_job.finished_at`, limited to `succeeded`
-
-The last metric counts successful runner jobs, not deduplicated successful
-applicants or a single cohort. The page labels the results as operational stage
-volumes, reports unavailable sources, and links out using
-`NEXT_PUBLIC_POSTHOG_DASHBOARD_URL` or the generic PostHog site. That link is not
-proof of a configured dashboard or an event ingestion pipeline.
-
-## Completing instrumentation in a future implementation
-
-1. Add intentional producer calls and typed property contracts for the selected
-   events; verify exact paths instead of copying historical fire-site tables.
-2. Install/configure the SDK and explicitly handle transport failure without
-   failing the primary user action.
-3. Define both browser and server consent/privacy behavior before emitting
-   identifiers. The present browser-only cookie guard does not cover server
-   calls.
-4. Verify one event from producer through transport to the intended dashboard;
-   distinguish duplicate/replayed business actions from new events.
-5. Keep operational DB counts separate from identity-linked behavioral funnels
-   and cohort conversion metrics.
-
-These are remaining integration tasks, not claims of implemented behavior.
-Request timings and runtime diagnostics are documented separately in
-[Portal Observability](../observability/AGENTS.md).
+[AdminAnalyticsPage](../../app/admin/analytics/page.tsx) shows database-backed
+30-day operational counts and links out to `NEXT_PUBLIC_POSTHOG_DASHBOARD_URL`.
+It does not query PostHog.
