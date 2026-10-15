@@ -10,7 +10,7 @@
     }
   },
   "crons": [
-    { "path": "/api/internal/marketing/blog/generate", "schedule": "30 16 * * 4" },
+    { "path": "/api/internal/marketing/blog/generate", "schedule": "0 0 * * 5" },
     { "path": "/api/internal/marketing/social/reconcile", "schedule": "0 2 * * *" },
     { "path": "/api/internal/marketing/stuck-check", "schedule": "0 5 * * *" }
   ]
