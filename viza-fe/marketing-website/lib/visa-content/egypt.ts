@@ -78,8 +78,8 @@ export const egypt: VisaContent = {
       title: "Your e-Visa gets processed",
       body: "Approvals typically take 5 – 7 business days (longer in peak season). We track the application so we can flag delays before they affect your trip.",
       statusRows: [
-        { label: "Application submitted to visa2egypt.gov.eg", ts: "5 Jul, 9:00 AM", onTime: true },
-        { label: "Payment confirmed by the portal", ts: "5 Jul, 11:45 AM", onTime: true },
+        { label: "Application submitted to visa2egypt.gov.eg", ts: "5 Jul, 9:00 AM" },
+        { label: "Payment confirmed by the portal", ts: "5 Jul, 11:45 AM" },
         { label: "Awaiting final approval", ts: "In progress" },
       ],
     },

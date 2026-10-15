@@ -86,8 +86,8 @@ export const canada: VisaContent = {
       title: "IRCC processes your visa",
       body: "China-lodged visitor visas currently average 8 – 14 weeks; Singapore-lodged online files clear in a few weeks. We track your IRCC status and answer document requests the same day so nothing stalls.",
       statusRows: [
-        { label: "Application submitted to IRCC Portal", ts: "6 Jul, 9:40 AM", onTime: true },
-        { label: "Biometrics completed at VFS Global", ts: "18 Jul, 11:05 AM", onTime: true },
+        { label: "Application submitted to IRCC Portal", ts: "6 Jul, 9:40 AM" },
+        { label: "Biometrics completed at VFS Global", ts: "18 Jul, 11:05 AM" },
         { label: "Awaiting final decision", ts: "In progress" },
       ],
     },

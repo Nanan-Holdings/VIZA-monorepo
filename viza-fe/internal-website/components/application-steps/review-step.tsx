@@ -282,7 +282,7 @@ export function ReviewStep({
     { fieldName: "sex", label: "性别 / Sex", value: displayMappedValue(data?.personal?.sex, SEX_LABELS) },
     { fieldName: "marital_status", label: "婚姻状况 / Marital status", value: displayMappedValue(data?.personal?.maritalStatus, MARITAL_STATUS_LABELS) },
     { fieldName: "nationality", label: "国籍 / Nationality", value: data?.personal?.nationality },
-    { fieldName: "country_of_birth", label: "出生国家 / Country of birth", value: data?.personal?.countryOfBirth },
+    { fieldName: "country_of_birth", label: "出生国家/地区 / Country or region of birth", value: data?.personal?.countryOfBirth },
     { fieldName: "state_of_birth", label: "出生省 / 州 / State or province of birth", value: data?.personal?.stateOfBirth },
     { fieldName: "city_of_birth", label: "出生城市 / City of birth", value: data?.personal?.cityOfBirth },
   ];

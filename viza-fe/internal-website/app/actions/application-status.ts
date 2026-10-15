@@ -2,8 +2,32 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/rbac";
 
 export type ActorKind = "applicant" | "staff" | "system";
+
+/**
+ * Authorize an actor for a given application. Staff/admin (present in the
+ * `users` table with a live, revocation-aware session via `getCurrentUser`)
+ * may act on any application; an applicant may only act on an application
+ * whose `applicant_id` maps to their own profile. Prevents an authenticated
+ * IDOR where any signed-in user could read/mutate arbitrary applications.
+ */
+async function isAuthorizedForApplication(
+  authUserId: string,
+  applicantId: string | null,
+): Promise<boolean> {
+  const staff = await getCurrentUser();
+  if (staff) return true;
+  if (!applicantId) return false;
+  const adminClient = createAdminClient();
+  const { data: profile } = await adminClient
+    .from("applicant_profiles")
+    .select("id")
+    .eq("auth_user_id", authUserId)
+    .maybeSingle();
+  return Boolean(profile && profile.id === applicantId);
+}
 
 export interface UpdateStatusArgs {
   applicationId: string;
@@ -41,6 +65,10 @@ export async function updateApplicationStatus(args: UpdateStatusArgs): Promise<S
     .maybeSingle();
   if (fetchErr || !app) return { ok: false, reason: fetchErr?.message ?? "Application not found" };
 
+  if (!(await isAuthorizedForApplication(user.id, app.applicant_id as string | null))) {
+    return { ok: false, reason: "Unauthorized" };
+  }
+
   const fromStatus = app.status as string | null;
   if (fromStatus === args.newStatus) {
     return { ok: true, fromStatus, toStatus: args.newStatus };
@@ -73,6 +101,17 @@ export async function loadStatusTimeline(applicationId: string) {
   } = await supabase.auth.getUser();
   if (!user) return { entries: [] as Array<{ to_status: string; created_at: string; reason: string | null }>, error: "Not authenticated" };
   const adminClient = createAdminClient();
+
+  const { data: app } = await adminClient
+    .from("applications")
+    .select("id, applicant_id")
+    .eq("id", applicationId)
+    .maybeSingle();
+  if (!app) return { entries: [], error: "Application not found" };
+  if (!(await isAuthorizedForApplication(user.id, app.applicant_id as string | null))) {
+    return { entries: [], error: "Unauthorized" };
+  }
+
   const { data, error } = await adminClient
     .from("application_status_history")
     .select("from_status, to_status, actor_kind, reason, created_at")

@@ -491,6 +491,18 @@
       "selectFallback": "[ES] Select…",
       "addAnother": "[ES] Add another",
       "remove": "[ES] Remove"
+    },
+    "chooser": {
+      "title": "[ES] Applications",
+      "subtitle": "[ES] Pick up an application already in progress, or start a new one.",
+      "resumeHeading": "[ES] In progress",
+      "resume": "[ES] Continue",
+      "progress": "[ES] {percent}% complete",
+      "startHeading": "[ES] Start something new",
+      "startNew": "[ES] Start a new application",
+      "startNewHint": "[ES] Choosing another destination won't affect the applications above.",
+      "startNewHintEmpty": "[ES] Pick a destination and we'll take you into the right visa flow.",
+      "loadFailed": "[ES] We couldn't load your applications just now. You can still start a new one below."
     }
   },
   "applicationSteps": {

@@ -80,8 +80,8 @@ export const vietnam: VisaContent = {
       title: "Your e-Visa gets processed",
       body: "The Immigration Department's official turnaround is 3 working days from a complete application. We monitor the portal queue and flag any requests for further information before they delay your approval.",
       statusRows: [
-        { label: "Application submitted to Vietnam Immigration", ts: "3 Jul, 10:15 AM", onTime: true },
-        { label: "Application under review", ts: "4 Jul, 9:00 AM", onTime: true },
+        { label: "Application submitted to Vietnam Immigration", ts: "3 Jul, 10:15 AM" },
+        { label: "Application under review", ts: "4 Jul, 9:00 AM" },
         { label: "Awaiting final approval", ts: "In progress" },
       ],
     },

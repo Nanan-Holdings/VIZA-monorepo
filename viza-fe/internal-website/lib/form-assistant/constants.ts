@@ -37,7 +37,7 @@ const SEMANTIC_FIELD_EXPLANATIONS: Record<string, LocalizedFieldExplanation> = {
     },
     zh: {
       summary: "“出发国家 / 地区”是指你本次申报的行程航段从哪个国家或地区出发。",
-      sourceHint: "请以机票或行程单上与出发机场 / 海港对应的国家为准；这不是国籍、出生国家或永久居住国家。",
+      sourceHint: "请以机票或行程单上与出发机场 / 海港对应的国家为准；这不是国籍、出生国家/地区或永久居住国家。",
       example: "如果本次申报的航班从新加坡起飞，请回答“新加坡”",
     },
   },

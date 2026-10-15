@@ -74,8 +74,8 @@ export const unitedArabEmirates: VisaContent = {
       title: "Your visa gets processed",
       body: "GDRFA Dubai's stated processing time is 48 hours. We monitor each stage and flag any delays so you always know where things stand.",
       statusRows: [
-        { label: "Application filed with GDRFA Dubai", ts: "15 Jun, 10:00 AM", onTime: true },
-        { label: "Identity and travel document verified", ts: "15 Jun, 1:30 PM", onTime: true },
+        { label: "Application filed with GDRFA Dubai", ts: "15 Jun, 10:00 AM" },
+        { label: "Identity and travel document verified", ts: "15 Jun, 1:30 PM" },
         { label: "Awaiting final visa issuance", ts: "In progress" },
       ],
     },

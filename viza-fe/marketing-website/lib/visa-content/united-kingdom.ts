@@ -70,8 +70,8 @@ export const unitedKingdom: VisaContent = {
       title: "Biometrics & UKVI processing",
       body: "You attend a short VFS Global appointment for fingerprints and a facial photo — no photo upload needed. We then monitor the UKVI queue; priority (~5 working days, +GBP 500) and super priority (~1 working day, +GBP 1,000) are available where offered.",
       statusRows: [
-        { label: "Application submitted to UKVI", ts: "12 Jun, 9:00 AM", onTime: true },
-        { label: "Biometrics enrolled at VFS Global", ts: "13 Jun, 11:30 AM", onTime: true },
+        { label: "Application submitted to UKVI", ts: "12 Jun, 9:00 AM" },
+        { label: "Biometrics enrolled at VFS Global", ts: "13 Jun, 11:30 AM" },
         { label: "Awaiting UKVI decision", ts: "In progress" },
       ],
     },

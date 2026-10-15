@@ -76,8 +76,8 @@ export const unitedArabEmirates: VisaContent = {
       title: "签证处理中",
       body: "迪拜 GDRFA 公布的审理时长为48小时。我们全程监控每个阶段，及时标记任何延误，让您随时掌握进展。",
       statusRows: [
-        { label: "申请已递交至迪拜 GDRFA", ts: "6月15日 上午 10:00", onTime: true },
-        { label: "身份及旅行证件已核验", ts: "6月15日 下午 1:30", onTime: true },
+        { label: "申请已递交至迪拜 GDRFA", ts: "6月15日 上午 10:00" },
+        { label: "身份及旅行证件已核验", ts: "6月15日 下午 1:30" },
         { label: "等待签证最终签发", ts: "处理中" },
       ],
     },

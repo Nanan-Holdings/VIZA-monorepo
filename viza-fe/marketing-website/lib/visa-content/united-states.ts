@@ -73,8 +73,8 @@ export const unitedStates: VisaContent = {
       title: "Interview preparation & tracking",
       body: "We send personalised interview coaching, likely question sets, and a document checklist. Ten-print fingerprints and a photo are taken at the interview. On the day, we're on standby for any last-minute queries.",
       statusRows: [
-        { label: "DS-160 confirmed & interview booked", ts: "3 Jul, 10:15 AM", onTime: true },
-        { label: "Interview coaching pack delivered", ts: "3 Jul, 2:00 PM", onTime: true },
+        { label: "DS-160 confirmed & interview booked", ts: "3 Jul, 10:15 AM" },
+        { label: "Interview coaching pack delivered", ts: "3 Jul, 2:00 PM" },
         { label: "Interview scheduled — 10 Jul", ts: "In progress" },
       ],
     },

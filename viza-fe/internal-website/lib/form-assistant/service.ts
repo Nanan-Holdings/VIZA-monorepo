@@ -263,6 +263,51 @@ export function parseDirectYesNoAnswer(
   };
 }
 
+interface AssistantStall {
+  fieldName: string | null;
+  count: number;
+}
+
+/** How many times the same field may be re-asked before we change tack. */
+const STALL_LIMIT = 2;
+
+function readAssistantStall(state: Record<string, unknown> | null): AssistantStall {
+  const stall = state?.assistantStall;
+  if (!stall || typeof stall !== "object" || Array.isArray(stall)) {
+    return { fieldName: null, count: 0 };
+  }
+  const value = stall as Record<string, unknown>;
+  return {
+    fieldName: typeof value.fieldName === "string" ? value.fieldName : null,
+    count: typeof value.count === "number" && Number.isFinite(value.count) ? value.count : 0,
+  };
+}
+
+/**
+ * Message for a field the assistant has now asked about several times without
+ * getting an answer it can use.
+ *
+ * Repeating the identical question is what produced the observed dead loop: the
+ * applicant answers, nothing is accepted, the same sentence comes back verbatim,
+ * and there is no way out of the conversation. Explain the field once more and
+ * point at the form, which they can always fill in directly.
+ */
+function buildStalledFieldMessage(field: VisaFormFieldRow, locale: string): string {
+  const label = localizedLabel(field, locale);
+  const explanation = buildFieldClarificationFallback(field, locale);
+  return locale.startsWith("zh")
+    ? [
+        `看起来我没能把你的回答对应到“${label}”这一项，抱歉。`,
+        explanation,
+        `你也可以直接在下方表单里填写这一项，然后我们继续下一题。`,
+      ].filter(Boolean).join(" ")
+    : [
+        `Sorry, I haven't been able to map your answer onto “${label}”.`,
+        explanation,
+        `You can also type this one straight into the form below, and we'll carry on from the next question.`,
+      ].filter(Boolean).join(" ");
+}
+
 function optionValue(option: VisaFormFieldOption): string {
   return typeof option === "string" ? option : option.value;
 }
@@ -1101,7 +1146,54 @@ export function parseDirectCurrentFieldAnswer(
       return null;
     }
   }
+
+  // A bare name on a plain name field is an answer, not something to send to a
+  // model that may return low confidence and stall the conversation. A single
+  // Chinese surname like "刘" is exactly the case that looped: the applicant
+  // answered correctly and got the identical question back, turn after turn.
+  if (
+    field.fieldType === "text" &&
+    !field.options?.length &&
+    typeof pattern !== "string" &&
+    isPlainNameField(field)
+  ) {
+    const value = text.trim();
+    const withinMaxLength = typeof field.validationRules?.maxLength === "number"
+      ? value.length <= field.validationRules.maxLength
+      : true;
+    // Chinese has no word spacing, so a length cap plus a function-word check is
+    // what separates a name from a sentence.
+    const hasHan = /\p{Script=Han}/u.test(value);
+    const looksLikeProse = /[的了吗呢吧我你他她它们请想要改问答题不没有是在和跟然后这那个]/u.test(value);
+    if (
+      value.length > 0 &&
+      withinMaxLength &&
+      (hasHan ? value.length <= 8 && !looksLikeProse : value.length <= 60) &&
+      // Letters, spaces and name punctuation only: anything else could be a
+      // correction or two answers at once, so leave those to the model.
+      /^[\p{Script=Han}\p{L}][\p{Script=Han}\p{L}''\-. ]*$/u.test(value) &&
+      !isVagueFormAnswer(value)
+    ) {
+      return { fieldName: field.fieldName, value, confidence: "high", modelSource: "deterministic" };
+    }
+  }
+
   return null;
+}
+
+/** Free-text fields that hold a person's name and nothing else. */
+function isPlainNameField(field: VisaFormFieldRow): boolean {
+  const haystack = [
+    field.fieldName,
+    field.label,
+    String(field.validationRules?.label_zh ?? ""),
+  ].join(" ").toLowerCase();
+  if (/address|city|country|company|employer|school|occupation|purpose|reason/.test(haystack)) {
+    return false;
+  }
+  return /(?:^|_)(?:surname|given_names?|family_name|middle_name|full_name|name)(?:_|$)/.test(field.fieldName)
+    || /\bsurname\b|\bfamily name\b|\bgiven names?\b|\bfull name\b/.test(haystack)
+    || /姓氏|姓名|名字/.test(haystack);
 }
 
 function parseUniqueVisibleFieldAnswer(
@@ -3007,6 +3099,16 @@ export async function runAssistantTurn(params: {
   const nextQuestion = nextMissing.length > 0
     ? buildQuestion(nextFields, params.locale, params)
     : buildCompletionQuestion(optionalFields, params.locale, params, params.documentReadiness);
+  // Same field, no patch, again: the applicant is stuck rather than idle.
+  const previousStall = readAssistantStall(params.session.state_json);
+  const stalledOnSameField =
+    appliedPatches.length === 0 &&
+    Boolean(currentField) &&
+    nextFields[0]?.fieldName === currentField?.fieldName;
+  const stallCount = stalledOnSameField
+    ? (previousStall.fieldName === currentField?.fieldName ? previousStall.count : 0) + 1
+    : 0;
+
   const nextProgress = getAssistantProgress(params.steps, nextValues);
   const correctionConflict = requestedCorrectionField
     ? skippedConflicts.includes(requestedCorrectionFieldName ?? requestedCorrectionField.fieldName)
@@ -3076,6 +3178,8 @@ export async function runAssistantTurn(params: {
     assistantMessage = isUsefulModelFollowUp(proposed.reply, currentField)
       ? proposed.reply
       : buildFieldClarificationFallback(currentField, params.locale);
+  } else if (stallCount >= STALL_LIMIT && currentField) {
+    assistantMessage = buildStalledFieldMessage(currentField, params.locale);
   } else {
     assistantMessage = [
       buildTurnAcknowledgement(appliedPatches, fieldByName, params.locale, nextProgress.completed),
@@ -3111,6 +3215,9 @@ export async function runAssistantTurn(params: {
         pendingCorrectionField: correctionNeedsAnotherAnswer && !correctionConflict
           ? requestedCorrectionFieldName ?? null
           : null,
+        assistantStall: stalledOnSameField
+          ? { fieldName: currentField?.fieldName ?? null, count: stallCount }
+          : { fieldName: null, count: 0 },
         lastAssistantFilledField: appliedPatches.at(-1)?.fieldName ?? lastAssistantFilledField,
       },
       state_version: Date.now(),

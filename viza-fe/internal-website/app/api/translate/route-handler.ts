@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { translateWithGoogleV2 } from "@/lib/translation/google-translate-v2";
 import { shouldSkipTranslation as shouldSkipTranslationByRule } from "@/lib/translation/translation-field-rules";
+import { guardApiAbuse } from "@/lib/api/rate-limit-ip";
 
 interface TranslateRequest {
   text?: unknown;
@@ -28,6 +29,17 @@ export function shouldSkipTranslation(fieldId: string, text: string, fieldType?:
 }
 
 export async function POST(request: Request) {
+  // Paid Google Translate proxy reachable from both authenticated (/client) and
+  // guest funnel form flows, so we do not hard-require a session; instead we
+  // apply a same-origin guard + size cap + per-IP rate limit. (SEC-API-TRANSLATE-PROXY-01)
+  const blocked = guardApiAbuse(request, {
+    routeKey: "translate",
+    limit: 120,
+    windowMs: 60_000,
+    maxBytes: 32 * 1024,
+  });
+  if (blocked) return blocked;
+
   let payload: TranslateRequest;
   try {
     payload = (await request.json()) as TranslateRequest;

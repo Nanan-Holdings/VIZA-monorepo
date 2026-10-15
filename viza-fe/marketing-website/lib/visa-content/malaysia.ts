@@ -80,8 +80,8 @@ export const malaysia: VisaContent = {
       title: "Your eVISA gets processed",
       body: "Malaysian Immigration's official processing time is 48 hours, counted in working days only — weekends and public holidays in Malaysia and your country don't count. We monitor the queue and flag any delay early.",
       statusRows: [
-        { label: "Application submitted on the official eVISA portal", ts: "15 Aug, 8:30 AM", onTime: true },
-        { label: "Application under Immigration review", ts: "15 Aug, 2:00 PM", onTime: true },
+        { label: "Application submitted on the official eVISA portal", ts: "15 Aug, 8:30 AM" },
+        { label: "Application under Immigration review", ts: "15 Aug, 2:00 PM" },
         { label: "Awaiting final approval", ts: "In progress" },
       ],
     },

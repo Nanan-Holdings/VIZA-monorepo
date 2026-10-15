@@ -69,8 +69,8 @@ export const japan: VisaContent = {
       title: "Visa processed by the embassy",
       body: "MOFA's standard is 5 working days from a complete application, but the Embassy in Singapore advises allowing at least 10 business days. We track each consular stage and flag any document requests immediately.",
       statusRows: [
-        { label: "Application lodged with the Embassy of Japan", ts: "12 Jun, 9:00 AM", onTime: true },
-        { label: "Documents accepted — under consular review", ts: "12 Jun, 11:30 AM", onTime: true },
+        { label: "Application lodged with the Embassy of Japan", ts: "12 Jun, 9:00 AM" },
+        { label: "Documents accepted — under consular review", ts: "12 Jun, 11:30 AM" },
         { label: "Awaiting consular decision", ts: "In progress" },
       ],
     },

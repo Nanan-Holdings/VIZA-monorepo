@@ -46,8 +46,10 @@ describe("interview language alignment", () => {
     const chinese = await (await report(request("/report", body, "zh"))).json();
     expect(english.questionAnalysis[0].topic).toBe("Funding");
     expect(chinese.questionAnalysis[0].topic).toBe("资金");
-    expect(english.questionAnalysis[0].flagLabel).not.toMatch(/[\p{Script=Han}]/u);
     expect(english.questionAnalysis[0].answer).toBe(body.messages[1].content);
-    expect(english.improvements.join(" ")).not.toMatch(/[\p{Script=Han}]/u);
+    // The practice record carries no pass verdict, per-answer judgement or coaching.
+    expect(english).not.toHaveProperty("passLikelihood");
+    expect(english).not.toHaveProperty("improvements");
+    expect(english.questionAnalysis[0]).not.toHaveProperty("flagLabel");
   });
 });

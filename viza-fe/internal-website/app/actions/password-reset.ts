@@ -10,6 +10,37 @@ type PasswordResetResult = {
   errorCode?: "invalid_email" | "send_failed";
 };
 
+/**
+ * Resolve the auth user id for an email via a bounded, indexed lookup instead
+ * of paging through the entire auth user list. Returns null when no account
+ * matches — callers must keep the response identical whether or not an
+ * account exists (no user enumeration).
+ */
+async function resolveAuthUserIdByEmail(
+  adminClient: ReturnType<typeof createAdminClient>,
+  normalizedEmail: string,
+): Promise<string | null> {
+  const { data: applicantRows } = await adminClient
+    .from("applicant_profiles")
+    .select("auth_user_id, email")
+    .ilike("email", normalizedEmail)
+    .limit(5);
+  const applicantMatch = (applicantRows ?? []).find(
+    (row) => (row.email as string | null)?.toLowerCase() === normalizedEmail && row.auth_user_id,
+  );
+  if (applicantMatch?.auth_user_id) return applicantMatch.auth_user_id as string;
+
+  const { data: staffRows } = await adminClient
+    .from("users")
+    .select("id, email")
+    .ilike("email", normalizedEmail)
+    .limit(5);
+  const staffMatch = (staffRows ?? []).find(
+    (row) => (row.email as string | null)?.toLowerCase() === normalizedEmail && row.id,
+  );
+  return staffMatch?.id ? (staffMatch.id as string) : null;
+}
+
 export async function requestPasswordReset(
   email: string,
   locale?: string
@@ -31,47 +62,46 @@ export async function requestPasswordReset(
   }
 
   if (adminClient) {
-    for (let page = 1; page <= 10; page += 1) {
-      const { data, error } = await adminClient.auth.admin.listUsers({
-        page,
-        perPage: 1000,
-      });
+    try {
+      // Resolve the single auth user id for this email without enumerating the
+      // entire auth user list (which the paged listUsers loop did on every
+      // call). Applicant accounts carry the auth id on applicant_profiles;
+      // staff/admin accounts on the users table. We fetch a small bounded set
+      // via a case-insensitive match, then confirm exact (lower-cased)
+      // equality in JS so ILIKE wildcard characters (`_`, `%`) in the email
+      // cannot select an unintended row.
+      const authUserId = await resolveAuthUserIdByEmail(adminClient, normalizedEmail);
 
-      if (error) {
-        console.error("Error preparing password reset locale:", error);
-        break;
-      }
+      if (authUserId) {
+        const { data: authData, error: getError } =
+          await adminClient.auth.admin.getUserById(authUserId);
+        if (getError) {
+          console.error("Error preparing password reset locale:", getError);
+        } else if (authData?.user) {
+          const existingMetadata =
+            typeof authData.user.user_metadata === "object" &&
+            authData.user.user_metadata !== null &&
+            !Array.isArray(authData.user.user_metadata)
+              ? authData.user.user_metadata
+              : {};
 
-      const authUser = data.users.find(
-        (user) => user.email?.toLowerCase() === normalizedEmail
-      );
+          const { error: updateError } =
+            await adminClient.auth.admin.updateUserById(authUserId, {
+              user_metadata: {
+                ...existingMetadata,
+                locale: authEmailLocale,
+                language: authEmailLocale,
+                preferred_language: authEmailLocale,
+              },
+            });
 
-      if (authUser) {
-        const existingMetadata =
-          typeof authUser.user_metadata === "object" &&
-          authUser.user_metadata !== null &&
-          !Array.isArray(authUser.user_metadata)
-            ? authUser.user_metadata
-            : {};
-
-        const { error: updateError } =
-          await adminClient.auth.admin.updateUserById(authUser.id, {
-            user_metadata: {
-              ...existingMetadata,
-              locale: authEmailLocale,
-              language: authEmailLocale,
-              preferred_language: authEmailLocale,
-            },
-          });
-
-        if (updateError) {
-          console.error("Error updating password reset locale:", updateError);
+          if (updateError) {
+            console.error("Error updating password reset locale:", updateError);
+          }
         }
-
-        break;
       }
-
-      if (data.users.length < 1000) break;
+    } catch (err) {
+      console.error("Error preparing password reset locale:", err);
     }
   }
 

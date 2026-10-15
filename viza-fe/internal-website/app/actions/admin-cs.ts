@@ -1,7 +1,7 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/rbac";
 import {
   isSupportTableMissing,
   listStoredTicketMessages,
@@ -43,19 +43,12 @@ export interface AdminSupportMessageRow {
 }
 
 async function assertStaff(): Promise<{ userId?: string; error?: string }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Canonical, revocation-aware check: `getCurrentUser` returns null for an
+  // admin whose `admin_memberships` grant has been revoked, so a revoked
+  // admin can no longer pass this guard. Role set is unchanged (admin/staff).
+  const user = await getCurrentUser();
   if (!user) return { error: "Not authenticated" };
-  const adminClient = createAdminClient();
-  const { data: row } = await adminClient
-    .from("users")
-    .select("role")
-    .eq("id", user.id)
-    .is("deleted_at", null)
-    .maybeSingle();
-  if (row?.role !== "admin" && row?.role !== "staff") return { error: "Staff role required" };
+  if (user.role !== "admin" && user.role !== "staff") return { error: "Staff role required" };
   return { userId: user.id };
 }
 

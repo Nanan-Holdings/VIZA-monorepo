@@ -70,8 +70,8 @@ export const italy: VisaContent = {
       title: "Biometrics & consulate review",
       body: "You attend in person to give fingerprints (waived if captured within the previous 59 months). The consulate's standard decision window is 15 calendar days, extendable to 45 when further scrutiny is needed — we track the queue and flag any document requests.",
       statusRows: [
-        { label: "Biometrics appointment confirmed", ts: "15 Jun, 9:30 AM", onTime: true },
-        { label: "Application lodged with consulate", ts: "15 Jun, 12:00 PM", onTime: true },
+        { label: "Biometrics appointment confirmed", ts: "15 Jun, 9:30 AM" },
+        { label: "Application lodged with consulate", ts: "15 Jun, 12:00 PM" },
         { label: "Awaiting consulate decision", ts: "In progress" },
       ],
     },

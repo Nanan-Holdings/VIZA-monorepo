@@ -67,8 +67,8 @@ export const vietnam: VisaContent = {
       title: "电子签证处理中",
       body: "移民局官方处理时限为收到完整申请后 3 个工作日。我们全程监控系统进度，在任何补件请求影响审批之前第一时间提醒您。",
       statusRows: [
-        { label: "申请已提交至越南移民局", ts: "7月3日 上午10:15", onTime: true },
-        { label: "申请审核中", ts: "7月4日 上午9:00", onTime: true },
+        { label: "申请已提交至越南移民局", ts: "7月3日 上午10:15" },
+        { label: "申请审核中", ts: "7月4日 上午9:00" },
         { label: "等待最终批准", ts: "进行中" },
       ],
     },

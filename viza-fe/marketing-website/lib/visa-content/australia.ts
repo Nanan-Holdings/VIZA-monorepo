@@ -86,8 +86,8 @@ export const australia: VisaContent = {
       title: "Your visa gets processed",
       body: "We monitor your ImmiAccount status daily and respond fast if the case officer requests more information — the single biggest cause of blown timelines. Don't book flights yet: Home Affairs advises waiting for the grant.",
       statusRows: [
-        { label: "Application lodged via ImmiAccount", ts: "10 Jun, 10:00 AM", onTime: true },
-        { label: "Health and character checks initiated", ts: "10 Jun, 2:30 PM", onTime: true },
+        { label: "Application lodged via ImmiAccount", ts: "10 Jun, 10:00 AM" },
+        { label: "Health and character checks initiated", ts: "10 Jun, 2:30 PM" },
         { label: "Awaiting officer decision", ts: "In progress" },
       ],
     },

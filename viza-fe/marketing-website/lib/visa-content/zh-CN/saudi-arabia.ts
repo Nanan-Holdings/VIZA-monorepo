@@ -72,8 +72,8 @@ export const saudiArabia: VisaContent = {
       title: "签证处理中",
       body: "旅游部通常在几分钟至 24 小时内出签。我们全程追踪申请进度，任何延误都会在影响行程前提前预警——建议至少在出发前 72 小时递交申请。",
       statusRows: [
-        { label: "申请已提交至 visa.visitsaudi.com", ts: "6月13日 08:30", onTime: true },
-        { label: "缴费成功 · 保险单已分配", ts: "6月13日 08:42", onTime: true },
+        { label: "申请已提交至 visa.visitsaudi.com", ts: "6月13日 08:30" },
+        { label: "缴费成功 · 保险单已分配", ts: "6月13日 08:42" },
         { label: "等待最终批准", ts: "处理中" },
       ],
     },

@@ -72,8 +72,8 @@ export const france: VisaContent = {
       title: "Biometrics & consulate review",
       body: "You attend the appointment in person to give fingerprints and submit the dossier. Standard processing is 15 calendar days under the EU Visa Code, extendable to 45 days in complex cases — we track the queue and flag any information requests.",
       statusRows: [
-        { label: "Biometrics appointment completed", ts: "12 Jun, 9:00 AM", onTime: true },
-        { label: "Dossier lodged with the consulate", ts: "12 Jun, 11:30 AM", onTime: true },
+        { label: "Biometrics appointment completed", ts: "12 Jun, 9:00 AM" },
+        { label: "Dossier lodged with the consulate", ts: "12 Jun, 11:30 AM" },
         { label: "Awaiting consulate decision", ts: "In progress" },
       ],
     },

@@ -50,6 +50,19 @@ export async function startStripeIdentitySession(
     .eq("id", applicationId)
     .maybeSingle();
   if (!app) return { ok: false, reason: "Application not found" };
+
+  // Ownership check (IDOR): only the applicant who owns this application may
+  // start an identity session for it. Mirrors the pattern in
+  // document-upload/face-match actions.
+  const { data: profile } = await adminClient
+    .from("applicant_profiles")
+    .select("id")
+    .eq("auth_user_id", user.id)
+    .maybeSingle();
+  if (!profile || profile.id !== app.applicant_id) {
+    return { ok: false, reason: "Unauthorized" };
+  }
+
   const { data: pkg } = await adminClient
     .from("visa_packages")
     .select("requires_stripe_identity")
@@ -85,44 +98,9 @@ export async function startStripeIdentitySession(
   };
 }
 
-export async function recordStripeIdentityEvent(input: {
-  sessionId: string;
-  status: string;
-  lastErrorCode?: string | null;
-  lastReportId?: string | null;
-}): Promise<void> {
-  const adminClient = createAdminClient();
-  await adminClient
-    .from("stripe_identity_session")
-    .update({
-      status: input.status,
-      last_error_code: input.lastErrorCode ?? null,
-      last_report_id: input.lastReportId ?? null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("session_id", input.sessionId);
-}
-
-export async function isApplicationIdentityVerified(applicationId: string): Promise<boolean> {
-  const adminClient = createAdminClient();
-  const { data: app } = await adminClient
-    .from("applications")
-    .select("id, visa_package_id")
-    .eq("id", applicationId)
-    .maybeSingle();
-  if (!app) return false;
-  const { data: pkg } = await adminClient
-    .from("visa_packages")
-    .select("requires_stripe_identity")
-    .eq("id", app.visa_package_id)
-    .maybeSingle();
-  if (!pkg?.requires_stripe_identity) return true; // gate not required
-  const { data: session } = await adminClient
-    .from("stripe_identity_session")
-    .select("status")
-    .eq("application_id", applicationId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return session?.status === "verified";
-}
+// `recordStripeIdentityEvent` (webhook-only writer) and
+// `isApplicationIdentityVerified` (server-side submission gate) were moved out
+// of this `"use server"` module into `lib/stripe/identity-events.ts` so they
+// are no longer exposed as public, client-invokable server actions. Import
+// them from there in trusted server-side contexts (the Stripe Identity
+// webhook and the submission-enqueue gate).

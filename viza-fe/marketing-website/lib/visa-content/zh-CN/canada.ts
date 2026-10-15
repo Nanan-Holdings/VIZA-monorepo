@@ -55,8 +55,8 @@ export const canada: VisaContent = {
       title: "IRCC审理您的签证",
       body: "中国递交的访客签证目前平均需8–14周；新加坡在线递交通常数周内出结果。我们持续跟踪IRCC状态，补件要求当天响应，确保流程不停滞。",
       statusRows: [
-        { label: "申请已通过IRCC门户递交", ts: "7月6日 上午9:40", onTime: true },
-        { label: "已在VFS Global完成生物识别", ts: "7月18日 上午11:05", onTime: true },
+        { label: "申请已通过IRCC门户递交", ts: "7月6日 上午9:40" },
+        { label: "已在VFS Global完成生物识别", ts: "7月18日 上午11:05" },
         { label: "等待最终审批", ts: "处理中" },
       ],
     },

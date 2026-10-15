@@ -79,7 +79,7 @@ export function ChatMessage({
         >
           <p
             className={cn(
-              "whitespace-pre-wrap",
+              "whitespace-pre-wrap break-words",
               compact ? "text-base leading-7" : "text-base leading-relaxed sm:text-lg"
             )}
           >
@@ -111,11 +111,13 @@ export function ChatMessage({
 
   // Agent message
   return (
-    <div className="w-full">
+    <div className="w-full min-w-0">
       {/* Message content */}
       <div
         className={cn(
-          "text-gray-700 whitespace-pre-wrap",
+          // `break-words` keeps a long unbroken string (a URL, a reference number)
+          // from widening the column and spilling over neighbouring panels.
+          "text-gray-700 whitespace-pre-wrap break-words min-w-0",
           compact ? "text-base leading-7" : "text-base leading-relaxed sm:text-lg"
         )}
       >

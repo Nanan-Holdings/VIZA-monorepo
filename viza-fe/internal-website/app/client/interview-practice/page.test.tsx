@@ -44,10 +44,7 @@ function setupFetch() {
     return url.includes("/api/interview/report")
       ? new Response(JSON.stringify({
           overallScore: 72,
-          passLikelihood: "中",
           dimensions: { clarity: 75, confidence: 70, consistency: 68, narrativeAlignment: 76 },
-          strengths: ["Good"],
-          improvements: ["Improve"],
           questionAnalysis: [],
         }), { status: 200, headers: { "Content-Type": "application/json" } })
       : completeResponse();

@@ -70,8 +70,8 @@ export const turkiye: VisaContent = {
       title: "Near-instant issuance",
       body: "The portal issues most e-Visas within minutes of payment. The government advises filing at least 48 hours before departure — we build that buffer in.",
       statusRows: [
-        { label: "Application submitted to evisa.gov.tr", ts: "12 Jun, 9:10 AM", onTime: true },
-        { label: "Government fee paid · issuance confirmed", ts: "12 Jun, 9:14 AM", onTime: true },
+        { label: "Application submitted to evisa.gov.tr", ts: "12 Jun, 9:10 AM" },
+        { label: "Government fee paid · issuance confirmed", ts: "12 Jun, 9:14 AM" },
         { label: "Final document check", ts: "In progress" },
       ],
     },

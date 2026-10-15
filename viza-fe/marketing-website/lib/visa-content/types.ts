@@ -58,8 +58,6 @@ export interface StatusRow {
   label: string;
   /** Display timestamp or "In progress". */
   ts: string;
-  /** Show the green "On time" badge. */
-  onTime?: boolean;
 }
 
 /** A numbered step in the "how it works" timeline. */

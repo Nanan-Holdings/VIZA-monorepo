@@ -137,25 +137,16 @@ export type InterviewCopy = {
     footerLabel: string;
     title: string;
     overallScore: string;
-    passProbability: string;
     completed: string;
-    modules: string;
+    questionsUnit: string;
+    scoreDisclaimer: string;
     retry: string;
     dimensionsTitle: string;
     dimensions: { clarity: string; confidence: string; consistency: string; narrativeAlignment: string };
-    insightsTitle: string;
-    strengthsTitle: string;
-    improvementsTitle: string;
     analysisTitle: string;
-    analysisPrefix: string;
     systemNormal: string;
     reportGenerated: string;
-    passLikelihood: { high: string; medium: string; low: string };
-    flagLabels: { strong: string; weak: string; neutral: string };
     fallback: {
-      strengths: string[];
-      improvements: string[];
-      note: string;
       topic: string;
       unanswered: string;
     };
@@ -280,11 +271,11 @@ const enCopy: InterviewCopy = {
     badge: "B1/B2 · AI visa interview simulation",
     titleLead: "One practice session,",
     titleAccent: "one less surprise",
-    description: "Practice a realistic conversation with an AI consular officer. Review each answer with a score and improvement suggestions when you finish.",
+    description: "Practice a realistic conversation with an AI consular officer. When you finish, you get a record of what was asked and what you said, plus a delivery score.",
     startButton: "▶ Start practice interview",
     stats: [
       { value: "AI", label: "Consular officer" },
-      { value: "Each", label: "Answer report" },
+      { value: "Each", label: "Answer record" },
       { value: "Free", label: "Unlimited practice" },
     ],
     liveOfficer: "Live · Consular officer",
@@ -295,13 +286,13 @@ const enCopy: InterviewCopy = {
     features: [
       { icon: "👨‍💼", title: "Realistic questions", description: "The AI uses concise consular language to recreate the pressure of a real visa window: direct questions and follow-ups without coaching." },
       { icon: "🎙️", title: "Two-way voice", description: "Answer by voice and hear the AI read each question aloud. Build spoken clarity and response speed through immersive practice." },
-      { icon: "📊", title: "Answer-by-answer report", description: "Get an automatic report with an overall score, pass likelihood, and strengths and improvements for each question." },
+      { icon: "📊", title: "Practice record", description: "When the interview ends you get a record of the questions you were asked, your answers, and an overall fluency score." },
     ],
     stepsLabel: "How it works",
     steps: [
       { number: 1, title: "Start", description: "Enter the AI practice interview directly. No registration is required, and practice is free." },
       { number: 2, title: "Answer by voice or text", description: "The AI asks one question at a time at a realistic pace, with voice answers supported." },
-      { number: 3, title: "Read your report", description: "Receive an overall score, question-by-question analysis, and targeted suggestions." },
+      { number: 3, title: "Review your record", description: "Afterwards you get a record of the questions and answers and a fluency score." },
     ],
     readyTitle: "Ready to begin?",
     readyDescription: "The interview gives you one chance; practice gives you as many as you need.",
@@ -433,26 +424,17 @@ const enCopy: InterviewCopy = {
   report: {
     footerLabel: "B1/B2 visa simulation",
     title: "B1/B2 visa practice interview",
-    overallScore: "Overall score",
-    passProbability: "Pass likelihood:",
-    completed: "Completed",
-    modules: "modules",
+    overallScore: "Delivery score",
+    completed: "Answered",
+    questionsUnit: "questions",
+    scoreDisclaimer: "This score only reflects how you came across in this practice session. It has no bearing on a visa decision.",
     retry: "↺ Practice again",
     dimensionsTitle: "Skill dimensions",
     dimensions: { clarity: "Clarity", confidence: "Confidence", consistency: "Consistency", narrativeAlignment: "Narrative alignment" },
-    insightsTitle: "AI insights",
-    strengthsTitle: "✓ Key strengths",
-    improvementsTitle: "! Needs improvement",
-    analysisTitle: "Question analysis",
-    analysisPrefix: "Analysis:",
+    analysisTitle: "Questions and answers from this session",
     systemNormal: "System normal",
     reportGenerated: "Report generated",
-    passLikelihood: { high: "High", medium: "Medium", low: "Low" },
-    flagLabels: { strong: "Strong", weak: "Needs work", neutral: "Neutral" },
     fallback: {
-      strengths: ["Your answers were generally fluent and communicative", "Some answers were direct and clear"],
-      improvements: ["Prepare specific itinerary details in advance", "Explain your source of funds more clearly and specifically"],
-      note: "The answer generally meets the requirement",
       topic: "Overall assessment",
       unanswered: "(No answer)",
     },
@@ -494,11 +476,11 @@ const zhCopy: InterviewCopy = {
     badge: "B1/B2 · AI 签证面试仿真",
     titleLead: "一次模拟，",
     titleAccent: "少一份意外",
-    description: "与 AI 领事官进行仿真对话练习，考察真实签证场景问题，面试结束后给出逐题评分与改进建议。",
+    description: "与 AI 领事官进行仿真对话练习，考察真实签证场景问题，面试结束后生成问答记录与表达评分。",
     startButton: "▶ 开始模拟面试",
     stats: [
       { value: "AI", label: "仿真领事官" },
-      { value: "逐题", label: "评估报告" },
+      { value: "逐题", label: "问答记录" },
       { value: "免费", label: "无限练习" },
     ],
     liveOfficer: "实时 · 领事官",
@@ -509,13 +491,13 @@ const zhCopy: InterviewCopy = {
     features: [
       { icon: "👨‍💼", title: "真实口吻提问", description: "AI 采用领事官极简短句风格，模拟签证窗口真实问答压力，不引导、不解释、直接追问。" },
       { icon: "🎙️", title: "语音双向交互", description: "支持语音作答与 AI 朗读提问，全程沉浸练习，口语表达与反应速度同步提升。" },
-      { icon: "📊", title: "逐题评估报告", description: "面试结束自动生成报告：综合评分、通过概率及每道题的优劣分析与改进建议。" },
+      { icon: "📊", title: "练习记录", description: "面试结束后生成一份练习记录：本次被问到的问题、你的回答，以及表达流畅度的综合评分。" },
     ],
     stepsLabel: "使用流程",
     steps: [
       { number: 1, title: "点击开始", description: "无需注册，直接进入 AI 仿真面试，全程免费使用。" },
       { number: 2, title: "语音 / 文字作答", description: "AI 按真实节奏逐题提问，支持语音回答。" },
-      { number: 3, title: "查看详细报告", description: "自动生成综合评分报告，逐题分析并给出针对性改进建议。" },
+      { number: 3, title: "查看练习记录", description: "结束后生成一份记录：本次的问答内容和表达流畅度评分。" },
     ],
     readyTitle: "准备好了吗？",
     readyDescription: "面试只有一次机会，练习可以无数次。",
@@ -647,26 +629,17 @@ const zhCopy: InterviewCopy = {
   report: {
     footerLabel: "B1/B2 签证模拟",
     title: "B1/B2 签证模拟面试",
-    overallScore: "综合评分",
-    passProbability: "通过概率：",
+    overallScore: "表达评分",
     completed: "共完成",
-    modules: "个模块",
+    questionsUnit: "道问题",
+    scoreDisclaimer: "该评分只反映本次练习的表达情况，与签证结果无关。",
     retry: "↺ 重新模拟",
     dimensionsTitle: "能力维度",
     dimensions: { clarity: "清晰度", confidence: "置信度", consistency: "一致性", narrativeAlignment: "叙述对齐" },
-    insightsTitle: "AI 洞察",
-    strengthsTitle: "✓ 关键优势",
-    improvementsTitle: "! 需要改进",
-    analysisTitle: "逐题分析",
-    analysisPrefix: "分析：",
+    analysisTitle: "本次问答记录",
     systemNormal: "系统正常",
     reportGenerated: "报告已生成",
-    passLikelihood: { high: "高", medium: "中", low: "低" },
-    flagLabels: { strong: "优势", weak: "需改进", neutral: "中性" },
     fallback: {
-      strengths: ["回答基本流畅，能够正常沟通", "部分问题回答较为直接清晰"],
-      improvements: ["建议提前准备具体的行程安排细节", "资金来源说明需更加明确具体"],
-      note: "回答基本符合要求",
       topic: "综合评估",
       unanswered: "（未回答）",
     },

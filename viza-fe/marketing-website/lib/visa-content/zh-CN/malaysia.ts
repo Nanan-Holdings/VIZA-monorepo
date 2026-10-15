@@ -64,8 +64,8 @@ export const malaysia: VisaContent = {
       title: "eVISA 处理中",
       body: "马来西亚移民局官方审理时间为 48 小时，且仅计工作日——周末及马来西亚和申请人所在国的公共假期不计入。我们实时监控进度，一有延误立即预警。",
       statusRows: [
-        { label: "申请已在官方 eVISA 系统递交", ts: "8月15日 上午8:30", onTime: true },
-        { label: "移民局审核中", ts: "8月15日 下午2:00", onTime: true },
+        { label: "申请已在官方 eVISA 系统递交", ts: "8月15日 上午8:30" },
+        { label: "移民局审核中", ts: "8月15日 下午2:00" },
         { label: "等待最终批准", ts: "进行中" },
       ],
     },

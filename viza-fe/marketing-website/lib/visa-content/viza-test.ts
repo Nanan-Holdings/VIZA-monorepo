@@ -53,8 +53,8 @@ export const vizaTest: VisaContent = {
       title: "Follow live tracking",
       body: "The status timeline updates the way a real application would, so you know what to expect on a real application.",
       statusRows: [
-        { label: "Test application received", ts: "Just now", onTime: true },
-        { label: "Demo review completed", ts: "Moments later", onTime: true },
+        { label: "Test application received", ts: "Just now" },
+        { label: "Demo review completed", ts: "Moments later" },
         { label: "Demo delivery", ts: "In progress" },
       ],
     },

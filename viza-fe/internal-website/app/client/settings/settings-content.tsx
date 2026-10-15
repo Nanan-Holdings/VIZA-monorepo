@@ -574,12 +574,6 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
               badge={t("rows.universalInfo.badge")}
             />
             <SettingsRow
-              icon={UserRound}
-              title={t("rows.account.title")}
-              description={t("rows.account.description")}
-              href="/client/universal-info"
-            />
-            <SettingsRow
               icon={UsersRound}
               title={t("rows.travelers.title")}
               description={t("rows.travelers.description")}

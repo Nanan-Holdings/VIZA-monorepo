@@ -1174,6 +1174,18 @@
         "cancel": "取消",
         "confirm": "移除"
       }
+    },
+    "chooser": {
+      "title": "申请",
+      "subtitle": "继续一份进行中的申请，或开始一份新的。",
+      "resumeHeading": "进行中的申请",
+      "resume": "继续填写",
+      "progress": "已完成 {percent}%",
+      "startHeading": "开始新申请",
+      "startNew": "开始一份新申请",
+      "startNewHint": "选择另一个目的地，不会影响上面进行中的申请。",
+      "startNewHintEmpty": "先选择目的地，我们会带你进入对应的签证流程。",
+      "loadFailed": "暂时读不到你的申请列表，下面仍可开始新申请。"
     }
   },
   "clientStatus": {
@@ -4392,7 +4404,7 @@
         "surname": "姓氏 / Surname",
         "givenNames": "名字 / Given names",
         "dateOfBirth": "出生日期 / Date of birth",
-        "birthCountry": "出生国家 / Country of birth",
+        "birthCountry": "出生国家/地区 / Country or region of birth",
         "birthProvinceOrState": "出生省/州 / State/Province of birth",
         "birthCity": "出生城市 / City of birth",
         "gender": "性别 / Gender",
@@ -4415,8 +4427,8 @@
         "givenNamesEn": "例如：XIAOMING",
         "dateOfBirthZh": "选择出生日期",
         "dateOfBirthEn": "选择出生日期",
-        "birthCountryZh": "选择出生国家...",
-        "birthCountryEn": "选择出生国家或地区…",
+        "birthCountryZh": "选择出生国家/地区...",
+        "birthCountryEn": "Select country of birth...",
         "birthProvinceOrStateZh": "如：湖南",
         "birthProvinceOrStateEn": "例如：Hunan",
         "birthCityZh": "如：长沙",

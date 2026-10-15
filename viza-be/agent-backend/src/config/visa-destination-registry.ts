@@ -408,6 +408,18 @@ export function getCountryDisplayName(country: SupportedKnowledgeCountry): strin
   return VISA_DESTINATION_REGISTRY[country].displayName;
 }
 
+/**
+ * Chinese display name, taken from the first Han-script alias.
+ *
+ * Every destination lists its Chinese name first in `aliases`; falling back to the
+ * English name keeps this safe if one ever doesn't.
+ */
+export function getCountryDisplayNameZh(country: string): string {
+  const config = VISA_DESTINATION_REGISTRY[country as SupportedKnowledgeCountry];
+  if (!config) return country;
+  return config.aliases.find((alias) => /\p{Script=Han}/u.test(alias)) ?? config.displayName;
+}
+
 export function getCountryAliases(country: SupportedKnowledgeCountry): string[] {
   return VISA_DESTINATION_REGISTRY[country].aliases;
 }

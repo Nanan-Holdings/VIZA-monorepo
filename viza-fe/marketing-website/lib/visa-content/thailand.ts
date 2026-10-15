@@ -70,8 +70,8 @@ export const thailand: VisaContent = {
       title: "Your eVisa gets processed",
       body: "Consular processing typically takes 5 – 10 working days after payment. We monitor each update and flag any request for extra documents before it delays your trip.",
       statusRows: [
-        { label: "Application submitted to eVisa portal", ts: "8 Jul, 8:30 AM", onTime: true },
-        { label: "Documents forwarded to consular officer", ts: "8 Jul, 11:00 AM", onTime: true },
+        { label: "Application submitted to eVisa portal", ts: "8 Jul, 8:30 AM" },
+        { label: "Documents forwarded to consular officer", ts: "8 Jul, 11:00 AM" },
         { label: "Awaiting consular approval", ts: "In progress" },
       ],
     },

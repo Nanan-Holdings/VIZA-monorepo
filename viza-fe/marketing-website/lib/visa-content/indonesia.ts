@@ -55,8 +55,8 @@ export const indonesia: VisaContent = {
       title: "Your e-VOA gets processed",
       body: "We track each handoff inside Immigration so we can flag delays before they affect your trip.",
       statusRows: [
-        { label: "Application sent to Immigration supervisor", ts: "8 May, 5:45 AM", onTime: true },
-        { label: "Forwarded to internal intelligence", ts: "8 May, 8:12 AM", onTime: true },
+        { label: "Application sent to Immigration supervisor", ts: "8 May, 5:45 AM" },
+        { label: "Forwarded to internal intelligence", ts: "8 May, 8:12 AM" },
         { label: "Awaiting final approval", ts: "In progress" },
       ],
     },

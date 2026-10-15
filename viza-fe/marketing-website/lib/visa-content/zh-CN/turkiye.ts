@@ -64,8 +64,8 @@ export const turkiye: VisaContent = {
       title: "近乎即时签发",
       body: "门户在付款后数分钟内即签发大多数电子签证。官方建议至少在出发前48小时申请——我们已为您预留缓冲。",
       statusRows: [
-        { label: "申请已提交至 evisa.gov.tr", ts: "6月12日 上午 9:10", onTime: true },
-        { label: "政府费用已支付 · 签发确认", ts: "6月12日 上午 9:14", onTime: true },
+        { label: "申请已提交至 evisa.gov.tr", ts: "6月12日 上午 9:10" },
+        { label: "政府费用已支付 · 签发确认", ts: "6月12日 上午 9:14" },
         { label: "最终文件核对", ts: "处理中" },
       ],
     },

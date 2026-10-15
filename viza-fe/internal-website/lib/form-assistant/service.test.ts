@@ -100,6 +100,7 @@ describe("cross-country assistant question grammar", () => {
       validationRules: { mustBeTrue: true },
     }, "en", product)).toBe("Please review and confirm the complete declaration shown below.");
   });
+
 });
 
 describe("human-style assistant edge cases", () => {
@@ -941,8 +942,8 @@ describe("generic natural-language model extraction", () => {
               content: JSON.stringify({
                 reply: "",
                 patches: [{
-                  fieldName: "surname_at_birth",
-                  value: "张",
+                  fieldName: "purpose_of_visit_details",
+                  value: "参加行业会议",
                   confidence: "high",
                 }],
               }),
@@ -969,10 +970,10 @@ describe("generic natural-language model extraction", () => {
         steps: [{
           stepNumber: 1,
           stepName: "Personal details",
-          fields: [field("surname_at_birth", "Surname at birth", "出生时姓氏/曾用姓氏")],
+          fields: [field("purpose_of_visit_details", "Purpose of visit details", "访问目的说明")],
         }],
         answers: {},
-        text: "张",
+        text: "去参加一个行业会议",
         locale: "zh",
         inputMode: "text",
         idempotencyKey: "deepseek-fallback-turn",
@@ -981,8 +982,8 @@ describe("generic natural-language model extraction", () => {
       });
 
       expect(result.appliedPatches).toEqual([expect.objectContaining({
-        fieldName: "surname_at_birth",
-        value: "张",
+        fieldName: "purpose_of_visit_details",
+        value: "参加行业会议",
       })]);
       expect(fetchMock).toHaveBeenCalledTimes(2);
       expect(String(fetchMock.mock.calls[1]?.[0])).toBe("https://api.deepseek.com/chat/completions");
@@ -1034,10 +1035,10 @@ describe("generic natural-language model extraction", () => {
         steps: [{
           stepNumber: 1,
           stepName: "Personal details",
-          fields: [field("surname_at_birth", "Surname at birth", "出生时姓氏/曾用姓氏")],
+          fields: [field("purpose_of_visit_details", "Purpose of visit details", "访问目的说明")],
         }],
         answers: {},
-        text: "张",
+        text: "去参加一个行业会议",
         locale: "zh",
         inputMode: "text",
         idempotencyKey: "providers-unavailable-turn",

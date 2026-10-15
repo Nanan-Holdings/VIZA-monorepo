@@ -1174,6 +1174,18 @@
         "cancel": "Cancel",
         "confirm": "Remove"
       }
+    },
+    "chooser": {
+      "title": "Applications",
+      "subtitle": "Pick up an application already in progress, or start a new one.",
+      "resumeHeading": "In progress",
+      "resume": "Continue",
+      "progress": "{percent}% complete",
+      "startHeading": "Start something new",
+      "startNew": "Start a new application",
+      "startNewHint": "Choosing another destination won't affect the applications above.",
+      "startNewHintEmpty": "Pick a destination and we'll take you into the right visa flow.",
+      "loadFailed": "We couldn't load your applications just now. You can still start a new one below."
     }
   },
   "clientStatus": {
@@ -4392,7 +4404,7 @@
         "surname": "Surname",
         "givenNames": "Given names",
         "dateOfBirth": "Date of birth",
-        "birthCountry": "Country of birth",
+        "birthCountry": "Country/region of birth",
         "birthProvinceOrState": "State/Province of birth",
         "birthCity": "City of birth",
         "gender": "Gender",
@@ -4415,8 +4427,8 @@
         "givenNamesEn": "For example: XIAOMING",
         "dateOfBirthZh": "Select date of birth",
         "dateOfBirthEn": "Select date of birth",
-        "birthCountryZh": "Select country of birth...",
-        "birthCountryEn": "Select country of birth...",
+        "birthCountryZh": "Select country/region of birth...",
+        "birthCountryEn": "Select country/region of birth...",
         "birthProvinceOrStateZh": "For example: Hunan",
         "birthProvinceOrStateEn": "For example: Hunan",
         "birthCityZh": "For example: Changsha",

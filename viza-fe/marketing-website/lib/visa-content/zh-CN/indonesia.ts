@@ -50,8 +50,8 @@ export const indonesia: VisaContent = {
       title: "签证处理中",
       body: "我们追踪移民局内部每个处理环节，以便在影响您行程之前提前发现任何延误。",
       statusRows: [
-        { label: "申请已发送至移民局主管", ts: "5月8日 05:45", onTime: true },
-        { label: "已转交内部审查部门", ts: "5月8日 08:12", onTime: true },
+        { label: "申请已发送至移民局主管", ts: "5月8日 05:45" },
+        { label: "已转交内部审查部门", ts: "5月8日 08:12" },
         { label: "等待最终批准", ts: "处理中" },
       ],
     },

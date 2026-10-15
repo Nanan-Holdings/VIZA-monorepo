@@ -62,8 +62,8 @@ export const australia: VisaContent = {
       title: "签证处理中",
       body: "我们每天监控您的 ImmiAccount 申请状态，并在签证官要求补充材料时第一时间响应——这是最常见的延误原因。请暂时不要购买机票：内政部官方建议在获批前不要出票。",
       statusRows: [
-        { label: "申请已通过 ImmiAccount 递交", ts: "6月10日 10:00", onTime: true },
-        { label: "健康及品格审查已启动", ts: "6月10日 14:30", onTime: true },
+        { label: "申请已通过 ImmiAccount 递交", ts: "6月10日 10:00" },
+        { label: "健康及品格审查已启动", ts: "6月10日 14:30" },
         { label: "等待签证官决定", ts: "处理中" },
       ],
     },

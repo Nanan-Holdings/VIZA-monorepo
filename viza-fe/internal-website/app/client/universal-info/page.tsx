@@ -1988,14 +1988,14 @@ export default function UniversalInfoPage() {
                   }
                 />
                 <ProfileBilingualRow isZh={isZh} {...profileReviewProps("birth_country", countryChineseName(form.birth_country), countryEnglishName(form.birth_country))}
-                  zhLabel="出生国家"
+                  zhLabel="出生国家/地区"
                   enLabel="Country of birth"
                   zhControl={
                     <div data-testid="birth-country-zh-control">
                       <BilingualCountryControl
                         side="zh"
                         value={form.birth_country}
-                        placeholder="选择出生国家..."
+                        placeholder="选择出生国家/地区..."
                         showSecondaryLabel={false}
                         onChange={updateBirthCountry}
                       />

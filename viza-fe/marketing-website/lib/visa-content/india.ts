@@ -79,8 +79,8 @@ export const india: VisaContent = {
       title: "Application processed by the Bureau of Immigration",
       body: "Decisions are typically emailed within 72 hours. We monitor the portal and act immediately on any re-upload request — unanswered requests are a leading cause of rejection.",
       statusRows: [
-        { label: "Application submitted to portal", ts: "20 Jun, 10:15 AM", onTime: true },
-        { label: "Forwarded for background check", ts: "20 Jun, 2:30 PM", onTime: true },
+        { label: "Application submitted to portal", ts: "20 Jun, 10:15 AM" },
+        { label: "Forwarded for background check", ts: "20 Jun, 2:30 PM" },
         { label: "Awaiting final approval", ts: "In progress" },
       ],
     },

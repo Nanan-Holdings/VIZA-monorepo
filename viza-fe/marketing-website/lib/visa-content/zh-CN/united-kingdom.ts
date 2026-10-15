@@ -61,8 +61,8 @@ export const unitedKingdom: VisaContent = {
       title: "生物采集与 UKVI 审理",
       body: "您前往 VFS Global 签证申请中心采集指纹和面部照片（无需上传照片）。随后我们跟踪 UKVI 进度；视地区开放情况可加购优先服务（约 5 个工作日，+GBP 500）或超级优先服务（约 1 个工作日，+GBP 1,000）。",
       statusRows: [
-        { label: "申请已提交至 UKVI", ts: "6月12日 上午9:00", onTime: true },
-        { label: "已在 VFS Global 完成生物采集", ts: "6月13日 上午11:30", onTime: true },
+        { label: "申请已提交至 UKVI", ts: "6月12日 上午9:00" },
+        { label: "已在 VFS Global 完成生物采集", ts: "6月13日 上午11:30" },
         { label: "等待 UKVI 最终决定", ts: "进行中" },
       ],
     },

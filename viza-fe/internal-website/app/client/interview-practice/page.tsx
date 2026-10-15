@@ -987,20 +987,8 @@ function InterviewPage({
 // ─── Report Page ──────────────────────────────────────────────────────────────
 
 function ReportPage({ copy, report, onRetry }: { copy: InterviewCopy; report: InterviewReport; onRetry: () => void }) {
-  const passLikelihoodColor = report.passLikelihood === "高"
-    ? { dot: "#4ADE80", bg: "#15803D", text: "#BBF7D0" }
-    : report.passLikelihood === "中"
-    ? { dot: "#FCD34D", bg: "#B45309", text: "#FEF3C7" }
-    : { dot: "#F87171", bg: "#B91C1C", text: "#FEE2E2" };
-
   const scoreCircumference = 2 * Math.PI * 38;
   const scoreDash = scoreCircumference * (report.overallScore / 100);
-
-  const passLabel = report.passLikelihood === "高"
-    ? copy.report.passLikelihood.high
-    : report.passLikelihood === "中"
-    ? copy.report.passLikelihood.medium
-    : copy.report.passLikelihood.low;
 
   const dims = [
     { label: copy.report.dimensions.clarity, value: report.dimensions.clarity },
@@ -1030,15 +1018,10 @@ function ReportPage({ copy, report, onRetry }: { copy: InterviewCopy; report: In
           </svg>
           {/* verdict */}
           <div className="flex-shrink-0">
+            {/* No pass-likelihood verdict: a consular decision is not ours to predict. */}
             <div className="text-[rgba(255,255,255,0.5)] text-[11px] tracking-[1px] mb-2">{copy.report.overallScore}</div>
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-4 py-1.5 rounded-full"
-                style={{ background: passLikelihoodColor.bg, color: passLikelihoodColor.text }}>
-                <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: passLikelihoodColor.dot }} />
-                {copy.report.passProbability} {passLabel}
-              </span>
-            </div>
-            <div className="text-[rgba(255,255,255,0.35)] text-[11px] mt-2">{copy.report.completed} {report.questionAnalysis.length} · 7 {copy.report.modules}</div>
+            <div className="text-[rgba(255,255,255,0.35)] text-[11px] mt-2">{copy.report.completed} {report.questionAnalysis.length} {copy.report.questionsUnit}</div>
+            <div className="text-[rgba(255,255,255,0.35)] text-[11px] mt-1">{copy.report.scoreDisclaimer}</div>
           </div>
           {/* divider */}
           <div className="w-px self-stretch bg-[rgba(255,255,255,0.12)] flex-shrink-0 hidden sm:block" style={{ minHeight: 64 }} />
@@ -1080,51 +1063,20 @@ function ReportPage({ copy, report, onRetry }: { copy: InterviewCopy; report: In
               ))}
             </div>
           </div>
-
-          {/* AI Insights */}
-          <div className="bg-white border border-[#e8e8e8] rounded-xl p-5 flex-1">
-            <p className="text-[11px] font-semibold uppercase tracking-[1px] text-[#989898] mb-4">{copy.report.insightsTitle}</p>
-            <div className="mb-4">
-              <div className="text-[11px] font-semibold text-green-700 mb-2.5">{copy.report.strengthsTitle}</div>
-              {report.strengths.map((s, i) => (
-                <div key={i} className="border-l-[2.5px] border-green-600 rounded-[0_6px_6px_0] bg-green-50 px-3 py-2.5 mb-2 text-[12px] text-[#3d3d3d] leading-relaxed">{s}</div>
-              ))}
-            </div>
-            <div>
-              <div className="text-[11px] font-semibold text-red-600 mb-2.5">{copy.report.improvementsTitle}</div>
-              {report.improvements.map((imp, i) => (
-                <div key={i} className="border-l-[2.5px] border-red-500 rounded-[0_6px_6px_0] bg-red-50 px-3 py-2.5 mb-2 text-[12px] text-[#3d3d3d] leading-relaxed">{imp}</div>
-              ))}
-            </div>
-          </div>
         </div>
 
-        {/* Right col — question analysis */}
+        {/* Right col — what was asked and what the applicant said */}
         <div className="bg-white border border-[#e8e8e8] rounded-xl p-5 flex flex-col min-h-0" style={{ maxHeight: 580 }}>
           <p className="text-[11px] font-semibold uppercase tracking-[1px] text-[#989898] mb-4 flex-shrink-0">{copy.report.analysisTitle}</p>
           <div className="flex flex-col gap-2.5 overflow-y-auto flex-1 pr-1" style={{ scrollbarWidth: "thin", scrollbarColor: "#D4E0F0 transparent" }}>
             {report.questionAnalysis.map((qa, i) => {
-              const badgeClass = qa.flag === "strong"
-                ? "bg-green-100 text-green-800"
-                : qa.flag === "weak"
-                ? "bg-red-100 text-red-700"
-                : "bg-[#f0f0f0] text-[#888]";
-              const flagLabel = qa.flag === "strong"
-                ? copy.report.flagLabels.strong
-                : qa.flag === "weak"
-                ? copy.report.flagLabels.weak
-                : copy.report.flagLabels.neutral;
               return (
                 <div key={i} className="bg-[#f7f8fa] border border-[#efefef] rounded-xl p-3.5">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-[11px] text-[#3D6DAD]">{qa.timestamp} · {qa.topic}</span>
-                    <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full ${badgeClass}`}>{flagLabel}</span>
                   </div>
                   <p className="text-[12px] text-[#999] italic mb-1.5">「{qa.question}」</p>
-                  <p className="text-[12px] text-[#3d3d3d] leading-relaxed mb-2">{qa.answer}</p>
-                    <div className="bg-white border border-[#efefef] rounded px-2.5 py-2 text-[11px] text-[rgba(0,0,0,0.45)] leading-relaxed italic">
-                    {copy.report.analysisPrefix} {qa.note}
-                  </div>
+                  <p className="text-[12px] text-[#3d3d3d] leading-relaxed">{qa.answer}</p>
                 </div>
               );
             })}
@@ -1331,17 +1283,15 @@ export default function InterviewPracticePage() {
     } catch (err) {
       console.error("Report generation error:", err);
       setReport({
-        overallScore: 72, passLikelihood: "中",
+        overallScore: 72,
         dimensions: { clarity: 75, confidence: 70, consistency: 68, narrativeAlignment: 76 },
-        strengths: copy.report.fallback.strengths,
-        improvements: copy.report.fallback.improvements,
         questionAnalysis: messages.filter((m) => m.role === "assistant" && m.content !== copy.plan.endingMessage).slice(0, 8).map((m, i) => ({
           question: m.content, answer: messages.find((msg, idx) => msg.role === "user" && idx > messages.indexOf(m))?.content ?? copy.report.fallback.unanswered,
-          score: 70, flag: "neutral" as const, flagLabel: copy.report.flagLabels.neutral, note: copy.report.fallback.note, timestamp: `0${i + 1}:00`, topic: copy.report.fallback.topic,
+          timestamp: `0${i + 1}:00`, topic: copy.report.fallback.topic,
         })),
       });
     } finally { setIsGeneratingReport(false); }
-  }, [copy.plan.endingMessage, copy.report.fallback, copy.report.flagLabels.neutral, locale, messages]);
+  }, [copy.plan.endingMessage, copy.report.fallback, locale, messages]);
 
   const handleRetry = useCallback(() => {
     if (typeof window !== "undefined") window.speechSynthesis?.cancel();

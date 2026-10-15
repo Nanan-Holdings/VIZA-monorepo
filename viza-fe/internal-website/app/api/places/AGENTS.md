@@ -18,6 +18,12 @@ Google Places content.
   view is opened.
 - `photo/route.ts`: Place Photos (New) server redirect endpoint with local
   fallback imagery.
+- `resolve-address/route.ts`: Text Search (New) lookup that turns an address,
+  property name, or postal code into state / city / postcode parts for the
+  application form's address autofill. Nothing is persisted.
+
+All routes apply `guardApiAbuse` from `lib/api/rate-limit-ip.ts` (same-origin
+guard, body-size cap, per-IP rate limit) because each proxies a paid upstream.
 
 ## Guardrails
 

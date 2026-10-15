@@ -75,8 +75,8 @@ export const saudiArabia: VisaContent = {
       title: "Your eVisa gets processed",
       body: "The Ministry of Tourism typically issues eVisas within minutes to 24 hours. We track the application and flag any delay well before your departure — we recommend applying at least 72 hours before travel.",
       statusRows: [
-        { label: "Application submitted to visa.visitsaudi.com", ts: "13 Jun, 8:30 AM", onTime: true },
-        { label: "Payment confirmed · insurance policy assigned", ts: "13 Jun, 8:42 AM", onTime: true },
+        { label: "Application submitted to visa.visitsaudi.com", ts: "13 Jun, 8:30 AM" },
+        { label: "Payment confirmed · insurance policy assigned", ts: "13 Jun, 8:42 AM" },
         { label: "Awaiting final approval", ts: "In progress" },
       ],
     },

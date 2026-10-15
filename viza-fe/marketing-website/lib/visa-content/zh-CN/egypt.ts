@@ -67,8 +67,8 @@ export const egypt: VisaContent = {
       title: "签证处理中",
       body: "一般 5 – 7 个工作日出签（旺季更长）。我们全程追踪申请进度，在影响您行程之前提前发现任何延误。",
       statusRows: [
-        { label: "申请已提交至 visa2egypt.gov.eg", ts: "7月5日 09:00", onTime: true },
-        { label: "平台已确认缴费", ts: "7月5日 11:45", onTime: true },
+        { label: "申请已提交至 visa2egypt.gov.eg", ts: "7月5日 09:00" },
+        { label: "平台已确认缴费", ts: "7月5日 11:45" },
         { label: "等待最终批准", ts: "处理中" },
       ],
     },
