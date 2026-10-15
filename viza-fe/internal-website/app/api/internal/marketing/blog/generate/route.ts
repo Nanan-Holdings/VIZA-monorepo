@@ -4,7 +4,13 @@ import { authorizeMarketingCron } from "@/lib/marketing/cron-auth";
 
 export const runtime = "nodejs";
 export const preferredRegion = "iad1";
-export const maxDuration = 300;
+/* 800 s, not 300: from mid-October 2026 the scheduled run started dying at
+   exactly 300 s ("Task timed out after 300 seconds") while the same code
+   finished fine when run off-peak. The run is five sequential LLM calls and
+   DeepSeek is slow at 01:00 UTC, which is 09:00 in Beijing. 800 s needs Fluid
+   Compute on a Pro plan. The cron was also moved an hour
+   earlier, into DeepSeek's off-peak window (see vercel.json). */
+export const maxDuration = 800;
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
