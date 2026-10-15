@@ -39,6 +39,7 @@ export default async function EditMarketingSocialPage({ params }: { params: Prom
         openrouterConnected={dashboard.providers.openrouter.connected}
         canPublish={actor.role === "admin"}
         initial={composition}
+        videoVisibility={dashboard.providers.uploadPost.videoVisibility}
       />
     </PortalPage>
   );
