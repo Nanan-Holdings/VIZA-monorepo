@@ -1,0 +1,94 @@
+{
+  "slug": "australia-visa-changes-students-working-holidaymakers-2026",
+  "locale": "en",
+  "topic": "AU · Student & WHV",
+  "voiceText": "[calm] Singapore students and working holiday makers, Australia announced visa changes on 17 September 2026. Family members will be restricted on most new student and graduate visas, with exceptions for ASEAN and Pacific applicants and some courses like PhDs. Course changes used to extend a stay will face new assessment. Second and third year working holiday visas will move to ballots, proposed at 45,000 and 5,000 places. These are announcements, not final rules. Check the current Home Affairs page before you apply. Check free at viza dot it dot com.",
+  "voice": "voice/australia-2026-en.mp3",
+  "music": "music/bed-calm-tech.mp3",
+  "timings": "timings/australia-2026-en.json",
+  "out": "specs/australia-2026-en.json",
+  "captionReplace": [
+    [
+      "viza dot it dot com",
+      "viza.it.com"
+    ]
+  ],
+  "scenes": [
+    {
+      "kind": "hook",
+      "cue": "Singapore students and working holiday makers",
+      "props": {
+        "kicker": "Studying or working in Australia?",
+        "lines": [
+          "Australia announced visa changes",
+          "17 September 2026"
+        ],
+        "turn": "Announced, not yet final."
+      },
+      "beats": [
+        "Singapore students and working holiday makers",
+        "Australia announced visa changes on 17 September 2026",
+        "These are announcements, not final rules"
+      ]
+    },
+    {
+      "kind": "notA",
+      "cue": "Family members will be restricted",
+      "props": {
+        "struck": "BANNED",
+        "stamp": "NOT A BAN",
+        "is": "A planned restriction on most new student and graduate visas",
+        "like?": "Exceptions for ASEAN and Pacific applicants"
+      },
+      "beats": [
+        "Family members will be restricted on most new student and graduate visas",
+        "with exceptions for ASEAN and Pacific applicants and some courses like PhDs"
+      ]
+    },
+    {
+      "kind": "stats",
+      "cue": "Second and third year working holiday visas",
+      "props": {
+        "title": "Proposed ballot limits",
+        "items": [
+          {
+            "value": "45,000",
+            "label": "Second year places"
+          },
+          {
+            "value": "5,000",
+            "label": "Third year places"
+          }
+        ]
+      },
+      "beats": [
+        "Second and third year working holiday visas will move to ballots, proposed at 45,000 and 5,000 places"
+      ]
+    },
+    {
+      "kind": "verdict",
+      "cue": "Check the current Home Affairs page",
+      "props": {
+        "badge": "Check first",
+        "headline": "Confirm the effective date",
+        "note": "Rules may differ by visa subclass and passport."
+      },
+      "beats": [
+        "Check the current Home Affairs page before you apply"
+      ]
+    },
+    {
+      "kind": "cta",
+      "cue": "Check free at viza dot it dot com",
+      "props": {
+        "question": "Not sure which rules apply to you?",
+        "url": "viza.it.com",
+        "pill": "Free",
+        "disclaimer": "VIZA is not a government agency. Always verify with official sources."
+      },
+      "beats": [
+        "Check free at viza dot it dot com"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,145 @@
+{
+  "slug": "etias-launch-status-eu-travel-authorisation-explained",
+  "locale": "en",
+  "topic": "EU · ETIAS",
+  "voice": "voice/etias-en.mp3",
+  "music": "music/bed-calm-tech.mp3",
+  "timings": "timings/etias-en.json",
+  "out": "specs/etias-en.json",
+  "scenes": [
+    {
+      "kind": "hook",
+      "cue": "Singapore passport",
+      "beats": [
+        "Singapore passport",
+        "Europe is still",
+        "But a new step"
+      ],
+      "props": {
+        "kicker": "Singapore passport?",
+        "lines": [
+          "Europe is still visa-free.",
+          "visa-free"
+        ],
+        "turn": "But a new step is coming."
+      }
+    },
+    {
+      "kind": "acronym",
+      "cue": "It's called ETIAS",
+      "props": {
+        "acronym": "ETIAS",
+        "words": [
+          "European",
+          "Travel",
+          "Information",
+          "Authorisation",
+          "System"
+        ]
+      }
+    },
+    {
+      "kind": "notA",
+      "cue": "And it is NOT",
+      "beats": [
+        "And it is NOT",
+        "It's an online"
+      ],
+      "props": {
+        "struck": "VISA",
+        "stamp": "NOT A VISA",
+        "is": "An online travel authorisation",
+        "like": "Similar to the US ESTA"
+      }
+    },
+    {
+      "kind": "stats",
+      "cue": "The planned fee",
+      "beats": [
+        "The planned fee",
+        "Free if",
+        "Valid for"
+      ],
+      "props": {
+        "items": [
+          {
+            "value": "€20",
+            "countTo": 20,
+            "prefix": "€",
+            "struck": "€7",
+            "label": "Planned fee"
+          },
+          {
+            "value": "Free",
+            "label": "Under 18 or over 70"
+          },
+          {
+            "value": "3 yrs",
+            "countTo": 3,
+            "suffix": " yrs",
+            "label": "Valid, or until your passport expires"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "timeline",
+      "cue": "It has been delayed",
+      "beats": [
+        "It has been delayed",
+        "The EU now targets"
+      ],
+      "props": {
+        "title": "Launch date",
+        "caveat": "Could slip again",
+        "points": [
+          {
+            "label": "2023",
+            "note": "Delayed",
+            "state": "slipped"
+          },
+          {
+            "label": "2024",
+            "note": "Delayed",
+            "state": "slipped"
+          },
+          {
+            "label": "2025",
+            "note": "Delayed",
+            "state": "slipped"
+          },
+          {
+            "label": "Late 2026",
+            "note": "Current target",
+            "state": "target"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "verdict",
+      "cue": "So right now",
+      "props": {
+        "badge": "Right now",
+        "headline": "You don't need one yet",
+        "note": "Check the official EU site before you book"
+      }
+    },
+    {
+      "kind": "cta",
+      "cue": "Want to know",
+      "props": {
+        "question": "What does your passport need?",
+        "url": "viza.it.com",
+        "pill": "Free",
+        "disclaimer": "VIZA is not a government agency. Always verify with official sources."
+      }
+    }
+  ],
+  "captionReplace": [
+    [
+      "viza dot it dot com",
+      "viza.it.com"
+    ]
+  ]
+}

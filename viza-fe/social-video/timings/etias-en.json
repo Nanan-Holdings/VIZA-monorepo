@@ -1,0 +1,461 @@
+{
+ "source": "magnific/elevenlabs eleven_v3 alignment",
+ "durationSec": 40.64,
+ "words": [
+  {
+   "text": "[",
+   "start": 0,
+   "end": 0.096
+  },
+  {
+   "text": "calm]",
+   "start": 0.096,
+   "end": 0.384
+  },
+  {
+   "text": "Singapore",
+   "start": 0.394,
+   "end": 0.48
+  },
+  {
+   "text": "passport?",
+   "start": 0.542,
+   "end": 1.12
+  },
+  {
+   "text": "Europe",
+   "start": 1.246,
+   "end": 2
+  },
+  {
+   "text": "is",
+   "start": 2.053,
+   "end": 2.16
+  },
+  {
+   "text": "still",
+   "start": 2.213,
+   "end": 2.48
+  },
+  {
+   "text": "visa-",
+   "start": 2.544,
+   "end": 2.864
+  },
+  {
+   "text": "free.",
+   "start": 2.864,
+   "end": 3.28
+  },
+  {
+   "text": "But",
+   "start": 3.58,
+   "end": 4.48
+  },
+  {
+   "text": "a",
+   "start": 4.52,
+   "end": 4.56
+  },
+  {
+   "text": "new",
+   "start": 4.6,
+   "end": 4.72
+  },
+  {
+   "text": "step",
+   "start": 4.784,
+   "end": 5.04
+  },
+  {
+   "text": "is",
+   "start": 5.067,
+   "end": 5.12
+  },
+  {
+   "text": "coming.",
+   "start": 5.177,
+   "end": 5.6
+  },
+  {
+   "text": "It's",
+   "start": 5.813,
+   "end": 6.36
+  },
+  {
+   "text": "called",
+   "start": 6.377,
+   "end": 6.48
+  },
+  {
+   "text": "ETIAS.",
+   "start": 6.587,
+   "end": 7.36
+  },
+  {
+   "text": "And",
+   "start": 7.52,
+   "end": 8
+  },
+  {
+   "text": "it",
+   "start": 8.053,
+   "end": 8.16
+  },
+  {
+   "text": "is",
+   "start": 8.213,
+   "end": 8.32
+  },
+  {
+   "text": "NOT",
+   "start": 8.42,
+   "end": 8.72
+  },
+  {
+   "text": "a",
+   "start": 8.88,
+   "end": 9.04
+  },
+  {
+   "text": "visa.",
+   "start": 9.12,
+   "end": 9.6
+  },
+  {
+   "text": "It's",
+   "start": 9.92,
+   "end": 10.64
+  },
+  {
+   "text": "an",
+   "start": 10.667,
+   "end": 10.72
+  },
+  {
+   "text": "online",
+   "start": 10.777,
+   "end": 11.12
+  },
+  {
+   "text": "travel",
+   "start": 11.166,
+   "end": 11.44
+  },
+  {
+   "text": "authorisation,",
+   "start": 11.486,
+   "end": 12.56
+  },
+  {
+   "text": "like",
+   "start": 12.592,
+   "end": 12.72
+  },
+  {
+   "text": "the",
+   "start": 12.74,
+   "end": 12.8
+  },
+  {
+   "text": "US",
+   "start": 12.96,
+   "end": 13.28
+  },
+  {
+   "text": "ESTA.",
+   "start": 13.38,
+   "end": 13.92
+  },
+  {
+   "text": "The",
+   "start": 14.14,
+   "end": 14.8
+  },
+  {
+   "text": "planned",
+   "start": 14.85,
+   "end": 15.2
+  },
+  {
+   "text": "fee:",
+   "start": 15.28,
+   "end": 16
+  },
+  {
+   "text": "twenty",
+   "start": 16.034,
+   "end": 16.24
+  },
+  {
+   "text": "euros.",
+   "start": 16.333,
+   "end": 17.04
+  },
+  {
+   "text": "Free",
+   "start": 17.168,
+   "end": 17.68
+  },
+  {
+   "text": "if",
+   "start": 17.76,
+   "end": 17.92
+  },
+  {
+   "text": "you're",
+   "start": 17.94,
+   "end": 18.08
+  },
+  {
+   "text": "under",
+   "start": 18.12,
+   "end": 18.32
+  },
+  {
+   "text": "eighteen",
+   "start": 18.364,
+   "end": 18.72
+  },
+  {
+   "text": "or",
+   "start": 18.88,
+   "end": 19.2
+  },
+  {
+   "text": "over",
+   "start": 19.248,
+   "end": 19.44
+  },
+  {
+   "text": "seventy.",
+   "start": 19.51,
+   "end": 20.08
+  },
+  {
+   "text": "Valid",
+   "start": 20.24,
+   "end": 21.04
+  },
+  {
+   "text": "for",
+   "start": 21.1,
+   "end": 21.28
+  },
+  {
+   "text": "up",
+   "start": 21.333,
+   "end": 21.44
+  },
+  {
+   "text": "to",
+   "start": 21.493,
+   "end": 21.6
+  },
+  {
+   "text": "three",
+   "start": 21.653,
+   "end": 21.92
+  },
+  {
+   "text": "years.",
+   "start": 22,
+   "end": 22.48
+  },
+  {
+   "text": "It",
+   "start": 22.827,
+   "end": 23.52
+  },
+  {
+   "text": "has",
+   "start": 23.56,
+   "end": 23.68
+  },
+  {
+   "text": "been",
+   "start": 23.712,
+   "end": 23.84
+  },
+  {
+   "text": "delayed",
+   "start": 23.89,
+   "end": 24.24
+  },
+  {
+   "text": "since",
+   "start": 24.28,
+   "end": 24.48
+  },
+  {
+   "text": "2023.",
+   "start": 24.56,
+   "end": 25.76
+  },
+  {
+   "text": "The",
+   "start": 25.96,
+   "end": 26.56
+  },
+  {
+   "text": "EU",
+   "start": 26.72,
+   "end": 27.04
+  },
+  {
+   "text": "now",
+   "start": 27.08,
+   "end": 27.2
+  },
+  {
+   "text": "targets",
+   "start": 27.26,
+   "end": 27.68
+  },
+  {
+   "text": "late",
+   "start": 27.744,
+   "end": 28
+  },
+  {
+   "text": "2026,",
+   "start": 28.08,
+   "end": 29.68
+  },
+  {
+   "text": "and",
+   "start": 29.7,
+   "end": 29.76
+  },
+  {
+   "text": "it",
+   "start": 29.813,
+   "end": 29.92
+  },
+  {
+   "text": "could",
+   "start": 29.96,
+   "end": 30.16
+  },
+  {
+   "text": "slip",
+   "start": 30.208,
+   "end": 30.4
+  },
+  {
+   "text": "again.",
+   "start": 30.467,
+   "end": 31.28
+  },
+  {
+   "text": "So",
+   "start": 31.44,
+   "end": 31.76
+  },
+  {
+   "text": "right",
+   "start": 31.8,
+   "end": 32
+  },
+  {
+   "text": "now,",
+   "start": 32.08,
+   "end": 32.4
+  },
+  {
+   "text": "you",
+   "start": 32.52,
+   "end": 32.88
+  },
+  {
+   "text": "don't",
+   "start": 32.94,
+   "end": 33.28
+  },
+  {
+   "text": "need",
+   "start": 33.344,
+   "end": 33.6
+  },
+  {
+   "text": "one.",
+   "start": 33.66,
+   "end": 33.92
+  },
+  {
+   "text": "Want",
+   "start": 34.16,
+   "end": 35.12
+  },
+  {
+   "text": "to",
+   "start": 35.147,
+   "end": 35.2
+  },
+  {
+   "text": "know",
+   "start": 35.232,
+   "end": 35.36
+  },
+  {
+   "text": "what",
+   "start": 35.408,
+   "end": 35.6
+  },
+  {
+   "text": "your",
+   "start": 35.648,
+   "end": 35.84
+  },
+  {
+   "text": "passport",
+   "start": 35.893,
+   "end": 36.32
+  },
+  {
+   "text": "needs?",
+   "start": 36.387,
+   "end": 36.8
+  },
+  {
+   "text": "Check",
+   "start": 36.947,
+   "end": 37.68
+  },
+  {
+   "text": "free",
+   "start": 37.76,
+   "end": 38.08
+  },
+  {
+   "text": "at",
+   "start": 38.187,
+   "end": 38.4
+  },
+  {
+   "text": "viza",
+   "start": 38.44,
+   "end": 38.96
+  },
+  {
+   "text": "dot",
+   "start": 39.02,
+   "end": 39.2
+  },
+  {
+   "text": "it",
+   "start": 39.413,
+   "end": 39.84
+  },
+  {
+   "text": "dot",
+   "start": 39.92,
+   "end": 40.16
+  },
+  {
+   "text": "com.",
+   "start": 40.26,
+   "end": 40.56
+  }
+ ]
+}

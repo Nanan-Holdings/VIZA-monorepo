@@ -1,0 +1,98 @@
+{
+  "slug": "australia-visa-changes-students-working-holidaymakers-2026",
+  "locale": "zh-CN",
+  "topic": "澳大利亚 · 学生与打工度假签证",
+  "voiceText": "[calm] 新加坡的学生和打工度假者请注意，澳大利亚在二零二六年九月十七日公布了签证调整。大部分新的学生和毕业生签证将限制携带家属，但东盟和太平洋国家申请人以及博士等课程有例外。为延长停留而反复换课程将面临新的评估。第二年和第三年打工度假签证将改为抽签，拟设四万五千和五千个名额。这些只是公布，不是最终规定。申请前请查内政部现行页面。上 viza 点 it 点 com，免费查询。",
+  "voice": "voice/australia-2026-zh.mp3",
+  "music": "music/bed-calm-tech.mp3",
+  "timings": "timings/australia-2026-zh.json",
+  "out": "specs/australia-2026-zh.json",
+  "captionReplace": [
+    [
+      "viza点it点com",
+      "viza.it.com"
+    ],
+    [
+      "viza 点 it 点 com",
+      "viza.it.com"
+    ]
+  ],
+  "scenes": [
+    {
+      "kind": "hook",
+      "cue": "新加坡的学生和打工度假者请注意",
+      "props": {
+        "kicker": "在澳洲读书或打工度假？",
+        "lines": [
+          "澳洲公布签证调整",
+          "二零二六年九月十七日"
+        ],
+        "turn": "只是公布，尚未定案。"
+      },
+      "beats": [
+        "新加坡的学生和打工度假者请注意",
+        "澳大利亚在二零二六年九月十七日公布了签证调整",
+        "这些只是公布，不是最终规定"
+      ]
+    },
+    {
+      "kind": "notA",
+      "cue": "大部分新的学生和毕业生签证将限制携带家属",
+      "props": {
+        "struck": "禁止",
+        "stamp": "并非禁止",
+        "is": "拟限制大部分新的学生和毕业生签证携带家属",
+        "like?": "东盟和太平洋国家申请人有例外"
+      },
+      "beats": [
+        "大部分新的学生和毕业生签证将限制携带家属",
+        "但东盟和太平洋国家申请人以及博士等课程有例外"
+      ]
+    },
+    {
+      "kind": "stats",
+      "cue": "第二年和第三年打工度假签证将改为抽签",
+      "props": {
+        "title": "拟设抽签名额",
+        "items": [
+          {
+            "value": "45,000",
+            "label": "第二年名额"
+          },
+          {
+            "value": "5,000",
+            "label": "第三年名额"
+          }
+        ]
+      },
+      "beats": [
+        "第二年和第三年打工度假签证将改为抽签，拟设四万五千和五千个名额"
+      ]
+    },
+    {
+      "kind": "verdict",
+      "cue": "申请前请查内政部现行页面",
+      "props": {
+        "badge": "先核实",
+        "headline": "确认生效日期",
+        "note": "不同签证类别和护照规定可能不同。"
+      },
+      "beats": [
+        "申请前请查内政部现行页面"
+      ]
+    },
+    {
+      "kind": "cta",
+      "cue": "上 viza 点 it 点 com，免费查询",
+      "props": {
+        "question": "不确定哪条规则适用于你？",
+        "url": "viza.it.com",
+        "pill": "免费",
+        "disclaimer": "VIZA 并非政府机构，请以官方信息为准。"
+      },
+      "beats": [
+        "上 viza 点 it 点 com，免费查询"
+      ]
+    }
+  ]
+}
