@@ -1,0 +1,388 @@
+{
+ "slug": "etias-launch-status-eu-travel-authorisation-explained",
+ "locale": "zh-CN",
+ "topic": "欧盟 · ETIAS",
+ "voice": "voice/etias-zh.mp3",
+ "music": "music/bed-calm-tech.mp3",
+ "durationSec": 39.92,
+ "scenes": [
+  {
+   "kind": "hook",
+   "start": 0,
+   "end": 6.14,
+   "beats": [
+    0.144,
+    1.84,
+    3.44
+   ],
+   "props": {
+    "kicker": "新加坡护照去欧洲",
+    "lines": [
+     "目前还是免签",
+     "免签"
+    ],
+    "turn": "新步骤即将到来"
+   }
+  },
+  {
+   "kind": "acronym",
+   "start": 6.14,
+   "end": 7.74,
+   "beats": [
+    6.32
+   ],
+   "props": {
+    "acronym": "ETIAS",
+    "words": [
+     "European",
+     "Travel",
+     "Information",
+     "Authorisation",
+     "System"
+    ],
+    "note": "欧洲旅行信息和授权系统"
+   }
+  },
+  {
+   "kind": "notA",
+   "start": 7.74,
+   "end": 13.18,
+   "beats": [
+    7.92,
+    9.12
+   ],
+   "props": {
+    "struck": "签证",
+    "stamp": "不是签证",
+    "is": "网上旅行授权",
+    "like": "类似美国 ESTA"
+   }
+  },
+  {
+   "kind": "stats",
+   "start": 13.18,
+   "end": 21.02,
+   "beats": [
+    13.36,
+    15.52,
+    18.8
+   ],
+   "props": {
+    "items": [
+     {
+      "value": "€20",
+      "countTo": 20,
+      "prefix": "€",
+      "struck": "€7",
+      "label": "计划收费"
+     },
+     {
+      "value": "免费",
+      "label": "18岁以下或70岁以上"
+     },
+     {
+      "value": "3年",
+      "countTo": 3,
+      "suffix": "年",
+      "label": "有效期，或至护照到期"
+     }
+    ]
+   }
+  },
+  {
+   "kind": "timeline",
+   "start": 21.02,
+   "end": 29.34,
+   "beats": [
+    21.2,
+    24.56
+   ],
+   "props": {
+    "title": "启用日期",
+    "caveat": "还可能再延后",
+    "points": [
+     {
+      "label": "2023",
+      "note": "推迟",
+      "state": "slipped"
+     },
+     {
+      "label": "2024",
+      "note": "推迟",
+      "state": "slipped"
+     },
+     {
+      "label": "2025",
+      "note": "推迟",
+      "state": "slipped"
+     },
+     {
+      "label": "2026年底",
+      "note": "当前目标",
+      "state": "target"
+     }
+    ]
+   }
+  },
+  {
+   "kind": "verdict",
+   "start": 29.34,
+   "end": 32.46,
+   "beats": [
+    29.52
+   ],
+   "props": {
+    "badge": "目前",
+    "headline": "你还不需要申请",
+    "note": "出发前请查看欧盟官方网站"
+   }
+  },
+  {
+   "kind": "cta",
+   "start": 32.46,
+   "end": 39.92,
+   "beats": [
+    32.64
+   ],
+   "props": {
+    "question": "你的护照需要什么？",
+    "url": "viza.it.com",
+    "pill": "免费",
+    "disclaimer": "VIZA 并非政府机构，请以官方信息为准。"
+   }
+  }
+ ],
+ "captions": [
+  {
+   "text": "新加坡护照去欧洲",
+   "start": 0.144,
+   "end": 1.84,
+   "words": [
+    {
+     "text": "新加坡护照去欧洲，",
+     "start": 0.144,
+     "end": 1.84
+    }
+   ]
+  },
+  {
+   "text": "目前还是免签",
+   "start": 1.84,
+   "end": 3.44,
+   "words": [
+    {
+     "text": "目前还是免签。",
+     "start": 1.84,
+     "end": 3.44
+    }
+   ]
+  },
+  {
+   "text": "但一个新步骤即将到来",
+   "start": 3.44,
+   "end": 6.32,
+   "words": [
+    {
+     "text": "但一个新步骤即将到来。",
+     "start": 3.44,
+     "end": 6.32
+    }
+   ]
+  },
+  {
+   "text": "它叫 ETIAS",
+   "start": 6.32,
+   "end": 7.92,
+   "words": [
+    {
+     "text": "它叫",
+     "start": 6.32,
+     "end": 6.56
+    },
+    {
+     "text": "ETIAS。",
+     "start": 6.64,
+     "end": 7.92
+    }
+   ]
+  },
+  {
+   "text": "它不是签证",
+   "start": 7.92,
+   "end": 9.12,
+   "words": [
+    {
+     "text": "它不是签证，",
+     "start": 7.92,
+     "end": 9.12
+    }
+   ]
+  },
+  {
+   "text": "而是网上旅行授权",
+   "start": 9.12,
+   "end": 11.2,
+   "words": [
+    {
+     "text": "而是网上旅行授权，",
+     "start": 9.12,
+     "end": 11.2
+    }
+   ]
+  },
+  {
+   "text": "类似美国的 ESTA",
+   "start": 11.2,
+   "end": 13.36,
+   "words": [
+    {
+     "text": "类似美国的",
+     "start": 11.2,
+     "end": 12
+    },
+    {
+     "text": "ESTA。",
+     "start": 12.08,
+     "end": 13.36
+    }
+   ]
+  },
+  {
+   "text": "计划收费20欧元",
+   "start": 13.36,
+   "end": 15.52,
+   "words": [
+    {
+     "text": "计划收费二十欧元。",
+     "start": 13.36,
+     "end": 15.52
+    }
+   ]
+  },
+  {
+   "text": "18岁以下或70岁以上免费",
+   "start": 15.52,
+   "end": 18.8,
+   "words": [
+    {
+     "text": "十八岁以下或七十岁以上免费。",
+     "start": 15.52,
+     "end": 18.8
+    }
+   ]
+  },
+  {
+   "text": "有效期最长三年",
+   "start": 18.8,
+   "end": 21.2,
+   "words": [
+    {
+     "text": "有效期最长三年。",
+     "start": 18.8,
+     "end": 21.2
+    }
+   ]
+  },
+  {
+   "text": "它从2023年起一再推迟",
+   "start": 21.2,
+   "end": 24.56,
+   "words": [
+    {
+     "text": "它从二零二三年起一再推迟。",
+     "start": 21.2,
+     "end": 24.56
+    }
+   ]
+  },
+  {
+   "text": "欧盟现在的目标是2026年底",
+   "start": 24.56,
+   "end": 27.48,
+   "words": [
+    {
+     "text": "欧盟现在的目标是二零二六年底，",
+     "start": 24.56,
+     "end": 27.48
+    }
+   ]
+  },
+  {
+   "text": "还可能再延后",
+   "start": 27.48,
+   "end": 29.52,
+   "words": [
+    {
+     "text": "还可能再延后。",
+     "start": 27.48,
+     "end": 29.52
+    }
+   ]
+  },
+  {
+   "text": "所以现在",
+   "start": 29.52,
+   "end": 30.6,
+   "words": [
+    {
+     "text": "所以现在，",
+     "start": 29.52,
+     "end": 30.6
+    }
+   ]
+  },
+  {
+   "text": "你还不需要申请",
+   "start": 30.6,
+   "end": 32.64,
+   "words": [
+    {
+     "text": "你还不需要申请。",
+     "start": 30.6,
+     "end": 32.64
+    }
+   ]
+  },
+  {
+   "text": "想知道你的护照需要什么？",
+   "start": 32.64,
+   "end": 35.2,
+   "words": [
+    {
+     "text": "想知道你的护照需要什么？",
+     "start": 32.64,
+     "end": 35.2
+    }
+   ]
+  },
+  {
+   "text": "上 viza.it.com",
+   "start": 35.2,
+   "end": 37.68,
+   "words": [
+    {
+     "text": "上",
+     "start": 35.2,
+     "end": 35.44
+    },
+    {
+     "text": "viza.it.com，",
+     "start": 35.48,
+     "end": 37.68
+    }
+   ]
+  },
+  {
+   "text": "免费查询",
+   "start": 37.68,
+   "end": 38.639,
+   "words": [
+    {
+     "text": "免费查询。",
+     "start": 37.68,
+     "end": 38.639
+    }
+   ]
+  }
+ ]
+}

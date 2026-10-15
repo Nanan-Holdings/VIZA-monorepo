@@ -1,0 +1,28 @@
+{
+  "name": "viza-social-video",
+  "private": true,
+  "version": "0.1.0",
+  "description": "VIZA short-form video renderer (Remotion). Turns a blog post script into 9:16 shorts in English and Simplified Chinese.",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "build-spec": "tsx scripts/build-spec.ts",
+    "render": "tsx scripts/render.ts"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.535",
+    "@remotion/fonts": "4.0.535",
+    "@remotion/google-fonts": "4.0.535",
+    "@remotion/renderer": "4.0.535",
+    "@remotion/bundler": "4.0.535",
+    "remotion": "4.0.535",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.2.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

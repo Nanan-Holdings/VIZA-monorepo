@@ -1,0 +1,166 @@
+{
+  "slug": "etias-launch-status-eu-travel-authorisation-explained",
+  "locale": "zh-CN",
+  "topic": "欧盟 · ETIAS",
+  "voice": "voice/etias-zh.mp3",
+  "music": "music/bed-calm-tech.mp3",
+  "timings": "timings/etias-zh.json",
+  "out": "specs/etias-zh.json",
+  "scenes": [
+    {
+      "kind": "hook",
+      "cue": "新加坡护照",
+      "beats": [
+        "新加坡护照",
+        "目前还是免签",
+        "但一个新步骤"
+      ],
+      "props": {
+        "kicker": "新加坡护照去欧洲",
+        "lines": [
+          "目前还是免签",
+          "免签"
+        ],
+        "turn": "新步骤即将到来"
+      }
+    },
+    {
+      "kind": "acronym",
+      "cue": "它叫",
+      "props": {
+        "acronym": "ETIAS",
+        "words": [
+          "European",
+          "Travel",
+          "Information",
+          "Authorisation",
+          "System"
+        ],
+        "note": "欧洲旅行信息和授权系统"
+      }
+    },
+    {
+      "kind": "notA",
+      "cue": "它不是签证",
+      "beats": [
+        "它不是签证",
+        "而是网上"
+      ],
+      "props": {
+        "struck": "签证",
+        "stamp": "不是签证",
+        "is": "网上旅行授权",
+        "like": "类似美国 ESTA"
+      }
+    },
+    {
+      "kind": "stats",
+      "cue": "计划收费",
+      "beats": [
+        "计划收费",
+        "十八岁",
+        "有效期"
+      ],
+      "props": {
+        "items": [
+          {
+            "value": "€20",
+            "countTo": 20,
+            "prefix": "€",
+            "struck": "€7",
+            "label": "计划收费"
+          },
+          {
+            "value": "免费",
+            "label": "18岁以下或70岁以上"
+          },
+          {
+            "value": "3年",
+            "countTo": 3,
+            "suffix": "年",
+            "label": "有效期，或至护照到期"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "timeline",
+      "cue": "它从",
+      "beats": [
+        "它从",
+        "欧盟现在"
+      ],
+      "props": {
+        "title": "启用日期",
+        "caveat": "还可能再延后",
+        "points": [
+          {
+            "label": "2023",
+            "note": "推迟",
+            "state": "slipped"
+          },
+          {
+            "label": "2024",
+            "note": "推迟",
+            "state": "slipped"
+          },
+          {
+            "label": "2025",
+            "note": "推迟",
+            "state": "slipped"
+          },
+          {
+            "label": "2026年底",
+            "note": "当前目标",
+            "state": "target"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "verdict",
+      "cue": "所以现在",
+      "props": {
+        "badge": "目前",
+        "headline": "你还不需要申请",
+        "note": "出发前请查看欧盟官方网站"
+      }
+    },
+    {
+      "kind": "cta",
+      "cue": "想知道",
+      "props": {
+        "question": "你的护照需要什么？",
+        "url": "viza.it.com",
+        "pill": "免费",
+        "disclaimer": "VIZA 并非政府机构，请以官方信息为准。"
+      }
+    }
+  ],
+  "captionReplace": [
+    [
+      "viza点it点com",
+      "viza.it.com"
+    ],
+    [
+      "二零二三年",
+      "2023年"
+    ],
+    [
+      "二零二六年",
+      "2026年"
+    ],
+    [
+      "二十欧元",
+      "20欧元"
+    ],
+    [
+      "十八岁",
+      "18岁"
+    ],
+    [
+      "七十岁",
+      "70岁"
+    ]
+  ]
+}

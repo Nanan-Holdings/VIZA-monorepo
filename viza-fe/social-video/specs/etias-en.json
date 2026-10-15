@@ -1,0 +1,716 @@
+{
+ "slug": "etias-launch-status-eu-travel-authorisation-explained",
+ "locale": "en",
+ "topic": "EU · ETIAS",
+ "voice": "voice/etias-en.mp3",
+ "music": "music/bed-calm-tech.mp3",
+ "durationSec": 41.84,
+ "scenes": [
+  {
+   "kind": "hook",
+   "start": 0,
+   "end": 5.633,
+   "beats": [
+    0.394,
+    1.246,
+    3.58
+   ],
+   "props": {
+    "kicker": "Singapore passport?",
+    "lines": [
+     "Europe is still visa-free.",
+     "visa-free"
+    ],
+    "turn": "But a new step is coming."
+   }
+  },
+  {
+   "kind": "acronym",
+   "start": 5.633,
+   "end": 7.34,
+   "beats": [
+    5.813
+   ],
+   "props": {
+    "acronym": "ETIAS",
+    "words": [
+     "European",
+     "Travel",
+     "Information",
+     "Authorisation",
+     "System"
+    ]
+   }
+  },
+  {
+   "kind": "notA",
+   "start": 7.34,
+   "end": 13.96,
+   "beats": [
+    7.52,
+    9.92
+   ],
+   "props": {
+    "struck": "VISA",
+    "stamp": "NOT A VISA",
+    "is": "An online travel authorisation",
+    "like": "Similar to the US ESTA"
+   }
+  },
+  {
+   "kind": "stats",
+   "start": 13.96,
+   "end": 22.647,
+   "beats": [
+    14.14,
+    17.168,
+    20.24
+   ],
+   "props": {
+    "items": [
+     {
+      "value": "€20",
+      "countTo": 20,
+      "prefix": "€",
+      "struck": "€7",
+      "label": "Planned fee"
+     },
+     {
+      "value": "Free",
+      "label": "Under 18 or over 70"
+     },
+     {
+      "value": "3 yrs",
+      "countTo": 3,
+      "suffix": " yrs",
+      "label": "Valid, or until your passport expires"
+     }
+    ]
+   }
+  },
+  {
+   "kind": "timeline",
+   "start": 22.647,
+   "end": 31.26,
+   "beats": [
+    22.827,
+    25.96
+   ],
+   "props": {
+    "title": "Launch date",
+    "caveat": "Could slip again",
+    "points": [
+     {
+      "label": "2023",
+      "note": "Delayed",
+      "state": "slipped"
+     },
+     {
+      "label": "2024",
+      "note": "Delayed",
+      "state": "slipped"
+     },
+     {
+      "label": "2025",
+      "note": "Delayed",
+      "state": "slipped"
+     },
+     {
+      "label": "Late 2026",
+      "note": "Current target",
+      "state": "target"
+     }
+    ]
+   }
+  },
+  {
+   "kind": "verdict",
+   "start": 31.26,
+   "end": 33.98,
+   "beats": [
+    31.44
+   ],
+   "props": {
+    "badge": "Right now",
+    "headline": "You don't need one yet",
+    "note": "Check the official EU site before you book"
+   }
+  },
+  {
+   "kind": "cta",
+   "start": 33.98,
+   "end": 41.84,
+   "beats": [
+    34.16
+   ],
+   "props": {
+    "question": "What does your passport need?",
+    "url": "viza.it.com",
+    "pill": "Free",
+    "disclaimer": "VIZA is not a government agency. Always verify with official sources."
+   }
+  }
+ ],
+ "captions": [
+  {
+   "text": "Singapore passport?",
+   "start": 0.394,
+   "end": 1.12,
+   "words": [
+    {
+     "text": "Singapore",
+     "start": 0.394,
+     "end": 0.48
+    },
+    {
+     "text": "passport?",
+     "start": 0.542,
+     "end": 1.12
+    }
+   ]
+  },
+  {
+   "text": "Europe is still visa-free.",
+   "start": 1.246,
+   "end": 3.28,
+   "words": [
+    {
+     "text": "Europe",
+     "start": 1.246,
+     "end": 2
+    },
+    {
+     "text": "is",
+     "start": 2.053,
+     "end": 2.16
+    },
+    {
+     "text": "still",
+     "start": 2.213,
+     "end": 2.48
+    },
+    {
+     "text": "visa-free.",
+     "start": 2.544,
+     "end": 3.28
+    }
+   ]
+  },
+  {
+   "text": "But a new step is coming.",
+   "start": 3.58,
+   "end": 5.6,
+   "words": [
+    {
+     "text": "But",
+     "start": 3.58,
+     "end": 4.48
+    },
+    {
+     "text": "a",
+     "start": 4.52,
+     "end": 4.56
+    },
+    {
+     "text": "new",
+     "start": 4.6,
+     "end": 4.72
+    },
+    {
+     "text": "step",
+     "start": 4.784,
+     "end": 5.04
+    },
+    {
+     "text": "is",
+     "start": 5.067,
+     "end": 5.12
+    },
+    {
+     "text": "coming.",
+     "start": 5.177,
+     "end": 5.6
+    }
+   ]
+  },
+  {
+   "text": "It's called ETIAS.",
+   "start": 5.813,
+   "end": 7.36,
+   "words": [
+    {
+     "text": "It's",
+     "start": 5.813,
+     "end": 6.36
+    },
+    {
+     "text": "called",
+     "start": 6.377,
+     "end": 6.48
+    },
+    {
+     "text": "ETIAS.",
+     "start": 6.587,
+     "end": 7.36
+    }
+   ]
+  },
+  {
+   "text": "And it is NOT a visa.",
+   "start": 7.52,
+   "end": 9.6,
+   "words": [
+    {
+     "text": "And",
+     "start": 7.52,
+     "end": 8
+    },
+    {
+     "text": "it",
+     "start": 8.053,
+     "end": 8.16
+    },
+    {
+     "text": "is",
+     "start": 8.213,
+     "end": 8.32
+    },
+    {
+     "text": "NOT",
+     "start": 8.42,
+     "end": 8.72
+    },
+    {
+     "text": "a",
+     "start": 8.88,
+     "end": 9.04
+    },
+    {
+     "text": "visa.",
+     "start": 9.12,
+     "end": 9.6
+    }
+   ]
+  },
+  {
+   "text": "It's an online travel authorisation,",
+   "start": 9.92,
+   "end": 12.56,
+   "words": [
+    {
+     "text": "It's",
+     "start": 9.92,
+     "end": 10.64
+    },
+    {
+     "text": "an",
+     "start": 10.667,
+     "end": 10.72
+    },
+    {
+     "text": "online",
+     "start": 10.777,
+     "end": 11.12
+    },
+    {
+     "text": "travel",
+     "start": 11.166,
+     "end": 11.44
+    },
+    {
+     "text": "authorisation,",
+     "start": 11.486,
+     "end": 12.56
+    }
+   ]
+  },
+  {
+   "text": "like the US ESTA.",
+   "start": 12.592,
+   "end": 13.92,
+   "words": [
+    {
+     "text": "like",
+     "start": 12.592,
+     "end": 12.72
+    },
+    {
+     "text": "the",
+     "start": 12.74,
+     "end": 12.8
+    },
+    {
+     "text": "US",
+     "start": 12.96,
+     "end": 13.28
+    },
+    {
+     "text": "ESTA.",
+     "start": 13.38,
+     "end": 13.92
+    }
+   ]
+  },
+  {
+   "text": "The planned fee:",
+   "start": 14.14,
+   "end": 16,
+   "words": [
+    {
+     "text": "The",
+     "start": 14.14,
+     "end": 14.8
+    },
+    {
+     "text": "planned",
+     "start": 14.85,
+     "end": 15.2
+    },
+    {
+     "text": "fee:",
+     "start": 15.28,
+     "end": 16
+    }
+   ]
+  },
+  {
+   "text": "twenty euros.",
+   "start": 16.034,
+   "end": 17.04,
+   "words": [
+    {
+     "text": "twenty",
+     "start": 16.034,
+     "end": 16.24
+    },
+    {
+     "text": "euros.",
+     "start": 16.333,
+     "end": 17.04
+    }
+   ]
+  },
+  {
+   "text": "Free if you're under",
+   "start": 17.168,
+   "end": 18.32,
+   "words": [
+    {
+     "text": "Free",
+     "start": 17.168,
+     "end": 17.68
+    },
+    {
+     "text": "if",
+     "start": 17.76,
+     "end": 17.92
+    },
+    {
+     "text": "you're",
+     "start": 17.94,
+     "end": 18.08
+    },
+    {
+     "text": "under",
+     "start": 18.12,
+     "end": 18.32
+    }
+   ]
+  },
+  {
+   "text": "eighteen or over seventy.",
+   "start": 18.364,
+   "end": 20.08,
+   "words": [
+    {
+     "text": "eighteen",
+     "start": 18.364,
+     "end": 18.72
+    },
+    {
+     "text": "or",
+     "start": 18.88,
+     "end": 19.2
+    },
+    {
+     "text": "over",
+     "start": 19.248,
+     "end": 19.44
+    },
+    {
+     "text": "seventy.",
+     "start": 19.51,
+     "end": 20.08
+    }
+   ]
+  },
+  {
+   "text": "Valid for up to three years.",
+   "start": 20.24,
+   "end": 22.48,
+   "words": [
+    {
+     "text": "Valid",
+     "start": 20.24,
+     "end": 21.04
+    },
+    {
+     "text": "for",
+     "start": 21.1,
+     "end": 21.28
+    },
+    {
+     "text": "up",
+     "start": 21.333,
+     "end": 21.44
+    },
+    {
+     "text": "to",
+     "start": 21.493,
+     "end": 21.6
+    },
+    {
+     "text": "three",
+     "start": 21.653,
+     "end": 21.92
+    },
+    {
+     "text": "years.",
+     "start": 22,
+     "end": 22.48
+    }
+   ]
+  },
+  {
+   "text": "It has been delayed since 2023.",
+   "start": 22.827,
+   "end": 25.76,
+   "words": [
+    {
+     "text": "It",
+     "start": 22.827,
+     "end": 23.52
+    },
+    {
+     "text": "has",
+     "start": 23.56,
+     "end": 23.68
+    },
+    {
+     "text": "been",
+     "start": 23.712,
+     "end": 23.84
+    },
+    {
+     "text": "delayed",
+     "start": 23.89,
+     "end": 24.24
+    },
+    {
+     "text": "since",
+     "start": 24.28,
+     "end": 24.48
+    },
+    {
+     "text": "2023.",
+     "start": 24.56,
+     "end": 25.76
+    }
+   ]
+  },
+  {
+   "text": "The EU now targets late 2026,",
+   "start": 25.96,
+   "end": 29.68,
+   "words": [
+    {
+     "text": "The",
+     "start": 25.96,
+     "end": 26.56
+    },
+    {
+     "text": "EU",
+     "start": 26.72,
+     "end": 27.04
+    },
+    {
+     "text": "now",
+     "start": 27.08,
+     "end": 27.2
+    },
+    {
+     "text": "targets",
+     "start": 27.26,
+     "end": 27.68
+    },
+    {
+     "text": "late",
+     "start": 27.744,
+     "end": 28
+    },
+    {
+     "text": "2026,",
+     "start": 28.08,
+     "end": 29.68
+    }
+   ]
+  },
+  {
+   "text": "and it could slip again.",
+   "start": 29.7,
+   "end": 31.28,
+   "words": [
+    {
+     "text": "and",
+     "start": 29.7,
+     "end": 29.76
+    },
+    {
+     "text": "it",
+     "start": 29.813,
+     "end": 29.92
+    },
+    {
+     "text": "could",
+     "start": 29.96,
+     "end": 30.16
+    },
+    {
+     "text": "slip",
+     "start": 30.208,
+     "end": 30.4
+    },
+    {
+     "text": "again.",
+     "start": 30.467,
+     "end": 31.28
+    }
+   ]
+  },
+  {
+   "text": "So right now,",
+   "start": 31.44,
+   "end": 32.4,
+   "words": [
+    {
+     "text": "So",
+     "start": 31.44,
+     "end": 31.76
+    },
+    {
+     "text": "right",
+     "start": 31.8,
+     "end": 32
+    },
+    {
+     "text": "now,",
+     "start": 32.08,
+     "end": 32.4
+    }
+   ]
+  },
+  {
+   "text": "you don't need one.",
+   "start": 32.52,
+   "end": 33.92,
+   "words": [
+    {
+     "text": "you",
+     "start": 32.52,
+     "end": 32.88
+    },
+    {
+     "text": "don't",
+     "start": 32.94,
+     "end": 33.28
+    },
+    {
+     "text": "need",
+     "start": 33.344,
+     "end": 33.6
+    },
+    {
+     "text": "one.",
+     "start": 33.66,
+     "end": 33.92
+    }
+   ]
+  },
+  {
+   "text": "Want to know what",
+   "start": 34.16,
+   "end": 35.6,
+   "words": [
+    {
+     "text": "Want",
+     "start": 34.16,
+     "end": 35.12
+    },
+    {
+     "text": "to",
+     "start": 35.147,
+     "end": 35.2
+    },
+    {
+     "text": "know",
+     "start": 35.232,
+     "end": 35.36
+    },
+    {
+     "text": "what",
+     "start": 35.408,
+     "end": 35.6
+    }
+   ]
+  },
+  {
+   "text": "your passport needs?",
+   "start": 35.648,
+   "end": 36.8,
+   "words": [
+    {
+     "text": "your",
+     "start": 35.648,
+     "end": 35.84
+    },
+    {
+     "text": "passport",
+     "start": 35.893,
+     "end": 36.32
+    },
+    {
+     "text": "needs?",
+     "start": 36.387,
+     "end": 36.8
+    }
+   ]
+  },
+  {
+   "text": "Check free at viza.it.com.",
+   "start": 36.947,
+   "end": 40.56,
+   "words": [
+    {
+     "text": "Check",
+     "start": 36.947,
+     "end": 37.68
+    },
+    {
+     "text": "free",
+     "start": 37.76,
+     "end": 38.08
+    },
+    {
+     "text": "at",
+     "start": 38.187,
+     "end": 38.4
+    },
+    {
+     "text": "viza.it.com.",
+     "start": 38.44,
+     "end": 40.56
+    }
+   ]
+  }
+ ]
+}
