@@ -29,4 +29,9 @@ describe("fillLinkPlaceholder", () => {
     const filled = fillLinkPlaceholders({ facebook: "A {url}", instagram: "B {url}", pinterest: "C {url}" }, url);
     expect(filled).toEqual({ facebook: `A ${url}`, instagram: "B Link in bio.", pinterest: "C" });
   });
+
+  it("sends TikTok to the bio and keeps the address in a YouTube description", () => {
+    expect(fillLinkPlaceholder("tiktok", "ETIAS is not a visa. Details: {url}", url)).toBe("ETIAS is not a visa. Link in bio.");
+    expect(fillLinkPlaceholder("youtube", "ETIAS is not a visa. Details: {url}", url)).toBe(`ETIAS is not a visa. Details: ${url}`);
+  });
 });

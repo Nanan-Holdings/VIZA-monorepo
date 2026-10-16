@@ -70,7 +70,8 @@ function buildContentSecurityPolicy(allowSameOriginFrame = false): string {
     "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
     "font-src": ["'self'", "data:", "https://fonts.gstatic.com"],
     "img-src": ["'self'", "data:", "blob:", "https:"],
-    "media-src": ["'self'", "blob:"],
+    // The marketing editor previews shorts from the project's public storage.
+    "media-src": ["'self'", "blob:", supabaseOrigin].filter(Boolean) as string[],
     "connect-src": Array.from(new Set(connectSrc)),
     "frame-src": [
       "'self'",

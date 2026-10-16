@@ -4,7 +4,7 @@ import { getLocale } from "next-intl/server";
 import { getMarketingOperationsDashboard, listMarketingSocialCompositions } from "@/app/actions/admin-marketing";
 import { normalizeInterfaceLocale } from "@/lib/i18n/locale";
 import { requireRole } from "@/lib/rbac";
-import type { MarketingSocialCompositionRecord, MarketingSocialPlatform } from "@/lib/marketing/contracts";
+import { UPLOAD_POST_PLATFORMS, type MarketingSocialCompositionRecord, type MarketingSocialPlatform, type UploadPostPlatform } from "@/lib/marketing/contracts";
 import { MarketingBackLink, MarketingStatusBadge, statusTone } from "../_components/marketing-ui";
 import { EmptyState, PortalHeader, PortalPage, PortalStack, StatusBadge, TablePanel } from "../_components/portal-ui";
 import { SocialActions } from "../_components/social-actions";
@@ -20,17 +20,19 @@ const PLATFORM_LABELS: Record<MarketingSocialPlatform, string> = {
   facebook: "Facebook",
   pinterest: "Pinterest",
   reddit: "Reddit",
+  tiktok: "TikTok",
+  youtube: "YouTube Shorts",
 };
 
 /* One composition fans out to several platforms, and each lands or fails on
    its own. Resolve that per platform so the table can carry one row per
    delivery, the way the Volumet social board does. */
 function delivery(row: MarketingSocialCompositionRecord, platform: MarketingSocialPlatform) {
-  const image = platform === "instagram" || platform === "pinterest" ? row.uploadPostPosts[platform] : null;
+  const upload = (UPLOAD_POST_PLATFORMS as readonly string[]).includes(platform) ? row.uploadPostPosts[platform as UploadPostPlatform] : null;
   const zernioId = row.zernioPosts[platform];
-  const url = image?.postUrl ?? row.zernioPostUrls[platform] ?? null;
-  const status = image?.status ?? (zernioId ? row.status : "draft");
-  return { url, status };
+  const url = upload?.postUrl ?? row.zernioPostUrls[platform] ?? null;
+  const status = upload?.status ?? (zernioId ? row.status : "draft");
+  return { url, status, error: upload?.error ?? null };
 }
 
 export default async function MarketingSocialPage() {
@@ -85,11 +87,13 @@ export default async function MarketingSocialPage() {
                   row.platforms.length > 0 &&
                   row.platforms.every((platform) => dashboard.providers.zernio.configuredPlatforms.includes(platform));
                 const canSync = Object.keys(row.zernioPosts).length > 0 || Object.keys(row.uploadPostPosts).length > 0;
-                const canStop =
-                  Object.keys(row.zernioPosts).length > 0 &&
-                  ["scheduled", "publishing", "published", "partial"].includes(row.status);
+                const isShort = Boolean(row.videoUrl);
+                const canStop = isShort
+                  ? Object.values(row.uploadPostPosts).some((post) => post?.status === "scheduled")
+                  : Object.keys(row.zernioPosts).length > 0 &&
+                    ["scheduled", "publishing", "published", "partial"].includes(row.status);
                 const canEdit = ["draft", "failed", "cancelled"].includes(row.status);
-                const hasImagePosts = Object.values(row.uploadPostPosts).some((post) => post.status === "published");
+                const hasImagePosts = Object.values(row.uploadPostPosts).some((post) => post?.status === "published");
 
                 return (
                   <Fragment key={row.id}>
@@ -108,8 +112,16 @@ export default async function MarketingSocialPage() {
                                 row.title
                               )}
                               <MarketingStatusBadge status={row.status} copy={copy} />
+                              {isShort ? (
+                                <StatusBadge label={row.videoLocale === "zh-CN" ? (zh ? "短视频 · 中文" : "Short · ZH") : (zh ? "短视频 · 英文" : "Short · EN")} tone="neutral" />
+                              ) : null}
                             </div>
                             <div className="mkt-sub">{row.brief}</div>
+                            {!isShort && row.blogPostId ? (
+                              <div className="mkt-sub">
+                                <Link href={`/admin/marketing/social/new?format=video&from=${row.id}`}>{copy.addShort}</Link>
+                              </div>
+                            ) : null}
                             <div className="mkt-sub mkt-sub-mono">
                               {row.scheduledFor
                                 ? new Date(row.scheduledFor).toLocaleString(dateLocale)
@@ -120,9 +132,13 @@ export default async function MarketingSocialPage() {
                             </div>
                             {hasImagePosts ? (
                               <div className="mkt-sub">
-                                {zh
-                                  ? "重新发布前请先在 Instagram 和 Pinterest 中删除旧的图片帖子。"
-                                  : "Remove old Instagram and Pinterest posts in those platforms before reposting."}
+                                {isShort
+                                  ? zh
+                                    ? "重新发布前请先在 TikTok、Instagram 和 YouTube 中删除已发布的短视频。"
+                                    : "Remove published shorts in TikTok, Instagram and YouTube before reposting."
+                                  : zh
+                                    ? "重新发布前请先在 Instagram 和 Pinterest 中删除旧的图片帖子。"
+                                    : "Remove old Instagram and Pinterest posts in those platforms before reposting."}
                               </div>
                             ) : null}
                           </div>
@@ -133,8 +149,9 @@ export default async function MarketingSocialPage() {
                             canPublish={canPublish}
                             canSync={canSync}
                             canStop={canStop}
-                            scheduled={row.status === "scheduled"}
+                            scheduled={isShort || row.status === "scheduled"}
                             hasImagePosts={hasImagePosts}
+                            short={isShort}
                           />
                         </div>
                       </td>
@@ -142,15 +159,16 @@ export default async function MarketingSocialPage() {
 
                     {row.platforms.length ? (
                       row.platforms.map((platform) => {
-                        const { url, status } = delivery(row, platform);
+                        const { url, status, error } = delivery(row, platform);
                         return (
                           <tr key={`${row.id}-${platform}`}>
-                            <td>{PLATFORM_LABELS[platform]}</td>
+                            <td>{isShort && platform === "instagram" ? "Instagram Reels" : PLATFORM_LABELS[platform]}</td>
                             <td>
                               <div className="mkt-clamp">{row.platformContent[platform] ?? row.brief}</div>
                             </td>
                             <td>
                               <StatusBadge label={status} tone={statusTone(status)} />
+                              {error ? <div className="mkt-sub" title={error}>{error.slice(0, 80)}</div> : null}
                             </td>
                             <td className="mkt-cell-tight">
                               {url ? (

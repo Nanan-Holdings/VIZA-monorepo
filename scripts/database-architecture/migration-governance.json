@@ -262,6 +262,11 @@
       "path": "viza-fe/internal-website/supabase/migrations/20260923120000_marketing_short_link_search_path.sql",
       "sha256": "1d4c75c4b1e07db40e5fd3e193583a5ae9d52181a1324dfd8cf4238b6c338226",
       "reason": "Portal-owned short-link function hardening has no agent-backend Drizzle mirror."
+    },
+    {
+      "path": "viza-fe/internal-website/supabase/migrations/20261016090000_marketing_social_video.sql",
+      "sha256": "3f4e2240b24c726c498c13cf435bfa5ec1f6173f2978f492ddd489a6e35b92ce",
+      "reason": "Portal-owned short-video composition columns and marketing asset bucket MIME update have no agent-backend Drizzle mirror."
     }
   ],
   "unapplied_migration_renames": [

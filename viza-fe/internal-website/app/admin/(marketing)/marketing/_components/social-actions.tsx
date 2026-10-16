@@ -18,6 +18,7 @@ const COPY = {
     cancel: "Cancel schedule",
     unpublish: "Unpublish",
     removed: "I removed the image posts in Instagram/Pinterest",
+    removedShort: "I removed the published shorts in TikTok/Instagram/YouTube",
     confirm: "Record removal",
   },
   zh: {
@@ -27,6 +28,7 @@ const COPY = {
     cancel: "取消计划",
     unpublish: "撤下",
     removed: "我已在 Instagram/Pinterest 删除图片帖子",
+    removedShort: "我已在 TikTok/Instagram/YouTube 删除已发布的短视频",
     confirm: "记录已删除",
   },
 } as const;
@@ -40,6 +42,7 @@ export function SocialActions({
   canStop,
   scheduled,
   hasImagePosts,
+  short = false,
 }: {
   id: string;
   locale: InterfaceLocale;
@@ -49,6 +52,7 @@ export function SocialActions({
   canStop: boolean;
   scheduled: boolean;
   hasImagePosts: boolean;
+  short?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -118,7 +122,7 @@ export function SocialActions({
         <>
           <label className="mkt-check">
             <input type="checkbox" checked={removed} onChange={(event) => setRemoved(event.target.checked)} />
-            {copy.removed}
+            {short ? copy.removedShort : copy.removed}
           </label>
           <button
             type="button"
