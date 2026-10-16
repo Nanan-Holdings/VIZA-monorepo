@@ -202,7 +202,7 @@ export function SocialEditor({
                 <input className="mkt-input" name="videoUrl" type="url" value={videoUrl} onChange={(event) => setVideoUrl(event.target.value)} />
                 <MarketingAssetUpload kind="video" locale={locale} onUploaded={setVideoUrl} />
                 {videoUrl ? (
-                  <video src={videoUrl} controls preload="metadata" style={{ maxHeight: 320, aspectRatio: "9 / 16", borderRadius: 8, background: "#000" }} />
+                  <video src={videoUrl} controls preload="metadata" style={{ width: 180, height: 320, objectFit: "contain", borderRadius: 8, background: "#000" }} />
                 ) : null}
               </Field>
               <Field label={copy.videoLocale}>
