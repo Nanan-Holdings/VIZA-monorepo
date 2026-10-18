@@ -42,7 +42,10 @@ kill_timeout = "5m"
   internal_port = 8080
   force_https = true
   auto_stop_machines = "off"
-  auto_start_machines = false
+  # Fly proxy starts a stopped Machine on any request (enqueue wake,
+  # /health probe), so queued work is picked up even if the Machines API
+  # wake from Vercel fails. Idle Machines still exit on their own.
+  auto_start_machines = true
   min_machines_running = 0
   max_machines_running = 10
 
