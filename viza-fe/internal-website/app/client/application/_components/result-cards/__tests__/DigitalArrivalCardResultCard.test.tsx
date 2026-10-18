@@ -166,13 +166,13 @@ describe("DigitalArrivalCardResultCard", () => {
 
   it("localizes raw loading stages for the Chinese interface", () => {
     expect(localizeProgressMessage("Current stage: payment_authorized.", true)).toBe(
-      "官网费用步骤需要人工处理。VIZA 不提供自动付款。",
+      "接下来需要支付官方费用。VIZA 顾问会通过邮件把官方付款链接发给你，你在官方网站付款即可。",
     );
     expect(localizeProgressMessage("Current stage: future_runner_stage.", true)).toBe(
       "云端任务正在处理，页面会自动更新。",
     );
     expect(localizeProgressMessage("Current stage: payment_authorized.", false)).toBe(
-      "The official fee checkpoint needs manual attention. VIZA does not provide automated payment.",
+      "The official fee is next. Your VIZA consultant will email you the official payment link; you pay on the official site.",
     );
     expect(
       localizeProgressMessage("Fly worker resumed with a future runtime message.", true),
@@ -243,7 +243,7 @@ describe("DigitalArrivalCardResultCard", () => {
     expect(phaseItem("正在填写官网表单")).toHaveClass("border-brand-200");
     expect(phaseItem("正在等待检查点或结果")).toHaveClass("border-brand-500");
     expect(
-      screen.getByText("官网费用步骤需要人工处理。VIZA 不提供自动付款。"),
+      screen.getByText("接下来需要支付官方费用。VIZA 顾问会通过邮件把官方付款链接发给你，你在官方网站付款即可。"),
     ).toBeInTheDocument();
 
     rerender(
@@ -595,7 +595,7 @@ describe("DigitalArrivalCardResultCard", () => {
     });
     expect(screen.getAllByText("需要处理")).toHaveLength(2);
     expect(
-      screen.getByText("需要处理，VIZA 自动付款已移除。请联系支持人员确认官方流程的下一步。"),
+      screen.getByText("接下来需要支付官方费用。VIZA 顾问会通过邮件把官方付款链接和下一步发给你。"),
     ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "开始自动付款" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "重新开始并自动付款" })).not.toBeInTheDocument();

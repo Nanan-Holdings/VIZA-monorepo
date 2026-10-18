@@ -63,8 +63,8 @@ function titleForResult(result: VnSubmissionResult, isZh: boolean, needsAttentio
 function safeInstruction(result: VnSubmissionResult, isZh: boolean, needsAttention: boolean): string {
   if (needsAttention) {
     return isZh
-      ? "需要处理，VIZA 自动付款已移除。请联系支持人员确认官方流程的下一步。"
-      : "Needs attention. VIZA automated payment has been removed. Contact support to confirm the next official-portal step.";
+      ? "接下来需要支付官方费用。VIZA 顾问会通过邮件把官方付款链接和下一步发给你。"
+      : "The official fee is next. Your VIZA consultant will email you the official payment link and the next step.";
   }
   return (
     result.manualAction?.instructions ??

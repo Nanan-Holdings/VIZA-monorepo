@@ -40,7 +40,7 @@ describe("payment-free result and application UI", () => {
       expect(cardSource).not.toContain("/official-fee/pay");
       expect(cardSource).not.toContain("viza_managed_virtual_card");
       expect(cardSource).not.toContain("limited virtual card");
-      expect(cardSource).toContain("automated payment has been removed");
+      expect(cardSource).toContain("Your VIZA consultant will email you the official payment link");
     }
   });
 });

@@ -4070,9 +4070,9 @@
   },
   "inviteFriends": {
     "heroTitle": "邀请您的朋友",
-    "heroSubtitle": "赚取 VIZA 积分",
-    "referHeading": "分享推荐码，赚取 99 积分",
-    "referDescription": "把您的专属 referral code 分享给朋友和家人。新用户注册时使用该 code 后，你们两人各获得 99 VIZA 积分。",
+    "heroSubtitle": "VIZA 对所有人免费",
+    "referHeading": "分享您的推荐码",
+    "referDescription": "把推荐码发给正在计划出行的朋友和家人。他们注册时填写这个码，我们就知道是您介绍的。",
     "referralCode": "邀请码",
     "loadingLink": "正在加载您的 code...",
     "copyCode": "复制 code",
@@ -4098,19 +4098,19 @@
     "steps": {
       "share": {
         "title": "分享您的推荐码",
-        "description": "邀请朋友使用您的专属 code 加入 VIZA。"
+        "description": "把专属推荐码发给需要办理签证或入境卡的朋友。"
       },
       "give": {
-        "title": "赠送朋友 99 积分",
-        "description": "新用户注册时填写您的 code，即可获得 99 积分。"
+        "title": "朋友注册",
+        "description": "朋友创建免费的 VIZA 账号时填写您的推荐码。"
       },
       "earn": {
-        "title": "赚取 99 积分",
-        "description": "每位新用户使用您的 code 注册后，您也将获得 99 积分。"
+        "title": "我们帮他们办理",
+        "description": "VIZA 为他们准备申请，并在可行时于官方网站提交。VIZA 不收取服务费。"
       },
       "redeem": {
-        "title": "兑换积分奖励",
-        "description": "在设置里的积分中心使用积分商城兑换奖励。"
+        "title": "",
+        "description": ""
       }
     },
     "faqTitle": "常见问题",
@@ -4121,16 +4121,16 @@
     },
     "faqs": {
       "whenReward": {
-        "question": "我什么时候能获得奖励？",
-        "answer": "新用户成功使用您的 referral code 注册后，99 积分会计入您的账户。"
+        "question": "有奖励吗？",
+        "answer": "没有。VIZA 是免费服务，因此没有积分或奖励。推荐码只用于记录是谁介绍了新用户。"
       },
       "howUseCredit": {
-        "question": "如何使用积分？",
-        "answer": "打开设置里的积分中心，即可在积分商城兑换可用奖励。"
+        "question": "朋友需要付费吗？",
+        "answer": "VIZA 不收取服务费。部分国家会收取官方签证费，需在官方网站支付。"
       },
       "whoEligible": {
-        "question": "谁有资格？",
-        "answer": "仅限新会员。每位新会员一次折扣。"
+        "question": "可以邀请谁？",
+        "answer": "任何计划出行的人。每个新账号注册时可填写一个推荐码。"
       }
     }
   },
@@ -4599,7 +4599,7 @@
       "subtitle": "像写邮件一样描述问题并添加附件，我们会尽快处理。",
       "issueLabel": "问题类型：{activity}",
       "subjectLabel": "主题",
-      "subjectPlaceholder": "例如：付款失败 / 申请进度疑问",
+      "subjectPlaceholder": "例如：申请进度疑问",
       "descriptionLabel": "问题描述",
       "descriptionPlaceholder": "请描述问题发生的步骤、时间和期望的解决方式。",
       "attachmentsLabel": "附件（可选）",

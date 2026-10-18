@@ -17,7 +17,7 @@ export type NotificationsCopy = {
 const ENGLISH_COPY: NotificationsCopy = {
   title: "Notifications",
   description:
-    "We always send essential transactional updates (payment received, input needed, decision issued). The rest you can opt out of below.",
+    "We always send essential transactional updates (application filed, input needed, decision issued). The rest you can opt out of below.",
   fields: {
     channelEmail: {
       label: "Email notifications",

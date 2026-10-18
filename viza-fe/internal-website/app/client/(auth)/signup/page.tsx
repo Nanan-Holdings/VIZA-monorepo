@@ -27,9 +27,6 @@ function isValidEmail(v: string) {
 
 type SignupStep = 'email' | 'otp' | 'password'
 type PasswordRequirementKey = 'length' | 'letter' | 'digit' | 'symbol'
-type BrowserSupabaseClient = ReturnType<typeof createClient>
-
-const REFERRAL_POINTS = 99
 
 function getPasswordScore(password: string) {
   const checks = {
@@ -40,101 +37,6 @@ function getPasswordScore(password: string) {
   }
   const score = Object.values(checks).filter(Boolean).length
   return { checks, score, isValid: checks.length && checks.letter && checks.digit && checks.symbol }
-}
-
-function parseReferralCode(value: string) {
-  const match = value
-    .trim()
-    .toLowerCase()
-    .match(/^viza-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/)
-
-  return match?.[1] ?? null
-}
-
-async function ensureRewardWallet(supabase: BrowserSupabaseClient, userId: string) {
-  const { data: existingWallet } = await supabase
-    .from('reward_wallets')
-    .select('id')
-    .eq('user_id', userId)
-    .maybeSingle()
-
-  if (existingWallet?.id) return existingWallet.id
-
-  const { data: createdWallet } = await supabase
-    .from('reward_wallets')
-    .insert({ user_id: userId })
-    .select('id')
-    .single()
-
-  return createdWallet?.id ?? null
-}
-
-async function hasReferralReward(
-  supabase: BrowserSupabaseClient,
-  walletId: string,
-  referredUserId: string
-) {
-  const { data } = await supabase
-    .from('reward_transactions')
-    .select('id')
-    .eq('wallet_id', walletId)
-    .eq('source', 'referral')
-    .eq('reference_type', 'referral_signup')
-    .eq('reference_id', referredUserId)
-    .maybeSingle()
-
-  return Boolean(data?.id)
-}
-
-async function awardReferralSignupPoints(
-  supabase: BrowserSupabaseClient,
-  referralCode: string,
-  newUserId: string
-) {
-  const referrerUserId = parseReferralCode(referralCode)
-
-  if (!referrerUserId || referrerUserId === newUserId) return
-
-  const [referrerWalletId, newUserWalletId] = await Promise.all([
-    ensureRewardWallet(supabase, referrerUserId),
-    ensureRewardWallet(supabase, newUserId),
-  ])
-
-  if (!referrerWalletId || !newUserWalletId) return
-
-  const [referrerAlreadyRewarded, newUserAlreadyRewarded] = await Promise.all([
-    hasReferralReward(supabase, referrerWalletId, newUserId),
-    hasReferralReward(supabase, newUserWalletId, newUserId),
-  ])
-
-  const transactions = [
-    !referrerAlreadyRewarded
-      ? {
-          wallet_id: referrerWalletId,
-          amount: REFERRAL_POINTS,
-          type: 'earned',
-          source: 'referral',
-          reason: 'Referral signup reward',
-          reference_type: 'referral_signup',
-          reference_id: newUserId,
-        }
-      : null,
-    !newUserAlreadyRewarded
-      ? {
-          wallet_id: newUserWalletId,
-          amount: REFERRAL_POINTS,
-          type: 'earned',
-          source: 'referral',
-          reason: 'New user referral code reward',
-          reference_type: 'referral_signup',
-          reference_id: newUserId,
-        }
-      : null,
-  ].filter((transaction): transaction is NonNullable<typeof transaction> => Boolean(transaction))
-
-  if (transactions.length > 0) {
-    await supabase.from('reward_transactions').insert(transactions)
-  }
 }
 
 export default function ClientSignupPage() {
@@ -434,11 +336,6 @@ export default function ClientSignupPage() {
         // temporarily unavailable. The authenticated client shell retries and
         // requires forwarding authorization on the user's first portal visit.
         console.error('Could not provision applicant inbox alias:', inboxError)
-      }
-      try {
-        await awardReferralSignupPoints(supabase, referralCode, user.id)
-      } catch (referralError) {
-        console.error('Could not award referral points:', referralError)
       }
       await supabase.auth.signOut()
       const returnTo = getPostLoginPath(new URLSearchParams(window.location.search).get('returnTo'))

@@ -1,11 +1,7 @@
-import type { Metadata } from "next";
-import { SettingsContent } from "../settings-content";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "Points Center | VIZA",
-  description: "View and redeem VIZA points.",
-};
-
+/* The Points Center had nothing behind it: production has no reward wallet
+   tables and Redeem had no action. VIZA is free, so there is nothing to redeem. */
 export default function SettingsPointsPage() {
-  return <SettingsContent view="points" />;
+  redirect("/client/settings");
 }
