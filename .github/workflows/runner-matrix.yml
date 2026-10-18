@@ -14,6 +14,9 @@ jobs:
     name: stress (${{ matrix.country }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # The runners import the shared Supabase client at load time and upload
+    # failure artefacts to the submission-artifacts bucket.
+    environment: production-submission_service
     strategy:
       fail-fast: false
       matrix:
@@ -35,7 +38,11 @@ jobs:
       - name: Run stress (10 applicants)
         env:
           NODE_ENV: staging
-        run: npx ts-node scripts/runner-stress.ts ${{ matrix.country }} 10
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        # tsx resolves the ESM-style "./x.js" imports to their .ts sources;
+        # ts-node's CommonJS loader cannot, which failed every nightly run.
+        run: npx tsx scripts/runner-stress.ts ${{ matrix.country }} 10
       - name: Upload failure artefacts
         if: failure()
         uses: actions/upload-artifact@v4
@@ -91,4 +98,4 @@ jobs:
       - name: Emit digest
         env:
           STRESS_SLACK_WEBHOOK: ${{ secrets.STRESS_SLACK_WEBHOOK }}
-        run: npx ts-node scripts/runner-stress-digest.ts stress-out-flat
+        run: npx tsx scripts/runner-stress-digest.ts stress-out-flat

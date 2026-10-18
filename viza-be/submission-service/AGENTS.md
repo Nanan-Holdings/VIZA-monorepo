@@ -435,9 +435,13 @@ and must fail closed; callers must not perform a direct table settlement.
   authenticated `/internal/submission-queue/wake` endpoint. Deployment must
   provide the same `SUBMISSION_QUEUE_INTERNAL_TOKEN` to Vercel and every
   retained Fly target; do not reintroduce an idle database claim loop.
-  `deploy/fly/fly.pool.toml` defines the retained shared pool without native
-  Fly autostart/autostop; application enqueue wakes exact capacity and the
-  scheduled reconciler is recovery-only.
+  `deploy/fly/fly.pool.toml` defines the retained shared pool. Application
+  enqueue wakes exact capacity through the Machines API and the scheduled
+  reconciler is recovery-only. Since 19 Oct 2026 the pool, legacy and South
+  Korea apps also enable native Fly autostart (never autostop), so any HTTP
+  request, including the enqueue wake call and `/health` probes, starts a
+  stopped Machine if the Machines API wake failed. Workers still take their
+  own database slot at boot and exit after the idle timeout.
   `deploy/fly/fly.indonesia.toml` defines the one-CPU/2GB Indonesia sticky
   Machine with scale-to-zero and one-job concurrency.
   `deploy/fly/fly.south-korea.toml` pins the interactive Korea e-Form/KVAC
