@@ -162,3 +162,22 @@ test("retained deployment scripts support fresh account-specific app names", () 
   assert.match(legacyDeploy, /for attempt in \$\(seq 1 18\)/);
   assert.match(legacyDeploy, /fly scale count 1/);
 });
+
+test("Fly deploy scripts and configs contain no carriage returns", () => {
+  // A stray CR inside a bash array made sync-runtime-secrets.sh read
+  // "TWOCAPTCHA_API_KEY\r" as one name and failed the Indonesia deploy.
+  for (const file of [
+    "deploy/fly/fly.pool.toml",
+    "deploy/fly/fly.legacy.toml",
+    "deploy/fly/fly.indonesia.toml",
+    "deploy/fly/fly.south-korea.toml",
+    "scripts/fly/sync-runtime-secrets.sh",
+    "scripts/fly/deploy-pool.sh",
+    "scripts/fly/deploy-legacy.sh",
+    "scripts/fly/deploy-indonesia.sh",
+    "scripts/fly/deploy-south-korea.sh",
+    "scripts/fly/scale-workers.sh",
+  ]) {
+    assert.doesNotMatch(readRepoFile(`viza-be/submission-service/${file}`), /\r/, file);
+  }
+});
