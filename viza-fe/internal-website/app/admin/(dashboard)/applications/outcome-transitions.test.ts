@@ -124,15 +124,26 @@ describe("manual hand-off results", () => {
   const CLIENT_SUBMISSION_SUCCESS = new Set(["completed", "complete", "submitted", "success", "done"]);
 
   it.each([
-    ["submitted", { kind: "submitted", reference: "AU-1" }, "submitted"],
-    ["approved", { kind: "approved", resultStoragePath: filePath }, "approved"],
-    ["refused", { kind: "refused", reason: "Not eligible" }, "refused"],
-    ["needs_info", { kind: "needs_info", message: "Passport scan" }, "needs_attention"],
-  ] as const)("%s clears the MANUAL hand-off and sets a status the client maps", (_label, input, status) => {
+    ["submitted", { kind: "submitted", reference: "AU-1" }, "submitted", { status: "submitted", reference: "AU-1", notes: null }],
+    ["approved", { kind: "approved", resultStoragePath: filePath }, "approved", { status: "approved", reference: null, notes: null }],
+    ["refused", { kind: "refused", reason: "Not eligible" }, "refused", { status: "refused", notes: "Not eligible" }],
+    ["needs_info", { kind: "needs_info", message: "Passport scan" }, "needs_attention", { status: "needs_info", notes: "Passport scan" }],
+  ] as const)("%s moves the MANUAL hand-off on in place", (_label, input, status, expected) => {
     const plan = planOutcomeTransition(manual, input, "s", NOW);
-    expect(plan.patch.submission_result).toBeNull();
+    expect(plan.patch.submission_result).toEqual({
+      ...manual.submission_result,
+      reference: null,
+      ...expected,
+      updatedAt: NOW.toISOString(),
+    });
     expect(plan.patch.submission_result_status).toBe(status);
     expect(plan.patch.submission_result_updated_at).toBe(NOW.toISOString());
+  });
+
+  it("keeps an earlier government reference when the decision arrives", () => {
+    const filed = { ...manual, submission_result: { ...manual.submission_result, status: "submitted", reference: "AU-1" } };
+    const plan = planOutcomeTransition(filed, { kind: "refused", reason: "x" }, "s", NOW);
+    expect(plan.patch.submission_result).toMatchObject({ status: "refused", reference: "AU-1", notes: "x", country: "MANUAL", handedAt: manual.submission_result.handedAt });
   });
 
   it("maps the outcome statuses onto the client allowlists", () => {

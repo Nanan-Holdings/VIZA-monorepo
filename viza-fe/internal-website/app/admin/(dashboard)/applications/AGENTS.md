@@ -72,6 +72,13 @@ application workflow.
 | Refused | `rejected` | `refused` + `result_notes` | `visa_refused` |
 | Needs info | `awaiting_applicant` | `needs_attention` + `result_notes` | `info_requested` |
 
+Every outcome also sets `submission_result_status` (submitted, approved,
+refused, needs_attention). When `submission_result` is the MANUAL hand-off
+(`ManualHandoffSubmissionResult` in `lib/submission-result.ts`), the object is
+kept and moved on in place (`status` = the outcome kind, `updatedAt`,
+`reference`, `notes`) so the applicant's card shows it. Automation results
+are never overwritten.
+
 `/admin/staff-queue` (`../staff-queue/`) lists every case that needs a human
 and links to `#outcome-<applicationId>` on the case page.
 

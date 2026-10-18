@@ -58,7 +58,8 @@ export interface OutcomeApplicationState {
 export interface OutcomePlan {
   fromStatus: string | null;
   toStatus: string;
-  patch: Record<string, string | null>;
+  /** Column values; `submission_result` is an object for MANUAL hand-offs. */
+  patch: Record<string, string | null | Record<string, unknown>>;
   history: {
     from_status: string | null;
     to_status: string;
@@ -166,20 +167,32 @@ export function isManualHandoffResult(value: unknown): boolean {
 /**
  * Submission-result fields for an outcome. `submission_result_status` uses
  * values the client already maps (submitted, approved, refused,
- * needs_attention). A MANUAL hand-off result is cleared so the applicant's
- * status page stops showing "with your VIZA consultant"; real automation
- * evidence (confirmation numbers, PDFs) is never overwritten.
+ * needs_attention). A MANUAL hand-off result (ManualHandoffSubmissionResult
+ * in lib/submission-result.ts) is kept and moved on in place, so the
+ * applicant's own card shows the status, reference and staff note. Real
+ * automation evidence (confirmation numbers, PDFs) is never overwritten.
  */
 function submissionResultFields(
   application: OutcomeApplicationState,
+  kind: OutcomeKind,
   status: string,
   nowIso: string,
-): Record<string, string | null> {
-  const fields: Record<string, string | null> = {
+  extras: { reference?: string | null; notes?: string | null },
+): Record<string, string | null | Record<string, unknown>> {
+  const fields: Record<string, string | null | Record<string, unknown>> = {
     submission_result_status: status,
     submission_result_updated_at: nowIso,
   };
-  if (isManualHandoffResult(application.submission_result)) fields.submission_result = null;
+  if (isManualHandoffResult(application.submission_result)) {
+    const current = application.submission_result as Record<string, unknown>;
+    fields.submission_result = {
+      ...current,
+      status: kind,
+      updatedAt: nowIso,
+      reference: extras.reference ?? (current.reference as string | null | undefined) ?? null,
+      notes: extras.notes ?? null,
+    };
+  }
   return fields;
 }
 
@@ -212,8 +225,8 @@ export function planOutcomeTransition(
       const submittedAt = input.submittedOn
         ? submittedOnToTimestamp(input.submittedOn)
         : application.submitted_at ?? nowIso;
-      const patch: Record<string, string | null> = {
-        ...submissionResultFields(application, "submitted", nowIso),
+      const patch: OutcomePlan["patch"] = {
+        ...submissionResultFields(application, "submitted", "submitted", nowIso, { reference }),
         status: "submitted",
         external_status: "submitted",
         external_reference: reference,
@@ -250,8 +263,8 @@ export function planOutcomeTransition(
     }
     case "approved": {
       const path = clean(input.resultStoragePath);
-      const patch: Record<string, string | null> = {
-        ...submissionResultFields(application, "approved", nowIso),
+      const patch: OutcomePlan["patch"] = {
+        ...submissionResultFields(application, "approved", "approved", nowIso, { reference: clean(input.reference) || null }),
         status: "approved",
         result_status: "approved",
         result_storage_path: path,
@@ -279,8 +292,8 @@ export function planOutcomeTransition(
     case "refused": {
       const reason = clean(input.reason);
       const path = clean(input.resultStoragePath);
-      const patch: Record<string, string | null> = {
-        ...submissionResultFields(application, "refused", nowIso),
+      const patch: OutcomePlan["patch"] = {
+        ...submissionResultFields(application, "refused", "refused", nowIso, { notes: reason }),
         status: "rejected",
         result_status: "refused",
         result_notes: reason,
@@ -311,8 +324,8 @@ export function planOutcomeTransition(
     }
     case "needs_info": {
       const message = clean(input.message);
-      const patch: Record<string, string | null> = {
-        ...submissionResultFields(application, "needs_attention", nowIso),
+      const patch: OutcomePlan["patch"] = {
+        ...submissionResultFields(application, "needs_info", "needs_attention", nowIso, { notes: message }),
         status: AWAITING_APPLICANT_STATUS,
         result_status: "needs_attention",
         result_notes: message,

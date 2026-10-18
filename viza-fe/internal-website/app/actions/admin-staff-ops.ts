@@ -159,7 +159,10 @@ export async function recordApplicationOutcome(
         ...plan.event.metadata,
         outcome: validated.value.kind,
         source: "admin_outcome",
-        replaced_submission_result: "submission_result" in plan.patch ? application.submission_result ?? null : undefined,
+        previous_submission_result_status:
+          "submission_result" in plan.patch
+            ? ((application.submission_result as { status?: string } | null)?.status ?? null)
+            : undefined,
       },
     });
 
