@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { asMarketingDb, mapBlogAdminRecord, mapSocialComposition } from "./db";
 import { completeMarketingJson, contentGenerationReadiness, generateBlogDraft, generateSocialCopy } from "./providers/openrouter";
 import { getZernioPost, zernioPlatformPostUrl } from "./providers/zernio";
+import { isKelinHandle } from "./providers/kelin";
 import { checkUploadPostJob } from "./providers/upload-post";
 import { buildGroundedDraftBrief, MIN_ARTICLE_CHARS, rankNewsStories, readNewsStory, scanNews } from "./news-pipeline";
 import { rehostMarketingCover } from "./cover";
@@ -159,8 +160,8 @@ export async function runSocialReconciliation(now = new Date()) {
     if (rows.error) throw new Error(rows.error.message);
     let reconciled = 0; let failed = 0;
     for (const value of rows.data ?? []) {
-      const composition = mapSocialComposition(value); const entries = Object.entries(composition.zernioPosts).filter((entry): entry is [MarketingSocialPlatform, string] => Boolean(entry[1])); const ids = entries.map((entry) => entry[1]);
-      if (!ids.length && !Object.keys(composition.uploadPostPosts).length) { failed += 1; continue; }
+      const composition = mapSocialComposition(value); const allEntries = Object.entries(composition.zernioPosts).filter((entry): entry is [MarketingSocialPlatform, string] => Boolean(entry[1])); const entries = allEntries.filter((entry) => !isKelinHandle(entry[1])); const directCount = allEntries.length - entries.length; const ids = entries.map((entry) => entry[1]);
+      if (!ids.length && !directCount && !Object.keys(composition.uploadPostPosts).length) { failed += 1; continue; }
       try {
         const posts = await Promise.all(ids.map(getZernioPost));
         const statuses = posts.map((body) => { const post = body.post && typeof body.post === "object" && !Array.isArray(body.post) ? body.post as Record<string, unknown> : body; return typeof post.status === "string" ? post.status : "publishing"; });
@@ -173,7 +174,7 @@ export async function runSocialReconciliation(now = new Date()) {
           const checked = await checkUploadPostJob(item.requestId, platform);
           uploadPosts[platform] = { status: checked.status, requestId: checked.requestId, postId: checked.postId, postUrl: checked.postUrl };
         }
-        const allStatuses = [...statuses, ...Object.values(uploadPosts).map((item) => item.status)];
+        const allStatuses = [...statuses, ...Array<string>(directCount).fill("published"), ...Object.values(uploadPosts).map((item) => item.status)];
         const status = allStatuses.every((item) => item === "published") ? "published" : allStatuses.some((item) => item === "failed") ? (allStatuses.some((item) => item === "published") ? "partial" : "failed") : allStatuses.every((item) => item === "scheduled") ? "scheduled" : "publishing";
         const updated = await admin.from("marketing_social_compositions").update({ status, upload_post_posts: uploadPosts, zernio_post_urls: zernioPostUrls, last_synced_at: now.toISOString(), updated_at: now.toISOString(), updated_by: actorId }).eq("id", composition.id);
         if (updated.error) throw new Error(updated.error.message);
