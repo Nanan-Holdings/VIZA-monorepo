@@ -5,13 +5,17 @@ import { UserCheck } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { isChineseLocale } from "@/lib/i18n/locale";
+import { getDestinationDisplayNameForLocale, getVisaTypeDisplayNameForLocale } from "@/lib/visa-destinations";
 import type { ManualHandoffSubmissionResult } from "@/lib/submission-result";
 
 /* The product has no automated submission, so a VIZA consultant files it.
    Shown from the moment the applicant submits until staff record the
    official outcome, which replaces this result. */
 export function ManualHandoffResultCard({ result }: { result: ManualHandoffSubmissionResult }) {
-  const isZh = isChineseLocale(useLocale());
+  const locale = useLocale();
+  const isZh = isChineseLocale(locale);
+  const countryLabel = result.destinationCountry ? getDestinationDisplayNameForLocale(result.destinationCountry, locale) : "-";
+  const visaLabel = result.visaType ? getVisaTypeDisplayNameForLocale(result.visaType, locale) : "-";
   const handed = new Date(result.handedAt);
   const handedLabel = Number.isFinite(handed.getTime())
     ? handed.toLocaleString(isZh ? "zh-CN" : "en-GB", { dateStyle: "medium", timeStyle: "short" })
@@ -35,8 +39,8 @@ export function ManualHandoffResultCard({ result }: { result: ManualHandoffSubmi
         </p>
         <div className="rounded-md border border-input bg-background px-3 py-2">
           <div className="text-xs text-muted-foreground">{isZh ? "国家 / 签证类型" : "Country / visa type"}</div>
-          <div className="mt-0.5 font-mono text-sm text-foreground">
-            {result.destinationCountry ?? "-"} / {result.visaType ?? "-"}
+          <div className="mt-0.5 text-sm text-foreground">
+            {countryLabel} / {visaLabel}
           </div>
         </div>
         {handedLabel ? (

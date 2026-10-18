@@ -17,6 +17,7 @@ import type {
   DigitalArrivalCardSubmissionResult,
   GenericEvisaSubmissionResult,
   GenericSubmissionResult,
+  ManualHandoffSubmissionResult,
   SubmissionResult,
   SubmissionResultStatus,
   TwSubmissionResult,
@@ -2372,6 +2373,17 @@ export function SubmissionStatusStep({
     return null;
   }, [effectiveResult, result, snapshot?.result]);
 
+  /* Handed to a consultant: there is no automation run to show progress for,
+     whatever the stored status says, until staff record the outcome. */
+  const manualHandoff = [result, snapshot?.result, effectiveResult].find(isManualHandoffResult) ?? null;
+  if (manualHandoff && !submissionStarting && !resubmitting) {
+    return (
+      <div className="space-y-4">
+        <ManualHandoffResultCard result={manualHandoff} />
+      </div>
+    );
+  }
+
   if (submissionStarting) {
     return (
       <div className="space-y-4">
@@ -2705,6 +2717,15 @@ export function SubmissionStatusStep({
         visaType={visaType}
       />
     </div>
+  );
+}
+
+function isManualHandoffResult(value: unknown): value is ManualHandoffSubmissionResult {
+  return Boolean(
+    value &&
+    typeof value === "object" &&
+    (value as { country?: unknown }).country === "MANUAL" &&
+    (value as { status?: unknown }).status === "handed_to_team",
   );
 }
 
