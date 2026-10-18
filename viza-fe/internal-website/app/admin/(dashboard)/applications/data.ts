@@ -1254,6 +1254,7 @@ export async function fetchAdminApplicationQueue(): Promise<{
     const fullResult = await adminClient
       .from("applications")
       .select(APPLICATION_AUTOMATION_SELECT)
+      .is("qa_archived_at", null)
       .order("updated_at", { ascending: false, nullsFirst: false })
       .limit(250);
 
@@ -1261,6 +1262,7 @@ export async function fetchAdminApplicationQueue(): Promise<{
       ? await adminClient
           .from("applications")
           .select(APPLICATION_BASE_SELECT)
+          .is("qa_archived_at", null)
           .order("updated_at", { ascending: false, nullsFirst: false })
           .limit(250)
       : fullResult;

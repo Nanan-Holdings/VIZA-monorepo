@@ -34,6 +34,7 @@ import {
   getToneForState,
 } from "../ui";
 import { SupportActions } from "../support-actions";
+import { OutcomePanel } from "../outcome-panel";
 import {
   ADMIN_APPLICATION_COPY,
   type AdminApplicationCopy,
@@ -793,6 +794,20 @@ export default async function AdminApplicantOverviewPage({ params, searchParams 
           initialStatus={applicant.latestApplication.lifecycleState}
         />
       )}
+
+      <OutcomePanel
+        locale={locale}
+        applications={applicant.applications
+          .filter((application) => application.rawStatus !== "archived")
+          .map((application) => ({
+            id: application.id,
+            label: `${application.countryLabel} · ${application.visaTypeLabel}`,
+            rawStatus: application.rawStatus,
+            externalReference: application.external.reference,
+            resultStatus: application.result.rawStatus,
+            resultNotes: application.result.notes,
+          }))}
+      />
 
       <OverviewMetrics applicant={applicant} copy={copy} locale={locale} />
       <ApplicantProfile applicant={applicant} copy={copy} locale={locale} />

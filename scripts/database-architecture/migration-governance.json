@@ -282,6 +282,11 @@
       "path": "viza-fe/internal-website/supabase/migrations/20261019090000_marketing_social_dispatch.sql",
       "sha256": "1893a71d733de0118aa257ddb976944f6d89277c183779f3668929cc917030fe",
       "reason": "Portal-owned marketing automation job type for the in-house social dispatcher has no agent-backend Drizzle mirror."
+    },
+    {
+      "path": "viza-fe/internal-website/supabase/migrations/20261019130000_staff_ops_outcomes.sql",
+      "sha256": "9a932556b80218664f03edcbe04151037be88a7c78d53afb9420476bdf97bbc0",
+      "reason": "Portal-owned staff operations: reversible QA archive marker on applications, staff queue and notification log indexes, and the one-off QA archive; the agent-backend Drizzle schema does not read these columns."
     }
   ],
   "unapplied_migration_renames": [

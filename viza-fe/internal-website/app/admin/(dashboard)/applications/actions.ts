@@ -6,7 +6,10 @@ import { requireRole } from "@/lib/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { wakeCloudSubmissionWorker } from "@/lib/submission-worker-wake.server";
 import { assertRunnerCutoverActive } from "@/lib/runner-cutover-pause.server";
-import { buildStatusSummary, fetchAdminApplicationDetail } from "./data";
+import { sendTransitionNotification } from "@/lib/notify/dispatch";
+import { getDestinationDisplayNameZh } from "@/lib/visa-destinations";
+import { fetchAdminApplicationDetail } from "./data";
+import { customerStatusDetail } from "./outcome-transitions";
 
 type QueueRow = {
   id: string;
@@ -179,47 +182,44 @@ export async function queueStatusNotification(formData: FormData) {
     const actor = await requireRole("admin", "staff", "customer_service");
     const { application, error } = await fetchAdminApplicationDetail(applicationId);
 
-    if (error || !application) {
-      target = withResultParam(returnTo, "actionError");
-    } else {
+    if (!error && application) {
+      // Same verified Resend sender and logging as the staff outcome actions.
+      const result = await sendTransitionNotification(
+        application.applicantId,
+        "status_update",
+        {
+          applicantName: "",
+          applicationId: application.id,
+          countryLabel: application.countryLabel,
+          countryLabelZh: application.country ? getDestinationDisplayNameZh(application.country) : undefined,
+          visaTypeLabel: application.visaTypeLabel,
+          detailByLocale: customerStatusDetail(application.lifecycleState),
+        },
+        { actorId: actor.id, source: "admin_status_email" },
+      );
       const adminClient = createAdminClient();
-      const summary = buildStatusSummary(application);
-      const recipient = application.profile?.email ?? null;
+      const sent = result.delivered.includes("email");
 
-      const { error: notificationError } = await adminClient.from("notification_events").insert({
+      await adminClient.from("application_events").insert({
         application_id: application.id,
         applicant_id: application.applicantId,
-        channel: "email",
-        template_key: "support_status_update",
-        recipient,
-        status: "queued",
-        payload: {
-          summary,
-          queued_by: actor.id,
-          source: "admin_application_monitor",
+        event_type: sent ? "notification_sent" : "support_notification_failed",
+        actor_type: "admin",
+        actor_id: actor.id,
+        message: sent
+          ? "Staff emailed the applicant a customer-safe status update."
+          : "Staff tried to email a status update but it was not delivered.",
+        metadata: {
+          template_key: "status_update",
+          recipient_present: Boolean(result.recipient),
+          provider_message_id: result.messageId,
+          error: result.error,
         },
       });
 
-      if (notificationError) {
-        target = withResultParam(returnTo, "actionError");
-      } else {
-        await adminClient.from("application_events").insert({
-          application_id: application.id,
-          applicant_id: application.applicantId,
-          event_type: "support_notification_queued",
-          actor_type: "admin",
-          actor_id: actor.id,
-          message: "Staff queued a customer-safe status update notification.",
-          metadata: {
-            template_key: "support_status_update",
-            recipient_present: Boolean(recipient),
-          },
-        });
-
-        revalidatePath("/admin/applications");
-        revalidatePath(`/admin/applications/${application.id}`);
-        target = withResultParam(returnTo, "queuedNotification");
-      }
+      revalidatePath("/admin/applications");
+      revalidatePath(`/admin/applications/${application.id}`);
+      target = withResultParam(returnTo, sent ? "queuedNotification" : "actionError");
     }
   } catch {
     target = withResultParam(returnTo, "actionError");

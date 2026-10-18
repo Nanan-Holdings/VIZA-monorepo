@@ -4,6 +4,15 @@ import { after, NextResponse } from "next/server";
 import { eventCode } from "@/lib/analytics/taxonomy";
 import { captureServerEvent } from "@/lib/analytics/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendTransitionNotification } from "@/lib/notify/dispatch";
+import { externalEmailDetail, pickExternalEmailEvent } from "@/lib/notify/external-submission-email";
+import {
+  getDestinationDisplayName,
+  getDestinationDisplayNameZh,
+  getFormVisaType,
+  getVisaTypeDisplayName,
+  getVisaTypeDisplayNameZh,
+} from "@/lib/visa-destinations";
 
 export const runtime = "nodejs";
 
@@ -467,15 +476,6 @@ function getPrimaryResultReference(fileReferences: FileReference[] | undefined) 
   return primary.storagePath ?? primary.url;
 }
 
-function buildNotificationTemplate(payload: IngestPayload): string {
-  if (payload.resultStatus) return "external_submission_result_updated";
-  if (payload.externalStatus === "action_required") {
-    return "external_submission_action_required";
-  }
-  if (payload.externalStatus === "failed") return "external_submission_failed";
-  return "external_submission_status_updated";
-}
-
 export async function POST(request: Request) {
   const auth = authenticate(request);
   if (!auth.ok) return auth.response;
@@ -617,12 +617,11 @@ export async function POST(request: Request) {
     );
   }
 
-  let recipient: string | null = null;
   let applicantAuthUserId: string | null = null;
   if (application.applicant_id) {
     const { data: profileData, error: profileError } = await adminClient
       .from("applicant_profiles")
-      .select("email, auth_user_id")
+      .select("auth_user_id")
       .eq("id", application.applicant_id)
       .maybeSingle();
 
@@ -632,54 +631,46 @@ export async function POST(request: Request) {
         profileError.message,
       );
     } else if (isRecord(profileData)) {
-      if (typeof profileData.email === "string" && profileData.email.trim()) {
-        recipient = profileData.email.trim();
-      }
       if (typeof profileData.auth_user_id === "string" && profileData.auth_user_id) {
         applicantAuthUserId = profileData.auth_user_id;
       }
     }
   }
 
-  const notificationPayload = {
-    applicationId: payload.applicationId,
-    externalStatus: payload.externalStatus,
-    resultStatus: payload.resultStatus ?? null,
-    externalReference:
-      payload.reference === undefined
-        ? application.external_reference
-        : payload.reference,
-    resultStoragePath:
-      primaryResultReference === undefined
-        ? application.result_storage_path
-        : primaryResultReference,
-    fileReferences: payload.fileReferences ?? [],
-    updateSource: payload.updateSource,
-    receivedAt: now,
-  };
-
-  const { error: notificationError } = await adminClient
-    .from("notification_events")
-    .insert({
-      application_id: payload.applicationId,
-      applicant_id: application.applicant_id,
-      channel: "email",
-      template_key: buildNotificationTemplate(payload),
-      recipient,
-      status: "queued",
-      payload: notificationPayload,
-      updated_at: now,
-    });
-
-  if (notificationError) {
-    console.error(
-      "[external-submission] Failed to queue notification event:",
-      notificationError.message,
-    );
-    return serverErrorResponse(
-      "notification_event_insert_failed",
-      "Application was updated but notification queue insertion failed",
-    );
+  // Applicant email through the shared dispatcher (verified sender,
+  // EN/ZH by applicant locale, logged in notification_event_log and
+  // notification_events). Only real transitions email, so a retried
+  // POST with the same payload does not email twice.
+  const emailEvent = pickExternalEmailEvent(payload, application);
+  let notificationSent = false;
+  if (emailEvent && application.applicant_id) {
+    try {
+      const reference =
+        payload.reference === undefined ? application.external_reference : payload.reference;
+      const notes =
+        payload.resultNotes === undefined ? application.result_notes : payload.resultNotes;
+      const visaKey = getFormVisaType(application.visa_type ?? "");
+      const result = await sendTransitionNotification(
+        application.applicant_id,
+        emailEvent,
+        {
+          applicantName: "",
+          applicationId: payload.applicationId,
+          countryLabel: application.country ? getDestinationDisplayName(application.country) : "your destination",
+          countryLabelZh: application.country ? getDestinationDisplayNameZh(application.country) : undefined,
+          visaTypeLabel: visaKey ? getVisaTypeDisplayName(visaKey) : "visa",
+          visaTypeLabelZh: visaKey ? getVisaTypeDisplayNameZh(visaKey) : undefined,
+          detailByLocale: externalEmailDetail(emailEvent, reference ?? null, notes ?? null),
+        },
+        { source: "external_submission" },
+      );
+      notificationSent = result.delivered.includes("email");
+    } catch (error) {
+      console.error(
+        "[external-submission] Applicant email failed:",
+        error instanceof Error ? error.message : String(error),
+      );
+    }
   }
 
   // Product analytics: one event per outcome change, keyed to the applicant's
@@ -725,7 +716,8 @@ export async function POST(request: Request) {
             : payload.resultNotes,
       },
       auditEventQueued: true,
-      notificationQueued: true,
+      notificationQueued: emailEvent !== null,
+      notificationSent,
     },
     200,
   );

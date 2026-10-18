@@ -33,7 +33,18 @@ application workflow.
 - `data.ts`: server-side admin data loader and lifecycle derivation helpers.
 - `copy.ts`: English/Chinese admin monitoring copy and formatting helpers
   keyed by the global interface language.
-- `actions.ts`: audited support-only server actions for this route.
+- `actions.ts`: audited support-only server actions for this route. The
+  "status email" button sends a customer-safe `status_update` email through
+  `lib/notify/dispatch.ts` (same verified sender and logging as outcomes).
+- `outcome-transitions.ts`: pure plans for the four staff outcomes
+  (submitted to government, approved with file, refused, needs info). Each
+  plan is the `applications` patch, the `application_status_history` row,
+  the customer-visible `application_events` row and the email event. Only
+  fields and values `/client/status` already reads are written.
+- `outcome-panel.tsx`: the "Record outcome" panel on the case page. Files go
+  straight from the browser to Storage (`application-documents/results/<appId>/`)
+  through a signed upload URL, then `app/actions/admin-staff-ops.ts` records
+  the outcome and emails the applicant.
 - `support-actions.tsx`: client-side copy/email helper controls.
 - `ui.tsx`: route-local admin display primitives.
 
@@ -51,6 +62,25 @@ application workflow.
 - `application_events`
 - `notification_events`
 - `application_submission_entitlements`
+
+## Outcome statuses
+
+| Outcome | applications.status | result_status | Email event |
+|---|---|---|---|
+| Submitted to government | `submitted` (+ `external_status=submitted`, `external_reference`, `submitted_at`) | unchanged (cleared if `needs_attention`) | `submitted` |
+| Approved | `approved` | `approved` + `result_storage_path` | `visa_approved` |
+| Refused | `rejected` | `refused` + `result_notes` | `visa_refused` |
+| Needs info | `awaiting_applicant` | `needs_attention` + `result_notes` | `info_requested` |
+
+Every outcome also sets `submission_result_status` (submitted, approved,
+refused, needs_attention). When `submission_result` is the MANUAL hand-off
+(`ManualHandoffSubmissionResult` in `lib/submission-result.ts`), the object is
+kept and moved on in place (`status` = the outcome kind, `updatedAt`,
+`reference`, `notes`) so the applicant's card shows it. Automation results
+are never overwritten.
+
+`/admin/staff-queue` (`../staff-queue/`) lists every case that needs a human
+and links to `#outcome-<applicationId>` on the case page.
 
 ## Guardrails
 

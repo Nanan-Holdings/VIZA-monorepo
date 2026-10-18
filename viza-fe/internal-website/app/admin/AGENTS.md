@@ -42,6 +42,13 @@ financial access.
 - `(dashboard)/metrics/concurrency-health.ts`: pure shared-pool health and alert
   derivation used by the metrics page and its unit tests; keep helpers outside
   the Next.js page module so the route exports only supported page fields.
+- `(dashboard)/staff-queue/**`: one list of applications that need a human
+  (status `staff_action_required` or `failed`, latest runner job
+  `needs_human`, latest submission failed/blocked/prefilled, open work
+  items), plus cases waiting on the government or the applicant. Newest
+  first; QA/staff test identities, dry-run purposes and
+  `applications.qa_archived_at` rows are hidden. `queue-model.ts` is pure
+  and unit tested.
 - `(dashboard)/work/**`: durable staff work queue with ownership, SLA, SOP
   checklists, resolution codes, and event history.
 - `(dashboard)/leads/**`: marketing enquiry ownership, response SLA,
