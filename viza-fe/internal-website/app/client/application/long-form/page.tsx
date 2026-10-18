@@ -1232,18 +1232,9 @@ function FinalConfirmationPanel({
   const isSubmitting = submittingMode !== null;
   const isChecking = submitCheckState === "checking";
   const hasLiveAssistedTarget = liveAssistedTarget !== null && !forceDryRun;
-  const isFrance = liveAssistedTarget === "france";
-  const isVietnam = liveAssistedTarget === "vietnam";
-  const isVietnamPrearrival = liveAssistedTarget === "vn_prearrival";
-  const isSgac = liveAssistedTarget === "sgac";
-  const isMdac = liveAssistedTarget === "mdac";
-  const isTdac = liveAssistedTarget === "tdac";
   const isKoreaEArrivalCard = liveAssistedTarget === "kr_arrival_card";
-  const isPhEtravel = liveAssistedTarget === "phetravel";
-  const isIndonesia = liveAssistedTarget === "indonesia";
   const isTaiwan = liveAssistedTarget === "taiwan";
   const isJapanVjw = liveAssistedTarget === "jp_vjw";
-  const isKenyaEta = liveAssistedTarget === "ke_eta";
   const liveDisabledReason = !hasLiveAssistedTarget
     ? (isZh ? "当前表单暂不支持 live assisted 官网辅助填写。" : "This form does not support live assisted official-site fill yet.")
     : isKoreaEArrivalCard && !koreaPreflightTrusted
@@ -1251,57 +1242,13 @@ function FinalConfirmationPanel({
           ? "请先从韩国 e-Arrival Card 资格预检进入此表单；直接打开表单不会创建 live 提交任务。"
           : "Complete the Korea e-Arrival Card eligibility check first. A direct form URL cannot create a live submission task.")
     : !liveAssistedEnabled
-      ? isFrance
+      ? isJapanVjw
         ? (isZh
-            ? "本地 France live assisted 环境未启用。请确认 FRANCE_LIVE_SUBMISSION_ENABLED 和 FRANCE_SUBMISSION_MODE。"
-            : "France live assisted is not enabled locally. Check FRANCE_LIVE_SUBMISSION_ENABLED and FRANCE_SUBMISSION_MODE.")
-        : isVietnam
-          ? (isZh
-              ? "本地 Vietnam live assisted 环境未启用。请确认 VN_LIVE_SUBMISSION_ENABLED 和 VN_SUBMISSION_MODE。"
-              : "Vietnam live assisted is not enabled locally. Check VN_LIVE_SUBMISSION_ENABLED and VN_SUBMISSION_MODE.")
-          : isVietnamPrearrival
-            ? (isZh
-                ? "本地越南入境前申报自动提交已关闭。请确认 VN_PREARRIVAL_LIVE_SUBMISSION_ENABLED。"
-                : "Vietnam Pre-Arrival live submission is disabled locally. Check VN_PREARRIVAL_LIVE_SUBMISSION_ENABLED.")
-          : isSgac
-            ? (isZh
-                ? "本地 SG Arrival Card live handoff 已关闭。请确认 SGAC_LIVE_SUBMISSION_ENABLED。"
-                : "SG Arrival Card live handoff is disabled locally. Check SGAC_LIVE_SUBMISSION_ENABLED.")
-            : isMdac
-              ? (isZh
-                  ? "本地 Malaysia MDAC live handoff 已关闭。请确认 MDAC_LIVE_SUBMISSION_ENABLED。"
-                  : "Malaysia MDAC live handoff is disabled locally. Check MDAC_LIVE_SUBMISSION_ENABLED.")
-              : isTdac
-                ? (isZh
-                    ? "本地 Thailand TDAC live handoff 已关闭。请确认 TDAC_LIVE_SUBMISSION_ENABLED。"
-                    : "Thailand TDAC live handoff is disabled locally. Check TDAC_LIVE_SUBMISSION_ENABLED.")
-                : isKoreaEArrivalCard
-                  ? (isZh
-                      ? "本地韩国 e-Arrival Card live 提交已关闭。请确认 KR_E_ARRIVAL_CARD_LIVE_SUBMISSION_ENABLED。"
-                      : "Korea e-Arrival Card live submission is disabled locally. Check KR_E_ARRIVAL_CARD_LIVE_SUBMISSION_ENABLED.")
-                : isPhEtravel
-                  ? (isZh
-                      ? "本地 Philippines eTravel live handoff 已关闭。请确认 PH_ETRAVEL_LIVE_SUBMISSION_ENABLED。"
-                      : "Philippines eTravel live handoff is disabled locally. Check PH_ETRAVEL_LIVE_SUBMISSION_ENABLED.")
-                  : isIndonesia
-                    ? (isZh
-                        ? "本地 Indonesia live handoff 已关闭。请确认 INDONESIA_LIVE_SUBMISSION_ENABLED。"
-                        : "Indonesia live handoff is disabled locally. Check INDONESIA_LIVE_SUBMISSION_ENABLED.")
-                : isTaiwan
-                    ? (isZh
-                        ? "台湾官网后台提交暂时未启用。"
-                        : "Taiwan official background submission is currently disabled.")
-                  : isJapanVjw
-                    ? (isZh
-                        ? "日本线上入境与海关申报自动化入口正在进行合规审核；在取得数字厅认可前不会执行官网操作。"
-                        : "Visit Japan Web automation is under compliance review and will not access the official portal until delegated operation is authorized.")
-                  : isKenyaEta
-                    ? (isZh
-                        ? "肯尼亚电子旅行授权自动提交暂时未启用。"
-                        : "Kenya eTA live submission is currently disabled.")
+            ? "日本线上入境与海关申报自动化入口正在进行合规审核；在取得数字厅认可前不会执行官网操作。"
+            : "Visit Japan Web automation is under compliance review and will not access the official portal until delegated operation is authorized.")
         : (isZh
-            ? "本地 DS-160 live assisted 环境未启用。请确认前端和 submission service 的 DS160 配置。"
-            : "DS-160 live assisted is not enabled locally. Check the frontend and submission service DS160 settings.")
+            ? "这个目的地的在线提交暂时暂停。你的回答已保存；请联系 VIZA 客服，我们会为你办理。"
+            : "Online submission for this destination is paused right now. Your answers are saved; contact VIZA support and we will handle it for you.")
       : null;
 
   const submitMode: SubmissionMode = hasLiveAssistedTarget ? "live_assisted" : "dry_run";
@@ -1320,10 +1267,10 @@ function FinalConfirmationPanel({
     : isZh
       ? hasLiveAssistedTarget
         ? "点击“提交”后，VIZA 会创建真实官网提交任务，自动填写官方表单，并在本页显示进度和官方编号。"
-        : "点击“提交”后，VIZA 会创建后台提交任务，并在本页显示进度和结果。"
+        : "点击“提交”后，你的申请会交给 VIZA 顾问：顾问核对后在官方网站为你提交，并通过邮件告知进展。"
       : hasLiveAssistedTarget
         ? "Click Submit to create a real official-site submission job. VIZA fills the official form and shows progress and official evidence here."
-        : "Click Submit to create the background submission job and show progress here.";
+        : "Click Submit to hand your application to a VIZA consultant, who checks it, files it on the official site for you, and emails you as it progresses.";
 
   return (
     <div className="space-y-6">
@@ -1613,6 +1560,7 @@ async function insertSubmissionQueueJob(
     queueStatus?: unknown;
     provider?: unknown;
     alreadySubmitted?: unknown;
+    manual?: unknown;
     result?: SubmissionResult | null;
   } | null;
   if (payload?.alreadySubmitted === true) {
@@ -1644,7 +1592,7 @@ async function insertSubmissionQueueJob(
     jobId: typeof payload?.jobId === "string" ? payload.jobId : null,
     queueStatus: typeof payload?.queueStatus === "string" ? payload.queueStatus : null,
     provider: typeof payload?.provider === "string" ? payload.provider : null,
-    submissionResultStatus: payload?.scheduled ? "scheduled" : "waiting",
+    submissionResultStatus: payload?.manual === true ? "processing" : payload?.scheduled ? "scheduled" : "waiting",
     submissionResult: payload?.result ?? null,
   };
 }

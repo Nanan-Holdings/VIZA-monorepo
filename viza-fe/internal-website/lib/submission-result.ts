@@ -26,6 +26,10 @@
  *   - unsupported            Controlled unsupported-country state
  *   - needs_user_action      Safe halt at a human checkpoint such as payment,
  *                            CAPTCHA, final review, or applicant submit
+ *   - handed_to_team         MANUAL: no automation for this product; the
+ *                            applicant handed a complete application to the
+ *                            VIZA team, who file it on the official site.
+ *                            Staff replace it with the official outcome.
  *   - stopped_at_captcha     TW legacy rows: form filled to the CAPTCHA +
  *                            "確認資料" submit step; halted intentionally.
  */
@@ -44,7 +48,18 @@ export type SubmissionResult =
   | TwSubmissionResult
   | KrSubmissionResult
   | GenericSubmissionResult
-  | GenericEvisaSubmissionResult;
+  | GenericEvisaSubmissionResult
+  | ManualHandoffSubmissionResult;
+
+/** A product with no automated submission, handed to the VIZA team. Written
+    by the retry-submission route; staff overwrite it with the outcome. */
+export interface ManualHandoffSubmissionResult {
+  country: "MANUAL";
+  status: "handed_to_team";
+  handedAt: string;
+  destinationCountry: string | null;
+  visaType: string | null;
+}
 
 /**
  * POR-006: generic e-Visa result for the launch countries that share the

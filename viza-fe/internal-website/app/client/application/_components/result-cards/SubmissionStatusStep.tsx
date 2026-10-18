@@ -42,6 +42,7 @@ import {
   type SubmissionVisualStatus,
 } from "./WaitingCard";
 import { FailureCard } from "./FailureCard";
+import { ManualHandoffResultCard } from "./ManualHandoffResultCard";
 import { UsResultCard } from "./UsResultCard";
 import { FrResultCard } from "./FrResultCard";
 import { UkResultCard } from "./UkResultCard";
@@ -2767,6 +2768,8 @@ function renderSubmissionResultCard(
   }
 
   switch (result.country) {
+    case "MANUAL":
+      return <ManualHandoffResultCard result={result} />;
     case "US":
       return <UsResultCard applicationId={applicationId ?? undefined} result={result} />;
     case "FR":
