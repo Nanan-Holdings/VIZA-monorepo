@@ -2725,7 +2725,7 @@ function isManualHandoffResult(value: unknown): value is ManualHandoffSubmission
     value &&
     typeof value === "object" &&
     (value as { country?: unknown }).country === "MANUAL" &&
-    (value as { status?: unknown }).status === "handed_to_team",
+    typeof (value as { status?: unknown }).status === "string",
   );
 }
 
