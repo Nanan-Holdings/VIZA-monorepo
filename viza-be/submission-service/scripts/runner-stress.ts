@@ -3,11 +3,11 @@
  *
  * Drives one country's prefill runner against N synthetic staging
  * applicants, captures per-attempt status, and reports a pass rate.
- * Pass criterion: ≥95% reach `stopped_before_pay` (or `pay_success`
+ * Pass criterion: ≥95% reach `stopped_before_pay` / `managed_payment_adapter_unavailable` (or `pay_success`
  * in pass-through mode).
  *
  * Run:
- *   npx ts-node scripts/runner-stress.ts <country> [N]
+ *   npx tsx scripts/runner-stress.ts <country> [N]
  *   N=10 by default. Country = kh|la|lk|za|in.
  *
  * Env knobs:
@@ -145,7 +145,16 @@ interface AttemptOutcome {
   pass: boolean;
 }
 
-const PASS_STATUSES = new Set(["stopped_before_pay", "pay_success", "submitted_to_government", "delivered"]);
+// Since payment execution was removed, a runner that fills the form and reaches
+// the official payment step returns managed_payment_adapter_unavailable. That
+// is the old stopped_before_pay boundary under a new name.
+const PASS_STATUSES = new Set([
+  "stopped_before_pay",
+  "managed_payment_adapter_unavailable",
+  "pay_success",
+  "submitted_to_government",
+  "delivered",
+]);
 
 async function runOne(spec: CountrySpec, index: number, headless: boolean): Promise<AttemptOutcome> {
   const jobId = `stress-${spec.code}-${Date.now()}-${index}`;
