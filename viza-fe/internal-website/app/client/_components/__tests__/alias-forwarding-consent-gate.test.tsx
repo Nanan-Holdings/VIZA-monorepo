@@ -20,6 +20,21 @@ describe("AliasForwardingConsentGate", () => {
     localeState.value = "zh";
     initializeInbox.mockReset();
     authorizeForwarding.mockReset();
+    window.sessionStorage.clear();
+  });
+
+  it("can be dismissed for the session when inbox setup fails", async () => {
+    localeState.value = "en";
+    initializeInbox.mockResolvedValue({ ok: false, error: { code: "SERVICE_UNAVAILABLE" } });
+    const { unmount } = render(<AliasForwardingConsentGate enabled />);
+    fireEvent.click(await screen.findByRole("button", { name: "Not now" }));
+    await waitFor(() => {
+      expect(screen.queryByText("Authorize your VIZA application email")).not.toBeInTheDocument();
+    });
+    unmount();
+    render(<AliasForwardingConsentGate enabled />);
+    expect(screen.queryByText("Authorize your VIZA application email")).not.toBeInTheDocument();
+    expect(initializeInbox).toHaveBeenCalledTimes(1);
   });
 
   it("keeps one pending initialization when the locale changes", async () => {

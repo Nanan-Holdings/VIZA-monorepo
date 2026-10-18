@@ -1851,6 +1851,7 @@ export default function ApplicationPage() {
 
   useEffect(() => {
     let cancelled = false;
+    let packageLookupFailed = false;
     setPackageLoaded(false);
     setDbSteps([]);
     const packagePromise: Promise<UserVisaPackage | null> =
@@ -1858,11 +1859,19 @@ export default function ApplicationPage() {
         ? Promise.resolve(null)
         : getUserVisaPackage().catch((error) => {
             attemptStaleServerActionReload(error);
+            packageLookupFailed = true;
             return null;
           });
     if (!explicitVisaType && !isExplicitStatusView) {
       void packagePromise.then((pkg) => {
-        if (!cancelled && pkg) setVisaPackage(pkg);
+        if (cancelled) return;
+        if (pkg) {
+          setVisaPackage(pkg);
+          return;
+        }
+        /* No destination chosen yet: send the applicant to the picker instead
+           of opening an Indonesia C1 form they never asked for. */
+        if (!packageLookupFailed && !explicitApplicationId) router.replace("/client/home");
       });
     }
 
@@ -1902,7 +1911,7 @@ export default function ApplicationPage() {
     return () => {
       cancelled = true;
     };
-  }, [explicitProductCountry, explicitVisaType, isExplicitStatusView]);
+  }, [explicitApplicationId, explicitProductCountry, explicitVisaType, isExplicitStatusView, router]);
 
   const [loading, setLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState(0);
