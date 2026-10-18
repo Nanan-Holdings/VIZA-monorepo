@@ -44,6 +44,7 @@ import {
 } from "./WaitingCard";
 import { FailureCard } from "./FailureCard";
 import { ManualHandoffResultCard } from "./ManualHandoffResultCard";
+import { PostSubmissionInfoPanel } from "./PostSubmissionInfoPanel";
 import { UsResultCard } from "./UsResultCard";
 import { FrResultCard } from "./FrResultCard";
 import { UkResultCard } from "./UkResultCard";
@@ -2380,6 +2381,9 @@ export function SubmissionStatusStep({
     return (
       <div className="space-y-4">
         <ManualHandoffResultCard result={manualHandoff} />
+        {/* Once staff record an outcome: the government reference, the signed
+            result file (visa, eTA, refusal letter) and the timeline. */}
+        {manualHandoff.status !== "handed_to_team" ? <PostSubmissionInfoPanel applicationId={applicationId} /> : null}
       </div>
     );
   }

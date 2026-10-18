@@ -1352,7 +1352,8 @@
       "official_status_changed": "Vietnam e-Visa official status updated",
       "arrival_card_submitted": "SG Arrival Card submitted successfully",
       "result_received": "Result received",
-      "notification_sent": "Notification sent"
+      "notification_sent": "Notification sent",
+      "more_information_requested": "More information requested"
     }
   },
   "applicationSteps": {

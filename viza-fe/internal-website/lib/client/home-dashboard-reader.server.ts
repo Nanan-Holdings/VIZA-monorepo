@@ -337,7 +337,9 @@ async function loadClientHomeDashboardInternal(
   }
 
   const rawApplications = ((applicationRows ?? []) as unknown as ClientStatusApplicationRow[]).filter(
-    (application) => !isQaDryRunPurpose(application.purpose),
+    /* QA and staff test records archived out of the queues (reversible,
+       qa_archived_at) never show as the applicant's current application. */
+    (application) => !isQaDryRunPurpose(application.purpose) && !application.qa_archived_at,
   );
   const applicationIds = rawApplications.map((application) => application.id);
 
