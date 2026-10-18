@@ -1247,11 +1247,15 @@ function FinalConfirmationPanel({
             ? "日本线上入境与海关申报自动化入口正在进行合规审核；在取得数字厅认可前不会执行官网操作。"
             : "Visit Japan Web automation is under compliance review and will not access the official portal until delegated operation is authorized.")
         : (isZh
-            ? "这个目的地的在线提交暂时暂停。你的回答已保存；请联系 VIZA 客服，我们会为你办理。"
-            : "Online submission for this destination is paused right now. Your answers are saved; contact VIZA support and we will handle it for you.")
+            ? "这个目的地的自动提交暂时暂停。点击“提交”后，你的申请会交给 VIZA 顾问，由顾问在官方网站为你提交。"
+            : "Automatic submission for this destination is paused. When you click Submit, your application goes to a VIZA consultant, who files it on the official site for you.")
       : null;
 
-  const submitMode: SubmissionMode = hasLiveAssistedTarget ? "live_assisted" : "dry_run";
+  /* A destination whose automation is paused still submits: the server hands
+     it to a VIZA consultant. Visit Japan Web is the exception, held for its
+     compliance review. */
+  const handOffWhilePaused = hasLiveAssistedTarget && !liveAssistedEnabled && !isJapanVjw;
+  const submitMode: SubmissionMode = hasLiveAssistedTarget && liveAssistedEnabled ? "live_assisted" : "dry_run";
   // Missing answers are checked after the click so the final action never
   // becomes an unexplained dead end. Only an in-flight check/submission locks
   // the control against duplicate requests.
@@ -1259,7 +1263,7 @@ function FinalConfirmationPanel({
     !isTaiwan || (taiwanEntryPromptAccepted && taiwanTermsModalAccepted);
   const submitDisabled = requirementsLoading || isSubmitting || isChecking || !taiwanTermsReady ||
     (isKoreaEArrivalCard && !koreaPreflightTrusted) ||
-    (hasLiveAssistedTarget && !liveAssistedEnabled);
+    (isJapanVjw && !liveAssistedEnabled);
   const submitCopy = forceDryRun
     ? isZh
       ? "这是隔离的云端演练，只验证 VIZA 与 Fly 提交链路，不会打开或填写官方 CEAC 网站。"
@@ -1394,9 +1398,9 @@ function FinalConfirmationPanel({
       </button>
 
       {hasLiveAssistedTarget && liveDisabledReason ? (
-        <Alert variant="warning">
-          <AlertIcon variant="warning" />
-          <AlertTitle>{isZh ? "暂时无法提交" : "Cannot submit yet"}</AlertTitle>
+        <Alert variant={handOffWhilePaused ? "info" : "warning"}>
+          <AlertIcon variant={handOffWhilePaused ? "info" : "warning"} />
+          <AlertTitle>{handOffWhilePaused ? (isZh ? "将由顾问为你提交" : "A consultant will submit this for you") : (isZh ? "暂时无法提交" : "Cannot submit yet")}</AlertTitle>
           <AlertDescription>
             <p>{liveDisabledReason}</p>
           </AlertDescription>

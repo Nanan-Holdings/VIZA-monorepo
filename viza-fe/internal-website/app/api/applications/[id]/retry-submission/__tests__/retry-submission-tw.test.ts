@@ -76,6 +76,7 @@ let currentApplicationAnswers = [...normalApplicationAnswers];
 let lastAnswerUpsert: Array<Record<string, unknown>> | null = null;
 let lastRpcArgs: Record<string, unknown> | null = null;
 let lastApplicationUpdate: Record<string, unknown> | null = null;
+let lastWorkItem: Record<string, unknown> | null = null;
 let enqueueRunnerJobResult = { id: "runner_tw_live_001", created: true };
 let lastRunnerJobArgs: { applicationId: string; country: string; opts: Record<string, unknown> } | null = null;
 let lastRunnerPoolArgs: {
@@ -247,6 +248,14 @@ function createAdminMock() {
       if (table === "consent_event") return createConsentQuery();
       if (table === "runner_job") return createMaybeSingleQuery(activeRunnerJob, runnerJobQueryError);
       if (table === "takeover_session") return createMaybeSingleQuery(activeHandoff, handoffQueryError);
+      if (table === "admin_work_items") {
+        return {
+          upsert: async (payload: Record<string, unknown>) => {
+            lastWorkItem = payload;
+            return { error: null };
+          },
+        };
+      }
       throw new Error(`Unexpected table: ${table}`);
     },
     rpc: async (name: string, args: Record<string, unknown>) => {
@@ -298,6 +307,7 @@ describe("Taiwan entry permit retry submission API", () => {
     lastAnswerUpsert = null;
     lastRpcArgs = null;
     lastApplicationUpdate = null;
+    lastWorkItem = null;
     lastRunnerJobArgs = null;
     lastRunnerPoolArgs = null;
     existingApplicationAuthorisation = null;
@@ -408,15 +418,18 @@ describe("Taiwan entry permit retry submission API", () => {
     expect(lastRunnerJobArgs).toBeNull();
   });
 
-  it("rejects live Taiwan submission by default when the server flag is missing", async () => {
+  it("hands live Taiwan submission to the VIZA team when the server flag is missing", async () => {
     const result = await post({
       mode: "live_assisted",
       country: "taiwan",
       visaType: "TW_ENTRY_PERMIT",
     });
 
-    expect(result.status).toBe(403);
-    expect(result.body.error).toBe("Live assisted retry is disabled by environment configuration.");
+    expect(result.status).toBe(200);
+    expect(result.body).toMatchObject({ ok: true, manual: true, mode: "manual", result: { country: "MANUAL", status: "handed_to_team" } });
+    expect(lastApplicationUpdate).toMatchObject({ status: "staff_action_required", submission_result_status: "processing" });
+    expect(lastWorkItem).toMatchObject({ kind: "manual_submission", status: "open", dedupe_key: `manual-submission:${baseApplication.id}` });
+    expect(lastConsentInsert).not.toBeNull();
     expect(lastRpcArgs).toBeNull();
     expect(lastRunnerJobArgs).toBeNull();
   });
@@ -434,7 +447,7 @@ describe("Taiwan entry permit retry submission API", () => {
     expect(lastRunnerJobArgs).toBeNull();
   });
 
-  it("rejects live Taiwan submission unless the server flag is exactly true", async () => {
+  it("never runs live Taiwan submission unless the server flag is exactly true", async () => {
     process.env.TW_ENTRY_PERMIT_LIVE_SUBMISSION_ENABLED = "";
 
     const result = await post({
@@ -443,8 +456,7 @@ describe("Taiwan entry permit retry submission API", () => {
       visaType: "TW_ENTRY_PERMIT",
     });
 
-    expect(result.status).toBe(403);
-    expect(result.body.error).toBe("Live assisted retry is disabled by environment configuration.");
+    expect(result.body.manual).toBe(true);
     expect(lastRpcArgs).toBeNull();
     expect(lastRunnerJobArgs).toBeNull();
 
@@ -455,8 +467,7 @@ describe("Taiwan entry permit retry submission API", () => {
       visaType: "TW_ENTRY_PERMIT",
     });
 
-    expect(falseFlagResult.status).toBe(403);
-    expect(falseFlagResult.body.error).toBe("Live assisted retry is disabled by environment configuration.");
+    expect(falseFlagResult.body.manual).toBe(true);
     expect(lastRpcArgs).toBeNull();
     expect(lastRunnerJobArgs).toBeNull();
 
@@ -467,8 +478,7 @@ describe("Taiwan entry permit retry submission API", () => {
       visaType: "TW_ENTRY_PERMIT",
     });
 
-    expect(numericFlagResult.status).toBe(403);
-    expect(numericFlagResult.body.error).toBe("Live assisted retry is disabled by environment configuration.");
+    expect(numericFlagResult.body.manual).toBe(true);
     expect(lastRpcArgs).toBeNull();
     expect(lastRunnerJobArgs).toBeNull();
   });
@@ -938,7 +948,7 @@ describe("Taiwan entry permit retry submission API", () => {
     expect(lastApplicationUpdate).toBeNull();
   });
 
-  it("rejects stale Japan clients that request a dry-run queue", async () => {
+  it("never hands Visit Japan Web to the team while its live flags are off", async () => {
     currentApplication = {
       ...baseApplication,
       country: "japan",
@@ -951,9 +961,9 @@ describe("Taiwan entry permit retry submission API", () => {
       visaType: "JP_VISIT_JAPAN_WEB",
     });
 
-    expect(result.status).toBe(409);
+    expect(result.status).toBe(403);
     expect(result.body).toMatchObject({
-      code: "official_live_mode_required",
+      code: "jp_vjw_paused",
     });
     expect(lastRpcArgs).toBeNull();
     expect(lastConsentInsert).toBeNull();

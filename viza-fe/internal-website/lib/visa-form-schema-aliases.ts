@@ -6,6 +6,9 @@ const VIETNAM_COUNTRY_ALIASES = new Set([
 ]);
 
 const COUNTRY_ALIASES = {
+  australia: new Set(["au", "australia", "澳大利亚", "澳洲"]),
+  egypt: new Set(["eg", "egypt", "埃及"]),
+  japan: new Set(["jp", "japan", "日本"]),
   canada: new Set(["ca", "canada", "加拿大"]),
   france: new Set(["fr", "france", "法国"]),
   india: new Set(["in", "india", "印度"]),
@@ -42,6 +45,24 @@ const COUNTRY_SCOPED_SCHEMA_ALIASES: ReadonlyArray<{
   visaTypes: ReadonlySet<string>;
   canonicalVisaType: string;
 }> = [
+  /* The catalogue (lib/visa-destinations.ts) names these products by route
+     code; production holds their schemas under the canonical keys, so without
+     these the applicant got the generic 21-field visitor form. */
+  {
+    countries: COUNTRY_ALIASES.australia,
+    visaTypes: new Set(["au_visitor_600", "visitor_subclass_600"]),
+    canonicalVisaType: "AU_VISITOR_600",
+  },
+  {
+    countries: COUNTRY_ALIASES.egypt,
+    visaTypes: new Set(["eg_e_visa", "evisa_tourism", "tourist_evisa", "tourist_e_visa"]),
+    canonicalVisaType: "EG_E_VISA",
+  },
+  {
+    countries: COUNTRY_ALIASES.japan,
+    visaTypes: new Set(["jp_tourist", "short_term_tourism_evisa"]),
+    canonicalVisaType: "JP_TOURIST",
+  },
   {
     countries: COUNTRY_ALIASES.canada,
     visaTypes: new Set(["ca_trv", "visitor_visa", "visitor_visa_or_evisa"]),
