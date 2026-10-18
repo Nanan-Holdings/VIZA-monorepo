@@ -1,6 +1,7 @@
 import {
   MARKETING_BLOG_LOCALES,
   MARKETING_SOCIAL_PLATFORMS,
+  VIZA_VIDEO_PLATFORMS,
   type MarketingBlogDraftInput,
   type MarketingBlogAdminRecord,
   type MarketingBlogFaq,
@@ -19,7 +20,37 @@ const SOCIAL_LIMITS: Record<MarketingSocialPlatform, number> = {
   facebook: 5_000,
   pinterest: 500,
   reddit: 10_000,
+  // TikTok's video caption limit.
+  tiktok: 2_200,
+  // A YouTube description; the title is separate (YOUTUBE_TITLE_LIMIT).
+  youtube: 5_000,
 };
+
+/* Past these counts the platform refuses the post (Instagram) or silently
+   drops every hashtag on it (YouTube, above 15). */
+const HASHTAG_LIMITS: Partial<Record<MarketingSocialPlatform, number>> = {
+  instagram: 30,
+  youtube: 15,
+};
+const YOUTUBE_TITLE_LIMIT = 100;
+const MAX_SCHEDULE_AHEAD_MS = 365 * 24 * 60 * 60 * 1000;
+
+export function countHashtags(text: string): number {
+  return text.match(/(^|\s)#[^\s#]+/g)?.length ?? 0;
+}
+
+/** The caption rules every provider path shares: length, then hashtag count. */
+export function assertSocialCaption(platform: MarketingSocialPlatform, caption: string): void {
+  if (caption.length > SOCIAL_LIMITS[platform]) throw new Error(`${platform} content must be ${SOCIAL_LIMITS[platform]} characters or fewer`);
+  const hashtagLimit = HASHTAG_LIMITS[platform];
+  if (hashtagLimit !== undefined && countHashtags(caption) > hashtagLimit) {
+    throw new Error(`${platform} content can carry at most ${hashtagLimit} hashtags`);
+  }
+}
+
+export function isVizaVideoPlatform(value: MarketingSocialPlatform): value is (typeof VIZA_VIDEO_PLATFORMS)[number] {
+  return (VIZA_VIDEO_PLATFORMS as readonly string[]).includes(value);
+}
 
 export function normalizeMarketingSlug(value: string): string {
   return value
@@ -98,7 +129,7 @@ export function parseGeneratedPlatformContent(value: unknown, platforms: readonl
     const caption = content[platform];
     if (typeof caption !== "string" || !caption.trim()) throw new Error(`Provider returned invalid ${platform} copy`);
     const trimmed = caption.trim();
-    if (trimmed.length > SOCIAL_LIMITS[platform]) throw new Error(`${platform} content must be ${SOCIAL_LIMITS[platform]} characters or fewer`);
+    assertSocialCaption(platform, trimmed);
     return [platform, trimmed];
   })) as Partial<Record<MarketingSocialPlatform, string>>;
 }
@@ -113,16 +144,35 @@ export function validateSocialComposition(input: MarketingSocialCompositionInput
   for (const platform of platforms) {
     const content = input.platformContent[platform]?.trim();
     if (!content) throw new Error(`Content is required for ${platform}`);
-    if (content.length > SOCIAL_LIMITS[platform]) throw new Error(`${platform} content must be ${SOCIAL_LIMITS[platform]} characters or fewer`);
+    assertSocialCaption(platform, content);
   }
-  if ((platforms.includes("instagram") || platforms.includes("pinterest")) && !input.mediaUrl?.trim()) {
-    throw new Error("A media URL is required for Instagram and Pinterest");
+  const videoUrl = optionalHttpsUrl(input.videoUrl, "Video URL");
+  let videoTitle: string | undefined;
+  if (videoUrl) {
+    /* A short is its own composition: the feed and image channels keep
+       theirs, so one approval never mixes a Reel with a Pinterest pin. */
+    const others = platforms.filter((platform) => !isVizaVideoPlatform(platform));
+    if (others.length) throw new Error(`A short posts to TikTok, Instagram Reels and YouTube Shorts only; move ${others.join(", ")} to the article's caption composition`);
+    if (!isMarketingBlogLocale(input.videoLocale)) throw new Error("Choose the language the short is spoken in");
+    if (platforms.includes("youtube")) {
+      videoTitle = requiredText(input.videoTitle ?? "", "YouTube title", YOUTUBE_TITLE_LIMIT);
+      if (/[<>]/.test(videoTitle)) throw new Error("YouTube titles cannot contain < or >");
+    } else {
+      videoTitle = input.videoTitle?.trim().slice(0, YOUTUBE_TITLE_LIMIT) || undefined;
+    }
+  } else {
+    if (platforms.includes("tiktok") || platforms.includes("youtube")) throw new Error("TikTok and YouTube Shorts need a video; attach the rendered short");
+    if ((platforms.includes("instagram") || platforms.includes("pinterest")) && !input.mediaUrl?.trim()) {
+      throw new Error("A media URL is required for Instagram and Pinterest");
+    }
   }
   let scheduledFor: string | undefined;
   if (input.scheduledFor) {
-    if (platforms.includes("instagram") || platforms.includes("pinterest")) throw new Error("Instagram and Pinterest posts publish when approved; remove the scheduled time");
+    if (!videoUrl && (platforms.includes("instagram") || platforms.includes("pinterest"))) throw new Error("Instagram and Pinterest posts publish when approved; remove the scheduled time");
     const timestamp = Date.parse(input.scheduledFor);
     if (!Number.isFinite(timestamp)) throw new Error("Scheduled time is invalid");
+    // Upload-Post holds a scheduled video for up to a year.
+    if (videoUrl && timestamp - Date.now() > MAX_SCHEDULE_AHEAD_MS) throw new Error("Shorts can be scheduled up to a year ahead");
     scheduledFor = new Date(timestamp).toISOString();
   }
   return {
@@ -134,6 +184,9 @@ export function validateSocialComposition(input: MarketingSocialCompositionInput
     destinationUrl: optionalHttpsUrl(input.destinationUrl, "Destination URL"),
     mediaUrl: optionalHttpsUrl(input.mediaUrl, "Media URL"),
     documentUrl: optionalHttpsUrl(input.documentUrl, "Document URL"),
+    videoUrl,
+    videoLocale: videoUrl ? input.videoLocale : undefined,
+    videoTitle,
     scheduledFor,
     platformContent: Object.fromEntries(platforms.map((platform) => [platform, input.platformContent[platform]!.trim()])),
   };

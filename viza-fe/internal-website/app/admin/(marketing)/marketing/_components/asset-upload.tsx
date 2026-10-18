@@ -2,11 +2,38 @@
 
 import { useRef, useState } from "react";
 import type { MarketingAssetKind } from "@/lib/marketing/assets";
+import { createClient } from "@/lib/supabase/client";
 
 const COPY = {
-  en: { image: "Upload image", document: "Upload document", uploading: "Uploading…", failed: "Upload failed." },
-  zh: { image: "上传图片", document: "上传文档", uploading: "上传中…", failed: "上传失败。" },
+  en: { image: "Upload image", document: "Upload document", video: "Upload MP4 short", uploading: "Uploading…", failed: "Upload failed." },
+  zh: { image: "上传图片", document: "上传文档", video: "上传 MP4 短视频", uploading: "上传中…", failed: "上传失败。" },
 } as const;
+
+const ACCEPT: Record<MarketingAssetKind, string> = {
+  image: "image/jpeg,image/png,image/webp,image/gif",
+  document: ".pdf,.doc,.docx,.ppt,.pptx",
+  video: "video/mp4",
+};
+
+/* A short is bigger than a Vercel function accepts as a body, so the route
+   only signs a one-object upload and the file goes straight to storage. */
+async function uploadVideo(file: File, failed: string): Promise<string> {
+  const response = await fetch("/api/admin/marketing/assets", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ kind: "video", mimeType: file.type, size: file.size }),
+  });
+  const body = (await response.json().catch(() => null)) as { url?: unknown; bucket?: unknown; path?: unknown; token?: unknown; error?: unknown } | null;
+  if (!response.ok || typeof body?.url !== "string" || typeof body.bucket !== "string" || typeof body.path !== "string" || typeof body.token !== "string") {
+    throw new Error(typeof body?.error === "string" ? body.error : failed);
+  }
+  const uploaded = await createClient().storage.from(body.bucket).uploadToSignedUrl(body.path, body.token, file, {
+    contentType: file.type,
+    cacheControl: "31536000",
+  });
+  if (uploaded.error) throw new Error(uploaded.error.message || failed);
+  return body.url;
+}
 
 export function MarketingAssetUpload({
   kind,
@@ -26,6 +53,10 @@ export function MarketingAssetUpload({
     setUploading(true);
     setError(null);
     try {
+      if (kind === "video") {
+        onUploaded(await uploadVideo(file, copy.failed));
+        return;
+      }
       const form = new FormData();
       form.set("kind", kind);
       form.set("file", file);
@@ -49,7 +80,7 @@ export function MarketingAssetUpload({
         ref={input}
         style={{ display: "none" }}
         type="file"
-        accept={kind === "image" ? "image/jpeg,image/png,image/webp,image/gif" : ".pdf,.doc,.docx,.ppt,.pptx"}
+        accept={ACCEPT[kind]}
         onChange={(event) => {
           const file = event.target.files?.[0];
           if (file) void upload(file);

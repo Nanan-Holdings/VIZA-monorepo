@@ -5,9 +5,11 @@ import type { MarketingSocialPlatform } from "./contracts";
    "Details: {url}". The placeholder is resolved here, once, before any
    provider sees the text.
 
-   Feed networks get the real address. Instagram does not make caption links
-   clickable, so the phrase around the placeholder becomes "Link in bio."
-   Pinterest carries the link on the pin itself, so the phrase is dropped. */
+   Feed networks get the real address. Instagram and TikTok do not make
+   caption links clickable, so the phrase around the placeholder becomes
+   "Link in bio." Pinterest carries the link on the pin itself, so the phrase
+   is dropped. A YouTube description keeps the address: Shorts show it as
+   text and the watch page links it. */
 
 export const LINK_PLACEHOLDER = "{url}";
 
@@ -24,7 +26,7 @@ function tidy(text: string): string {
 
 export function fillLinkPlaceholder(platform: MarketingSocialPlatform, caption: string, destinationUrl?: string): string {
   if (!caption.includes(LINK_PLACEHOLDER)) return caption;
-  if (platform === "instagram") return tidy(caption.replace(PHRASE, "Link in bio."));
+  if (platform === "instagram" || platform === "tiktok") return tidy(caption.replace(PHRASE, "Link in bio."));
   if (platform === "pinterest" || !destinationUrl) return tidy(caption.replace(PHRASE, ""));
   return tidy(caption.replaceAll(LINK_PLACEHOLDER, destinationUrl));
 }

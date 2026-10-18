@@ -1,12 +1,12 @@
 import { asMarketingDb, mapBlogAdminRecord, mapSocialComposition } from "./db";
 import { createZernioPosts, findZernioCompositionPosts } from "./providers/zernio";
-import { publishUploadPostImage } from "./providers/upload-post";
+import { publishUploadPostImage, publishUploadPostVideo, uploadPostDelivery } from "./providers/upload-post";
 import { isKelinHandle, kelinDirectReady, publishKelinPost, type KelinDirectPlatform } from "./providers/kelin";
 import { fillLinkPlaceholders } from "./captions";
 import { assertLiveMarketingUrl } from "./publish-check";
 import { marketingCategorySlug, revalidatePublicMarketingBlog } from "./revalidate";
-import { validatePublishableBlog } from "./validation";
-import type { MarketingBlogAdminRecord, MarketingSocialCompositionRecord } from "./contracts";
+import { isVizaVideoPlatform, validatePublishableBlog } from "./validation";
+import type { MarketingBlogAdminRecord, MarketingSocialCompositionRecord, UploadPostDelivery, VizaVideoPlatform } from "./contracts";
 
 /* Going public, with no session attached.
 
@@ -108,6 +108,61 @@ export async function publishBlogPostById(input: {
   return saved;
 }
 
+/* A short goes to each of its platforms as its own Upload-Post request, now
+   or held by Upload-Post until `scheduledFor`. A platform that already has a
+   live, pending or scheduled delivery is left alone, so "Publish / retry"
+   only resends the ones that failed. */
+async function publishVideoComposition(input: {
+  db: Db;
+  actorId: string;
+  composition: MarketingSocialCompositionRecord;
+  captions: Partial<Record<string, string>>;
+  reason: string;
+}): Promise<MarketingSocialCompositionRecord> {
+  const { db, actorId, composition, captions, reason } = input;
+  if (!composition.videoUrl || !composition.videoLocale) throw new Error("Attach the rendered short and its language before publishing");
+  const platforms = composition.platforms.filter((platform): platform is VizaVideoPlatform => isVizaVideoPlatform(platform));
+  if (!platforms.length) throw new Error("Choose TikTok, Instagram Reels or YouTube Shorts for this short");
+  const deliveries = { ...composition.uploadPostPosts };
+  const failures: Array<{ platform: string; error: string }> = [];
+  for (const platform of platforms) {
+    if (deliveries[platform] && deliveries[platform]!.status !== "failed") continue;
+    try {
+      const result = await publishUploadPostVideo({
+        platform, compositionId: composition.id, attemptKey: composition.updatedAt,
+        caption: captions[platform] ?? "", title: composition.videoTitle ?? composition.title,
+        videoUrl: composition.videoUrl, locale: composition.videoLocale,
+        scheduledFor: composition.scheduledFor ?? undefined,
+      });
+      deliveries[platform] = uploadPostDelivery(result);
+    } catch (error) {
+      const message = errorText(error, "Upload-Post failed").slice(0, 300);
+      failures.push({ platform, error: message });
+      deliveries[platform] = { status: "failed", requestId: null, jobId: null, postId: null, postUrl: null, error: message };
+    }
+  }
+  const active = Object.values(deliveries).filter((item): item is UploadPostDelivery => Boolean(item) && item!.status !== "failed");
+  if (!active.length) throw new Error(failures[0]?.error ?? "No platform accepted the short");
+  const status: MarketingSocialCompositionRecord["status"] = failures.length || active.length < platforms.length
+    ? "partial"
+    : active.every((item) => item.status === "scheduled")
+      ? "scheduled"
+      : active.every((item) => item.status === "published") ? "published" : "publishing";
+  const now = new Date().toISOString();
+  const updated = await db.from("marketing_social_compositions").update({
+    status, upload_post_posts: deliveries, updated_by: actorId, updated_at: now, last_synced_at: now,
+  }).eq("id", composition.id).select("*").single();
+  if (updated.error || !updated.data) throw new Error(updated.error?.message ?? "Unable to update composition");
+  const saved = mapSocialComposition(updated.data);
+  await logMarketingActivity(db, actorId, {
+    provider: "upload-post", operation: composition.scheduledFor ? "social.video.schedule" : "social.video.publish",
+    status: "succeeded", entityType: "marketing_social_composition", entityId: saved.id, reason,
+    request: { platforms, scheduled: Boolean(composition.scheduledFor), locale: composition.videoLocale },
+    response: { deliveryCount: active.length, failureCount: failures.length, failedPlatforms: failures.map((failure) => failure.platform), providerStatus: status },
+  });
+  return saved;
+}
+
 /** Hand a composition's captions to Zernio, Upload-Post, and our own direct
     Facebook and Instagram sender where its credentials are set. */
 export async function publishSocialCompositionById(input: {
@@ -147,11 +202,12 @@ export async function publishSocialCompositionById(input: {
   }
 
   const captions = fillLinkPlaceholders(composition.platformContent, destinationUrl);
+  if (composition.videoUrl) return publishVideoComposition({ db, actorId, composition, captions, reason });
   /* Direct only when sending now: the direct sender has no scheduling. */
   const directPlatforms = composition.scheduledFor ? [] : composition.platforms.filter((platform): platform is KelinDirectPlatform => kelinDirectReady(platform));
   const uploadPlatforms = composition.platforms.filter((platform): platform is "instagram" | "pinterest" => (platform === "instagram" || platform === "pinterest") && !(directPlatforms as string[]).includes(platform));
   if (composition.scheduledFor && uploadPlatforms.length) throw new Error("Upload-Post image channels do not support scheduling here; publish them when ready");
-  const zernioPlatforms = composition.platforms.filter((platform) => platform !== "instagram" && platform !== "pinterest" && !(directPlatforms as string[]).includes(platform));
+  const zernioPlatforms = composition.platforms.filter((platform) => platform !== "instagram" && platform !== "pinterest" && !isVizaVideoPlatform(platform) && !(directPlatforms as string[]).includes(platform));
   const recoveredPosts = zernioPlatforms.length ? await findZernioCompositionPosts(composition.id) : {};
   const existingPosts = { ...recoveredPosts, ...composition.zernioPosts };
   const platformsToCreate = zernioPlatforms.filter((platform) => !existingPosts[platform]);
@@ -189,7 +245,7 @@ export async function publishSocialCompositionById(input: {
         platform, caption: captions[platform] ?? "", title: composition.title,
         imageUrl: composition.mediaUrl, destinationUrl,
       });
-      uploadPosts[platform] = { status: result.status, requestId: result.requestId, postId: result.postId, postUrl: result.postUrl };
+      uploadPosts[platform] = uploadPostDelivery(result);
     } catch (error) {
       uploadFailures.push({ platform, error: errorText(error, "Upload-Post failed") });
     }
