@@ -176,6 +176,37 @@ export function undeliveredPlatforms(
   return composition.platforms.filter((platform) => !composition.zernioPosts[platform] && !uploadPosts[platform as keyof typeof uploadPosts]);
 }
 
+/* Our own social scheduler. Supabase pg_cron calls the dispatch route every
+   five minutes (Vercel Hobby crons run once a day at most); each call sends the
+   compositions whose time has come. A composition is claimed by moving its
+   updated_at, so two overlapping calls never send the same one twice. A
+   composition that cannot be sent at all (for example its article is no longer
+   live) is marked failed rather than retried every five minutes. */
+export async function dispatchDueSocialCompositions(now = new Date(), limit = 3) {
+  const { actorId } = automationConfig();
+  const admin = createAdminClient({ requestTimeoutMs: 30_000 });
+  const due = await admin.from("marketing_social_compositions").select("id, updated_at").eq("status", "scheduled").not("scheduled_for", "is", null).lte("scheduled_for", now.toISOString()).order("scheduled_for", { ascending: true }).limit(limit);
+  if (due.error) throw new Error(due.error.message);
+  const results: Array<{ id: string; status: string; error?: string }> = [];
+  for (const row of due.data ?? []) {
+    const claimed = await admin.from("marketing_social_compositions").update({ updated_at: new Date().toISOString() }).eq("id", row.id).eq("status", "scheduled").eq("updated_at", row.updated_at).select("id");
+    if (claimed.error || !claimed.data?.length) continue;
+    try {
+      const sent = await publishSocialCompositionById({ db: asMarketingDb(admin), actorId, compositionId: String(row.id), reason: "Scheduled dispatch", dispatch: true, now });
+      results.push({ id: String(row.id), status: sent.status, ...(sent.failures?.length ? { error: sent.failures.map((failure) => `${failure.platform}: ${failure.error}`).join("; ").slice(0, 500) } : {}) });
+    } catch (error) {
+      const text = error instanceof Error ? error.message : "Scheduled dispatch failed";
+      await admin.from("marketing_social_compositions").update({ status: "failed", updated_at: new Date().toISOString(), updated_by: actorId }).eq("id", row.id);
+      await admin.from("marketing_provider_activity").insert({ provider: "system", operation: "social.dispatch", status: "failed", entity_type: "marketing_social_composition", entity_id: row.id, actor_user_id: actorId, request_metadata: { reason: "Scheduled dispatch" }, response_metadata: {}, error_message: text.slice(0, 500) });
+      results.push({ id: String(row.id), status: "failed", error: text.slice(0, 500) });
+    }
+  }
+  if (results.length) {
+    await admin.from("marketing_automation_runs").insert({ job_type: "social_dispatch", idempotency_key: `social-dispatch:${now.toISOString()}`, status: results.some((result) => result.status === "failed") ? "failed" : "succeeded", actor_user_id: actorId, completed_at: new Date().toISOString(), metadata: { trigger: "pg_cron", results } });
+  }
+  return { dispatched: results.length, results };
+}
+
 export async function runSocialReconciliation(now = new Date()) {
   const { actorId } = automationConfig(); const admin = createAdminClient({ requestTimeoutMs: 30_000 });
   const bucket = now.toISOString().slice(0, 13); const idempotencyKey = `social-reconcile:${bucket}`;
@@ -188,7 +219,10 @@ export async function runSocialReconciliation(now = new Date()) {
     if (rows.error) throw new Error(rows.error.message);
     let reconciled = 0; let failed = 0;
     for (const value of rows.data ?? []) {
-      const composition = mapSocialComposition(value); const allEntries = Object.entries(composition.zernioPosts).filter((entry): entry is [MarketingSocialPlatform, string] => Boolean(entry[1])); const entries = allEntries.filter((entry) => !isKelinHandle(entry[1])); const directCount = allEntries.length - entries.length; const ids = entries.map((entry) => entry[1]);
+      const composition = mapSocialComposition(value);
+      /* Held by our own dispatcher: nothing has been sent to reconcile yet. */
+      if (composition.status === "scheduled" && undeliveredPlatforms(composition, composition.uploadPostPosts).length) continue;
+      const allEntries = Object.entries(composition.zernioPosts).filter((entry): entry is [MarketingSocialPlatform, string] => Boolean(entry[1])); const entries = allEntries.filter((entry) => !isKelinHandle(entry[1])); const directCount = allEntries.length - entries.length; const ids = entries.map((entry) => entry[1]);
       if (!ids.length && !directCount && !Object.keys(composition.uploadPostPosts).length) { failed += 1; continue; }
       try {
         const posts = await Promise.all(ids.map(getZernioPost));

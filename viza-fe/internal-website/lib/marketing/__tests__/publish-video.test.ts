@@ -3,6 +3,11 @@ import type { MarketingDb, MarketingQuery } from "../db";
 
 vi.mock("../publish-check", () => ({ assertLiveMarketingUrl: vi.fn(async () => undefined) }));
 vi.mock("../providers/zernio", () => ({ createZernioPosts: vi.fn(), findZernioCompositionPosts: vi.fn(async () => ({})) }));
+vi.mock("../providers/kelin", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../providers/kelin")>()),
+  kelinDirectReady: vi.fn(() => false),
+  publishKelinPost: vi.fn(),
+}));
 vi.mock("../providers/upload-post", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../providers/upload-post")>()),
   publishUploadPostImage: vi.fn(),
@@ -12,6 +17,7 @@ vi.mock("../providers/upload-post", async (importOriginal) => ({
 const { publishSocialCompositionById } = await import("../publish");
 const { publishUploadPostVideo } = await import("../providers/upload-post");
 const { createZernioPosts } = await import("../providers/zernio");
+const { kelinDirectReady, publishKelinPost } = await import("../providers/kelin");
 
 const compositionId = "6f1f8d7a-a3a7-437b-a029-1bb89ababb39";
 const blogId = "3358cbf1-2d03-413c-8661-a93f8d019390";
@@ -58,7 +64,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
+  vi.mocked(kelinDirectReady).mockReturnValue(false);
 });
 
 describe("publishing a short", () => {
@@ -80,14 +87,38 @@ describe("publishing a short", () => {
     expect(saved.uploadPostPosts.tiktok).toMatchObject({ status: "pending", requestId: "req-t" });
   });
 
-  it("marks a fully scheduled short as scheduled", async () => {
-    vi.mocked(publishUploadPostVideo)
-      .mockResolvedValueOnce({ status: "scheduled", postId: null, postUrl: null, requestId: null, jobId: "job-t" })
-      .mockResolvedValueOnce({ status: "scheduled", postId: null, postUrl: null, requestId: null, jobId: "job-y" });
+  it("holds a short set for later for our own dispatcher, sending nothing yet", async () => {
     const { db, updates } = fakeDb(compositionRow({ scheduled_for: "2026-12-01T10:00:00.000Z" }));
+    await publishSocialCompositionById({ db, actorId: "actor", compositionId, reason: "ETIAS short", now: new Date("2026-11-30T00:00:00.000Z") });
+    expect(publishUploadPostVideo).not.toHaveBeenCalled();
+    expect(updates[0]).toMatchObject({ status: "scheduled", upload_post_posts: {}, zernio_posts: {} });
+  });
+
+  it("sends a held short when the dispatcher finds it due", async () => {
+    vi.mocked(publishUploadPostVideo)
+      .mockResolvedValueOnce({ status: "pending", postId: null, postUrl: null, requestId: "req-t" })
+      .mockResolvedValueOnce({ status: "pending", postId: null, postUrl: null, requestId: "req-y" });
+    const { db, updates } = fakeDb(compositionRow({ status: "scheduled", scheduled_for: "2026-12-01T10:00:00.000Z" }));
+    await publishSocialCompositionById({ db, actorId: "actor", compositionId, reason: "Scheduled dispatch", dispatch: true, now: new Date("2026-12-01T10:02:00.000Z") });
+    expect(publishUploadPostVideo).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(publishUploadPostVideo).mock.calls[0][0].scheduledFor).toBeUndefined();
+    expect(updates[0]).toMatchObject({ status: "publishing" });
+  });
+
+  it("refuses to send a scheduled composition again outside the dispatcher", async () => {
+    const { db } = fakeDb(compositionRow({ status: "scheduled", scheduled_for: "2026-12-01T10:00:00.000Z" }));
+    await expect(publishSocialCompositionById({ db, actorId: "actor", compositionId, reason: "Again" })).rejects.toThrow("already active");
+  });
+
+  it("posts directly through kelin-social where a network is connected, with the AI label", async () => {
+    vi.mocked(kelinDirectReady).mockImplementation((platform) => platform === "tiktok");
+    vi.mocked(publishKelinPost).mockResolvedValueOnce({ handle: "kelin:tiktok:p1", url: null });
+    vi.mocked(publishUploadPostVideo).mockResolvedValueOnce({ status: "pending", postId: null, postUrl: null, requestId: "req-y" });
+    const { db, updates } = fakeDb(compositionRow());
     await publishSocialCompositionById({ db, actorId: "actor", compositionId, reason: "ETIAS short" });
-    expect(vi.mocked(publishUploadPostVideo).mock.calls[0][0].scheduledFor).toBe("2026-12-01T10:00:00.000Z");
-    expect(updates[0]).toMatchObject({ status: "scheduled", upload_post_posts: { tiktok: { status: "scheduled", jobId: "job-t" }, youtube: { status: "scheduled", jobId: "job-y" } } });
+    expect(vi.mocked(publishKelinPost).mock.calls[0][0]).toMatchObject({ platform: "tiktok", videoUrl, aiGenerated: true, title: "ETIAS explained", caption: "ETIAS is not a visa. Link in bio." });
+    expect(vi.mocked(publishUploadPostVideo).mock.calls[0][0].platform).toBe("youtube");
+    expect(updates[0]).toMatchObject({ zernio_posts: { tiktok: "kelin:tiktok:p1" }, status: "publishing" });
   });
 
   it("records a platform that refused as failed and the short as partial", async () => {

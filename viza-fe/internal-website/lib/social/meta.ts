@@ -1,4 +1,4 @@
-/* Vendored from Kelin-Studio/kelin-social@bd0129d (src/meta.ts). Edit there and re-sync. */
+/* Vendored from Kelin-Studio/kelin-social@9cf1e11 (src/meta.ts). Edit there and re-sync. */
 /* Facebook Page and Instagram, straight to Meta's Graph API.
 
    Both run on one Page access token. A Page token minted from a long-lived

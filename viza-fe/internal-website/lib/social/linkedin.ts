@@ -1,4 +1,4 @@
-/* Vendored from Kelin-Studio/kelin-social@bd0129d (src/linkedin.ts). Edit there and re-sync. */
+/* Vendored from Kelin-Studio/kelin-social@9cf1e11 (src/linkedin.ts). Edit there and re-sync. */
 /* LinkedIn company pages, through the Community Management API (Posts API).
 
    Kelin's app 253160230 has Development Tier access since 17 Aug 2026:
