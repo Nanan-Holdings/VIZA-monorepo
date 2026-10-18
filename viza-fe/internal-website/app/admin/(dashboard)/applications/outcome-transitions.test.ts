@@ -3,6 +3,7 @@ import {
   AWAITING_APPLICANT_STATUS,
   buildResultObjectPath,
   customerStatusDetail,
+  isManualHandoffResult,
   planOutcomeTransition,
   resultPathPrefix,
   submittedOnToTimestamp,
@@ -111,6 +112,42 @@ describe("planOutcomeTransition", () => {
     expect(CLIENT_ATTENTION.has(plan.patch.result_status as string)).toBe(true);
     expect(plan.event.event_type).toBe("more_information_requested");
     expect(plan.notification).toEqual({ event: "info_requested", detailByLocale: { en: "Upload a bank statement", "zh-CN": "Upload a bank statement" } });
+  });
+});
+
+describe("manual hand-off results", () => {
+  const manual = {
+    ...base,
+    submission_result: { country: "MANUAL", status: "handed_to_team", handedAt: "2026-10-18T18:04:22Z", destinationCountry: "australia", visaType: "visitor_subclass_600" },
+  };
+  // Mirrors the client's success / attention sets for submission_result_status.
+  const CLIENT_SUBMISSION_SUCCESS = new Set(["completed", "complete", "submitted", "success", "done"]);
+
+  it.each([
+    ["submitted", { kind: "submitted", reference: "AU-1" }, "submitted"],
+    ["approved", { kind: "approved", resultStoragePath: filePath }, "approved"],
+    ["refused", { kind: "refused", reason: "Not eligible" }, "refused"],
+    ["needs_info", { kind: "needs_info", message: "Passport scan" }, "needs_attention"],
+  ] as const)("%s clears the MANUAL hand-off and sets a status the client maps", (_label, input, status) => {
+    const plan = planOutcomeTransition(manual, input, "s", NOW);
+    expect(plan.patch.submission_result).toBeNull();
+    expect(plan.patch.submission_result_status).toBe(status);
+    expect(plan.patch.submission_result_updated_at).toBe(NOW.toISOString());
+  });
+
+  it("maps the outcome statuses onto the client allowlists", () => {
+    expect(CLIENT_SUBMISSION_SUCCESS.has(planOutcomeTransition(manual, { kind: "submitted", reference: "AU-1" }, "s", NOW).patch.submission_result_status as string)).toBe(true);
+    expect(CLIENT_APPROVED.has(planOutcomeTransition(manual, { kind: "approved", resultStoragePath: filePath }, "s", NOW).patch.submission_result_status as string)).toBe(true);
+    expect(CLIENT_REJECTED.has(planOutcomeTransition(manual, { kind: "refused", reason: "x" }, "s", NOW).patch.submission_result_status as string)).toBe(true);
+    expect(CLIENT_ATTENTION.has(planOutcomeTransition(manual, { kind: "needs_info", message: "x" }, "s", NOW).patch.submission_result_status as string)).toBe(true);
+  });
+
+  it("never overwrites real automation evidence", () => {
+    const automated = { ...base, submission_result: { country: "US", status: "submitted", confirmationNumber: "AA00ABC" } };
+    const plan = planOutcomeTransition(automated, { kind: "approved", resultStoragePath: filePath }, "s", NOW);
+    expect("submission_result" in plan.patch).toBe(false);
+    expect(isManualHandoffResult(automated.submission_result)).toBe(false);
+    expect(isManualHandoffResult(manual.submission_result)).toBe(true);
   });
 });
 

@@ -107,7 +107,7 @@ export async function recordApplicationOutcome(
     const admin = createAdminClient();
     const { data, error: loadError } = await admin
       .from("applications")
-      .select("id, applicant_id, status, country, visa_type, external_status, external_reference, result_status, submitted_at")
+      .select("id, applicant_id, status, country, visa_type, external_status, external_reference, result_status, submitted_at, submission_result")
       .eq("id", applicationId)
       .maybeSingle();
     if (loadError) return { ok: false, error: loadError.message };
@@ -155,7 +155,12 @@ export async function recordApplicationOutcome(
       actor_type: "admin",
       actor_id: actor.id,
       message: plan.event.message,
-      metadata: { ...plan.event.metadata, outcome: validated.value.kind, source: "admin_outcome" },
+      metadata: {
+        ...plan.event.metadata,
+        outcome: validated.value.kind,
+        source: "admin_outcome",
+        replaced_submission_result: "submission_result" in plan.patch ? application.submission_result ?? null : undefined,
+      },
     });
 
     if (validated.value.kind !== "needs_info") {
@@ -213,7 +218,7 @@ async function resolveOpenSubmissionWork(
     .from("admin_work_items")
     .select("id, status")
     .eq("application_id", applicationId)
-    .eq("kind", "submission_action_required")
+    .in("kind", ["submission_action_required", "manual_submission"])
     .in("status", ["open", "in_progress", "waiting_customer", "blocked"]);
   const now = new Date().toISOString();
   for (const item of open ?? []) {

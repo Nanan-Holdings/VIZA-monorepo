@@ -51,6 +51,8 @@ export interface OutcomeApplicationState {
   external_reference: string | null;
   result_status: string | null;
   submitted_at: string | null;
+  /** applications.submission_result; a MANUAL hand-off is replaced by the outcome. */
+  submission_result?: unknown;
 }
 
 export interface OutcomePlan {
@@ -152,6 +154,35 @@ export function validateOutcomeInput(
   }
 }
 
+/** True for the hand-off written when a product has no live automation. */
+export function isManualHandoffResult(value: unknown): boolean {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      (value as { country?: unknown }).country === "MANUAL",
+  );
+}
+
+/**
+ * Submission-result fields for an outcome. `submission_result_status` uses
+ * values the client already maps (submitted, approved, refused,
+ * needs_attention). A MANUAL hand-off result is cleared so the applicant's
+ * status page stops showing "with your VIZA consultant"; real automation
+ * evidence (confirmation numbers, PDFs) is never overwritten.
+ */
+function submissionResultFields(
+  application: OutcomeApplicationState,
+  status: string,
+  nowIso: string,
+): Record<string, string | null> {
+  const fields: Record<string, string | null> = {
+    submission_result_status: status,
+    submission_result_updated_at: nowIso,
+  };
+  if (isManualHandoffResult(application.submission_result)) fields.submission_result = null;
+  return fields;
+}
+
 /** Midnight Singapore time for a staff-entered calendar date. */
 export function submittedOnToTimestamp(submittedOn: string): string {
   return new Date(`${submittedOn}T00:00:00+08:00`).toISOString();
@@ -182,6 +213,7 @@ export function planOutcomeTransition(
         ? submittedOnToTimestamp(input.submittedOn)
         : application.submitted_at ?? nowIso;
       const patch: Record<string, string | null> = {
+        ...submissionResultFields(application, "submitted", nowIso),
         status: "submitted",
         external_status: "submitted",
         external_reference: reference,
@@ -219,6 +251,7 @@ export function planOutcomeTransition(
     case "approved": {
       const path = clean(input.resultStoragePath);
       const patch: Record<string, string | null> = {
+        ...submissionResultFields(application, "approved", nowIso),
         status: "approved",
         result_status: "approved",
         result_storage_path: path,
@@ -247,6 +280,7 @@ export function planOutcomeTransition(
       const reason = clean(input.reason);
       const path = clean(input.resultStoragePath);
       const patch: Record<string, string | null> = {
+        ...submissionResultFields(application, "refused", nowIso),
         status: "rejected",
         result_status: "refused",
         result_notes: reason,
@@ -278,6 +312,7 @@ export function planOutcomeTransition(
     case "needs_info": {
       const message = clean(input.message);
       const patch: Record<string, string | null> = {
+        ...submissionResultFields(application, "needs_attention", nowIso),
         status: AWAITING_APPLICANT_STATUS,
         result_status: "needs_attention",
         result_notes: message,
