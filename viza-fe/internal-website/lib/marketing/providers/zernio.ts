@@ -1,24 +1,33 @@
 import type { MarketingSocialAnalytics, MarketingSocialPlatform } from "../contracts";
 import { MarketingProviderConfigError } from "./openrouter";
 
-const ZERNIO_PLATFORM: Record<MarketingSocialPlatform, string> = {
+/* Shorts go to TikTok and YouTube through Upload-Post; Zernio carries the
+   feed networks only. */
+type ZernioPlatform = Exclude<MarketingSocialPlatform, "tiktok" | "youtube">;
+
+function zernioPlatform(platform: MarketingSocialPlatform): ZernioPlatform {
+  if (platform === "tiktok" || platform === "youtube") throw new MarketingProviderConfigError(`${platform} posts through Upload-Post, not Zernio`);
+  return platform;
+}
+
+const ZERNIO_PLATFORM: Record<ZernioPlatform, string> = {
   x: "twitter", "google-business-sg": "googlebusiness", instagram: "instagram",
   linkedin: "linkedin", pinterest: "pinterest", reddit: "reddit",
   facebook: "facebook",
 };
-const ACCOUNT_ENV: Record<MarketingSocialPlatform, string> = {
+const ACCOUNT_ENV: Record<ZernioPlatform, string> = {
   x: "ZERNIO_ACCOUNT_ID_X", "google-business-sg": "ZERNIO_ACCOUNT_ID_GOOGLE_BUSINESS_SG",
   instagram: "ZERNIO_ACCOUNT_ID_INSTAGRAM", linkedin: "ZERNIO_ACCOUNT_ID_LINKEDIN",
   pinterest: "ZERNIO_ACCOUNT_ID_PINTEREST", reddit: "ZERNIO_ACCOUNT_ID_REDDIT",
   facebook: "ZERNIO_ACCOUNT_ID_FACEBOOK",
 };
-const CONTENT_LIMITS: Record<MarketingSocialPlatform, number> = { x: 280, "google-business-sg": 1_500, instagram: 2_200, linkedin: 3_000, facebook: 5_000, pinterest: 500, reddit: 10_000 };
+const CONTENT_LIMITS: Record<ZernioPlatform, number> = { x: 280, "google-business-sg": 1_500, instagram: 2_200, linkedin: 3_000, facebook: 5_000, pinterest: 500, reddit: 10_000 };
 
 function providerContent(platform: MarketingSocialPlatform, content: string, destinationUrl?: string) {
   const clean = content.trim();
   if (!destinationUrl || platform === "instagram" || platform === "pinterest" || clean.includes(destinationUrl)) return clean;
   const suffix = `\n\n${destinationUrl}`;
-  const max = CONTENT_LIMITS[platform];
+  const max = CONTENT_LIMITS[zernioPlatform(platform)];
   if (clean.length + suffix.length <= max) return `${clean}${suffix}`;
   const budget = Math.max(0, max - suffix.length - 1);
   const prefix = clean.slice(0, budget).replace(/\s+\S*$/, "").trimEnd();
@@ -30,7 +39,8 @@ function zernioConfig(platforms: readonly MarketingSocialPlatform[]) {
   const timezone = process.env.ZERNIO_TIMEZONE?.trim();
   if (!apiKey) throw new MarketingProviderConfigError("ZERNIO_API_KEY is not configured");
   if (!timezone) throw new MarketingProviderConfigError("ZERNIO_TIMEZONE is not configured");
-  const targets = platforms.map((platform) => {
+  const targets = platforms.map((requested) => {
+    const platform = zernioPlatform(requested);
     const accountId = process.env[ACCOUNT_ENV[platform]]?.trim();
     if (!accountId) throw new MarketingProviderConfigError(`${ACCOUNT_ENV[platform]} is not configured`);
     if (platform === "linkedin" && !process.env.ZERNIO_LINKEDIN_ORGANIZATION_URN?.trim()) throw new MarketingProviderConfigError("ZERNIO_LINKEDIN_ORGANIZATION_URN is not configured");
@@ -151,6 +161,7 @@ export async function getZernioPost(postId: string) {
 }
 
 export function zernioPlatformPostUrl(body: Record<string, unknown>, platform: MarketingSocialPlatform): string | null {
+  if (platform === "tiktok" || platform === "youtube") return null;
   const post = body.post && typeof body.post === "object" && !Array.isArray(body.post) ? body.post as Record<string, unknown> : body;
   const entries = Array.isArray(post.platforms) ? post.platforms : [];
   const entry = entries.find((value) => value && typeof value === "object" && !Array.isArray(value) && (value as Record<string, unknown>).platform === ZERNIO_PLATFORM[platform]);
@@ -179,7 +190,7 @@ export async function unpublishZernioPost(postId: string, platform: MarketingSoc
   if (!apiKey) throw new MarketingProviderConfigError("ZERNIO_API_KEY is not configured");
   if (!/^[A-Za-z0-9_-]{6,80}$/.test(postId)) throw new Error("Invalid Zernio post id");
   if (platform === "instagram") throw new Error("Instagram posts cannot be removed through the API; remove the post in Instagram");
-  await request(`/posts/${encodeURIComponent(postId)}/unpublish`, apiKey, { method: "POST", body: JSON.stringify({ platform: ZERNIO_PLATFORM[platform] }) });
+  await request(`/posts/${encodeURIComponent(postId)}/unpublish`, apiKey, { method: "POST", body: JSON.stringify({ platform: ZERNIO_PLATFORM[zernioPlatform(platform)] }) });
 }
 
 function finite(value: unknown): number {

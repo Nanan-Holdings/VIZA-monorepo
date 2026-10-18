@@ -6,6 +6,7 @@ import { requireRole } from "@/lib/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   VIZA_CONTENT_PLATFORMS,
+  VIZA_VIDEO_PLATFORMS,
   type MarketingActionResult,
   type MarketingBlogAdminRecord,
   type MarketingBlogDraftInput,
@@ -21,7 +22,7 @@ import { asMarketingDb, mapAutomationRun, mapBlogAdminRecord, mapShortLink, mapS
 import { fetchAnalyticsOverview, googleReadiness } from "@/lib/marketing/providers/google";
 import { contentGenerationReadiness, generateBlogDraft as openRouterBlog, generateSocialCopy } from "@/lib/marketing/providers/openrouter";
 import { cancelZernioSchedule, deleteZernioPost, fetchZernioAnalytics, getZernioPost, unpublishZernioPost, zernioPlatformPostUrl, ZERNIO_ACCOUNT_ENV_NAMES } from "@/lib/marketing/providers/zernio";
-import { checkUploadPostJob, uploadPostReadiness } from "@/lib/marketing/providers/upload-post";
+import { cancelUploadPostSchedule, refreshUploadPostDeliveries, uploadPostConnectedPlatforms, uploadPostReadiness, uploadPostVideoVisibility } from "@/lib/marketing/providers/upload-post";
 import { publicMarketingBaseUrl, publishBlogPostById, publishSocialCompositionById } from "@/lib/marketing/publish";
 import { runScheduledBlogGeneration } from "@/lib/marketing/automation";
 import { measuredKeyword } from "@/lib/marketing/seo-keywords";
@@ -57,9 +58,16 @@ async function activity(
   });
 }
 
-function providerReadiness(): MarketingProviderReadiness {
-  const configuredPlatforms = VIZA_CONTENT_PLATFORMS.filter((platform) => {
-    if (platform === "instagram" || platform === "pinterest") return uploadPostReadiness().connected;
+/* Instagram and Pinterest count as ready when Upload-Post is configured, as
+   before. TikTok and YouTube have no VIZA account until Edward connects one,
+   so they only light up once the Upload-Post profile actually has them. */
+async function providerReadiness(): Promise<MarketingProviderReadiness> {
+  const upload = uploadPostReadiness();
+  const videoAccounts = upload.connected ? await uploadPostConnectedPlatforms() : [];
+  const allPlatforms: MarketingSocialPlatform[] = [...VIZA_CONTENT_PLATFORMS, ...VIZA_VIDEO_PLATFORMS.filter((platform) => platform !== "instagram")];
+  const configuredPlatforms = allPlatforms.filter((platform) => {
+    if (platform === "instagram" || platform === "pinterest") return upload.connected;
+    if (platform === "tiktok" || platform === "youtube") return videoAccounts.includes(platform);
     if (!process.env.ZERNIO_API_KEY?.trim() || !process.env.ZERNIO_TIMEZONE?.trim()) return false;
     if (!process.env[ZERNIO_ACCOUNT_ENV_NAMES[platform]]?.trim()) return false;
     if (platform === "linkedin" && !process.env.ZERNIO_LINKEDIN_ORGANIZATION_URN?.trim()) return false;
@@ -71,8 +79,9 @@ function providerReadiness(): MarketingProviderReadiness {
     openrouter: { connected: content.connected, model: content.model },
     zernio: {
       connected: configuredPlatforms.length > 0,
-      configuredPlatforms: [...configuredPlatforms], missingPlatforms: VIZA_CONTENT_PLATFORMS.filter((platform) => !configuredPlatforms.includes(platform)),
+      configuredPlatforms: [...configuredPlatforms], missingPlatforms: allPlatforms.filter((platform) => !configuredPlatforms.includes(platform)),
     },
+    uploadPost: { connected: upload.connected, videoVisibility: uploadPostVideoVisibility() },
     ga4: { connected: google.ga4 }, searchConsole: { connected: google.searchConsole },
   };
 }
@@ -283,7 +292,7 @@ export async function saveMarketingSocialComposition(input: MarketingSocialCompo
       if (disabled.error) throw new Error(disabled.error.message);
       shortLinkId = null;
     }
-    const values = { blog_post_id: clean.blogPostId ?? null, short_link_id: shortLinkId, title: clean.title, brief: clean.brief, destination_url: clean.destinationUrl ?? null, media_url: clean.mediaUrl ?? null, document_url: clean.documentUrl ?? null, platforms: clean.platforms, platform_content: clean.platformContent, scheduled_for: clean.scheduledFor ?? null, status: "draft", ...(current?.status === "cancelled" ? { zernio_posts: {}, last_synced_at: null } : {}), updated_by: actor.id, updated_at: now };
+    const values = { blog_post_id: clean.blogPostId ?? null, short_link_id: shortLinkId, title: clean.title, brief: clean.brief, destination_url: clean.destinationUrl ?? null, media_url: clean.mediaUrl ?? null, document_url: clean.documentUrl ?? null, video_url: clean.videoUrl ?? null, video_locale: clean.videoLocale ?? null, video_title: clean.videoTitle ?? null, platforms: clean.platforms, platform_content: clean.platformContent, scheduled_for: clean.scheduledFor ?? null, status: "draft", ...(current?.status === "cancelled" ? { zernio_posts: {}, last_synced_at: null } : {}), updated_by: actor.id, updated_at: now };
     const result = clean.id
       ? await db.from("marketing_social_compositions").update(values).eq("id", clean.id).select("*").single()
       : await db.from("marketing_social_compositions").insert({ ...values, created_by: actor.id, created_at: now }).select("*").single();
@@ -339,13 +348,7 @@ export async function syncMarketingSocialComposition(input: { id: string }): Pro
     });
     const zernioPostUrls = { ...composition.zernioPostUrls };
     responses.forEach((body, index) => { const url = zernioPlatformPostUrl(body, entries[index][0]); if (url) zernioPostUrls[entries[index][0]] = url; });
-    const uploadPosts = { ...composition.uploadPostPosts };
-    for (const platform of ["instagram", "pinterest"] as const) {
-      const item = uploadPosts[platform];
-      if (!item || item.status !== "pending" || !item.requestId) continue;
-      const checked = await checkUploadPostJob(item.requestId, platform);
-      uploadPosts[platform] = { status: checked.status, requestId: checked.requestId, postId: checked.postId, postUrl: checked.postUrl };
-    }
+    const uploadPosts = await refreshUploadPostDeliveries(composition.uploadPostPosts);
     const allStatuses = [...statuses, ...Object.values(uploadPosts).map((post) => post.status)];
     const status: MarketingSocialCompositionRecord["status"] = allStatuses.every((value) => value === "published") ? "published" : allStatuses.some((value) => value === "failed") ? (allStatuses.some((value) => value === "published") ? "partial" : "failed") : allStatuses.every((value) => value === "scheduled") ? "scheduled" : "publishing";
     const now = new Date().toISOString();
@@ -369,6 +372,7 @@ export async function stopMarketingSocialComposition(input: { id: string; reason
     const current = await auditContext.db.from("marketing_social_compositions").select("*").eq("id", input.id).maybeSingle();
     if (current.error || !current.data) return { success: false, error: current.error?.message ?? "Composition not found" };
     const composition = mapSocialComposition(current.data);
+    if (composition.videoUrl) return await cancelScheduledShort(auditContext.db, auditContext.actor, composition, reason);
     const entries = Object.entries(composition.zernioPosts).filter((entry): entry is [MarketingSocialPlatform, string] => Boolean(entry[1]));
     if (!entries.length) return { success: false, error: "Composition has no Zernio posts" };
     const scheduled = composition.status === "scheduled";
@@ -400,6 +404,35 @@ export async function stopMarketingSocialComposition(input: { id: string; reason
     if (auditContext) await activity(auditContext.db, auditContext.actor, { provider: "zernio", operation: "social.stop", status: "failed", entityType: "marketing_social_composition", entityId: input.id, reason: input.reason, error });
     return { success: false, error: message(error, "Unable to change external posts") };
   }
+}
+
+/* A scheduled short is held by Upload-Post until its time, and can be
+   cancelled until then. One that has gone out cannot be taken down through
+   the API: remove it in TikTok, Instagram or YouTube, then record that with
+   confirmMarketingImagePostsRemoved. */
+async function cancelScheduledShort(db: ReturnType<typeof asMarketingDb>, actor: Actor, composition: MarketingSocialCompositionRecord, reason: string): Promise<MarketingActionResult<MarketingSocialCompositionRecord>> {
+  const deliveries = { ...composition.uploadPostPosts };
+  const scheduled = Object.entries(deliveries).filter(([, item]) => item?.status === "scheduled" && item.jobId) as Array<[keyof typeof deliveries, NonNullable<(typeof deliveries)[keyof typeof deliveries]>]>;
+  if (!scheduled.length) return { success: false, error: "This short has no scheduled posts left to cancel. Remove posts that went out in the platform itself." };
+  const failures: string[] = [];
+  for (const [platform, item] of scheduled) {
+    try {
+      await cancelUploadPostSchedule(item.jobId!);
+      delete deliveries[platform];
+    } catch (error) {
+      failures.push(`${platform}: ${message(error, "cancellation failed")}`);
+    }
+  }
+  const remaining = Object.values(deliveries).filter(Boolean);
+  const status: MarketingSocialCompositionRecord["status"] = failures.length ? "partial" : remaining.length ? "partial" : "draft";
+  const now = new Date().toISOString();
+  const updated = await db.from("marketing_social_compositions").update({ status, upload_post_posts: deliveries, scheduled_for: remaining.length || failures.length ? composition.scheduledFor : null, updated_by: actor.id, updated_at: now, last_synced_at: now }).eq("id", composition.id).select("*").single();
+  if (updated.error || !updated.data) throw new Error(updated.error?.message ?? "Unable to update composition");
+  const saved = mapSocialComposition(updated.data);
+  await activity(db, actor, { provider: "upload-post", operation: "social.video.unschedule", status: failures.length ? "failed" : "succeeded", entityType: "marketing_social_composition", entityId: composition.id, reason, response: { cancelled: scheduled.length - failures.length, failures } });
+  revalidatePath("/admin/marketing");
+  if (failures.length) return { success: false, error: failures.join("; ") };
+  return { success: true, data: saved };
 }
 
 /** Upload-Post has no deletion API for these networks; an operator confirms removal there. */
@@ -447,5 +480,5 @@ export async function getMarketingOperationsDashboard(): Promise<MarketingOperat
     socialAnalytics = { connected: Boolean(process.env.ZERNIO_API_KEY?.trim()), postCount: 0, impressions: 0, reach: 0, likes: 0, comments: 0, shares: 0, saves: 0, clicks: 0, views: 0, follows: 0, engagementRate: 0, lastSync: null };
     await activity(db, actor, { provider: "zernio", operation: "analytics.overview", status: "failed", error });
   }
-  return { analytics, socialAnalytics, providers: providerReadiness(), recentPosts: recentPosts.slice(0, 10), recentSocial: recentSocial.slice(0, 10), recentAutomation };
+  return { analytics, socialAnalytics, providers: await providerReadiness(), recentPosts: recentPosts.slice(0, 10), recentSocial: recentSocial.slice(0, 10), recentAutomation };
 }

@@ -1,3 +1,4 @@
+import { UPLOAD_POST_PLATFORMS } from "./contracts";
 import type { MarketingAutomationRunRecord, MarketingBlogAdminRecord, MarketingBlogFaq, MarketingBlogPost, MarketingBlogSummary, MarketingShortLinkRecord, MarketingSocialCompositionRecord, MarketingSocialPlatform } from "./contracts";
 
 export type DbError = { code?: string; message: string };
@@ -113,7 +114,9 @@ export function mapSocialComposition(value: unknown): MarketingSocialComposition
   return {
     id: text(row, "id"), blogPostId: nullableText(row, "blog_post_id"), shortLinkId: nullableText(row, "short_link_id"), title: text(row, "title"),
     brief: text(row, "brief"), destinationUrl: nullableText(row, "destination_url"), mediaUrl: nullableText(row, "media_url"),
-    documentUrl: nullableText(row, "document_url"), status, platforms, platformContent: platformContent(row.platform_content),
+    documentUrl: nullableText(row, "document_url"), videoUrl: nullableText(row, "video_url"),
+    videoLocale: row.video_locale === "en" || row.video_locale === "zh-CN" ? row.video_locale : null,
+    videoTitle: nullableText(row, "video_title"), status, platforms, platformContent: platformContent(row.platform_content),
     zernioPosts: platformContent(row.zernio_posts), zernioPostUrls: platformContent(row.zernio_post_urls), uploadPostPosts: uploadPostPosts(row.upload_post_posts), scheduledFor: nullableText(row, "scheduled_for"),
     lastSyncedAt: nullableText(row, "last_synced_at"), createdAt: text(row, "created_at"), updatedAt: text(row, "updated_at"),
   };
@@ -122,12 +125,13 @@ export function mapSocialComposition(value: unknown): MarketingSocialComposition
 function uploadPostPosts(value: unknown): MarketingSocialCompositionRecord["uploadPostPosts"] {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
   const output: MarketingSocialCompositionRecord["uploadPostPosts"] = {};
-  for (const platform of ["instagram", "pinterest"] as const) {
+  for (const platform of UPLOAD_POST_PLATFORMS) {
     const item = (value as Record<string, unknown>)[platform];
     if (!item || typeof item !== "object" || Array.isArray(item)) continue;
     const row = item as Record<string, unknown>;
-    if (row.status !== "pending" && row.status !== "published" && row.status !== "failed") continue;
-    output[platform] = { status: row.status, requestId: typeof row.requestId === "string" ? row.requestId : null, postId: typeof row.postId === "string" ? row.postId : null, postUrl: typeof row.postUrl === "string" ? row.postUrl : null };
+    if (row.status !== "scheduled" && row.status !== "pending" && row.status !== "published" && row.status !== "failed") continue;
+    const optional = (key: string) => typeof row[key] === "string" ? row[key] as string : null;
+    output[platform] = { status: row.status, requestId: optional("requestId"), jobId: optional("jobId"), postId: optional("postId"), postUrl: optional("postUrl"), error: optional("error") };
   }
   return output;
 }

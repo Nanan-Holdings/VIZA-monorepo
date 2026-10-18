@@ -4,7 +4,8 @@ Scope: applies to `viza-fe/internal-website/lib/marketing/**`.
 
 This module owns VIZA marketing contracts, validation, privacy-safe tracking,
 database mapping, and server-only provider adapters for Google reporting,
-DeepSeek/OpenRouter generation, Zernio distribution, and Upload-Post image posts.
+DeepSeek/OpenRouter generation, Zernio distribution, and Upload-Post image and
+short-video posts.
 
 `automation.ts` owns idempotent scheduled draft generation, provider status
 reconciliation, and stale-run failure settlement. `news-pipeline/**` scans,
@@ -22,8 +23,18 @@ sends its captions with no person involved. Publishing itself lives in
   Never add another tenant's values or fallback identifiers.
 - Provider calls fail closed when required configuration is missing.
 - Zernio handles LinkedIn/Facebook delivery and analytics. Upload-Post handles
-  Instagram/Pinterest images. Create one provider post per platform; Supabase
-  stores composition intent, request IDs, post IDs, and public URLs.
+  Instagram/Pinterest images and the vertical shorts rendered by
+  `viza-fe/social-video` (TikTok, Instagram Reels, YouTube Shorts). Create one
+  provider post per platform; Supabase stores composition intent, request IDs,
+  scheduled job IDs, post IDs, and public URLs.
+- A short is its own composition (`video_url` set, platforms from
+  `VIZA_VIDEO_PLATFORMS`), linked to the same blog post as the article's
+  caption composition. Every short carries each platform's AI-content label.
+  Shorts stay private until `UPLOAD_POST_VIDEO_VISIBILITY=public`; Instagram
+  has no private Reel, so it refuses until then. Xiaohongshu is never automated:
+  it restricts fully AI-run accounts, so it is posted by hand with its AI label.
+- Upload-Post's status endpoint reports `success: false` while a job is queued
+  or retrying. Only an explicit `failed` status fails a delivery.
 - Blog copy that may contain changing visa requirements must use grounded
   research and retain direct official-source URLs for editorial review. DeepSeek
   does not browse, so it must never be represented as having verified facts

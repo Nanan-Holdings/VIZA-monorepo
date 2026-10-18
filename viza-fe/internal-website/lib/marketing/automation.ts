@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { asMarketingDb, mapBlogAdminRecord, mapSocialComposition } from "./db";
 import { completeMarketingJson, contentGenerationReadiness, generateBlogDraft, generateSocialCopy } from "./providers/openrouter";
 import { getZernioPost, zernioPlatformPostUrl } from "./providers/zernio";
-import { checkUploadPostJob } from "./providers/upload-post";
+import { refreshUploadPostDeliveries } from "./providers/upload-post";
 import { buildGroundedDraftBrief, MIN_ARTICLE_CHARS, rankNewsStories, readNewsStory, scanNews } from "./news-pipeline";
 import { rehostMarketingCover } from "./cover";
 import { measuredKeyword, measuredKeywords } from "./seo-keywords";
@@ -166,13 +166,7 @@ export async function runSocialReconciliation(now = new Date()) {
         const statuses = posts.map((body) => { const post = body.post && typeof body.post === "object" && !Array.isArray(body.post) ? body.post as Record<string, unknown> : body; return typeof post.status === "string" ? post.status : "publishing"; });
         const zernioPostUrls = { ...composition.zernioPostUrls };
         posts.forEach((body, index) => { const url = zernioPlatformPostUrl(body, entries[index][0]); if (url) zernioPostUrls[entries[index][0]] = url; });
-        const uploadPosts = { ...composition.uploadPostPosts };
-        for (const platform of ["instagram", "pinterest"] as const) {
-          const item = uploadPosts[platform];
-          if (!item || item.status !== "pending" || !item.requestId) continue;
-          const checked = await checkUploadPostJob(item.requestId, platform);
-          uploadPosts[platform] = { status: checked.status, requestId: checked.requestId, postId: checked.postId, postUrl: checked.postUrl };
-        }
+        const uploadPosts = await refreshUploadPostDeliveries(composition.uploadPostPosts);
         const allStatuses = [...statuses, ...Object.values(uploadPosts).map((item) => item.status)];
         const status = allStatuses.every((item) => item === "published") ? "published" : allStatuses.some((item) => item === "failed") ? (allStatuses.some((item) => item === "published") ? "partial" : "failed") : allStatuses.every((item) => item === "scheduled") ? "scheduled" : "publishing";
         const updated = await admin.from("marketing_social_compositions").update({ status, upload_post_posts: uploadPosts, zernio_post_urls: zernioPostUrls, last_synced_at: now.toISOString(), updated_at: now.toISOString(), updated_by: actorId }).eq("id", composition.id);

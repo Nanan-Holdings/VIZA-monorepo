@@ -18,6 +18,11 @@ scheduled pipeline is separate: with `content.autoPublish` and
 above `content.autoPublishMinScore` publishes and distributes on its own. Keep
 the screen copy honest about that.
 
+Short videos are composed at `/admin/marketing/social/new?format=video&from=<id>`,
+reached from "Add short video" on an article's caption composition. The MP4
+uploads straight to storage through a signed URL, and the short is posted now
+or scheduled through Upload-Post.
+
 ## Visual language
 
 These screens are a content pipeline, not a card gallery. The layout is ported

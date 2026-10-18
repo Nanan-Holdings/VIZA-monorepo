@@ -9,9 +9,28 @@ export const MARKETING_SOCIAL_PLATFORMS = [
   "facebook",
   "pinterest",
   "reddit",
+  "tiktok",
+  "youtube",
 ] as const;
 export type MarketingSocialPlatform = (typeof MARKETING_SOCIAL_PLATFORMS)[number];
 export const VIZA_CONTENT_PLATFORMS = ["linkedin", "facebook", "instagram", "pinterest"] as const satisfies readonly MarketingSocialPlatform[];
+/** Channels for a vertical short. Instagram here means a Reel, YouTube means a Short. */
+export const VIZA_VIDEO_PLATFORMS = ["tiktok", "instagram", "youtube"] as const satisfies readonly MarketingSocialPlatform[];
+export type VizaVideoPlatform = (typeof VIZA_VIDEO_PLATFORMS)[number];
+/** Every channel Upload-Post delivers to; the rest go through Zernio. */
+export const UPLOAD_POST_PLATFORMS = ["instagram", "pinterest", "tiktok", "youtube"] as const satisfies readonly MarketingSocialPlatform[];
+export type UploadPostPlatform = (typeof UPLOAD_POST_PLATFORMS)[number];
+
+/* One Upload-Post delivery. `requestId` tracks an immediate upload, `jobId` a
+   post Upload-Post holds until its scheduled time. */
+export interface UploadPostDelivery {
+  status: "scheduled" | "pending" | "published" | "failed";
+  requestId: string | null;
+  jobId?: string | null;
+  postId: string | null;
+  postUrl: string | null;
+  error?: string | null;
+}
 
 /** One question and its answer, shown under the article and published as
     FAQPage structured data. */
@@ -90,6 +109,9 @@ export interface MarketingProviderReadiness {
     configuredPlatforms: MarketingSocialPlatform[];
     missingPlatforms: MarketingSocialPlatform[];
   };
+  /* Shorts go out private (TikTok "only me", YouTube private) until
+     UPLOAD_POST_VIDEO_VISIBILITY=public is set for the confirmed accounts. */
+  uploadPost: { connected: boolean; videoVisibility: "private" | "public" };
   ga4: { connected: boolean };
   searchConsole: { connected: boolean };
 }
@@ -103,12 +125,16 @@ export interface MarketingSocialCompositionRecord {
   destinationUrl: string | null;
   mediaUrl: string | null;
   documentUrl: string | null;
+  /** Set on a short-video composition; its platforms are VIZA_VIDEO_PLATFORMS. */
+  videoUrl: string | null;
+  videoLocale: MarketingBlogLocale | null;
+  videoTitle: string | null;
   status: "draft" | "scheduled" | "publishing" | "published" | "partial" | "failed" | "cancelled";
   platforms: MarketingSocialPlatform[];
   platformContent: Partial<Record<MarketingSocialPlatform, string>>;
   zernioPosts: Partial<Record<MarketingSocialPlatform, string>>;
   zernioPostUrls: Partial<Record<MarketingSocialPlatform, string>>;
-  uploadPostPosts: Partial<Record<"instagram" | "pinterest", { status: "pending" | "published" | "failed"; requestId: string | null; postId: string | null; postUrl: string | null }>>;
+  uploadPostPosts: Partial<Record<UploadPostPlatform, UploadPostDelivery>>;
   scheduledFor: string | null;
   lastSyncedAt: string | null;
   createdAt: string;
@@ -198,6 +224,9 @@ export interface MarketingSocialCompositionInput {
   trackDestination?: boolean;
   mediaUrl?: string;
   documentUrl?: string;
+  videoUrl?: string;
+  videoLocale?: MarketingBlogLocale;
+  videoTitle?: string;
   platforms: MarketingSocialPlatform[];
   platformContent: Partial<Record<MarketingSocialPlatform, string>>;
   scheduledFor?: string;
