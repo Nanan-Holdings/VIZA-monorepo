@@ -1,6 +1,7 @@
 import { asMarketingDb, mapBlogAdminRecord, mapSocialComposition } from "./db";
 import { createZernioPosts, findZernioCompositionPosts } from "./providers/zernio";
 import { publishUploadPostImage, publishUploadPostVideo, uploadPostDelivery } from "./providers/upload-post";
+import { isKelinHandle, kelinDirectReady, publishKelinPost, type KelinDirectPlatform } from "./providers/kelin";
 import { fillLinkPlaceholders } from "./captions";
 import { assertLiveMarketingUrl } from "./publish-check";
 import { marketingCategorySlug, revalidatePublicMarketingBlog } from "./revalidate";
@@ -162,7 +163,8 @@ async function publishVideoComposition(input: {
   return saved;
 }
 
-/** Hand a composition's captions to Zernio and Upload-Post. */
+/** Hand a composition's captions to Zernio, Upload-Post, and our own direct
+    Facebook and Instagram sender where its credentials are set. */
 export async function publishSocialCompositionById(input: {
   db: Db;
   actorId: string;
@@ -201,9 +203,11 @@ export async function publishSocialCompositionById(input: {
 
   const captions = fillLinkPlaceholders(composition.platformContent, destinationUrl);
   if (composition.videoUrl) return publishVideoComposition({ db, actorId, composition, captions, reason });
-  const uploadPlatforms = composition.platforms.filter((platform): platform is "instagram" | "pinterest" => platform === "instagram" || platform === "pinterest");
+  /* Direct only when sending now: the direct sender has no scheduling. */
+  const directPlatforms = composition.scheduledFor ? [] : composition.platforms.filter((platform): platform is KelinDirectPlatform => kelinDirectReady(platform));
+  const uploadPlatforms = composition.platforms.filter((platform): platform is "instagram" | "pinterest" => (platform === "instagram" || platform === "pinterest") && !(directPlatforms as string[]).includes(platform));
   if (composition.scheduledFor && uploadPlatforms.length) throw new Error("Upload-Post image channels do not support scheduling here; publish them when ready");
-  const zernioPlatforms = composition.platforms.filter((platform) => platform !== "instagram" && platform !== "pinterest" && !isVizaVideoPlatform(platform));
+  const zernioPlatforms = composition.platforms.filter((platform) => platform !== "instagram" && platform !== "pinterest" && !isVizaVideoPlatform(platform) && !(directPlatforms as string[]).includes(platform));
   const recoveredPosts = zernioPlatforms.length ? await findZernioCompositionPosts(composition.id) : {};
   const existingPosts = { ...recoveredPosts, ...composition.zernioPosts };
   const platformsToCreate = zernioPlatforms.filter((platform) => !existingPosts[platform]);
@@ -216,6 +220,21 @@ export async function publishSocialCompositionById(input: {
       })
     : { postIds: {}, failures: [] };
   const mergedPostIds = { ...existingPosts, ...provider.postIds };
+  const postUrls = { ...composition.zernioPostUrls };
+  const directFailures: Array<{ platform: string; error: string }> = [];
+  for (const platform of directPlatforms) {
+    if (mergedPostIds[platform]) continue;
+    try {
+      const sent = await publishKelinPost({
+        platform, caption: captions[platform] ?? "", title: composition.title, destinationUrl,
+        imageUrl: composition.mediaUrl ?? undefined, publicBase: publicMarketingBaseUrl(),
+      });
+      mergedPostIds[platform] = sent.handle;
+      if (sent.url) postUrls[platform] = sent.url;
+    } catch (error) {
+      directFailures.push({ platform, error: errorText(error, "Direct post failed") });
+    }
+  }
   const uploadPosts = { ...composition.uploadPostPosts };
   const uploadFailures: Array<{ platform: string; error: string }> = [];
   for (const platform of uploadPlatforms) {
@@ -233,7 +252,7 @@ export async function publishSocialCompositionById(input: {
   }
 
   const createdCount = Object.keys(mergedPostIds).length + Object.keys(uploadPosts).length;
-  const failures = [...provider.failures, ...uploadFailures];
+  const failures = [...provider.failures, ...uploadFailures, ...directFailures];
   if (!createdCount) throw new Error(failures[0]?.error ?? "No provider created a post");
   const now = new Date().toISOString();
   const allUploadPublished = Object.values(uploadPosts).every((post) => post.status === "published");
@@ -241,11 +260,11 @@ export async function publishSocialCompositionById(input: {
     ? "partial"
     : composition.scheduledFor
       ? "scheduled"
-      : Object.keys(mergedPostIds).length || !allUploadPublished
+      : Object.values(mergedPostIds).some((id) => id && !isKelinHandle(id)) || !allUploadPublished
         ? "publishing"
         : "published";
   const updated = await db.from("marketing_social_compositions").update({
-    status, zernio_posts: mergedPostIds, upload_post_posts: uploadPosts,
+    status, zernio_posts: mergedPostIds, zernio_post_urls: postUrls, upload_post_posts: uploadPosts,
     updated_by: actorId, updated_at: now, last_synced_at: now,
   }).eq("id", compositionId).select("*").single();
   if (updated.error || !updated.data) throw new Error(updated.error?.message ?? "Unable to update composition");

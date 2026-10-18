@@ -22,6 +22,7 @@ import { asMarketingDb, mapAutomationRun, mapBlogAdminRecord, mapShortLink, mapS
 import { fetchAnalyticsOverview, googleReadiness } from "@/lib/marketing/providers/google";
 import { contentGenerationReadiness, generateBlogDraft as openRouterBlog, generateSocialCopy } from "@/lib/marketing/providers/openrouter";
 import { cancelZernioSchedule, deleteZernioPost, fetchZernioAnalytics, getZernioPost, unpublishZernioPost, zernioPlatformPostUrl, ZERNIO_ACCOUNT_ENV_NAMES } from "@/lib/marketing/providers/zernio";
+import { isKelinHandle, kelinDirectReady, removeKelinPost } from "@/lib/marketing/providers/kelin";
 import { cancelUploadPostSchedule, refreshUploadPostDeliveries, uploadPostConnectedPlatforms, uploadPostReadiness, uploadPostVideoVisibility } from "@/lib/marketing/providers/upload-post";
 import { publicMarketingBaseUrl, publishBlogPostById, publishSocialCompositionById } from "@/lib/marketing/publish";
 import { runScheduledBlogGeneration } from "@/lib/marketing/automation";
@@ -66,6 +67,7 @@ async function providerReadiness(): Promise<MarketingProviderReadiness> {
   const videoAccounts = upload.connected ? await uploadPostConnectedPlatforms() : [];
   const allPlatforms: MarketingSocialPlatform[] = [...VIZA_CONTENT_PLATFORMS, ...VIZA_VIDEO_PLATFORMS.filter((platform) => platform !== "instagram")];
   const configuredPlatforms = allPlatforms.filter((platform) => {
+    if (kelinDirectReady(platform)) return true;
     if (platform === "instagram" || platform === "pinterest") return upload.connected;
     if (platform === "tiktok" || platform === "youtube") return videoAccounts.includes(platform);
     if (!process.env.ZERNIO_API_KEY?.trim() || !process.env.ZERNIO_TIMEZONE?.trim()) return false;
@@ -339,8 +341,8 @@ export async function syncMarketingSocialComposition(input: { id: string }): Pro
   try {
     auditContext = await context(); const current = await auditContext.db.from("marketing_social_compositions").select("*").eq("id", input.id).maybeSingle();
     if (current.error || !current.data) return { success: false, error: current.error?.message ?? "Composition not found" };
-    const composition = mapSocialComposition(current.data); const entries = Object.entries(composition.zernioPosts).filter((entry): entry is [MarketingSocialPlatform, string] => Boolean(entry[1])); const ids = entries.map((entry) => entry[1]);
-    if (!ids.length && !Object.keys(composition.uploadPostPosts).length) return { success: false, error: "Composition has no provider posts to sync" };
+    const composition = mapSocialComposition(current.data); const allEntries = Object.entries(composition.zernioPosts).filter((entry): entry is [MarketingSocialPlatform, string] => Boolean(entry[1])); const entries = allEntries.filter((entry) => !isKelinHandle(entry[1])); const directCount = allEntries.length - entries.length; const ids = entries.map((entry) => entry[1]);
+    if (!ids.length && !directCount && !Object.keys(composition.uploadPostPosts).length) return { success: false, error: "Composition has no provider posts to sync" };
     const responses = await Promise.all(ids.map(getZernioPost));
     const statuses = responses.map((body) => {
       const post = body.post && typeof body.post === "object" && !Array.isArray(body.post) ? body.post as Record<string, unknown> : body;
@@ -349,7 +351,7 @@ export async function syncMarketingSocialComposition(input: { id: string }): Pro
     const zernioPostUrls = { ...composition.zernioPostUrls };
     responses.forEach((body, index) => { const url = zernioPlatformPostUrl(body, entries[index][0]); if (url) zernioPostUrls[entries[index][0]] = url; });
     const uploadPosts = await refreshUploadPostDeliveries(composition.uploadPostPosts);
-    const allStatuses = [...statuses, ...Object.values(uploadPosts).map((post) => post.status)];
+    const allStatuses = [...statuses, ...Array<string>(directCount).fill("published"), ...Object.values(uploadPosts).map((post) => post.status)];
     const status: MarketingSocialCompositionRecord["status"] = allStatuses.every((value) => value === "published") ? "published" : allStatuses.some((value) => value === "failed") ? (allStatuses.some((value) => value === "published") ? "partial" : "failed") : allStatuses.every((value) => value === "scheduled") ? "scheduled" : "publishing";
     const now = new Date().toISOString();
     const updated = await auditContext.db.from("marketing_social_compositions").update({ status, upload_post_posts: uploadPosts, zernio_post_urls: zernioPostUrls, last_synced_at: now, updated_by: auditContext.actor.id, updated_at: now }).eq("id", input.id).select("*").single();
@@ -378,7 +380,9 @@ export async function stopMarketingSocialComposition(input: { id: string; reason
     const scheduled = composition.status === "scheduled";
     const results = await Promise.all(entries.map(async ([platform, postId]) => {
       try {
-        if (scheduled) {
+        /* Sent directly: comes down through the network's own API. */
+        if (isKelinHandle(postId)) await removeKelinPost(postId);
+        else if (scheduled) {
           await cancelZernioSchedule(postId);
           await deleteZernioPost(postId);
         } else await unpublishZernioPost(postId, platform);
