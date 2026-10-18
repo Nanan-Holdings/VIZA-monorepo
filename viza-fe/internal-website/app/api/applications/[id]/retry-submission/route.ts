@@ -1784,6 +1784,13 @@ export async function POST(
   if (!legacyOwnsApplication && !supabaseOwnsApplication) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  /* The login that proved ownership acts for the applicant. Preferring the
+     legacy session whenever one existed broke a browser that still carried a
+     legacy cookie for another account: the payer check then saw the wrong
+     user and every submit answered 503. */
+  const actingAuthUserId = supabaseOwnsApplication
+    ? authUserId
+    : legacySession?.authUserId ?? ownedProfile.auth_user_id;
 
   const now = new Date().toISOString();
   const requestedSubmission = await readRetrySubmissionRequest(request);
@@ -1832,7 +1839,7 @@ export async function POST(
       admin,
       applicationId,
       applicantId: ownedProfile.id,
-      userId: legacySession?.authUserId ?? authUserId ?? ownedProfile.auth_user_id,
+      userId: actingAuthUserId ?? ownedProfile.auth_user_id,
       request,
     });
     if (consent.error) {
@@ -2013,7 +2020,7 @@ export async function POST(
   try {
     const returnTo = `/client/application/long-form?applicationId=${encodeURIComponent(applicationId)}&step=review`;
     await evaluateSubmissionAccess(admin, applicationId, {
-      payerAuthUserId: legacySession?.authUserId ?? authUserId ?? ownedProfile.auth_user_id,
+      payerAuthUserId: actingAuthUserId ?? ownedProfile.auth_user_id,
       returnTo,
     });
   } catch (error) {
@@ -2408,7 +2415,7 @@ export async function POST(
       admin,
       applicationId,
       applicantId: ownedProfile.id,
-      userId: legacySession?.authUserId ?? authUserId ?? ownedProfile.auth_user_id,
+      userId: actingAuthUserId ?? ownedProfile.auth_user_id,
       request,
     });
     if (consent.error) {
