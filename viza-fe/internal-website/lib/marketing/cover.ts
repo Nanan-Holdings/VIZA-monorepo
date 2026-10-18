@@ -65,3 +65,42 @@ export async function rehostMarketingCover(source: string | null): Promise<strin
     return admin.storage.from(MARKETING_ASSET_BUCKET).getPublicUrl(path).data.publicUrl;
   } catch { return null; }
 }
+
+/* Fallback covers: VIZA's own destination hero photos on the marketing site
+   (viza-fe/marketing-website/public/assets/heroes). Some publishers, Canada.ca
+   releases on newswire.ca among them, carry no og:image, and an AI draft
+   cannot be published without a cover, so those runs stopped at "draft". A
+   hero is a vetted brand photo of the country the story is about, which is
+   what a reviewer would pick. The first destination named in the text wins;
+   a story naming none keeps no cover and stays a draft for a person. */
+/* Names match in any case; acronyms (US, UK, UAE, EES, ...) only in capitals,
+   so "let us" never reads as the United States. */
+const DESTINATION_HEROES: Array<{ slug: string; patterns: RegExp[] }> = [
+  { slug: "australia", patterns: [/\baustralia(?:n|ns)?\b/i] },
+  { slug: "canada", patterns: [/\bcanad(?:a|ian|ians)\b|\bexpress entry\b/i, /\bIRCC\b/] },
+  { slug: "france", patterns: [/\bfrance\b|\bfrench\b|\bschengen\b|\bentry\/exit system\b/i, /\bETIAS\b|\bEES\b/] },
+  { slug: "india", patterns: [/\bindia(?:n|ns)?\b/i] },
+  { slug: "indonesia", patterns: [/\bindonesia(?:n|ns)?\b|\bbali\b/i] },
+  { slug: "italy", patterns: [/\bital(?:y|ian|ians)\b/i] },
+  { slug: "japan", patterns: [/\bjapan(?:ese)?\b/i] },
+  { slug: "malaysia", patterns: [/\bmalaysia(?:n|ns)?\b/i, /\bMDAC\b/] },
+  { slug: "saudi-arabia", patterns: [/\bsaudi\b/i] },
+  { slug: "thailand", patterns: [/\bthai(?:land)?\b/i] },
+  { slug: "turkiye", patterns: [/t(?:ü|u)rkiye\b|\bturkey\b|\bturkish\b/i] },
+  { slug: "united-arab-emirates", patterns: [/\bunited arab emirates\b|\bdubai\b|\babu dhabi\b|\bemirati\b/i, /\bUAE\b/] },
+  { slug: "united-kingdom", patterns: [/\bunited kingdom\b|\bbritain\b|\bbritish\b|\bengland\b|\bhome office\b/i, /\bUK\b|\bU\.K\./] },
+  { slug: "united-states", patterns: [/\bunited states\b|\bamerica(?:n|ns)?\b/i, /\bUS\b|\bU\.S\.|\bUSA\b|\bESTA\b|\bUSCIS\b|\bH-1B\b/] },
+  { slug: "vietnam", patterns: [/\bvietnam(?:ese)?\b|\bviet nam\b/i] },
+];
+
+/** The marketing-site hero photo for the first destination the text names, or null. */
+export function destinationCoverUrl(text: string, siteBase = process.env.VIZA_MARKETING_PUBLIC_BASE_URL?.trim() || "https://viza.it.com"): string | null {
+  let best: { slug: string; index: number } | null = null;
+  for (const { slug, patterns } of DESTINATION_HEROES) {
+    for (const pattern of patterns) {
+      const index = text.search(pattern);
+      if (index >= 0 && (!best || index < best.index)) best = { slug, index };
+    }
+  }
+  return best ? new URL(`/assets/heroes/${best.slug}.jpg`, siteBase).toString() : null;
+}
