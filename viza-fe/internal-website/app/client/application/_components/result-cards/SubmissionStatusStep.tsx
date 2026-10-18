@@ -17,6 +17,7 @@ import type {
   DigitalArrivalCardSubmissionResult,
   GenericEvisaSubmissionResult,
   GenericSubmissionResult,
+  ManualHandoffSubmissionResult,
   SubmissionResult,
   SubmissionResultStatus,
   TwSubmissionResult,
@@ -42,6 +43,7 @@ import {
   type SubmissionVisualStatus,
 } from "./WaitingCard";
 import { FailureCard } from "./FailureCard";
+import { ManualHandoffResultCard } from "./ManualHandoffResultCard";
 import { UsResultCard } from "./UsResultCard";
 import { FrResultCard } from "./FrResultCard";
 import { UkResultCard } from "./UkResultCard";
@@ -2371,6 +2373,17 @@ export function SubmissionStatusStep({
     return null;
   }, [effectiveResult, result, snapshot?.result]);
 
+  /* Handed to a consultant: there is no automation run to show progress for,
+     whatever the stored status says, until staff record the outcome. */
+  const manualHandoff = [result, snapshot?.result, effectiveResult].find(isManualHandoffResult) ?? null;
+  if (manualHandoff && !submissionStarting && !resubmitting) {
+    return (
+      <div className="space-y-4">
+        <ManualHandoffResultCard result={manualHandoff} />
+      </div>
+    );
+  }
+
   if (submissionStarting) {
     return (
       <div className="space-y-4">
@@ -2707,6 +2720,15 @@ export function SubmissionStatusStep({
   );
 }
 
+function isManualHandoffResult(value: unknown): value is ManualHandoffSubmissionResult {
+  return Boolean(
+    value &&
+    typeof value === "object" &&
+    (value as { country?: unknown }).country === "MANUAL" &&
+    (value as { status?: unknown }).status === "handed_to_team",
+  );
+}
+
 function isFranceSubmission(country: string | null, visaType: string | null): boolean {
   return (
     country?.toUpperCase() === "FR" ||
@@ -2767,6 +2789,8 @@ function renderSubmissionResultCard(
   }
 
   switch (result.country) {
+    case "MANUAL":
+      return <ManualHandoffResultCard result={result} />;
     case "US":
       return <UsResultCard applicationId={applicationId ?? undefined} result={result} />;
     case "FR":

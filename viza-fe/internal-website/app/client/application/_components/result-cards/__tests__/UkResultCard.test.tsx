@@ -35,7 +35,7 @@ describe("UkResultCard", () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(screen.getByText("需要处理")).toBeInTheDocument();
     expect(
-      screen.getByText("需要处理，VIZA 自动付款已移除。请联系支持人员确认官方流程的下一步。"),
+      screen.getByText("接下来需要支付官方费用。VIZA 顾问会通过邮件把官方付款链接和下一步发给你。"),
     ).toBeInTheDocument();
     expect(screen.getByText("GWF123456789")).toBeInTheDocument();
     expect(screen.queryByText("private@example.com")).not.toBeInTheDocument();
@@ -75,7 +75,7 @@ describe("UkResultCard", () => {
 
     expect(screen.getByText("需要处理")).toBeInTheDocument();
     expect(
-      screen.getByText("需要处理，VIZA 自动付款已移除。请联系支持人员确认官方流程的下一步。"),
+      screen.getByText("接下来需要支付官方费用。VIZA 顾问会通过邮件把官方付款链接和下一步发给你。"),
     ).toBeInTheDocument();
     expect(screen.queryByText("VIZA 正在复核")).not.toBeInTheDocument();
   });
@@ -94,7 +94,7 @@ describe("UkResultCard", () => {
     );
 
     expect(screen.getByText("需要处理")).toBeInTheDocument();
-    expect(screen.getByText(/自动付款已移除/u)).toBeInTheDocument();
+    expect(screen.getByText(/官方付款链接/u)).toBeInTheDocument();
     expect(screen.queryByText("已支付")).not.toBeInTheDocument();
     expect(screen.queryByText(/保存官方回执/u)).not.toBeInTheDocument();
   });

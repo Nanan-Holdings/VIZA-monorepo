@@ -4069,10 +4069,10 @@
     "willSendWhenConnected": "Message will be sent when connected"
   },
   "inviteFriends": {
-    "heroTitle": "Refer your friends",
-    "heroSubtitle": "Earn VIZA points",
-    "referHeading": "Share your referral code and earn 99 points",
-    "referDescription": "Give your referral code to friends and family. When a new user signs up with it, both of you receive 99 VIZA points.",
+    "heroTitle": "Invite your friends",
+    "heroSubtitle": "VIZA is free for everyone",
+    "referHeading": "Share your referral code",
+    "referDescription": "Send your code to friends and family who are planning a trip. When they sign up with it, we know you introduced them.",
     "referralCode": "Referral code",
     "loadingLink": "Loading your code...",
     "copyCode": "Copy code",
@@ -4098,19 +4098,19 @@
     "steps": {
       "share": {
         "title": "Share your referral code",
-        "description": "Invite your friends to join VIZA with your personal code."
+        "description": "Send your personal code to friends who need a visa or arrival card."
       },
       "give": {
-        "title": "Give your friend 99 points",
-        "description": "New users receive 99 points when they register with your code."
+        "title": "Your friend signs up",
+        "description": "They enter your code when they create their free VIZA account."
       },
       "earn": {
-        "title": "Earn 99 points",
-        "description": "You also receive 99 points for each new user who signs up with your code."
+        "title": "We help them apply",
+        "description": "VIZA prepares their application and, where it can, files it on the official site. There is no VIZA service fee."
       },
       "redeem": {
-        "title": "Redeem rewards",
-        "description": "Use points in the points marketplace inside Settings."
+        "title": "",
+        "description": ""
       }
     },
     "faqTitle": "Frequently Asked Questions",
@@ -4121,16 +4121,16 @@
     },
     "faqs": {
       "whenReward": {
-        "question": "When do I get my reward?",
-        "answer": "Your 99 points are added after a new user successfully registers with your referral code."
+        "question": "Is there a reward?",
+        "answer": "No. VIZA is a free service, so there are no points or rewards to earn. Referral codes only tell us who introduced a new user."
       },
       "howUseCredit": {
-        "question": "How do I use points?",
-        "answer": "Open the points center in Settings and redeem available rewards from the points marketplace."
+        "question": "Does my friend pay anything?",
+        "answer": "VIZA charges no service fee. Some governments charge an official visa fee, which is paid on the official site."
       },
       "whoEligible": {
-        "question": "Who's eligible?",
-        "answer": "New members only. One discount per new member."
+        "question": "Who can I invite?",
+        "answer": "Anyone planning a trip. Each new account can enter one referral code when signing up."
       }
     }
   },
@@ -4599,7 +4599,7 @@
       "subtitle": "Describe the issue like an email and attach files if needed. We'll respond quickly.",
       "issueLabel": "Issue type: {activity}",
       "subjectLabel": "Subject",
-      "subjectPlaceholder": "Example: Payment failed / Question about status",
+      "subjectPlaceholder": "Example: Question about my application status",
       "descriptionLabel": "Issue description",
       "descriptionPlaceholder": "Describe what happened, when it occurred, and what outcome you expect.",
       "attachmentsLabel": "Attachments (optional)",

@@ -589,13 +589,6 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
               badge={t("rows.travelers.badge")}
             />
             <SettingsRow
-              icon={Coins}
-              title={t("rows.pointsCenter.title")}
-              description={t("rows.pointsCenter.description")}
-              href="/client/settings/points"
-              badge={t("rows.pointsCenter.badge")}
-            />
-            <SettingsRow
               icon={Globe2}
               title={t("rows.language.title")}
               description={t("rows.language.description")}

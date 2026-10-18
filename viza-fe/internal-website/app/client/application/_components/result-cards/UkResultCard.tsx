@@ -101,8 +101,8 @@ export function UkResultCard({
         <p className="text-sm leading-relaxed text-muted-foreground">
           {officialStepNeedsAttention
             ? (isZh
-                ? "需要处理，VIZA 自动付款已移除。请联系支持人员确认官方流程的下一步。"
-                : "Needs attention. VIZA automated payment has been removed. Contact support to confirm the next official-portal step.")
+                ? "接下来需要支付官方费用。VIZA 顾问会通过邮件把官方付款链接和下一步发给你。"
+                : "The official fee is next. Your VIZA consultant will email you the official payment link and the next step.")
             : (isZh
                 ? "gov.uk 账户已创建，但自动填写尚未完成。请点击下方「重新提交到 gov.uk」启动自动填写；运行期间请保持 submission-service worker 运行。"
                 : "Your gov.uk account is ready, but automated pre-fill has not finished yet. Click “Retry gov.uk prefill” below to start the fill — keep the submission-service worker running.")}

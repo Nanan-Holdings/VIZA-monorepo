@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { ManualHandoffSubmissionResult } from "@/lib/submission-result";
 import { resolveMx } from "node:dns/promises";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -608,6 +609,19 @@ function liveRetryEnabledForApplication(country: string | null, visaType: string
       process.env.NEXT_PUBLIC_INDONESIA_LIVE_SUBMISSION_ENABLED !== "false";
   }
   return false;
+}
+
+function manualHandoffResult(
+  application: Pick<ApplicationForRetry, "country" | "visa_type">,
+  now: string,
+): ManualHandoffSubmissionResult {
+  return {
+    country: "MANUAL",
+    status: "handed_to_team",
+    handedAt: now,
+    destinationCountry: application.country ?? null,
+    visaType: application.visa_type ?? null,
+  };
 }
 
 async function ensureApplicationAuthorisationConsent(input: {
@@ -1797,9 +1811,95 @@ export async function POST(
       ? "dry_run"
       : requestedMode;
 
+  /* No automation for this product, or its automation is switched off: hand
+     it to the VIZA team.
+
+     A dry run used to be the only outcome for a product without automation,
+     and it showed real applicants a "Dry-run submission complete" card with a
+     mock confirmation number; a product whose live automation was switched off
+     on the server answered 400 or 403 and left the applicant stuck. A dry run
+     is now reserved for the isolated QA smoke application. Everyone else's
+     application goes to a consultant, who files it on the official site and
+     records the outcome from the admin work queue. */
+  const handOffToTeam = async (): Promise<Response> => {
+    if (isJapanVisitJapanWebApplication(ownedApplication.country, ownedApplication.visa_type)) {
+      return NextResponse.json(
+        { error: "Visit Japan Web submission is paused for a compliance review.", code: "jp_vjw_paused" },
+        { status: 403 },
+      );
+    }
+    const consent = await ensureApplicationAuthorisationConsent({
+      admin,
+      applicationId,
+      applicantId: ownedProfile.id,
+      userId: legacySession?.authUserId ?? authUserId ?? ownedProfile.auth_user_id,
+      request,
+    });
+    if (consent.error) {
+      return NextResponse.json(
+        { error: "Unable to record the final application authorisation.", code: "application_authorisation_record_failed" },
+        { status: 500 },
+      );
+    }
+    const handoff = manualHandoffResult(ownedApplication, now);
+    const { error: handoffError } = await admin
+      .from("applications")
+      .update({
+        status: "staff_action_required",
+        submitted_at: now,
+        submission_result_status: "processing",
+        submission_result: handoff,
+        confirmation_number: null,
+        submission_result_updated_at: now,
+        updated_at: now,
+      })
+      .eq("id", applicationId);
+    if (handoffError) {
+      return NextResponse.json({ error: handoffError.message }, { status: 500 });
+    }
+    const { error: workItemError } = await admin.from("admin_work_items").upsert(
+      {
+        application_id: applicationId,
+        applicant_id: ownedProfile.id,
+        source_type: "application",
+        source_id: applicationId,
+        dedupe_key: `manual-submission:${applicationId}`,
+        kind: "manual_submission",
+        title: `File ${ownedApplication.visa_type ?? "visa"} for ${ownedApplication.country ?? "destination"} on the official site`,
+        description: "The applicant submitted a complete application for a product without automated submission. Check the answers and documents, file it on the official site, then record the reference or outcome.",
+        status: "open",
+        priority: "p1",
+        owning_team: "operations",
+        metadata_redacted: { country: ownedApplication.country, visaType: ownedApplication.visa_type, handedAt: now },
+      },
+      { onConflict: "dedupe_key" },
+    );
+    if (workItemError) {
+      console.error("[retry-submission] manual hand-off work item not created", {
+        applicationId: applicationId.slice(0, 8),
+        reason: workItemError.message,
+      });
+    }
+    return NextResponse.json({
+      ok: true,
+      applicationId,
+      jobId: null,
+      queueStatus: null,
+      mode: "manual",
+      provider: "viza_team",
+      manual: true,
+      scheduled: false,
+      scheduledFor: null,
+      result: handoff,
+      submissionResultStatus: "processing",
+      workerTriggered: false,
+    });
+  };
+
   if (
     !isQaDryRunPurpose(ownedApplication.purpose) &&
     isAutomatedOnlineApplication(ownedApplication.country, ownedApplication.visa_type) &&
+    liveRetryEnabledForApplication(ownedApplication.country, ownedApplication.visa_type) &&
     mode !== "live_assisted"
   ) {
     return NextResponse.json(
@@ -1976,17 +2076,19 @@ export async function POST(
       isDigitalArrivalCardApplication(ownedApplication.country, ownedApplication.visa_type) ||
       isTaiwanEntryPermitApplication(ownedApplication.country, ownedApplication.visa_type) ||
       isIndonesiaEVisaApplication(ownedApplication.country, ownedApplication.visa_type);
-    if (!provider || !supportsLiveAssisted) {
-      return NextResponse.json(
-        { error: "Live assisted retry is not supported for this visa type." },
-        { status: 400 },
-      );
-    }
-    if (!liveRetryEnabledForApplication(ownedApplication.country, ownedApplication.visa_type)) {
+    /* Visit Japan Web stays refused while its compliance review is open: a
+       consultant filing it by hand would be the same delegated operation. */
+    if (
+      isJapanVisitJapanWebApplication(ownedApplication.country, ownedApplication.visa_type) &&
+      !liveRetryEnabledForApplication(ownedApplication.country, ownedApplication.visa_type)
+    ) {
       return NextResponse.json(
         { error: "Live assisted retry is disabled by environment configuration." },
         { status: 403 },
       );
+    }
+    if (!provider || !supportsLiveAssisted || !liveRetryEnabledForApplication(ownedApplication.country, ownedApplication.visa_type)) {
+      return handOffToTeam();
     }
     if (isJapanVisitJapanWebApplication(ownedApplication.country, ownedApplication.visa_type)) {
       const missingFields = validateJapanLiveAnswers({
@@ -2270,6 +2372,10 @@ export async function POST(
         scheduledFor = scheduleDecision.earliestSubmissionDate;
       }
     }
+  }
+
+  if (mode === "dry_run" && !isQaDryRunPurpose(ownedApplication.purpose)) {
+    return handOffToTeam();
   }
 
   const poolFlow = resolveRunnerPoolFlow(

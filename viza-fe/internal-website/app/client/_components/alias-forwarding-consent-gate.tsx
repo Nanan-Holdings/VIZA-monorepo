@@ -26,6 +26,18 @@ interface AliasForwardingConsentGateProps {
   enabled: boolean;
 }
 
+/* "Not now" holds for the browser session. The dialog used to be impossible
+   to close, so a failed inbox setup locked the whole portal. */
+const DISMISS_KEY = "viza:alias-forwarding-consent:dismissed";
+
+function wasDismissed(): boolean {
+  try {
+    return window.sessionStorage.getItem(DISMISS_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 function actionErrorMessage(code: ApplicantInboxActionErrorCode, isZh: boolean): string {
   if (code === "AUTH_REQUIRED") {
     return isZh
@@ -51,9 +63,14 @@ export function AliasForwardingConsentGate({
   const [loading, setLoading] = useState(false);
   const [authorizing, setAuthorizing] = useState(false);
   const [errorCode, setErrorCode] = useState<ApplicantInboxActionErrorCode | null>(null);
+  const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
     if (!enabled) return;
+    if (wasDismissed()) {
+      setDismissed(true);
+      return;
+    }
 
     let cancelled = false;
     setLoading(true);
@@ -81,9 +98,18 @@ export function AliasForwardingConsentGate({
     };
   }, [enabled]);
 
-  if (!enabled || loading || setup?.forwardingAuthorized) {
+  if (!enabled || loading || dismissed || setup?.forwardingAuthorized) {
     return null;
   }
+
+  const dismiss = () => {
+    try {
+      window.sessionStorage.setItem(DISMISS_KEY, "1");
+    } catch {
+      // Private mode: the dialog simply returns on the next page load.
+    }
+    setDismissed(true);
+  };
 
   const authorize = async () => {
     if (!accepted || authorizing) return;
@@ -106,10 +132,9 @@ export function AliasForwardingConsentGate({
   const errorMessage = errorCode ? actionErrorMessage(errorCode, isZh) : null;
 
   return (
-    <Dialog open>
+    <Dialog open onOpenChange={(open) => { if (!open) dismiss(); }}>
       <DialogContent
         className="max-w-xl gap-5 rounded-lg [&>button]:hidden"
-        onEscapeKeyDown={(event) => event.preventDefault()}
         onInteractOutside={(event) => event.preventDefault()}
       >
         <DialogHeader className="gap-2 text-left">
@@ -160,7 +185,7 @@ export function AliasForwardingConsentGate({
 
         {errorMessage ? <ClientErrorAlert message={errorMessage} /> : null}
 
-        <DialogFooter>
+        <DialogFooter className="gap-2 sm:flex-col">
           <Button
             type="button"
             size="lg"
@@ -170,6 +195,9 @@ export function AliasForwardingConsentGate({
           >
             {authorizing ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}
             {isZh ? "授权并继续" : "Authorize and continue"}
+          </Button>
+          <Button type="button" variant="ghost" size="lg" className="w-full" onClick={dismiss}>
+            {isZh ? "暂不授权" : "Not now"}
           </Button>
         </DialogFooter>
       </DialogContent>

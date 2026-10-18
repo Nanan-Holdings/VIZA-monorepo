@@ -123,25 +123,25 @@ function phaseIndexForStage(stage: SubmissionVisualStage | null | undefined): nu
 function chineseStageMessage(stage: string): string {
   const normalized = stage.trim().toLowerCase();
   const exactMessages: Record<string, string> = {
-    payment_authorized: "官网费用步骤需要人工处理。VIZA 不提供自动付款。",
-    official_fee_payment_processing: "官网费用步骤需要人工处理。VIZA 不提供自动付款。",
-    official_fee_payment_required: "官网费用步骤需要人工处理。VIZA 不提供自动付款。",
-    payment_page_visible: "官网费用步骤需要人工处理。VIZA 不提供自动付款。",
-    bank_authentication_waiting: "官网费用步骤需要人工处理。VIZA 不提供自动付款。",
+    payment_authorized: "接下来需要支付官方费用。VIZA 顾问会通过邮件把官方付款链接发给你，你在官方网站付款即可。",
+    official_fee_payment_processing: "接下来需要支付官方费用。VIZA 顾问会通过邮件把官方付款链接发给你，你在官方网站付款即可。",
+    official_fee_payment_required: "接下来需要支付官方费用。VIZA 顾问会通过邮件把官方付款链接发给你，你在官方网站付款即可。",
+    payment_page_visible: "接下来需要支付官方费用。VIZA 顾问会通过邮件把官方付款链接发给你，你在官方网站付款即可。",
+    bank_authentication_waiting: "接下来需要支付官方费用。VIZA 顾问会通过邮件把官方付款链接发给你，你在官方网站付款即可。",
     registration_code_captured: "已取得官网登记编号，正在确认最终结果。",
     preparing_managed_alias: "正在准备本次申请使用的专属邮箱。",
     managed_account_required: "正在准备官网托管账号。",
     captcha_required: "正在等待完成官网验证码。",
     otp_required: "正在等待完成一次性验证码验证。",
     email_verification_pending: "正在等待完成官网邮箱验证。",
-    payment_processing: "官网费用步骤需要人工处理。VIZA 不提供自动付款。",
-    payment_confirming: "官网费用步骤需要人工处理。VIZA 不提供自动付款。",
+    payment_processing: "接下来需要支付官方费用。VIZA 顾问会通过邮件把官方付款链接发给你，你在官方网站付款即可。",
+    payment_confirming: "接下来需要支付官方费用。VIZA 顾问会通过邮件把官方付款链接发给你，你在官方网站付款即可。",
     confirmation_pending: "正在等待官网返回最终确认。",
     completed: "官网流程已完成。",
   };
   const exact = exactMessages[normalized];
   if (exact) return exact;
-  if (/payment|fee|bank|3ds/.test(normalized)) return "官网费用步骤需要人工处理。VIZA 不提供自动付款。";
+  if (/payment|fee|bank|3ds/.test(normalized)) return "接下来需要支付官方费用。VIZA 顾问会通过邮件把官方付款链接发给你，你在官方网站付款即可。";
   if (/captcha|turnstile|waf/.test(normalized)) return "正在处理官网安全验证。";
   if (/otp|email|alias|account/.test(normalized)) return "正在处理官网账号或验证码。";
   if (/fill|form|answer|mapping/.test(normalized)) return "正在填写并校验官网表单。";
@@ -161,8 +161,8 @@ export function localizeProgressMessage(
   if (!message) return null;
   if (/payment|virtual card|bank authentication|3ds|付款|支付|银行卡/i.test(message)) {
     return isZh
-      ? "官网费用步骤需要人工处理。VIZA 不提供自动付款。"
-      : "The official fee checkpoint needs manual attention. VIZA does not provide automated payment.";
+      ? "接下来需要支付官方费用。VIZA 顾问会通过邮件把官方付款链接发给你，你在官方网站付款即可。"
+      : "The official fee is next. Your VIZA consultant will email you the official payment link; you pay on the official site.";
   }
   if (
     /official portal could not read required fields from the passport image|official_passport_scan_invalid_data|step_1_passport_scan_invalid_data/i.test(

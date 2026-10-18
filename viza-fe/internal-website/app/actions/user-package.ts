@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { getPopularVisaDestination } from "@/lib/visa-destinations";
 import { getClientSessionWithFallback } from "@/lib/client-session";
+import { isCountryLaunched } from "@/lib/launched-countries";
 
 export interface UserVisaPackage {
   id: string;
@@ -153,6 +154,11 @@ export async function selectUserVisaDestination(
     const destination = getPopularVisaDestination(destinationId);
     if (!destination) {
       return { success: false, error: "Unknown destination" };
+    }
+    /* The pickers grey out "coming soon" destinations, but the region and
+       Schengen pages did not, so the server is the gate. */
+    if (!isCountryLaunched(destination.country)) {
+      return { success: false, error: "This destination is coming soon. Choose a launched destination." };
     }
 
     const supabase = await createClient({ requestTimeoutMs: 3_000 });

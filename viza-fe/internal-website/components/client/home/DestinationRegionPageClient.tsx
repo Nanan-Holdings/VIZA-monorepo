@@ -22,6 +22,7 @@ import {
   type UserVisaPackage,
 } from "@/app/actions/user-package";
 import { buildApplicationLongFormHref } from "@/lib/client/recent-application-form";
+import { isCountryLaunched } from "@/lib/launched-countries";
 
 const DESTINATION_SELECTION_UI_TIMEOUT_MS = 5_000;
 
@@ -70,6 +71,13 @@ export const SUPPORT_LABELS_ZH: Record<string, string> = {
   "Destination region": "目的地区域",
 };
 
+/* Same gate as the home picker and the server action: a destination outside
+   the launch list cannot be started yet. Groups and fixed links open their
+   own pages, which apply the gate to each choice. */
+function isComingSoon(destination: PopularVisaDestination): boolean {
+  return destination.kind !== "group" && !destination.href && !isCountryLaunched(destination.country);
+}
+
 export function DestinationRegionPageClient({
   region,
   destinations,
@@ -96,6 +104,7 @@ export function DestinationRegionPageClient({
   function handleSelect(destination: PopularVisaDestination) {
     if (pendingDestinationId) return;
     setSelectionError(null);
+    if (isComingSoon(destination)) return;
 
     if (destination.href) {
       router.push(destination.href);
@@ -164,6 +173,7 @@ export function DestinationRegionPageClient({
               const selected = isSelectedDestination(destination, initialSelectedPackages);
               const loading = pendingDestinationId === destination.id;
               const isGroup = destination.kind === "group";
+              const comingSoon = isComingSoon(destination);
               const applicationHref = destination.href
                 ?? (isGroup
                   ? null
@@ -171,7 +181,9 @@ export function DestinationRegionPageClient({
                       country: destination.country,
                       visaType: destination.visaType,
                     }));
-              const actionLabel = isGroup
+              const actionLabel = comingSoon
+                ? (isZh ? "即将开放" : "Coming soon")
+                : isGroup
                 ? destinationMessages("chooseCategory")
                 : selected
                   ? (isZh ? "打开" : "Open")
@@ -192,13 +204,14 @@ export function DestinationRegionPageClient({
                   onMouseEnter={() => {
                     if (applicationHref) router.prefetch(applicationHref);
                   }}
-                  disabled={loading}
+                  disabled={loading || comingSoon}
+                  aria-disabled={comingSoon || undefined}
                   className={[
                     "group flex min-h-[144px] flex-col justify-between rounded-[16px] border bg-white p-4 text-left transition sm:min-h-[164px] sm:p-5",
                     selected
                       ? "border-[#03346E] shadow-[0_12px_30px_rgba(3,52,110,0.12)]"
                       : "border-[#efefef] hover:border-[#c7d5e8] hover:shadow-[0_10px_26px_rgba(15,23,42,0.08)]",
-                    loading ? "cursor-wait opacity-80" : "cursor-pointer",
+                    loading ? "cursor-wait opacity-80" : comingSoon ? "cursor-not-allowed opacity-60" : "cursor-pointer",
                   ].join(" ")}
                 >
                   <div className="flex items-start justify-between gap-3">

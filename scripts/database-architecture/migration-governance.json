@@ -274,6 +274,11 @@
       "reason": "Portal-owned short-video composition columns and marketing asset bucket MIME update have no agent-backend Drizzle mirror."
     },
     {
+      "path": "viza-fe/internal-website/supabase/migrations/20261012000000_scope_application_answers_profile_fields_rls.sql",
+      "sha256": "72c5ba8663f6cb6515a7e999b15df1198d0e08dc1798603d30c6f847d6cd6dcb",
+      "reason": "Portal-owned RLS fix scoping visa_application_answers and shared_profile_fields reads to the owning applicant; applied in production before this file reached main."
+    },
+    {
       "path": "viza-fe/internal-website/supabase/migrations/20261019090000_marketing_social_dispatch.sql",
       "sha256": "1893a71d733de0118aa257ddb976944f6d89277c183779f3668929cc917030fe",
       "reason": "Portal-owned marketing automation job type for the in-house social dispatcher has no agent-backend Drizzle mirror."

@@ -10,14 +10,23 @@ describe("visa form schema aliases", () => {
     expect(resolveVisaFormSchemaVisaType("evisa_tourism", "VN")).toBe("VN_E_VISA");
   });
 
-  it("does not remap generic evisa_tourism for other countries", () => {
-    expect(resolveVisaFormSchemaVisaType("evisa_tourism", "egypt")).toBe("evisa_tourism");
+  it("maps evisa_tourism by country, never across countries", () => {
+    expect(resolveVisaFormSchemaVisaType("evisa_tourism", "egypt")).toBe("EG_E_VISA");
+    expect(resolveVisaFormSchemaVisaType("evisa_tourism", "thailand")).toBe("evisa_tourism");
     expect(resolveVisaFormSchemaVisaType("evisa_tourism", null)).toBe("evisa_tourism");
+  });
+
+  it("maps catalogue route codes to the schemas production holds", () => {
+    expect(resolveVisaFormSchemaVisaType("visitor_subclass_600", "australia")).toBe("AU_VISITOR_600");
+    expect(resolveVisaFormSchemaVisaType("visitor_subclass_600", "AU")).toBe("AU_VISITOR_600");
+    expect(resolveVisaFormSchemaVisaType("short_term_tourism_evisa", "japan")).toBe("JP_TOURIST");
+    expect(resolveVisaFormSchemaVisaType("visitor_visa", "new_zealand")).toBe("visitor_visa");
   });
 
   it("matches Vietnam route aliases against stored VN_E_VISA rows only for Vietnam", () => {
     expect(visaFormSchemaVisaTypesMatch("evisa_tourism", "VN_E_VISA", "vietnam")).toBe(true);
     expect(visaFormSchemaVisaTypesMatch("evisa_tourism", "VN_E_VISA", "egypt")).toBe(false);
+    expect(visaFormSchemaVisaTypesMatch("evisa_tourism", "EG_E_VISA", "egypt")).toBe(true);
   });
 
   it.each([

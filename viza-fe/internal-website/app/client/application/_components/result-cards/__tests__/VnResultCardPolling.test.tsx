@@ -30,12 +30,12 @@ describe("VnResultCard payment-free checkpoint", () => {
 
     expect(screen.getAllByText("需要处理")).toHaveLength(2);
     expect(
-      screen.getByText("需要处理，VIZA 自动付款已移除。请联系支持人员确认官方流程的下一步。"),
+      screen.getByText("接下来需要支付官方费用。VIZA 顾问会通过邮件把官方付款链接和下一步发给你。"),
     ).toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
-    expect(screen.queryByText(/虚拟卡|自动付款处理中|官方费用/u)).not.toBeInTheDocument();
+    expect(screen.queryByText(/虚拟卡|自动付款处理中/u)).not.toBeInTheDocument();
   });
 
   it("keeps a legacy registration code visible while hiding fee handling", () => {

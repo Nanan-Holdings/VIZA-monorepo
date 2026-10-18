@@ -9,8 +9,11 @@ export type Locale = (typeof locales)[number];
 export default getRequestConfig(async () => {
   const cookieStore = await cookies();
   const cookieLocale = cookieStore.get(LOCALE_COOKIE)?.value;
+  /* Only English and Chinese are translated. vi and es catalogs are mostly
+     "[VI]"/"[ES]" placeholders and the language selector never offers them,
+     so an old cookie for either falls back to the default. */
   const locale =
-    cookieLocale && locales.includes(cookieLocale as Locale)
+    cookieLocale === "en" || cookieLocale === "zh"
       ? (cookieLocale as Locale)
       : defaultLocale;
 
