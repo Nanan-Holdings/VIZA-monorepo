@@ -9136,17 +9136,28 @@ async function isSafeForIdleExit(): Promise<boolean> {
     return false;
   }
 
+  // Idle polling is off, so work that was enqueued while this Machine sat idle
+  // (for example when the enqueue wake failed) is never claimed by itself.
+  // When the authoritative check finds such work, start the matching drain
+  // instead of only refusing to exit; otherwise the job waits forever and the
+  // Machine never stops.
   try {
     if (
       RUNNER_JOB_CONSUMER_ENABLED
       && await hasCountryRunnerWork(RUNNER_JOB_COUNTRY || undefined)
     ) {
+      console.log("[idle] Unclaimed runner_job work found while idle; starting a drain.");
+      wakeRunnerJobs();
       return false;
     }
     if (LEGACY_SUBMISSION_QUEUE_ENABLED && await hasLegacyWorkerWork()) {
+      console.log("[idle] Unclaimed submission_queue work found while idle; starting a drain.");
+      wakeSubmissionQueue();
       return false;
     }
     if (INDONESIA_QUEUE_ENABLED && await hasIndonesiaWorkerWork()) {
+      console.log("[idle] Unclaimed Indonesia queue work found while idle; starting a drain.");
+      wakeSubmissionQueue();
       return false;
     }
     return true;

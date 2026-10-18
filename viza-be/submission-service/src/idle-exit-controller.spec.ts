@@ -125,3 +125,15 @@ test("shared runner-job consumers keep the Machine awake for unfiltered queued w
   assert.match(availabilitySource, /hasCountryRunnerWork\(country\?: string\)/);
   assert.match(availabilitySource, /if \(country\) query = query\.eq\("country", country\)/);
 });
+
+test("an idle worker that finds unclaimed work starts a drain instead of waiting", () => {
+  // Idle polling is off. Before this, a job enqueued while the Machine was
+  // idle kept it in idle_grace forever without ever being claimed.
+  const indexSource = readFileSync(path.join(__dirname, "index.ts"), "utf8");
+  const start = indexSource.indexOf("async function isSafeForIdleExit");
+  const body = indexSource.slice(start, indexSource.indexOf("\nasync function main", start));
+
+  assert.match(body, /hasCountryRunnerWork\([^)]*\)\s*\)\s*\{[\s\S]*?wakeRunnerJobs\(\);\s*return false;/);
+  assert.match(body, /hasLegacyWorkerWork\(\)\)\s*\{[\s\S]*?wakeSubmissionQueue\(\);\s*return false;/);
+  assert.match(body, /hasIndonesiaWorkerWork\(\)\)\s*\{[\s\S]*?wakeSubmissionQueue\(\);\s*return false;/);
+});
