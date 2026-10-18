@@ -5,12 +5,12 @@ import { completeMarketingJson, contentGenerationReadiness, generateBlogDraft, g
 import { getZernioPost, zernioPlatformPostUrl } from "./providers/zernio";
 import { isKelinHandle } from "./providers/kelin";
 import { refreshUploadPostDeliveries } from "./providers/upload-post";
-import { buildGroundedDraftBrief, MIN_ARTICLE_CHARS, rankNewsStories, readNewsStory, scanNews } from "./news-pipeline";
+import { buildGroundedDraftBrief, MIN_ARTICLE_CHARS, rankNewsStories, readNewsStory, scanNews, staleDateReason, staleHeadlineReason } from "./news-pipeline";
 import { rehostMarketingCover } from "./cover";
 import { measuredKeyword, measuredKeywords } from "./seo-keywords";
 import { normalizeMarketingSlug, parseGeneratedPlatformContent, validateBlogDraft } from "./validation";
 import { publishBlogPostById, publishSocialCompositionById } from "./publish";
-import type { MarketingBlogAdminRecord, MarketingBlogLocale, MarketingSocialPlatform } from "./contracts";
+import type { MarketingBlogAdminRecord, MarketingBlogLocale, MarketingSocialCompositionRecord, MarketingSocialPlatform } from "./contracts";
 import pipelineConfig from "@/scripts/pipeline.config.json";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -52,13 +52,26 @@ export async function runScheduledBlogGeneration(now = new Date(), options?: { a
       coveredTitles,
       relevanceRules: pipelineConfig.news.relevanceRules,
       businessDescription: pipelineConfig.business,
+      now,
+      maxAgeDays: pipelineConfig.news.maxAgeDays,
     }, completeMarketingJson);
+    /* The feed date alone let year-old stories through (see
+       news-pipeline/freshness.ts), so a candidate must also pass on its
+       headline and on the publisher's own article date before it is drafted. */
+    const freshness = { now, maxAgeDays: pipelineConfig.news.maxAgeDays };
+    const staleSkipped: Array<{ title: string; reason: string }> = [];
     let selected: { ranked: (typeof ranked)[number]; article: Awaited<ReturnType<typeof readNewsStory>> } | null = null;
     for (const candidate of ranked.filter((item) => item.score >= pipelineConfig.content.minimumRankScore).slice(0, 8)) {
+      const headlineStale = staleHeadlineReason(candidate.story.title, now);
+      if (headlineStale) { staleSkipped.push({ title: candidate.story.title.slice(0, 160), reason: headlineStale }); continue; }
       const article = await readNewsStory(candidate.story);
-      if (article.text.length >= MIN_ARTICLE_CHARS) { selected = { ranked: candidate, article }; break; }
+      if (article.text.length < MIN_ARTICLE_CHARS) continue;
+      const articleStale = article.publishedAt ? staleDateReason(article.publishedAt, freshness, "Publisher article") : null;
+      if (articleStale) { staleSkipped.push({ title: candidate.story.title.slice(0, 160), reason: articleStale }); continue; }
+      selected = { ranked: candidate, article };
+      break;
     }
-    if (!selected) throw new Error("No ranked story had enough readable source text to ground a draft");
+    if (!selected) throw new Error(`No fresh ranked story had enough readable source text to ground a draft${staleSkipped.length ? ` (${staleSkipped.length} skipped as stale)` : ""}`);
     const sourceBrief = buildGroundedDraftBrief(selected.ranked.story, selected.article, locale);
     const keywordOptions = measuredKeywords().slice(0, 40);
     const generated = await generateBlogDraft(locale, `${sourceBrief}\n\nVIZA business: ${pipelineConfig.business}\nVoice: ${pipelineConfig.voice.join(" ")}\nAllowed categories: ${pipelineConfig.taxonomy.categories.join(", ")}.\nUseful VIZA pages, when relevant: ${pipelineConfig.moneyPages.join(", ")}.\nAvoid these existing topics: ${coveredTitles.join(" | ") || "none"}.\nMeasured keyword options, only if relevant: ${keywordOptions.map((item) => item.keyword).join(" | ") || "none supplied"}.\nReturn a category, 2-4 topics, an SEO keyword, and an SEO title. Do not invent keyword search volume.`);
@@ -75,7 +88,7 @@ export async function runScheduledBlogGeneration(now = new Date(), options?: { a
     const topics = Array.isArray(json.topics) ? json.topics.filter((topic): topic is string => typeof topic === "string").slice(0, 4) : [];
     const seoKeyword = typeof json.seoKeyword === "string" ? json.seoKeyword.slice(0, 120) : null;
     const keywordRecord = seoKeyword ? measuredKeyword(seoKeyword) : null;
-    const inserted = await admin.from("marketing_blog_posts").insert({ locale: clean.locale, slug: clean.slug, status: "draft", title: clean.title, excerpt: clean.excerpt, body_markdown: clean.bodyMarkdown, cover_image_url: coverImageUrl, category: clean.category ?? null, author_name: clean.authorName, seo_title: clean.seoTitle ?? null, seo_description: clean.seoDescription ?? null, generation_brief: sourceBrief.slice(0, 4_000), generated_by_model: generated.model, metadata: { automation_run_id: runId, idempotency_key: idempotencyKey, source_url: selected.article.url, source_publisher: selected.ranked.story.source, source_rank_score: selected.ranked.score, source_rank_reason: selected.ranked.reason, feed_errors: scanned.feedErrors, topics, seo_keyword: seoKeyword, keyword_measured: Boolean(keywordRecord), keyword_monthly_searches: keywordRecord?.averageMonthlySearches ?? null }, created_by: actorId, updated_by: actorId }).select("*").single();
+    const inserted = await admin.from("marketing_blog_posts").insert({ locale: clean.locale, slug: clean.slug, status: "draft", title: clean.title, excerpt: clean.excerpt, body_markdown: clean.bodyMarkdown, cover_image_url: coverImageUrl, category: clean.category ?? null, author_name: clean.authorName, seo_title: clean.seoTitle ?? null, seo_description: clean.seoDescription ?? null, generation_brief: sourceBrief.slice(0, 4_000), generated_by_model: generated.model, metadata: { automation_run_id: runId, idempotency_key: idempotencyKey, source_url: selected.article.url, source_publisher: selected.ranked.story.source, source_rank_score: selected.ranked.score, source_rank_reason: selected.ranked.reason, source_published_at: selected.article.publishedAt ?? selected.ranked.story.publishedAt, stale_skipped: staleSkipped, feed_errors: scanned.feedErrors, topics, seo_keyword: seoKeyword, keyword_measured: Boolean(keywordRecord), keyword_monthly_searches: keywordRecord?.averageMonthlySearches ?? null }, created_by: actorId, updated_by: actorId }).select("*").single();
     if (inserted.error || !inserted.data) throw new Error(inserted.error?.message ?? "Unable to save scheduled blog draft");
     const post = mapBlogAdminRecord(inserted.data);
     let socialError: string | null = null;
@@ -114,15 +127,17 @@ export async function runScheduledBlogGeneration(now = new Date(), options?: { a
     } else if (autoPublish) {
       autoPublishError = `Score ${selected.ranked.score} is below the automatic publication minimum of ${minimumAutoScore}`;
     }
+    let autoSocialFailures: Array<{ platform: string; error: string }> = [];
     if (autoSocial && published && compositionId) {
       try {
-        await publishSocialCompositionById({ db: asMarketingDb(admin), actorId, compositionId, reason: `Automatic distribution, ${idempotencyKey}` });
+        const sent = await publishSocialCompositionById({ db: asMarketingDb(admin), actorId, compositionId, reason: `Automatic distribution, ${idempotencyKey}` });
+        autoSocialFailures = sent.failures ?? [];
       } catch (error) {
         autoSocialError = error instanceof Error ? error.message : "Automatic distribution failed";
       }
     }
 
-    await admin.from("marketing_automation_runs").update({ status: "succeeded", output_entity_type: "marketing_blog_post", output_entity_id: post.id, completed_at: new Date().toISOString(), heartbeat_at: new Date().toISOString(), updated_at: new Date().toISOString(), metadata: { locale, trigger, model: generated.model, slug: post.slug, social_error: socialError, rank_score: selected.ranked.score, auto_published: published, auto_publish_error: autoPublishError, auto_social_error: autoSocialError } }).eq("id", runId);
+    await admin.from("marketing_automation_runs").update({ status: "succeeded", output_entity_type: "marketing_blog_post", output_entity_id: post.id, completed_at: new Date().toISOString(), heartbeat_at: new Date().toISOString(), updated_at: new Date().toISOString(), metadata: { locale, trigger, model: generated.model, slug: post.slug, social_error: socialError, rank_score: selected.ranked.score, auto_published: published, auto_publish_error: autoPublishError, auto_social_error: autoSocialError, auto_social_failures: autoSocialFailures, stale_skipped: staleSkipped } }).eq("id", runId);
     await admin.from("marketing_provider_activity").insert({ provider: generated.provider, operation: "blog.generate.scheduled", status: "succeeded", entity_type: "marketing_blog_post", entity_id: post.id, actor_user_id: actorId, request_metadata: { reason: "Scheduled generation", idempotencyKey }, response_metadata: { model: generated.model, outputLength: post.bodyMarkdown.length } });
     if (!published) return { skipped: false, post };
     const refreshed = await admin.from("marketing_blog_posts").select("*").eq("id", post.id).maybeSingle();
@@ -148,6 +163,16 @@ export async function failStuckMarketingRuns(now = new Date()) {
   return { failedRunCount: ids.length };
 }
 
+/* A platform the composition asked for that never got a post or a delivery
+   record failed at publish time. Counting it keeps the composition "partial"
+   instead of letting the platforms that did post relabel it "published". */
+export function undeliveredPlatforms(
+  composition: Pick<MarketingSocialCompositionRecord, "platforms" | "zernioPosts">,
+  uploadPosts: MarketingSocialCompositionRecord["uploadPostPosts"],
+): MarketingSocialPlatform[] {
+  return composition.platforms.filter((platform) => !composition.zernioPosts[platform] && !uploadPosts[platform as keyof typeof uploadPosts]);
+}
+
 export async function runSocialReconciliation(now = new Date()) {
   const { actorId } = automationConfig(); const admin = createAdminClient({ requestTimeoutMs: 30_000 });
   const bucket = now.toISOString().slice(0, 13); const idempotencyKey = `social-reconcile:${bucket}`;
@@ -168,7 +193,7 @@ export async function runSocialReconciliation(now = new Date()) {
         const zernioPostUrls = { ...composition.zernioPostUrls };
         posts.forEach((body, index) => { const url = zernioPlatformPostUrl(body, entries[index][0]); if (url) zernioPostUrls[entries[index][0]] = url; });
         const uploadPosts = await refreshUploadPostDeliveries(composition.uploadPostPosts);
-        const allStatuses = [...statuses, ...Array<string>(directCount).fill("published"), ...Object.values(uploadPosts).map((item) => item.status)];
+        const allStatuses = [...statuses, ...Array<string>(directCount).fill("published"), ...Object.values(uploadPosts).map((item) => item.status), ...undeliveredPlatforms(composition, uploadPosts).map(() => "failed")];
         const status = allStatuses.every((item) => item === "published") ? "published" : allStatuses.some((item) => item === "failed") ? (allStatuses.some((item) => item === "published") ? "partial" : "failed") : allStatuses.every((item) => item === "scheduled") ? "scheduled" : "publishing";
         const updated = await admin.from("marketing_social_compositions").update({ status, upload_post_posts: uploadPosts, zernio_post_urls: zernioPostUrls, last_synced_at: now.toISOString(), updated_at: now.toISOString(), updated_by: actorId }).eq("id", composition.id);
         if (updated.error) throw new Error(updated.error.message);

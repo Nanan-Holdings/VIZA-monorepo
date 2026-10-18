@@ -54,18 +54,32 @@ async function generateWithOpenRouter(system: string, prompt: string, grounded: 
 
 async function generateWithDeepSeek(system: string, prompt: string): Promise<{ json: Record<string, unknown>; model: string; provider: MarketingTextProvider }> {
   const { apiKey, model } = deepSeekConfig();
-  const response = await fetch("https://api.deepseek.com/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model,
-      max_tokens: 8_192,
-      temperature: 0.5,
-      response_format: { type: "json_object" },
-      messages: [{ role: "system", content: system }, { role: "user", content: prompt }],
-    }),
-    signal: AbortSignal.timeout(280_000),
-  });
+  /* One retry for a busy or rate-limited API (the 15 Oct 2026 run was lost to
+     a single 503). Both attempts share the original 280 s budget, so the
+     route's 300 s limit still holds. */
+  const deadline = Date.now() + 280_000;
+  let response: Response | null = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    response = await fetch("https://api.deepseek.com/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        max_tokens: 8_192,
+        temperature: 0.5,
+        response_format: { type: "json_object" },
+        messages: [{ role: "system", content: system }, { role: "user", content: prompt }],
+      }),
+      signal: AbortSignal.timeout(Math.max(1_000, deadline - Date.now())),
+    });
+    if (attempt === 0 && [429, 500, 502, 503, 504].includes(response.status) && deadline - Date.now() > 120_000) {
+      await response.body?.cancel();
+      await new Promise((resolve) => setTimeout(resolve, 5_000));
+      continue;
+    }
+    break;
+  }
+  if (!response) throw new Error("DeepSeek request was not sent");
   const raw = await response.text();
   if (!response.ok) throw new Error(`DeepSeek request failed (${response.status})`);
   const body = JSON.parse(raw) as { choices?: Array<{ message?: { content?: string }; finish_reason?: string }> };

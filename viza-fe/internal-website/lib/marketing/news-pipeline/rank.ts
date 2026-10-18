@@ -36,16 +36,19 @@ function balancedCandidates(stories: NewsStory[], limit: number): NewsStory[] {
 /** The model ranks candidates; this function validates every returned ID and score. */
 export async function rankNewsStories(
   stories: NewsStory[],
-  options: { coveredTitles: string[]; relevanceRules: string[]; businessDescription: string },
+  options: { coveredTitles: string[]; relevanceRules: string[]; businessDescription: string; now?: Date; maxAgeDays?: number },
   completeJson: CompleteRanking,
 ): Promise<RankedNewsStory[]> {
   if (!stories.length) return [];
   const candidates = balancedCandidates(stories, 120);
+  const today = (options.now ?? new Date()).toISOString().slice(0, 10);
+  const maxAgeDays = options.maxAgeDays ?? 14;
   const system = [
     "You are VIZA's visa and travel news editor. Score source stories for usefulness to visa applicants and international travellers.",
     options.businessDescription,
     "Use the headline and summary only for selection. Do not infer official requirements from them.",
     "Score near duplicates of already covered stories 0. A Reddit discussion is a popularity signal, not an official source.",
+    `Today is ${today}. VIZA publishes news, not history: score 0 any story whose announcement, rule change or event happened more than ${maxAgeDays} days before today, even when the article or its feed date is new. Recaps, explainers and anniversary pieces about older changes also score 0.`,
     ...options.relevanceRules.map((rule) => `- ${rule}`),
   ].join("\n");
   const user = [

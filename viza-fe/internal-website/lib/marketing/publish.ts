@@ -170,7 +170,7 @@ export async function publishSocialCompositionById(input: {
   actorId: string;
   compositionId: string;
   reason: string;
-}): Promise<MarketingSocialCompositionRecord> {
+}): Promise<MarketingSocialCompositionRecord & { failures?: Array<{ platform: string; error: string }> }> {
   const { db, actorId, compositionId } = input;
   const reason = input.reason.trim();
   if (!reason) throw new Error("Reason is required");
@@ -247,12 +247,17 @@ export async function publishSocialCompositionById(input: {
       });
       uploadPosts[platform] = uploadPostDelivery(result);
     } catch (error) {
-      uploadFailures.push({ platform, error: errorText(error, "Upload-Post failed") });
+      /* Kept on the composition, not only counted: Instagram and Pinterest
+         failed on every automatic run from 6 to 16 Oct 2026 and nothing
+         recorded why, then reconciliation relabelled the run "published". */
+      const message = errorText(error, "Upload-Post failed").slice(0, 300);
+      uploadFailures.push({ platform, error: message });
+      uploadPosts[platform] = { status: "failed", requestId: null, jobId: null, postId: null, postUrl: null, error: message };
     }
   }
 
-  const createdCount = Object.keys(mergedPostIds).length + Object.keys(uploadPosts).length;
-  const failures = [...provider.failures, ...uploadFailures, ...directFailures];
+  const createdCount = Object.keys(mergedPostIds).length + Object.values(uploadPosts).filter((post) => post && post.status !== "failed").length;
+  const failures = [...provider.failures, ...uploadFailures, ...directFailures].map((failure) => ({ platform: failure.platform, error: (failure.error ?? "Provider failed").slice(0, 300) }));
   if (!createdCount) throw new Error(failures[0]?.error ?? "No provider created a post");
   const now = new Date().toISOString();
   const allUploadPublished = Object.values(uploadPosts).every((post) => post.status === "published");
@@ -274,7 +279,7 @@ export async function publishSocialCompositionById(input: {
     operation: composition.scheduledFor ? "social.schedule" : "social.publish",
     status: "succeeded", entityType: "marketing_social_composition", entityId: saved.id, reason,
     request: { platforms: composition.platforms, scheduled: Boolean(composition.scheduledFor) },
-    response: { postCount: createdCount, failureCount: failures.length, failedPlatforms: failures.map((failure) => failure.platform), providerStatus: status },
+    response: { postCount: createdCount, failureCount: failures.length, failedPlatforms: failures.map((failure) => failure.platform), failures, providerStatus: status },
   });
-  return saved;
+  return { ...saved, failures };
 }

@@ -32,4 +32,6 @@ export interface ReadableNewsStory {
   url: string;
   text: string;
   coverImageUrl: string | null;
+  /** The publisher's own publication date, when the page states one. */
+  publishedAt: string | null;
 }

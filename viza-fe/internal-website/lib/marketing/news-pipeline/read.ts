@@ -1,3 +1,4 @@
+import { articlePublishedAt } from "./freshness";
 import type { NewsStory, ReadableNewsStory } from "./types";
 
 const USER_AGENT = "VIZAEditorialBot/1.0 (+https://viza.it.com)";
@@ -32,7 +33,7 @@ function decodeText(value: string): string {
 }
 
 async function readArticle(value: string): Promise<ReadableNewsStory> {
-  const empty = { url: value, text: "", coverImageUrl: null };
+  const empty = { url: value, text: "", coverImageUrl: null, publishedAt: null };
   if (!safeExternalUrl(value) || /news\.google\.com$/i.test(new URL(value).hostname)) return empty;
   try {
     const response = await fetchExternal(value);
@@ -46,7 +47,7 @@ async function readArticle(value: string): Promise<ReadableNewsStory> {
       .replace(/<[^>]+>/g, " ")
       .replace(/\s+/g, " "))
       .trim().slice(0, 7_000);
-    return { url: response.url || value, text, coverImageUrl };
+    return { url: response.url || value, text, coverImageUrl, publishedAt: articlePublishedAt(html) };
   } catch {
     return empty;
   }

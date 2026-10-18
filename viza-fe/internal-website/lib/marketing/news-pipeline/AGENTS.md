@@ -13,3 +13,7 @@ builds a source-bounded brief for the existing marketing draft generator.
   readable publisher text and preserve the article URL in the draft brief.
 - News articles are not official visa guidance. Keep the prompt-injection and
   changing-requirement cautions in the grounded brief.
+- A story must be fresh three ways before it is drafted (`freshness.ts`): a
+  feed date inside `maxAgeDays` (undated items are dropped), a headline that
+  does not name only past years, and, when the publisher states one, an
+  article date inside the same window. Never use `dateModified` as the date.

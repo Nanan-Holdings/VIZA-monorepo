@@ -25,7 +25,7 @@ import { cancelZernioSchedule, deleteZernioPost, fetchZernioAnalytics, getZernio
 import { isKelinHandle, kelinDirectReady, removeKelinPost } from "@/lib/marketing/providers/kelin";
 import { cancelUploadPostSchedule, refreshUploadPostDeliveries, uploadPostConnectedPlatforms, uploadPostReadiness, uploadPostVideoVisibility } from "@/lib/marketing/providers/upload-post";
 import { publicMarketingBaseUrl, publishBlogPostById, publishSocialCompositionById } from "@/lib/marketing/publish";
-import { runScheduledBlogGeneration } from "@/lib/marketing/automation";
+import { runScheduledBlogGeneration, undeliveredPlatforms } from "@/lib/marketing/automation";
 import { measuredKeyword } from "@/lib/marketing/seo-keywords";
 import { normalizeMarketingSlug, parseGeneratedPlatformContent, validateBlogDraft, validateSocialComposition } from "@/lib/marketing/validation";
 import { marketingCategorySlug, revalidatePublicMarketingBlog } from "@/lib/marketing/revalidate";
@@ -351,7 +351,7 @@ export async function syncMarketingSocialComposition(input: { id: string }): Pro
     const zernioPostUrls = { ...composition.zernioPostUrls };
     responses.forEach((body, index) => { const url = zernioPlatformPostUrl(body, entries[index][0]); if (url) zernioPostUrls[entries[index][0]] = url; });
     const uploadPosts = await refreshUploadPostDeliveries(composition.uploadPostPosts);
-    const allStatuses = [...statuses, ...Array<string>(directCount).fill("published"), ...Object.values(uploadPosts).map((post) => post.status)];
+    const allStatuses = [...statuses, ...Array<string>(directCount).fill("published"), ...Object.values(uploadPosts).map((post) => post.status), ...undeliveredPlatforms(composition, uploadPosts).map(() => "failed")];
     const status: MarketingSocialCompositionRecord["status"] = allStatuses.every((value) => value === "published") ? "published" : allStatuses.some((value) => value === "failed") ? (allStatuses.some((value) => value === "published") ? "partial" : "failed") : allStatuses.every((value) => value === "scheduled") ? "scheduled" : "publishing";
     const now = new Date().toISOString();
     const updated = await auditContext.db.from("marketing_social_compositions").update({ status, upload_post_posts: uploadPosts, zernio_post_urls: zernioPostUrls, last_synced_at: now, updated_by: auditContext.actor.id, updated_at: now }).eq("id", input.id).select("*").single();
