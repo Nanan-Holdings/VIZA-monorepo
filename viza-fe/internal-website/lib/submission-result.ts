@@ -51,14 +51,22 @@ export type SubmissionResult =
   | GenericEvisaSubmissionResult
   | ManualHandoffSubmissionResult;
 
-/** A product with no automated submission, handed to the VIZA team. Written
-    by the retry-submission route; staff overwrite it with the outcome. */
+/** A product with no automated submission, handed to the VIZA team. The
+    retry-submission route writes handed_to_team; staff move it on with
+    "Record outcome" in admin (submitted, approved, refused, needs_info),
+    keeping the same object so the applicant's status step can show it. */
 export interface ManualHandoffSubmissionResult {
   country: "MANUAL";
-  status: "handed_to_team";
+  status: "handed_to_team" | "submitted" | "approved" | "refused" | "needs_info";
   handedAt: string;
   destinationCountry: string | null;
   visaType: string | null;
+  /** Government reference once filed. */
+  reference?: string | null;
+  /** When the current status was recorded. */
+  updatedAt?: string | null;
+  /** Staff message to the applicant: the refusal reason or what is needed. */
+  notes?: string | null;
 }
 
 /**
