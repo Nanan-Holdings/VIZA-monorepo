@@ -625,3 +625,7 @@ status additions, service-only ACL and existing non-proof terminal behavior.
 Keep `20260930102445_preserve_ds160_proof_stale_results.sql` byte-identical.
 The synthetic PostgreSQL fixture under `src/tests/` verifies behavior and
 rolls back; it is not a production maintenance command.
+
+## Isolated U.S. appointment release
+
+`0193_us_appointment_runner_claims.sql` adds private exact-owner execution claims for CN USVisaScheduling. It does not change shared runner RPCs. Active claims require reconciliation rather than expiration takeover.
