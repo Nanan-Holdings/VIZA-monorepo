@@ -1,4 +1,4 @@
-/* Vendored from Kelin-Studio/kelin-social@bd0129d (src/threads.ts). Edit there and re-sync. */
+/* Vendored from Kelin-Studio/kelin-social@9cf1e11 (src/threads.ts). Edit there and re-sync. */
 /* Threads, through the Threads API (graph.threads.net), not the Facebook Graph.
 
    Threads tokens are their own: a long-lived one lasts 60 days and must be

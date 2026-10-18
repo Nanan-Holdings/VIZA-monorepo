@@ -1,4 +1,4 @@
-/* Vendored from Kelin-Studio/kelin-social@bd0129d (src/oauth1.ts). Edit there and re-sync. */
+/* Vendored from Kelin-Studio/kelin-social@9cf1e11 (src/oauth1.ts). Edit there and re-sync. */
 /* OAuth 1.0a request signing (HMAC-SHA1), RFC 5849.
 
    X still accepts OAuth 1.0a user context for posting, and its user tokens do

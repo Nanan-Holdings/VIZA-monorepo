@@ -1,4 +1,4 @@
-/* Vendored from Kelin-Studio/kelin-social@bd0129d (src/x.ts). Edit there and re-sync. */
+/* Vendored from Kelin-Studio/kelin-social@9cf1e11 (src/x.ts). Edit there and re-sync. */
 /* X, through the v2 API on pay-per-use credits.
 
    Pricing as of Oct 2026: $0.015 a post, $0.20 a post that contains a URL,

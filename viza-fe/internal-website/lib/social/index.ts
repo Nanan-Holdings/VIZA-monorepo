@@ -1,4 +1,4 @@
-/* Vendored from Kelin-Studio/kelin-social@bd0129d (src/index.ts). Edit there and re-sync. */
+/* Vendored from Kelin-Studio/kelin-social@9cf1e11 (src/index.ts). Edit there and re-sync. */
 /* kelin-social: posting to our own accounts without a middleman.
 
    Source of truth: Kelin-Studio/kelin-social. Each pipeline carries a copy of
@@ -16,16 +16,31 @@
        or KELIN_LINKEDIN_REFRESH_TOKEN + KELIN_LINKEDIN_CLIENT_ID
        + KELIN_LINKEDIN_CLIENT_SECRET                    LinkedIn company page
      KELIN_LINKEDIN_VERSION                              optional, default in linkedin.ts
+     KELIN_PINTEREST_BOARD_ID, KELIN_PINTEREST_REFRESH_TOKEN,
+       KELIN_PINTEREST_CLIENT_ID, KELIN_PINTEREST_CLIENT_SECRET,
+       KELIN_PINTEREST_API (optional host)               Pinterest board
+     KELIN_REDDIT_CLIENT_ID, KELIN_REDDIT_CLIENT_SECRET,
+       KELIN_REDDIT_REFRESH_TOKEN, KELIN_REDDIT_USERNAME,
+       KELIN_REDDIT_SUBREDDIT (optional default)         Reddit account
+     KELIN_TIKTOK_CLIENT_KEY, KELIN_TIKTOK_CLIENT_SECRET,
+       KELIN_TIKTOK_REFRESH_TOKEN, KELIN_TIKTOK_PRIVACY  TikTok account
+     KELIN_YOUTUBE_CLIENT_ID, KELIN_YOUTUBE_CLIENT_SECRET,
+       KELIN_YOUTUBE_REFRESH_TOKEN, KELIN_YOUTUBE_PRIVACY YouTube channel
      META_GRAPH_VERSION                                  optional, default in meta.ts */
 import { defaultHttp, type Http } from "./http";
 import { facebookPage, instagram } from "./meta";
 import { linkedinPage } from "./linkedin";
+import { pinterestBoard } from "./pinterest";
+import { redditAccount } from "./reddit";
+import { tiktokAccount } from "./tiktok";
+import { youtubeChannel } from "./youtube";
 import { threads } from "./threads";
 import { xAccount } from "./x";
 import { SocialError, type Adapter, type Network } from "./types";
 
 export * from "./types";
 export { refreshThreadsToken } from "./threads";
+export { youtubeTitle, YOUTUBE_TITLE_LIMIT } from "./youtube";
 export { escapeLittleText } from "./linkedin";
 
 type Env = Record<string, string | undefined>;
@@ -36,6 +51,10 @@ const REQUIRED: Record<Network, string[]> = {
   threads: ["KELIN_THREADS_USER_ID", "KELIN_THREADS_TOKEN"],
   x: ["KELIN_X_CONSUMER_KEY", "KELIN_X_CONSUMER_SECRET", "KELIN_X_ACCESS_TOKEN", "KELIN_X_ACCESS_SECRET", "KELIN_X_USERNAME"],
   linkedin: ["KELIN_LINKEDIN_ORG_ID"],
+  pinterest: ["KELIN_PINTEREST_BOARD_ID", "KELIN_PINTEREST_REFRESH_TOKEN", "KELIN_PINTEREST_CLIENT_ID", "KELIN_PINTEREST_CLIENT_SECRET"],
+  reddit: ["KELIN_REDDIT_CLIENT_ID", "KELIN_REDDIT_CLIENT_SECRET", "KELIN_REDDIT_REFRESH_TOKEN", "KELIN_REDDIT_USERNAME"],
+  tiktok: ["KELIN_TIKTOK_CLIENT_KEY", "KELIN_TIKTOK_CLIENT_SECRET", "KELIN_TIKTOK_REFRESH_TOKEN"],
+  youtube: ["KELIN_YOUTUBE_CLIENT_ID", "KELIN_YOUTUBE_CLIENT_SECRET", "KELIN_YOUTUBE_REFRESH_TOKEN"],
 };
 
 const LINKEDIN_REFRESH = ["KELIN_LINKEDIN_REFRESH_TOKEN", "KELIN_LINKEDIN_CLIENT_ID", "KELIN_LINKEDIN_CLIENT_SECRET"];
@@ -89,6 +108,36 @@ export function adapterFor(network: Network, env: Env = process.env, http: Http 
         clientId: v(env, "KELIN_LINKEDIN_CLIENT_ID") || undefined,
         clientSecret: v(env, "KELIN_LINKEDIN_CLIENT_SECRET") || undefined,
         version: v(env, "KELIN_LINKEDIN_VERSION") || undefined,
+      }, http);
+    case "pinterest":
+      return pinterestBoard({
+        boardId: v(env, "KELIN_PINTEREST_BOARD_ID"),
+        refreshToken: v(env, "KELIN_PINTEREST_REFRESH_TOKEN"),
+        clientId: v(env, "KELIN_PINTEREST_CLIENT_ID"),
+        clientSecret: v(env, "KELIN_PINTEREST_CLIENT_SECRET"),
+        apiHost: v(env, "KELIN_PINTEREST_API") || undefined,
+      }, http);
+    case "reddit":
+      return redditAccount({
+        clientId: v(env, "KELIN_REDDIT_CLIENT_ID"),
+        clientSecret: v(env, "KELIN_REDDIT_CLIENT_SECRET"),
+        refreshToken: v(env, "KELIN_REDDIT_REFRESH_TOKEN"),
+        username: v(env, "KELIN_REDDIT_USERNAME").replace(/^\/?u\//, ""),
+        defaultSubreddit: v(env, "KELIN_REDDIT_SUBREDDIT") || undefined,
+      }, http);
+    case "tiktok":
+      return tiktokAccount({
+        clientKey: v(env, "KELIN_TIKTOK_CLIENT_KEY"),
+        clientSecret: v(env, "KELIN_TIKTOK_CLIENT_SECRET"),
+        refreshToken: v(env, "KELIN_TIKTOK_REFRESH_TOKEN"),
+        privacy: v(env, "KELIN_TIKTOK_PRIVACY") || undefined,
+      }, http);
+    case "youtube":
+      return youtubeChannel({
+        clientId: v(env, "KELIN_YOUTUBE_CLIENT_ID"),
+        clientSecret: v(env, "KELIN_YOUTUBE_CLIENT_SECRET"),
+        refreshToken: v(env, "KELIN_YOUTUBE_REFRESH_TOKEN"),
+        privacy: v(env, "KELIN_YOUTUBE_PRIVACY") || undefined,
       }, http);
   }
 }

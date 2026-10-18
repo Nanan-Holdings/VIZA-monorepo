@@ -1,4 +1,4 @@
-/* Vendored from Kelin-Studio/kelin-social@bd0129d (src/types.ts). Edit there and re-sync. */
+/* Vendored from Kelin-Studio/kelin-social@9cf1e11 (src/types.ts). Edit there and re-sync. */
 /* The one shape every network adapter speaks.
 
    A pipeline hands over a caption, an optional link and an optional picture,
@@ -6,7 +6,7 @@
    a public address. Nothing here knows about drafts, brands or databases:
    that stays in each pipeline. */
 
-export type Network = "facebook" | "instagram" | "threads" | "x" | "linkedin";
+export type Network = "facebook" | "instagram" | "threads" | "x" | "linkedin" | "pinterest" | "reddit" | "tiktok" | "youtube";
 
 export type PostInput = {
   /** The caption exactly as it should appear. Adapters never append the link
@@ -18,10 +18,17 @@ export type PostInput = {
   /** Headline for a link card where the network wants one (LinkedIn's
       article title). Falls back to the first line of `text`. */
   title?: string;
+  /** Where on the network it goes, where that is a choice: a subreddit name
+      for Reddit. Falls back to the account's configured default. */
+  community?: string;
   /** Public HTTPS address of an image. Instagram requires one of image or video. */
   imageUrl?: string;
-  /** Public HTTPS address of an mp4. Instagram posts it as a Reel. */
+  /** Public HTTPS address of an mp4. Instagram posts it as a Reel; TikTok and
+      YouTube need one for a video post. */
   videoUrl?: string;
+  /** True when the media is AI-generated or AI-voiced. Sets the network's own
+      disclosure where it has one (TikTok is_aigc, YouTube containsSyntheticMedia). */
+  aiGenerated?: boolean;
 };
 
 export type Published = {

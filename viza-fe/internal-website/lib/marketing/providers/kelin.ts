@@ -1,17 +1,16 @@
-/* Direct posting to VIZA's own Facebook Page, Instagram account and LinkedIn page, through
-   lib/social (vendored from Kelin-Studio/kelin-social), in place of Zernio
-   and Upload-Post for those networks.
+/* Direct posting to VIZA's own accounts through lib/social (vendored from
+   Kelin-Studio/kelin-social), in place of Zernio and Upload-Post.
 
-   A platform goes direct only when its KELIN_* credentials are set and the
-   composition is sent now: Meta's API here has no scheduling, so a scheduled
-   Facebook post still goes through Zernio. A direct post is stored in
-   `zernio_posts` like a Zernio one, under a `kelin:` handle, so the sync and
-   stop actions can tell the two apart. Unlike Upload-Post, both networks let
-   us delete what we posted. */
+   A platform goes direct whenever its KELIN_* credentials are set:
+   Facebook, Instagram (posts and Reels), LinkedIn, Pinterest, TikTok and
+   YouTube. Scheduling is VIZA's own (publish.ts holds scheduled platforms for
+   the dispatcher), so a scheduled post goes direct too. A direct post is stored
+   in `zernio_posts` under a `kelin:` handle, so sync and stop can tell it from
+   a vendor id. Every network but TikTok lets us delete what we posted. */
 import { adapterFor, fromHandle, isConfigured, toHandle } from "@/lib/social";
 import type { MarketingSocialPlatform } from "../contracts";
 
-export const KELIN_DIRECT_PLATFORMS = ["facebook", "instagram", "linkedin"] as const;
+export const KELIN_DIRECT_PLATFORMS = ["facebook", "instagram", "linkedin", "pinterest", "tiktok", "youtube"] as const;
 export type KelinDirectPlatform = (typeof KELIN_DIRECT_PLATFORMS)[number];
 
 /* Plain boolean, not a type guard: false can mean "not configured yet", and a
@@ -37,14 +36,23 @@ export async function publishKelinPost(input: {
   title?: string;
   destinationUrl?: string;
   imageUrl?: string;
+  /** A rendered short: a Reel on Instagram, a video on TikTok and YouTube. */
+  videoUrl?: string;
+  /** Sets TikTok's and YouTube's AI-content disclosure. */
+  aiGenerated?: boolean;
   publicBase: URL;
 }): Promise<{ handle: string; url: string | null }> {
-  if (input.platform === "instagram" && !input.imageUrl) throw new Error("A reviewed cover image is required for Instagram");
+  if (!input.videoUrl && (input.platform === "instagram" || input.platform === "pinterest") && !input.imageUrl) {
+    throw new Error(`A reviewed cover image is required for ${input.platform === "instagram" ? "Instagram" : "Pinterest"}`);
+  }
+  if (input.platform === "youtube" && !input.videoUrl) throw new Error("YouTube takes shorts only");
   const post = await adapterFor(input.platform).publish({
     text: input.caption,
     link: input.destinationUrl,
     title: input.title,
-    imageUrl: input.platform === "instagram" && input.imageUrl ? instagramImage(input.imageUrl, input.publicBase) : input.imageUrl,
+    imageUrl: input.videoUrl ? undefined : input.platform === "instagram" && input.imageUrl ? instagramImage(input.imageUrl, input.publicBase) : input.imageUrl,
+    videoUrl: input.videoUrl,
+    aiGenerated: input.aiGenerated,
   });
   return { handle: toHandle(input.platform, post.id), url: post.url };
 }

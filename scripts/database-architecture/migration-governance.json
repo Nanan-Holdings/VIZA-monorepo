@@ -267,6 +267,11 @@
       "path": "viza-fe/internal-website/supabase/migrations/20261016090000_marketing_social_video.sql",
       "sha256": "3f4e2240b24c726c498c13cf435bfa5ec1f6173f2978f492ddd489a6e35b92ce",
       "reason": "Portal-owned short-video composition columns and marketing asset bucket MIME update have no agent-backend Drizzle mirror."
+    },
+    {
+      "path": "viza-fe/internal-website/supabase/migrations/20261019090000_marketing_social_dispatch.sql",
+      "sha256": "1893a71d733de0118aa257ddb976944f6d89277c183779f3668929cc917030fe",
+      "reason": "Portal-owned marketing automation job type for the in-house social dispatcher has no agent-backend Drizzle mirror."
     }
   ],
   "unapplied_migration_renames": [

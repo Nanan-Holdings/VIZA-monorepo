@@ -374,18 +374,14 @@ export async function stopMarketingSocialComposition(input: { id: string; reason
     const current = await auditContext.db.from("marketing_social_compositions").select("*").eq("id", input.id).maybeSingle();
     if (current.error || !current.data) return { success: false, error: current.error?.message ?? "Composition not found" };
     const composition = mapSocialComposition(current.data);
-    if (composition.videoUrl) return await cancelScheduledShort(auditContext.db, auditContext.actor, composition, reason);
+    if (composition.status === "scheduled") return await unscheduleComposition(auditContext.db, auditContext.actor, composition, reason);
     const entries = Object.entries(composition.zernioPosts).filter((entry): entry is [MarketingSocialPlatform, string] => Boolean(entry[1]));
-    if (!entries.length) return { success: false, error: "Composition has no Zernio posts" };
-    const scheduled = composition.status === "scheduled";
+    if (!entries.length) return { success: false, error: composition.videoUrl ? "This short has no posts we can take down. Remove Upload-Post deliveries in the platform itself." : "Composition has no posts we can take down" };
     const results = await Promise.all(entries.map(async ([platform, postId]) => {
       try {
         /* Sent directly: comes down through the network's own API. */
         if (isKelinHandle(postId)) await removeKelinPost(postId);
-        else if (scheduled) {
-          await cancelZernioSchedule(postId);
-          await deleteZernioPost(postId);
-        } else await unpublishZernioPost(postId, platform);
+        else await unpublishZernioPost(postId, platform);
         return { platform, success: true } as const;
       } catch (error) {
         return { platform, success: false, error: message(error, "Provider operation failed") } as const;
@@ -393,16 +389,12 @@ export async function stopMarketingSocialComposition(input: { id: string; reason
     }));
     const failures = results.filter((result) => !result.success);
     const hasLiveImagePosts = Object.values(composition.uploadPostPosts).some((post) => post.status === "published" || post.status === "pending");
-    const status: MarketingSocialCompositionRecord["status"] = failures.length || hasLiveImagePosts ? "partial" : scheduled ? "draft" : "cancelled";
+    const status: MarketingSocialCompositionRecord["status"] = failures.length || hasLiveImagePosts ? "partial" : "cancelled";
     const now = new Date().toISOString();
-    const failedPlatforms = new Set(failures.map((failure) => failure.platform));
-    const remainingPosts = scheduled
-      ? Object.fromEntries(entries.filter(([platform]) => failedPlatforms.has(platform)))
-      : composition.zernioPosts;
-    const updated = await auditContext.db.from("marketing_social_compositions").update({ status, zernio_posts: remainingPosts, scheduled_for: scheduled && !failures.length ? null : composition.scheduledFor, updated_by: auditContext.actor.id, updated_at: now, last_synced_at: now }).eq("id", input.id).select("*").single();
+    const updated = await auditContext.db.from("marketing_social_compositions").update({ status, updated_by: auditContext.actor.id, updated_at: now, last_synced_at: now }).eq("id", input.id).select("*").single();
     if (updated.error || !updated.data) throw new Error(updated.error?.message ?? "Unable to update composition");
     const saved = mapSocialComposition(updated.data);
-    await activity(auditContext.db, auditContext.actor, { provider: "zernio", operation: scheduled ? "social.unschedule" : "social.unpublish", status: failures.length ? "failed" : "succeeded", entityType: "marketing_social_composition", entityId: input.id, reason, response: { postCount: entries.length, failedPlatforms: failures.map((failure) => failure.platform), providerStatus: status } });
+    await activity(auditContext.db, auditContext.actor, { provider: "zernio", operation: "social.unpublish", status: failures.length ? "failed" : "succeeded", entityType: "marketing_social_composition", entityId: input.id, reason, response: { postCount: entries.length, failedPlatforms: failures.map((failure) => failure.platform), providerStatus: status } });
     revalidatePath("/admin/marketing"); return { success: true, data: saved };
   } catch (error) {
     if (auditContext) await activity(auditContext.db, auditContext.actor, { provider: "zernio", operation: "social.stop", status: "failed", entityType: "marketing_social_composition", entityId: input.id, reason: input.reason, error });
@@ -410,30 +402,40 @@ export async function stopMarketingSocialComposition(input: { id: string; reason
   }
 }
 
-/* A scheduled short is held by Upload-Post until its time, and can be
-   cancelled until then. One that has gone out cannot be taken down through
-   the API: remove it in TikTok, Instagram or YouTube, then record that with
-   confirmMarketingImagePostsRemoved. */
-async function cancelScheduledShort(db: ReturnType<typeof asMarketingDb>, actor: Actor, composition: MarketingSocialCompositionRecord, reason: string): Promise<MarketingActionResult<MarketingSocialCompositionRecord>> {
+/* Back to draft before its time. Platforms held by our own dispatcher were
+   never sent, so they need nothing; anything a vendor is holding (Zernio for
+   Zernio-only networks, Upload-Post jobs from before the dispatcher) is
+   cancelled there. */
+async function unscheduleComposition(db: ReturnType<typeof asMarketingDb>, actor: Actor, composition: MarketingSocialCompositionRecord, reason: string): Promise<MarketingActionResult<MarketingSocialCompositionRecord>> {
+  const zernioPosts = { ...composition.zernioPosts };
   const deliveries = { ...composition.uploadPostPosts };
-  const scheduled = Object.entries(deliveries).filter(([, item]) => item?.status === "scheduled" && item.jobId) as Array<[keyof typeof deliveries, NonNullable<(typeof deliveries)[keyof typeof deliveries]>]>;
-  if (!scheduled.length) return { success: false, error: "This short has no scheduled posts left to cancel. Remove posts that went out in the platform itself." };
   const failures: string[] = [];
-  for (const [platform, item] of scheduled) {
+  for (const [platform, postId] of Object.entries(zernioPosts)) {
+    if (!postId || isKelinHandle(postId)) continue;
     try {
-      await cancelUploadPostSchedule(item.jobId!);
-      delete deliveries[platform];
+      await cancelZernioSchedule(postId);
+      await deleteZernioPost(postId);
+      delete zernioPosts[platform as MarketingSocialPlatform];
     } catch (error) {
       failures.push(`${platform}: ${message(error, "cancellation failed")}`);
     }
   }
-  const remaining = Object.values(deliveries).filter(Boolean);
-  const status: MarketingSocialCompositionRecord["status"] = failures.length ? "partial" : remaining.length ? "partial" : "draft";
+  for (const [platform, item] of Object.entries(deliveries)) {
+    if (item?.status !== "scheduled" || !item.jobId) continue;
+    try {
+      await cancelUploadPostSchedule(item.jobId);
+      delete deliveries[platform as keyof typeof deliveries];
+    } catch (error) {
+      failures.push(`${platform}: ${message(error, "cancellation failed")}`);
+    }
+  }
+  const sent = Object.values(zernioPosts).some(Boolean) || Object.values(deliveries).some((item) => item && item.status !== "failed");
+  const status: MarketingSocialCompositionRecord["status"] = failures.length || sent ? "partial" : "draft";
   const now = new Date().toISOString();
-  const updated = await db.from("marketing_social_compositions").update({ status, upload_post_posts: deliveries, scheduled_for: remaining.length || failures.length ? composition.scheduledFor : null, updated_by: actor.id, updated_at: now, last_synced_at: now }).eq("id", composition.id).select("*").single();
+  const updated = await db.from("marketing_social_compositions").update({ status, zernio_posts: zernioPosts, upload_post_posts: deliveries, scheduled_for: failures.length ? composition.scheduledFor : null, updated_by: actor.id, updated_at: now, last_synced_at: now }).eq("id", composition.id).select("*").single();
   if (updated.error || !updated.data) throw new Error(updated.error?.message ?? "Unable to update composition");
   const saved = mapSocialComposition(updated.data);
-  await activity(db, actor, { provider: "upload-post", operation: "social.video.unschedule", status: failures.length ? "failed" : "succeeded", entityType: "marketing_social_composition", entityId: composition.id, reason, response: { cancelled: scheduled.length - failures.length, failures } });
+  await activity(db, actor, { provider: "system", operation: "social.unschedule", status: failures.length ? "failed" : "succeeded", entityType: "marketing_social_composition", entityId: composition.id, reason, response: { failures, providerStatus: status } });
   revalidatePath("/admin/marketing");
   if (failures.length) return { success: false, error: failures.join("; ") };
   return { success: true, data: saved };

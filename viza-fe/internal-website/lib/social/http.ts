@@ -1,4 +1,4 @@
-/* Vendored from Kelin-Studio/kelin-social@bd0129d (src/http.ts). Edit there and re-sync. */
+/* Vendored from Kelin-Studio/kelin-social@9cf1e11 (src/http.ts). Edit there and re-sync. */
 import { SocialError, type Network } from "./types";
 
 export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
