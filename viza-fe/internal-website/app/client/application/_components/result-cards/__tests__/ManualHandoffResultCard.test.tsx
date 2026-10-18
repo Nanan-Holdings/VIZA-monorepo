@@ -26,13 +26,13 @@ describe("ManualHandoffResultCard", () => {
     expect(screen.getByText("KE-ETA-12345")).toBeInTheDocument();
   });
 
-  it("shows the consultant's note for needs-info and refusals, and a download link when approved", () => {
+  it("shows the consultant's note for needs-info and refusals, and points to the download when approved", () => {
     const { rerender } = render(<ManualHandoffResultCard result={{ ...base, status: "needs_info", notes: "Please upload a clearer passport scan." }} />);
     expect(screen.getByText("We need something from you")).toBeInTheDocument();
     expect(screen.getByText("Please upload a clearer passport scan.")).toBeInTheDocument();
     rerender(<ManualHandoffResultCard result={{ ...base, status: "refused", notes: "Travel dates fall outside the eTA window." }} />);
     expect(screen.getByText("Travel dates fall outside the eTA window.")).toBeInTheDocument();
     rerender(<ManualHandoffResultCard result={{ ...base, status: "approved" }} />);
-    expect(screen.getByRole("link", { name: "Go to the Status page to download" })).toHaveAttribute("href", "/client/status");
+    expect(screen.getByText(/Download your document under Receipts & results below/)).toBeInTheDocument();
   });
 });

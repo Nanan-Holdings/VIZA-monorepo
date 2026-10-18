@@ -1352,7 +1352,8 @@
       "official_status_changed": "越南 e‑Visa 官网状态已更新",
       "arrival_card_submitted": "新加坡入境卡已成功提交",
       "result_received": "已收到结果",
-      "notification_sent": "通知已发送"
+      "notification_sent": "通知已发送",
+      "more_information_requested": "需要补充信息"
     }
   },
   "applicationSteps": {

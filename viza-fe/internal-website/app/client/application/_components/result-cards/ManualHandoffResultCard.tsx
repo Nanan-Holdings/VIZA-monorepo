@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useLocale } from "next-intl";
 import { CheckCircle, FileText, UserCheck, Warning, XCircle } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
@@ -40,12 +39,12 @@ const COPY: Record<Status, { en: { title: string; badge: string; body: string };
     en: {
       title: "Approved",
       badge: "Approved",
-      body: "Good news: your application was approved. Download your document from the Status page and keep a copy with your passport when you travel.",
+      body: "Good news: your application was approved. Download your document under Receipts & results below and keep a copy with your passport when you travel.",
     },
     zh: {
       title: "已获批准",
       badge: "已批准",
-      body: "好消息：你的申请已获批准。请在“申请状态”页面下载文件，出行时与护照一起随身携带。",
+      body: "好消息：你的申请已获批准。请在下方“回执与结果”中下载文件，出行时与护照一起随身携带。",
     },
   },
   refused: {
@@ -131,11 +130,6 @@ export function ManualHandoffResultCard({ result }: { result: ManualHandoffSubmi
             <div className="text-xs text-muted-foreground">{isZh ? "官方编号" : "Government reference"}</div>
             <div className="mt-0.5 font-mono text-sm font-medium text-foreground">{result.reference}</div>
           </div>
-        ) : null}
-        {status === "approved" ? (
-          <Link href="/client/status" className="inline-flex text-sm font-medium text-brand-600 underline-offset-4 hover:underline">
-            {isZh ? "前往申请状态页面下载" : "Go to the Status page to download"}
-          </Link>
         ) : null}
         <div className="space-y-1 text-xs text-muted-foreground">
           {handedLabel ? <p>{isZh ? `提交给顾问的时间：${handedLabel}` : `Handed to your consultant: ${handedLabel}`}</p> : null}

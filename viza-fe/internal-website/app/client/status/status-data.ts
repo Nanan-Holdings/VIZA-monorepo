@@ -298,6 +298,8 @@ interface ApplicationRow {
   external_status_updated_at: string | null;
   result_status: string | null;
   result_storage_path: string | null;
+  /** Set when a QA or staff test record was archived out of the queues. */
+  qa_archived_at?: string | null;
   submission_result: unknown | null;
   submission_result_status: string | null;
   submission_result_updated_at: string | null;
@@ -438,7 +440,7 @@ const ARRIVAL_CARD_VISA_TYPES = new Set([
 const SGAC_OWNER_EMAIL_FIELD_NAMES = ["email_address"];
 const STORAGE_BUCKETS = new Set(["application-documents", "application-results", "application-packets", "visa-results", "submission-artifacts"]);
 export const CLIENT_STATUS_APPLICATION_SELECT =
-  "id, applicant_id, country, visa_type, purpose, status, created_at, updated_at, submitted_at, confirmation_number, receipt_url, visa_package_id, packet_status, packet_storage_path, packet_ready_at, external_status, external_reference, external_status_updated_at, result_status, result_storage_path, submission_result, submission_result_status, submission_result_updated_at, government_fee_cents, government_fee_currency, government_fee_mode";
+  "id, applicant_id, country, visa_type, purpose, status, created_at, updated_at, submitted_at, confirmation_number, receipt_url, visa_package_id, packet_status, packet_storage_path, packet_ready_at, external_status, external_reference, external_status_updated_at, result_status, result_storage_path, submission_result, submission_result_status, submission_result_updated_at, government_fee_cents, government_fee_currency, government_fee_mode, qa_archived_at";
 
 const APPLICATION_STATUS_SELECT = CLIENT_STATUS_APPLICATION_SELECT;
 
@@ -2177,6 +2179,7 @@ async function loadClientStatusData(
   applications = applications.filter(
     (application) =>
       !isQaDryRunPurpose(application.purpose) &&
+      !application.qa_archived_at &&
       (!sgacEmailLinkedApplicationIds.has(application.id) || submissionResultIsSubmitted(application)),
   );
 

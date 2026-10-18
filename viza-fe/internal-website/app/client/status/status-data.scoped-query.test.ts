@@ -69,6 +69,7 @@ const APPROVED_PACKAGE_ID = "aaaaaaa2-aaaa-4aaa-8aaa-aaaaaaaaaaa2";
 const REJECTED_APPLICATION_ID = "bbbbbbb1-bbbb-4bbb-8bbb-bbbbbbbbbbb1";
 const REJECTED_PACKAGE_ID = "bbbbbbb2-bbbb-4bbb-8bbb-bbbbbbbbbbb2";
 const QA_APPLICATION_ID = "ccccccc1-cccc-4ccc-8ccc-ccccccccccc1";
+const ARCHIVED_QA_APPLICATION_ID = "ccccccc2-cccc-4ccc-8ccc-ccccccccccc2";
 const STORAGE_APPLICATION_ID = "ddddddd1-dddd-4ddd-8ddd-ddddddddddd1";
 const STORAGE_SECOND_APPLICATION_ID = "ddddddd2-dddd-4ddd-8ddd-ddddddddddd2";
 const STORAGE_ABSOLUTE_APPLICATION_ID = "ddddddd3-dddd-4ddd-8ddd-ddddddddddd3";
@@ -504,6 +505,16 @@ function richFixture(): TableRows {
         status: "draft",
         created_at: "2026-09-01T00:00:00.000Z",
         updated_at: "2026-09-02T00:00:00.000Z",
+      }),
+      applicationRow({
+        id: ARCHIVED_QA_APPLICATION_ID,
+        country: "kenya",
+        visa_type: "KE_ETA",
+        status: "archived",
+        qa_archived_at: "2026-10-19T00:00:00.000Z",
+        created_at: "2026-10-18T00:00:00.000Z",
+        updated_at: "2026-10-19T00:00:00.000Z",
+        visa_package_id: null,
       }),
       applicationRow({
         id: QA_APPLICATION_ID,
@@ -1526,6 +1537,7 @@ describe("getClientStatusIndexData projection", () => {
     ]));
     expect(detailIds).not.toContain(FOREIGN_APPLICATION_ID);
     expect(detailIds).not.toContain(QA_APPLICATION_ID);
+    expect(detailIds).not.toContain(ARCHIVED_QA_APPLICATION_ID);
     expect(index.data.applications.flatMap((application) => application.applicationRecords)).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ applicationId: null, packageId: PACKAGE_ONLY_ID }),
