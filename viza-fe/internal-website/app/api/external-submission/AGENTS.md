@@ -16,7 +16,11 @@ automation itself.
   service-to-service mechanism.
 - Update `applications.external_status`, `external_reference`,
   `result_status`, and result file references.
-- Insert `application_events` and queue `notification_events`.
+- Insert `application_events` and email the applicant through
+  `lib/notify/dispatch.ts` on real transitions (mapping in
+  `lib/notify/external-submission-email.ts`: submitted, approved/issued,
+  rejected, action_required/additional_documents_requested). A repeated POST
+  with the same statuses does not email again.
 
 ## Current Route
 
@@ -24,6 +28,25 @@ automation itself.
   token-gated by `EXTERNAL_SUBMISSION_TOKEN`, validates strict allowlists for
   external/result statuses and update sources, updates application
   external/result fields, and writes audit/notification rows.
+
+## Callers and credentials
+
+- `EXTERNAL_SUBMISSION_TOKEN` is set on Vercel project `viza-internal`
+  (production, sensitive) since 19 Oct 2026. The local copy is in
+  `viza-fe/internal-website/.env.local`. Rotate both together.
+- As of 19 Oct 2026 nothing in this repo calls the route. It is the
+  service-to-service hook for whichever process owns official submission
+  outside the portal: a partner agency, the submission service once it
+  reports results, or an operator script. Staff in the admin app use the
+  "Record outcome" panel instead, which writes the same fields.
+- Example:
+
+  ```bash
+  curl -X POST https://app.viza.it.com/api/external-submission \
+    -H "Authorization: Bearer $EXTERNAL_SUBMISSION_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{"applicationId":"<uuid>","externalStatus":"submitted","reference":"ABC123","updateSource":"external_submission_partner"}'
+  ```
 
 ## Guardrails
 

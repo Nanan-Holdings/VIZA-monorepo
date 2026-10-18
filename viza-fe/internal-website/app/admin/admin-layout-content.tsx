@@ -17,6 +17,7 @@ import {
   Database as DatabaseBackup,
   Globe as Globe2,
   Headphones,
+  Tray as Inbox,
   Translate as Languages,
   SquaresFour as LayoutDashboard,
   Lifebuoy as LifeBuoy,
@@ -57,7 +58,7 @@ type AdminNavKey =
   | "support" | "products" | "cataloguePublication" | "consultations"
   | "work" | "takeovers" | "chat" | "metrics" | "portalHealth"
   | "notificationDlq" | "backups" | "costs" | "analytics" | "privacy"
-  | "leads" | "audit" | "team" | "marketing";
+  | "leads" | "audit" | "team" | "marketing" | "staffQueue";
 
 type AdminNavSectionKey =
   | "control" | "growth" | "cases" | "customers" | "platform" | "catalogue" | "administration";
@@ -72,7 +73,7 @@ const ADMIN_COPY = {
     nav: {
       dashboard: "Dashboard", accounts: "Accounts", applications: "Applications", coverage: "Coverage",
       support: "Support", products: "Products",
-      cataloguePublication: "Marketing publication", consultations: "Appointments", work: "Work queue",
+      cataloguePublication: "Marketing publication", consultations: "Appointments", work: "Work queue", staffQueue: "Staff queue",
       takeovers: "Takeovers", chat: "Live chat",
       metrics: "Runner metrics", portalHealth: "Portal health", notificationDlq: "Notification DLQ",
       backups: "Backups", costs: "Costs", analytics: "Analytics", privacy: "Privacy requests",
@@ -95,7 +96,7 @@ const ADMIN_COPY = {
     nav: {
       dashboard: "仪表盘", accounts: "账户", applications: "申请", coverage: "覆盖范围",
       support: "客服", products: "产品",
-      cataloguePublication: "营销发布", consultations: "预约", work: "工作队列",
+      cataloguePublication: "营销发布", consultations: "预约", work: "工作队列", staffQueue: "人工处理队列",
       takeovers: "人工接管", chat: "在线聊天",
       metrics: "自动化指标", portalHealth: "门户健康", notificationDlq: "通知死信队列",
       backups: "备份", costs: "成本", analytics: "分析", privacy: "隐私请求",
@@ -126,6 +127,7 @@ const adminNavSections: AdminNavSection[] = [
     { labelKey: "marketing", icon: Megaphone, href: "/admin/marketing" },
   ] },
   { labelKey: "cases", routes: [
+    { labelKey: "staffQueue", icon: Inbox, href: "/admin/staff-queue" },
     { labelKey: "applications", icon: ClipboardList, href: "/admin/applications" },
     { labelKey: "takeovers", icon: Bot, href: "/admin/takeovers" },
     { labelKey: "consultations", icon: Calendar, href: "/admin/cal-bookings" },
