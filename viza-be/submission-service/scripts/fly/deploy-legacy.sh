@@ -9,10 +9,9 @@ deploy_ready_url="https://${app}.fly.dev/deploy-ready"
 
 ensure_retained_machine_started() {
   local machine_id
-  # fly.legacy.toml deliberately disables Fly's HTTP auto-start so ordinary
-  # probes cannot wake a billed browser worker. A deployment readiness probe
-  # is an authorized exception: start only retained stopped/suspended
-  # Machines, then let /deploy-ready fail closed if the worker claims a task
+  # fly.legacy.toml enables Fly's HTTP auto-start, but start retained
+  # stopped/suspended Machines explicitly so the readiness probe never races
+  # the proxy, then let /deploy-ready fail closed if the worker claims a task
   # or still owns an unconsumed one-time card session.
   while read -r machine_id; do
     [[ -z "$machine_id" ]] && continue
