@@ -110,7 +110,9 @@ export async function scanNews(config: NewsScanConfig): Promise<NewsScanResult> 
     let kept = 0;
     for (const item of result.value) {
       if (kept >= config.maxPerFeed) break;
-      if (item.publishedAt && Date.parse(item.publishedAt) < cutoff) continue;
+      // Undated items are dropped: without a date there is no way to tell a
+      // new announcement from a years-old explainer.
+      if (!item.publishedAt || Date.parse(item.publishedAt) < cutoff) continue;
       const key = titleKey(item.title);
       if (!key || seen.has(key) || seen.has(item.url)) continue;
       seen.add(key);

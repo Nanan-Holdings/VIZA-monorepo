@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import type { PostHogInterface } from "posthog-js";
+import { MARKETING_EVENTS } from "@/lib/analytics";
 
 /*
  * PostHog: product analytics, session replay and exception capture.
@@ -70,6 +71,36 @@ function applyRoutePolicy(pathname: string) {
   }
 }
 
+/* Business events. lib/analytics.ts trackEvent and the inline click tracker in
+   app/layout.tsx both push named events onto window.dataLayer for GA4. Rather
+   than call PostHog from every site, this mirrors those same pushes, so the two
+   tools can never disagree about what a lead or an apply start is. Entries
+   pushed before PostHog finished loading are replayed once. Only the event's
+   own parameters are sent: page_location is dropped because PostHog records
+   the URL itself, and none of the parameters carry personal data (they are
+   country slugs, counts, channels and outcomes). */
+const MIRRORED_EVENTS: ReadonlySet<string> = new Set(MARKETING_EVENTS);
+let dataLayerMirrored = false;
+
+function mirrorEntry(instance: PostHogInterface, entry: unknown) {
+  if (!entry || typeof entry !== "object" || Array.isArray(entry)) return;
+  const { event, page_location: _location, ...params } = entry as Record<string, unknown>;
+  if (typeof event !== "string" || !MIRRORED_EVENTS.has(event)) return;
+  instance.capture(event, params);
+}
+
+function mirrorDataLayer(instance: PostHogInterface) {
+  if (dataLayerMirrored) return;
+  dataLayerMirrored = true;
+  const layer = (window.dataLayer = window.dataLayer ?? []);
+  for (const entry of layer) mirrorEntry(instance, entry);
+  const push = layer.push.bind(layer);
+  layer.push = (...entries) => {
+    for (const entry of entries) mirrorEntry(instance, entry);
+    return push(...entries);
+  };
+}
+
 export function PostHogAnalytics({ token }: { token: string }) {
   const pathname = usePathname();
 
@@ -97,6 +128,7 @@ export function PostHogAnalytics({ token }: { token: string }) {
         loaded: (instance) => {
           client = instance;
           applyRoutePolicy(window.location.pathname);
+          mirrorDataLayer(instance);
         },
       });
     });
