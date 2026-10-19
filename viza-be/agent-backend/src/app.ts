@@ -1,6 +1,7 @@
 ﻿import express from 'express';
 import cors from 'cors';
 import type { ErrorRequestHandler } from 'express';
+import * as Sentry from '@sentry/node';
 import { errorHandler } from './middleware/errorHandler.js';
 import adminRemindersRouter from './routes/admin-reminders.routes.js';
 import telegramWebhookRouter from './routes/telegram-webhook.js';
@@ -229,6 +230,8 @@ const bodyParserErrorHandler: ErrorRequestHandler = (error, _req, res, next) => 
 app.use(bodyParserErrorHandler);
 
 // Error Handler Middleware
+// Report 5xx errors to Sentry before the app's own handler answers them.
+if (process.env.SENTRY_DSN) Sentry.setupExpressErrorHandler(app);
 app.use(errorHandler);
 
 export default app;

@@ -71,6 +71,7 @@
 	"dependencies": {
 		"@google-cloud/translate": "^9.3.0",
 		"@google/generative-ai": "^0.24.0",
+		"@sentry/node": "^10.76.2",
 		"@socket.io/redis-adapter": "^8.3.0",
 		"@supabase/supabase-js": "^2.74.0",
 		"@types/pdf-parse": "^1.1.5",

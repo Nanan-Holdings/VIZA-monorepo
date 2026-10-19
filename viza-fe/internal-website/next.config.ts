@@ -50,6 +50,8 @@ function buildContentSecurityPolicy(allowSameOriginFrame = false): string {
     originFromEnv(process.env.NEXT_PUBLIC_POSTHOG_HOST),
     "https://us.i.posthog.com",
     "https://us-assets.i.posthog.com",
+    // Sentry error events (instrumentation-client.ts), org nanan-holdings (US).
+    "https://*.ingest.us.sentry.io",
   ].filter(Boolean) as string[];
 
   const directives: Record<string, string[]> = {

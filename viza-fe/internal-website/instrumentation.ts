@@ -1,20 +1,14 @@
 /**
  * Next.js instrumentation hook (PROV-003 / FIX-006).
  *
- * Boots Sentry on the server + edge runtimes. `@sentry/nextjs` is a
- * heavy native dep — it is loaded dynamically so type-check passes
- * even when the package isn't installed (the build target will fail
- * loudly at runtime instead, surfacing the unwired deploy).
+ * Boots Sentry on the server and edge runtimes when SENTRY_DSN (or
+ * NEXT_PUBLIC_SENTRY_DSN) is set; without one Sentry stays off.
  *
  * See lib/observability/sentry.ts for the shared init options and
  * docs/operations/sentry.md for the wiring contract.
  */
 
 import { buildSentryInitOptions } from "./lib/observability/sentry";
-
-const dynamicRequire: (specifier: string) => Promise<unknown> = (specifier) =>
-  // eslint-disable-next-line no-new-func
-  new Function("s", "return import(s)")(specifier) as Promise<unknown>;
 
 export async function register(): Promise<void> {
   if (process.env.NEXT_RUNTIME === "nodejs" && process.env.VIZA_PORTAL_READ_METRICS === "true") {
@@ -26,21 +20,16 @@ export async function register(): Promise<void> {
     // No DSN — leave Sentry uninitialised so dev runs are quiet.
     return;
   }
-  const runtime = process.env.NEXT_RUNTIME;
-  try {
-    if (runtime === "nodejs") {
-      const mod = (await dynamicRequire("@sentry/nextjs")) as {
-        init: (opts: Record<string, unknown>) => void;
-      };
-      mod.init(opts as Record<string, unknown>);
-    }
-    if (runtime === "edge") {
-      const mod = (await dynamicRequire("@sentry/nextjs")) as {
-        init: (opts: Record<string, unknown>) => void;
-      };
-      mod.init(opts as Record<string, unknown>);
-    }
-  } catch {
-    console.error("[sentry] initialization_failed");
-  }
+  /* Static imports so the bundler ships @sentry/nextjs with each runtime. The
+     old loader built the import from a string at run time, which no bundler
+     can see, so Sentry never started even with a DSN set. */
+  if (process.env.NEXT_RUNTIME === "nodejs") await import("./sentry.server.config");
+  if (process.env.NEXT_RUNTIME === "edge") await import("./sentry.edge.config");
+}
+
+/* Errors thrown while rendering or in route handlers. */
+export async function onRequestError(...args: Parameters<typeof import("@sentry/nextjs").captureRequestError>): Promise<void> {
+  if (!buildSentryInitOptions().dsn) return;
+  const Sentry = await import("@sentry/nextjs");
+  Sentry.captureRequestError(...args);
 }
