@@ -14,6 +14,8 @@ export interface SentryInitOptions {
   environment?: string;
   release?: string;
   tracesSampleRate?: number;
+  /** The portal handles passports: never attach IPs, cookies or headers. */
+  sendDefaultPii?: boolean;
 }
 
 export function buildSentryInitOptions(extra: Partial<SentryInitOptions> = {}): SentryInitOptions {
@@ -22,6 +24,7 @@ export function buildSentryInitOptions(extra: Partial<SentryInitOptions> = {}): 
     environment: process.env.SENTRY_ENV || process.env.VERCEL_ENV || "development",
     release: SENTRY_RELEASE,
     tracesSampleRate: 0.1,
+    sendDefaultPii: false,
     ...extra,
   };
 }
