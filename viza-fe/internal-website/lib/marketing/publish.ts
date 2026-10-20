@@ -3,6 +3,7 @@ import { createZernioPosts, findZernioCompositionPosts } from "./providers/zerni
 import { publishUploadPostImage, publishUploadPostVideo, uploadPostDelivery } from "./providers/upload-post";
 import { isKelinHandle, kelinDirectReady, publishKelinPost, type KelinDirectPlatform } from "./providers/kelin";
 import { fillLinkPlaceholders } from "./captions";
+import { brandedImage } from "./social-image";
 import { assertLiveMarketingUrl } from "./publish-check";
 import { marketingCategorySlug, revalidatePublicMarketingBlog } from "./revalidate";
 import { isVizaVideoPlatform, validatePublishableBlog } from "./validation";
@@ -178,6 +179,17 @@ export async function publishSocialCompositionById(input: {
     if (!composition.platforms.some((platform) => isVizaVideoPlatform(platform))) throw new Error("Choose TikTok, Instagram Reels or YouTube Shorts for this short");
   }
   const captions = fillLinkPlaceholders(composition.platformContent, destinationUrl);
+  /* Every network gets the cover with the logo stamped on it (app/social-card);
+     the blog keeps it clean. Facebook's link card would show the page's
+     og:image instead of the picture, so a stamped Facebook post goes out as a
+     photo post with the address in its caption. */
+  const cover = isShort ? undefined : composition.mediaUrl ?? undefined;
+  const image = cover ? brandedImage(cover) ?? cover : undefined;
+  const photoPost = (platform: MarketingSocialPlatform) => platform === "facebook" && Boolean(cover) && image !== cover;
+  const captionFor = (platform: MarketingSocialPlatform) => {
+    const caption = captions[platform] ?? "";
+    return photoPost(platform) && destinationUrl && !caption.includes(destinationUrl) ? `${caption}\n\n${destinationUrl}` : caption;
+  };
   const postIds = { ...composition.zernioPosts };
   const postUrls = { ...composition.zernioPostUrls };
   const uploadPosts = { ...composition.uploadPostPosts };
@@ -201,11 +213,11 @@ export async function publishSocialCompositionById(input: {
     if (direct) {
       try {
         const sent = await publishKelinPost({
-          platform: platform as KelinDirectPlatform, caption: captions[platform] ?? "",
+          platform: platform as KelinDirectPlatform, caption: captionFor(platform),
           title: isShort ? composition.videoTitle ?? composition.title : composition.title,
-          destinationUrl, imageUrl: isShort ? undefined : composition.mediaUrl ?? undefined,
+          destinationUrl: photoPost(platform) ? undefined : destinationUrl, imageUrl: image,
           videoUrl: isShort ? composition.videoUrl ?? undefined : undefined,
-          aiGenerated: isShort, publicBase: publicMarketingBaseUrl(),
+          aiGenerated: isShort,
         });
         postIds[platform] = sent.handle;
         if (sent.url) postUrls[platform] = sent.url;
@@ -226,7 +238,7 @@ export async function publishSocialCompositionById(input: {
         if (!composition.mediaUrl) throw new Error("A reviewed cover image is required for image channels");
         const result = await publishUploadPostImage({
           platform: platform as "instagram" | "pinterest", caption: captions[platform] ?? "", title: composition.title,
-          imageUrl: composition.mediaUrl, destinationUrl,
+          imageUrl: image ?? composition.mediaUrl, destinationUrl,
         });
         uploadPosts[platform as UploadPostPlatform] = uploadPostDelivery(result);
       }
@@ -248,7 +260,7 @@ export async function publishSocialCompositionById(input: {
         compositionId: composition.id, title: composition.title, platforms: toCreate,
         platformContent: captions, scheduledFor: scheduledLater ? composition.scheduledFor ?? undefined : undefined,
         publishNow: !scheduledLater, destinationUrl,
-        mediaUrl: composition.mediaUrl ?? undefined, documentUrl: composition.documentUrl ?? undefined,
+        mediaUrl: image ?? composition.mediaUrl ?? undefined, documentUrl: composition.documentUrl ?? undefined,
       });
       Object.assign(postIds, provider.postIds);
       for (const failure of provider.failures) failures.push({ platform: failure.platform, error: (failure.error ?? "Zernio failed").slice(0, 300) });

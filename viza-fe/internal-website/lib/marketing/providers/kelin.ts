@@ -9,6 +9,7 @@
    a vendor id. Every network but TikTok lets us delete what we posted. */
 import { adapterFor, fromHandle, isConfigured, toHandle } from "@/lib/social";
 import type { MarketingSocialPlatform } from "../contracts";
+import { socialAppBase } from "../social-image";
 
 export const KELIN_DIRECT_PLATFORMS = ["facebook", "instagram", "linkedin", "pinterest", "tiktok", "youtube"] as const;
 export type KelinDirectPlatform = (typeof KELIN_DIRECT_PLATFORMS)[number];
@@ -23,10 +24,13 @@ export function isKelinHandle(id: string | null | undefined): boolean {
   return fromHandle(id) !== null;
 }
 
-/** Instagram takes JPEG only. Our storage covers go through /social-jpeg. */
-function instagramImage(imageUrl: string, publicBase: URL): string {
-  if (/\.jpe?g($|\?)/i.test(new URL(imageUrl).pathname)) return imageUrl;
-  return new URL(`/social-jpeg?src=${encodeURIComponent(imageUrl)}`, publicBase).toString();
+/** Instagram takes JPEG only. Our storage covers go through /social-jpeg on
+    this app (app.viza.it.com): the marketing site answers 404 for it. A
+    stamped cover (/social-card) is a JPEG already. */
+function instagramImage(imageUrl: string): string {
+  const { pathname } = new URL(imageUrl);
+  if (pathname === "/social-card" || /\.jpe?g$/i.test(pathname)) return imageUrl;
+  return new URL(`/social-jpeg?src=${encodeURIComponent(imageUrl)}`, socialAppBase()).toString();
 }
 
 export async function publishKelinPost(input: {
@@ -40,7 +44,6 @@ export async function publishKelinPost(input: {
   videoUrl?: string;
   /** Sets TikTok's and YouTube's AI-content disclosure. */
   aiGenerated?: boolean;
-  publicBase: URL;
 }): Promise<{ handle: string; url: string | null }> {
   if (!input.videoUrl && (input.platform === "instagram" || input.platform === "pinterest") && !input.imageUrl) {
     throw new Error(`A reviewed cover image is required for ${input.platform === "instagram" ? "Instagram" : "Pinterest"}`);
@@ -50,7 +53,7 @@ export async function publishKelinPost(input: {
     text: input.caption,
     link: input.destinationUrl,
     title: input.title,
-    imageUrl: input.videoUrl ? undefined : input.platform === "instagram" && input.imageUrl ? instagramImage(input.imageUrl, input.publicBase) : input.imageUrl,
+    imageUrl: input.videoUrl ? undefined : input.platform === "instagram" && input.imageUrl ? instagramImage(input.imageUrl) : input.imageUrl,
     videoUrl: input.videoUrl,
     aiGenerated: input.aiGenerated,
   });
