@@ -4,6 +4,9 @@ import SiteNav from "@/components/SiteNav";
 import { getPublicStatusSnapshot } from "@/lib/public-status";
 import StatusClient from "./status-client";
 import "./status.css";
+import { staticMetadataFor } from "@/lib/seo-page";
+
+export const generateMetadata = staticMetadataFor("status", "/status");
 
 export default async function StatusPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;

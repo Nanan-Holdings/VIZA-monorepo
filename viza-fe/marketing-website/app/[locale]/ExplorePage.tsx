@@ -232,7 +232,7 @@ export default function ExplorePage() {
               <div className="nm">{c.name}</div>
               <div className="ct">{c.city}</div>
             </div>
-            <div className="flag"><CircleFlag countryCode={c.flagCode} height={28} /></div>
+            <div className="flag"><CircleFlag alt="" countryCode={c.flagCode} height={28} /></div>
           </div>
         </div>
         <div className="card-body">
@@ -272,7 +272,7 @@ export default function ExplorePage() {
                 setPpOpen((v) => !v);
               }}
             >
-              <span className="ball"><CircleFlag countryCode={passport.code.toLowerCase()} height={32} /></span>
+              <span className="ball"><CircleFlag alt="" countryCode={passport.code.toLowerCase()} height={32} /></span>
               <span>
                 <span className="lab-key">{t("nav.yourPassport")}</span>
                 <span className="lab-val">
@@ -301,7 +301,7 @@ export default function ExplorePage() {
                             setPpOpen(false);
                           }}
                         >
-                          <span className="pp-flag"><CircleFlag countryCode={p.code.toLowerCase()} height={28} /></span>
+                          <span className="pp-flag"><CircleFlag alt="" countryCode={p.code.toLowerCase()} height={28} /></span>
                           <span className="pp-name">{t(`passports.${p.code}`)}</span>
                           <span className="pp-meta">{t("explore.visaFree", { n: p.free })}</span>
                           <Check className="pp-check" />
@@ -344,7 +344,7 @@ export default function ExplorePage() {
       <section className="passport-strip">
         <div className="passport-strip-inner">
           <div className="ps-head">
-            <div className="ps-flag"><CircleFlag countryCode={passport.code.toLowerCase()} height={36} /></div>
+            <div className="ps-flag"><CircleFlag alt="" countryCode={passport.code.toLowerCase()} height={36} /></div>
             <div>
               <div className="ps-name">{t("explore.passportLabel", { name: passportName })}</div>
               <div className="ps-sub">{t("explore.passportSub", { n: passport.free + passport.voa + passport.req, rank: passport.rank })}</div>

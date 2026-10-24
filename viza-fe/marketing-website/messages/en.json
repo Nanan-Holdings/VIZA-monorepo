@@ -42,8 +42,8 @@
   },
   "pages": {
     "blog": {
-      "metaTitle": "Visa guides and travel updates — VIZA",
-      "metaDescription": "Clear, practical guidance on visas, application preparation, and international travel from VIZA.",
+      "metaTitle": "Visa News and Application Guides",
+      "metaDescription": "Visa rule changes, entry requirements and application guides for travellers in Singapore, written by the team that files visa applications every day.",
       "eyebrow": "VIZA journal",
       "title": "Visa guidance, without the fine-print fog.",
       "lede": "Practical explanations, official-policy updates, and preparation tips from the team that handles visa applications every day.",
@@ -68,8 +68,8 @@
       "ctaTitle": "Ready to start your application?",
       "ctaBody": "Tell us where you want to go. VIZA will guide you through the requirements and next steps.",
       "ctaAction": "Start an application",
-      "categoryMetaTitle": "{category} guides — VIZA",
-      "categoryMetaDescription": "Read VIZA guides and updates about {category}.",
+      "categoryMetaTitle": "{category}: Visa News and Guides",
+      "categoryMetaDescription": "VIZA articles on {category}: visa rule changes, entry requirements and practical application advice for travellers in Singapore.",
       "categoryLede": "Guides and updates about {category}."
     },
     "home": {
@@ -2240,6 +2240,118 @@
       "prodPhoto": "Visa Photo Creator",
       "prodHelpline": "VIZA Emergency Helpline",
       "copyright": "© VIZA, All rights reserved"
+    }
+  },
+  "seo": {
+    "apply": {
+      "title": "Start a Visa Application",
+      "description": "Upload your passport and VIZA reads the details for you. Confirm them, pick a destination and continue to a free application that an advisor reviews."
+    },
+    "contact": {
+      "title": "Contact a Visa Advisor in Singapore",
+      "description": "Reach VIZA by WhatsApp, WeChat, phone or email. Advisors in Singapore and Shanghai answer visa questions in English and Chinese."
+    },
+    "careers": {
+      "title": "Careers in Singapore and Shanghai",
+      "description": "Join VIZA in Singapore or Shanghai. Open roles in engineering, design, operations and visa consulting, on a team that files visa applications every day."
+    },
+    "security": {
+      "title": "Security and Passport Data Protection",
+      "description": "How VIZA collects, stores and protects passport scans and application documents, and how to report a vulnerability under our disclosure programme."
+    },
+    "status": {
+      "title": "System Status",
+      "description": "Recorded availability checks for the VIZA website, the application portal and the government visa portals VIZA files against."
+    },
+    "privacy": {
+      "title": "Privacy Policy",
+      "description": "What personal data VIZA collects when you apply for a visa, why, who sees it, how long it is kept and how to exercise your rights."
+    },
+    "terms": {
+      "title": "Terms of Service",
+      "description": "The agreement between you and VIZA Pte. Ltd. for visa application services. VIZA's service is free; government visa fees are paid to the issuing authority."
+    },
+    "product": {
+      "title": "How VIZA Handles Your Visa Application",
+      "description": "VIZA prepares, checks and tracks visa applications for travellers in Singapore. The service is free; government fees go to the issuing authority."
+    },
+    "events": {
+      "title": "Events",
+      "description": "Visa clinics, information sessions and partner events from VIZA in Singapore will be announced here."
+    },
+    "visaFallback": {
+      "title": "{country} Visa Application",
+      "description": "Apply for a {country} visa from Singapore with VIZA. An advisor checks every form before it is lodged. VIZA's service is free."
+    },
+    "visaComingSoon": {
+      "title": "{country} Visa: Coming Soon",
+      "description": "VIZA does not file {country} visa applications yet. Browse the destinations VIZA serves from Singapore."
+    },
+    "visa": {
+      "united-states": {
+        "title": "US Visa Application in Singapore (B1/B2, DS-160)",
+        "description": "Apply for a US B1/B2 visitor visa in Singapore. VIZA fills your DS-160, books the embassy interview and checks every answer. The VIZA service is free."
+      },
+      "france": {
+        "title": "France Schengen Visa from Singapore",
+        "description": "Apply for a France Schengen visa (Type C, up to 90 days) from Singapore. VIZA prepares the France-Visas form and documents and tracks the decision."
+      },
+      "italy": {
+        "title": "Italy Schengen Visa from Singapore",
+        "description": "Apply for an Italy Schengen visa (Type C, up to 90 days) from Singapore. VIZA prepares the dossier, books the appointment and tracks it. Free service."
+      },
+      "vietnam": {
+        "title": "Vietnam e-Visa Application from Singapore",
+        "description": "Apply for the official Vietnam e-visa: up to 90 days, single or multiple entry, USD 25 to 50 government fee. VIZA files it on evisa.gov.vn and tracks it."
+      },
+      "india": {
+        "title": "India e-Visa Application from Singapore",
+        "description": "Apply for the India e-Tourist Visa online from Singapore: a 30-day stay, decision usually by email within 72 hours. VIZA files and tracks it for free."
+      },
+      "japan": {
+        "title": "Japan Visa Application in Singapore",
+        "description": "Apply for a Japan tourist visa (JAPAN eVISA) from Singapore: single entry, up to 90 days. VIZA prepares the documents and tracks the decision for free."
+      },
+      "indonesia": {
+        "title": "Indonesia e-VOA for Bali",
+        "description": "Get the Indonesia electronic Visa on Arrival (e-VOA) for Bali and Jakarta: a 30-day stay, valid 90 days from issue. VIZA files and tracks it for free."
+      },
+      "united-kingdom": {
+        "title": "UK Visa Application in Singapore",
+        "description": "Apply for a UK Standard Visitor visa (up to 6 months) or the UK ETA from Singapore. VIZA prepares the form and documents and tracks the decision for free."
+      },
+      "australia": {
+        "title": "Australia Visitor Visa (600) from Singapore",
+        "description": "Apply for the Australia Visitor visa (subclass 600) or ETA from Singapore: stays of 3, 6 or 12 months. VIZA prepares and tracks the application for free."
+      },
+      "canada": {
+        "title": "Canada Visitor Visa and eTA from Singapore",
+        "description": "Apply for a Canada visitor visa (TRV) or eTA from Singapore. VIZA prepares the application, books biometrics and tracks the decision. Free service."
+      },
+      "thailand": {
+        "title": "Thailand e-Visa Application",
+        "description": "Apply for the official Thailand Tourist e-Visa on thaievisa.go.th: valid 3 months, 60-day stay, extendable once by 30 days. VIZA files it for free."
+      },
+      "malaysia": {
+        "title": "Malaysia eVISA Application",
+        "description": "Apply for the Malaysia eVISA (single entry, 30-day stay, valid 3 months) if your passport needs one. VIZA checks eligibility and files it for free."
+      },
+      "turkiye": {
+        "title": "Turkey e-Visa (Turkiye) Application",
+        "description": "Check whether you need a Turkiye e-Visa and apply online. Singapore and Chinese passports enter visa-free for up to 90 days. VIZA files the rest."
+      },
+      "united-arab-emirates": {
+        "title": "UAE (Dubai) Tourist Visa from Singapore",
+        "description": "Apply for a UAE tourist visa for Dubai or Abu Dhabi: a 30 or 60-day stay, processed in about 48 hours. VIZA checks if you need one and files it."
+      },
+      "saudi-arabia": {
+        "title": "Saudi Arabia Tourist e-Visa from Singapore",
+        "description": "Apply for the Saudi tourist e-Visa: one year, multiple entry, up to 90 days per visit, insurance included. VIZA files it on the official portal for free."
+      },
+      "egypt": {
+        "title": "Egypt e-Visa from Singapore",
+        "description": "Apply for the Egypt tourist e-Visa through the official visa2egypt portal: single or multiple entry, 30 days per entry. VIZA files and tracks it for free."
+      }
     }
   }
 }

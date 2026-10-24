@@ -22,6 +22,9 @@ reports, and workflow documentation for VIZA.
 - `application/schema-ui-contract.md`: canonical mapping from scraped master
   schema fields to frozen application components, conditional-panel ownership,
   strict audit workflow, and the edge-case component backlog.
+- `seo/README.md`: how SEO, hreflang, social cards, sitemap and agent files
+  are wired on the marketing site; `seo/keyword-map.md`: measured keyword
+  targets per page; `seo/seo-baseline-2026-10-24.md`: pre-change audit.
 - `viza-ai-chat-development-guide.md`: VIZA AI chat guide.
 - `travel-agent-development-guide.md`: Travel AI guide.
 - `TRAVEL_AGENT_QA.md`: Travel Agent QA findings, smoke prompts,

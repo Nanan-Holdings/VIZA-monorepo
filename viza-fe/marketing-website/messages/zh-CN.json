@@ -42,8 +42,8 @@
   },
   "pages": {
     "blog": {
-      "metaTitle": "签证指南与旅行动态 — VIZA",
-      "metaDescription": "VIZA 提供清晰、实用的签证申请准备与国际旅行指南。",
+      "metaTitle": "签证资讯与申请指南",
+      "metaDescription": "面向新加坡旅客的签证政策变化、入境要求与申请指南，由每天处理签证申请的 VIZA 团队撰写。",
       "eyebrow": "VIZA 指南",
       "title": "把签证信息讲清楚。",
       "lede": "来自一线签证服务团队的实用解读、官方政策更新与申请准备建议。",
@@ -68,13 +68,13 @@
       "ctaTitle": "准备开始申请签证？",
       "ctaBody": "告诉我们您的目的地，VIZA 会引导您了解所需材料和后续步骤。",
       "ctaAction": "开始申请",
-      "categoryMetaTitle": "{category}指南 — VIZA",
-      "categoryMetaDescription": "阅读 VIZA 关于{category}的指南与动态。",
+      "categoryMetaTitle": "{category}：签证资讯与指南",
+      "categoryMetaDescription": "VIZA 关于{category}的文章：签证政策变化、入境要求与实用申请建议，面向新加坡旅客。",
       "categoryLede": "关于{category}的指南与动态。"
     },
     "home": {
       "title": "美国签证、申根签证、越南/印度电子签申请 | VIZA 新加坡",
-      "description": "办理美国签证（DS-160）、印度/越南/埃及电子签和法国申根签证。每份表格提交前都由顾问核对。",
+      "description": "在新加坡办理美国签证（DS-160 代填）、申根签证、日本签证，以及越南、印度、埃及电子签。VIZA 服务免费，每份表格提交前都由顾问核对。",
       "heroTitle": "下一站去哪？",
       "heroLede": "浏览任何目的地的签证选项。VIZA 顾问与 AI 共同处理流程 — 您只管订机票。"
     },
@@ -2240,6 +2240,118 @@
       "prodPhoto": "签证照片生成",
       "prodHelpline": "VIZA 紧急热线",
       "copyright": "© VIZA，版权所有"
+    }
+  },
+  "seo": {
+    "apply": {
+      "title": "在线申请签证：上传护照即可开始",
+      "description": "上传护照，VIZA 自动识别护照信息。确认后选择目的地，免费提交申请，每份申请都由签证顾问审核。"
+    },
+    "contact": {
+      "title": "联系签证顾问",
+      "description": "通过 WhatsApp、微信、电话或邮件联系 VIZA。新加坡与上海的签证顾问以中英文解答您的签证问题。"
+    },
+    "careers": {
+      "title": "加入 VIZA：新加坡与上海招聘",
+      "description": "加入 VIZA 新加坡或上海团队。我们在招聘工程、设计、运营与签证顾问岗位，每天为旅客处理真实的签证申请。"
+    },
+    "security": {
+      "title": "数据安全与护照信息保护",
+      "description": "VIZA 如何收集、存储和保护护照扫描件与申请材料，以及如何通过漏洞披露计划报告安全问题。"
+    },
+    "status": {
+      "title": "系统状态",
+      "description": "VIZA 网站、申请平台以及我们对接的各国政府签证系统的可用性检测记录。"
+    },
+    "privacy": {
+      "title": "隐私政策",
+      "description": "申请签证时 VIZA 收集哪些个人信息、用途、谁能查看、保存多久，以及您如何行使个人数据权利。"
+    },
+    "terms": {
+      "title": "服务条款",
+      "description": "您与 VIZA Pte. Ltd. 之间关于签证申请服务的协议。VIZA 服务免费，政府签证费直接支付给签发机关。"
+    },
+    "product": {
+      "title": "VIZA 如何协助办理签证",
+      "description": "VIZA 为在新加坡的旅客准备、核对并跟踪签证申请。服务免费，政府签证费直接支付给签发机关。"
+    },
+    "events": {
+      "title": "活动",
+      "description": "VIZA 在新加坡举办的签证讲座、咨询会和合作活动将在这里发布。"
+    },
+    "visaFallback": {
+      "title": "{country}签证申请",
+      "description": "在新加坡通过 VIZA 申请{country}签证，每份表格提交前都由顾问核对。VIZA 服务免费。"
+    },
+    "visaComingSoon": {
+      "title": "{country}签证：即将开放",
+      "description": "VIZA 暂未开放{country}签证申请。浏览 VIZA 目前在新加坡可办理的目的地。"
+    },
+    "visa": {
+      "united-states": {
+        "title": "美国签证申请（B1/B2，DS-160 代填）",
+        "description": "在新加坡申请美国 B1/B2 旅游商务签证：VIZA 代填 DS-160、预约使馆面签并逐项核对答案。VIZA 服务免费，签证费直接付给美国政府。"
+      },
+      "france": {
+        "title": "法国申根签证申请（新加坡递交）",
+        "description": "在新加坡申请法国申根签证（C 类短期，最长 90 天）。VIZA 准备 France-Visas 表格与材料，预约递签并跟踪结果，服务免费。"
+      },
+      "italy": {
+        "title": "意大利申根签证申请（新加坡递交）",
+        "description": "在新加坡申请意大利申根签证（C 类短期，最长 90 天）。VIZA 准备材料、预约递签并跟踪审批进度，服务免费。"
+      },
+      "vietnam": {
+        "title": "越南电子签证申请（E-visa）",
+        "description": "在线申请越南官方电子签证：最长 90 天，单次或多次入境，政府费 25 至 50 美元。VIZA 通过 evisa.gov.vn 递交并全程跟踪，服务免费。"
+      },
+      "india": {
+        "title": "印度电子签证申请（e-Visa）",
+        "description": "在新加坡在线申请印度旅游电子签证：停留 30 天，通常 72 小时内邮件出签。VIZA 免费代为递交并跟踪进度。"
+      },
+      "japan": {
+        "title": "日本签证申请（新加坡递交）",
+        "description": "在新加坡申请日本旅游签证（JAPAN eVISA）：单次入境，最长停留 90 天。VIZA 准备材料并跟踪审批结果，服务免费。"
+      },
+      "indonesia": {
+        "title": "印尼落地签证申请（e-VOA，巴厘岛）",
+        "description": "在线办理印尼电子落地签（e-VOA）：签发后 90 天内有效，停留 30 天，适用巴厘岛与雅加达。VIZA 免费代为递交并跟踪。"
+      },
+      "united-kingdom": {
+        "title": "英国签证申请（标准访客签证）",
+        "description": "在新加坡申请英国标准访客签证（最长 6 个月）或英国 ETA。VIZA 准备表格与材料并跟踪审批结果，服务免费。"
+      },
+      "australia": {
+        "title": "澳大利亚签证申请（600 访客签证）",
+        "description": "在新加坡申请澳大利亚访客签证（600 类）或 ETA：每次可停留 3、6 或 12 个月。VIZA 准备并跟踪申请，服务免费。"
+      },
+      "canada": {
+        "title": "加拿大签证申请（访客签证 TRV / eTA）",
+        "description": "在新加坡申请加拿大访客签证（TRV）或 eTA。VIZA 准备申请、预约生物信息采集并跟踪审批结果，服务免费。"
+      },
+      "thailand": {
+        "title": "泰国电子签证申请（e-Visa）",
+        "description": "通过 thaievisa.go.th 申请泰国官方旅游电子签证：3 个月有效，停留 60 天，可在境内延期一次 30 天。VIZA 免费代为递交。"
+      },
+      "malaysia": {
+        "title": "马来西亚电子签证申请（eVISA）",
+        "description": "马来西亚 eVISA：单次入境，停留 30 天，3 个月内有效。新加坡与中国护照免签，VIZA 帮您确认是否需要并免费递交。"
+      },
+      "turkiye": {
+        "title": "土耳其电子签证申请（e-Visa）",
+        "description": "新加坡与中国护照可免签入境土耳其最长 90 天。其他护照可在线申请土耳其电子签证，由 VIZA 免费代为递交。"
+      },
+      "united-arab-emirates": {
+        "title": "阿联酋（迪拜）旅游签证申请",
+        "description": "申请阿联酋旅游签证（迪拜、阿布扎比）：停留 30 或 60 天，约 48 小时出签。新加坡与中国护照免签 90 天，VIZA 帮您确认。"
+      },
+      "saudi-arabia": {
+        "title": "沙特电子旅游签证申请",
+        "description": "申请沙特旅游电子签证：一年多次入境，每次最长停留 90 天，含医疗保险。VIZA 通过官方门户免费代为递交。"
+      },
+      "egypt": {
+        "title": "埃及电子签证申请",
+        "description": "通过官方 visa2egypt 门户申请埃及旅游电子签证：单次或多次入境，每次停留 30 天。VIZA 免费代为递交并跟踪。"
+      }
     }
   }
 }

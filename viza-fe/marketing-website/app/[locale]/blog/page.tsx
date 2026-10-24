@@ -8,6 +8,7 @@ import { locales, type Locale } from "@/i18n";
 import { getMarketingBlogFeed } from "@/lib/marketing-blog";
 import { blogCategories } from "@/lib/blog-taxonomy";
 import { blogUrl, breadcrumbJsonLd, jsonLd } from "@/lib/blog-structured-data";
+import { pageMetadata } from "@/lib/seo";
 
 export const revalidate = 300;
 
@@ -18,11 +19,7 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "pages.blog" });
-  return {
-    title: t("metaTitle"),
-    description: t("metaDescription"),
-    alternates: { canonical: locale === "en" ? "/blog" : `/${locale}/blog` },
-  };
+  return pageMetadata({ locale, path: "/blog", title: t("metaTitle"), description: t("metaDescription") });
 }
 
 export default async function BlogPage({ params }: { params: Promise<{ locale: string }> }) {

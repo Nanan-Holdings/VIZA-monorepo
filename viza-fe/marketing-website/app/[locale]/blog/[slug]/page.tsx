@@ -7,6 +7,7 @@ import MarketingBlogArticle from "@/components/MarketingBlogArticle";
 import type { Locale } from "@/i18n";
 import { getMarketingBlogFeed, getMarketingBlogPost } from "@/lib/marketing-blog";
 import { blogUrl, articleJsonLd, breadcrumbJsonLd, jsonLd } from "@/lib/blog-structured-data";
+import { pageMetadata } from "@/lib/seo";
 
 export const revalidate = 300;
 
@@ -18,25 +19,31 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
   const { locale: localeParam, slug } = await params;
   const locale = localeParam as Locale;
   const result = await getMarketingBlogPost(slug, locale);
-  if (result.status !== "ok") return { robots: { index: false, follow: false } };
+  if (result.status === "not-found") return { robots: { index: false, follow: false } };
+  // An API outage must not cache a noindex page under a live article URL:
+  // throw so ISR keeps serving the last good render (or answers 500, which
+  // crawlers retry) instead of a 200 "temporarily unavailable" page.
+  if (result.status !== "ok") throw new Error(`Marketing blog post unavailable: ${slug}`);
 
   const { post } = result;
-  return {
-    title: post.seoTitle || post.title,
+  const title = post.seoTitle || post.title;
+  return pageMetadata({
+    locale,
+    path: `/blog/${post.slug}`,
+    title,
+    // Long editorial headlines already fill the slot; skip the brand suffix.
+    absoluteTitle: title.length > 52,
     description: post.seoDescription || post.excerpt,
-    alternates: {
-      canonical: locale === "en" ? `/blog/${post.slug}` : `/${locale}/blog/${post.slug}`,
-    },
-    openGraph: {
-      type: "article",
-      title: post.seoTitle || post.title,
-      description: post.seoDescription || post.excerpt,
+    type: "article",
+    // Articles are written per locale with their own slugs.
+    bilingual: false,
+    image: post.coverImageUrl ? { url: post.coverImageUrl, alt: post.title } : undefined,
+    article: {
       publishedTime: post.publishedAt,
       modifiedTime: post.updatedAt,
       authors: [post.authorName],
-      images: post.coverImageUrl ? [{ url: post.coverImageUrl }] : undefined,
     },
-  };
+  });
 }
 
 export default async function BlogPostPage({ params }: BlogPostPageProps) {
@@ -50,7 +57,8 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   ]);
 
   if (result.status === "not-found") notFound();
-  const relatedPosts = result.status === "ok" && feedResult.status === "ok"
+  if (result.status === "unavailable") throw new Error(`Marketing blog post unavailable: ${slug}`);
+  const relatedPosts = feedResult.status === "ok"
     ? feedResult.feed.posts
       .filter((post) => post.id !== result.post.id)
       .sort((a, b) => Number(b.category === result.post.category) - Number(a.category === result.post.category))
@@ -60,38 +68,27 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   return (
     <>
       <SiteNav activeTab="blog" />
-      {result.status === "ok" ? (
-        <>
-          <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(articleJsonLd(result.post, locale))} />
-          <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(breadcrumbJsonLd([
-            { name: t("title"), url: blogUrl("/blog", locale) },
-            { name: result.post.title, url: blogUrl(`/blog/${result.post.slug}`, locale) },
-          ]))} />
-        </>
-      ) : null}
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(articleJsonLd(result.post, locale))} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(breadcrumbJsonLd([
+        { name: t("title"), url: blogUrl("/blog", locale) },
+        { name: result.post.title, url: blogUrl(`/blog/${result.post.slug}`, locale) },
+      ]))} />
       <main className="viza-blog">
-        {result.status === "unavailable" ? (
-          <section className="container-narrow py-20 text-center">
-            <h1 className="text-3xl">{t("unavailableTitle")}</h1>
-            <p className="mt-4 text-fg-2">{t("unavailableBody")}</p>
-          </section>
-        ) : (
-          <MarketingBlogArticle
-            post={result.post}
-            locale={locale}
-            backLabel={t("backToBlog")}
-            byLabel={t("by")}
-            updatedLabel={t("updated")}
-            readArticleLabel={t("readArticle")}
-            relatedTitle={t("relatedTitle")}
-            relatedDescription={t("relatedDescription")}
-            relatedPosts={relatedPosts}
-            ctaEyebrow={t("ctaEyebrow")}
-            ctaTitle={t("ctaTitle")}
-            ctaBody={t("ctaBody")}
-            ctaAction={t("ctaAction")}
-          />
-        )}
+        <MarketingBlogArticle
+          post={result.post}
+          locale={locale}
+          backLabel={t("backToBlog")}
+          byLabel={t("by")}
+          updatedLabel={t("updated")}
+          readArticleLabel={t("readArticle")}
+          relatedTitle={t("relatedTitle")}
+          relatedDescription={t("relatedDescription")}
+          relatedPosts={relatedPosts}
+          ctaEyebrow={t("ctaEyebrow")}
+          ctaTitle={t("ctaTitle")}
+          ctaBody={t("ctaBody")}
+          ctaAction={t("ctaAction")}
+        />
       </main>
       <SiteFooter />
     </>

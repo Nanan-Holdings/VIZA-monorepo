@@ -3,6 +3,9 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import SiteNav from "@/components/SiteNav";
 import "./security.css";
 import SiteFooter from "@/components/SiteFooter";
+import { staticMetadataFor } from "@/lib/seo-page";
+
+export const generateMetadata = staticMetadataFor("security", "/security");
 
 const NBSP = "\u00A0"; // matches the original &nbsp; entities
 

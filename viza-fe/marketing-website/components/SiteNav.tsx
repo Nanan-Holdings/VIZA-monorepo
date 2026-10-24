@@ -103,7 +103,7 @@ export default function SiteNav({ activeTab: initialTab }: Props) {
             }}
           >
             <span className="ball" id="siteNavPassportBall">
-              <CircleFlag countryCode={passportCode.toLowerCase()} height={32} />
+              <CircleFlag alt="" countryCode={passportCode.toLowerCase()} height={32} />
             </span>
             <span>
               <span className="lab-key">{t("nav.yourPassport")}</span>
@@ -150,7 +150,7 @@ export default function SiteNav({ activeTab: initialTab }: Props) {
                         }}
                       >
                         <span className="pp-flag">
-                          <CircleFlag countryCode={code.toLowerCase()} height={28} />
+                          <CircleFlag alt="" countryCode={code.toLowerCase()} height={28} />
                         </span>
                         <span className="pp-name">{t(`passports.${code}`)}</span>
                         <svg className="pp-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

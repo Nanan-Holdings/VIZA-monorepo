@@ -732,7 +732,7 @@ export default function CareersPage() {
                   <div className="ph-stripes"></div>
                   <div className="ph-label">{office.photo}</div>
                   <div className="card-flag">
-                    <CircleFlag countryCode={OFFICE_FLAGS[i]} height={28} />
+                    <CircleFlag alt="" countryCode={OFFICE_FLAGS[i]} height={28} />
                   </div>
                   <div className="card-roles">
                     <span

@@ -58,6 +58,12 @@ const nextConfig: NextConfig = {
     root: projectRoot,
   },
   reactStrictMode: true,
+  // Render <title>, description, canonical, hreflang and Open Graph tags in
+  // the initial <head> for every client, not only the crawlers on Next's
+  // built-in list. With streaming metadata, any user agent missing from that
+  // list (some AI crawlers, link-preview bots, SEO tools) saw a page with no
+  // title or canonical whenever generateMetadata awaited a fetch.
+  htmlLimitedBots: /.*/,
   images: {
     remotePatterns: [{ protocol: "https", hostname: "images.unsplash.com" }],
   },

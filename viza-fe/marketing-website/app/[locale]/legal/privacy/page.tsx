@@ -3,6 +3,9 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import SiteNav from "@/components/SiteNav";
 import "../legal.css";
 import SiteFooter from "@/components/SiteFooter";
+import { staticMetadataFor } from "@/lib/seo-page";
+
+export const generateMetadata = staticMetadataFor("privacy", "/legal/privacy");
 
 const TOC_IDS = [
   "scope",

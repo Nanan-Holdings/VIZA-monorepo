@@ -10,6 +10,7 @@ import { getMarketingBlogFeed } from "@/lib/marketing-blog";
 import { blogCategories, categorySlug } from "@/lib/blog-taxonomy";
 import { blogUrl, breadcrumbJsonLd, jsonLd } from "@/lib/blog-structured-data";
 import { Link } from "@/navigation";
+import { pageMetadata } from "@/lib/seo";
 
 export const revalidate = 300;
 export const dynamicParams = true;
@@ -28,12 +29,19 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
   const category = result.status === "ok"
     ? blogCategories(result.feed.posts).find((item) => item.slug === slug)
     : undefined;
+  // A feed outage must not cache a noindex: throw so ISR keeps serving the last
+  // good render (or answers 500, which crawlers retry) instead.
+  if (result.status !== "ok") throw new Error("Marketing blog feed unavailable");
   if (!category) return { robots: { index: false, follow: false } };
-  return {
+  return pageMetadata({
+    locale,
+    path: `/blog/category/${slug}`,
     title: t("categoryMetaTitle", { category: category.name }),
     description: t("categoryMetaDescription", { category: category.name }),
-    alternates: { canonical: locale === "en" ? `/blog/category/${slug}` : `/${locale}/blog/category/${slug}` },
-  };
+    // Category slugs come from each locale's own feed, so there is no
+    // guaranteed twin in the other language.
+    bilingual: false,
+  });
 }
 
 export default async function BlogCategoryPage({ params }: CategoryPageProps) {
