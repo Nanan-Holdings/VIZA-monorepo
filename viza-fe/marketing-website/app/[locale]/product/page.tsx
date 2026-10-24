@@ -1,5 +1,8 @@
 import SiteFooter from "@/components/SiteFooter";
 import SiteNav from "@/components/SiteNav";
+import { staticMetadataFor } from "@/lib/seo-page";
+
+export const generateMetadata = staticMetadataFor("product", "/product");
 
 export default async function ProductPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;

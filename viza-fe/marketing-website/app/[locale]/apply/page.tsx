@@ -134,7 +134,7 @@ function CountryDisplay({ alpha3 }: { alpha3: string }) {
   if (!entry) return <>{alpha3 || "—"}</>;
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-      <CircleFlag countryCode={entry.a2} height={16} />
+      <CircleFlag alt="" countryCode={entry.a2} height={16} />
       {entry.name}
     </span>
   );
@@ -613,7 +613,7 @@ export default function ApplyPage() {
           <section className={`step step-pane${step === 1 ? " active" : ""}`} data-pane="1">
             <header className="step-head">
               <div className="step-eyebrow">{tA("stepOf", { n: 1 })}</div>
-              <h1>{tA("s1Title")}</h1>
+              {step === 1 ? <h1>{tA("s1Title")}</h1> : <h2>{tA("s1Title")}</h2>}
               <p>{tA("s1Desc")}</p>
             </header>
 
@@ -764,7 +764,7 @@ export default function ApplyPage() {
           <section className={`step step-pane${step === 2 ? " active" : ""}`} data-pane="2">
             <header className="step-head">
               <div className="step-eyebrow">{tA("stepOf", { n: 2 })}</div>
-              <h1>{tA("s2Title")}</h1>
+              {step === 2 ? <h1>{tA("s2Title")}</h1> : <h2>{tA("s2Title")}</h2>}
               <p>{tA("s2Desc")}</p>
             </header>
 
@@ -922,7 +922,7 @@ export default function ApplyPage() {
           <section className={`step step-pane${step === 3 ? " active" : ""}`} data-pane="3">
             <header className="step-head">
               <div className="step-eyebrow">{tA("stepOf", { n: 3 })}</div>
-              <h1>{tA("s3Title")}</h1>
+              {step === 3 ? <h1>{tA("s3Title")}</h1> : <h2>{tA("s3Title")}</h2>}
               <p>{tA("s3Desc")}</p>
             </header>
 
@@ -948,7 +948,7 @@ export default function ApplyPage() {
         <aside className="summary">
           <div className="sum-title">{tA("yourApp")}</div>
           <div className="sum-country">
-            <div className="flag"><CircleFlag countryCode={country.flagCode} height={40}/></div>
+            <div className="flag"><CircleFlag alt="" countryCode={country.flagCode} height={40}/></div>
             <div>
               <div className="nm">{countryName}</div>
               <div className="vt">{country.type} · {country.validity}</div>

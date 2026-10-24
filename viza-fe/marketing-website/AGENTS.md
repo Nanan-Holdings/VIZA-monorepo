@@ -11,6 +11,20 @@ pages, and portal checkout links.
 
 ## Analytics And SEO
 
+- SEO wiring is documented in `docs/seo/README.md`; keyword targets in
+  `docs/seo/keyword-map.md`. Build every page's metadata with
+  `pageMetadata()` from `lib/seo.ts` (canonical, hreflang, Open Graph,
+  Twitter); copy lives under `seo.*` in `messages/*.json`. Client pages get
+  metadata from a segment `layout.tsx` via `lib/seo-page.ts`.
+- `proxy.ts` serves requests with no Accept-Language (crawlers) the page at the
+  requested URL; first-time human visitors still get Chinese via a 307. Do not
+  reintroduce an unconditional cookie redirect: it hides every English page
+  from search engines.
+- Social cards: `public/og/` (default per locale, `visa/<slug>.jpg` per
+  destination). Favicon: `app/favicon.ico`, `app/icon.svg`,
+  `app/apple-icon.png`. Search Console file:
+  `public/google65d131abe979689c.html`.
+
 - `app/[locale]/blog/**` renders published portal articles. `lib/marketing-blog.ts` reads the portal's public API; category and article JSON-LD live in `lib/blog-structured-data.ts` and `lib/blog-taxonomy.ts`.
 - Public blog layout styles live in `app/blog.css` and are scoped to the blog
   routes by `app/[locale]/blog/layout.tsx`. The shared featured story, topic

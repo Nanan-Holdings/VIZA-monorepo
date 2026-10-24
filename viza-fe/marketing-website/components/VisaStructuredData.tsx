@@ -40,12 +40,17 @@ export default function VisaStructuredData({
     name: `${localName} ${localType} application service`,
     serviceType: "Visa application service",
     provider: { "@id": `${base}/#organization` },
-    areaServed: localName,
+    // Where VIZA's customers are, not the destination country.
+    areaServed: { "@type": "Country", name: "Singapore" },
     url,
     image: `${base}${country.image}`,
     description: `VIZA helps travelers prepare, review, and submit ${localName} ${localType} applications with AI guidance and expert human oversight.`,
+    // The VIZA service is free (payments retired 2026-09-15); the government
+    // fee is paid to the issuing authority and is not VIZA's offer.
     offers: {
       "@type": "Offer",
+      price: "0",
+      priceCurrency: "SGD",
       availability: "https://schema.org/InStock",
       url,
     },
@@ -55,9 +60,8 @@ export default function VisaStructuredData({
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "VIZA", item: base },
-      { "@type": "ListItem", position: 2, name: "Visa services", item: `${base}${localePrefix}` },
-      { "@type": "ListItem", position: 3, name: localName, item: url },
+      { "@type": "ListItem", position: 1, name: "VIZA", item: `${base}${localePrefix || "/"}` },
+      { "@type": "ListItem", position: 2, name: localName, item: url },
     ],
   };
 

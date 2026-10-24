@@ -54,8 +54,24 @@ const organizationJsonLd = {
      called VIZA and nothing about what it does, which is the difference
      between being listed and being recommended. */
   description:
-    "VIZA is an AI-powered visa agency. It plans, files and tracks tourist, business, work, student and long-term visa applications, with human consultants reviewing every submission.",
+    "VIZA is a visa application service based in Singapore. It prepares, files and tracks tourist, business and student visa applications, with an advisor reviewing every submission. The VIZA service is free; government visa fees are paid to the issuing authority.",
   logo: `${siteUrl}/assets/viza-logo-black.svg`,
+  /* The real social profiles (same list as components/SiteFooter.tsx), so a
+     search engine or agent can tie the entity to profiles that link back. */
+  sameAs: [
+    "https://www.facebook.com/profile.php?id=61592698634582",
+    "https://www.instagram.com/viza_com/",
+    "https://www.linkedin.com/company/viza-com/",
+    "https://x.com/viza_it_com",
+    "https://www.pinterest.com/viza_com/",
+    "https://www.reddit.com/user/viza_com/",
+  ],
+  address: {
+    "@type": "PostalAddress",
+    streetAddress: "225 Pasir Panjang Road",
+    addressLocality: "Singapore",
+    addressCountry: "SG",
+  },
   contactPoint: [
     {
       "@type": "ContactPoint",
@@ -73,24 +89,33 @@ const websiteJsonLd = {
   "@id": `${siteUrl}/#website`,
   name: "VIZA",
   url: siteUrl,
+  inLanguage: ["en", "zh-CN"],
   publisher: { "@id": `${siteUrl}/#organization` },
 };
 
+// Fallbacks only: every route sets its own title, description, canonical,
+// hreflang and social card through lib/seo.ts `pageMetadata()`.
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "VIZA — AI-powered visa applications",
-    template: "%s · VIZA",
+    default: "VIZA: visa applications from Singapore",
+    template: "%s | VIZA",
   },
   description:
-    "VIZA is an AI-powered visa agency. Apply for tourist, business, work, student, and long-term visas with expert human oversight.",
+    "VIZA prepares, checks and tracks tourist and business visa applications for travellers in Singapore. The service is free; government fees are paid to the issuing authority.",
   openGraph: {
     type: "website",
     url: siteUrl,
     siteName: "VIZA",
-    title: "VIZA — AI-powered visa applications",
+    title: "VIZA: visa applications from Singapore",
     description:
-      "Apply for tourist, business, work, student, and long-term visas with AI guidance and expert human oversight.",
+      "US, Schengen, Japan and UK visas, and Vietnam, India and Egypt e-visas, prepared and checked by a VIZA advisor. Free service.",
+    images: [{ url: `${siteUrl}/og/viza-en.png`, width: 1200, height: 630, alt: "VIZA visa applications from Singapore" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    site: "@viza_it_com",
+    images: [`${siteUrl}/og/viza-en.png`],
   },
 };
 

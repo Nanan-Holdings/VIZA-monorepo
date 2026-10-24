@@ -165,7 +165,7 @@ export default function VisaCountryRich({
             </a>
             <h1>
               {content.heroTitle}
-              <span className="title-flag"><CircleFlag countryCode={country.flagCode} height={34} /></span>
+              <span className="title-flag"><CircleFlag alt="" countryCode={country.flagCode} height={34} /></span>
               {content.heroTitleSuffix ? <><br />{content.heroTitleSuffix}</> : null}
             </h1>
             <p className="lede">{content.lede}</p>

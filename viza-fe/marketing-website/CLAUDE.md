@@ -47,9 +47,12 @@ is no bespoke per-country page. The pieces:
    `launched: false` so the route can render a coming-soon state.
 2. Add a hero image at `public/assets/heroes/<slug>.jpg` — add the slug→Unsplash id to
    `scripts/fetch-hero-images.mjs` and run `node scripts/fetch-hero-images.mjs`, then commit it.
-3. Create `lib/visa-content/<slug>.ts` exporting a `VisaContent` (mirror `indonesia.ts`) and
+3. Add a 1200x630 social card at `public/og/visa/<slug>.jpg` (centre crop of the hero;
+   command in `docs/seo/README.md`) and `seo.visa.<slug>` title/description in both
+   message files (keyword from `docs/seo/keyword-map.md`).
+4. Create `lib/visa-content/<slug>.ts` exporting a `VisaContent` (mirror `indonesia.ts`) and
    register it in `lib/visa-content/index.ts`.
-4. In `/admin/catalogue-publication`, save the public draft, resolve every
+5. In `/admin/catalogue-publication`, save the public draft, resolve every
    readiness blocker, and publish. Only then do cards, detail pages, checkout,
    and sitemap availability appear.
 

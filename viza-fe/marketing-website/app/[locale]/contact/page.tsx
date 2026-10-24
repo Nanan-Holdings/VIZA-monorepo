@@ -545,7 +545,7 @@ export default function ContactPage() {
             {DESKS.map((desk) => (
               <div className="desk" key={desk.id}>
                 <div className="desk-head">
-                  <span className="desk-flag"><CircleFlag countryCode={desk.id} height={32} /></span>
+                  <span className="desk-flag"><CircleFlag alt="" countryCode={desk.id} height={32} /></span>
                   <span className={`desk-status${desk.closed ? " closed" : ""}`}><span className="dot"></span>{t(`desks.${desk.id}.status`)}</span>
                 </div>
                 <h4>{t(`desks.${desk.id}.title`)}<small>{t(`desks.${desk.id}.sub`)}</small></h4>
