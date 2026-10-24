@@ -20,6 +20,9 @@ pages, and portal checkout links.
   requested URL; first-time human visitors still get Chinese via a 307. Do not
   reintroduce an unconditional cookie redirect: it hides every English page
   from search engines.
+- `app/[locale]/guides/ds-160/page.tsx`: DS-160 guide (keyword `ds160`),
+  copy in `guides.ds160` messages, layout from `legal.css`; design brief in
+  `docs/design-briefs/ds-160-guide.md`.
 - Social cards: `public/og/` (default per locale, `visa/<slug>.jpg` per
   destination). Favicon: `app/favicon.ico`, `app/icon.svg`,
   `app/apple-icon.png`. Search Console file:

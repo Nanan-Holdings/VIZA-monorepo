@@ -2353,5 +2353,88 @@
         "description": "Apply for the Egypt tourist e-Visa through the official visa2egypt portal: single or multiple entry, 30 days per entry. VIZA files and tracks it for free."
       }
     }
+  },
+  "guides": {
+    "ds160": {
+      "metaTitle": "DS-160 Form Guide: How to Fill It In from Singapore",
+      "metaDescription": "How to complete the DS-160 US visa form on ceac.state.gov from Singapore: what to prepare, each step, common mistakes and booking the interview.",
+      "title": "DS-160 form: how to fill it in from Singapore",
+      "lede": "The DS-160 is the online US visa application on ceac.state.gov. You fill it in, upload a photo and submit it, then pay the USD 185 fee and book an interview at the US Embassy Singapore.",
+      "toc": [
+        "What you need",
+        "Step by step",
+        "Common mistakes",
+        "Let VIZA fill it",
+        "Questions"
+      ],
+      "needTitle": "What you need",
+      "need": [
+        "Your passport, valid for at least six months beyond your stay.",
+        "A digital photo: 600x600 to 1200x1200 px, white background, taken in the last six months, no glasses.",
+        "Travel dates and where you will stay in the US.",
+        "Your current job or school, and previous employers.",
+        "Past US visits and any earlier US visas or refusals.",
+        "The social media handles you have used in the last five years.",
+        "Parents' names and dates of birth, and your spouse's details if married."
+      ],
+      "stepsTitle": "Step by step",
+      "steps": [
+        [
+          "Start the form",
+          "Open ceac.state.gov/genniv, choose Singapore as the place you will apply, and write down the Application ID and your security answer."
+        ],
+        [
+          "Answer in English",
+          "The help text can be shown in Chinese, but every answer must be in English. Only your full name is also asked in Chinese characters."
+        ],
+        [
+          "Save as you go",
+          "The site logs you out after about 20 minutes without activity. Use Save often; you can come back with your Application ID."
+        ],
+        [
+          "Upload, sign, submit",
+          "Upload the photo, review every page, sign electronically and submit. Save the confirmation page with the barcode."
+        ],
+        [
+          "Pay and book",
+          "Pay the USD 185 MRV fee and book your interview through ustraveldocs.com/sg, using your DS-160 barcode number."
+        ],
+        [
+          "Go to the interview",
+          "Bring your passport, the confirmation page and the appointment letter to the US Embassy, 27 Napier Road."
+        ]
+      ],
+      "mistakesTitle": "Common mistakes",
+      "mistakes": [
+        "A name or passport number that does not match the passport exactly.",
+        "Choosing a different interview location from the one you book.",
+        "Travel or employment history that contradicts an earlier application.",
+        "Leaving the social media question blank when you have accounts."
+      ],
+      "vizaTitle": "Let VIZA fill it",
+      "vizaBody": "VIZA fills in your DS-160 from your passport and a short questionnaire, an advisor checks every answer, and we book the interview. The VIZA service is free; the USD 185 fee goes to the US government.",
+      "vizaLink": "US visa application with VIZA",
+      "vizaApply": "Start your US visa application",
+      "faqTitle": "Questions",
+      "faq": [
+        [
+          "How long does the DS-160 take?",
+          "Allow about 90 minutes. You can save it and come back with your Application ID."
+        ],
+        [
+          "Can I change it after submitting?",
+          "No. Start a new DS-160 (you can copy an earlier one) and bring the new confirmation page to the interview."
+        ],
+        [
+          "Do Singapore citizens need a DS-160?",
+          "Not for trips of 90 days or less: ESTA covers those. Chinese passport holders always need a visa, and so a DS-160."
+        ],
+        [
+          "Is the DS-160 the same as the visa?",
+          "No. It is the application. The decision is made at the interview."
+        ]
+      ],
+      "breadcrumb": "DS-160 guide"
+    }
   }
 }

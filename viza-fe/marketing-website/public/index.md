@@ -82,6 +82,7 @@ the current government fee.
 
 - [Home](https://viza.it.com/) / [中文首页](https://viza.it.com/zh-CN): the visa map and every destination served
 - [Start an application](https://viza.it.com/apply)
+- [DS-160 form guide](https://viza.it.com/guides/ds-160) / [DS-160 填写指南](https://viza.it.com/zh-CN/guides/ds-160): how to fill in the US visa form from Singapore
 - [Contact an advisor](https://viza.it.com/contact): WhatsApp, WeChat, phone or email
 - [Visa news and guides](https://viza.it.com/blog) / [签证资讯](https://viza.it.com/zh-CN/blog)
 - [Security](https://viza.it.com/security): how passport data is handled
