@@ -573,7 +573,7 @@
         },
         {
           "label": "照片 · 顾问一线工作区",
-          "mark": "Kangcheng Rd, Shanghai"
+          "mark": "Luoshan Rd, Shanghai"
         },
         {
           "label": "照片 · 白板讨论",
@@ -581,7 +581,7 @@
         },
         {
           "label": "照片 · 上海运营区",
-          "mark": "Minhang District, Shanghai"
+          "mark": "Pudong, Shanghai"
         },
         {
           "label": "照片 · 团队聚餐",
@@ -790,8 +790,8 @@
           "photo": "照片 · 上海",
           "open": "6 个在招",
           "name": "上海",
-          "addr1": "中国（上海）自由贸易试验区罗山路1502弄",
-          "addr2": "闵行区新松路958弄康城路67号",
+          "addr1": "中国（上海）自由贸易试验区",
+          "addr2": "罗山路1502弄",
           "tz": "GMT+8 · 中国区运营",
           "since": "始于 2023"
         },

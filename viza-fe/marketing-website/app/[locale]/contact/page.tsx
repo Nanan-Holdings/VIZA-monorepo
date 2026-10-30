@@ -147,7 +147,7 @@ const CONTACTS = {
 const DIAL_CODES = ["🇸🇬 +65", "🇺🇸 +1", "🇬🇧 +44", "🇦🇪 +971", "🇨🇳 +86", "🇮🇳 +91", "🇵🇭 +63"] as const;
 
 const DESKS = [
-  { id: "cn", phone: "+66 18930437448", email: "sales@kelin.studio", address: "No. 67, Kangcheng Road, Lane 958, Xinsong Road, Minhang District, Shanghai", closed: false },
+  { id: "cn", phone: "+66 18930437448", email: "sales@kelin.studio", address: "Lane 1502, Luoshan Road, China (Shanghai) Pilot Free Trade Zone", closed: false },
   { id: "sg", phone: "+65 84106368", email: "sales@kelin.studio", address: "225 Pasir Panjang Rd, Singapore", closed: false },
 ] as const;
 
