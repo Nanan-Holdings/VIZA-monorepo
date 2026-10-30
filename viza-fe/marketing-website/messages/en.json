@@ -573,7 +573,7 @@
         },
         {
           "label": "photo · consultant queue floor",
-          "mark": "Kangcheng Rd, Shanghai"
+          "mark": "Luoshan Rd, Shanghai"
         },
         {
           "label": "photo · whiteboard session",
@@ -581,7 +581,7 @@
         },
         {
           "label": "photo · shanghai ops floor",
-          "mark": "Minhang District, Shanghai"
+          "mark": "Pudong, Shanghai"
         },
         {
           "label": "photo · team dinner",
@@ -790,8 +790,8 @@
           "photo": "photo · shanghai",
           "open": "6 open",
           "name": "Shanghai",
-          "addr1": "No. 67, Kangcheng Road, Lane 958,",
-          "addr2": "Xinsong Road, Minhang District, Shanghai",
+          "addr1": "Lane 1502, Luoshan Road,",
+          "addr2": "China (Shanghai) Pilot Free Trade Zone",
           "tz": "GMT+8 · China operations",
           "since": "Since 2023"
         },

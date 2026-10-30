@@ -12,7 +12,7 @@ export default function SiteFooter() {
   const t = useTranslations("footer");
 
   const offices: Array<[string, string]> = [
-    ["中国（上海）自由贸易试验区罗山路1502弄", "No. 67, Kangcheng Road, Lane 958, Xinsong Road, Minhang District, Shanghai, China"],
+    ["中国（上海）自由贸易试验区罗山路1502弄", "Lane 1502, Luoshan Road, China (Shanghai) Pilot Free Trade Zone"],
     ["225 Pasir Panjang Rd,", "Singapore"],
   ];
 
