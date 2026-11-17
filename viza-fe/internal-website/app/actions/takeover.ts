@@ -118,6 +118,8 @@ export async function listOpenTakeovers(): Promise<OpenTakeoverRow[]> {
         "id, job_id, application_id, applicant_id, reason, status, created_at, claimed_by",
       )
       .in("status", ["queued", "claimed"])
+      // Applicant official handoffs belong to the applicant, not the staff console.
+      .or("handoff_kind.is.null,handoff_kind.neq.official_applicant_final_submit")
       .order("created_at", { ascending: true });
     if (error) throw new Error(`takeover list: ${error.message}`);
     return (data ?? []).map((r): OpenTakeoverRow => ({
@@ -140,10 +142,14 @@ export async function getTakeoverRemoteDebugUrl(
   return withAdmin("admin", "actions/takeover:reveal", async (admin) => {
     const { data, error } = await admin
       .from("takeover_session")
-      .select("remote_debug_url, vnc_url, status, claimed_by")
+      .select("remote_debug_url, vnc_url, status, claimed_by, handoff_kind")
       .eq("id", takeoverId)
       .maybeSingle();
     if (error || !data) throw new Error(`takeover not found`);
+    // An applicant's live official session is never revealed to staff.
+    if (data.handoff_kind === "official_applicant_final_submit") {
+      throw new Error("This session belongs to the applicant and cannot be opened by staff.");
+    }
     if (data.status === "completed" || data.status === "abandoned") {
       throw new Error("Takeover is closed; debug URL revoked.");
     }

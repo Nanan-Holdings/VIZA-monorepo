@@ -1,4 +1,5 @@
 import type { GenericEvisaSubmissionResult, GenericSubmissionResult } from "../submission-result";
+import type { OfficialHandoffSession } from "../official-handoff";
 import { probeIndonesiaPortal, type IndonesiaPortalProbeResult } from "./runner";
 
 export const INDONESIA_C1_PORTAL_URL = "https://evisa.imigrasi.go.id/";
@@ -92,7 +93,11 @@ export interface IndonesiaLiveSubmissionInput extends IndonesiaNormalizeInput {
 }
 
 export type IndonesiaLiveSubmissionResult =
-  | (GenericSubmissionResult & { operatorDiagnostics?: string[] })
+  | (GenericSubmissionResult & {
+      operatorDiagnostics?: string[];
+      /** Keep-alive official session to register as an applicant handoff. Never persist liveViewUrl in results. */
+      applicantHandoff?: OfficialHandoffSession;
+    })
   | (GenericEvisaSubmissionResult & { country: "ID"; status: "submitted"; evidencePdf: Buffer });
 
 function normalizeVisaType(visaType: string): string {
@@ -231,6 +236,16 @@ export function normalizeIndonesiaAnswers(
   };
 }
 
+/** Both official step 3 declarations, accepted by the applicant in VIZA. */
+export const INDONESIA_DECLARATION_FIELDS = [
+  "information_true_declaration",
+  "billing_responsibility_declaration",
+] as const;
+
+export function indonesiaDeclarationsAccepted(answers: Record<string, string | undefined>): boolean {
+  return INDONESIA_DECLARATION_FIELDS.every((field) => clean(answers[field])?.toLowerCase() === "yes");
+}
+
 export async function runIndonesiaLiveSubmission(
   input: IndonesiaLiveSubmissionInput,
 ): Promise<IndonesiaLiveSubmissionResult> {
@@ -345,6 +360,7 @@ export async function runIndonesiaLiveSubmission(
         passportSupportPath: input.passportSupportPath,
       },
       headless: input.portalProbeHeadless ?? true,
+      applicantDeclarationsAccepted: indonesiaDeclarationsAccepted(input.answers),
       userPaymentHandoff: input.userPaymentHandoff,
       onStage: input.onStage,
     });
@@ -373,7 +389,10 @@ export async function runIndonesiaLiveSubmission(
       actionInstructions: probe.instruction,
       implementationStatus: probe.implementationStatus,
       operatorDiagnostics: probe.diagnostics.slice(-30),
-      message: probe.state === "payment_failed" ||
+      ...(probe.applicantHandoff ? { applicantHandoff: probe.applicantHandoff } : {}),
+      message: probe.applicantHandoff || probe.actionType === "official_applicant_handoff_unavailable"
+        ? probe.instruction
+        : probe.state === "payment_failed" ||
         probe.actionType === "official_step_2_validation_blocked" ||
         probe.actionType === "official_step_3_review_incomplete"
         ? probe.instruction

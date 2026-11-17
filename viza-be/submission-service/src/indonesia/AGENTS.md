@@ -1,5 +1,41 @@
 # Indonesia submission runners
 
+Product policy (2026-11): the applicant submits and pays on the official site.
+This supersedes every instruction below about clicking submit or reaching
+payment.
+
+- The runner fills the official application and stops on the step 3 review
+  page. It ticks the official step 3 declarations only when the applicant
+  accepted both `information_true_declaration` and
+  `billing_responsibility_declaration` in VIZA (`applicantDeclarationsAccepted`);
+  otherwise it leaves them for the applicant. It must not click `#btn-submit`, click the
+  application list's draft Submit (`#btn-save` / `#btn-as-guest`), open any
+  payment control or derived payment URL, or accept the "cancel my current
+  visa application" warning. That warning stops the run with
+  `official_existing_application_conflict`.
+- When it stops at step 3, at a list draft, or at an application already
+  waiting for payment, the runner keeps its Browserbase session alive
+  (`keepAlive`, `OFFICIAL_HANDOFF_SESSION_TIMEOUT_SECONDS`) and returns
+  `applicantHandoff`. `processIndonesiaItem` registers it through
+  `open_official_applicant_handoff` (migration 0209), which writes the
+  applicant-visible result and releases the queue lease atomically. Never put
+  the live-view URL in `submission_result`, logs, or diagnostics.
+- Any run that does not hand off must release its keepAlive session.
+- `src/official-handoff` watches open handoffs read-only: it re-attaches to the
+  session, reads URL/title/text, and settles `submitted` only from official
+  post-submit evidence (`indonesia/handoff.ts`) after the applicant claimed the
+  handoff. It never clicks, types, navigates, or closes applicant pages.
+  After `submitted` the session stays claimable so the applicant can return to
+  pay; the watcher settles `closed` on official completion or expiry and only
+  then releases the Browserbase session.
+- Applicant cancellation: `cancel_official_applicant_submission` cancels queued
+  work and open handoffs at once and sets `submission_queue.cancel_requested_at`
+  for a run in progress. `processIndonesiaItem` checks it on every `onStage`
+  and before opening a handoff, then marks the row
+  `<prefix>live_assisted_cancelled`; the probe releases its Browserbase session.
+- Browserbase is required for the handoff; without it the run ends with
+  `official_applicant_handoff_unavailable` and nothing is submitted.
+
 Product policy (2026-09-15): payment execution has been removed.
 `src/payment-removed.ts` defines the unconditional retirement boundary.
 Card-session HTTP routes return 410; issuer and portal payment functions cannot

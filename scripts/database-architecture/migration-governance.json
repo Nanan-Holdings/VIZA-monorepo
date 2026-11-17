@@ -225,6 +225,11 @@
       "drizzle": "viza-be/agent-backend/drizzle/0208_public_status_daily_rollup.sql",
       "supabase": "viza-fe/internal-website/supabase/migrations/20261019120000_public_status_daily_rollup.sql",
       "sha256": "c711effe1f8ea0465b7d6c46f7d8370df3884e7ccce76c0cded06f8163b3c637"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0209_official_applicant_handoff.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20261113120000_official_applicant_handoff.sql",
+      "sha256": "220fd485ecf9bb94f79aeb44477d9a2ffcd8b5b7a4005c06bd357c23cf6bff87"
     }
   ],
   "no_mirror": [

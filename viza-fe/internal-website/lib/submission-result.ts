@@ -86,6 +86,19 @@ export interface GenericEvisaSubmissionResult {
   portalUrl?: string;
   /** submission-artifacts bucket path for the e-visa / confirmation PDF. */
   artifactStoragePath?: string;
+  /** Set when the applicant submitted on the official site through a VIZA handoff. */
+  submittedBy?: "applicant_on_official_portal";
+  /** The still-open official session the applicant can return to, e.g. to pay. */
+  handoffId?: string;
+  handoffExpiresAt?: string;
+  /** Official page evidence captured read-only after the applicant submitted. */
+  officialReceipt?: {
+    source: "official_portal_after_applicant_submit";
+    reference: string;
+    portalUrl: string;
+    capturedAt: string;
+    officialState: string;
+  };
 }
 
 export interface UsSubmissionResult {

@@ -5,6 +5,7 @@ import test from "node:test";
 import {
   INDONESIA_B1_EVOA_PORTAL_URL,
   INDONESIA_C1_PORTAL_URL,
+  indonesiaDeclarationsAccepted,
   normalizeIndonesiaAnswers,
   runIndonesiaLiveSubmission,
 } from "../index";
@@ -24,6 +25,7 @@ import {
   normalizeIndonesiaPostalCode,
   normalizeIndonesiaPaymentWaitState,
   hasUnconfirmedIndonesiaPaymentResult,
+  indonesiaHandoffReadyAt,
   shouldPreferLegacyIndonesiaAccountResume,
   shouldRegisterIndonesiaAccountAfterPasswordResetFeedback,
   shouldResumeSavedIndonesiaApplicationAfterAccountGate,
@@ -670,13 +672,50 @@ test("retries the dependent Indonesia activity list after its AJAX load stalls",
   assert.match(source, /locator\("#selectParentActivity"\)\.dispatchEvent\("change"\)/);
 });
 
-test("blocks Indonesia payment handoff when step 3 review evidence is incomplete", () => {
+test("blocks the applicant handoff when step 3 review evidence is incomplete", () => {
   const source = readFileSync(path.resolve(__dirname, "..", "runner.ts"), "utf8");
   assert.match(
     source,
-    /input\.userPaymentHandoff\?\.enabled\s*&&\s*!stepThreeReviewIncomplete/,
+    /const handoffReadyAt = stepThreeReviewIncomplete \|\| existingApplicationConflict\s*\?\s*null/,
   );
-  assert.match(source, /indonesia_payment_blocked_by_incomplete_step_3_review/);
+});
+
+test("never clicks the official final submit, declarations, cancellation, or payment controls", () => {
+  const source = readFileSync(path.resolve(__dirname, "..", "runner.ts"), "utf8");
+  const stepThree = source.slice(
+    source.indexOf("async function continueFromApplicationStepThree("),
+    source.indexOf("async function continueFromApplicationList("),
+  );
+  assert.doesNotMatch(stepThree, /#btn-submit|btn-send|clickVisibleSubmitFallback|\.click\(/);
+  // Declarations are ticked only behind the applicant's VIZA consent.
+  assert.match(stepThree, /if \(input\.applicantDeclarationsAccepted\) \{[\s\S]*?\.check\(/);
+  assert.equal(stepThree.split(".check(").length - 1, 1);
+  const list = source.slice(
+    source.indexOf("async function continueFromApplicationList("),
+    source.indexOf("async function navigateToWaitingPaymentDetail("),
+  );
+  assert.doesNotMatch(
+    list,
+    /submitIndonesiaDraftApplicationFromList|clickIndonesiaPaymentControl|openPaymentCandidateLinks|navigateToDerivedPaymentUrlFromApplicationsList|#btn-save|#btn-as-guest/,
+  );
+  const probe = source.slice(source.indexOf("export async function probeIndonesiaPortal("));
+  assert.doesNotMatch(
+    probe,
+    /acceptIndonesiaExistingApplicationCancellationWarning|continueFromIndonesiaPaymentSelection|waitForUserPaymentCompletion/,
+  );
+});
+
+test("requires both VIZA declarations before ticking the official ones", () => {
+  assert.equal(indonesiaDeclarationsAccepted({ information_true_declaration: "yes", billing_responsibility_declaration: "YES" }), true);
+  assert.equal(indonesiaDeclarationsAccepted({ information_true_declaration: "yes" }), false);
+  assert.equal(indonesiaDeclarationsAccepted({ information_true_declaration: "no", billing_responsibility_declaration: "yes" }), false);
+});
+
+test("detects where the runner stopped for the applicant", () => {
+  assert.equal(indonesiaHandoffReadyAt(["x", "indonesia_step_3_ready_for_applicant_final_submit"]), "official_final_review");
+  assert.equal(indonesiaHandoffReadyAt(["indonesia_application_list_draft_ready_for_applicant"]), "official_application_list_draft");
+  assert.equal(indonesiaHandoffReadyAt(["indonesia_payment_pending_ready_for_applicant"]), "official_payment_pending");
+  assert.equal(indonesiaHandoffReadyAt(["indonesia_step_3_submitted"]), null);
 });
 
 test("does not auto-submit bank payment OTP with email OTP automation", () => {

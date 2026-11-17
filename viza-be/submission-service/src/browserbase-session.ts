@@ -684,6 +684,32 @@ export async function connectBrowserbaseCloudBrowser(options: {
   }
 }
 
+/**
+ * Resolve a CDP connect URL for an existing keepAlive session so a later
+ * worker can re-attach read-only. Returns null when the session is no longer
+ * running. The URL carries credentials and must never be logged or persisted.
+ */
+export async function getBrowserbaseRunningSessionConnectUrl(
+  sessionId: string,
+  fetchImpl: FetchLike = fetch,
+): Promise<string | null> {
+  const apiKey = process.env.BROWSERBASE_API_KEY?.trim();
+  if (!apiKey) throw new BrowserbaseSessionError("BROWSERBASE_API_KEY is missing.");
+  const response = await fetchImpl(`https://api.browserbase.com/v1/sessions/${encodeURIComponent(sessionId)}`, {
+    method: "GET",
+    signal: AbortSignal.timeout(15_000),
+    headers: { "X-BB-API-Key": apiKey },
+  });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new BrowserbaseSessionError(safeCreateFailure(response.status));
+  const payload = await response.json() as { status?: unknown; connectUrl?: unknown };
+  if (payload.status !== "RUNNING") return null;
+  if (typeof payload.connectUrl === "string" && payload.connectUrl.trim()) {
+    return payload.connectUrl.trim();
+  }
+  return `wss://connect.browserbase.com?apiKey=${encodeURIComponent(apiKey)}&sessionId=${encodeURIComponent(sessionId)}`;
+}
+
 export async function getBrowserbaseLiveViewUrl(
   sessionId: string,
   fetchImpl: FetchLike = fetch,

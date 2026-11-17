@@ -50,6 +50,15 @@ ports directly.
 - `viza-fe/internal-website/app/api/applications/[id]/submission-checkout/route.ts`
   is a retired compatibility route and returns HTTP 410 before creating an
   order, redirecting to a provider, or reading payment state.
+- `viza-fe/internal-website/app/api/applications/[id]/official-handoff/route.ts`
+  (POST) claims a generic official applicant handoff through
+  `claim_official_applicant_handoff` using `submission_result.handoffId`, the
+  exact application, and the signed-in applicant. It returns only an allowlisted
+  Browserbase live-view URL with `no-store`. `official-handoff/regenerate`
+  calls `request_official_applicant_handoff_regeneration`; both rely on the RPC
+  for expiry, ownership, and the 24-hour cap. `official-handoff/cancel` calls
+  `cancel_official_applicant_submission` for the signed-in applicant (never
+  under impersonation). VIZA never submits or pays.
 - `viza-fe/internal-website/app/api/applications/[id]/taiwan-handoff/route.ts`
   claims the authoritative Taiwan handoff through
   `claim_tw_applicant_handoff` with the exact application, applicant, and

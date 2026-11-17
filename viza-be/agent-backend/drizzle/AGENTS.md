@@ -629,3 +629,22 @@ rolls back; it is not a production maintenance command.
 ## Isolated U.S. appointment release
 
 `0193_us_appointment_runner_claims.sql` adds private exact-owner execution claims for CN USVisaScheduling. It does not change shared runner RPCs. Active claims require reconciliation rather than expiration takeover.
+
+## Official applicant handoff
+
+`0209_official_applicant_handoff.sql` lets a legacy `submission_queue` runner
+hand a kept-alive official session to the owning applicant, who submits and
+pays on the official site. It adds nullable `takeover_session.submission_queue_id`
+(exactly one of `job_id` / `submission_queue_id` per row) and service-role-only
+RPCs: `open_` (exact live lease owner; atomically writes the applicant result
+and releases the lease), `claim_` (exact applicant, unexpired), a brief watch
+lease, `settle_` (`pending`; `submitted` with official receipt evidence after
+an applicant claim, which keeps the session claimable so the applicant can
+return to pay; `closed` at expiry or on official completion; `abandoned` for an
+unsubmitted handoff after expiry), applicant cancellation
+(`cancel_official_applicant_submission`, with `submission_queue.cancel_requested_at`
+for runs in progress; `open_` refuses a cancel-requested row), and applicant regeneration
+capped at three handoffs per application per rolling 24 hours. Providers are
+allowlisted in `official_handoff_queue_prefix()`; add one only after its runner
+stops before the official final submit. The Taiwan RPCs in 0149 are unchanged.
+Keep `20261113120000_official_applicant_handoff.sql` byte-identical.

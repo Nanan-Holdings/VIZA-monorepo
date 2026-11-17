@@ -571,7 +571,10 @@ export type NewApplicationInboxAlias = typeof applicationInboxAliases.$inferInse
 
 export const takeoverSessions = pgTable("takeover_session", {
 	id: uuid("id").primaryKey().defaultRandom(),
-	jobId: uuid("job_id").notNull(),
+	/** runner_job owner; NULL for submission_queue official handoffs (0209). */
+	jobId: uuid("job_id"),
+	/** submission_queue owner for official_applicant_final_submit handoffs (0209). */
+	submissionQueueId: uuid("submission_queue_id"),
 	applicationId: uuid("application_id").notNull(),
 	applicantId: uuid("applicant_id").notNull(),
 	status: text("status").default("queued").notNull(),
