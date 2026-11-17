@@ -77,6 +77,7 @@ import {
   type TaiwanOfficialTermsConsentInput,
 } from "@/lib/submission-queue";
 import { GenericEvisaResultCard } from "./GenericEvisaResultCard";
+import { isOfficialHandoffResult, OfficialHandoffResultCard } from "./OfficialHandoffResultCard";
 import { SgArrivalCardResultCard } from "@/features/sgac/SgArrivalCardResultCard";
 import { buildKoreaArrivalCardGateHref } from "@/features/kr-arrival-card/routes";
 import { normalizeKoreaIssueNumber } from "@/features/kr-arrival-card/official-reference";
@@ -2762,6 +2763,12 @@ function renderSubmissionResultCard(
         visaType={visaType}
       />
     );
+  }
+
+  // Official applicant handoff: the applicant submits and pays on the
+  // official site themselves (migration 0209).
+  if (isOfficialHandoffResult(result)) {
+    return <OfficialHandoffResultCard applicationId={applicationId} result={result} />;
   }
 
   if (

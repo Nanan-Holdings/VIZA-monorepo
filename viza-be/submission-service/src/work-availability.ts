@@ -119,7 +119,15 @@ export async function hasIndonesiaWorkerWork(): Promise<boolean> {
     ])
     .lt("attempts", 3);
   if (error) throw new Error(`Indonesia submission_queue work check: ${error.message}`);
-  return (count ?? 0) > 0;
+  if ((count ?? 0) > 0) return true;
+  // An open applicant handoff keeps the worker alive so its watcher can
+  // record the official receipt or expire the handoff.
+  const { count: handoffCount, error: handoffError } = await supabase
+    .from("submission_queue")
+    .select("id", { count: "exact", head: true })
+    .in("status", ["id_c1_applicant_handoff", "id_b1_evoa_applicant_handoff"]);
+  if (handoffError) throw new Error(`Indonesia handoff work check: ${handoffError.message}`);
+  return (handoffCount ?? 0) > 0;
 }
 
 export async function hasLegacyWorkerWork(now = new Date()): Promise<boolean> {

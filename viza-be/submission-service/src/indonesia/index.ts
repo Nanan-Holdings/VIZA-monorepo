@@ -1,4 +1,5 @@
 import type { GenericEvisaSubmissionResult, GenericSubmissionResult } from "../submission-result";
+import type { OfficialHandoffSession } from "../official-handoff";
 import { probeIndonesiaPortal, type IndonesiaPortalProbeResult } from "./runner";
 
 export const INDONESIA_C1_PORTAL_URL = "https://evisa.imigrasi.go.id/";
@@ -92,7 +93,11 @@ export interface IndonesiaLiveSubmissionInput extends IndonesiaNormalizeInput {
 }
 
 export type IndonesiaLiveSubmissionResult =
-  | (GenericSubmissionResult & { operatorDiagnostics?: string[] })
+  | (GenericSubmissionResult & {
+      operatorDiagnostics?: string[];
+      /** Keep-alive official session to register as an applicant handoff. Never persist liveViewUrl in results. */
+      applicantHandoff?: OfficialHandoffSession;
+    })
   | (GenericEvisaSubmissionResult & { country: "ID"; status: "submitted"; evidencePdf: Buffer });
 
 function normalizeVisaType(visaType: string): string {
@@ -373,7 +378,10 @@ export async function runIndonesiaLiveSubmission(
       actionInstructions: probe.instruction,
       implementationStatus: probe.implementationStatus,
       operatorDiagnostics: probe.diagnostics.slice(-30),
-      message: probe.state === "payment_failed" ||
+      ...(probe.applicantHandoff ? { applicantHandoff: probe.applicantHandoff } : {}),
+      message: probe.applicantHandoff || probe.actionType === "official_applicant_handoff_unavailable"
+        ? probe.instruction
+        : probe.state === "payment_failed" ||
         probe.actionType === "official_step_2_validation_blocked" ||
         probe.actionType === "official_step_3_review_incomplete"
         ? probe.instruction

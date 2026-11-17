@@ -110,7 +110,7 @@ export default async function AdminDashboardPage() {
     admin.from("runner_job").select("id, application_id, country, status, last_error").in("status", ["failed", "dead_letter", "needs_human"]).limit(50),
     admin.from("support_ticket").select("id, subject, status").not("status", "in", "(resolved,closed)").limit(100),
     admin.from("portal_health").select("country, status, error, note").in("status", ["degraded", "down"]).limit(50),
-    admin.from("takeover_session").select("id, application_id, status, reason").in("status", ["queued", "claimed"]).limit(50),
+    admin.from("takeover_session").select("id, application_id, status, reason").in("status", ["queued", "claimed"]).or("handoff_kind.is.null,handoff_kind.neq.official_applicant_final_submit").limit(50),
     admin.from("notification_dlq").select("id, template_key, channel, error").is("replayed_at", null).limit(50),
     admin.from("marketing_leads").select("id, status").in("status", ["new", "contacted", "qualified"]).limit(100),
     admin.from("data_privacy_requests").select("id, status").in("status", ["requested", "pending", "processing"]).limit(100),

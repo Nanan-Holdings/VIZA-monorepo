@@ -1,12 +1,14 @@
 "use client";
 
-import { Download, Envelope as Mail, ShieldCheck } from "@phosphor-icons/react";
+import { useState } from "react";
+import { ArrowSquareOut, Download, Envelope as Mail, ShieldCheck } from "@phosphor-icons/react";
 import { useLocale } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import type { GenericEvisaSubmissionResult } from "@/lib/submission-result";
+import { openOfficialHandoffWindow } from "./official-handoff-client";
 
 /**
  * POR-006: generic result card for the standard e-Visa launch countries
@@ -36,6 +38,19 @@ export function GenericEvisaResultCard({
   const isZh = isChineseLocale(useLocale());
   const country = (isZh ? COUNTRY_LABEL_ZH[result.country] : COUNTRY_LABEL[result.country]) ?? result.country;
   const hasArtifact = Boolean(result.artifactStoragePath);
+  // Written by settle_official_applicant_handoff when the applicant submitted
+  // on the official site themselves.
+  const submittedByApplicant = result.submittedBy === "applicant_on_official_portal";
+  const awaitingOfficialPayment = ["waiting_for_payment", "payment_required", "payment_failed"].includes(
+    result.officialReceipt?.officialState ?? "",
+  );
+  const [handoffState, setHandoffState] = useState<"idle" | "opening" | "closed">("idle");
+  const canReturnToPay =
+    submittedByApplicant &&
+    awaitingOfficialPayment &&
+    Boolean(applicationId && result.handoffId) &&
+    handoffState !== "closed" &&
+    (!result.handoffExpiresAt || Date.parse(result.handoffExpiresAt) > Date.now());
 
   const heading =
     result.status === "submitted"
@@ -106,11 +121,39 @@ export function GenericEvisaResultCard({
           </div>
         )}
 
+        {submittedByApplicant && awaitingOfficialPayment ? (
+          <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+            {isZh
+              ? "官网显示这份申请正在等待付款。如果你还没有付款，请在官网缴纳官方费用；未付款的申请不会被审批。"
+              : "The official site shows this application is waiting for payment. If you haven't paid yet, pay the government fee on the official site; unpaid applications are not processed."}
+            {canReturnToPay ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="mt-3 w-full bg-white"
+                disabled={handoffState === "opening"}
+                onClick={() => {
+                  if (!applicationId) return;
+                  setHandoffState("opening");
+                  void openOfficialHandoffWindow(applicationId).then((outcome) => {
+                    setHandoffState(outcome === "opened" ? "idle" : "closed");
+                  });
+                }}
+              >
+                <ArrowSquareOut className="mr-2 h-4 w-4" />
+                {isZh ? `回到${country}官网付款` : `Return to the ${country} official site to pay`}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+
         {result.country === "ID" && result.status === "submitted" ? (
           <div className="space-y-3 rounded-md border border-brand-100 bg-brand-50 p-3">
             <div className="flex items-center gap-2 text-sm font-medium text-brand-700">
               <ShieldCheck className="h-4 w-4" />
-              {isZh ? "官网成功凭证已保存" : "Official success evidence saved"}
+              {submittedByApplicant
+                ? isZh ? "已记录你在官网的提交" : "Your official submission is recorded"
+                : isZh ? "官网成功凭证已保存" : "Official success evidence saved"}
             </div>
             <p className="text-sm text-foreground">
               {isZh

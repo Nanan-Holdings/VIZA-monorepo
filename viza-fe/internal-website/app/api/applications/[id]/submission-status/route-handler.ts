@@ -126,6 +126,16 @@ const COMPLETED_APPLICATION_STATUSES = new Set([
   "form_ready_for_agency",
 ]);
 
+const OFFICIAL_HANDOFF_OPEN_STATUSES = new Set(["id_c1_applicant_handoff", "id_b1_evoa_applicant_handoff"]);
+const OFFICIAL_HANDOFF_EXPIRED_STATUSES = new Set([
+  "id_c1_applicant_handoff_expired",
+  "id_b1_evoa_applicant_handoff_expired",
+]);
+const OFFICIAL_HANDOFF_SUBMITTED_STATUSES = new Set([
+  "id_c1_applicant_submitted",
+  "id_b1_evoa_applicant_submitted",
+]);
+
 const COMPLETED_QUEUE_STATUSES = new Set([
   "done",
   "submitted",
@@ -252,6 +262,11 @@ function isIndonesiaPaymentCheckpointQueue(
   // pending/processing/paid/failed status is authoritative and must never be
   // synthesized into a manual "open the official payment page" handoff.
   if (queueStatus.startsWith("id_c1_payment_") || queueStatus.startsWith("id_b1_evoa_payment_")) {
+    return false;
+  }
+  // Applicant handoff rows may carry a stale payload from an earlier run;
+  // their own status is authoritative.
+  if (queueStatus.startsWith("id_c1_applicant_") || queueStatus.startsWith("id_b1_evoa_applicant_")) {
     return false;
   }
   return (
@@ -717,6 +732,15 @@ function deriveQueueStage(queueStatus: string): Pick<DerivedStatus, "status" | "
     return { status: "needs_attention", stage: "confirming_result", progress: 99 };
   }
 
+  // Official applicant handoff (0209): the runner filled the official site and
+  // stopped before the official submit. The applicant finishes there.
+  if (OFFICIAL_HANDOFF_OPEN_STATUSES.has(queueStatus) || OFFICIAL_HANDOFF_EXPIRED_STATUSES.has(queueStatus)) {
+    return { status: "needs_user_action", stage: "payment_handoff", progress: 99 };
+  }
+  if (OFFICIAL_HANDOFF_SUBMITTED_STATUSES.has(queueStatus)) {
+    return { status: "completed", stage: "completed", progress: 100 };
+  }
+
   if (COMPLETED_QUEUE_STATUSES.has(queueStatus)) {
     return { status: "completed", stage: "completed", progress: 100 };
   }
@@ -1055,6 +1079,28 @@ export function deriveNonTerminalStatus(
         queueMessage ??
         "The official Indonesia e-Visa portal requires a fee. Automated payment is unavailable; this application needs attention.",
       error: queueMessage,
+    };
+  }
+
+  if (OFFICIAL_HANDOFF_OPEN_STATUSES.has(queueStatus)) {
+    return {
+      status: "needs_user_action",
+      stage: "payment_handoff",
+      progress: 99,
+      message:
+        "Your official application is filled in. Open the official site from VIZA, review it, accept the declarations, submit, and pay the government fee yourself.",
+      error: null,
+    };
+  }
+
+  if (OFFICIAL_HANDOFF_EXPIRED_STATUSES.has(queueStatus)) {
+    return {
+      status: "needs_user_action",
+      stage: "payment_handoff",
+      progress: 99,
+      message:
+        "The official session expired before it was submitted. Prepare a new official session to continue.",
+      error: null,
     };
   }
 

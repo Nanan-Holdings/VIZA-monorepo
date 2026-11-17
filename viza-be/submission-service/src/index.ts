@@ -290,6 +290,12 @@ import {
   selectIndonesiaSubmissionDocuments,
 } from "./indonesia/document-reuse.js";
 import { hasActiveKoreaKvacOfficialSessions } from "./korea-kvac/live-session.js";
+import { releaseBrowserbaseCloudSession } from "./browserbase-session.js";
+import {
+  openOfficialApplicantHandoff,
+  runOfficialHandoffWatchTick,
+} from "./official-handoff/index.js";
+import { inspectIndonesiaHandoffPage } from "./indonesia/handoff.js";
 import {
   hasCountryRunnerWork,
   hasIndonesiaWorkerWork,
@@ -7897,13 +7903,17 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
   const heartbeatTimer = setInterval(() => {
     const heartbeatAt = new Date().toISOString();
     void (async () => {
+      // Renew this worker's own lease so a long official run can still open
+      // the applicant handoff, which requires a live lease.
       const { error } = await supabase
         .from("submission_queue")
         .update({
           heartbeat_at: heartbeatAt,
+          locked_until: new Date(Date.now() + SUBMISSION_QUEUE_LEASE_SECONDS * 1_000).toISOString(),
           updated_at: heartbeatAt,
         })
         .eq("id", item.id)
+        .eq("locked_by", SUBMISSION_QUEUE_WORKER_ID)
         .in("status", [processingStatus, paymentProcessingStatus]);
       if (error) {
         console.error(`[indonesia] Queue heartbeat failed: ${error.message}`);
@@ -8063,14 +8073,10 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
     // card-authorized run to a visible/manual official-payment handoff.
     const userPaymentHandoffEnabled = false;
     managedPaymentHooks = createManagedPaymentHooks({ applicationId: item.application_id, workerId: item.id, country: application.country ?? "indonesia", visaType: application.visa_type ?? "ID_C1_TOURIST" });
-    const oneTimeIndonesiaCard = await consumeIndonesiaCardSessionWithGrace(
-      item.application_id,
-      indonesiaCardSessionsEnabled(),
-    );
-    consumedOneTimeCardAuthorization = Boolean(oneTimeIndonesiaCard);
-    console.log(
-      `[indonesia] One-time card session ${oneTimeIndonesiaCard ? "consumed" : "unavailable"} application=${redactIdentifier(item.application_id)}`,
-    );
+    // Product policy (2026-11): the applicant pays on the official site.
+    // VIZA never consumes card material for Indonesia.
+    const oneTimeIndonesiaCard = null;
+    consumedOneTimeCardAuthorization = false;
     const portalProbeHeadless = readBooleanEnv("INDONESIA_PLAYWRIGHT_HEADLESS", true);
     const userPaymentHandoff = {
       enabled: userPaymentHandoffEnabled,
@@ -8228,6 +8234,45 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
         await markIndonesiaQueueStage(item.id, stage, provider, snapshot.url);
       },
     });
+
+    if (result.country === "GENERIC" && result.applicantHandoff) {
+      // Product policy: the applicant submits and pays on the official site.
+      // Register the kept-alive official session; the RPC atomically writes
+      // the applicant-visible result and releases this queue lease.
+      const handoff = result.applicantHandoff;
+      // The live-view URL is a bearer link: it goes only to the handoff row,
+      // never into the applicant-visible result.
+      const { applicantHandoff: _omitLiveSession, operatorDiagnostics, ...applicantVisible } = result;
+      let opened: Awaited<ReturnType<typeof openOfficialApplicantHandoff>> = null;
+      try {
+        opened = await openOfficialApplicantHandoff(supabase, {
+          queueId: item.id,
+          workerId: SUBMISSION_QUEUE_WORKER_ID,
+          applicationId: item.application_id,
+          applicantId: profile.id,
+          session: handoff,
+          stoppedResult: {
+            ...applicantVisible,
+            country: "GENERIC",
+            targetCountry: "ID",
+            provider,
+            officialPortalUrl: isB1 ? INDONESIA_B1_EVOA_PORTAL_URL : INDONESIA_C1_PORTAL_URL,
+            handoffReadyAt: handoff.readyAt,
+          },
+        });
+      } finally {
+        // Any failure to register the handoff must not leak the kept-alive session.
+        if (!opened) await releaseBrowserbaseCloudSession(handoff.sessionId);
+      }
+      if (!opened) {
+        throw new Error("Indonesia applicant handoff could not be opened; queue lease was lost or the application changed.");
+      }
+      console.log(
+        `[indonesia] ${provider} handed official session to applicant application=${redactIdentifier(item.application_id)} ` +
+        `readyAt=${handoff.readyAt} diagnostics=${operatorDiagnostics?.length ?? 0}`,
+      );
+      return;
+    }
 
     if (result.country === "ID" && result.status === "submitted") {
       if (managedPaymentCard) {
@@ -8875,6 +8920,45 @@ let activeHttpWork = 0;
 let idleExitController: IdleExitController | null = null;
 let usAppointmentDispatcher: USAppointmentDispatcher | null = null;
 
+// Official applicant handoffs are watched on their own timer: the queue poll
+// is wake-driven, but an applicant can submit on the official site at any
+// time while the handoff is open.
+const OFFICIAL_HANDOFF_WATCH_INTERVAL_MS = 60_000;
+let officialHandoffWatchInFlight = false;
+
+async function watchOfficialApplicantHandoffs(): Promise<void> {
+  if (officialHandoffWatchInFlight || shutdownRequested) return;
+  officialHandoffWatchInFlight = true;
+  try {
+    const examined = await runOfficialHandoffWatchTick({
+      client: supabase,
+      workerId: SUBMISSION_QUEUE_WORKER_ID,
+      inspectors: {
+        indonesia_c1_live: inspectIndonesiaHandoffPage,
+        indonesia_b1_evoa_live: inspectIndonesiaHandoffPage,
+      },
+      submittedResult: (handoff, receipt) => ({
+        country: "ID",
+        status: "submitted",
+        reference: receipt.reference,
+        portalUrl: receipt.portalUrl,
+        submittedBy: "applicant_on_official_portal",
+        provider: handoff.provider,
+        officialReceipt: receipt,
+        // Lets the applicant reopen the same session to pay until it closes.
+        handoffId: handoff.takeover_id,
+        handoffExpiresAt: handoff.expires_at,
+      }),
+      log: (message) => console.log(message),
+    });
+    if (examined > 0) idleExitController?.noteActivity();
+  } catch (err) {
+    console.error("[official-handoff] Watch tick failed:", err);
+  } finally {
+    officialHandoffWatchInFlight = false;
+  }
+}
+
 function wakeSubmissionQueue(): void {
   if (shutdownRequested) return;
   immediatePollRequested = true;
@@ -9346,6 +9430,10 @@ async function main(): Promise<void> {
     INDONESIA_QUEUE_ENABLED
   ) {
     await poll();
+  }
+  if (INDONESIA_QUEUE_ENABLED) {
+    void watchOfficialApplicantHandoffs();
+    setInterval(() => void watchOfficialApplicantHandoffs(), OFFICIAL_HANDOFF_WATCH_INTERVAL_MS).unref();
   }
 
   // QUE-002: start the runner_job consumer (does not block the legacy poll).

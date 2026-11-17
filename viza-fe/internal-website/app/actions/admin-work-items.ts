@@ -240,6 +240,7 @@ export async function syncAdminOperationalWorkItems(): Promise<
         .from("takeover_session")
         .select("id, application_id, applicant_id, job_id, status, reason")
         .in("status", ["queued", "claimed"])
+        .or("handoff_kind.is.null,handoff_kind.neq.official_applicant_final_submit")
         .limit(100),
       admin
         .from("portal_health")
