@@ -24,8 +24,14 @@ export async function POST(
     p_application_id: applicationId,
     p_applicant_id: profileId,
   });
+  if (error) {
+    return NextResponse.json(
+      { error: "Cancellation is temporarily unavailable", code: "cancel_unavailable" },
+      { status: 503 },
+    );
+  }
   const row = (Array.isArray(data) ? data[0] : data) as { outcome?: unknown } | null | undefined;
-  if (error || (row?.outcome !== "cancelled" && row?.outcome !== "cancel_requested")) {
+  if (row?.outcome !== "cancelled" && row?.outcome !== "cancel_requested") {
     return NextResponse.json(
       { error: "There is no submission to cancel right now", code: "nothing_to_cancel" },
       { status: 409 },

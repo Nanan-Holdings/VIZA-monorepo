@@ -44,6 +44,11 @@ describe("official submission cancel route", () => {
     expect(await (await POST(request(), context)).json()).toEqual({ outcome: "cancel_requested" });
   });
 
+  it("returns 503, not 409, when the cancel RPC itself fails", async () => {
+    setupRpc({ data: null, error: { message: "function does not exist" } });
+    expect((await POST(request(), context)).status).toBe(503);
+  });
+
   it("returns 409 when nothing can be cancelled and refuses impersonation", async () => {
     setupRpc({ data: [], error: null });
     expect((await POST(request(), context)).status).toBe(409);

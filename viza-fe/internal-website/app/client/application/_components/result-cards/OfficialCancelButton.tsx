@@ -41,7 +41,11 @@ export function OfficialCancelButton({
       });
       const body = (await response.json().catch(() => null)) as { outcome?: string } | null;
       if (!response.ok) {
-        setError(isZh ? "现在没有可以取消的提交。" : "There is no submission to cancel right now.");
+        setError(
+          response.status === 409
+            ? isZh ? "现在没有可以取消的提交。" : "There is no submission to cancel right now."
+            : isZh ? "取消服务暂时不可用，请稍后再试或联系支持。" : "Cancellation is temporarily unavailable. Try again shortly or contact support.",
+        );
         return;
       }
       if (body?.outcome === "cancel_requested") {
