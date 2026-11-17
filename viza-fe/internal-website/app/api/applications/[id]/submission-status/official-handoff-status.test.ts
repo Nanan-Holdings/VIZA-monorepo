@@ -52,6 +52,14 @@ describe("official applicant handoff status", () => {
     expect(status.message).not.toMatch(/Automated payment is unavailable/);
   });
 
+  it("shows a cancelled submission as stopped, not running", () => {
+    for (const status of ["id_c1_live_assisted_cancelled", "id_b1_evoa_applicant_cancelled"]) {
+      const derived = deriveNonTerminalStatus(application, queue(status), true);
+      expect(derived).toMatchObject({ status: "failed" });
+      expect(derived.message).toMatch(/You cancelled this submission/);
+    }
+  });
+
   it("offers a new session after expiry and completes after the applicant submits", () => {
     expect(deriveNonTerminalStatus(application, queue("id_c1_applicant_handoff_expired"), true)).toMatchObject({
       status: "needs_user_action",

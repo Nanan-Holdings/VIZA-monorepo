@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { openOfficialHandoffWindow } from "./official-handoff-client";
+import { OfficialCancelButton } from "./OfficialCancelButton";
 
 /** Stored result written by open_official_applicant_handoff (migration 0209). */
 export interface OfficialHandoffResult {
@@ -158,6 +159,7 @@ export function OfficialHandoffResultCard({
           </>
         )}
         {error ? <ClientErrorAlert message={error} /> : null}
+        {applicationId && !expired ? <OfficialCancelButton applicationId={applicationId} isZh={isZh} /> : null}
       </CardContent>
     </Card>
   );

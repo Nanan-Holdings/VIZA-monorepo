@@ -236,6 +236,16 @@ export function normalizeIndonesiaAnswers(
   };
 }
 
+/** Both official step 3 declarations, accepted by the applicant in VIZA. */
+export const INDONESIA_DECLARATION_FIELDS = [
+  "information_true_declaration",
+  "billing_responsibility_declaration",
+] as const;
+
+export function indonesiaDeclarationsAccepted(answers: Record<string, string | undefined>): boolean {
+  return INDONESIA_DECLARATION_FIELDS.every((field) => clean(answers[field])?.toLowerCase() === "yes");
+}
+
 export async function runIndonesiaLiveSubmission(
   input: IndonesiaLiveSubmissionInput,
 ): Promise<IndonesiaLiveSubmissionResult> {
@@ -350,6 +360,7 @@ export async function runIndonesiaLiveSubmission(
         passportSupportPath: input.passportSupportPath,
       },
       headless: input.portalProbeHeadless ?? true,
+      applicantDeclarationsAccepted: indonesiaDeclarationsAccepted(input.answers),
       userPaymentHandoff: input.userPaymentHandoff,
       onStage: input.onStage,
     });

@@ -56,7 +56,9 @@ ports directly.
   exact application, and the signed-in applicant. It returns only an allowlisted
   Browserbase live-view URL with `no-store`. `official-handoff/regenerate`
   calls `request_official_applicant_handoff_regeneration`; both rely on the RPC
-  for expiry, ownership, and the 24-hour cap. VIZA never submits or pays.
+  for expiry, ownership, and the 24-hour cap. `official-handoff/cancel` calls
+  `cancel_official_applicant_submission` for the signed-in applicant (never
+  under impersonation). VIZA never submits or pays.
 - `viza-fe/internal-website/app/api/applications/[id]/taiwan-handoff/route.ts`
   claims the authoritative Taiwan handoff through
   `claim_tw_applicant_handoff` with the exact application, applicant, and

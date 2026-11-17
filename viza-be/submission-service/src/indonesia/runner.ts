@@ -50,6 +50,12 @@ export interface IndonesiaPortalProbeInput {
   application?: IndonesiaApplicationFormInput;
   headless?: boolean;
   timeoutMs?: number;
+  /**
+   * True only when the applicant accepted both official step 3 declarations
+   * in VIZA. The runner may then tick them on the official page; it still
+   * never clicks the official Submit.
+   */
+  applicantDeclarationsAccepted?: boolean;
   userPaymentHandoff?: {
     enabled?: boolean;
     waitTimeoutMs?: number;
@@ -4113,10 +4119,21 @@ async function continueFromApplicationStepThree(
     });
     return false;
   }
-  // Stop here. The declarations are the applicant's own legal statements and
-  // the official submit is theirs to click; VIZA hands this exact page over.
+  // Tick the official declarations only when the applicant accepted the same
+  // statements in VIZA. The official Submit is always left to the applicant.
   if (!diagnostics.includes(INDONESIA_HANDOFF_READY_DIAGNOSTICS.official_final_review)) {
-    diagnostics.push(`indonesia_step_3_declarations_left_for_applicant count=${count}`);
+    if (input.applicantDeclarationsAccepted) {
+      let checked = 0;
+      for (let index = 0; index < count; index += 1) {
+        const checkbox = checkboxes.nth(index);
+        if (!(await checkbox.isVisible({ timeout: 1_000 }).catch(() => false))) continue;
+        await checkbox.check({ force: true }).catch(() => undefined);
+        if (await checkbox.isChecked().catch(() => false)) checked += 1;
+      }
+      diagnostics.push(`indonesia_step_3_declarations_ticked_from_applicant_consent checked=${checked} count=${count}`);
+    } else {
+      diagnostics.push(`indonesia_step_3_declarations_left_for_applicant count=${count}`);
+    }
     diagnostics.push(INDONESIA_HANDOFF_READY_DIAGNOSTICS.official_final_review);
   }
   await input.onStage?.("step_3_ready_for_applicant", {

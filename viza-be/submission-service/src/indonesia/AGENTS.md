@@ -5,7 +5,10 @@ This supersedes every instruction below about clicking submit or reaching
 payment.
 
 - The runner fills the official application and stops on the step 3 review
-  page. It must not tick the declarations, click `#btn-submit`, click the
+  page. It ticks the official step 3 declarations only when the applicant
+  accepted both `information_true_declaration` and
+  `billing_responsibility_declaration` in VIZA (`applicantDeclarationsAccepted`);
+  otherwise it leaves them for the applicant. It must not click `#btn-submit`, click the
   application list's draft Submit (`#btn-save` / `#btn-as-guest`), open any
   payment control or derived payment URL, or accept the "cancel my current
   visa application" warning. That warning stops the run with
@@ -25,6 +28,11 @@ payment.
   After `submitted` the session stays claimable so the applicant can return to
   pay; the watcher settles `closed` on official completion or expiry and only
   then releases the Browserbase session.
+- Applicant cancellation: `cancel_official_applicant_submission` cancels queued
+  work and open handoffs at once and sets `submission_queue.cancel_requested_at`
+  for a run in progress. `processIndonesiaItem` checks it on every `onStage`
+  and before opening a handoff, then marks the row
+  `<prefix>live_assisted_cancelled`; the probe releases its Browserbase session.
 - Browserbase is required for the handoff; without it the run ends with
   `official_applicant_handoff_unavailable` and nothing is submitted.
 

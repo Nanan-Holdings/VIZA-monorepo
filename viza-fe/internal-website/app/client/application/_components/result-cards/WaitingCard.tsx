@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { OfficialCancelButton, supportsOfficialCancel } from "./OfficialCancelButton";
 import { useLocale } from "next-intl";
 import { motion } from "motion/react";
 import { CircleNotch as Loader2, CheckCircle as CheckCircle2, Clock as Clock3, Eye, EyeSlash as EyeOff, ArrowSquareOut as ExternalLink, XCircle } from "@phosphor-icons/react";
@@ -252,6 +253,7 @@ export function WaitingCard({
   const failedStatus = isFailedStatus(status);
   const waitingForUser = isWaitingForUserStatus(status);
   const scheduledStatus = isScheduledStatus(status) || stage === "scheduled";
+  const normalizedStatus = normalizeStatus(status);
   const isFrance =
     country?.toUpperCase() === "FR" ||
     country?.toLowerCase() === "france" ||
@@ -538,6 +540,12 @@ export function WaitingCard({
             );
           })}
         </ol>
+
+        {applicationId &&
+        supportsOfficialCancel(visaType) &&
+        (normalizedStatus === "queued" || normalizedStatus === "running") ? (
+          <OfficialCancelButton applicationId={applicationId} isZh={isZh} />
+        ) : null}
 
         {officialAccount?.email && (
           <div className="rounded-lg border border-brand-200 bg-brand-50/60 p-4">

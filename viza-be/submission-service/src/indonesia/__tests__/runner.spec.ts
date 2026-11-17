@@ -5,6 +5,7 @@ import test from "node:test";
 import {
   INDONESIA_B1_EVOA_PORTAL_URL,
   INDONESIA_C1_PORTAL_URL,
+  indonesiaDeclarationsAccepted,
   normalizeIndonesiaAnswers,
   runIndonesiaLiveSubmission,
 } from "../index";
@@ -685,7 +686,10 @@ test("never clicks the official final submit, declarations, cancellation, or pay
     source.indexOf("async function continueFromApplicationStepThree("),
     source.indexOf("async function continueFromApplicationList("),
   );
-  assert.doesNotMatch(stepThree, /#btn-submit|\.check\(|clickVisibleSubmitFallback/);
+  assert.doesNotMatch(stepThree, /#btn-submit|btn-send|clickVisibleSubmitFallback|\.click\(/);
+  // Declarations are ticked only behind the applicant's VIZA consent.
+  assert.match(stepThree, /if \(input\.applicantDeclarationsAccepted\) \{[\s\S]*?\.check\(/);
+  assert.equal(stepThree.split(".check(").length - 1, 1);
   const list = source.slice(
     source.indexOf("async function continueFromApplicationList("),
     source.indexOf("async function navigateToWaitingPaymentDetail("),
@@ -699,6 +703,12 @@ test("never clicks the official final submit, declarations, cancellation, or pay
     probe,
     /acceptIndonesiaExistingApplicationCancellationWarning|continueFromIndonesiaPaymentSelection|waitForUserPaymentCompletion/,
   );
+});
+
+test("requires both VIZA declarations before ticking the official ones", () => {
+  assert.equal(indonesiaDeclarationsAccepted({ information_true_declaration: "yes", billing_responsibility_declaration: "YES" }), true);
+  assert.equal(indonesiaDeclarationsAccepted({ information_true_declaration: "yes" }), false);
+  assert.equal(indonesiaDeclarationsAccepted({ information_true_declaration: "no", billing_responsibility_declaration: "yes" }), false);
 });
 
 test("detects where the runner stopped for the applicant", () => {

@@ -131,6 +131,12 @@ const OFFICIAL_HANDOFF_EXPIRED_STATUSES = new Set([
   "id_c1_applicant_handoff_expired",
   "id_b1_evoa_applicant_handoff_expired",
 ]);
+const OFFICIAL_CANCELLED_STATUSES = new Set([
+  "id_c1_live_assisted_cancelled",
+  "id_b1_evoa_live_assisted_cancelled",
+  "id_c1_applicant_cancelled",
+  "id_b1_evoa_applicant_cancelled",
+]);
 const OFFICIAL_HANDOFF_SUBMITTED_STATUSES = new Set([
   "id_c1_applicant_submitted",
   "id_b1_evoa_applicant_submitted",
@@ -740,6 +746,9 @@ function deriveQueueStage(queueStatus: string): Pick<DerivedStatus, "status" | "
   if (OFFICIAL_HANDOFF_SUBMITTED_STATUSES.has(queueStatus)) {
     return { status: "completed", stage: "completed", progress: 100 };
   }
+  if (OFFICIAL_CANCELLED_STATUSES.has(queueStatus)) {
+    return { status: "failed", stage: "failed", progress: 0 };
+  }
 
   if (COMPLETED_QUEUE_STATUSES.has(queueStatus)) {
     return { status: "completed", stage: "completed", progress: 100 };
@@ -1091,6 +1100,12 @@ export function deriveNonTerminalStatus(
         "Your official application is filled in. Open the official site from VIZA, review it, accept the declarations, submit, and pay the government fee yourself.",
       error: null,
     };
+  }
+
+  if (OFFICIAL_CANCELLED_STATUSES.has(queueStatus)) {
+    const message =
+      "You cancelled this submission. Nothing was submitted on the official site and your answers are saved; you can submit again at any time.";
+    return { status: "failed", stage: "failed", progress: 0, message, error: message };
   }
 
   if (OFFICIAL_HANDOFF_EXPIRED_STATUSES.has(queueStatus)) {

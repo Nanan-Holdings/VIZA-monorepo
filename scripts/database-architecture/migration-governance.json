@@ -229,7 +229,7 @@
     {
       "drizzle": "viza-be/agent-backend/drizzle/0209_official_applicant_handoff.sql",
       "supabase": "viza-fe/internal-website/supabase/migrations/20261113120000_official_applicant_handoff.sql",
-      "sha256": "8b4aab83b0c7dd3c263176a136bc6d1c240d02f48523de5db1c957ae467d4630"
+      "sha256": "220fd485ecf9bb94f79aeb44477d9a2ffcd8b5b7a4005c06bd357c23cf6bff87"
     }
   ],
   "no_mirror": [

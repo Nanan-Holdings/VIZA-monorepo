@@ -8231,6 +8231,7 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       portalProbeHeadless,
       userPaymentHandoff,
       onStage: async (stage, snapshot) => {
+        await throwIfIndonesiaCancelRequested(item.id);
         await markIndonesiaQueueStage(item.id, stage, provider, snapshot.url);
       },
     });
@@ -8240,6 +8241,12 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       // Register the kept-alive official session; the RPC atomically writes
       // the applicant-visible result and releases this queue lease.
       const handoff = result.applicantHandoff;
+      try {
+        await throwIfIndonesiaCancelRequested(item.id);
+      } catch (error) {
+        await releaseBrowserbaseCloudSession(handoff.sessionId);
+        throw error;
+      }
       // The live-view URL is a bearer link: it goes only to the handoff row,
       // never into the applicant-visible result.
       const { applicantHandoff: _omitLiveSession, operatorDiagnostics, ...applicantVisible } = result;
@@ -8415,6 +8422,39 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       `[indonesia] ${provider} prepared managed alias for application=${redactIdentifier(item.application_id)}; action=${result.actionType ?? result.status}`,
     );
   } catch (err) {
+    if (err instanceof IndonesiaApplicantCancelledError) {
+      const cancelledStatus = isB1 ? "id_b1_evoa_live_assisted_cancelled" : "id_c1_live_assisted_cancelled";
+      const now = new Date().toISOString();
+      await supabase
+        .from("submission_queue")
+        .update({
+          status: cancelledStatus,
+          current_stage: "cancelled_by_applicant",
+          cancel_requested_at: null,
+          locked_by: null,
+          locked_until: null,
+          updated_at: now,
+        })
+        .eq("id", item.id)
+        .eq("locked_by", SUBMISSION_QUEUE_WORKER_ID);
+      const { data: current } = await supabase
+        .from("applications")
+        .select("submission_result")
+        .eq("id", item.application_id)
+        .maybeSingle();
+      const previous = (current as { submission_result?: Record<string, unknown> | null } | null)?.submission_result ?? {};
+      await supabase
+        .from("applications")
+        .update({
+          submission_result: { ...previous, cancelledByApplicant: true, cancelledAt: now },
+          submission_result_status: "cancelled",
+          submission_result_updated_at: now,
+          updated_at: now,
+        })
+        .eq("id", item.application_id);
+      console.log(`[indonesia] ${provider} cancelled by applicant application=${redactIdentifier(item.application_id)}`);
+      return;
+    }
     if (managedPaymentCard) {
       await managedPaymentHooks?.finalizePaymentCard?.(managedPaymentCard, "review_required").catch(() => undefined);
       managedPaymentCard = null;
@@ -8497,6 +8537,29 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
     console.error(`[indonesia] ${provider} failed for application=${redactIdentifier(item.application_id)}:`, errorMsg);
   } finally {
     clearInterval(heartbeatTimer);
+  }
+}
+
+/** Thrown when the applicant cancelled a run in progress (migration 0209). */
+class IndonesiaApplicantCancelledError extends Error {
+  constructor() {
+    super("The applicant cancelled this Indonesia submission.");
+  }
+}
+
+async function throwIfIndonesiaCancelRequested(queueId: string): Promise<void> {
+  const { data, error } = await supabase
+    .from("submission_queue")
+    .select("cancel_requested_at")
+    .eq("id", queueId)
+    .maybeSingle();
+  if (error) {
+    // Never block a run on this read; the open RPC refuses cancelled rows.
+    console.error(`[indonesia] Cancel check failed: ${error.message}`);
+    return;
+  }
+  if ((data as { cancel_requested_at?: string | null } | null)?.cancel_requested_at) {
+    throw new IndonesiaApplicantCancelledError();
   }
 }
 

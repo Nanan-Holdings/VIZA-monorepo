@@ -1264,7 +1264,14 @@ function FinalConfirmationPanel({
   const submitDisabled = requirementsLoading || isSubmitting || isChecking || !taiwanTermsReady ||
     (isKoreaEArrivalCard && !koreaPreflightTrusted) ||
     (isJapanVjw && !liveAssistedEnabled);
-  const submitCopy = forceDryRun
+  // Indonesia (migration 0209): VIZA fills the official site and the
+  // applicant submits and pays there themselves.
+  const isIndonesiaHandoff = liveAssistedTarget === "indonesia" && liveAssistedEnabled && !forceDryRun;
+  const submitCopy = isIndonesiaHandoff
+    ? isZh
+      ? "点击“提交”后，VIZA 会在印尼官网填好你的申请，并按你在本页的同意勾选官方声明。最后由你本人打开官网核对、点击官方提交并缴纳官费；VIZA 不收费，也不会替你提交或付款。填写过程中可以随时取消。"
+      : "When you click Submit, VIZA fills your application on the Indonesia official site and ticks the official declarations you accepted here. You then open the official site, review it, click the official Submit, and pay the government fee yourself. VIZA charges nothing and never submits or pays for you. You can cancel at any time while VIZA is filling."
+    : forceDryRun
     ? isZh
       ? "这是隔离的云端演练，只验证 VIZA 与 Fly 提交链路，不会打开或填写官方 CEAC 网站。"
       : "This isolated cloud dry run verifies the VIZA-to-Fly submission path without opening or filling the official CEAC website."

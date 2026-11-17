@@ -29,6 +29,14 @@ ALTER TABLE public.takeover_session
 ALTER TABLE public.takeover_session
   ALTER COLUMN job_id DROP NOT NULL;
 
+-- Cooperative applicant cancellation for a run already in progress. The
+-- runner checks it between official-portal stages and stops itself.
+ALTER TABLE public.submission_queue
+  ADD COLUMN IF NOT EXISTS cancel_requested_at TIMESTAMPTZ;
+
+COMMENT ON COLUMN public.submission_queue.cancel_requested_at IS
+  'Set by cancel_official_applicant_submission while a runner holds the row; the runner stops at its next stage and clears it.';
+
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -169,7 +177,10 @@ BEGIN
   END IF;
 
   v_prefix := public.official_handoff_queue_prefix(v_queue.provider);
-  IF v_prefix IS NULL OR v_queue.status IS DISTINCT FROM v_prefix || 'live_assisted_processing' THEN
+  IF v_prefix IS NULL
+    OR v_queue.status IS DISTINCT FROM v_prefix || 'live_assisted_processing'
+    OR v_queue.cancel_requested_at IS NOT NULL
+  THEN
     RETURN;
   END IF;
 
@@ -826,6 +837,7 @@ BEGIN
   UPDATE public.submission_queue AS queue
   SET status = v_prefix || 'live_assisted_pending',
       current_stage = 'applicant_requested_new_handoff',
+      cancel_requested_at = NULL,
       attempts = 0,
       locked_by = NULL,
       locked_until = NULL,
@@ -847,4 +859,138 @@ $$;
 REVOKE ALL ON FUNCTION public.request_official_applicant_handoff_regeneration(UUID, UUID)
   FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.request_official_applicant_handoff_regeneration(UUID, UUID)
+  TO service_role;
+
+-- Cancel: called by the authenticated application API for the owning
+-- applicant. Queued work is cancelled immediately; a run in progress is asked
+-- to stop at its next stage; an open handoff is closed. Nothing is ever
+-- submitted or paid on the applicant's behalf, so cancelling is always safe.
+CREATE OR REPLACE FUNCTION public.cancel_official_applicant_submission(
+  p_application_id UUID,
+  p_applicant_id UUID
+)
+RETURNS TABLE (
+  outcome TEXT,
+  submission_queue_id UUID
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_queue public.submission_queue%ROWTYPE;
+  v_session public.takeover_session%ROWTYPE;
+  v_prefix TEXT;
+  v_now TIMESTAMPTZ;
+BEGIN
+  IF p_application_id IS NULL OR p_applicant_id IS NULL THEN
+    RAISE EXCEPTION 'application and applicant ids are required'
+      USING ERRCODE = '22023';
+  END IF;
+
+  PERFORM 1
+  FROM public.applications AS application
+  WHERE application.id = p_application_id
+    AND application.applicant_id = p_applicant_id
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RETURN;
+  END IF;
+
+  SELECT queue.*
+  INTO v_queue
+  FROM public.submission_queue AS queue
+  WHERE queue.application_id = p_application_id
+    AND queue.status IN (
+      'id_c1_live_assisted_pending', 'id_b1_evoa_live_assisted_pending',
+      'id_c1_live_assisted_processing', 'id_b1_evoa_live_assisted_processing',
+      'id_c1_applicant_handoff', 'id_b1_evoa_applicant_handoff'
+    )
+  ORDER BY queue.updated_at DESC NULLS LAST, queue.id
+  LIMIT 1
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RETURN;
+  END IF;
+  v_prefix := public.official_handoff_queue_prefix(v_queue.provider);
+  IF v_prefix IS NULL THEN
+    RETURN;
+  END IF;
+
+  v_now := pg_catalog.clock_timestamp();
+
+  IF v_queue.status = v_prefix || 'live_assisted_processing' THEN
+    UPDATE public.submission_queue AS queue
+    SET cancel_requested_at = COALESCE(queue.cancel_requested_at, v_now),
+        updated_at = v_now
+    WHERE queue.id = v_queue.id;
+    RETURN QUERY SELECT 'cancel_requested'::TEXT, v_queue.id;
+    RETURN;
+  END IF;
+
+  IF v_queue.status = v_prefix || 'live_assisted_pending' THEN
+    IF v_queue.locked_until IS NOT NULL AND v_queue.locked_until > v_now THEN
+      -- A worker is claiming it right now; ask it to stop instead.
+      UPDATE public.submission_queue AS queue
+      SET cancel_requested_at = COALESCE(queue.cancel_requested_at, v_now),
+          updated_at = v_now
+      WHERE queue.id = v_queue.id;
+      RETURN QUERY SELECT 'cancel_requested'::TEXT, v_queue.id;
+      RETURN;
+    END IF;
+    UPDATE public.submission_queue AS queue
+    SET status = v_prefix || 'live_assisted_cancelled',
+        current_stage = 'cancelled_by_applicant',
+        cancel_requested_at = NULL,
+        locked_by = NULL,
+        locked_until = NULL,
+        updated_at = v_now
+    WHERE queue.id = v_queue.id;
+  ELSE
+    -- Open applicant handoff: close every active session for this row.
+    FOR v_session IN
+      SELECT session.*
+      FROM public.takeover_session AS session
+      WHERE session.submission_queue_id = v_queue.id
+        AND session.handoff_kind = 'official_applicant_final_submit'
+        AND session.status IN ('queued', 'claimed')
+      FOR UPDATE
+    LOOP
+      UPDATE public.takeover_session AS session
+      SET status = 'abandoned',
+          operator_notes = 'cancelled_by_applicant',
+          closed_at = v_now
+      WHERE session.id = v_session.id;
+      INSERT INTO public.takeover_action_log (takeover_id, action, actor_user_id, detail, ts)
+      VALUES (
+        v_session.id, 'abandon', p_applicant_id,
+        jsonb_build_object('kind', 'official_applicant_final_submit', 'reason', 'cancelled_by_applicant'),
+        v_now
+      );
+    END LOOP;
+    UPDATE public.submission_queue AS queue
+    SET status = v_prefix || 'applicant_cancelled',
+        current_stage = 'cancelled_by_applicant',
+        cancel_requested_at = NULL,
+        locked_by = NULL,
+        locked_until = NULL,
+        updated_at = v_now
+    WHERE queue.id = v_queue.id;
+  END IF;
+
+  UPDATE public.applications AS application
+  SET submission_result = COALESCE(application.submission_result, '{}'::jsonb)
+        || jsonb_build_object('cancelledByApplicant', TRUE, 'cancelledAt', v_now),
+      submission_result_status = 'cancelled',
+      submission_result_updated_at = v_now,
+      updated_at = v_now
+  WHERE application.id = p_application_id;
+
+  RETURN QUERY SELECT 'cancelled'::TEXT, v_queue.id;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.cancel_official_applicant_submission(UUID, UUID)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.cancel_official_applicant_submission(UUID, UUID)
   TO service_role;

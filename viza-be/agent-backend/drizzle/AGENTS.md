@@ -641,7 +641,9 @@ and releases the lease), `claim_` (exact applicant, unexpired), a brief watch
 lease, `settle_` (`pending`; `submitted` with official receipt evidence after
 an applicant claim, which keeps the session claimable so the applicant can
 return to pay; `closed` at expiry or on official completion; `abandoned` for an
-unsubmitted handoff after expiry), and applicant regeneration
+unsubmitted handoff after expiry), applicant cancellation
+(`cancel_official_applicant_submission`, with `submission_queue.cancel_requested_at`
+for runs in progress; `open_` refuses a cancel-requested row), and applicant regeneration
 capped at three handoffs per application per rolling 24 hours. Providers are
 allowlisted in `official_handoff_queue_prefix()`; add one only after its runner
 stops before the official final submit. The Taiwan RPCs in 0149 are unchanged.
