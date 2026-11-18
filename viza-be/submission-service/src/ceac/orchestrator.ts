@@ -103,6 +103,7 @@ import { captureOfficialReviewPage, verifyOfficialReview, type ReviewExpectation
 import { applyExplicitPreparerAnswer, fillVerifiedPassportSignature, type Ds160PreparerAnswers } from "./signature-fields";
 import {
   assertRecoveredDs160Application,
+  waitForExpectedApplicationId,
   reconnectVerifiedCeacPage,
   RECOVERABLE_DS160_PAGE_IDS,
 } from "./recovered-application";
@@ -309,6 +310,19 @@ export interface OrchestrateOptions {
    */
   maxPostbackRejectionRetries?: number;
   /**
+   * Attempts at the Identix photo upload when Identix returns its generic
+   * error page. Default: CEAC_PHOTO_UPLOAD_MAX_ATTEMPTS or 3.
+   */
+  maxPhotoUploadAttempts?: number;
+  /** Base delay between photo attempts (doubled per retry). Default 5 s. */
+  photoRetryBaseDelayMs?: number;
+  /**
+   * After every photo attempt hit an Identix service error, continue the
+   * DS-160 without a photo through CEAC's own navigation (the applicant then
+   * brings a printed photo). Default: CEAC_PHOTO_SKIP_ON_SERVICE_ERROR or true.
+   */
+  skipPhotoOnServiceError?: boolean;
+  /**
    * Applicant photo to upload on the upload_photo page. When provided, the
    * orchestrator uploads the photo and continues through Review.
    */
@@ -371,6 +385,8 @@ export async function orchestrateFill(
   let datArtifact: DatArtifact | null = null;
   let transitions = 0;
   let resumeAttempts = 0;
+  // Set once the run continued past Upload Photo without a photo.
+  let photoSkipError: unknown = null;
   let postbackRejectionRetries = 0;
   const maxPostbackRejectionRetries = options.maxPostbackRejectionRetries
     ?? readRetryLimit(process.env.CEAC_POSTBACK_REJECTION_MAX_RETRIES, 3);
@@ -453,13 +469,37 @@ export async function orchestrateFill(
       // rejects it), stop at upload_photo with handoff_ready so the
       // applicant uploads the photo themselves.
       if (currentPageId === "upload_photo") {
+        if (photoSkipError) {
+          // CEAC sent us back to Upload Photo after we continued without a
+          // photo: it does not accept a photo-less draft here. Stop as before.
+          throw photoSkipError;
+        }
         if (options.photo) {
-          try {
-            console.log(`[orchestrator] Uploading applicant photo`);
-            const uploadResult = await handleUploadPhotoPage(page, {
-              photo: options.photo,
-              diagnosticPath: path.join(outputDir, "upload-photo-dom.json"),
-            });
+          // Identix intermittently answers a valid upload with its generic
+          // error page; a second attempt usually succeeds. Retry only that
+          // provider error. A real photo rejection is never retried.
+          const maxPhotoAttempts = Math.max(1, options.maxPhotoUploadAttempts
+            ?? readRetryLimit(process.env.CEAC_PHOTO_UPLOAD_MAX_ATTEMPTS, DEFAULT_PHOTO_UPLOAD_ATTEMPTS));
+          let photoError: unknown = null;
+          let uploadResult: Awaited<ReturnType<typeof handleUploadPhotoPage>> | null = null;
+          for (let attempt = 1; attempt <= maxPhotoAttempts; attempt++) {
+            try {
+              console.log(`[orchestrator] Uploading applicant photo (attempt ${attempt}/${maxPhotoAttempts})`);
+              uploadResult = await handleUploadPhotoPage(session.page, {
+                photo: options.photo,
+                diagnosticPath: path.join(outputDir, "upload-photo-dom.json"),
+              });
+              break;
+            } catch (err) {
+              photoError = err;
+              if (!(err instanceof IdentixPhotoServiceError) || attempt === maxPhotoAttempts) break;
+              console.warn(`[orchestrator] Identix photo service error on attempt ${attempt}/${maxPhotoAttempts}; retrying`);
+              options.assertActive?.();
+              await sleepMs(photoRetryDelayMs(attempt, options.photoRetryBaseDelayMs));
+              await returnToCeacUploadPhotoPage(session, tracker.snapshot().applicationId ?? null);
+            }
+          }
+          if (uploadResult) {
             console.log(
               `[orchestrator] Photo accepted — landed at ${uploadResult.postContinueUrl}`,
             );
@@ -471,7 +511,34 @@ export async function orchestrateFill(
             sectionsFilled.push("upload_photo");
             transitions++;
             continue; // Next iteration handles Review and Sign and Submit
-          } catch (err) {
+          }
+          const err = photoError;
+          {
+            if (err instanceof IdentixPhotoServiceError && photoSkipEnabled(options)) {
+              // The State Department lets an applicant whose upload failed
+              // bring a printed photo to the interview. Continue without the
+              // photo only through CEAC's own navigation; if CEAC refuses,
+              // the original error stops the run as before.
+              const continued = await continueWithoutPhoto(session, tracker.snapshot().applicationId ?? null)
+                .catch(() => false);
+              if (continued) {
+                console.warn(`[orchestrator] Photo skipped after ${maxPhotoAttempts} Identix errors; applicant must bring a printed photo`);
+                photoSkipError = err;
+                await recordSectionCheckpoint(session.page, {
+                  ...checkpointOpts,
+                  details: {
+                    section: "upload_photo",
+                    filled: false,
+                    photoUploaded: false,
+                    photoSkippedReason: "identix_service_error",
+                  },
+                });
+                sectionsSkipped.push("upload_photo");
+                transitions++;
+                continue;
+              }
+              console.warn(`[orchestrator] CEAC did not allow continuing without a photo`);
+            }
             const reason =
               err instanceof PhotoRejectedError
                 ? err.reason ?? err.message
@@ -1265,6 +1332,69 @@ async function forceTextValue(el: Locator, value: string): Promise<void> {
     input.dispatchEvent(new Event("input", { bubbles: true }));
     input.dispatchEvent(new Event("change", { bubbles: true }));
   }, value);
+}
+
+const DEFAULT_PHOTO_UPLOAD_ATTEMPTS = 3;
+const DEFAULT_PHOTO_RETRY_BASE_DELAY_MS = 5_000;
+const CEAC_UPLOAD_PHOTO_URL = "https://ceac.state.gov/GenNIV/General/photo/photo_uploadthephoto.aspx?node=UploadPhoto";
+
+function sleepMs(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function photoRetryDelayMs(attempt: number, baseMs = DEFAULT_PHOTO_RETRY_BASE_DELAY_MS): number {
+  return Math.max(0, baseMs) * 2 ** (attempt - 1);
+}
+
+function photoSkipEnabled(options: Pick<OrchestrateOptions, "skipPhotoOnServiceError">): boolean {
+  if (options.skipPhotoOnServiceError !== undefined) return options.skipPhotoOnServiceError;
+  const raw = process.env.CEAC_PHOTO_SKIP_ON_SERVICE_ERROR?.trim().toLowerCase();
+  return !raw || ["1", "true", "yes", "on"].includes(raw);
+}
+
+/**
+ * Bring one CEAC tab back to Upload Photo after Identix failed. Identix may
+ * have replaced the CEAC tab or opened its own; keep one page, close the
+ * rest, and verify the same draft before the caller retries.
+ */
+async function returnToCeacUploadPhotoPage(session: CeacSession, expectedApplicationId: string | null): Promise<void> {
+  const open = session.page.context().pages().filter((candidate) => !candidate.isClosed());
+  const keep = open.find((candidate) => /ceac\.state\.gov/i.test(candidate.url())) ?? open[0] ?? session.page;
+  for (const candidate of open) {
+    if (candidate !== keep) await candidate.close().catch(() => undefined);
+  }
+  session.page = keep;
+  installCeacPostbackMonitor(keep);
+  clearCeacPostbackFailure(keep);
+  await keep.goto(CEAC_UPLOAD_PHOTO_URL, { waitUntil: "domcontentloaded", timeout: 60_000 });
+  const probe = await detectPage(keep);
+  if (probe.id !== "upload_photo") {
+    throw new UnexpectedPageError("CEAC did not return to Upload Photo after the photo service error.", {
+      detected: probe.id,
+    });
+  }
+  if (expectedApplicationId) await waitForExpectedApplicationId(keep, expectedApplicationId);
+}
+
+/**
+ * Leave Upload Photo through CEAC's own "Next: Confirm Photo" without a
+ * photo. Returns true only when CEAC lands somewhere the normal loop can
+ * continue from (Confirm Photo with an enabled Review link, or Review);
+ * any other surface means CEAC requires the photo.
+ */
+async function continueWithoutPhoto(session: CeacSession, expectedApplicationId: string | null): Promise<boolean> {
+  await returnToCeacUploadPhotoPage(session, expectedApplicationId);
+  const page = session.page;
+  const next = page.locator('input[type="submit"][value^="Next"]').first();
+  if (!(await next.count()) || await next.isDisabled()) return false;
+  await next.click({ force: true, timeout: 10_000 });
+  await waitForAspNetPostback(page, 15_000).catch(() => undefined);
+  await page.waitForLoadState("domcontentloaded").catch(() => undefined);
+  const probe = await detectPage(page);
+  if (probe.id === "confirm_photo") {
+    return (await page.locator("a#REVIEW[href]").count()) > 0;
+  }
+  return probe.id === "review";
 }
 
 /** In-page wait before re-reading a plain text input after typing. */

@@ -71,6 +71,11 @@ export interface UsSubmissionResult {
    */
   securityAnswer?: string;
   securityAnswerCipher?: string;
+  /**
+   * The official photo service kept failing, so the DS-160 continued without
+   * a photo. The applicant must bring a printed photo to the interview.
+   */
+  photoSkipped?: boolean;
   embassyOrConsulate: string;
   retrievalUrl: string;         // canonical CEAC retrieval entry URL
   datStoragePath?: string;      // bucket path; FE mints signed URL on demand

@@ -183,6 +183,8 @@ test("preserves an Identix photo service error through final-submit orchestratio
         mimeType: "image/jpeg",
       },
       finalSubmit: { passportNumber: "P1234567" },
+      maxPhotoUploadAttempts: 1,
+      skipPhotoOnServiceError: false,
     });
 
     assert.equal(result.result.status, "failed");

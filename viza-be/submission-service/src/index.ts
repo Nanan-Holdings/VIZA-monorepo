@@ -2715,6 +2715,9 @@ async function processDs160Item(
         securityAnswer: recoveryIdentity.securityAnswer,
       },
     });
+    // The orchestrator marks upload_photo skipped only when CEAC let the run
+    // continue without a photo after repeated Identix service errors.
+    const photoSkipped = sectionCoverage.skipped.includes("upload_photo");
     // orchestrateFill intentionally captures page errors into its result;
     // re-check here so a heartbeat loss cannot continue into any persisted
     // result or final-submit settlement path.
@@ -2822,6 +2825,7 @@ async function processDs160Item(
         yearOfBirth: Number(yearOfBirth) || 0,
         securityQuestion: recoveryIdentity.securityQuestionText,
         securityAnswerCipher: encryptSecret(recoveryIdentity.securityAnswer),
+        ...(photoSkipped ? { photoSkipped: true } : {}),
         embassyOrConsulate:
           answers["consular_post"] ??
           answers["embassy_or_consulate"] ??
@@ -2888,6 +2892,7 @@ async function processDs160Item(
         yearOfBirth: Number(yearOfBirth) || 0,
         securityQuestion: recoveryIdentity.securityQuestionText,
         securityAnswerCipher: encryptSecret(recoveryIdentity.securityAnswer),
+        ...(photoSkipped ? { photoSkipped: true } : {}),
         embassyOrConsulate:
           answers["consular_post"] ??
           answers["embassy_or_consulate"] ??
