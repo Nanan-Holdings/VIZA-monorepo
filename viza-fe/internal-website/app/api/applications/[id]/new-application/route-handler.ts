@@ -508,14 +508,14 @@ export async function createNewUsApplication(
     } as const;
   }
 
-  let sourceDocuments: SavedApplicationDocument[] = [];
-  if (intent === "restart_unsigned") {
-    const loadedDocuments = await loadApplicationDocuments(admin, source.id);
-    if (loadedDocuments.error) {
-      return { error: "Could not load the source application documents", status: 500 } as const;
-    }
-    sourceDocuments = loadedDocuments.documents;
+  // Both a restart and a post-submission reuse carry the source document
+  // references (notably the DS-160 photo). Without them the worker falls back
+  // to the profile photo, which may not meet CEAC's photo contract.
+  const loadedDocuments = await loadApplicationDocuments(admin, source.id);
+  if (loadedDocuments.error) {
+    return { error: "Could not load the source application documents", status: 500 } as const;
   }
+  const sourceDocuments: SavedApplicationDocument[] = loadedDocuments.documents;
 
   const existing = await loadExistingDraft(admin, profile.id, source, intent === "restart_unsigned");
   if (existing.error) return { error: "Could not load the existing application", status: 500 } as const;
@@ -678,7 +678,7 @@ export async function createNewUsApplication(
     return { error: copyError.message, status: 500 } as const;
   }
 
-  if (intent === "restart_unsigned" && sourceDocuments.length > 0) {
+  if (sourceDocuments.length > 0) {
     const { error: documentCopyError } = await admin.from("application_documents").insert(
       sourceDocuments.map((document) => {
         const copy: Record<string, unknown> = {

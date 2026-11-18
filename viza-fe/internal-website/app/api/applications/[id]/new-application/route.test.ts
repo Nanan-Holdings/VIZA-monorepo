@@ -92,7 +92,7 @@ describe("createNewUsApplication", () => {
     const copyAnswersQuery = query({ data: null, error: null });
     const existingDraftQuery = query({ data: null, error: null });
     const from = vi.fn().mockReturnValueOnce(profileQuery).mockReturnValueOnce(sourceQuery);
-    from.mockReturnValueOnce(sourceAnswersQuery).mockReturnValueOnce(existingDraftQuery).mockReturnValueOnce(createQuery).mockReturnValueOnce(copyAnswersQuery);
+    from.mockReturnValueOnce(sourceAnswersQuery).mockReturnValueOnce(query({ data: [], error: null })).mockReturnValueOnce(existingDraftQuery).mockReturnValueOnce(createQuery).mockReturnValueOnce(copyAnswersQuery);
     createAdminClient.mockReturnValue({ from });
 
     const result = await createNewUsApplication("user-id", "submitted-id");
@@ -124,7 +124,7 @@ describe("createNewUsApplication", () => {
         value_json: null,
       },
     ]);
-    expect(from).toHaveBeenCalledTimes(6);
+    expect(from).toHaveBeenCalledTimes(7);
   });
 
   it.each(["draft", "stopped_at_sign"])("does not create a new draft from an unfinished %s result", async (status) => {
@@ -183,6 +183,7 @@ describe("createNewUsApplication", () => {
       .mockReturnValueOnce(profileQuery)
       .mockReturnValueOnce(sourceQuery)
       .mockReturnValueOnce(sourceAnswersQuery)
+      .mockReturnValueOnce(query({ data: [], error: null })) // source documents
       .mockReturnValueOnce(existingDraftQuery)
       .mockReturnValueOnce(createQuery)
       .mockReturnValueOnce(copyQuery);
@@ -205,6 +206,39 @@ describe("createNewUsApplication", () => {
     });
   });
 
+  it("copies the submitted source's photo reference into the next DS-160 draft", async () => {
+    const photo = {
+      document_type: "photo",
+      storage_path: "applicant-id/submitted-id/photo/photo.jpg",
+      filename: "photo.jpg",
+      status: "uploaded",
+      rejection_reason: null,
+      requirement_key: "photo",
+      required: true,
+    };
+    const createQuery = query({ data: { id: "new-draft-id" }, error: null });
+    const copyAnswersQuery = query({ data: null, error: null });
+    const copyDocumentsQuery = query({ data: null, error: null });
+    const from = vi.fn()
+      .mockReturnValueOnce(query({ data: { id: "profile-id" }, error: null }))
+      .mockReturnValueOnce(query({ data: {
+        id: "submitted-id", applicant_id: "profile-id", country: "united_states", visa_type: "DS160", visa_package_id: null, status: "submitted",
+      }, error: null }))
+      .mockReturnValueOnce(query({ data: [{ field_name: "surname", value_text: "CHEN", value_json: null }], error: null }))
+      .mockReturnValueOnce(query({ data: [photo], error: null }))
+      .mockReturnValueOnce(query({ data: null, error: null }))
+      .mockReturnValueOnce(createQuery)
+      .mockReturnValueOnce(copyAnswersQuery)
+      .mockReturnValueOnce(copyDocumentsQuery);
+    createAdminClient.mockReturnValue({ from });
+
+    await expect(createNewUsApplication("user-id", "submitted-id")).resolves.toMatchObject({
+      applicationId: "new-draft-id",
+      status: 201,
+    });
+    expect(copyDocumentsQuery.insert).toHaveBeenCalledWith([{ application_id: "new-draft-id", ...photo }]);
+  });
+
   it.each([false, true])("reopens an existing draft and preserves existing answers: %s", async (hasAnswers) => {
     const existingDraftQuery = query({ data: { id: "existing-draft", visa_package_id: null }, error: null });
     const existingAnswersQuery = query({ data: hasAnswers ? [{ field_name: "surname" }] : [], error: null });
@@ -216,6 +250,7 @@ describe("createNewUsApplication", () => {
         id: "submitted-id", applicant_id: "profile-id", country: "united_states", visa_type: "DS160", visa_package_id: "source-package", status: "submitted",
       }, error: null }))
       .mockReturnValueOnce(query({ data: [{ field_name: "surname", value_text: "CHEN", value_json: null }], error: null }))
+      .mockReturnValueOnce(query({ data: [], error: null })) // source documents
       .mockReturnValueOnce(existingDraftQuery)
       .mockReturnValueOnce(existingAnswersQuery)
       .mockReturnValueOnce(packageUpdateQuery)
@@ -246,6 +281,7 @@ describe("createNewUsApplication", () => {
         id: "submitted-id", applicant_id: "profile-id", country: "united_states", visa_type: "DS160", visa_package_id: "source-package", status: "submitted",
       }, error: null }))
       .mockReturnValueOnce(query({ data: [{ field_name: "surname", value_text: "CHEN", value_json: null }], error: null }))
+      .mockReturnValueOnce(query({ data: [], error: null })) // source documents
       .mockReturnValueOnce(existingDraftQuery)
       .mockReturnValueOnce(query({ data: [{ field_name: "surname" }], error: null }));
     createAdminClient.mockReturnValue({ from });
@@ -255,7 +291,7 @@ describe("createNewUsApplication", () => {
       status: 200,
     });
     expect(existingDraftQuery.update).not.toHaveBeenCalled();
-    expect(from).toHaveBeenCalledTimes(5);
+    expect(from).toHaveBeenCalledTimes(6);
   });
 
   it("rejects a submitted-result source owned by another applicant", async () => {
@@ -312,6 +348,7 @@ describe("createNewUsApplication", () => {
       .mockReturnValueOnce(profileQuery)
       .mockReturnValueOnce(sourceQuery)
       .mockReturnValueOnce(sourceAnswersQuery)
+      .mockReturnValueOnce(query({ data: [], error: null })) // source documents
       .mockReturnValueOnce(initialDraftQuery)
       .mockReturnValueOnce(createQuery)
       .mockReturnValueOnce(concurrentDraftQuery)
@@ -368,6 +405,7 @@ describe("createNewUsApplication", () => {
       .mockReturnValueOnce(profileQuery)
       .mockReturnValueOnce(sourceQuery)
       .mockReturnValueOnce(sourceAnswersQuery)
+      .mockReturnValueOnce(query({ data: [], error: null })) // source documents
       .mockReturnValueOnce(initialDraftQuery)
       .mockReturnValueOnce(createQuery)
       .mockReturnValueOnce(concurrentDraftQuery);
@@ -377,7 +415,7 @@ describe("createNewUsApplication", () => {
       error: "Could not create a new application",
       status: 500,
     });
-    expect(from).toHaveBeenCalledTimes(6);
+    expect(from).toHaveBeenCalledTimes(7);
   });
 
   it("restarts an unsigned terminal DS-160 and copies answers plus document references", async () => {
