@@ -3116,6 +3116,18 @@ export default function ApplicationPage() {
       }
 
       if (!isLatestRequest()) return;
+      // Pin the Indonesia application this page resolved, so a refresh or a
+      // later save keeps editing the same row (and its uploaded documents)
+      // instead of re-resolving to a sibling application.
+      if (
+        !explicitApplicationId &&
+        application?.id &&
+        isIndonesiaEVisaApplication(resolvedCountry, resolvedVisaType)
+      ) {
+        const pinned = new URLSearchParams(window.location.search);
+        pinned.set("applicationId", application.id);
+        window.history.replaceState(window.history.state, "", `?${pinned.toString()}`);
+      }
       profileIdRef.current = profile?.id ?? null;
       setForceDryRun(application?.purpose === "VIZA_PLACEHOLDER_DRY_RUN");
 
