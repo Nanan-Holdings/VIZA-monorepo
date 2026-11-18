@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocale } from "next-intl";
 import {
   ArrowSquareOut,
@@ -15,6 +15,7 @@ import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { openOfficialHandoffWindow } from "./official-handoff-client";
 import { OfficialCancelButton } from "./OfficialCancelButton";
+import { IndonesiaOfficialSubmitGuide } from "./IndonesiaOfficialSubmitGuide";
 
 /** Stored result written by open_official_applicant_handoff (migration 0209). */
 export interface OfficialHandoffResult {
@@ -59,6 +60,17 @@ export function OfficialHandoffResultCard({
   const name = COUNTRY_NAME[result.targetCountry ?? ""] ?? { en: "the official", zh: "官方" };
   const countryLabel = isZh ? name.zh : name.en;
   const paymentOnly = result.handoffReadyAt === "official_payment_pending";
+  const expiresAtMs = result.handoffExpiresAt ? Date.parse(result.handoffExpiresAt) : Number.NaN;
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    if (expired || !Number.isFinite(expiresAtMs)) return;
+    const timer = window.setInterval(() => setNowMs(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, [expired, expiresAtMs]);
+  const minutesLeft = Number.isFinite(expiresAtMs) ? Math.max(0, Math.ceil((expiresAtMs - nowMs) / 60_000)) : null;
+  useEffect(() => {
+    if (minutesLeft === 0) setExpired(true);
+  }, [minutesLeft]);
 
   async function openOfficialSite() {
     if (!applicationId || busy) return;
@@ -147,15 +159,23 @@ export function OfficialHandoffResultCard({
                 </>
               )}
             </ol>
+            {minutesLeft !== null ? (
+              <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+                {isZh
+                  ? `请在 ${minutesLeft} 分钟内完成官网提交和付款，之后这个官网会话会失效。`
+                  : `Finish submitting and paying on the official site within ${minutesLeft} minutes; the session closes after that.`}
+              </p>
+            ) : null}
             <p className="text-xs leading-relaxed text-muted-foreground">
               {isZh
-                ? "VIZA 不收取任何费用，也不会替你提交或付款。会话约 1 小时后过期；提交后这里会自动更新为已提交。"
-                : "VIZA charges nothing and never submits or pays for you. The session expires after about an hour; this page updates automatically once you submit."}
+                ? "VIZA 不收取任何费用，也不会替你提交或付款。提交后这里会自动更新为已提交。"
+                : "VIZA charges nothing and never submits or pays for you. This page updates automatically once you submit."}
             </p>
             <Button type="button" className="w-full" disabled={!applicationId || busy !== null} onClick={() => void openOfficialSite()}>
               {busy === "open" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowSquareOut className="mr-2 h-4 w-4" />}
               {isZh ? `前往${countryLabel}官网确认并提交` : `Open the ${countryLabel} official site`}
             </Button>
+            {result.targetCountry === "ID" ? <IndonesiaOfficialSubmitGuide isZh={isZh} /> : null}
           </>
         )}
         {error ? <ClientErrorAlert message={error} /> : null}

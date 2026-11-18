@@ -33,7 +33,10 @@ describe("OfficialHandoffResultCard", () => {
         result={{ status: "awaiting_applicant_official_submit", handoffId: "t", handoffExpiresAt: FUTURE, targetCountry: "ID" }}
       />,
     );
-    expect(screen.getByText(/VIZA 不收取任何费用/)).toBeInTheDocument();
+    expect(screen.getByText(/VIZA 不收取任何费用，也不会替你提交或付款/)).toBeInTheDocument();
+    expect(screen.getByText(/请在 30 分钟内完成官网提交和付款/)).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "官网操作教程" })).toBeInTheDocument();
+    expect(screen.getAllByRole("img")).toHaveLength(4);
     fireEvent.click(screen.getByRole("button", { name: "前往印尼官网确认并提交" }));
 
     await waitFor(() => expect(popup.location.replace).toHaveBeenCalledWith(LIVE_URL));
