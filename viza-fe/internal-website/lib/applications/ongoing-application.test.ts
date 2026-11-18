@@ -6,6 +6,23 @@ import {
 } from "./ongoing-application";
 
 describe("ongoing application identity", () => {
+  it("keeps a cancelled or handed-off Indonesia submission editable, but not one the applicant submitted", () => {
+    expect(
+      isOngoingApplicationRecord({
+        status: "submitted",
+        submission_result_status: "cancelled",
+        submission_result: { status: "awaiting_applicant_official_submit", cancelledByApplicant: true },
+      }),
+    ).toBe(true);
+    expect(
+      isOngoingApplicationRecord({
+        status: "submitted",
+        submission_result_status: "completed",
+        submission_result: { status: "submitted", submittedBy: "applicant_on_official_portal" },
+      }),
+    ).toBe(false);
+  });
+
   it("keeps drafts and actionable processing rows ongoing", () => {
     expect(isOngoingApplicationRecord({ status: "draft" })).toBe(true);
     expect(
@@ -16,7 +33,7 @@ describe("ongoing application identity", () => {
     ).toBe(true);
   });
 
-  it.each(["needs_attention", "action_required", "blocked"])(
+  it.each(["needs_attention", "action_required", "blocked", "needs_user_action", "cancelled"])(
     "keeps a submitted row with %s recoverable until authoritative evidence exists",
     (submissionResultStatus) => {
       expect(

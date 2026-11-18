@@ -967,6 +967,15 @@ function selectDocumentApplication(
   applications: DocumentApplication[],
   params: LoadDocumentCenterParams,
 ): DocumentApplication | null {
+  // The exact application the form is editing always wins. Matching by
+  // country/visa type first let a newer sibling row (for example a fresh
+  // draft created after a cancelled submission) steal the checklist and the
+  // uploads, so documents appeared to go missing.
+  if (params.applicationId) {
+    const exact = applications.find((application) => application.id === params.applicationId);
+    if (exact) return exact;
+  }
+
   if (params.country && params.visaType) {
     const countryMatch = applications.find(
       (application) =>
@@ -976,9 +985,7 @@ function selectDocumentApplication(
     if (countryMatch) return countryMatch;
   }
 
-  if (params.applicationId) {
-    return applications.find((application) => application.id === params.applicationId) ?? null;
-  }
+  if (params.applicationId) return null;
 
   return applications[0] ?? null;
 }
