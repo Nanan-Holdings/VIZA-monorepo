@@ -5,6 +5,7 @@ import * as os from "os";
 import { randomBytes } from "crypto";
 import { chromium } from "@playwright/test";
 import { supabase } from "./supabase";
+import { DS160_SECURITY_ANSWER_FIELD, ensureDs160SecurityAnswer } from "./ceac/security-answer";
 import { sendFailureAlert } from "./alert";
 import {
   personalInfoMappings,
@@ -2636,11 +2637,14 @@ async function processDs160Item(
     } else {
       // Confirm-application page (Privacy Act ack + Application ID + security
       // question). Captures the recovery secret required to retrieve this
-      // application later. Reuse the saved secret when available; otherwise
-      // create one and keep it in the existing encrypted confirmation metadata.
+      // application later. Reuse the saved answer when available; otherwise
+      // generate a readable one and save it with the applicant's answers
+      // before CEAC sees it, so the draft stays retrievable even when the run
+      // fails before the official confirmation PDF exists.
       const securityAnswerSource =
-        branchAnswers["ds160_security_answer"]?.trim() ||
-        randomBytes(24).toString("base64url");
+        branchAnswers[DS160_SECURITY_ANSWER_FIELD]?.trim() ||
+        await ensureDs160SecurityAnswer(supabase, item.application_id);
+      branchAnswers[DS160_SECURITY_ANSWER_FIELD] = securityAnswerSource;
       recoveryCheckpointAttempted = true;
       const confirm: ConfirmApplicationResult = await handleConfirmApplicationPage(
         session.page,

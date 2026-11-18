@@ -9,6 +9,8 @@ import { deriveDS160Answers } from "../ds160-derive-answers";
 
 export interface LoadedAnswers {
   answers: Record<string, string>;
+  /** Saved answers before CEAC encoding, used for branch conditions. */
+  branchAnswers: Record<string, string>;
   profile: Record<string, unknown>;
 }
 
@@ -66,6 +68,9 @@ export async function loadAnswersForApplication(
   }
 
   const rawProfile = profile as Record<string, unknown>;
+  // Branch conditions compare the saved labels (for example DAY(S)); keep a
+  // copy before derivation encodes them, as the production worker does.
+  const branchAnswers = { ...answers };
 
   // Bridge form-shape → orchestrator-shape: split dates into day/month/year,
   // derive *_na flags from "DOES_NOT_APPLY" tokens, alias form-side keys to
@@ -88,5 +93,5 @@ export async function loadAnswersForApplication(
     email_address: rawProfile.email ?? answers.email_address,
   };
 
-  return { answers, profile: shapedProfile };
+  return { answers, branchAnswers, profile: shapedProfile };
 }
