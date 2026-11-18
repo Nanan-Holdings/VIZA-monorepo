@@ -295,7 +295,7 @@ import {
   openOfficialApplicantHandoff,
   runOfficialHandoffWatchTick,
 } from "./official-handoff/index.js";
-import { inspectIndonesiaHandoffPage } from "./indonesia/handoff.js";
+import { indonesiaHandoffInspector } from "./indonesia/handoff.js";
 import {
   hasCountryRunnerWork,
   hasIndonesiaWorkerWork,
@@ -8997,8 +8997,8 @@ async function watchOfficialApplicantHandoffs(): Promise<void> {
       client: supabase,
       workerId: SUBMISSION_QUEUE_WORKER_ID,
       inspectors: {
-        indonesia_c1_live: inspectIndonesiaHandoffPage,
-        indonesia_b1_evoa_live: inspectIndonesiaHandoffPage,
+        indonesia_c1_live: indonesiaHandoffInspector,
+        indonesia_b1_evoa_live: indonesiaHandoffInspector,
       },
       submittedResult: (handoff, receipt) => ({
         country: "ID",

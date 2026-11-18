@@ -23,6 +23,8 @@ export interface OfficialHandoffResult {
   handoffId: string;
   handoffExpiresAt?: string;
   handoffExpired?: boolean;
+  /** The official portal logged the session out before the handoff expired (0210). */
+  officialSessionLost?: boolean;
   handoffReadyAt?: string;
   targetCountry?: string;
 }
@@ -134,6 +136,11 @@ export function OfficialHandoffResultCard({
         {expired ? (
           <>
             <p className="text-sm leading-relaxed text-muted-foreground">
+              {result.officialSessionLost
+                ? isZh
+                  ? "印尼官网闲置一段时间后自动登出了，之前的官网页面已经不能用。"
+                  : "The Indonesia official site logged the session out after it sat idle, so the earlier page can no longer be used."
+                : null}
               {isZh
                 ? "你的资料仍然保存在 VIZA。点击下方按钮，VIZA 会重新填写官网并准备一个新的会话，完成后这里会再次出现前往官网的按钮。"
                 : "Your answers are still saved in VIZA. Prepare a new session and VIZA will fill the official site again; the button to open it will appear here when it's ready."}

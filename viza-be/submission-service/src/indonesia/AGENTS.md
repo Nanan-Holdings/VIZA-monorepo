@@ -24,7 +24,11 @@ payment.
 - `src/official-handoff` watches open handoffs read-only: it re-attaches to the
   session, reads URL/title/text, and settles `submitted` only from official
   post-submit evidence (`indonesia/handoff.ts`) after the applicant claimed the
-  handoff. It never clicks, types, navigates, or closes applicant pages.
+  handoff. It never clicks, types, navigates, or closes applicant pages. It
+  may send one same-origin background `GET /` (`keepIndonesiaHandoffAlive`)
+  so the portal does not log an idle session out, and after two consecutive
+  logged-out observations (home, `visa-selection`, login) it settles `lost`
+  (0210) so the applicant is offered a fresh session.
   After `submitted` the session stays claimable so the applicant can return to
   pay; the watcher settles `closed` on official completion or expiry and only
   then releases the Browserbase session.
