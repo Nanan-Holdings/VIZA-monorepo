@@ -71,14 +71,15 @@ describe("UsResultCard", () => {
     expect(zhMessages.usAppointment.ds160Card.securityAnswerUnavailable).toContain("英文确认页 PDF");
   });
 
-  it("keeps the submitted PDF and appointment actions read-only on mount and refresh", () => {
+  it("keeps the submitted PDF and resubmit actions read-only on mount and refresh", () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     const view = render(<UsResultCard applicationId="viza-application-id" result={submittedResult} />);
 
     expect(screen.getAllByRole("button", { name: "copyValue" })).toHaveLength(3);
     expect(screen.getByRole("button", { name: "printConfirmation" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "button" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "button" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "resubmitSameAnswers" })).toBeInTheDocument();
     expect(screen.queryByTestId("ds160-automatic-email-status")).not.toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
 
@@ -205,6 +206,52 @@ describe("UsResultCard", () => {
         "/client/application/long-form?applicationId=new-draft-id&country=united_states&visaType=B1_B2",
       );
     });
+  });
+
+  it("resubmits the same answers as a new DS-160 only after confirmation", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("/new-application")) {
+        return new Response(JSON.stringify({
+          applicationId: "new-draft-id",
+          href: "/client/application/long-form?applicationId=new-draft-id&country=united_states&visaType=B1_B2",
+        }), { status: 201 });
+      }
+      return new Response(JSON.stringify({ jobId: "queue-job-id" }), { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<UsResultCard applicationId="viza-application-id" result={submittedResult} />);
+    fireEvent.click(screen.getByRole("button", { name: "resubmitSameAnswers" }));
+    expect(fetchMock).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "resubmitConfirm" }));
+
+    await waitFor(() => {
+      expect(push).toHaveBeenCalledWith(
+        "/client/application/long-form?applicationId=new-draft-id&country=united_states&visaType=B1_B2",
+      );
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/applications/viza-application-id/new-application", { method: "POST" });
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/applications/new-draft-id/retry-submission", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: "live_assisted", intent: "new_application" }),
+    });
+  });
+
+  it("keeps the resubmit draft and shows the error when queueing is refused", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => String(input).endsWith("/new-application")
+      ? new Response(JSON.stringify({ applicationId: "new-draft-id", href: "/client/application/long-form?applicationId=new-draft-id" }), { status: 201 })
+      : new Response(JSON.stringify({ error: "Intended arrival date is in the past" }), { status: 409 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<UsResultCard applicationId="viza-application-id" result={submittedResult} />);
+    fireEvent.click(screen.getByRole("button", { name: "resubmitSameAnswers" }));
+    fireEvent.click(screen.getByRole("button", { name: "resubmitConfirm" }));
+
+    expect(await screen.findByText("Intended arrival date is in the past")).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "newApplication" })).toBeInTheDocument();
   });
 
   it("offers automatic continuation when the prior run stopped before official confirmation", async () => {

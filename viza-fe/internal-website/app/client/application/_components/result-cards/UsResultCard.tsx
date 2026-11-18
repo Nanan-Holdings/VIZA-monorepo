@@ -2,11 +2,9 @@
 
 import { useState } from "react";
 import type { ReactNode } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
-  CalendarCheck,
   ArrowSquareOut as ExternalLink,
   Copy,
   Check,
@@ -166,13 +164,14 @@ export function UsResultCard({
 }) {
   const router = useRouter();
   const t = useTranslations("usAppointment.ds160Card");
-  const nextT = useTranslations("usAppointment.nextStepCard");
   const securityAnswer = result.securityAnswer && result.securityAnswer !== "[REDACTED]"
     ? result.securityAnswer
     : null;
   const submitted = result.status === "submitted";
   const [startingNewApplication, setStartingNewApplication] = useState(false);
   const [newApplicationError, setNewApplicationError] = useState<string | null>(null);
+  const [confirmingResubmit, setConfirmingResubmit] = useState(false);
+  const [resubmitting, setResubmitting] = useState(false);
   const [proofBusy, setProofBusy] = useState<ProofBusyState>({});
   const [proofMessage, setProofMessage] = useState<string | null>(null);
 
@@ -223,6 +222,57 @@ export function UsResultCard({
       setNewApplicationError(error instanceof Error ? error.message : String(error));
     } finally {
       setStartingNewApplication(false);
+    }
+  };
+
+  // Resubmit = copy this submitted application's answers and documents into a
+  // fresh VIZA draft, then queue that draft as a new official DS-160. CEAC
+  // issues a new Application ID; the submitted original stays untouched. If
+  // queueing is refused (for example a now-invalid answer), the draft remains
+  // and "edit then reapply" reopens it for correction.
+  const resubmitWithSameAnswers = async () => {
+    if (!applicationId || resubmitting) return;
+    setResubmitting(true);
+    setNewApplicationError(null);
+    try {
+      const created = await fetch(`/api/applications/${applicationId}/new-application`, { method: "POST" });
+      const draft = (await created.json().catch(() => null)) as {
+        error?: unknown;
+        applicationId?: unknown;
+        href?: unknown;
+      } | null;
+      if (!created.ok) {
+        throw new Error(
+          typeof draft?.error === "string" ? draft.error : `${t("resubmitError")} (${created.status})`,
+        );
+      }
+      if (typeof draft?.applicationId !== "string" || typeof draft.href !== "string") {
+        throw new Error(t("resubmitError"));
+      }
+      const queued = await fetch(`/api/applications/${draft.applicationId}/retry-submission`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "live_assisted", intent: "new_application" }),
+      });
+      const job = (await queued.json().catch(() => null)) as {
+        error?: unknown;
+        jobId?: unknown;
+        alreadySubmitted?: unknown;
+      } | null;
+      if (!queued.ok) {
+        throw new Error(
+          typeof job?.error === "string" ? job.error : `${t("resubmitError")} (${queued.status})`,
+        );
+      }
+      if (job?.alreadySubmitted === true || typeof job?.jobId !== "string") {
+        throw new Error(t("resubmitError"));
+      }
+      router.push(draft.href);
+    } catch (error) {
+      setNewApplicationError(error instanceof Error ? error.message : String(error));
+      setConfirmingResubmit(false);
+    } finally {
+      setResubmitting(false);
     }
   };
 
@@ -357,32 +407,48 @@ export function UsResultCard({
           </div>
         </div>
 
-        {applicationId && (
-          <div className="rounded-md border border-brand-100 bg-brand-50 p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="font-heading text-base font-medium text-foreground">
-                    {nextT("title")}
-                  </h3>
-                  <Badge variant="secondary">{nextT("badge")}</Badge>
+        {submitted && (
+          <div className="space-y-2">
+            {confirmingResubmit ? (
+              <div className="space-y-3 rounded-md border border-amber-200 bg-amber-50 p-4">
+                <p className="text-sm font-medium text-amber-950">{t("resubmitConfirmTitle")}</p>
+                <p className="text-sm leading-6 text-amber-950">{t("resubmitConfirmBody")}</p>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Button
+                    type="button"
+                    className="w-full sm:flex-1"
+                    onClick={() => void resubmitWithSameAnswers()}
+                    disabled={!applicationId || resubmitting}
+                  >
+                    {resubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {resubmitting ? t("resubmitting") : t("resubmitConfirm")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full sm:flex-1"
+                    onClick={() => setConfirmingResubmit(false)}
+                    disabled={resubmitting}
+                  >
+                    {t("resubmitCancel")}
+                  </Button>
                 </div>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  {nextT("body")}
-                </p>
               </div>
-              <CalendarCheck className="mt-1 h-5 w-5 shrink-0 text-brand-500" />
-            </div>
-            <Button asChild className="mt-4 w-full">
-              <Link href={`/client/applications/${applicationId}/us-appointment`}>
-                {nextT("button")}
-                <CalendarCheck className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
+            ) : (
+              <Button
+                type="button"
+                className="w-full"
+                onClick={() => setConfirmingResubmit(true)}
+                disabled={!applicationId || resubmitting || startingNewApplication}
+              >
+                <RotateCcw className="mr-2 h-4 w-4" />
+                {t("resubmitSameAnswers")}
+              </Button>
+            )}
           </div>
         )}
 
-        <Button asChild className="w-full">
+        <Button asChild variant={submitted ? "outline" : "default"} className="w-full">
           <a href={result.retrievalUrl} target="_blank" rel="noopener noreferrer">
             {t(securityAnswer ? "openCeac" : "openCeacStatus")}
             <ExternalLink className="ml-2 h-4 w-4" />
@@ -392,10 +458,10 @@ export function UsResultCard({
         <div className="space-y-2">
           <Button
             type="button"
-            variant={submitted ? "outline" : "default"}
+            variant={submitted ? "ghost" : "default"}
             className="w-full"
             onClick={startNewApplication}
-            disabled={!applicationId || startingNewApplication}
+            disabled={!applicationId || startingNewApplication || resubmitting}
           >
             {startingNewApplication ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />

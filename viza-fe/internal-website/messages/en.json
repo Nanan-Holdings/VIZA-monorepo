@@ -5326,7 +5326,14 @@
       "securityAnswer": "Your answer",
       "securityAnswerUnavailable": "The security answer is not shown here. After submission, use the button above to download the official English confirmation PDF.",
       "openCeac": "Open ceac.state.gov to retrieve",
-      "openCeacStatus": "Open ceac.state.gov to check status"
+      "openCeacStatus": "Open ceac.state.gov to check status",
+      "resubmitSameAnswers": "Resubmit with the same details",
+      "resubmitConfirmTitle": "Submit a new DS-160 with these details?",
+      "resubmitConfirmBody": "VIZA copies this application's answers and photo into a new application and submits it to the official CEAC site as a new DS-160 with a new Application ID. This application stays as it is. An official submission cannot be withdrawn.",
+      "resubmitConfirm": "Confirm and resubmit",
+      "resubmitCancel": "Cancel",
+      "resubmitting": "Starting the new submission…",
+      "resubmitError": "The new submission could not be started"
     },
     "nextStepCard": {
       "title": "Next: appointment setup",

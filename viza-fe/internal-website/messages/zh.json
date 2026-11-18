@@ -5326,7 +5326,14 @@
       "securityAnswer": "您的答案",
       "securityAnswerUnavailable": "安全答案不会在此页显示。提交后请使用上方按钮下载官方英文确认页 PDF。",
       "openCeac": "打开 ceac.state.gov 找回",
-      "openCeacStatus": "打开 ceac.state.gov 查询状态"
+      "openCeacStatus": "打开 ceac.state.gov 查询状态",
+      "resubmitSameAnswers": "用相同资料重新提交",
+      "resubmitConfirmTitle": "确定用这些资料提交一份新的 DS-160 吗？",
+      "resubmitConfirmBody": "VIZA 会把这份申请的答案和照片复制到一份新申请，并作为新的 DS-160 正式提交到 CEAC 官网，官方会生成新的 Application ID。这份申请保持不变。正式提交后无法撤回。",
+      "resubmitConfirm": "确认重新提交",
+      "resubmitCancel": "取消",
+      "resubmitting": "正在开始新的提交…",
+      "resubmitError": "无法开始新的提交"
     },
     "nextStepCard": {
       "title": "下一步：预约设置",
