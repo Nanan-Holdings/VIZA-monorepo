@@ -78,3 +78,60 @@ test("does not accept a confirmation surface with a hidden official control", as
     await browser.close();
   }
 });
+
+test("re-reads the page when a navigation destroys the context mid-detection", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent("<h2>Passport Information</h2>");
+    const realLocator = page.locator.bind(page);
+    let headingReads = 0;
+    (page as unknown as { locator: typeof page.locator }).locator = ((selector: string, options?: Parameters<typeof page.locator>[1]) => {
+      const locator = realLocator(selector, options);
+      if (selector === "body") return locator;
+      return new Proxy(locator, {
+        get(target, prop, receiver) {
+          if (prop === "allTextContents" && headingReads++ === 0) {
+            return async () => { throw new Error("locator.allTextContents: Execution context was destroyed, most likely because of a navigation"); };
+          }
+          const value = Reflect.get(target, prop, receiver);
+          return typeof value === "function" ? value.bind(target) : value;
+        },
+      });
+    }) as typeof page.locator;
+
+    const result = await detectPage(page);
+    assert.equal(result.heading, "Passport Information");
+    assert.ok(headingReads >= 2);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("does not retry errors unrelated to navigation", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent("<h2>Passport Information</h2>");
+    const realLocator = page.locator.bind(page);
+    let headingReads = 0;
+    (page as unknown as { locator: typeof page.locator }).locator = ((selector: string, options?: Parameters<typeof page.locator>[1]) => {
+      const locator = realLocator(selector, options);
+      if (selector === "body") return locator;
+      return new Proxy(locator, {
+        get(target, prop, receiver) {
+          if (prop === "allTextContents") {
+            return async () => { headingReads += 1; throw new Error("unexpected browser failure"); };
+          }
+          const value = Reflect.get(target, prop, receiver);
+          return typeof value === "function" ? value.bind(target) : value;
+        },
+      });
+    }) as typeof page.locator;
+
+    await assert.rejects(detectPage(page), /unexpected browser failure/);
+    assert.equal(headingReads, 1);
+  } finally {
+    await browser.close();
+  }
+});

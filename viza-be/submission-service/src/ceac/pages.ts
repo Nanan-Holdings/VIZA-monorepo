@@ -191,9 +191,35 @@ export async function isOfficialDs160ConfirmationPage(
  * `waitForLoadState` side effects. It also detects session-expired states
  * and reports them as their own identity so callers can branch cleanly.
  */
+const NAVIGATION_RACE_PATTERN = /Execution context was destroyed|Cannot find context with specified id|frame was detached/i;
+const DETECT_NAVIGATION_RETRIES = 3;
+
+/**
+ * Identify the current CEAC page. A WebForms postback or redirect can replace
+ * the document while the heading is being read; that destroyed-context error
+ * means "still navigating", so wait for the new document and read again
+ * instead of failing the whole run.
+ */
 export async function detectPage(
   page: Page,
   options: PageDetectionOptions = {},
+): Promise<PageIdentityResult> {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await detectPageOnce(page, options);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (attempt >= DETECT_NAVIGATION_RETRIES || page.isClosed() || !NAVIGATION_RACE_PATTERN.test(message)) {
+        throw error;
+      }
+      await page.waitForLoadState("domcontentloaded", { timeout: 15_000 }).catch(() => undefined);
+    }
+  }
+}
+
+async function detectPageOnce(
+  page: Page,
+  options: PageDetectionOptions,
 ): Promise<PageIdentityResult> {
   const url = page.url();
 
