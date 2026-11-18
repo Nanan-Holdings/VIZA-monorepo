@@ -378,6 +378,25 @@ export function UsResultCard({
           <CopyValue label={t("yearOfBirth")} value={String(result.yearOfBirth)} />
         </div>
 
+        {result.photoSkipped && (
+          <Alert variant="warning" data-testid="ds160-photo-skipped">
+            <AlertIcon variant="warning" />
+            <AlertTitle>{t("photoSkippedTitle")}</AlertTitle>
+            <AlertDescription>
+              <p>{t("photoSkippedBody")}</p>
+              <a
+                className="mt-1 inline-flex items-center gap-1 underline"
+                href="https://travel.state.gov/content/travel/en/us-visas/visa-information-resources/photos.html"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {t("photoSkippedRequirements")}
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            </AlertDescription>
+          </Alert>
+        )}
+
         {submitted && (
           <div className="rounded-md border border-input bg-background p-3">
             <div className="text-xs font-medium text-muted-foreground">

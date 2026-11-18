@@ -5333,7 +5333,10 @@
       "resubmitConfirm": "确认重新提交",
       "resubmitCancel": "取消",
       "resubmitting": "正在开始新的提交…",
-      "resubmitError": "无法开始新的提交"
+      "resubmitError": "无法开始新的提交",
+      "photoSkippedTitle": "面签时请携带一张打印的照片",
+      "photoSkippedBody": "官方照片上传服务多次出错，这份 DS-160 在没有照片的情况下提交了。请打印一张符合美国签证照片要求的照片，面签时和确认页一起携带。",
+      "photoSkippedRequirements": "美国签证照片要求"
     },
     "nextStepCard": {
       "title": "下一步：预约设置",

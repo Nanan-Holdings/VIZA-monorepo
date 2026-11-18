@@ -208,6 +208,21 @@ describe("UsResultCard", () => {
     });
   });
 
+  it("reminds the applicant to bring a printed photo only when the photo was skipped", () => {
+    vi.stubGlobal("fetch", vi.fn());
+    const view = render(<UsResultCard applicationId="viza-application-id" result={submittedResult} />);
+    expect(screen.queryByTestId("ds160-photo-skipped")).not.toBeInTheDocument();
+    view.unmount();
+
+    render(<UsResultCard applicationId="viza-application-id" result={{ ...submittedResult, photoSkipped: true }} />);
+    expect(screen.getByTestId("ds160-photo-skipped")).toBeInTheDocument();
+    expect(screen.getByText("photoSkippedTitle")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /photoSkippedRequirements/ })).toHaveAttribute(
+      "href",
+      "https://travel.state.gov/content/travel/en/us-visas/visa-information-resources/photos.html",
+    );
+  });
+
   it("resubmits the same answers as a new DS-160 only after confirmation", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);

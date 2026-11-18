@@ -112,6 +112,8 @@ export interface UsSubmissionResult {
   securityQuestion: string;
   securityAnswer?: string;
   securityAnswerCipher?: string;
+  /** The official photo service kept failing; the applicant must bring a printed photo. */
+  photoSkipped?: boolean;
   embassyOrConsulate: string;
   retrievalUrl: string;
   datStoragePath?: string;

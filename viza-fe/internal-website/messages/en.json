@@ -5333,7 +5333,10 @@
       "resubmitConfirm": "Confirm and resubmit",
       "resubmitCancel": "Cancel",
       "resubmitting": "Starting the new submission…",
-      "resubmitError": "The new submission could not be started"
+      "resubmitError": "The new submission could not be started",
+      "photoSkippedTitle": "Bring a printed photo to your interview",
+      "photoSkippedBody": "The official photo service kept failing, so this DS-160 was submitted without a photo. Print one photo that meets the U.S. visa photo requirements and bring it with your confirmation page to the interview.",
+      "photoSkippedRequirements": "U.S. visa photo requirements"
     },
     "nextStepCard": {
       "title": "Next: appointment setup",
