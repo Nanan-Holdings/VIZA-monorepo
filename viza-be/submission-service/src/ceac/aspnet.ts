@@ -62,6 +62,22 @@ export function installCeacPostbackMonitor(page: Page): void {
   });
 }
 
+/** A CEAC form-update rejection (403/429) that a fresh page load may clear. */
+export function isCeacPostbackRejection(error: unknown): boolean {
+  return error instanceof GateDetectedError && error.context.details?.phase === "aspnet_postback";
+}
+
+/**
+ * Forget a latched failure before deliberately reloading the same official
+ * page. Callers must re-verify page identity before filling again.
+ */
+export function clearCeacPostbackFailure(page: Page): void {
+  const state = monitors.get(page);
+  if (!state) return;
+  state.failure = undefined;
+  state.pending.clear();
+}
+
 export function assertCeacPostbackHealthy(page: Page): void {
   const failure = monitors.get(page)?.failure;
   if (failure) throw failure;

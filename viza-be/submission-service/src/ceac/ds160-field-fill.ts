@@ -26,15 +26,25 @@ export interface Ds160ControlObservation {
   displayValue: string;
   resolvedSelectValue: string | null;
   ambiguousSelect: boolean;
+  /** The control's own inline handlers schedule an ASP.NET postback. */
+  autoPostBack?: boolean;
+  /** An UpdatePanel request was still running when the control was read. */
+  asyncPostBackInFlight?: boolean;
 }
 
-/** One fresh read, never cached across an action or a postback. */
+/**
+ * One fresh read, never cached across an action or a postback. With
+ * `settleMs`, the read happens that long after the call inside the page, so
+ * a settle wait and its verification cost a single remote round trip.
+ */
 export async function observeDs160Control(
   control: Locator,
   type: FormFieldMapping["type"],
   expected: string,
+  options: { settleMs?: number } = {},
 ): Promise<Ds160ControlObservation> {
-  return control.evaluate((node, target) => {
+  return control.evaluate((node, target) => new Promise<Ds160ControlObservation>((resolve) => {
+   setTimeout(() => resolve((() => {
     const input = node instanceof HTMLInputElement ? node : null;
     const text = input ?? (node instanceof HTMLTextAreaElement ? node : null);
     const select = node instanceof HTMLSelectElement ? node : null;
@@ -69,10 +79,21 @@ export async function observeDs160Control(
       displayValue = text.value;
       canSkipWrite = matches;
     }
+    const handlers = `${node.getAttribute("onchange") ?? ""} ${node.getAttribute("onclick") ?? ""}`;
     return { matches, canSkipWrite, displayValue, resolvedSelectValue, ambiguousSelect,
+      autoPostBack: /__doPostBack|WebForm_DoPostBack/.test(handlers),
       maxLength: text?.maxLength ?? -1,
+      asyncPostBackInFlight: (() => {
+        try {
+          const sys = (window as unknown as {
+            Sys?: { WebForms?: { PageRequestManager?: { getInstance?: () => { get_isInAsyncPostBack?: () => boolean } } } };
+          }).Sys;
+          return Boolean(sys?.WebForms?.PageRequestManager?.getInstance?.()?.get_isInAsyncPostBack?.());
+        } catch { return false; }
+      })(),
       controlId: node.getAttribute("id") ?? node.getAttribute("name") ?? "" };
-  }, { type, expected });
+   })()), target.settleMs);
+  }), { type, expected, settleMs: Math.max(0, options.settleMs ?? 0) });
 }
 
 function repeatParts(fieldName: string): { base: string; suffix: string } {

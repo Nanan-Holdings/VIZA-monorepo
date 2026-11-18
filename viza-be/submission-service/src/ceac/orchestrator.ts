@@ -70,10 +70,13 @@ import {
 } from "./resume-application";
 import {
   assertCeacPostbackHealthy,
+  clearCeacPostbackFailure,
   installCeacPostbackMonitor,
+  isCeacPostbackRejection,
   waitForAspNetPostback,
   waitForAspNetPostbackStable,
 } from "./aspnet";
+import { assertNoGate } from "./gates";
 import {
   handleUploadPhotoPage,
   IdentixPhotoServiceError,
@@ -98,7 +101,11 @@ import {
 import { snapshotDs160Fields } from "./field-snapshot";
 import { captureOfficialReviewPage, verifyOfficialReview, type ReviewExpectation, type ReviewSnapshot } from "./review-verification";
 import { applyExplicitPreparerAnswer, fillVerifiedPassportSignature, type Ds160PreparerAnswers } from "./signature-fields";
-import { reconnectVerifiedCeacPage, RECOVERABLE_DS160_PAGE_IDS } from "./recovered-application";
+import {
+  assertRecoveredDs160Application,
+  reconnectVerifiedCeacPage,
+  RECOVERABLE_DS160_PAGE_IDS,
+} from "./recovered-application";
 import {
   isDs160UsContactPage,
   isDs160UsContactVisible,
@@ -295,6 +302,13 @@ export interface OrchestrateOptions {
    */
   maxResumeAttempts?: number;
   /**
+   * Retries after CEAC rejects a form-page update (HTTP 403/429). Each retry
+   * reloads the same verified page and refills it; if the reload is gated,
+   * a fresh session retrieves the draft. Never applies to the final submit.
+   * Default: CEAC_POSTBACK_REJECTION_MAX_RETRIES or 3.
+   */
+  maxPostbackRejectionRetries?: number;
+  /**
    * Applicant photo to upload on the upload_photo page. When provided, the
    * orchestrator uploads the photo and continues through Review.
    */
@@ -357,6 +371,28 @@ export async function orchestrateFill(
   let datArtifact: DatArtifact | null = null;
   let transitions = 0;
   let resumeAttempts = 0;
+  let postbackRejectionRetries = 0;
+  const maxPostbackRejectionRetries = options.maxPostbackRejectionRetries
+    ?? readRetryLimit(process.env.CEAC_POSTBACK_REJECTION_MAX_RETRIES, 3);
+  // CEAC intermittently answers an ordinary form update with 403. Nothing on
+  // the rejected page was saved, so reload it (or retrieve the draft in a new
+  // session) and let the loop refill it. Sign and Submit keeps its one-shot
+  // guard and is never retried here.
+  const retryPostbackRejection = async (error: unknown, pageId: string): Promise<boolean> => {
+    if (!isCeacPostbackRejection(error) || pageId === "unknown" || pageId === "sign_and_submit") return false;
+    if (postbackRejectionRetries >= maxPostbackRejectionRetries) return false;
+    postbackRejectionRetries++;
+    console.warn(`[orchestrator] CEAC rejected a form update on ${pageId}; reloading and refilling (retry ${postbackRejectionRetries}/${maxPostbackRejectionRetries})`);
+    options.assertActive?.();
+    await recoverFromPostbackRejection(
+      session,
+      error,
+      options.recoveryCredentials?.applicationId ?? tracker.snapshot().applicationId ?? null,
+      options.recoveryCredentials,
+    );
+    options.assertActive?.();
+    return true;
+  };
   const sectionsFilled: string[] = [];
   const sectionsSkipped: string[] = [];
   const reviewExpectations = new Map<string, ReviewExpectation>();
@@ -776,6 +812,7 @@ export async function orchestrateFill(
             console.log(`[orchestrator] Reconnected the same CEAC page; repeating verified fill for ${currentPageId}`);
             continue;
           }
+          if (await retryPostbackRejection(fillError, currentPageId)) continue;
           throw fillError;
         }
         if (currentPageId === "family_relatives") {
@@ -868,6 +905,7 @@ export async function orchestrateFill(
         });
       } catch (navErr) {
         options.assertActive?.();
+        if (await retryPostbackRejection(navErr, currentPageId)) continue;
         if (currentPageId !== "unknown" && options.recoveryCredentials && resumeAttempts < maxResumeAttempts &&
           await reconnectVerifiedCeacPage(session, options.recoveryCredentials.applicationId, [currentPageId, ...nextPageCandidates])) {
           resumeAttempts++;
@@ -1229,28 +1267,85 @@ async function forceTextValue(el: Locator, value: string): Promise<void> {
   }, value);
 }
 
+/** In-page wait before re-reading a plain text input after typing. */
+const PLAIN_TEXT_SETTLE_MS = 200;
+
+function readRetryLimit(raw: string | undefined, fallback: number): number {
+  const parsed = raw?.trim() ? Number.parseInt(raw, 10) : NaN;
+  return Number.isInteger(parsed) && parsed >= 0 && parsed <= 10 ? parsed : fallback;
+}
+
+/**
+ * Restore a usable copy of the same official page after a rejected form
+ * update: first reload it in place, then fall back to a fresh verified
+ * session plus Retrieve. The draft identity is checked before any refill.
+ */
+async function recoverFromPostbackRejection(
+  session: CeacSession,
+  originalError: unknown,
+  expectedApplicationId: string | null,
+  credentials: RecoveryCredentials | undefined,
+): Promise<void> {
+  const page = session.page;
+  const url = page.isClosed() ? "" : page.url();
+  clearCeacPostbackFailure(page);
+  if (expectedApplicationId && /^https:\/\/ceac\.state\.gov\/GenNIV\//i.test(url)) {
+    try {
+      await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60_000 });
+      assertCeacPostbackHealthy(page);
+      await assertNoGate(page);
+      await assertRecoveredDs160Application(page, expectedApplicationId);
+      assertCeacPostbackHealthy(page);
+      return;
+    } catch (error) {
+      const reason = error instanceof Error ? error.name : "error";
+      console.warn(`[orchestrator] Reload after form rejection was not verified (${reason}); retrieving in a new session`);
+      if (!page.isClosed()) clearCeacPostbackFailure(page);
+    }
+  }
+  if (!credentials) throw originalError;
+  await rebuildSessionForResume(session);
+  await fillRetrieveApplicationForm(session.page, credentials);
+}
+
 async function findVisibleField(
   page: Page | Locator,
   selector: string,
   mapping: FormFieldMapping,
 ): Promise<Locator | null> {
   const all = page.locator(selector);
-  const count = await all.count();
+  const states = await readCandidateStates(all, mapping.type === "text" || mapping.type === "date");
   let match: Locator | null = null;
-  for (let i = 0; i < count; i += 1) {
-    const candidate = all.nth(i);
-    const [visible, enabled, editable] = await Promise.all([
-      candidate.isVisible().catch(() => false),
-      candidate.isEnabled().catch(() => false),
-      mapping.type === "text" || mapping.type === "date"
-        ? candidate.isEditable().catch(() => false) : Promise.resolve(true),
-    ]);
-    if (!visible || !enabled || !editable) continue;
-    if (mapping.type === "radio") return candidate;
+  for (const [i, state] of states.entries()) {
+    if (!state.visible || !state.enabled || !state.editable) continue;
+    if (mapping.type === "radio") return all.nth(i);
     if (match) throw new Error("mapped field selector is ambiguous within its row");
-    match = candidate;
+    match = all.nth(i);
   }
   return match;
+}
+
+interface CandidateState { visible: boolean; enabled: boolean; editable: boolean }
+
+/**
+ * Read every candidate's visibility/enabled/editable state in one page call.
+ * Each Playwright call is a cross-region round trip on a remote browser, so
+ * the per-candidate isVisible/isEnabled/isEditable fan-out dominated fill
+ * time. The checks mirror Playwright's: non-empty box and not
+ * visibility:hidden; not disabled (including a disabled fieldset); not
+ * readonly for text input.
+ */
+async function readCandidateStates(all: Locator, requireEditable: boolean): Promise<CandidateState[]> {
+  return all.evaluateAll((nodes, needsEditable) => nodes.map((node) => {
+    const element = node as HTMLElement;
+    const rect = element.getBoundingClientRect();
+    const visible = rect.width > 0 && rect.height > 0 &&
+      window.getComputedStyle(element).visibility !== "hidden";
+    const control = element as HTMLInputElement;
+    const enabled = control.disabled !== true && !element.closest("fieldset[disabled]");
+    const editable = !needsEditable || (enabled && control.readOnly !== true);
+    return { visible, enabled, editable };
+  }), requireEditable);
 }
 
 async function findVisibleRadio(
@@ -1259,16 +1354,12 @@ async function findVisibleRadio(
   value: string,
 ): Promise<Locator | null> {
   const options = page.locator(`${selector}[value="${value}"]`);
-  const count = await options.count();
+  const states = await readCandidateStates(options, false);
   let match: Locator | null = null;
-  for (let i = 0; i < count; i += 1) {
-    const candidate = options.nth(i);
-    const [visible, enabled] = await Promise.all([
-      candidate.isVisible().catch(() => false), candidate.isEnabled().catch(() => false),
-    ]);
-    if (!visible || !enabled) continue;
+  for (const [i, state] of states.entries()) {
+    if (!state.visible || !state.enabled) continue;
     if (match) throw new Error("radio selector is ambiguous within its row");
-    match = candidate;
+    match = options.nth(i);
   }
   return match;
 }
@@ -1405,6 +1496,7 @@ export async function fillPageFields(
   }
 
   for (const [fieldName, mapping] of Object.entries(mappings)) {
+    const fieldStartedAt = Date.now();
     assertCeacPostbackHealthy(page);
     const value = answers[fieldName]
       ?? (profile[fieldName] as string | undefined)
@@ -1500,7 +1592,25 @@ export async function fillPageFields(
         // or enables dependent fields. Wait for it to settle before we
         // try the next mapping — otherwise subsequent fills target a
         // transient DOM and silently miss.
-        if (mapping.type === "select" && fieldName === "purpose_of_trip_specify") {
+        // Plain text/date inputs without an inline AutoPostBack handler: wait
+        // and re-read inside one page call instead of a separate idle probe
+        // plus re-locate plus read. A script that rewrites the value or starts
+        // an UpdatePanel request within the settle window still fails closed
+        // or falls back to the full postback wait. Choice controls always use
+        // the full wait: CEAC wires some of their postbacks outside inline
+        // handlers.
+        const plainTextInput = (mapping.type === "text" || mapping.type === "date") &&
+          existing.autoPostBack === false;
+        if (plainTextInput) {
+          const settled = await observeDs160Control(el, mapping.type, value, { settleMs: PLAIN_TEXT_SETTLE_MS });
+          assertCeacPostbackHealthy(page);
+          if (!settled.asyncPostBackInFlight) {
+            if (!settled.matches) throw new Error("field value could not be verified");
+            filled = true;
+            break;
+          }
+          await waitForAspNetPostback(page, 8_000);
+        } else if (mapping.type === "select" && fieldName === "purpose_of_trip_specify") {
           // CEAC's subtype select schedules its AutoPostBack on a later task.
           // Keep Next from racing that update and opening the blank visa-class
           // modal observed during live B1/B2 discovery.
@@ -1520,7 +1630,10 @@ export async function fillPageFields(
       } catch (err) {
         assertCeacPostbackHealthy(page);
         if (err instanceof FieldLengthError || err instanceof CeacError) throw err;
-        if (debug) console.log(`[fill] ${fieldName} (${mapping.type}) selector branch failed`);
+        if (debug) {
+          const reason = err instanceof Error ? err.message.split("\n")[0] : String(err);
+          console.log(`[fill] ${fieldName} (${mapping.type}) selector branch failed: ${reason}`);
+        }
       }
     }
 
@@ -1528,6 +1641,7 @@ export async function fillPageFields(
       assertCeacPostbackHealthy(page);
       throw new FieldFillError(fieldName, mapping.label);
     }
+    if (debug && filled) console.log(`[fill] ${fieldName} (${mapping.type}) done in ${Date.now() - fieldStartedAt}ms`);
   }
 
   if (options.resolveScope) scope = await options.resolveScope();

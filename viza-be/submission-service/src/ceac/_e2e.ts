@@ -31,6 +31,7 @@ import { createRecoveryTracker } from "./artifacts";
 import { TEST_DS160_ANSWERS, TEST_DS160_PROFILE } from "./test-ds160-fixture";
 import { deriveDS160Answers } from "../ds160-derive-answers";
 import { loadAnswersForApplication } from "./answer-loader";
+import { resolveCeacStartLocationCode } from "./start-location";
 
 const OUT_DIR = path.join(__dirname, "../../e2e-out");
 
@@ -44,7 +45,11 @@ const OUT_DIR = path.join(__dirname, "../../e2e-out");
 // from Supabase via the answer-loader.
 async function resolveAnswerSource(
   log: (msg: string) => void,
-): Promise<{ answers: Record<string, string>; profile: Record<string, unknown> }> {
+): Promise<{
+  answers: Record<string, string>;
+  branchAnswers?: Record<string, string>;
+  profile: Record<string, unknown>;
+}> {
   const supabaseAppId = process.env.CEAC_TEST_APPLICATION_ID?.trim();
   if (supabaseAppId) {
     log(`Loading answers from Supabase for application ${supabaseAppId}`);
@@ -53,8 +58,11 @@ async function resolveAnswerSource(
     return loaded;
   }
   log(`Using hardcoded TEST_DS160_ANSWERS fixture (no CEAC_TEST_APPLICATION_ID)`);
+  // Branch conditions compare saved labels such as DAY(S); deriving
+  // encodes them to CEAC option codes, so keep the originals like production.
   return {
     answers: deriveDS160Answers({ ...TEST_DS160_ANSWERS }),
+    branchAnswers: { ...TEST_DS160_ANSWERS },
     profile: TEST_DS160_PROFILE,
   };
 }
@@ -68,7 +76,7 @@ async function main() {
   log(`Starting end-to-end live run ${runId}`);
   log(`Output dir: ${OUT_DIR}`);
 
-  const { answers: SAMPLE_ANSWERS, profile: SAMPLE_PROFILE } = await resolveAnswerSource(log);
+  const { answers: SAMPLE_ANSWERS, branchAnswers, profile: SAMPLE_PROFILE } = await resolveAnswerSource(log);
 
   // Bootstrap with retry on SessionTimedOut. CEAC's anti-bot sometimes
   // invalidates a stealth context the moment we click START, even with
@@ -86,6 +94,7 @@ async function main() {
         headless,
         acceptDownloads: true,
         runId: `${runId}-boot${attempt}`,
+        startLocationCode: resolveCeacStartLocationCode(SAMPLE_ANSWERS),
       });
       break;
     } catch (err) {
@@ -144,6 +153,7 @@ async function main() {
     log(`Starting orchestrateFill...`);
     const { result, datArtifact, sectionCoverage } = await orchestrateFill(session, {
       answers: SAMPLE_ANSWERS,
+      branchAnswers,
       profile: SAMPLE_PROFILE,
       tracker,
       runId,

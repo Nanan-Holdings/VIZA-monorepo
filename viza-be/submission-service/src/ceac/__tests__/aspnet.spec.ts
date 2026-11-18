@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { after, before, it } from "node:test";
 import { chromium, type Browser, type Page } from "@playwright/test";
 import {
+  assertCeacPostbackHealthy,
+  clearCeacPostbackFailure,
   installCeacPostbackMonitor,
+  isCeacPostbackRejection,
   waitForAspNetPostback,
   waitForAspNetPostbackStable,
 } from "../aspnet";
@@ -420,6 +423,24 @@ it("keeps navigator Next failures as gates instead of generic fallbacks", { time
         return true;
       },
     );
+  } finally {
+    await page.close();
+  }
+});
+
+it("classifies a latched 403 form update as retryable and clears it for a reload", async () => {
+  const page = await browser.newPage();
+  try {
+    await installFixture(page, { postbackStatus: 403, postbackBody: "fixture-gate-response" });
+    assert.equal(await triggerPostback(page), 403);
+    const rejection = await waitForAspNetPostback(page, 500).then(() => null, (error: unknown) => error);
+    assert.equal(isCeacPostbackRejection(rejection), true);
+    assert.throws(() => assertCeacPostbackHealthy(page), GateDetectedError);
+
+    clearCeacPostbackFailure(page);
+    assert.doesNotThrow(() => assertCeacPostbackHealthy(page));
+    assert.equal(isCeacPostbackRejection(new GateDetectedError("start page gate", { details: { gateKind: "anti_bot_text" } })), false);
+    assert.equal(isCeacPostbackRejection(new NavigationError("form update failed", { details: { phase: "aspnet_postback" } })), false);
   } finally {
     await page.close();
   }

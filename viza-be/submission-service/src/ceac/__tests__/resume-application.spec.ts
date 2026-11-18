@@ -48,6 +48,8 @@ test("fills the live CEAC ApplicationRecovery1 retrieve controls", async () => {
       const matched = liveControls.find((control) => selector.includes(control));
       return {
         first() { return this; },
+        filter() { return this; },
+        async evaluateAll() { return []; },
         async count() { return matched ? 1 : 0; },
         async isVisible() { return Boolean(matched); },
         async fill(value: string) {
@@ -104,6 +106,8 @@ test("completes the two-stage CEAC retrieve flow", async () => {
         null;
       return {
         first() { return this; },
+        filter() { return this; },
+        async evaluateAll() { return []; },
         async count() { return control ? 1 : 0; },
         async isVisible() { return Boolean(control); },
         async fill(value: string) {
@@ -159,6 +163,8 @@ test("fills CEAC prefilled recovery controls that use txbDOBYear and txbAnswer",
       const matched = liveControls.find((control) => selector.includes(control));
       return {
         first() { return this; },
+        filter() { return this; },
+        async evaluateAll() { return []; },
         async count() { return matched ? 1 : 0; },
         async isVisible() { return Boolean(matched); },
         async fill(value: string) {
@@ -207,6 +213,8 @@ test("targets visible security controls when CEAC keeps hidden duplicates", asyn
       const exists = isApplicationId || isSecurityField || isSubmit;
       return {
         first() { return this; },
+        filter() { return this; },
+        async evaluateAll() { return []; },
         async count() { return exists ? 1 : 0; },
         async isVisible() { return exists; },
         async fill() {
@@ -248,6 +256,8 @@ test("falls back to DOM assignment when CEAC rejects locator.fill", async () => 
         null;
       return {
         first() { return this; },
+        filter() { return this; },
+        async evaluateAll() { return []; },
         async count() { return key ? 1 : 0; },
         async isVisible() { return Boolean(key); },
         async fill() { throw new Error("CEAC rejected fill"); },

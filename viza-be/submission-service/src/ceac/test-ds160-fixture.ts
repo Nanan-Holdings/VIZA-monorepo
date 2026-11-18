@@ -11,6 +11,7 @@
 export const TEST_DS160_ANSWERS: Record<string, string> = {
   // Personal Information 1
   consular_post: "BEJ",
+  ds160_preparer_assistance: "N",
   surname: "TESTER",
   given_names: "JOHN ALEX",
   full_name_native_alphabet: "N/A",
@@ -27,8 +28,11 @@ export const TEST_DS160_ANSWERS: Record<string, string> = {
   nationality_country: "GRBR",
   other_nationality: "no",
   permanent_resident_other_country: "no",
+  national_id_number: "DOES_NOT_APPLY",
   national_id_number_na: "Y",
+  us_social_security_number: "DOES_NOT_APPLY",
   us_social_security_number_na: "Y",
+  us_taxpayer_id: "DOES_NOT_APPLY",
   us_taxpayer_id_na: "Y",
 
   // Travel Information
@@ -58,6 +62,7 @@ export const TEST_DS160_ANSWERS: Record<string, string> = {
   // Passport
   passport_document_type: "regular",
   passport_number: "123456789",
+  passport_book_number: "DOES_NOT_APPLY",
   passport_book_number_na: "Y",
   passport_issuance_city: "LONDON",
   passport_issuance_state: "ENGLAND",
@@ -71,6 +76,7 @@ export const TEST_DS160_ANSWERS: Record<string, string> = {
   // US Contact
   us_contact_surname: "DOE",
   us_contact_given_names: "JOHN",
+  us_contact_organization: "DOES_NOT_APPLY",
   us_contact_organization_na: "Y",
   us_contact_relationship: "FRIEND",
   us_contact_address_street1: "123 MAIN ST",
@@ -156,7 +162,7 @@ export const TEST_DS160_ANSWERS: Record<string, string> = {
   home_address_country: "GRBR",
   mailing_same_as_home: "yes",
   primary_phone: "442079251234",
-  mobile_phone_na: "Y",
+  work_phone: "DOES_NOT_APPLY",
   work_phone_na: "Y",
   // Synthetic value keeps the secondary-phone mapping covered without using
   // applicant data. The empty companion means the official NA checkbox is

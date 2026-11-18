@@ -880,3 +880,27 @@ test("fails closed for a visible field and does not continue to later fields", a
     await browser.close();
   }
 });
+
+test("batched candidate checks skip hidden, disabled and readonly duplicates", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <input class="dup" id="hidden" style="display:none">
+      <input class="dup" id="invisible" style="visibility:hidden">
+      <fieldset disabled><input class="dup" id="fenced"></fieldset>
+      <input class="dup" id="readonly" readonly>
+      <input class="dup" id="live">
+      <input type="radio" name="choice" value="Y" disabled>
+      <input type="radio" name="choice" value="Y" id="liveRadio">`);
+    await fillPageFields(page, {
+      text: { selector: ".dup", type: "text", label: "Text" },
+      choice: { selector: 'input[name="choice"]', type: "radio", label: "Choice" },
+    }, { text: "filled", choice: "Y" }, {}, { requireMappedAnswers: true });
+    assert.equal(await page.locator("#live").inputValue(), "filled");
+    for (const id of ["hidden", "invisible", "fenced", "readonly"]) {
+      assert.equal(await page.locator(`#${id}`).inputValue(), "");
+    }
+    assert.equal(await page.locator("#liveRadio").isChecked(), true);
+  } finally { await browser.close(); }
+});
