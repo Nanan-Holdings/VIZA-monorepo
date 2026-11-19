@@ -101,8 +101,9 @@ function toApplicationListItem(
       ongoing: isOngoingApplicationState(record.state),
     })
   );
-  const primaryRecord =
-    records.find((record) => record.ongoing) ?? records[0] ?? null;
+  // Records arrive newest first. The newest application is the current one;
+  // an older failed attempt must not outrank a newer successful submission.
+  const primaryRecord = records[0] ?? null;
 
   return {
     key: application.key,

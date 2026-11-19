@@ -2180,6 +2180,9 @@ async function loadClientStatusData(
     (application) =>
       !isQaDryRunPurpose(application.purpose) &&
       !application.qa_archived_at &&
+      // A newer application for the same country and visa supersedes this
+      // one (migration 0210). Hide it from lists; a direct link still opens it.
+      (normalizeStatus(application.status) !== "archived" || application.id === scopedApplicationId) &&
       (!sgacEmailLinkedApplicationIds.has(application.id) || submissionResultIsSubmitted(application)),
   );
 

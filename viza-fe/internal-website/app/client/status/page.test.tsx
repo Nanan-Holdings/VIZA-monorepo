@@ -331,6 +331,32 @@ describe("client status index page", () => {
     );
   });
 
+  it("shows the newest record of a country even when an older attempt still needs action", async () => {
+    const newestRecord = {
+      ...applicationRecord,
+      id: "record-malaysia-new",
+      applicationId: "application-malaysia-new",
+      state: "approved" as const,
+      progressPercent: 100,
+    };
+    const olderRecord = {
+      ...applicationRecord,
+      id: "record-malaysia-old",
+      applicationId: "application-malaysia-old",
+      state: "in_progress" as const,
+      progressPercent: 30,
+    };
+    mocks.getClientStatusIndexData.mockResolvedValueOnce(makeIndexData({
+      applications: [{ ...malaysiaApplication, applicationRecords: [newestRecord, olderRecord] }],
+    }));
+
+    const element = await ClientStatusPage({ searchParams: Promise.resolve({}) });
+    render(element);
+    const card = screen.getByTestId("application-malaysia:evisa_tourism");
+    expect(card).toHaveTextContent("Approved");
+    expect(card).not.toHaveTextContent("In progress");
+  });
+
   it("normalizes a country selector and uses Chinese list fields", async () => {
     mocks.getLocale.mockResolvedValueOnce("zh-CN");
     mocks.getTranslations.mockResolvedValueOnce(translationFor("zh-CN"));
