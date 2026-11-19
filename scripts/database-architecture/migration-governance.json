@@ -240,6 +240,11 @@
       "drizzle": "viza-be/agent-backend/drizzle/0211_archive_superseded_applications.sql",
       "supabase": "viza-fe/internal-website/supabase/migrations/20261119000000_archive_superseded_applications.sql",
       "sha256": "ae2e42689f65ec9ab31343c2d00da93a18ca9d641d80140cf0a24c8e80dd9151"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0212_claim_provider_denylist.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20261119120000_claim_provider_denylist.sql",
+      "sha256": "387db9c290be0286f26440688109aa39f7ffe971d84b47188d64977351ba8550"
     }
   ],
   "no_mirror": [

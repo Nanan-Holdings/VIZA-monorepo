@@ -71,6 +71,14 @@ QA-archived rows) and records `superseded_by_application_id` plus
 superseding row is deleted. The migration backfills existing groups once.
 Keep the timestamped frontend Supabase mirror byte-identical.
 
+`0212_claim_provider_denylist.sql` recreates `claim_submission_queue_batch`
+with a trailing `p_provider_denylist TEXT[] DEFAULT NULL` (NULL-provider rows
+stay claimable). The Singapore legacy worker denylists `ceac_*` because DS-160
+runs on its own US East worker next to the CEAC browser. The body is otherwise
+the 0151 definition; service_role-only grants are re-applied. Apply it before
+deploying a worker that sets `SUBMISSION_SERVICE_PROVIDER_DENYLIST`. Keep
+`20261119120000_claim_provider_denylist.sql` byte-identical.
+
 ## Key Responsibilities
 
 - Keep migration filenames sequentially numbered.
