@@ -182,9 +182,29 @@ describe("UsResultCard", () => {
       />,
     );
 
-    expect(screen.getByText("securityAnswerUnavailable")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "revealSecurityAnswer" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "openCeacStatus" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "openCeac" })).not.toBeInTheDocument();
+  });
+
+  it("reveals the owner's security answer only after it is requested", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ answer: "ABCDEFGH2345" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<UsResultCard applicationId="viza-application-id" result={{ ...submittedResult, securityAnswer: "[REDACTED]" }} />);
+
+    expect(screen.queryByText("ABCDEFGH2345")).not.toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "revealSecurityAnswer" }));
+
+    expect(await screen.findByText("ABCDEFGH2345")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith("/api/applications/viza-application-id/ds160-security-answer", { cache: "no-store" });
+  });
+
+  it("explains how to sync a security answer that is not saved yet", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ answer: null }), { status: 200 })));
+    render(<UsResultCard applicationId="viza-application-id" result={{ ...submittedResult, securityAnswer: "[REDACTED]" }} />);
+    fireEvent.click(screen.getByRole("button", { name: "revealSecurityAnswer" }));
+    expect(await screen.findByText("securityAnswerSyncing")).toBeInTheDocument();
   });
 
   it("creates a new VIZA draft and navigates back to the form", async () => {

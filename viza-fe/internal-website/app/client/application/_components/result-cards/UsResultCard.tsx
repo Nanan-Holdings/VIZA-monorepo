@@ -171,6 +171,26 @@ export function UsResultCard({
   const [startingNewApplication, setStartingNewApplication] = useState(false);
   const [newApplicationError, setNewApplicationError] = useState<string | null>(null);
   const [confirmingResubmit, setConfirmingResubmit] = useState(false);
+  // undefined = not requested yet; null = no readable answer saved yet.
+  const [revealedAnswer, setRevealedAnswer] = useState<string | null | undefined>(undefined);
+  const [revealingAnswer, setRevealingAnswer] = useState(false);
+  const [revealError, setRevealError] = useState<string | null>(null);
+
+  const revealSecurityAnswer = async () => {
+    if (!applicationId || revealingAnswer) return;
+    setRevealingAnswer(true);
+    setRevealError(null);
+    try {
+      const response = await fetch(`/api/applications/${applicationId}/ds160-security-answer`, { cache: "no-store" });
+      const payload = (await response.json().catch(() => null)) as { answer?: unknown } | null;
+      if (!response.ok) throw new Error(t("securityAnswerRevealError"));
+      setRevealedAnswer(typeof payload?.answer === "string" && payload.answer ? payload.answer : null);
+    } catch (error) {
+      setRevealError(error instanceof Error ? error.message : t("securityAnswerRevealError"));
+    } finally {
+      setRevealingAnswer(false);
+    }
+  };
   const [resubmitting, setResubmitting] = useState(false);
   const [proofBusy, setProofBusy] = useState<ProofBusyState>({});
   const [proofMessage, setProofMessage] = useState<string | null>(null);
@@ -421,9 +441,34 @@ export function UsResultCard({
           <div className="text-xs font-medium text-brand-500">{t("securityQuestion")}</div>
           <div className="mt-1 text-sm text-foreground">{result.securityQuestion}</div>
           <div className="mt-2 text-xs font-medium text-brand-500">{t("securityAnswer")}</div>
-          <div className="mt-1 text-sm text-foreground">
-            <span className="font-mono">{securityAnswer ?? t("securityAnswerUnavailable")}</span>
-          </div>
+          {securityAnswer ? (
+            <div className="mt-1 text-sm text-foreground">
+              <span className="font-mono">{securityAnswer}</span>
+            </div>
+          ) : revealedAnswer ? (
+            <div className="mt-1">
+              <CopyValue label={t("securityAnswer")} value={revealedAnswer} />
+            </div>
+          ) : (
+            <div className="mt-1 space-y-2">
+              {revealedAnswer === null ? (
+                <p className="text-sm text-foreground">{t("securityAnswerSyncing")}</p>
+              ) : null}
+              {applicationId && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void revealSecurityAnswer()}
+                  disabled={revealingAnswer}
+                >
+                  {revealingAnswer && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {t("revealSecurityAnswer")}
+                </Button>
+              )}
+              {revealError && <p className="text-sm text-destructive">{revealError}</p>}
+            </div>
+          )}
         </div>
 
         {submitted && (
