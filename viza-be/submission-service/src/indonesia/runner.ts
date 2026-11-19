@@ -3677,7 +3677,11 @@ function isExistingApplicationWarningText(value: string): boolean {
 }
 
 export function isExpiredIndonesiaApplicationText(value: string): boolean {
-  const normalized = clean(value)?.toLowerCase() ?? "";
+  // The step 3 Terms of Condition always say "If the payment (billing) code
+  // has expired, your application will be canceled"; that is not a status.
+  const normalized = (clean(value)?.toLowerCase() ?? "")
+    .replace(/if the payment \(billing\) code has expired[^.]*\.?/g, " ")
+    .replace(/jika kode (?:pembayaran|billing)[^.]*(?:kedaluwarsa|kadaluarsa)[^.]*\.?/g, " ");
   if (/waiting\s+for\s+payment|menunggu\s+pembayaran|make\s+a\s+payment/i.test(normalized)) {
     return false;
   }
@@ -5149,6 +5153,11 @@ export async function probeIndonesiaPortal(
     let state = classifyIndonesiaPortalSnapshot({ url, title, text });
     let expiredDiagnosticCursor = 0;
     for (let step = 0; step < 18; step += 1) {
+      // Once the runner has stopped at an applicant handoff point, nothing may
+      // touch the page again. The step 3 declarations mention an "expired"
+      // billing code next to "Visa Type", which the expired-application check
+      // below would otherwise read as expired and restart a fresh application.
+      if (indonesiaHandoffReadyAt(session.diagnostics)) break;
       const beforeUrl = url;
       const beforeState = state;
       let advanced = false;

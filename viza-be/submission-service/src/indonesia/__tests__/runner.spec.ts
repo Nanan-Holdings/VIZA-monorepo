@@ -208,6 +208,13 @@ test("treats VIZA-managed Indonesia alias with a vault password as a reusable po
 
 test("detects Indonesia payment-expired portal dialog keys", () => {
   assert.equal(isExpiredIndonesiaApplicationText("Failed sas.messages.payment_expired OK"), true);
+  // The step 3 review page declarations are not an expired status.
+  assert.equal(
+    isExpiredIndonesiaApplicationText(
+      "Visa Type Information Visa Type Type of Visa B1 Passport Number DECLARATION: 1. I hereby declare that the information I have provided in this Visa application is true and correct. 2. If the payment (billing) code has expired, your application will be canceled. 3. I understand that the Application fee is non-refundable.",
+    ),
+    false,
+  );
   assert.equal(isExpiredIndonesiaApplicationText("Payment has expired. Please create a new application."), false);
   assert.equal(isExpiredIndonesiaApplicationText("Status: Expired"), true);
   assert.equal(isExpiredIndonesiaApplicationText("Payment is waiting for OTP verification"), false);
