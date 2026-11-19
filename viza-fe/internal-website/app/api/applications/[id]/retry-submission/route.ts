@@ -67,6 +67,7 @@ import {
   type SubmissionRetryIntent,
   type TaiwanOfficialTermsConsentInput,
 } from "@/lib/submission-queue";
+import { franceAnswerProblemsMessage, validateFranceOfficialAnswers } from "@/lib/france-official-answers";
 import {
   isQaDryRunPurpose,
   isSyntheticQaValue,
@@ -2237,6 +2238,21 @@ export async function POST(
       }
     }
     if (isFranceLiveRetryApplication(ownedApplication.country, ownedApplication.visa_type)) {
+      // The official form only receives the applicant's own Latin-script
+      // values; list what to fix instead of queueing a run that would fail.
+      const franceProblems = validateFranceOfficialAnswers(
+        Object.fromEntries(persistedAnswerRows.map((row) => [row.field_name, answerValueToText(row)])),
+      );
+      if (franceProblems.length > 0) {
+        return NextResponse.json(
+          {
+            error: franceAnswerProblemsMessage(franceProblems),
+            code: "fr_validation_failed",
+            missingFields: franceProblems.map(({ field, labelZh }) => ({ field, labelZh })),
+          },
+          { status: 422 },
+        );
+      }
       const schemaBlocker = await getFranceLiveSchemaBlocker(admin);
       if (schemaBlocker) {
         return NextResponse.json(
