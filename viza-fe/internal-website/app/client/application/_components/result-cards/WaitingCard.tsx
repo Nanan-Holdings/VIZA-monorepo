@@ -83,7 +83,7 @@ const DS160_PHASE_INDEX: Record<Ds160ProgressPhase, number> = {
 };
 
 /** Seconds per 1% of slow creep between two DS-160 checkpoints. */
-const CHECKPOINT_CREEP_SECONDS_PER_PERCENT = 25;
+const CHECKPOINT_CREEP_SECONDS_PER_PERCENT = 5;
 
 /**
  * Progress that starts at a reported checkpoint and rises 1% every
@@ -564,11 +564,11 @@ function WaitingCardBody({
               <span>
                 {ds160Checkpoint
                   ? isZh
-                    ? `预计还需约 ${ds160Checkpoint.minutesLeft} 分钟（整个流程通常需要 30–40 分钟）。`
-                    : `About ${ds160Checkpoint.minutesLeft} min left (the whole run usually takes 30–40 minutes).`
+                    ? `预计还需约 ${ds160Checkpoint.minutesLeft} 分钟（整个流程通常需要 5–10 分钟）。`
+                    : `About ${ds160Checkpoint.minutesLeft} min left (the whole run usually takes 5–10 minutes).`
                   : isZh
-                    ? "整个流程通常需要 30–40 分钟。"
-                    : "The whole run usually takes 30–40 minutes."}
+                    ? "整个流程通常需要 5–10 分钟。"
+                    : "The whole run usually takes 5–10 minutes."}
               </span>
             </p>
             <p className="flex items-start gap-2">

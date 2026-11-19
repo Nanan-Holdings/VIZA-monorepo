@@ -38,7 +38,7 @@ describe("WaitingCard DS-160 checkpoints", () => {
     );
     expect(smoothProgress.serverProgress.at(-1)).toBe(42);
 
-    await act(async () => { await vi.advanceTimersByTimeAsync(50_000); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
     expect(smoothProgress.serverProgress.at(-1)).toBe(44);
 
     await act(async () => { await vi.advanceTimersByTimeAsync(30 * 60_000); });

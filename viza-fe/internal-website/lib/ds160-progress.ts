@@ -25,8 +25,8 @@ export interface Ds160ProgressInfo extends Ds160Checkpoint {
   minutesLeft: number;
 }
 
-/** Successful live DS-160 runs take about 30–35 minutes end to end. */
-export const DS160_TYPICAL_RUN_MINUTES = 35;
+/** Live DS-160 runs on the US East worker take about 7–8 minutes end to end. */
+export const DS160_TYPICAL_RUN_MINUTES = 8;
 
 const page = (
   id: string,
