@@ -159,10 +159,11 @@ function ClientLayoutContent({
     };
   }, [isReportPage]);
   // The fixed-height, non-scrolling shell is for the form itself. Long-read
-  // pages under /client/application (the DS-160 next-steps guide) must scroll.
+  // pages under /client/application (the US and France next-steps guides,
+  // /client/application/<country>-next-steps) must scroll.
   const isApplicationFlow =
     (pathname === "/client/application" || pathname.startsWith("/client/application/")) &&
-    !pathname.startsWith("/client/application/us-next-steps");
+    !/^\/client\/application\/[a-z]+-next-steps(?:\/|$)/.test(pathname);
 
   // Check session validity.
   // A per-tab id prevents new target=_blank tabs from inheriting another tab's
