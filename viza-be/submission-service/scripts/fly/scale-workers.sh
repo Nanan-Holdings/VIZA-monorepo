@@ -9,6 +9,7 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 countries="$root/deploy/fly/countries.json"
 fly_bin="$(command -v fly || command -v flyctl || true)"
 legacy_app="${FLY_SUBMISSION_LEGACY_APP:-viza-submission-legacy}"
+ds160_app="${FLY_SUBMISSION_DS160_APP:-viza-prod-submission-ds160}"
 indonesia_app="${FLY_RUNNER_INDONESIA_APP:-viza-runner-indonesia}"
 south_korea_app="${FLY_RUNNER_SOUTH_KOREA_APP:-viza-runner-south-korea}"
 if [[ -z "$fly_bin" ]]; then
@@ -19,6 +20,7 @@ fi
 can_stop_safely() {
   local app="$1"
   if [[ "$app" != "$legacy_app" &&
+        "$app" != "$ds160_app" &&
         "$app" != "$indonesia_app" &&
         "$app" != "$south_korea_app" ]]; then
     return 0

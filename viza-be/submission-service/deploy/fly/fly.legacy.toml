@@ -11,6 +11,10 @@ kill_timeout = "5m"
   SUBMISSION_SERVICE_LEGACY_QUEUE_ENABLED = "true"
   SUBMISSION_SERVICE_RUNNER_JOB_CONSUMER_ENABLED = "false"
   SUBMISSION_SERVICE_IDLE_EXIT_MS = "120000"
+  # DS-160 runs on its own US East worker (fly.ds160.toml) next to the CEAC
+  # browser. Needs claim RPC migration 0212; without it the denylist is not sent
+  # successfully, so apply 0212 before deploying this.
+  SUBMISSION_SERVICE_PROVIDER_DENYLIST = "ceac_live,ceac_proof,ceac_dry_run"
   # Applicant-authorized DS-160 jobs are claimed by this legacy worker.
   # Preserve the review and durable final-submit guards when recovering drafts.
   DS160_SUBMISSION_MODE = "live_assisted"

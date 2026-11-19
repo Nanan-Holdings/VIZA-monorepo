@@ -55,14 +55,14 @@ const RUNNER_POOL_APP =
   process.env.FLY_RUNNER_POOL_APP?.trim() || "viza-runner-pool";
 const SUBMISSION_LEGACY_APP =
   process.env.FLY_SUBMISSION_LEGACY_APP?.trim() || "viza-submission-legacy";
+// DS-160 (CEAC) runs on its own US East worker next to the CEAC browser.
+const SUBMISSION_DS160_APP =
+  process.env.FLY_SUBMISSION_DS160_APP?.trim() || "viza-prod-submission-ds160";
 const RUNNER_INDONESIA_APP =
   process.env.FLY_RUNNER_INDONESIA_APP?.trim() || "viza-runner-indonesia";
 
 const LEGACY_CLAIMABLE_QUEUE_STATUSES = [
   "pending",
-  "ds160_prefill_pending",
-  "ds160_live_assisted_pending",
-  "ds160_proof_pending",
   "fv_prefill_pending",
   "france_live_assisted_pending",
   "uk_prefill_pending",
@@ -80,6 +80,12 @@ const LEGACY_CLAIMABLE_QUEUE_STATUSES = [
   "phetravel_live_assisted_pending",
   "vn_prefill_pending",
   "au_prefill_pending",
+] as const;
+
+const DS160_CLAIMABLE_QUEUE_STATUSES = [
+  "ds160_prefill_pending",
+  "ds160_live_assisted_pending",
+  "ds160_proof_pending",
 ] as const;
 
 const LEGACY_SCHEDULED_QUEUE_STATUSES = [
@@ -172,6 +178,16 @@ async function fetchPoolDecision(supabase: SupabaseClient): Promise<PoolScaleDec
     busyMachineIds,
     countries,
   };
+}
+
+async function fetchDs160QueueDepth(supabase: SupabaseClient): Promise<number> {
+  const { count, error } = await supabase
+    .from("submission_queue")
+    .select("id", { count: "exact", head: true })
+    .in("status", [...DS160_CLAIMABLE_QUEUE_STATUSES])
+    .lt("attempts", 3);
+  if (error) throw new Error(`DS-160 submission_queue depth read: ${error.message}`);
+  return count ?? 0;
 }
 
 async function fetchLegacyQueueDepth(supabase: SupabaseClient): Promise<number> {
@@ -270,9 +286,10 @@ async function alertViolations(decision: PoolScaleDecision): Promise<void> {
 
 async function main(): Promise<void> {
   const supabase = client();
-  const [pool, legacyQueued, indonesiaQueued] = await Promise.all([
+  const [pool, legacyQueued, ds160Queued, indonesiaQueued] = await Promise.all([
     fetchPoolDecision(supabase),
     fetchLegacyQueueDepth(supabase),
+    fetchDs160QueueDepth(supabase),
     fetchIndonesiaQueueDepth(supabase),
   ]);
   await alertViolations(pool);
@@ -282,6 +299,13 @@ async function main(): Promise<void> {
     queued: legacyQueued,
     desired: legacyQueued > 0 ? 1 : 0,
   };
+  // Same legacy worker image and scale rules, separate app.
+  const ds160: LegacyScaleDecision = {
+    kind: "legacy",
+    app: SUBMISSION_DS160_APP,
+    queued: ds160Queued,
+    desired: ds160Queued > 0 ? 1 : 0,
+  };
   const indonesia: IndonesiaScaleDecision = {
     kind: "indonesia",
     app: RUNNER_INDONESIA_APP,
@@ -290,7 +314,7 @@ async function main(): Promise<void> {
   };
 
   if (process.argv.includes("--json")) {
-    process.stdout.write(`${JSON.stringify([pool, indonesia, legacy], null, 2)}\n`);
+    process.stdout.write(`${JSON.stringify([pool, indonesia, legacy, ds160], null, 2)}\n`);
     return;
   }
   console.log(
@@ -303,6 +327,7 @@ async function main(): Promise<void> {
   }
   console.log(`${indonesia.app} queued=${indonesia.queued} desired=${indonesia.desired}`);
   console.log(`${legacy.app} queued=${legacy.queued} desired=${legacy.desired}`);
+  console.log(`${ds160.app} queued=${ds160.queued} desired=${ds160.desired}`);
 }
 
 main().catch((error) => {

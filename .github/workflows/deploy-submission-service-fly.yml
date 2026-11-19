@@ -8,6 +8,7 @@ env:
   FLYCTL_VERSION: 0.4.82
   FLY_RUNNER_POOL_APP: ${{ vars.FLY_RUNNER_POOL_APP }}
   FLY_SUBMISSION_LEGACY_APP: ${{ vars.FLY_SUBMISSION_LEGACY_APP }}
+  FLY_SUBMISSION_DS160_APP: ${{ vars.FLY_SUBMISSION_DS160_APP }}
   FLY_RUNNER_INDONESIA_APP: ${{ vars.FLY_RUNNER_INDONESIA_APP }}
   FLY_RUNNER_SOUTH_KOREA_APP: ${{ vars.FLY_RUNNER_SOUTH_KOREA_APP }}
 
@@ -40,6 +41,11 @@ on:
         type: boolean
       deploy_legacy_worker:
         description: Deploy the one legacy submission_queue worker
+        required: true
+        default: true
+        type: boolean
+      deploy_ds160_worker:
+        description: Deploy the US East DS-160 (CEAC) worker
         required: true
         default: true
         type: boolean
@@ -159,3 +165,8 @@ jobs:
         # submission_queue flows.
         if: ${{ inputs.deploy_legacy_worker && !cancelled() }}
         run: bash viza-be/submission-service/scripts/fly/deploy-legacy.sh "$IMAGE"
+      - name: Deploy DS-160 worker
+        # Independent of the legacy worker: DS-160 runs in US East next to the
+        # CEAC Browserbase browser, and the legacy worker denylists CEAC.
+        if: ${{ inputs.deploy_ds160_worker && !cancelled() }}
+        run: bash viza-be/submission-service/scripts/fly/deploy-ds160.sh "$IMAGE"

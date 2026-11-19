@@ -588,3 +588,40 @@ test("claimPendingIndonesiaQueueItems calls only the sticky Indonesia RPC", asyn
     p_max_attempts: 3,
   });
 });
+
+test("generic claims send a provider denylist only when one is configured", async () => {
+  const calls: Array<Record<string, unknown>> = [];
+  const client = {
+    rpc: async (_name: string, args: Record<string, unknown>) => {
+      calls.push(args);
+      return { data: [], error: null };
+    },
+  };
+
+  await claimPendingSubmissionQueueItems(client, {
+    workerId: "legacy-sin",
+    limit: 1,
+    leaseSeconds: 600,
+    providerDenylist: [" ceac_live ", "", "ceac_proof"],
+  });
+  await claimPendingSubmissionQueueItems(client, {
+    workerId: "legacy-sin",
+    limit: 1,
+    leaseSeconds: 600,
+    providerDenylist: ["  "],
+  });
+
+  assert.deepEqual(calls[0]?.p_provider_denylist, ["ceac_live", "ceac_proof"]);
+  // Before migration 0212 the RPC has no such argument; never send an empty one.
+  assert.equal("p_provider_denylist" in (calls[1] ?? {}), false);
+});
+
+test("migration 0212 adds the denylist while keeping NULL-provider rows claimable", () => {
+  const sql = readFileSync(
+    path.join(repoRoot, "viza-be", "agent-backend", "drizzle", "0212_claim_provider_denylist.sql"),
+    "utf8",
+  );
+  assert.match(sql, /p_provider_denylist TEXT\[\] DEFAULT NULL/);
+  assert.match(sql, /OR sq\.provider IS NULL\s+OR NOT \(sq\.provider = ANY \(p_provider_denylist\)\)/);
+  assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.claim_submission_queue_batch\([\s\S]*?TEXT\[\], BOOLEAN, TEXT\[\]\s*\) TO service_role;/);
+});

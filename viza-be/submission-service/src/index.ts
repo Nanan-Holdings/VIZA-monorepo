@@ -454,11 +454,7 @@ const STALE_QUEUE_STATUSES: SubmissionQueueItem["status"][] = [
   "au_prefill_processing",
 ];
 
-function parseProviderAllowlist(): Set<string> {
-  const raw =
-    process.env.SUBMISSION_SERVICE_PROVIDER_ALLOWLIST?.trim() ||
-    process.env.VIZA_SUBMISSION_PROVIDER_ALLOWLIST?.trim() ||
-    "";
+function parseProviderList(raw: string): Set<string> {
   return new Set(
     raw
       .split(",")
@@ -467,7 +463,23 @@ function parseProviderAllowlist(): Set<string> {
   );
 }
 
+function parseProviderAllowlist(): Set<string> {
+  return parseProviderList(
+    process.env.SUBMISSION_SERVICE_PROVIDER_ALLOWLIST?.trim() ||
+      process.env.VIZA_SUBMISSION_PROVIDER_ALLOWLIST?.trim() ||
+      "",
+  );
+}
+
 const SUBMISSION_PROVIDER_ALLOWLIST = parseProviderAllowlist();
+// Providers served by a dedicated worker elsewhere (DS-160 runs in US East).
+const SUBMISSION_PROVIDER_DENYLIST = parseProviderList(
+  process.env.SUBMISSION_SERVICE_PROVIDER_DENYLIST?.trim() ?? "",
+);
+const VN_STATUS_CHECKS_ENABLED = readBooleanEnv(
+  "SUBMISSION_SERVICE_VN_STATUS_CHECKS_ENABLED",
+  true,
+);
 const TARGET_FAILED_RETRY_ENABLED = /^(1|true|yes|on)$/i.test(
   process.env.SUBMISSION_SERVICE_TARGET_RETRY_FAILED ?? "",
 );
@@ -636,6 +648,7 @@ async function fetchPendingItems(input: {
     targetJobId: input.targetJobId ?? null,
     maxAttempts: MAX_ATTEMPTS,
     providerAllowlist: Array.from(SUBMISSION_PROVIDER_ALLOWLIST),
+    providerDenylist: Array.from(SUBMISSION_PROVIDER_DENYLIST),
     allowFailed: Boolean(input.targetJobId && TARGET_FAILED_RETRY_ENABLED),
   });
   const mergedItems = [...claimedDedicatedItems, ...items].filter(
@@ -8934,7 +8947,7 @@ async function processPendingQueueItem(rawItem: SubmissionQueueItem): Promise<vo
 async function pollOnce(runMaintenance = true): Promise<boolean> {
   console.log("[poll] Checking submission_queue for pending items...");
   const targetJobId = process.env.SUBMISSION_SERVICE_TARGET_JOB_ID?.trim();
-  if (runMaintenance && !targetJobId) {
+  if (runMaintenance && !targetJobId && VN_STATUS_CHECKS_ENABLED) {
     try {
       const queuedDailyChecks = await enqueueDueVietnamStatusChecks();
       if (queuedDailyChecks > 0) {

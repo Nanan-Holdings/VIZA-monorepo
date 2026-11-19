@@ -141,6 +141,8 @@ export interface SubmissionQueueClaimOptions {
   targetJobId?: string | null;
   maxAttempts?: number;
   providerAllowlist?: string[] | null;
+  /** Providers this worker must never claim (needs migration 0212). */
+  providerDenylist?: string[] | null;
   allowFailed?: boolean;
 }
 
@@ -454,6 +456,9 @@ export async function claimPendingSubmissionQueueItems(
   const providerAllowlist = options.providerAllowlist
     ?.map((provider) => provider.trim())
     .filter(Boolean);
+  const providerDenylist = options.providerDenylist
+    ?.map((provider) => provider.trim())
+    .filter(Boolean);
   const { data, error } = await client.rpc("claim_submission_queue_batch", {
     p_worker_id: options.workerId,
     p_limit: options.limit,
@@ -463,6 +468,11 @@ export async function claimPendingSubmissionQueueItems(
     p_provider_allowlist:
       providerAllowlist && providerAllowlist.length > 0 ? providerAllowlist : null,
     p_allow_failed: options.allowFailed ?? false,
+    // Sent only when set, so workers without a denylist still match the
+    // claim RPC as it was before migration 0212.
+    ...(providerDenylist && providerDenylist.length > 0
+      ? { p_provider_denylist: providerDenylist }
+      : {}),
   });
 
   if (error) {
