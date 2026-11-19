@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { ensureDs160SecurityAnswer, generateDs160SecurityAnswer, rememberDs160SecurityAnswer } from "../security-answer";
+import { backfillDs160SecurityAnswers, ensureDs160SecurityAnswer, generateDs160SecurityAnswer, rememberDs160SecurityAnswer } from "../security-answer";
 
 type Row = { application_id: string; field_name: string; value_text: string | null };
 
@@ -88,4 +88,45 @@ test("never overwrites a different saved answer when remembering", async () => {
   await rememberDs160SecurityAnswer(fakeClient(rows), "app-1", "OTHERANSWER");
   assert.equal(rows.length, 1);
   assert.equal(rows[0].value_text, "APPLICANTSOWN");
+});
+
+test("backfills readable answers only for results without one, counting failures", async () => {
+  const writes: Array<{ op: string; applicationId?: string; value?: unknown }> = [];
+  const client = {
+    from(table: string) {
+      let op = "select";
+      let applicationId: string | undefined;
+      let value: unknown;
+      const builder = {
+        select: () => builder, eq: (key: string, v: string) => { if (key === "application_id") applicationId = v; return builder; },
+        not: () => builder, limit: () => builder, in: () => builder, or: () => builder,
+        update(patch: { value_text: unknown }) { op = "update"; value = patch.value_text; return builder; },
+        async upsert(row: { application_id: string; value_text: unknown }) {
+          writes.push({ op: "upsert", applicationId: row.application_id, value: row.value_text });
+          return { error: null };
+        },
+        then(resolve: (r: unknown) => unknown) {
+          if (table === "applications") {
+            return Promise.resolve({ error: null, data: [
+              { id: "needs-answer", submission_result: { securityAnswerCipher: "cipher-ok" } },
+              { id: "has-answer", submission_result: { securityAnswerCipher: "cipher-ok" } },
+              { id: "bad-cipher", submission_result: { securityAnswerCipher: "cipher-bad" } },
+            ] }).then(resolve);
+          }
+          if (op === "update") writes.push({ op, applicationId, value });
+          return Promise.resolve({ error: null, data: [{ application_id: "has-answer", value_text: "KEEPME" }] }).then(resolve);
+        },
+      };
+      return builder;
+    },
+  } as unknown as SupabaseClient;
+
+  const summary = await backfillDs160SecurityAnswers(client, (cipher) => {
+    if (cipher === "cipher-bad") throw new Error("bad key");
+    return "DECRYPTED123";
+  });
+
+  assert.deepEqual(summary, { checked: 2, filled: 1, failed: 1 });
+  assert.ok(writes.some((w) => w.op === "upsert" && w.applicationId === "needs-answer" && w.value === "DECRYPTED123"));
+  assert.ok(!writes.some((w) => w.applicationId === "has-answer"));
 });

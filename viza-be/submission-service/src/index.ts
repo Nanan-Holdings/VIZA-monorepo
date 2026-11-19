@@ -5,7 +5,7 @@ import * as os from "os";
 import { randomBytes } from "crypto";
 import { chromium } from "@playwright/test";
 import { supabase } from "./supabase";
-import { DS160_SECURITY_ANSWER_FIELD, ensureDs160SecurityAnswer, rememberDs160SecurityAnswer } from "./ceac/security-answer";
+import { backfillDs160SecurityAnswers, DS160_SECURITY_ANSWER_FIELD, ensureDs160SecurityAnswer, rememberDs160SecurityAnswer } from "./ceac/security-answer";
 import { sendFailureAlert } from "./alert";
 import {
   personalInfoMappings,
@@ -9445,6 +9445,17 @@ async function main(): Promise<void> {
     ].join(" "),
   );
   console.log(`[main] Global dry-run override=${isSubmissionDryRunMode() ? "on" : "off"}`);
+  if (LEGACY_SUBMISSION_QUEUE_ENABLED && ds160Config.submissionSecretConfigured) {
+    // Older DS-160 results only kept the security answer as ciphertext.
+    // Give each applicant a readable copy; never blocks queue startup.
+    void backfillDs160SecurityAnswers(supabase, decryptSecret)
+      .then((summary) => {
+        if (summary.checked > 0) {
+          console.log(`[main] DS-160 security answer backfill checked=${summary.checked} filled=${summary.filled} failed=${summary.failed}`);
+        }
+      })
+      .catch((error: unknown) => console.warn(`[main] DS-160 security answer backfill skipped: ${error instanceof Error ? error.message : String(error)}`));
+  }
   const ds160LiveStartError = validateDs160LiveStart(ds160Config);
   if (ds160Config.mode === "live_assisted" && ds160LiveStartError) {
     console.warn(`[main] DS-160 live assisted startup check blocked: ${ds160LiveStartError}`);

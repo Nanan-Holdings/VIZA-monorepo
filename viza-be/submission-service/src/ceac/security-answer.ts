@@ -46,6 +46,61 @@ export async function rememberDs160SecurityAnswer(
   if (insertError) throw new Error(`DS-160 security answer could not be saved: ${insertError.message}`);
 }
 
+export interface Ds160SecurityAnswerBackfillResult {
+  checked: number;
+  filled: number;
+  failed: number;
+}
+
+/**
+ * Give older US results a readable security answer: for each submitted or
+ * stopped DS-160 result that only has the worker-side ciphertext, decrypt it
+ * and save it to the applicant's answers (never overwriting a saved answer).
+ * Answers are never logged; only counts are returned.
+ */
+export async function backfillDs160SecurityAnswers(
+  client: SupabaseClient,
+  decrypt: (cipher: string) => string,
+  limit = 500,
+): Promise<Ds160SecurityAnswerBackfillResult> {
+  const result: Ds160SecurityAnswerBackfillResult = { checked: 0, filled: 0, failed: 0 };
+  const { data: applications, error } = await client
+    .from("applications")
+    .select("id, submission_result")
+    .eq("submission_result->>country", "US")
+    .not("submission_result->>securityAnswerCipher", "is", null)
+    .limit(limit);
+  if (error) throw new Error(`DS-160 security answer backfill query failed: ${error.message}`);
+  const rows = (applications ?? []) as Array<{ id: string; submission_result: { securityAnswerCipher?: unknown } | null }>;
+  if (rows.length === 0) return result;
+
+  const { data: saved, error: savedError } = await client
+    .from("visa_application_answers")
+    .select("application_id, value_text")
+    .eq("field_name", DS160_SECURITY_ANSWER_FIELD)
+    .in("application_id", rows.map((row) => row.id));
+  if (savedError) throw new Error(`DS-160 security answer backfill read failed: ${savedError.message}`);
+  const hasReadable = new Set(
+    (saved ?? [])
+      .filter((row: { value_text: unknown }) => typeof row.value_text === "string" && row.value_text.trim())
+      .map((row: { application_id: string }) => row.application_id),
+  );
+
+  for (const row of rows) {
+    if (hasReadable.has(row.id)) continue;
+    const cipher = row.submission_result?.securityAnswerCipher;
+    if (typeof cipher !== "string" || !cipher) continue;
+    result.checked += 1;
+    try {
+      await rememberDs160SecurityAnswer(client, row.id, decrypt(cipher));
+      result.filled += 1;
+    } catch {
+      result.failed += 1;
+    }
+  }
+  return result;
+}
+
 /**
  * Return the application's saved CEAC security answer, creating and saving
  * one first when none exists. The answer is stored with the applicant's own
