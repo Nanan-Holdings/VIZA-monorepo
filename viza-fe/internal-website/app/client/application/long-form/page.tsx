@@ -19,6 +19,7 @@ import {
   type DocumentCenterData,
 } from "@/app/client/documents/actions";
 import { getVisaFormSteps } from "@/app/actions/visa-form-fields";
+import { loadApplicationFormBundle } from "@/app/actions/application-form-bundle";
 import { readCachedFormSteps, writeCachedFormSteps } from "@/lib/client/form-steps-cache";
 import { type VisaFormFieldRow, type WizardStep } from "@/types/visa-form-fields";
 import { evaluateShowIf } from "@/lib/form-utils";
@@ -1857,6 +1858,70 @@ export default function ApplicationPage() {
   const [visaPackage, setVisaPackage] = useState<UserVisaPackage | null>(null);
   const [packageLoaded, setPackageLoaded] = useState(false);
 
+  // When the URL names the application and visa, its context, saved answers
+  // and documents depend only on that ID. Next.js runs a page's server actions
+  // one at a time, so load all three in one action (parallel on the server)
+  // as soon as the page opens, queued before the schema refresh. loadData and
+  // the documents effect then use these in-flight results.
+  const explicitPrefetchCountry = explicitVisaType
+    ? getCanonicalApplicationProductCountry(explicitProductCountry ?? "indonesia", explicitVisaType)
+    : null;
+  const explicitPrefetchKey = explicitApplicationId && explicitVisaType && !isExplicitStatusView
+    ? `${explicitApplicationId}|${explicitPrefetchCountry}|${explicitVisaType}`
+    : null;
+  const explicitPrefetchRef = useRef<{
+    key: string;
+    startedAt: number;
+    context: ReturnType<typeof getTeamApplicationContext> | null;
+    answers: ReturnType<typeof loadDynamicAnswers> | null;
+    documents: ReturnType<typeof loadDocumentCenterData> | null;
+  } | null>(null);
+  useEffect(() => {
+    if (!explicitApplicationId || !explicitPrefetchKey || !explicitVisaType || !explicitPrefetchCountry) return;
+    if (explicitPrefetchRef.current?.key === explicitPrefetchKey) return;
+    // Callers await these later; a rejection is handled there, not here.
+    const tracked = <T,>(promise: Promise<T>): Promise<T> => {
+      promise.catch(() => undefined);
+      return promise;
+    };
+    const documentParams = { country: explicitPrefetchCountry, visaType: explicitVisaType };
+    const bundle = loadApplicationFormBundle(explicitApplicationId, documentParams);
+    // If the combined call fails, each part falls back to its own action.
+    explicitPrefetchRef.current = {
+      key: explicitPrefetchKey,
+      startedAt: Date.now(),
+      context: tracked(bundle.then(
+        (result) => result.context,
+        () => getTeamApplicationContext(explicitApplicationId),
+      )),
+      answers: tracked(bundle.then(
+        (result) => result.answers,
+        () => loadDynamicAnswers(explicitApplicationId),
+      )),
+      documents: tracked(bundle.then(
+        (result) => result.documents,
+        () => loadDocumentCenterData({ applicationId: explicitApplicationId, ...documentParams }),
+      )),
+    };
+  }, [explicitApplicationId, explicitPrefetchCountry, explicitPrefetchKey, explicitVisaType]);
+  /** The prefetched context/answers for this exact application, used once. */
+  const takePrefetched = useCallback(<K extends "context" | "answers">(
+    kind: K,
+    applicationId: string,
+  ) => {
+    const prefetch = explicitPrefetchRef.current;
+    if (!prefetch || !prefetch.key.startsWith(`${applicationId}|`)) return null;
+    const promise = prefetch[kind];
+    prefetch[kind] = null;
+    return promise as NonNullable<(typeof prefetch)[K]> | null;
+  }, []);
+  /** The prefetched documents for this application, shared while still fresh. */
+  const prefetchedDocuments = useCallback((key: string) => {
+    const prefetch = explicitPrefetchRef.current;
+    if (!prefetch || prefetch.key !== key || Date.now() - prefetch.startedAt > 15_000) return null;
+    return prefetch.documents;
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     let packageLookupFailed = false;
@@ -2246,58 +2311,6 @@ export default function ApplicationPage() {
     explicitProductCountry ?? visaPackage?.country ?? "indonesia",
     resolvedVisaType,
   );
-  // When the URL names the application and visa, its context, saved answers
-  // and documents depend only on that ID. Start all three as soon as the page
-  // opens (alongside the schema) instead of one after another; loadData and
-  // the documents effect then use these in-flight requests.
-  const explicitPrefetchKey = explicitApplicationId && explicitVisaType && !isExplicitStatusView
-    ? `${explicitApplicationId}|${resolvedCountry}|${resolvedVisaType}`
-    : null;
-  const explicitPrefetchRef = useRef<{
-    key: string;
-    startedAt: number;
-    context: ReturnType<typeof getTeamApplicationContext> | null;
-    answers: ReturnType<typeof loadDynamicAnswers> | null;
-    documents: ReturnType<typeof loadDocumentCenterData> | null;
-  } | null>(null);
-  useEffect(() => {
-    if (!explicitApplicationId || !explicitPrefetchKey) return;
-    if (explicitPrefetchRef.current?.key === explicitPrefetchKey) return;
-    // Callers await these later; a rejection is handled there, not here.
-    const tracked = <T,>(promise: Promise<T>): Promise<T> => {
-      promise.catch(() => undefined);
-      return promise;
-    };
-    explicitPrefetchRef.current = {
-      key: explicitPrefetchKey,
-      startedAt: Date.now(),
-      context: tracked(getTeamApplicationContext(explicitApplicationId)),
-      answers: tracked(loadDynamicAnswers(explicitApplicationId)),
-      documents: tracked(loadDocumentCenterData({
-        applicationId: explicitApplicationId,
-        country: resolvedCountry,
-        visaType: resolvedVisaType,
-      })),
-    };
-  }, [explicitApplicationId, explicitPrefetchKey, resolvedCountry, resolvedVisaType]);
-  /** The prefetched context/answers for this exact application, used once. */
-  const takePrefetched = useCallback(<K extends "context" | "answers">(
-    kind: K,
-    applicationId: string,
-  ) => {
-    const prefetch = explicitPrefetchRef.current;
-    if (!prefetch || !prefetch.key.startsWith(`${applicationId}|`)) return null;
-    const promise = prefetch[kind];
-    prefetch[kind] = null;
-    return promise as NonNullable<(typeof prefetch)[K]> | null;
-  }, []);
-  /** The prefetched documents for this application, shared while still fresh. */
-  const prefetchedDocuments = useCallback((key: string) => {
-    const prefetch = explicitPrefetchRef.current;
-    if (!prefetch || prefetch.key !== key || Date.now() - prefetch.startedAt > 15_000) return null;
-    return prefetch.documents;
-  }, []);
-
   const isTaiwanEntryPermit = resolvedVisaType === "TW_ENTRY_PERMIT";
   const isArrivalCardApplication = isDigitalArrivalCardApplication(resolvedCountry, resolvedVisaType);
   const isPhilippinesEtravel = isPhilippinesEtravelApplication(resolvedCountry, resolvedVisaType);
