@@ -12,7 +12,10 @@ import {
   Printer,
   ArrowCounterClockwise as RotateCcw,
   CircleNotch as Loader2,
+  CalendarCheck,
+  CaretRight,
 } from "@phosphor-icons/react";
+import Link from "next/link";
 import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -436,6 +439,21 @@ export function UsResultCard({
               <p className="mt-3 text-sm text-muted-foreground">{proofMessage}</p>
             )}
           </div>
+        )}
+
+        {submitted && (
+          <Link
+            href={`/client/application/us-next-steps${applicationId ? `?applicationId=${encodeURIComponent(applicationId)}` : ""}`}
+            className="group flex min-h-11 items-center gap-3 rounded-md border border-brand-200 bg-brand-50 p-4 transition-colors hover:bg-brand-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+            data-testid="ds160-next-steps-link"
+          >
+            <CalendarCheck className="h-6 w-6 shrink-0 text-brand-500" aria-hidden="true" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold text-foreground">{t("nextStepsTitle")}</span>
+              <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{t("nextStepsBody")}</span>
+            </span>
+            <CaretRight className="h-4 w-4 shrink-0 text-brand-500 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+          </Link>
         )}
 
         <div className="rounded-md border border-brand-100 bg-brand-50 p-3">

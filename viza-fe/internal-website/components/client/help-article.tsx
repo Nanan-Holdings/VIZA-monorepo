@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { motion } from "motion/react";
 import { useLocale } from "next-intl";
-import { ArrowLeft } from "@phosphor-icons/react";
+import { ArrowLeft, ArrowSquareOut } from "@phosphor-icons/react";
 import Link from "next/link";
 
 export interface HelpArticleSection {
@@ -12,6 +12,7 @@ export interface HelpArticleSection {
     | { type: "paragraph"; text: string }
     | { type: "list"; items: string[] }
     | { type: "tip"; text: string }
+    | { type: "links"; items: Array<{ label: string; href: string }> }
   >;
 }
 
@@ -19,14 +20,32 @@ interface HelpArticleProps {
   title: string;
   subtitle: string;
   sections: HelpArticleSection[];
+  /** Where the back links go; defaults to the Help Center. */
+  backHref?: string;
+  /** Label for the top back link; defaults to "Help Center". */
+  topBackLabel?: string;
+  /** Label for the footer back link; defaults to "Back to Help Center". */
+  backLabel?: string;
 }
 
-export function HelpArticle({ title, subtitle, sections }: HelpArticleProps) {
+export function HelpArticle({
+  title,
+  subtitle,
+  sections,
+  backHref = "/client/help",
+  topBackLabel,
+  backLabel,
+}: HelpArticleProps) {
   const locale = useLocale();
   const isZh = locale.toLowerCase().startsWith("zh");
-  const copy = isZh
+  const defaults = isZh
     ? { helpCenter: "帮助中心", tip: "提示：", back: "返回帮助中心" }
     : { helpCenter: "Help Center", tip: "Tip: ", back: "Back to Help Center" };
+  const copy = {
+    ...defaults,
+    helpCenter: topBackLabel ?? defaults.helpCenter,
+    back: backLabel ?? defaults.back,
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -64,7 +83,7 @@ export function HelpArticle({ title, subtitle, sections }: HelpArticleProps) {
           transition={{ duration: 0.5 }}
         >
           <Link
-            href="/client/help"
+            href={backHref}
             className="inline-flex items-center gap-1.5 text-[rgba(255,255,255,0.75)] hover:text-white text-[14px] font-medium transition-colors"
           >
             <ArrowLeft className="size-4" />
@@ -143,6 +162,25 @@ export function HelpArticle({ title, subtitle, sections }: HelpArticleProps) {
                       </div>
                     );
                   }
+                  if (block.type === "links") {
+                    return (
+                      <ul key={j} className="flex flex-col gap-2">
+                        {block.items.map((item) => (
+                          <li key={item.href} className="text-[16px] lg:text-[18px] leading-[1.7] tracking-[-0.24px]">
+                            <a
+                              href={item.href}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 break-all font-medium text-[#c1785d] underline-offset-4 hover:text-[#a5604a] hover:underline"
+                            >
+                              {item.label}
+                              <ArrowSquareOut className="size-4 shrink-0" aria-hidden="true" />
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    );
+                  }
                   return null;
                 })}
               </div>
@@ -157,7 +195,7 @@ export function HelpArticle({ title, subtitle, sections }: HelpArticleProps) {
             transition={{ duration: 0.4, delay: 0.6 }}
           >
             <Link
-              href="/client/help"
+              href={backHref}
               className="inline-flex items-center gap-1.5 text-[#c1785d] hover:text-[#a5604a] text-[15px] font-medium transition-colors"
             >
               <ArrowLeft className="size-4" />

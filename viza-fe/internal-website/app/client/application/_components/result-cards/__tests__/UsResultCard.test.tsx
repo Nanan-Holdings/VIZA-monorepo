@@ -88,6 +88,23 @@ describe("UsResultCard", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("links a submitted DS-160 to the interview next-steps guide for this application", () => {
+    render(<UsResultCard applicationId="viza-application-id" result={submittedResult} />);
+    expect(screen.getByTestId("ds160-next-steps-link")).toHaveAttribute(
+      "href",
+      "/client/application/us-next-steps?applicationId=viza-application-id",
+    );
+    for (const messages of [enMessages, zhMessages]) {
+      expect(messages.usAppointment.ds160Card.nextStepsTitle).toBeTruthy();
+      expect(messages.usAppointment.ds160Card.nextStepsBody).toBeTruthy();
+    }
+  });
+
+  it("shows no next-steps guide before the DS-160 is submitted", () => {
+    render(<UsResultCard applicationId="viza-application-id" result={stoppedAtSignResult} />);
+    expect(screen.queryByTestId("ds160-next-steps-link")).not.toBeInTheDocument();
+  });
+
   it("starts a download without opening a popup after proof is ready", async () => {
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({
       ok: true,
