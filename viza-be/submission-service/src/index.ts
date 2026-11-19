@@ -2399,11 +2399,37 @@ async function updateOwnedDs160Queue(
   if (!data) throw new SubmissionQueueOwnershipLostError();
 }
 
+/**
+ * Record how far a DS-160 run has got (for example `ceac_page:passport`) so
+ * the applicant's progress bar can follow the real CEAC page. Only writes
+ * while this worker still owns the row and it is still processing, so a
+ * late report never overwrites a terminal stage. Never throws.
+ */
+async function reportDs160Progress(
+  item: SubmissionQueueItem,
+  processingStatus: string,
+  stage: string,
+): Promise<void> {
+  const ownerId = item.locked_by?.trim();
+  if (!ownerId) return;
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from("submission_queue")
+    .update({ current_stage: stage, heartbeat_at: now, updated_at: now })
+    .eq("id", item.id)
+    .eq("locked_by", ownerId)
+    .eq("status", processingStatus);
+  if (error) {
+    console.warn(`[ceac] Progress report ${stage} failed: ${error.message}`);
+  }
+}
+
 async function processDs160Item(
   item: SubmissionQueueItem,
   config: Ds160SubmissionConfig,
 ): Promise<void> {
   const liveAssisted = isDs160LiveAssistedQueueItem(item);
+  const ds160ProcessingStatus = liveAssisted ? "ds160_live_assisted_processing" : "ds160_prefill_processing";
   const runId = createRunId(liveAssisted ? "ds160-live" : "ds160-prefill");
   console.log(
     `[ceac] Starting CEAC run ${runId} for application=${redactIdentifier(item.application_id)} (attempt ${item.attempts + 1})`,
@@ -2509,7 +2535,8 @@ async function processDs160Item(
     // RPC before any CEAC browser is opened. Later renewal loss closes the
     // active session and skips all stale settlement writes.
     await updateOwnedDs160Queue(item, {
-      status: liveAssisted ? "ds160_live_assisted_processing" : "ds160_prefill_processing",
+      status: ds160ProcessingStatus,
+      current_stage: "ceac_starting",
       updated_at: new Date().toISOString(),
     });
 
@@ -2615,6 +2642,7 @@ async function processDs160Item(
     assertQueueLeaseOwned();
     // Record bootstrap checkpoint — proves CEAC start page was reached
     await recordBootstrapCheckpoint(session.page, { sink: tracker, runId });
+    await reportDs160Progress(item, ds160ProcessingStatus, "ceac_session_ready");
 
     let recoveryIdentity: CapturedDs160ResumeCheckpoint;
     if (capturedResumeCheckpoint) {
@@ -2716,6 +2744,7 @@ async function processDs160Item(
       finalSubmit,
       branchAnswers,
       assertActive: assertQueueLeaseOwned,
+      onPage: (pageId) => reportDs160Progress(item, ds160ProcessingStatus, `ceac_page:${pageId}`),
       recoveryCredentials: {
         applicationId: recoveryIdentity.applicationId,
         surnameFirstFive,

@@ -290,6 +290,11 @@ export interface OrchestrateOptions {
   /** Stop before recovery or official actions when the caller loses its job lease. */
   assertActive?: () => void;
   /**
+   * Called once each time the run reaches a different CEAC page, so the
+   * caller can report progress. Failures are logged and never stop the run.
+   */
+  onPage?: (pageId: CeacPageId) => Promise<void> | void;
+  /**
    * Credentials needed to auto-resume after a mid-fill session timeout.
    * Required if the run may take longer than CEAC's ~10-minute idle
    * window — without them, a session expiry is unrecoverable. When
@@ -385,6 +390,7 @@ export async function orchestrateFill(
   let datArtifact: DatArtifact | null = null;
   let transitions = 0;
   let resumeAttempts = 0;
+  let reportedPageId: CeacPageId | "unknown" | null = null;
   // Set once the run continued past Upload Photo without a photo.
   let photoSkipError: unknown = null;
   let postbackRejectionRetries = 0;
@@ -453,6 +459,16 @@ export async function orchestrateFill(
 
       const probe = await detectPage(page);
       const currentPageId = probe.id;
+      if (options.onPage && currentPageId !== "unknown" && currentPageId !== reportedPageId) {
+        reportedPageId = currentPageId;
+        try {
+          await options.onPage(currentPageId);
+        } catch (error) {
+          console.warn(
+            `[orchestrator] Progress report for ${currentPageId} failed: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
+      }
 
       if (currentPageId === "session_expired" && options.recoveryCredentials && resumeAttempts < maxResumeAttempts) {
         console.log(`[orchestrator] session_expired page detected — attempting resume (attempt ${resumeAttempts + 1}/${maxResumeAttempts})`);

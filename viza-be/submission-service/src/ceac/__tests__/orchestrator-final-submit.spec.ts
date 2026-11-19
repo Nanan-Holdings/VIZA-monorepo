@@ -111,15 +111,24 @@ test("a missing optional Save-to-File control does not block passport page advan
       runId: "run-dat-optional",
       close: async () => browser.close(),
     } satisfies CeacSession;
+    const reportedPages: string[] = [];
     const result = await orchestrateFill(session, {
       answers: {},
       profile: {},
       tracker: createRecoveryTracker({ runId: "run-dat-optional", delegate: { async record() {} } }),
       outputDir,
+      onPage: (pageId) => {
+        reportedPages.push(pageId);
+        // A failing progress report must never stop the run.
+        throw new Error("progress store unavailable");
+      },
     });
 
     assert.equal(result.result.status, "handoff_ready");
     assert.ok(result.sectionCoverage.filled.includes("passport"));
+    assert.equal(reportedPages[0], "passport");
+    assert.equal(new Set(reportedPages).size, reportedPages.length, "each page is reported once");
+    assert.equal(reportedPages.at(-1), "upload_photo");
     assert.match(page.url(), /photo_uploadthephoto\.aspx\?node=UploadPhoto$/);
   } finally {
     await browser.close();
