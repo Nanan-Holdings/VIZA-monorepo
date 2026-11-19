@@ -60,6 +60,15 @@ if ! fly apps create "$app" --org "$FLY_ORG"; then
   fly status --app "$app" >/dev/null
 fi
 
+# flyctl's first-deploy IP provisioning can fail for a new app ("org_slug is
+# only supported with private_v6"), leaving it unreachable over HTTP: no
+# /health, no wake, no Fly proxy auto-start. Allocate public IPs explicitly
+# whenever none exist; this is a no-op on later deploys.
+if ! fly ips list --app "$app" --json | jq -e 'map(select(.Type == "v6" or .Type == "shared_v4" or .Type == "v4")) | length > 0' >/dev/null; then
+  fly ips allocate-v6 --app "$app"
+  fly ips allocate-v4 --shared --app "$app" --yes
+fi
+
 # A brand-new app has no process to query. Existing retained Machines always
 # fail closed before secret staging or replacement.
 if has_retained_machine; then
@@ -79,3 +88,4 @@ fi
 fly deploy --app "$app" --config "$root/deploy/fly/fly.ds160.toml" --image "$fly_image" \
   --strategy rolling --smoke-checks=false
 fly scale count 1 --app "$app" --yes
+
