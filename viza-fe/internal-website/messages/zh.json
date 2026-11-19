@@ -5341,7 +5341,8 @@
       "securityAnswerSyncing": "答案正在同步，请几分钟后再试。",
       "securityAnswerRevealError": "暂时无法读取安全答案，请稍后再试。",
       "nextStepsTitle": "提交后怎么办：预约面签全流程指引",
-      "nextStepsBody": "缴费、预约面试、面试当天带什么、领馆地址，以及面试后查状态、取护照、办理 EVUS。"
+      "nextStepsBody": "缴费、预约面试、面试当天带什么、领馆地址，以及面试后查状态、取护照、办理 EVUS。",
+      "nextStepsLoading": "正在打开…"
     },
     "nextStepCard": {
       "title": "下一步：预约设置",

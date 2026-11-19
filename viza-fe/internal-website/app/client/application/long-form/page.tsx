@@ -19,6 +19,7 @@ import {
   type DocumentCenterData,
 } from "@/app/client/documents/actions";
 import { getVisaFormSteps } from "@/app/actions/visa-form-fields";
+import { readCachedFormSteps, writeCachedFormSteps } from "@/lib/client/form-steps-cache";
 import { type VisaFormFieldRow, type WizardStep } from "@/types/visa-form-fields";
 import { evaluateShowIf } from "@/lib/form-utils";
 import { resolveVisaFormSchemaVisaType } from "@/lib/visa-form-schema-aliases";
@@ -1901,11 +1902,22 @@ export default function ApplicationPage() {
           { country: pkg?.country ?? null },
         ));
 
+    // Render a returning applicant's form from the browser copy of the schema
+    // right away; the server copy below replaces it only if it changed.
+    const cachedSteps = explicitVisaType
+      ? readCachedFormSteps(explicitVisaType, explicitProductCountry)
+      : null;
+    if (cachedSteps) {
+      setDbSteps(ensureVnPrearrivalOtherFlightFlow(cachedSteps));
+      setPackageLoaded(true);
+    }
+
     void stepsPromise
       .then((steps) => {
-        if (!cancelled && steps.length > 0) {
-          setDbSteps(ensureVnPrearrivalOtherFlightFlow(steps));
-        }
+        if (cancelled || steps.length === 0) return;
+        if (explicitVisaType) writeCachedFormSteps(explicitVisaType, explicitProductCountry, steps);
+        if (cachedSteps && JSON.stringify(cachedSteps) === JSON.stringify(steps)) return;
+        setDbSteps(ensureVnPrearrivalOtherFlightFlow(steps));
       })
       .catch((error) => {
         attemptStaleServerActionReload(error);

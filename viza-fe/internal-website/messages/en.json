@@ -5341,7 +5341,8 @@
       "securityAnswerSyncing": "The answer is still syncing. Try again in a few minutes.",
       "securityAnswerRevealError": "The security answer could not be loaded. Try again shortly.",
       "nextStepsTitle": "What next: booking your visa interview",
-      "nextStepsBody": "Paying the fee, booking the interview, what to bring, embassy addresses, and checking status, getting your passport back and EVUS after the interview."
+      "nextStepsBody": "Paying the fee, booking the interview, what to bring, embassy addresses, and checking status, getting your passport back and EVUS after the interview.",
+      "nextStepsLoading": "Opening…"
     },
     "nextStepCard": {
       "title": "Next: appointment setup",

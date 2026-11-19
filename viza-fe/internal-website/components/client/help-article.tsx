@@ -1,10 +1,40 @@
 "use client";
 
-import { useEffect } from "react";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { motion } from "motion/react";
 import { useLocale } from "next-intl";
 import { ArrowLeft, ArrowSquareOut } from "@phosphor-icons/react";
 import Link from "next/link";
+import { heroGradientCss, type CountryHeroTheme } from "@/lib/client/country-hero-theme";
+
+const LINKABLE_PATTERN =
+  /([\w.+-]+@[\w-]+(?:\.[\w-]+)+)|((?:https?:\/\/)?(?:[a-z0-9-]+\.)+(?:com|gov|cn|org|net)(?:\/[\w\-./#?=&]*)?)/gi;
+
+/** Turn bare domains, URLs and emails in article text into links. */
+export function linkifyText(text: string): ReactNode[] {
+  const nodes: ReactNode[] = [];
+  let last = 0;
+  for (const match of text.matchAll(LINKABLE_PATTERN)) {
+    const value = match[0];
+    const index = match.index ?? 0;
+    if (index > last) nodes.push(text.slice(last, index));
+    const email = Boolean(match[1]);
+    const href = email ? `mailto:${value}` : /^https?:\/\//i.test(value) ? value : `https://${value}`;
+    nodes.push(
+      <a
+        key={`${index}-${value}`}
+        href={href}
+        {...(email ? {} : { target: "_blank", rel: "noopener noreferrer" })}
+        className="font-medium text-[#c1785d] underline underline-offset-4 break-all hover:text-[#a5604a]"
+      >
+        {value}
+      </a>,
+    );
+    last = index + value.length;
+  }
+  if (last < text.length) nodes.push(text.slice(last));
+  return nodes;
+}
 
 export interface HelpArticleSection {
   heading: string;
@@ -26,6 +56,10 @@ interface HelpArticleProps {
   topBackLabel?: string;
   /** Label for the footer back link; defaults to "Back to Help Center". */
   backLabel?: string;
+  /** Country hero (gradient + landmark) instead of the neutral help hero. */
+  heroTheme?: CountryHeroTheme;
+  /** Make bare domains, URLs and emails in the text clickable. */
+  linkify?: boolean;
 }
 
 export function HelpArticle({
@@ -35,7 +69,28 @@ export function HelpArticle({
   backHref = "/client/help",
   topBackLabel,
   backLabel,
+  heroTheme,
+  linkify = false,
 }: HelpArticleProps) {
+  const renderText = (text: string): ReactNode =>
+    linkify ? linkifyText(text).map((node, i) => <Fragment key={i}>{node}</Fragment>) : text;
+  // The hero grows with the header so long titles never spill past it.
+  const rootRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
+  const [heroHeight, setHeroHeight] = useState<number | null>(null);
+  useEffect(() => {
+    const root = rootRef.current;
+    const header = headerRef.current;
+    if (!root || !header || typeof ResizeObserver === "undefined") return;
+    const measure = () => {
+      const bottom = header.getBoundingClientRect().bottom - root.getBoundingClientRect().top;
+      setHeroHeight(Math.ceil(bottom + 48));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, []);
   const locale = useLocale();
   const isZh = locale.toLowerCase().startsWith("zh");
   const defaults = isZh
@@ -66,12 +121,33 @@ export function HelpArticle({
   }, []);
 
   return (
-    <div className="bg-[#fbfbf9] relative min-h-screen overflow-x-hidden w-screen left-1/2 -translate-x-1/2 -mt-36 xl:-mt-32">
+    <div ref={rootRef} className="bg-[#fbfbf9] relative min-h-screen overflow-x-hidden w-screen left-1/2 -translate-x-1/2 -mt-36 xl:-mt-32">
       {/* Hero */}
-      <div className="absolute top-0 left-0 right-0 h-[220px] sm:h-[260px] lg:h-[320px] xl:h-[310px] overflow-hidden z-0">
-        <div className="absolute inset-0 bg-gradient-to-b from-[#1f2a2e] to-[#a5b8b0]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.35),transparent_55%),radial-gradient(circle_at_80%_30%,rgba(255,255,255,0.2),transparent_45%)]" />
-        <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(255,255,255,0.08)_0%,rgba(255,255,255,0.02)_40%,transparent_60%)]" />
+      <div
+        className="absolute top-0 left-0 right-0 h-[220px] sm:h-[260px] lg:h-[320px] xl:h-[310px] overflow-hidden z-0"
+        style={heroHeight ? { height: Math.max(heroHeight, 220) } : undefined}
+        data-testid="help-article-hero"
+      >
+        {heroTheme ? (
+          <>
+            <div className="absolute inset-0" style={{ backgroundImage: heroGradientCss(heroTheme) }} />
+            {heroTheme.image && (
+              <img
+                alt=""
+                aria-hidden="true"
+                src={heroTheme.image}
+                className="absolute bottom-0 left-1/2 h-[120%] w-auto max-w-none -translate-x-1/2 object-contain object-bottom opacity-60 blur-[2px]"
+              />
+            )}
+            <div className="absolute inset-0 bg-[rgba(0,0,0,0.18)]" />
+          </>
+        ) : (
+          <>
+            <div className="absolute inset-0 bg-gradient-to-b from-[#1f2a2e] to-[#a5b8b0]" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.35),transparent_55%),radial-gradient(circle_at_80%_30%,rgba(255,255,255,0.2),transparent_45%)]" />
+            <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(255,255,255,0.08)_0%,rgba(255,255,255,0.02)_40%,transparent_60%)]" />
+          </>
+        )}
       </div>
 
       <div className="relative z-10 w-full flex flex-col items-center px-4 sm:px-6 md:px-10 xl:px-20 pt-36 xl:pt-32 -mt-[130px]">
@@ -93,6 +169,7 @@ export function HelpArticle({
 
         {/* Hero title */}
         <motion.div
+          ref={headerRef}
           className="font-sofia-pro font-medium leading-[1.2] not-italic text-[30px] sm:text-[38px] lg:text-[44px] text-white mt-5 tracking-[-1.2px] sm:tracking-[-1.4px] lg:tracking-[-1.76px] w-full max-w-[720px]"
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -130,7 +207,7 @@ export function HelpArticle({
                         key={j}
                         className="text-[16px] lg:text-[18px] leading-[1.7] tracking-[-0.24px] text-[#4a4a4a]"
                       >
-                        {block.text}
+                        {renderText(block.text)}
                       </p>
                     );
                   }
@@ -143,7 +220,7 @@ export function HelpArticle({
                             className="flex items-start gap-2.5 text-[16px] lg:text-[18px] leading-[1.7] tracking-[-0.24px] text-[#4a4a4a]"
                           >
                             <span className="mt-[9px] size-1.5 shrink-0 rounded-full bg-[#c1785d]" />
-                            {item}
+                            <span className="min-w-0">{renderText(item)}</span>
                           </li>
                         ))}
                       </ul>
@@ -157,7 +234,7 @@ export function HelpArticle({
                       >
                         <p className="text-[16px] lg:text-[18px] leading-[1.6] tracking-[-0.24px] text-[#6f6f6f]">
                           <span className="font-medium text-[#2b2b2b]">{copy.tip}</span>
-                          {block.text}
+                          {renderText(block.text)}
                         </p>
                       </div>
                     );

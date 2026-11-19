@@ -1,6 +1,7 @@
 const DEFAULT_MAX_ENTRIES = 128;
 const DEFAULT_TTL_MS = 5 * 60 * 1_000;
-export const PUBLIC_VISA_FORM_SCHEMA_CACHE_TTL_MS = 60_000;
+// The schema only changes through migrations, so a longer shared TTL is safe.
+export const PUBLIC_VISA_FORM_SCHEMA_CACHE_TTL_MS = 10 * 60_000;
 
 type CacheEntry<T> = {
   expiresAt: number;

@@ -4,6 +4,7 @@ import { HelpArticle } from "@/components/client/help-article";
 import { createClient } from "@/lib/supabase/server";
 // eslint-disable-next-line no-restricted-imports -- Server Component: user auth is verified before the service-role read is scoped to that user's applicant profile.
 import { withAdmin } from "@/lib/auth/with-admin";
+import { getCountryHeroTheme } from "@/lib/client/country-hero-theme";
 import { getUsNextStepsCopy } from "./copy";
 
 export const dynamic = "force-dynamic";
@@ -93,6 +94,8 @@ export default async function UsNextStepsPage({
       backHref={backHref}
       topBackLabel={copy.topBackLabel}
       backLabel={copy.backLabel}
+      heroTheme={getCountryHeroTheme(application?.country ?? "united_states")}
+      linkify
     />
   );
 }

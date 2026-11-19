@@ -15,7 +15,7 @@ import {
   CalendarCheck,
   CaretRight,
 } from "@phosphor-icons/react";
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -452,7 +452,7 @@ export function UsResultCard({
               <span className="block text-sm font-semibold text-foreground">{t("nextStepsTitle")}</span>
               <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{t("nextStepsBody")}</span>
             </span>
-            <CaretRight className="h-4 w-4 shrink-0 text-brand-500 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+            <NextStepsLinkIndicator label={t("nextStepsLoading")} />
           </Link>
         )}
 
@@ -571,5 +571,24 @@ export function UsResultCard({
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * Arrow that turns into a spinner while the guide is loading, so the
+ * applicant can see the click registered. Must render inside the Link.
+ */
+function NextStepsLinkIndicator({ label }: { label: string }) {
+  const { pending } = useLinkStatus();
+  return pending ? (
+    <span className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-brand-500" role="status">
+      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+      <span>{label}</span>
+    </span>
+  ) : (
+    <CaretRight
+      className="h-4 w-4 shrink-0 text-brand-500 transition-transform group-hover:translate-x-0.5"
+      aria-hidden="true"
+    />
   );
 }
