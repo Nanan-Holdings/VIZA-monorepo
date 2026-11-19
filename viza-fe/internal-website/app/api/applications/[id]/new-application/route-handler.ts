@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { isUsDs160 } from "@/lib/application-tab-completion";
+import { isFranceVisasVisaType } from "@/lib/submission-queue";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -307,10 +308,19 @@ async function verifyUnsignedRestartSafety(
   return null;
 }
 
+/** A France-Visas (Schengen C) application, which can also be copied into a new one. */
+function isFranceSource(country: string | null, visaType: string | null): boolean {
+  const normalized = country?.trim().toLowerCase() ?? "";
+  return (normalized === "france" || normalized === "european_union") && isFranceVisasVisaType(visaType);
+}
+
 function answersForNewApplication(
   sourceAnswers: SavedAnswer[],
   intent: NewUsApplicationIntent | undefined,
+  isFrance = false,
 ): SavedAnswer[] {
+  // France answers are copied as saved; DS-160 legacy aliases only apply to the US.
+  if (isFrance) return sourceAnswers;
   const normalizedAnswers = normalizeCopiedDs160Answers(sourceAnswers);
   if (intent !== "restart_unsigned") return normalizedAnswers;
   return normalizedAnswers.filter((answer) => !DS160_RESTART_EXCLUDED_ANSWER_FIELDS.has(answer.field_name));
@@ -466,8 +476,12 @@ export async function createNewUsApplication(
     .maybeSingle();
   if (!source) return { error: "Application not found", status: 404 } as const;
   if (source.applicant_id !== profile.id) return { error: "Forbidden", status: 403 } as const;
-  if (!isUsDs160(source.country, source.visa_type)) {
-    return { error: "This action is only available for U.S. DS-160 applications", status: 400 } as const;
+  const isFrance = isFranceSource(source.country, source.visa_type);
+  if (!isUsDs160(source.country, source.visa_type) && !isFrance) {
+    return { error: "This action is only available for U.S. DS-160 and France-Visas applications", status: 400 } as const;
+  }
+  if (isFrance && intent === "restart_unsigned") {
+    return { error: "Restarting an unsigned application is only available for U.S. DS-160", status: 400 } as const;
   }
   const sourceApplication = source as SourceApplication;
 
@@ -488,7 +502,12 @@ export async function createNewUsApplication(
     && confirmedResult.status === "submitted"
     && typeof confirmedResult.applicationId === "string"
     && /^AA[A-Z0-9]{8}$/.test(confirmedResult.applicationId);
-  if (intent !== "restart_unsigned" && source.status !== "submitted" && !hasSubmittedResult) {
+  // A France-Visas run that finished (online application created, and
+  // possibly lodged) can be reused for a fresh application.
+  const hasFinishedFranceResult = isFrance
+    && confirmedResult?.country === "FR"
+    && (source.submission_result_status === "completed" || source.submission_result_status === "submitted");
+  if (intent !== "restart_unsigned" && source.status !== "submitted" && !hasSubmittedResult && !hasFinishedFranceResult) {
     return { error: "Only a submitted application can be used to start a new application", status: 409 } as const;
   }
 
@@ -631,7 +650,7 @@ export async function createNewUsApplication(
   if (!created) return { error: "Could not create a new application", status: 500 } as const;
 
   const { error: copyError } = await admin.from("visa_application_answers").insert(
-    answersForNewApplication(sourceAnswers as SavedAnswer[], intent).map((answer) => ({
+    answersForNewApplication(sourceAnswers as SavedAnswer[], intent, isFrance).map((answer) => ({
       application_id: created.id,
       field_name: answer.field_name,
       value_text: answer.value_text,

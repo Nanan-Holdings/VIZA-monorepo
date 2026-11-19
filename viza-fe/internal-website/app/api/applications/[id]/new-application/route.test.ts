@@ -273,6 +273,58 @@ describe("createNewUsApplication", () => {
     ]);
   });
 
+  it("copies a finished France-Visas application into a new editable France draft, answers unchanged", async () => {
+    const createQuery = query({ data: { id: "new-fr-draft" }, error: null });
+    const copyAnswersQuery = query({ data: null, error: null });
+    const from = vi.fn()
+      .mockReturnValueOnce(query({ data: { id: "profile-id" }, error: null }))
+      .mockReturnValueOnce(query({ data: {
+        id: "fr-source", applicant_id: "profile-id", country: "france", visa_type: "EU_SCHENGEN_C_SHORT_STAY",
+        visa_package_id: "fr-package", status: "archived", submission_result_status: "completed",
+        submission_result: { country: "FR", status: "submitted", applicationReference: "FRA1PE20260000001" },
+      }, error: null }))
+      .mockReturnValueOnce(query({ data: [{ field_name: "home_address_city", value_text: "确定", value_json: null }], error: null }))
+      .mockReturnValueOnce(query({ data: [], error: null })) // source documents
+      .mockReturnValueOnce(query({ data: null, error: null })) // no existing draft
+      .mockReturnValueOnce(createQuery)
+      .mockReturnValueOnce(copyAnswersQuery);
+    createAdminClient.mockReturnValue({ from });
+
+    await expect(createNewUsApplication("user-id", "fr-source")).resolves.toMatchObject({
+      applicationId: "new-fr-draft",
+      country: "france",
+      visaType: "EU_SCHENGEN_C_SHORT_STAY",
+      status: 201,
+    });
+    expect(createQuery.insert).toHaveBeenCalledWith(expect.objectContaining({
+      country: "france",
+      visa_type: "EU_SCHENGEN_C_SHORT_STAY",
+      visa_package_id: "fr-package",
+      status: "draft",
+    }));
+    expect(copyAnswersQuery.insert).toHaveBeenCalledWith([
+      { application_id: "new-fr-draft", field_name: "home_address_city", value_text: "确定", value_json: null },
+    ]);
+  });
+
+  it("refuses an unfinished France application and the US-only restart intent for France", async () => {
+    const unfinished = {
+      id: "fr-source", applicant_id: "profile-id", country: "france", visa_type: "EU_SCHENGEN_C_SHORT_STAY",
+      visa_package_id: null, status: "draft", submission_result_status: null, submission_result: null,
+    };
+    createAdminClient.mockReturnValue({ from: vi.fn()
+      .mockReturnValueOnce(query({ data: { id: "profile-id" }, error: null }))
+      .mockReturnValueOnce(query({ data: unfinished, error: null })) });
+    await expect(createNewUsApplication("user-id", "fr-source")).resolves.toMatchObject({ status: 409 });
+
+    createAdminClient.mockReturnValue({ from: vi.fn()
+      .mockReturnValueOnce(query({ data: { id: "profile-id" }, error: null }))
+      .mockReturnValueOnce(query({ data: { ...unfinished, status: "submitted" }, error: null })) });
+    await expect(
+      createNewUsApplication("user-id", "fr-source", { intent: "restart_unsigned" }),
+    ).resolves.toMatchObject({ status: 400 });
+  });
+
   it("does not overwrite an existing package when reopening a non-empty draft", async () => {
     const existingDraftQuery = query({ data: { id: "existing-draft", visa_package_id: "existing-package" }, error: null });
     const from = vi.fn()

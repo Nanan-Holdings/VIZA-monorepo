@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link, { useLinkStatus } from "next/link";
+import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import {
   Warning as AlertTriangle,
@@ -12,6 +13,7 @@ import {
   EyeSlash as EyeOff,
   FileArrowDown as FileDown,
   CircleNotch as Loader2,
+  ArrowCounterClockwise as RotateCcw,
   MapPin,
   ShieldCheck,
 } from "@phosphor-icons/react";
@@ -48,6 +50,33 @@ export function FrResultCard({ applicationId, result }: FrResultCardProps) {
   const isZh = isChineseLocale(useLocale());
   const appointmentT = useTranslations("franceAppointment.nextStepCard");
   const guideT = useTranslations("franceAppointment.nextStepsGuide");
+  const newAppT = useTranslations("franceAppointment.newApplication");
+  const router = useRouter();
+  const [startingNewApplication, setStartingNewApplication] = useState(false);
+  const [newApplicationError, setNewApplicationError] = useState<string | null>(null);
+
+  // Copy this application's answers and documents into a new, editable
+  // France application (this one stays as it is) and open it.
+  const startNewApplication = async () => {
+    if (startingNewApplication) return;
+    setStartingNewApplication(true);
+    setNewApplicationError(null);
+    try {
+      const response = await fetch(`/api/applications/${applicationId}/new-application`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const payload = (await response.json().catch(() => null)) as { href?: unknown; error?: unknown } | null;
+      if (!response.ok || typeof payload?.href !== "string") {
+        throw new Error(typeof payload?.error === "string" ? payload.error : newAppT("error"));
+      }
+      router.push(payload.href);
+    } catch (error) {
+      setNewApplicationError(error instanceof Error ? error.message : newAppT("error"));
+      setStartingNewApplication(false);
+    }
+  };
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
   const [manualAction, setManualAction] = useState<ManualAction | null>(null);
@@ -390,6 +419,28 @@ export function FrResultCard({ applicationId, result }: FrResultCardProps) {
             </span>
             <NextStepsLinkIndicator label={guideT("loading")} />
           </Link>
+        )}
+
+        {savedOnFranceVisas && (
+          <div className="space-y-2 rounded-md border border-input bg-background p-4" data-testid="fr-new-application">
+            <p className="text-sm font-semibold text-foreground">{newAppT("title")}</p>
+            <p className="text-xs leading-relaxed text-muted-foreground">{newAppT("body")}</p>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() => void startNewApplication()}
+              disabled={startingNewApplication}
+            >
+              {startingNewApplication ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <RotateCcw className="mr-2 h-4 w-4" aria-hidden="true" />
+              )}
+              {startingNewApplication ? newAppT("starting") : newAppT("button")}
+            </Button>
+            {newApplicationError ? <ClientErrorAlert message={newApplicationError} /> : null}
+          </div>
         )}
 
         {liveAssisted && !officialConfirmed && (manualAction || manualActionError) && (

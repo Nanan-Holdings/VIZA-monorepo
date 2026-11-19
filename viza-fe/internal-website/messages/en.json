@@ -5620,6 +5620,13 @@
       "title": "After you submit: booking and next steps",
       "body": "Booking at TLScontact, printing and signing the form, fees, what to bring, biometrics, all visa centre addresses, tracking and getting your passport back.",
       "loading": "Opening…"
+    },
+    "newApplication": {
+      "title": "Start a new France application with these details",
+      "body": "Copy this application's answers and documents into a new, editable application so you can correct them before submitting. This application stays as it is. Submitting the new one creates a new online application on France-Visas.",
+      "button": "Copy details and start a new application",
+      "starting": "Creating the new application…",
+      "error": "Could not create a new application. Please try again."
     }
   },
   "JapanAppointment": {
