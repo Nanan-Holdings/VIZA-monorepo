@@ -231,6 +231,44 @@ describe("applications selector", () => {
     await waitFor(() => expect(push).toHaveBeenCalledWith("/client/home"));
   });
 
+  it("opens a purchased package's form instead of Home when it has no application yet", async () => {
+    const packageOnlyFrance: ApplicationListItem = {
+      ...startedTaiwanItem,
+      key: "france",
+      countryKey: "france",
+      countryLabel: "France",
+      visaLabel: "Schengen short stay",
+      country: "france",
+      visaType: "EU_SCHENGEN_C_SHORT_STAY",
+      destinationId: "france-schengen",
+      continueHref: "/client/application/long-form?country=france&visaType=EU_SCHENGEN_C_SHORT_STAY",
+      records: [
+        {
+          ...startedTaiwanItem.records[0],
+          selectionKey: "package-france",
+          applicationId: null,
+          packageId: "package-france",
+          visaLabel: "Schengen short stay",
+          country: "france",
+          visaType: "EU_SCHENGEN_C_SHORT_STAY",
+          continueHref: "/client/application/long-form?country=france&visaType=EU_SCHENGEN_C_SHORT_STAY",
+          detailHref: "/client/status?packageId=package-france",
+        },
+      ],
+    };
+    render(<ApplicationsList items={[item, packageOnlyFrance]} initialExpandedCountry={null} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /France Schengen short stay/ }));
+
+    await waitFor(() =>
+      expect(push).toHaveBeenCalledWith(
+        "/client/application/long-form?country=france&visaType=EU_SCHENGEN_C_SHORT_STAY",
+      ),
+    );
+    expect(push).not.toHaveBeenCalledWith("/client/home");
+    expect(readActiveApplicationSelection()).toMatchObject({ applicationId: null, country: "france" });
+  });
+
   it("keeps the clicked country panel mounted while the switch is pending", async () => {
     let finishSelection: ((result: { success: true }) => void) | undefined;
     vi.mocked(selectUserVisaDestination).mockImplementationOnce(

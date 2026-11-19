@@ -246,11 +246,16 @@ export function ApplicationsList({
   ) {
     setSwitchError(null);
     setSwitchingId(record.selectionKey);
+    // Home can only show an existing application. A purchased package with no
+    // application yet would make Home fall back to another country's
+    // application (and save that), so open the package's own form instead,
+    // which creates its draft.
+    const target = record.applicationId ? "/client/home" : record.continueHref;
 
     if (!destinationId) {
       isNavigatingToSelection.current = true;
       setActiveApplicationSelection(recordSelection(record));
-      router.push("/client/home");
+      router.push(target);
       return;
     }
 
@@ -261,7 +266,7 @@ export function ApplicationsList({
       } else {
         isNavigatingToSelection.current = true;
         setActiveApplicationSelection(recordSelection(record));
-        router.push("/client/home");
+        router.push(target);
       }
       setSwitchingId(null);
     });
