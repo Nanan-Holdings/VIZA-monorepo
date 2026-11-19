@@ -49,6 +49,12 @@ const RECOVERABLE_SUBMISSION_RESULT_STATUSES = new Set([
   "action_required",
   "blocked",
   "needs_attention",
+  // Official applicant handoff (0209): the applicant cancelled, or the
+  // handoff is waiting for / expired before their own official submit. The
+  // same application stays editable so its answers and documents are reused
+  // instead of a new empty draft being created.
+  "needs_user_action",
+  "cancelled",
 ]);
 
 function normalize(value: string | null | undefined): string {

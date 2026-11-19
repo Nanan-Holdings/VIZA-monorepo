@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import type { OfficialHandoffInspection } from "../official-handoff";
+import type { OfficialHandoffInspection, OfficialHandoffInspector } from "../official-handoff";
 import { classifyIndonesiaPortalSnapshot, type IndonesiaPortalSnapshot } from "./portal-state";
 
 const INDONESIA_PORTAL_HOST = /(^|\.)imigrasi\.go\.id$/i;
@@ -41,6 +41,9 @@ export function inspectIndonesiaHandoffSnapshot(
   }
   if (!INDONESIA_PORTAL_HOST.test(host)) return { outcome: "pending", note: "not_official_portal" };
   const text = snapshot.text ?? "";
+  if (isIndonesiaLoggedOutSnapshot(snapshot)) {
+    return { outcome: "lost", note: "official_portal_logged_out" };
+  }
   if (/\/step_[1-4]\b/i.test(snapshot.url) && !/waiting for payment|menunggu pembayaran|billing code/i.test(text)) {
     return { outcome: "pending", note: "application_step_page" };
   }
@@ -76,6 +79,29 @@ export function inspectIndonesiaHandoffSnapshot(
   };
 }
 
+/**
+ * True when the official portal has dropped the applicant's login: its home
+ * page, the passport-country / visa selection page, or the sign-in form. A
+ * filled application, the application list, detail/OTP and payment pages are
+ * never treated as logged out.
+ */
+export function isIndonesiaLoggedOutSnapshot(snapshot: IndonesiaPortalSnapshot): boolean {
+  let url: URL;
+  try {
+    url = new URL(snapshot.url);
+  } catch {
+    return false;
+  }
+  if (!INDONESIA_PORTAL_HOST.test(url.hostname)) return false;
+  // The official Submit asks for an emailed OTP on a login-style page; the
+  // applicant is mid-verification there, not logged out.
+  if (/\botp\b/i.test(url.pathname) || /enter otp code|kode otp/i.test(snapshot.text ?? "")) return false;
+  const path = url.pathname.replace(/\/+$/, "").toLowerCase();
+  if (path === "" || path === "/web" || path === "/front") return true;
+  if (/^\/(?:web|front)\/(?:visa-selection|login|register)(?:\/|$)/.test(path)) return true;
+  return false;
+}
+
 /** Read-only page inspection used by the official handoff watcher. */
 export async function inspectIndonesiaHandoffPage(page: Page): Promise<OfficialHandoffInspection> {
   if (page.isClosed()) return { outcome: "pending", note: "page_closed" };
@@ -84,3 +110,27 @@ export async function inspectIndonesiaHandoffPage(page: Page): Promise<OfficialH
   const text = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
   return inspectIndonesiaHandoffSnapshot({ url, title, text, capturedAt: new Date().toISOString() });
 }
+
+/**
+ * Keep the official login alive: one same-origin background GET of the portal
+ * root with the session cookie. It does not navigate, click, or change the
+ * page the applicant sees.
+ */
+export async function keepIndonesiaHandoffAlive(page: Page): Promise<void> {
+  if (page.isClosed()) return;
+  let host = "";
+  try {
+    host = new URL(page.url()).hostname;
+  } catch {
+    return;
+  }
+  if (!INDONESIA_PORTAL_HOST.test(host)) return;
+  await page.evaluate(async () => {
+    await fetch("/", { credentials: "include", cache: "no-store", redirect: "manual" });
+  });
+}
+
+export const indonesiaHandoffInspector: OfficialHandoffInspector = {
+  inspect: inspectIndonesiaHandoffPage,
+  keepAlive: keepIndonesiaHandoffAlive,
+};

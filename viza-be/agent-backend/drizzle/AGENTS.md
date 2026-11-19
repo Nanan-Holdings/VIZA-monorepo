@@ -648,3 +648,10 @@ capped at three handoffs per application per rolling 24 hours. Providers are
 allowlisted in `official_handoff_queue_prefix()`; add one only after its runner
 stops before the official final submit. The Taiwan RPCs in 0149 are unchanged.
 Keep `20261113120000_official_applicant_handoff.sql` byte-identical.
+
+`0210_official_handoff_session_lost.sql` replaces only
+`settle_official_applicant_handoff`, adding the `lost` outcome for a portal
+that logged the session out before expiry: an unsubmitted handoff is abandoned
+immediately (result gets `officialSessionLost`), a submitted one is closed.
+All 0209 ownership, lease, and evidence checks are unchanged. Keep
+`20261118090000_official_handoff_session_lost.sql` byte-identical.

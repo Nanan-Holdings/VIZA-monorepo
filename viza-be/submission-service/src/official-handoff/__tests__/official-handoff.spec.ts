@@ -9,7 +9,7 @@ import {
   type OfficialHandoffInspection,
   type OfficialHandoffRpcClient,
 } from "../index";
-import { inspectIndonesiaHandoffSnapshot } from "../../indonesia/handoff";
+import { inspectIndonesiaHandoffSnapshot, isIndonesiaLoggedOutSnapshot } from "../../indonesia/handoff";
 
 type Call = { fn: string; args: Record<string, unknown> };
 
@@ -90,7 +90,7 @@ test("watcher settles submitted with official evidence and disconnects read-only
   const examined = await runOfficialHandoffWatchTick({
     client,
     workerId: "w",
-    inspectors: { indonesia_c1_live: async () => inspection },
+    inspectors: { indonesia_c1_live: { inspect: async () => inspection } },
     submittedResult: (_h, receipt) => ({ status: "submitted", officialReceipt: receipt }),
     resolveConnectUrl: async (id) => (id === "bb_123" ? "wss://connect" : null),
     connect: async () => fakeBrowser(closed),
@@ -102,7 +102,7 @@ test("watcher settles submitted with official evidence and disconnects read-only
   assert.deepEqual((settle?.args.p_submission_result as Record<string, unknown>).officialReceipt, inspection.receipt);
 });
 
-test("watcher never inspects an unclaimed handoff and abandons it after expiry", async () => {
+test("watcher does not connect to an expired handoff and abandons it", async () => {
   const { client, calls } = fakeClient({
     lease_official_applicant_handoff_watch: [[leased({ handoff_status: "queued", expires_at: new Date(Date.now() - 1_000).toISOString() })]],
     settle_official_applicant_handoff: [[{ settled: true, handoff_status: "abandoned" }]],
@@ -112,7 +112,7 @@ test("watcher never inspects an unclaimed handoff and abandons it after expiry",
   await runOfficialHandoffWatchTick({
     client,
     workerId: "w",
-    inspectors: { indonesia_c1_live: async () => ({ outcome: "pending", note: "x" }) },
+    inspectors: { indonesia_c1_live: { inspect: async () => ({ outcome: "pending", note: "x" }) } },
     submittedResult: () => ({}),
     resolveConnectUrl: async () => "wss://connect",
     connect: async () => {
@@ -143,7 +143,7 @@ test("a submitted handoff stays open for payment and closes on official completi
   await runOfficialHandoffWatchTick({
     client: pendingRun.client,
     workerId: "w",
-    inspectors: { indonesia_c1_live: async () => ({ outcome: "submitted", final: false, receipt }) },
+    inspectors: { indonesia_c1_live: { inspect: async () => ({ outcome: "submitted", final: false, receipt }) } },
     submittedResult: () => ({}),
     resolveConnectUrl: async () => "wss://connect",
     connect: async () => fakeBrowser({ value: false }),
@@ -159,7 +159,7 @@ test("a submitted handoff stays open for payment and closes on official completi
   await runOfficialHandoffWatchTick({
     client: finalRun.client,
     workerId: "w",
-    inspectors: { indonesia_c1_live: async () => ({ outcome: "submitted", final: true, receipt }) },
+    inspectors: { indonesia_c1_live: { inspect: async () => ({ outcome: "submitted", final: true, receipt }) } },
     submittedResult: (_h, r) => ({ status: "submitted", officialReceipt: r }),
     resolveConnectUrl: async () => "wss://connect",
     connect: async () => fakeBrowser({ value: false }),
@@ -180,7 +180,7 @@ test("watcher releases the lease as pending when inspection throws", async () =>
   await runOfficialHandoffWatchTick({
     client,
     workerId: "w",
-    inspectors: { indonesia_c1_live: async () => { throw new Error("boom"); } },
+    inspectors: { indonesia_c1_live: { inspect: async () => { throw new Error("boom"); } } },
     submittedResult: () => ({}),
     resolveConnectUrl: async () => "wss://connect",
     connect: async () => fakeBrowser({ value: false }),
@@ -227,11 +227,76 @@ test("Indonesia inspector ignores generic official pages that merely mention pay
   assert.equal(inspection.outcome, "pending");
 });
 
-test("Indonesia inspector ignores a login verification-code page", () => {
+test("Indonesia inspector never reads a login verification-code page as submitted", () => {
   const inspection = inspectIndonesiaHandoffSnapshot({
     url: "https://evisa.imigrasi.go.id/front/login",
     text: "Enter the verification code sent to your email",
     capturedAt: "2026-11-14T00:00:00Z",
   });
-  assert.equal(inspection.outcome, "pending");
+  assert.equal(inspection.outcome, "lost");
+});
+
+test("watcher keeps an open official session alive and settles 'lost' only after two logged-out checks", async () => {
+  const lostObservations = new Map<string, number>();
+  let keepAlives = 0;
+  const run = async (inspection: OfficialHandoffInspection, settleRows: unknown[] = [[{ settled: true, handoff_status: "queued" }]]) => {
+    const fake = fakeClient({
+      lease_official_applicant_handoff_watch: [[leased({ handoff_status: "queued" })]],
+      settle_official_applicant_handoff: settleRows,
+    });
+    const released: string[] = [];
+    await runOfficialHandoffWatchTick({
+      client: fake.client,
+      workerId: "w",
+      inspectors: { indonesia_c1_live: { inspect: async () => inspection, keepAlive: async () => { keepAlives += 1; } } },
+      submittedResult: () => ({}),
+      resolveConnectUrl: async () => "wss://connect",
+      connect: async () => fakeBrowser({ value: false }),
+      releaseSession: async (id) => { released.push(id); },
+      lostObservations,
+    });
+    return { outcome: fake.calls.find((c) => c.fn === "settle_official_applicant_handoff")?.args.p_outcome, released };
+  };
+  assert.equal((await run({ outcome: "pending", note: "application_step_page" })).outcome, "pending");
+  assert.equal(keepAlives, 1, "an unclaimed handoff is kept alive too");
+  assert.equal((await run({ outcome: "lost", note: "official_portal_logged_out" })).outcome, "pending", "first lost observation waits");
+  const second = await run({ outcome: "lost", note: "official_portal_logged_out" }, [[{ settled: true, handoff_status: "abandoned" }]]);
+  assert.equal(second.outcome, "lost");
+  assert.deepEqual(second.released, ["bb_123"]);
+  assert.equal(keepAlives, 1, "a logged-out session is not kept alive");
+});
+
+test("an unclaimed session is never settled as submitted", async () => {
+  const { client, calls } = fakeClient({
+    lease_official_applicant_handoff_watch: [[leased({ handoff_status: "queued" })]],
+    settle_official_applicant_handoff: [[{ settled: true, handoff_status: "queued" }]],
+  });
+  await runOfficialHandoffWatchTick({
+    client,
+    workerId: "w",
+    inspectors: { indonesia_c1_live: { inspect: async () => ({ outcome: "submitted", final: false, receipt: {
+      source: "official_portal_after_applicant_submit", reference: "REF123456", portalUrl: "https://evisa.imigrasi.go.id/x", capturedAt: "t", officialState: "waiting_for_payment",
+    } }) } },
+    submittedResult: () => ({}),
+    resolveConnectUrl: async () => "wss://connect",
+    connect: async () => fakeBrowser({ value: false }),
+  });
+  assert.equal(calls.find((c) => c.fn === "settle_official_applicant_handoff")?.args.p_outcome, "pending");
+});
+
+test("Indonesia logout detection only matches home, selection, and sign-in pages", () => {
+  assert.equal(isIndonesiaLoggedOutSnapshot({ url: "https://evisa.imigrasi.go.id/web/visa-selection" }), true);
+  assert.equal(isIndonesiaLoggedOutSnapshot({ url: "https://evisa.imigrasi.go.id/" }), true);
+  assert.equal(isIndonesiaLoggedOutSnapshot({ url: "https://evisa.imigrasi.go.id/front/login" }), true);
+  assert.equal(isIndonesiaLoggedOutSnapshot({ url: "https://evisa.imigrasi.go.id/web/application_add/visa/step_3" }), false);
+  assert.equal(isIndonesiaLoggedOutSnapshot({ url: "https://evisa.imigrasi.go.id/web/application-detail-otp/abc" }), false);
+  assert.equal(isIndonesiaLoggedOutSnapshot({ url: "https://pay.example/checkout" }), false);
+  assert.equal(
+    isIndonesiaLoggedOutSnapshot({ url: "https://evisa.imigrasi.go.id/front/login", text: "Enter OTP Code OTP Code * Submit" }),
+    false,
+  );
+  assert.equal(
+    inspectIndonesiaHandoffSnapshot({ url: "https://evisa.imigrasi.go.id/web/visa-selection", text: "Passport/Country/Region", capturedAt: "t" }).outcome,
+    "lost",
+  );
 });

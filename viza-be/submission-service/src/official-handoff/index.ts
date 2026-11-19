@@ -10,7 +10,9 @@
  * settles the handoff from official on-page evidence.
  *
  * The watcher never clicks, types, navigates, or closes pages in an applicant
- * session. It only reads page URL/title/text and disconnects.
+ * session. It reads page URL/title/text, may send one same-origin background
+ * GET so the official portal does not log an idle session out (0210), and
+ * disconnects.
  */
 import { chromium, type Browser, type Page } from "@playwright/test";
 import {
@@ -66,9 +68,19 @@ export interface OfficialReceiptEvidence {
 export type OfficialHandoffInspection =
   /** `final` is true when the official page shows the fee paid / application complete. */
   | { outcome: "submitted"; receipt: OfficialReceiptEvidence; final: boolean }
+  /** The official portal logged the session out (home / selection / login page). */
+  | { outcome: "lost"; note: string }
   | { outcome: "pending"; note: string };
 
-export type OfficialHandoffInspector = (page: Page) => Promise<OfficialHandoffInspection>;
+export interface OfficialHandoffInspector {
+  /** Read-only look at one page. */
+  inspect: (page: Page) => Promise<OfficialHandoffInspection>;
+  /** Optional same-origin background request that keeps the official login alive. Never navigates. */
+  keepAlive?: (page: Page) => Promise<void>;
+}
+
+/** Consecutive "lost" observations required before settling, to ride out a page mid-redirect. */
+export const OFFICIAL_SESSION_LOST_CONFIRMATIONS = 2;
 
 interface RpcResult<T> {
   data: T | null;
@@ -134,7 +146,7 @@ export async function settleOfficialApplicantHandoff(
     takeoverId: string;
     queueId: string;
     workerId: string;
-    outcome: "pending" | "submitted" | "closed" | "abandoned";
+    outcome: "pending" | "submitted" | "closed" | "abandoned" | "lost";
     submissionResult?: Record<string, unknown> | null;
   },
 ): Promise<string | null> {
@@ -162,7 +174,11 @@ export interface OfficialHandoffWatchDeps {
   now?: () => Date;
   limit?: number;
   log?: (message: string) => void;
+  /** Per-handoff count of consecutive "lost" observations; kept by the long-lived worker. */
+  lostObservations?: Map<string, number>;
 }
+
+const defaultLostObservations = new Map<string, number>();
 
 /** Read-only pass over the official page(s) in an applicant session. */
 async function inspectSession(
@@ -170,13 +186,24 @@ async function inspectSession(
   inspector: OfficialHandoffInspector,
 ): Promise<OfficialHandoffInspection> {
   const pages = browser.contexts().flatMap((context) => context.pages());
-  let lastPending: OfficialHandoffInspection = { outcome: "pending", note: "no_official_page" };
+  // Submitted evidence on any page wins; the session counts as lost only when
+  // every official page shows a logged-out state.
+  let sawLost = false;
+  let sawOther = false;
+  let lastNote = "no_official_page";
   for (const page of pages) {
-    const inspection = await inspector(page);
+    const inspection = await inspector.inspect(page);
     if (inspection.outcome === "submitted") return inspection;
-    lastPending = inspection;
+    if (inspection.outcome === "lost") sawLost = true;
+    else if (inspection.note !== "not_official_portal") sawOther = true;
+    lastNote = inspection.note;
   }
-  return lastPending;
+  if (sawLost && !sawOther) return { outcome: "lost", note: lastNote };
+  if (!sawLost && !sawOther) return { outcome: "pending", note: lastNote };
+  for (const page of pages) {
+    await inspector.keepAlive?.(page).catch(() => undefined);
+  }
+  return { outcome: "pending", note: lastNote };
 }
 
 /**
@@ -214,7 +241,7 @@ export async function runOfficialHandoffWatchTick(deps: OfficialHandoffWatchDeps
 
   for (const handoff of handoffs) {
     const settle = (
-      outcome: "pending" | "submitted" | "closed" | "abandoned",
+      outcome: "pending" | "submitted" | "closed" | "abandoned" | "lost",
       submissionResult?: Record<string, unknown>,
     ) =>
       settleOfficialApplicantHandoff(deps.client, {
@@ -234,9 +261,11 @@ export async function runOfficialHandoffWatchTick(deps: OfficialHandoffWatchDeps
       const alreadySubmitted = handoff.queue_status.endsWith("_applicant_submitted");
       const inspector = deps.inspectors[handoff.provider];
 
-      // Only a session the applicant actually opened can contain their submit.
-      let inspection: OfficialHandoffInspection = { outcome: "pending", note: "not_claimed" };
-      if (handoff.handoff_status === "claimed" && inspector && sessionId) {
+      // Every open session is checked (and kept alive) so a portal logout is
+      // caught before the applicant opens it; only a claimed session can carry
+      // the applicant's own submit.
+      let inspection: OfficialHandoffInspection = { outcome: "pending", note: "not_checked" };
+      if (!expired && inspector && sessionId) {
         const connectUrl = await (deps.resolveConnectUrl ?? getBrowserbaseRunningSessionConnectUrl)(sessionId);
         if (connectUrl) {
           const browser = await (deps.connect ?? ((url) => chromium.connectOverCDP(url, { timeout: 30_000 })))(connectUrl);
@@ -250,7 +279,20 @@ export async function runOfficialHandoffWatchTick(deps: OfficialHandoffWatchDeps
         }
       }
 
-      if (alreadySubmitted) {
+      const lostCounts = deps.lostObservations ?? defaultLostObservations;
+      if (inspection.outcome === "submitted" && handoff.handoff_status !== "claimed") {
+        inspection = { outcome: "pending", note: "submitted_page_before_claim" };
+      }
+      const lostCount = inspection.outcome === "lost" ? (lostCounts.get(handoff.takeover_id) ?? 0) + 1 : 0;
+      if (lostCount > 0) lostCounts.set(handoff.takeover_id, lostCount);
+      else lostCounts.delete(handoff.takeover_id);
+
+      if (lostCount >= OFFICIAL_SESSION_LOST_CONFIRMATIONS) {
+        const status = await settle("lost");
+        lostCounts.delete(handoff.takeover_id);
+        if (status) await release();
+        log(`[official-handoff] takeover=${handoff.takeover_id} official session lost settle=${status ?? "skipped"}`);
+      } else if (alreadySubmitted) {
         // Submitted earlier; keep the session open for payment until the
         // official page shows it is complete or the handoff expires.
         if (inspection.outcome === "submitted" && inspection.final) {

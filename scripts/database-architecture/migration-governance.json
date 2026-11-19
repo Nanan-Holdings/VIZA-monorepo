@@ -230,6 +230,11 @@
       "drizzle": "viza-be/agent-backend/drizzle/0209_official_applicant_handoff.sql",
       "supabase": "viza-fe/internal-website/supabase/migrations/20261113120000_official_applicant_handoff.sql",
       "sha256": "220fd485ecf9bb94f79aeb44477d9a2ffcd8b5b7a4005c06bd357c23cf6bff87"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0210_official_handoff_session_lost.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20261118090000_official_handoff_session_lost.sql",
+      "sha256": "181ca1558bb8e524119a1927c12fd8435feea5f1d1b424abb0481d6078a50f9e"
     }
   ],
   "no_mirror": [
