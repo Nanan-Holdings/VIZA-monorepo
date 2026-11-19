@@ -3982,6 +3982,8 @@ async function processFvItem(
         continueAfterConfirmation:
           liveAssisted && process.env.FRANCE_CONTINUE_AFTER_CONFIRMATION_ENABLED !== "false",
         stepTimeoutMs: Math.min(config.liveMaxDurationSeconds * 1000, 30 * 60 * 1000),
+        // Live progress: the current France-Visas phase, e.g. fv_stage:step3.
+        onStage: (phase) => writeFvStage(`fv_stage:${phase}`),
         onOfficialPortalOpened: liveAssisted
           ? async ({ url }) => {
               const now = new Date().toISOString();
@@ -3997,6 +3999,11 @@ async function processFvItem(
           : undefined,
       },
     );
+    if (result.stepTimings?.length) {
+      console.log(
+        `[fv] Run ${runId} timings: ${result.stepTimings.map((t) => `${t.phase}=${Math.round(t.ms / 1000)}s`).join(" ")}`,
+      );
+    }
 
     if (result.status === "prefilled") {
       await writeFvStage("official_record_confirmed");
@@ -4070,6 +4077,7 @@ async function processFvItem(
         provider: liveAssisted ? "france_visas_live" : "france_visas_dry_run",
         applicationReference: officialReference,
         reviewDiffStatus: liveAssisted ? "not_run" : undefined,
+        stepTimings: result.stepTimings,
         manualAction: undefined,
         paymentStatus: "manual_required",
         appointmentStatus: lodgedAtVisaCentre ? "booked" : "manual_required",

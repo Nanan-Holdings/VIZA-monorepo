@@ -98,6 +98,8 @@ export interface FrSubmissionResult {
   provider?: "france_visas_dry_run" | "france_visas_live";
   applicationReference: string; // 13-digit FV reference; redacted for live-assisted rows
   reviewDiffStatus?: "not_run" | "passed" | "failed";
+  /** How long each France-Visas phase took in this run (ops diagnostics). */
+  stepTimings?: Array<{ phase: string; ms: number }>;
   manualAction?: {
     type:
       | "captcha"

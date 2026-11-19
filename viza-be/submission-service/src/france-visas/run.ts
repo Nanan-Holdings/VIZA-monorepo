@@ -64,6 +64,8 @@ export interface FillFranceVisasOptions {
   pdfOutputDir?: string;
   /** Optional heartbeat invoked once a signed-in official portal page is open. */
   onOfficialPortalOpened?: (info: { url: string }) => Promise<void> | void;
+  /** Called when the run enters a phase (sign-in, step1..step6, finalize), for live progress. */
+  onStage?: (phase: string) => Promise<void> | void;
   /** Where to save failure screenshots. Default: an OS temp directory. */
   diagnosticsDir?: string;
   /** After the confirmed application is visible, tick "I declare" and click Continue. */
@@ -80,6 +82,8 @@ export type FillFranceVisasResult =
   | {
       status: "prefilled";
       runId?: string;
+      /** How long each phase took, in order. */
+      stepTimings: FranceStepTiming[];
       landedOn: FvPageId | "unknown";
       stepsCompleted: FvPageId[];
       /**
@@ -118,6 +122,7 @@ export type FillFranceVisasResult =
   | {
       status: "failed";
       runId?: string;
+      stepTimings?: FranceStepTiming[];
       failedStep: FvPageId | "unknown";
       validationMessages: string[];
       diagnostics: FranceVisasFailureDiagnostics | null;
@@ -126,6 +131,11 @@ export type FillFranceVisasResult =
     };
 
 const DEFAULT_STEP_TIMEOUT_MS = 60_000;
+
+export interface FranceStepTiming {
+  phase: string;
+  ms: number;
+}
 
 /**
  * Run one end-to-end France-Visas autofill. Returns a typed result the
@@ -141,6 +151,20 @@ export async function fillFranceVisasApplication(
   let session: FvSessionHandles | null = null;
   let currentStep: FvPageId | "unknown" = "unknown";
   const answers = input.answers;
+  const stepTimings: FranceStepTiming[] = [];
+  let currentPhase = "signin";
+  let phaseStartedAt = Date.now();
+  const enterPhase = async (next: string) => {
+    stepTimings.push({ phase: currentPhase, ms: Date.now() - phaseStartedAt });
+    currentPhase = next;
+    phaseStartedAt = Date.now();
+    try {
+      await options.onStage?.(next);
+    } catch {
+      // Progress reporting never stops the run.
+    }
+  };
+  const closeTimings = () => [...stepTimings, { phase: currentPhase, ms: Date.now() - phaseStartedAt }];
 
   // Never send placeholder or invalid data to the official form: stop before
   // signing in so no France-Visas draft is created for answers that need fixing.
@@ -166,6 +190,7 @@ export async function fillFranceVisasApplication(
       runId,
     });
     logRun(runId, "sign-in complete");
+    await enterPhase("start_application");
     await options.onOfficialPortalOpened?.({ url: redactOfficialUrl(session.page.url()) });
 
     // ── Start a fresh application ────────────────────────────────────────
@@ -173,6 +198,7 @@ export async function fillFranceVisasApplication(
     await startNewApplication(session.page, { timeoutMs: stepTimeoutMs });
     currentStep = "step1";
     logRun(runId, "landed on step1");
+    await enterPhase("step1");
 
     // ── Step 1 — Your plans ──────────────────────────────────────────────
     logRun(runId, "filling step1");
@@ -182,6 +208,7 @@ export async function fillFranceVisasApplication(
     stepsCompleted.push("step1");
     currentStep = "step2";
     logRun(runId, "landed on step2");
+    await enterPhase("step2");
 
     // ── Step 2 — Your information ────────────────────────────────────────
     logRun(runId, "filling step2");
@@ -191,6 +218,7 @@ export async function fillFranceVisasApplication(
     stepsCompleted.push("step2");
     currentStep = "step3";
     logRun(runId, "landed on step3");
+    await enterPhase("step3");
 
     // ── Step 3 — Your last visa ──────────────────────────────────────────
     logRun(runId, "filling step3");
@@ -200,6 +228,7 @@ export async function fillFranceVisasApplication(
     stepsCompleted.push("step3");
     currentStep = "step4";
     logRun(runId, "landed on step4");
+    await enterPhase("step4");
 
     // ── Step 4 — Your stay ───────────────────────────────────────────────
     logRun(runId, "filling step4");
@@ -209,6 +238,7 @@ export async function fillFranceVisasApplication(
     stepsCompleted.push("step4");
     currentStep = "step5";
     logRun(runId, "landed on step5");
+    await enterPhase("step5");
 
     // ── Step 5 — Your contacts ───────────────────────────────────────────
     logRun(runId, "filling step5");
@@ -226,6 +256,7 @@ export async function fillFranceVisasApplication(
         validationMessages: ["France-Visas host-organisation (hotel) fields are not mapped yet"],
         diagnostics: null,
         error: { code: "france_host_organization_capture", hostOrganizationFields },
+        stepTimings: closeTimings(),
         url: redactOfficialUrl(session.page.url()),
       };
     }
@@ -234,6 +265,7 @@ export async function fillFranceVisasApplication(
     stepsCompleted.push("step5");
     currentStep = "step6";
     logRun(runId, "landed on step6");
+    await enterPhase("step6");
 
     // ── Step 6 — Supporting documents (informational, "Continue") ────────
     // Step 6 is informational with no fillable fields; just advance via the
@@ -261,6 +293,7 @@ export async function fillFranceVisasApplication(
     if (options.finalize !== false) {
       currentStep = "accueil";
       logRun(runId, "finalizing draft and downloading CERFA");
+      await enterPhase("finalize");
       const finalized = await finalizeAndDownloadPdf(session.page, {
         outputDir: options.pdfOutputDir,
         timeoutMs: stepTimeoutMs,
@@ -292,6 +325,7 @@ export async function fillFranceVisasApplication(
 
     return {
       status: "prefilled",
+      stepTimings: closeTimings(),
       runId,
       landedOn: landed.id,
       stepsCompleted,
@@ -332,6 +366,7 @@ export async function fillFranceVisasApplication(
       diagnostics,
       error: serializeError(err),
       url: redactOfficialUrl(url),
+      stepTimings: closeTimings(),
     };
   } finally {
     if (session) {
