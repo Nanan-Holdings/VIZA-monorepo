@@ -116,6 +116,7 @@ import {
   NormalizationError,
   type NormalizeInput,
 } from "./france-visas";
+import { FranceAnswersInvalidError, findFranceAnswerIssues } from "./france-visas/fallbacks";
 import {
   ensureApplicantInboxAlias,
   generateApplicantInboxAlias,
@@ -3873,6 +3874,30 @@ async function processFvItem(
     const rawAnswers = await loadRawAnswers(item.application_id);
     const answerMap = buildAnswerMap(rawAnswers);
 
+    await writeFvStage("normalizing_answers");
+    // FV-specific overrides that the seed schema doesn't carry — the frontend
+    // writes them into visa_application_answers with `fv_` prefixed keys.
+    const normalizeInput: NormalizeInput = {
+      answers: answerMap,
+      profile,
+      application,
+      fvOverrides: {
+        depositCountry: requireAnswer(answerMap, "fv_deposit_country"),
+        depositTown: requireAnswer(answerMap, "fv_deposit_town"),
+        authority: answerMap.fv_authority ?? undefined,
+        destination: answerMap.fv_destination ?? undefined,
+        purpose: requireAnswer(answerMap, "fv_purpose"),
+        occupationCode: answerMap.fv_occupation_code ?? undefined,
+        businessSegment: answerMap.fv_business_segment ?? undefined,
+      },
+    };
+
+    const answers = normalizeFvAnswers(normalizeInput);
+    // Fail before the France-Visas account or browser is touched: the
+    // official form must only receive the applicant's own valid answers.
+    const answerIssues = findFranceAnswerIssues(answers);
+    if (answerIssues.length > 0) throw new FranceAnswersInvalidError(answerIssues);
+
     await writeFvStage("loading_official_account");
     let account = await loadFvAccount(application.applicant_id, item.application_id, item.id);
     if (!account) {
@@ -3937,25 +3962,6 @@ async function processFvItem(
       }
     }
 
-    await writeFvStage("normalizing_answers");
-    // FV-specific overrides that the seed schema doesn't carry — the frontend
-    // writes them into visa_application_answers with `fv_` prefixed keys.
-    const normalizeInput: NormalizeInput = {
-      answers: answerMap,
-      profile,
-      application,
-      fvOverrides: {
-        depositCountry: requireAnswer(answerMap, "fv_deposit_country"),
-        depositTown: requireAnswer(answerMap, "fv_deposit_town"),
-        authority: answerMap.fv_authority ?? undefined,
-        destination: answerMap.fv_destination ?? undefined,
-        purpose: requireAnswer(answerMap, "fv_purpose"),
-        occupationCode: answerMap.fv_occupation_code ?? undefined,
-        businessSegment: answerMap.fv_business_segment ?? undefined,
-      },
-    };
-
-    const answers = normalizeFvAnswers(normalizeInput);
     await writeFvStage("running_official_portal");
     const result = await fillFranceVisasApplication(
       {
@@ -4066,7 +4072,6 @@ async function processFvItem(
         officialStatus: lodgedAtVisaCentre
           ? "lodged_at_visa_centre"
           : liveAssisted ? "official_record_confirmed" : "draft_prefilled",
-        fieldFallbacks: result.fieldFallbacks,
         postConfirmationContinue: result.postConfirmationContinue,
         ...(pdfStoragePath ? { printablePdfStoragePath: pdfStoragePath } : {}),
       };
@@ -4083,10 +4088,16 @@ async function processFvItem(
       await writeFvStage("official_portal_failed");
       const errorMsg = typeof result.error?.message === "string"
         ? result.error.message
-        : `failed at ${result.failedStep}`;
+        : result.validationMessages.length > 0
+          ? result.validationMessages.join("; ")
+          : `failed at ${result.failedStep}`;
       const resultErrorCode = typeof result.error?.code === "string"
         ? result.error.code
         : "";
+      // Data problems and the hotel-field capture stop are not fixed by retrying.
+      const nonRetryableResult =
+        resultErrorCode === "france_answers_invalid" ||
+        resultErrorCode === "france_host_organization_capture";
       const isManualGateFailure =
         liveAssisted &&
         (resultErrorCode === "GATE_DETECTED" ||
@@ -4097,7 +4108,7 @@ async function processFvItem(
       const newAttempts = item.attempts + 1;
       const newStatus = isManualGateFailure
         ? "action_required"
-        : newAttempts >= MAX_ATTEMPTS ? "fv_prefill_failed" : "fv_prefill_pending";
+        : nonRetryableResult || newAttempts >= MAX_ATTEMPTS ? "fv_prefill_failed" : "fv_prefill_pending";
 
       if (manualActionType) {
         await createFranceManualAction({
@@ -4126,7 +4137,9 @@ async function processFvItem(
                 manual_action_status: isManualGateFailure ? "pending" : "blocked",
                 live_checkpoint: manualActionType,
                 official_status: isManualGateFailure ? "manual_action_required" : "official_portal_error",
-                error_code: isManualGateFailure ? "france_visas_manual_gate" : "france_visas_prefill_failed",
+                error_code: isManualGateFailure
+                  ? "france_visas_manual_gate"
+                  : nonRetryableResult ? resultErrorCode : "france_visas_prefill_failed",
                 error_message: errorMsg,
               }
             : {}),
@@ -4144,7 +4157,7 @@ async function processFvItem(
             ),
             "action_required",
         );
-      } else if (newAttempts >= MAX_ATTEMPTS) {
+      } else if (nonRetryableResult || newAttempts >= MAX_ATTEMPTS) {
         await markSubmissionFailed(item.application_id, errorMsg);
         await sendFailureAlert(item.application_id, `[FV] ${errorMsg}`);
       }
@@ -4194,11 +4207,16 @@ async function processFvItem(
               official_status: isGateFailure ? "manual_action_required" : "official_portal_error",
               error_code: isGateFailure
                 ? "france_visas_manual_gate"
-                : isNormalizationFailure
-                  ? "france_visas_normalization_failed"
-                  : "france_visas_unhandled_error",
+                : err instanceof FranceAnswersInvalidError
+                  ? err.errorCode
+                  : isNormalizationFailure
+                    ? "france_visas_normalization_failed"
+                    : "france_visas_unhandled_error",
               error_message: errorMsg,
             }
+          : {}),
+        ...(err instanceof FranceAnswersInvalidError
+          ? { fv_result_payload: { code: err.errorCode, issues: err.issues } as unknown as Record<string, unknown> }
           : {}),
         updated_at: new Date().toISOString(),
       });

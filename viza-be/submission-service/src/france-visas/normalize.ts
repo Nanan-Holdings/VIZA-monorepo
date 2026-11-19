@@ -466,20 +466,27 @@ export function normalizeFvAnswers(input: NormalizeInput): FvApplicationAnswers 
     purposeCategory: step1.purposeCategory,
   };
 
+  // Accommodation: a private host goes in France-Visas' host-person block from
+  // the applicant's host_* answers. Hotels, rentals and other stays belong in
+  // the host-organisation block (mapped once its fields are confirmed on the
+  // live portal); they are never forced into the host-person block.
+  const accommodationType = a.accommodation_type?.trim().toLowerCase() ?? "";
+  const stayWithPrivateHost = accommodationType === "private_host" || accommodationType === "";
   const step5: FvStep5Answers = {
-    cbxHasHostPerson: fvOverrides.step5?.cbxHasHostPerson ?? true,
-    cbxHasHostOrganization: fvOverrides.step5?.cbxHasHostOrganization ?? false,
+    cbxHasHostPerson: fvOverrides.step5?.cbxHasHostPerson ?? stayWithPrivateHost,
+    cbxHasHostOrganization: fvOverrides.step5?.cbxHasHostOrganization ?? !stayWithPrivateHost,
     cbxHasPlaceOfApplication: fvOverrides.step5?.cbxHasPlaceOfApplication ?? false,
     cbxHasAutoFunding: fvOverrides.step5?.cbxHasAutoFunding ?? true,
     cbxHasGuarantor: fvOverrides.step5?.cbxHasGuarantor ?? false,
-    hostPersonSurname: fvOverrides.step5?.hostPersonSurname ?? application.accommodation_name ?? undefined,
-    hostPersonAddress: fvOverrides.step5?.hostPersonAddress ?? application.accommodation_address ?? undefined,
-    hostPersonCountry: fvOverrides.step5?.hostPersonCountry,
-    hostPersonFirstnames: fvOverrides.step5?.hostPersonFirstnames,
-    hostPersonZipcode: fvOverrides.step5?.hostPersonZipcode,
-    hostPersonPlace: fvOverrides.step5?.hostPersonPlace,
-    hostPersonPhone: fvOverrides.step5?.hostPersonPhone,
-    hostPersonEmail: fvOverrides.step5?.hostPersonEmail,
+    hostPersonSurname: fvOverrides.step5?.hostPersonSurname ?? a.host_surname ?? undefined,
+    hostPersonAddress: fvOverrides.step5?.hostPersonAddress ?? a.host_address_line_1 ?? undefined,
+    hostPersonCountry: fvOverrides.step5?.hostPersonCountry
+      ?? (a.host_country ? toFvCountryCode(a.host_country, "host_country") : undefined),
+    hostPersonFirstnames: fvOverrides.step5?.hostPersonFirstnames ?? a.host_given_names ?? undefined,
+    hostPersonZipcode: fvOverrides.step5?.hostPersonZipcode ?? a.host_postcode ?? undefined,
+    hostPersonPlace: fvOverrides.step5?.hostPersonPlace ?? a.host_city ?? undefined,
+    hostPersonPhone: fvOverrides.step5?.hostPersonPhone ?? a.host_phone ?? undefined,
+    hostPersonEmail: fvOverrides.step5?.hostPersonEmail ?? a.host_email ?? undefined,
     autoFundings: (fvOverrides.step5?.autoFundings as readonly FvAutoFunding[] | undefined)?.slice() ?? ["CCR", "ARG"],
     representativeSurname: fvOverrides.step5?.representativeSurname,
     representativeFirstnames: fvOverrides.step5?.representativeFirstnames,

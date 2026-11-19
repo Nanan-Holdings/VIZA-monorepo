@@ -1,215 +1,132 @@
 import type { FvApplicationAnswers } from "./field-mappings";
+import { NormalizationError } from "./normalize";
 
-export interface FranceFieldFallback {
+/**
+ * A France answer that France-Visas would reject (or that is missing) and
+ * that the applicant must fix in VIZA. The worker never substitutes a value:
+ * an official visa form must only ever contain the applicant's own data.
+ */
+export interface FranceAnswerIssue {
   step: "step2" | "step5";
+  /** France-Visas field (FvApplicationAnswers key). */
   field: string;
+  /** VIZA answer field(s) the value comes from, for the fix-it message. */
+  answerFields: string[];
   reason: "missing" | "contains_non_latin" | "invalid_format";
-  originalPreview: string | null;
-  fallbackValue: string;
-  vizaRuleSuggestion: string;
+  labelZh: string;
+  labelEn: string;
 }
 
-export interface SanitizedFranceAnswers {
-  answers: FvApplicationAnswers;
-  fieldFallbacks: FranceFieldFallback[];
-}
-
-const NON_LATIN_RE = /[\u3400-\u4DBF\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7AF]/;
+/** Any letter that is not Latin script (Han, kana, Hangul, Cyrillic, Arabic…). */
+const NON_LATIN_LETTER_RE = /(?!\p{Script=Latin})\p{L}/u;
+/** Full-width forms and CJK punctuation, e.g. "，" or "（". */
+const FULL_WIDTH_RE = /[　-〿＀-￯]/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_RE = /^[+0-9][0-9\s().-]{5,24}$/;
 
-function cloneAnswers(answers: FvApplicationAnswers): FvApplicationAnswers {
-  return {
-    step1: { ...answers.step1 },
-    step2: { ...answers.step2 },
-    step3: { ...answers.step3 },
-    step4: { ...answers.step4 },
-    step5: {
-      ...answers.step5,
-      autoFundings: answers.step5.autoFundings?.slice(),
-    },
-  };
+export function containsNonLatinText(value: string): boolean {
+  return NON_LATIN_LETTER_RE.test(value) || FULL_WIDTH_RE.test(value);
 }
 
-function preview(value: string | undefined): string | null {
-  if (!value) return null;
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  return trimmed.length > 32 ? `${trimmed.slice(0, 32)}...` : trimmed;
+interface Rule {
+  field: string;
+  answerFields: string[];
+  labelZh: string;
+  labelEn: string;
+  latinOnly?: boolean;
+  email?: boolean;
+  phone?: boolean;
 }
 
-function invalidReason(
+function check(
+  step: FranceAnswerIssue["step"],
   value: string | undefined,
-  options: { latinOnly?: boolean; email?: boolean; phone?: boolean } = {},
-): FranceFieldFallback["reason"] | null {
-  const trimmed = value?.trim() ?? "";
-  if (!trimmed) return "missing";
-  if (options.latinOnly && NON_LATIN_RE.test(trimmed)) return "contains_non_latin";
-  if (options.email && !EMAIL_RE.test(trimmed)) return "invalid_format";
-  if (options.phone && !PHONE_RE.test(trimmed)) return "invalid_format";
-  return null;
-}
-
-function applyFallback<T extends object, K extends Extract<keyof T, string>>(
-  target: T,
-  field: K,
-  fallbackValue: string,
-  options: {
-    step: FranceFieldFallback["step"];
-    latinOnly?: boolean;
-    email?: boolean;
-    phone?: boolean;
-    suggestion: string;
-  },
-  events: FranceFieldFallback[],
+  rule: Rule,
+  issues: FranceAnswerIssue[],
 ): void {
-  const original = target[field] as string | undefined;
-  const reason = invalidReason(original, options);
+  const trimmed = value?.trim() ?? "";
+  let reason: FranceAnswerIssue["reason"] | null = null;
+  if (!trimmed) reason = "missing";
+  else if (rule.latinOnly && containsNonLatinText(trimmed)) reason = "contains_non_latin";
+  else if (rule.email && !EMAIL_RE.test(trimmed)) reason = "invalid_format";
+  else if (rule.phone && !PHONE_RE.test(trimmed)) reason = "invalid_format";
   if (!reason) return;
-  target[field] = fallbackValue as T[K];
-  events.push({
-    step: options.step,
-    field,
+  issues.push({
+    step,
+    field: rule.field,
+    answerFields: rule.answerFields,
     reason,
-    originalPreview: preview(original),
-    fallbackValue,
-    vizaRuleSuggestion: options.suggestion,
+    labelZh: rule.labelZh,
+    labelEn: rule.labelEn,
   });
 }
 
 /**
- * France-Visas silently rejects some free-text values after a JSF postback,
- * especially CJK text in official Latin-script fields. This prepares an
- * official-portal-only answer copy with conservative defaults and records the
- * exact constraints VIZA should later enforce in its own form schema.
+ * Check the answers France-Visas receives for free text it rejects (non-Latin
+ * script in official fields, malformed phone/email) or required values that
+ * are missing. Returns every problem; an empty list means the answers can be
+ * sent as they are. Nothing is changed.
  */
-export function sanitizeFranceAnswersForOfficialPortal(
-  answers: FvApplicationAnswers,
-): SanitizedFranceAnswers {
-  const next = cloneAnswers(answers);
-  const fieldFallbacks: FranceFieldFallback[] = [];
+export function findFranceAnswerIssues(answers: FvApplicationAnswers): FranceAnswerIssue[] {
+  const issues: FranceAnswerIssue[] = [];
+  const s2 = answers.step2;
+  const s5 = answers.step5;
 
-  applyFallback(next.step2, "placeOfBirth", "BEIJING", {
-    step: "step2",
-    latinOnly: true,
-    suggestion: "Require Latin letters for France-Visas place of birth; collect an English/pinyin city name.",
-  }, fieldFallbacks);
-  applyFallback(next.step2, "street", "NOT APPLICABLE", {
-    step: "step2",
-    latinOnly: true,
-    suggestion: "Require Latin letters/numbers for France-Visas residential street address.",
-  }, fieldFallbacks);
-  applyFallback(next.step2, "place", "BEIJING", {
-    step: "step2",
-    latinOnly: true,
-    suggestion: "Require Latin letters for France-Visas residential city/place.",
-  }, fieldFallbacks);
-  applyFallback(next.step2, "phoneNumber", "13800000000", {
-    step: "step2",
-    phone: true,
-    suggestion: "Require a phone number with digits, optional leading plus, and 6-25 characters.",
-  }, fieldFallbacks);
-  applyFallback(next.step2, "email", "applicant@example.com", {
-    step: "step2",
-    email: true,
-    suggestion: "Require a valid email address before France-Visas submission.",
-  }, fieldFallbacks);
+  check("step2", s2.placeOfBirth, { field: "placeOfBirth", answerFields: ["place_of_birth"], labelZh: "出生地", labelEn: "Place of birth", latinOnly: true }, issues);
+  check("step2", s2.street, { field: "street", answerFields: ["home_address_line_1"], labelZh: "现居住址", labelEn: "Home address", latinOnly: true }, issues);
+  check("step2", s2.place, { field: "place", answerFields: ["home_address_city"], labelZh: "现居城市", labelEn: "Home city", latinOnly: true }, issues);
+  check("step2", s2.phoneNumber, { field: "phoneNumber", answerFields: ["phone_number"], labelZh: "电话号码", labelEn: "Phone number", phone: true }, issues);
+  check("step2", s2.email, { field: "email", answerFields: ["email_address"], labelZh: "电子邮箱", labelEn: "Email address", email: true }, issues);
 
-  if (next.step2.occupation === "65005") {
-    applyFallback(next.step2, "occupationOtherSpecify", "OTHER", {
-      step: "step2",
-      latinOnly: true,
-      suggestion: "When France-Visas occupation is Other, require a Latin description for 'If other, please specify'.",
-    }, fieldFallbacks);
-    applyFallback(next.step2, "businessSegment", "OTH", {
-      step: "step2",
-      suggestion: "When France-Visas occupation opens job details, require a sector; map Other occupation to sector 'Other activities'.",
-    }, fieldFallbacks);
-    applyFallback(next.step2, "employerName", "NOT APPLICABLE", {
-      step: "step2",
-      latinOnly: true,
-      suggestion: "Require employer or teaching establishment name when France-Visas shows the job details subsection.",
-    }, fieldFallbacks);
-    applyFallback(next.step2, "employerStreet", "NOT APPLICABLE", {
-      step: "step2",
-      latinOnly: true,
-      suggestion: "Require employer/school address in Latin script when France-Visas shows the job details subsection.",
-    }, fieldFallbacks);
-    applyFallback(next.step2, "employerPlace", "BEIJING", {
-      step: "step2",
-      latinOnly: true,
-      suggestion: "Require employer/school city in Latin script when France-Visas shows the job details subsection.",
-    }, fieldFallbacks);
-    if (!next.step2.employerCountry) {
-      next.step2.employerCountry = next.step2.country || "CHN";
-      fieldFallbacks.push({
-        step: "step2",
-        field: "employerCountry",
-        reason: "missing",
-        originalPreview: null,
-        fallbackValue: next.step2.employerCountry,
-        vizaRuleSuggestion: "Require employer/school country when France-Visas shows the job details subsection.",
-      });
+  // France-Visas opens the job-details subsection for "Other" occupations.
+  if (s2.occupation === "65005") {
+    check("step2", s2.occupationOtherSpecify, { field: "occupationOtherSpecify", answerFields: ["current_occupation"], labelZh: "职业说明", labelEn: "Occupation (please specify)", latinOnly: true }, issues);
+    check("step2", s2.businessSegment, { field: "businessSegment", answerFields: ["fv_business_segment"], labelZh: "所属行业", labelEn: "Business sector" }, issues);
+    check("step2", s2.employerName, { field: "employerName", answerFields: ["employer_name"], labelZh: "雇主或学校名称", labelEn: "Employer or school name", latinOnly: true }, issues);
+    check("step2", s2.employerStreet, { field: "employerStreet", answerFields: ["employer_address_line_1"], labelZh: "雇主或学校地址", labelEn: "Employer or school address", latinOnly: true }, issues);
+    check("step2", s2.employerPlace, { field: "employerPlace", answerFields: ["employer_city"], labelZh: "雇主或学校所在城市", labelEn: "Employer or school city", latinOnly: true }, issues);
+    check("step2", s2.employerCountry, { field: "employerCountry", answerFields: ["employer_country"], labelZh: "雇主或学校所在国家", labelEn: "Employer or school country" }, issues);
+    // France-Visas needs at least one employer contact; whichever is given must be valid.
+    const hasPhone = Boolean(s2.employerPhone?.trim());
+    const hasEmail = Boolean(s2.employerEmail?.trim());
+    if (!hasPhone && !hasEmail) {
+      check("step2", undefined, { field: "employerPhone", answerFields: ["employer_phone", "employer_email"], labelZh: "雇主或学校电话或邮箱", labelEn: "Employer or school phone or email" }, issues);
     }
-    applyFallback(next.step2, "employerPhone", next.step2.phoneNumber || "13800000000", {
-      step: "step2",
-      phone: true,
-      suggestion: "Require employer/school phone or email when France-Visas shows the job details subsection.",
-    }, fieldFallbacks);
-    applyFallback(next.step2, "employerEmail", next.step2.email || "applicant@example.com", {
-      step: "step2",
-      email: true,
-      suggestion: "Require employer/school email or phone when France-Visas shows the job details subsection.",
-    }, fieldFallbacks);
+    if (hasPhone) check("step2", s2.employerPhone, { field: "employerPhone", answerFields: ["employer_phone"], labelZh: "雇主或学校电话", labelEn: "Employer or school phone", phone: true }, issues);
+    if (hasEmail) check("step2", s2.employerEmail, { field: "employerEmail", answerFields: ["employer_email"], labelZh: "雇主或学校邮箱", labelEn: "Employer or school email", email: true }, issues);
   }
 
-  if (next.step5.cbxHasHostPerson) {
-    if (!next.step5.hostPersonCountry) {
-      next.step5.hostPersonCountry = "FRA";
-      fieldFallbacks.push({
-        step: "step5",
-        field: "hostPersonCountry",
-        reason: "missing",
-        originalPreview: null,
-        fallbackValue: "FRA",
-        vizaRuleSuggestion: "Require accommodation country for France-Visas host/place details.",
-      });
-    }
-    applyFallback(next.step5, "hostPersonSurname", "HOTEL", {
-      step: "step5",
-      latinOnly: true,
-      suggestion: "Require Latin hotel/host name for France-Visas accommodation details.",
-    }, fieldFallbacks);
-    applyFallback(next.step5, "hostPersonFirstnames", "BOOKING", {
-      step: "step5",
-      latinOnly: true,
-      suggestion: "France-Visas requires host/accommodation first name(s) when the host-person accommodation block is selected.",
-    }, fieldFallbacks);
-    applyFallback(next.step5, "hostPersonAddress", "HOTEL ADDRESS", {
-      step: "step5",
-      latinOnly: true,
-      suggestion: "Require Latin accommodation address for France-Visas.",
-    }, fieldFallbacks);
-    applyFallback(next.step5, "hostPersonZipcode", "75001", {
-      step: "step5",
-      suggestion: "Require accommodation postal code when host/person accommodation is selected.",
-    }, fieldFallbacks);
-    applyFallback(next.step5, "hostPersonPlace", "PARIS", {
-      step: "step5",
-      latinOnly: true,
-      suggestion: "Require Latin accommodation city/place for France-Visas.",
-    }, fieldFallbacks);
-    applyFallback(next.step5, "hostPersonPhone", "33123456789", {
-      step: "step5",
-      phone: true,
-      suggestion: "Require accommodation phone with digits, optional leading plus, and 6-25 characters.",
-    }, fieldFallbacks);
-    applyFallback(next.step5, "hostPersonEmail", "booking@example.com", {
-      step: "step5",
-      email: true,
-      suggestion: "Require a valid accommodation contact email when provided/required.",
-    }, fieldFallbacks);
+  if (s5.cbxHasHostPerson) {
+    check("step5", s5.hostPersonSurname, { field: "hostPersonSurname", answerFields: ["host_surname"], labelZh: "邀请人姓", labelEn: "Host surname", latinOnly: true }, issues);
+    check("step5", s5.hostPersonFirstnames, { field: "hostPersonFirstnames", answerFields: ["host_given_names"], labelZh: "邀请人名", labelEn: "Host first name(s)", latinOnly: true }, issues);
+    check("step5", s5.hostPersonAddress, { field: "hostPersonAddress", answerFields: ["host_address_line_1"], labelZh: "邀请人地址", labelEn: "Host address", latinOnly: true }, issues);
+    check("step5", s5.hostPersonZipcode, { field: "hostPersonZipcode", answerFields: ["host_postcode"], labelZh: "邀请人地址邮编", labelEn: "Host postcode", latinOnly: true }, issues);
+    check("step5", s5.hostPersonPlace, { field: "hostPersonPlace", answerFields: ["host_city"], labelZh: "邀请人所在城市", labelEn: "Host city", latinOnly: true }, issues);
+    check("step5", s5.hostPersonCountry, { field: "hostPersonCountry", answerFields: ["host_country"], labelZh: "邀请人所在国家", labelEn: "Host country" }, issues);
+    check("step5", s5.hostPersonPhone, { field: "hostPersonPhone", answerFields: ["host_phone"], labelZh: "邀请人电话", labelEn: "Host phone", phone: true }, issues);
+    check("step5", s5.hostPersonEmail, { field: "hostPersonEmail", answerFields: ["host_email"], labelZh: "邀请人邮箱", labelEn: "Host email", email: true }, issues);
   }
 
-  return { answers: next, fieldFallbacks };
+  return issues;
+}
+
+/** One-line summary for queue errors and logs (no answer values). */
+export function describeFranceAnswerIssues(issues: FranceAnswerIssue[]): string {
+  return issues
+    .map((issue) => `${issue.labelEn} (${issue.answerFields.join("/")}): ${issue.reason}`)
+    .join("; ");
+}
+
+/**
+ * Thrown before any official-portal work when answers need fixing. It is a
+ * data error (never retried); `issues` lists every field to correct.
+ */
+export class FranceAnswersInvalidError extends NormalizationError {
+  readonly errorCode = "france_answers_invalid" as const;
+  readonly issues: FranceAnswerIssue[];
+  constructor(issues: FranceAnswerIssue[]) {
+    super(issues.map((issue) => issue.answerFields[0]).join(","), describeFranceAnswerIssues(issues));
+    this.name = "FranceAnswersInvalidError";
+    this.issues = issues;
+  }
 }

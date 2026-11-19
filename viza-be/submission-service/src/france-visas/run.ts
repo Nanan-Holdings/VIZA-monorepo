@@ -37,8 +37,8 @@ import { waitForJsfIdle } from "./primefaces-ajax";
 import { NavigationError, serializeError } from "./errors";
 import type { FvApplicationAnswers } from "./field-mappings";
 import {
-  sanitizeFranceAnswersForOfficialPortal,
-  type FranceFieldFallback,
+  describeFranceAnswerIssues,
+  findFranceAnswerIssues,
 } from "./fallbacks";
 import { redactOfficialUrl } from "../appointment-free-smoke";
 
@@ -101,7 +101,6 @@ export type FillFranceVisasResult =
        * Null when finalize was skipped or did not run.
        */
       pdfPath: string | null;
-      fieldFallbacks: FranceFieldFallback[];
       postConfirmationContinue?: {
         clickedDeclare: boolean;
         clickedContinue: boolean;
@@ -141,8 +140,23 @@ export async function fillFranceVisasApplication(
   const stepsCompleted: FvPageId[] = [];
   let session: FvSessionHandles | null = null;
   let currentStep: FvPageId | "unknown" = "unknown";
-  const sanitized = sanitizeFranceAnswersForOfficialPortal(input.answers);
-  const answers = sanitized.answers;
+  const answers = input.answers;
+
+  // Never send placeholder or invalid data to the official form: stop before
+  // signing in so no France-Visas draft is created for answers that need fixing.
+  const answerIssues = findFranceAnswerIssues(answers);
+  if (answerIssues.length > 0) {
+    logRun(runId, `answers need fixing before France-Visas: ${describeFranceAnswerIssues(answerIssues)}`);
+    return {
+      status: "failed",
+      runId,
+      failedStep: "unknown",
+      validationMessages: answerIssues.map((issue) => `${issue.labelEn}: ${issue.reason}`),
+      diagnostics: null,
+      error: { code: "france_answers_invalid", issues: answerIssues },
+      url: "",
+    };
+  }
 
   try {
     // ── Sign in ───────────────────────────────────────────────────────────
@@ -199,6 +213,22 @@ export async function fillFranceVisasApplication(
     // ── Step 5 — Your contacts ───────────────────────────────────────────
     logRun(runId, "filling step5");
     await fillStep5(session.page, answers.step5);
+    if (answers.step5.cbxHasHostOrganization) {
+      // Hotel/rental stays go in the host-organisation block, whose fields are
+      // not mapped yet. Record them from the live page and stop before
+      // advancing, rather than entering anything invented.
+      const hostOrganizationFields = await captureHostOrganizationFields(session.page);
+      logRun(runId, `host-organisation block captured (${hostOrganizationFields.length} controls)`);
+      return {
+        status: "failed",
+        runId,
+        failedStep: "step5",
+        validationMessages: ["France-Visas host-organisation (hotel) fields are not mapped yet"],
+        diagnostics: null,
+        error: { code: "france_host_organization_capture", hostOrganizationFields },
+        url: redactOfficialUrl(session.page.url()),
+      };
+    }
     logRun(runId, "advancing step5 to step6");
     await advanceStep(session.page, "step5", "step6", stepTimeoutMs);
     stepsCompleted.push("step5");
@@ -268,7 +298,6 @@ export async function fillFranceVisasApplication(
       draftReference,
       applicationReference,
       pdfPath,
-      fieldFallbacks: sanitized.fieldFallbacks,
       postConfirmationContinue,
     };
   } catch (err) {
@@ -552,4 +581,35 @@ async function captureLatestApplicationReference(page: Page): Promise<string | n
     const match = text.match(/\b(202\d{10,12})\b/);
     return match ? match[1] : null;
   })()`);
+}
+
+/** Visible controls in France-Visas step 5 that belong to the host-organisation block. */
+async function captureHostOrganizationFields(page: Page): Promise<Array<{
+  name: string;
+  type: string;
+  label: string;
+  required: boolean;
+  maxLength: number | null;
+}>> {
+  return page.evaluate(() => {
+    const controls = Array.from(
+      document.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(
+        "form[id^='formStep5'] input, form[id^='formStep5'] select, form[id^='formStep5'] textarea",
+      ),
+    );
+    return controls
+      .filter((control) => /organi[sz]ation|organisme|hostOrga/i.test(control.name || control.id))
+      .filter((control) => control.type !== "hidden" || /_input$/.test(control.name))
+      .map((control) => {
+        const id = control.id;
+        const label = id ? document.querySelector(`label[for="${CSS.escape(id)}"]`)?.textContent ?? "" : "";
+        return {
+          name: control.name || id,
+          type: control.type,
+          label: label.replace(/s+/g, " ").trim(),
+          required: control.required || control.getAttribute("aria-required") === "true",
+          maxLength: "maxLength" in control && control.maxLength > 0 ? control.maxLength : null,
+        };
+      });
+  });
 }
