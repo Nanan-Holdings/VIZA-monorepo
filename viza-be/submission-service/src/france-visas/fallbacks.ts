@@ -20,12 +20,18 @@ export interface FranceAnswerIssue {
 /** Any letter that is not Latin script (Han, kana, Hangul, Cyrillic, Arabic…). */
 const NON_LATIN_LETTER_RE = /(?!\p{Script=Latin})\p{L}/u;
 /** Full-width forms and CJK punctuation, e.g. "，" or "（". */
-const FULL_WIDTH_RE = /[　-〿＀-￯]/;
+function hasFullWidthText(value: string): boolean {
+  for (const char of value) {
+    const code = char.codePointAt(0) ?? 0;
+    if ((code >= 0x3000 && code <= 0x303f) || (code >= 0xff00 && code <= 0xffef)) return true;
+  }
+  return false;
+}
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_RE = /^[+0-9][0-9\s().-]{5,24}$/;
 
 export function containsNonLatinText(value: string): boolean {
-  return NON_LATIN_LETTER_RE.test(value) || FULL_WIDTH_RE.test(value);
+  return NON_LATIN_LETTER_RE.test(value) || hasFullWidthText(value);
 }
 
 interface Rule {
@@ -129,4 +135,18 @@ export class FranceAnswersInvalidError extends NormalizationError {
     this.name = "FranceAnswersInvalidError";
     this.issues = issues;
   }
+}
+
+/** Applicant-facing Chinese message listing what to fix (no answer values). */
+export function franceAnswerIssuesMessageZh(issues: FranceAnswerIssue[]): string {
+  const byReason = (reason: FranceAnswerIssue["reason"]) =>
+    issues.filter((issue) => issue.reason === reason).map((issue) => issue.labelZh);
+  const parts: string[] = [];
+  const nonLatin = byReason("contains_non_latin");
+  const invalid = byReason("invalid_format");
+  const missing = byReason("missing");
+  if (nonLatin.length) parts.push(`请用英文或拼音填写：${nonLatin.join("、")}`);
+  if (invalid.length) parts.push(`格式不正确：${invalid.join("、")}`);
+  if (missing.length) parts.push(`请补充：${missing.join("、")}`);
+  return `${parts.join("；")}。France-Visas 官网只接受这些信息的英文（拉丁字母）版本，修改后重新提交即可。`;
 }

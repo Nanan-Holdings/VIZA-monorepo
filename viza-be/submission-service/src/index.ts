@@ -116,7 +116,11 @@ import {
   NormalizationError,
   type NormalizeInput,
 } from "./france-visas";
-import { FranceAnswersInvalidError, findFranceAnswerIssues } from "./france-visas/fallbacks";
+import {
+  FranceAnswersInvalidError,
+  findFranceAnswerIssues,
+  franceAnswerIssuesMessageZh,
+} from "./france-visas/fallbacks";
 import {
   ensureApplicantInboxAlias,
   generateApplicantInboxAlias,
@@ -4212,7 +4216,9 @@ async function processFvItem(
                   : isNormalizationFailure
                     ? "france_visas_normalization_failed"
                     : "france_visas_unhandled_error",
-              error_message: errorMsg,
+              error_message: err instanceof FranceAnswersInvalidError
+                ? franceAnswerIssuesMessageZh(err.issues)
+                : errorMsg,
             }
           : {}),
         ...(err instanceof FranceAnswersInvalidError
@@ -4232,7 +4238,12 @@ async function processFvItem(
         "action_required",
       );
     } else if (newStatus === "fv_prefill_failed") {
-      await markSubmissionFailed(item.application_id, errorMsg);
+      // The applicant sees this message; answer problems get the Chinese
+      // fix-it list instead of the internal field codes.
+      await markSubmissionFailed(
+        item.application_id,
+        err instanceof FranceAnswersInvalidError ? franceAnswerIssuesMessageZh(err.issues) : errorMsg,
+      );
       await sendFailureAlert(item.application_id, `[FV] ${errorMsg}`);
     }
     console.error(`[fv] Unhandled error in ${runId}:`, errorMsg);
