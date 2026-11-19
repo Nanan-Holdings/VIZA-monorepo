@@ -5338,7 +5338,7 @@
       "photoSkippedBody": "官方照片上传服务多次出错，这份 DS-160 在没有照片的情况下提交了。请打印一张符合美国签证照片要求的照片，面签时和确认页一起携带。",
       "photoSkippedRequirements": "美国签证照片要求",
       "revealSecurityAnswer": "显示安全答案",
-      "securityAnswerSyncing": "答案还在同步：请先点上方「下载英文确认页 PDF」，完成后再试。",
+      "securityAnswerSyncing": "答案正在同步，请几分钟后再试。",
       "securityAnswerRevealError": "暂时无法读取安全答案，请稍后再试。"
     },
     "nextStepCard": {
