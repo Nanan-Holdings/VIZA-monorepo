@@ -263,7 +263,7 @@ describe("UsResultCard", () => {
 
     await waitFor(() => {
       expect(push).toHaveBeenCalledWith(
-        "/client/application/long-form?applicationId=new-draft-id&country=united_states&visaType=B1_B2",
+        "/client/application/long-form?applicationId=new-draft-id&country=united_states&visaType=B1_B2#submission-progress",
       );
     });
     expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/applications/viza-application-id/new-application", { method: "POST" });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type ComponentProps } from "react";
 import { OfficialCancelButton, supportsOfficialCancel } from "./OfficialCancelButton";
 import { useLocale } from "next-intl";
 import { motion } from "motion/react";
@@ -216,7 +216,7 @@ function isPacedRuntimeMessage(message: string | null | undefined): boolean {
  * subscription on `applications` will cut the user over to a result card
  * the moment the runner writes the terminal payload.
  */
-export function WaitingCard({
+function WaitingCardBody({
   status,
   stage,
   serverProgress,
@@ -586,5 +586,32 @@ export function WaitingCard({
         )}
       </CardContent>
     </Card>
+  );
+}
+
+/** URL hash that asks the page to bring the submission progress into view. */
+export const SUBMISSION_PROGRESS_HASH = "submission-progress";
+
+/**
+ * WaitingCard with a scroll anchor: when the page is opened with
+ * `#submission-progress` (for example right after a resubmit), the progress
+ * card scrolls into view instead of leaving the applicant at the top of the
+ * form.
+ */
+export function WaitingCard(props: ComponentProps<typeof WaitingCardBody>) {
+  const anchorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (window.location.hash !== `#${SUBMISSION_PROGRESS_HASH}`) return;
+    const frame = window.requestAnimationFrame(() => {
+      anchorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  return (
+    <div ref={anchorRef} id={SUBMISSION_PROGRESS_HASH} className="scroll-mt-24">
+      <WaitingCardBody {...props} />
+    </div>
   );
 }

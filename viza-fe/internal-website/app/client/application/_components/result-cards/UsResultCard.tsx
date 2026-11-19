@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { UsSubmissionResult } from "@/lib/submission-result";
 import type { Ds160ProofKind } from "@/lib/ds160-proof";
+import { SUBMISSION_PROGRESS_HASH } from "./WaitingCard";
 
 function CopyValue({ label, value }: { label: string; value: string }) {
   const t = useTranslations("usAppointment.ds160Card");
@@ -287,7 +288,7 @@ export function UsResultCard({
       if (job?.alreadySubmitted === true || typeof job?.jobId !== "string") {
         throw new Error(t("resubmitError"));
       }
-      router.push(draft.href);
+      router.push(`${draft.href}#${SUBMISSION_PROGRESS_HASH}`);
     } catch (error) {
       setNewApplicationError(error instanceof Error ? error.message : String(error));
       setConfirmingResubmit(false);
