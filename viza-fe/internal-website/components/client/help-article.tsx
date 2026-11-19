@@ -11,7 +11,7 @@ import {
 } from "@/lib/client/country-hero-theme";
 
 const LINKABLE_PATTERN =
-  /([\w.+-]+@[\w-]+(?:\.[\w-]+)+)|((?:https?:\/\/)?(?:[a-z0-9-]+\.)+(?:com|gov|cn|org|net)(?:\/[\w\-./#?=&]*)?)/gi;
+  /([\w.+-]+@[\w-]+(?:\.[\w-]+)+)|((?:https?:\/\/)?(?:[a-z0-9-]+\.)+(?:com|gov|cn|org|net|fr|eu)(?:\/[\w\-./#?=&]*)?)/gi;
 
 /** Turn bare domains, URLs and emails in article text into links. */
 export function linkifyText(text: string): ReactNode[] {

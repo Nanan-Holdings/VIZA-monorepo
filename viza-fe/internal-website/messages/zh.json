@@ -5615,6 +5615,11 @@
       "body": "继续准备 TLScontact 中国账号并由用户触发只读名额检查；选位、付款和预约保持关闭。",
       "button": "打开 TLS 预约助手",
       "badge": "TLScontact 中国"
+    },
+    "nextStepsGuide": {
+      "title": "提交后怎么办：预约递交与后续流程指引",
+      "body": "TLScontact 预约、打印签署申请表、费用、要带的材料、生物信息采集、全部签证中心地址、进度查询和取回护照。",
+      "loading": "正在打开…"
     }
   },
   "JapanAppointment": {
