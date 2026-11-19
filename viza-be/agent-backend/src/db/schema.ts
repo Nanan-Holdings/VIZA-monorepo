@@ -116,6 +116,9 @@ export const applications = pgTable("applications", {
 	ds160ApplicationId: text("ds160_application_id"),
 	ds160RetrievalUrl: text("ds160_retrieval_url"),
 	ds160DatStoragePath: text("ds160_dat_storage_path"),
+	// Set when a newer application for the same country + visa archived this one.
+	supersededByApplicationId: uuid("superseded_by_application_id"),
+	supersededPreviousStatus: text("superseded_previous_status"),
 	packetStatus: text("packet_status").default("not_started"),
 	packetManifest: jsonb("packet_manifest"),
 	packetStoragePath: text("packet_storage_path"),

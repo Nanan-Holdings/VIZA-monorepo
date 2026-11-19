@@ -63,6 +63,14 @@ and CEAC option-source metadata. It preserves applicant answers and the legacy
 passport-issuance-state clearing behavior. Keep the timestamped frontend
 Supabase mirror byte-identical.
 
+`0211_archive_superseded_applications.sql` keeps only the newest application
+live per applicant + country + visa type. An `AFTER INSERT` trigger archives
+the older rows (skipping in-flight submission jobs, QA placeholders and
+QA-archived rows) and records `superseded_by_application_id` plus
+`superseded_previous_status`; an `AFTER DELETE` trigger restores them if the
+superseding row is deleted. The migration backfills existing groups once.
+Keep the timestamped frontend Supabase mirror byte-identical.
+
 ## Key Responsibilities
 
 - Keep migration filenames sequentially numbered.

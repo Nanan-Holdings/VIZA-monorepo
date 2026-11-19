@@ -235,6 +235,11 @@
       "drizzle": "viza-be/agent-backend/drizzle/0210_official_handoff_session_lost.sql",
       "supabase": "viza-fe/internal-website/supabase/migrations/20261118090000_official_handoff_session_lost.sql",
       "sha256": "181ca1558bb8e524119a1927c12fd8435feea5f1d1b424abb0481d6078a50f9e"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0211_archive_superseded_applications.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20261119000000_archive_superseded_applications.sql",
+      "sha256": "ae2e42689f65ec9ab31343c2d00da93a18ca9d641d80140cf0a24c8e80dd9151"
     }
   ],
   "no_mirror": [
