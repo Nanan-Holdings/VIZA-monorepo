@@ -1960,11 +1960,31 @@ export default function ApplicationPage() {
       };
     }
 
+    // A single failed or empty schema response (a transient network/session
+    // blip, or a deploy switching over) would otherwise mark the page loaded
+    // with no form. Retry twice before giving up.
+    const loadStepsWithRetry = async (
+      visaType: string,
+      country: string | null,
+    ): Promise<WizardStep[]> => {
+      const delaysMs = [700, 2000];
+      for (let attempt = 0; ; attempt += 1) {
+        try {
+          const steps = await getVisaFormSteps(visaType, { country });
+          if (steps.length > 0 || attempt >= delaysMs.length) return steps;
+        } catch (error) {
+          if (attempt >= delaysMs.length) throw error;
+        }
+        await new Promise((resolve) => window.setTimeout(resolve, delaysMs[attempt]));
+        if (cancelled) return [];
+      }
+    };
+
     const stepsPromise = explicitVisaType
-      ? getVisaFormSteps(explicitVisaType, { country: explicitProductCountry })
-      : packagePromise.then((pkg) => getVisaFormSteps(
+      ? loadStepsWithRetry(explicitVisaType, explicitProductCountry)
+      : packagePromise.then((pkg) => loadStepsWithRetry(
           pkg?.visa_type ?? "ID_C1_TOURIST",
-          { country: pkg?.country ?? null },
+          pkg?.country ?? null,
         ));
 
     // Render a returning applicant's form from the browser copy of the schema
