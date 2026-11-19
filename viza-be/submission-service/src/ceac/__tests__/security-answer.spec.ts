@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { ensureDs160SecurityAnswer, generateDs160SecurityAnswer } from "../security-answer";
+import { ensureDs160SecurityAnswer, generateDs160SecurityAnswer, rememberDs160SecurityAnswer } from "../security-answer";
 
 type Row = { application_id: string; field_name: string; value_text: string | null };
 
@@ -75,4 +75,17 @@ test("refuses to continue when the answer cannot be read back", async () => {
     },
   } as unknown as SupabaseClient;
   await assert.rejects(ensureDs160SecurityAnswer(client, "app-1"), /not persisted/);
+});
+
+test("remembers the answer actually used when none is saved", async () => {
+  const rows: Row[] = [];
+  await rememberDs160SecurityAnswer(fakeClient(rows), "app-1", "  USEDANSWER  ");
+  assert.deepEqual(rows, [{ application_id: "app-1", field_name: "ds160_security_answer", value_text: "USEDANSWER" }]);
+});
+
+test("never overwrites a different saved answer when remembering", async () => {
+  const rows: Row[] = [{ application_id: "app-1", field_name: "ds160_security_answer", value_text: "APPLICANTSOWN" }];
+  await rememberDs160SecurityAnswer(fakeClient(rows), "app-1", "OTHERANSWER");
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].value_text, "APPLICANTSOWN");
 });

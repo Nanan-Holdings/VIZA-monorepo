@@ -5,7 +5,7 @@ import * as os from "os";
 import { randomBytes } from "crypto";
 import { chromium } from "@playwright/test";
 import { supabase } from "./supabase";
-import { DS160_SECURITY_ANSWER_FIELD, ensureDs160SecurityAnswer } from "./ceac/security-answer";
+import { DS160_SECURITY_ANSWER_FIELD, ensureDs160SecurityAnswer, rememberDs160SecurityAnswer } from "./ceac/security-answer";
 import { sendFailureAlert } from "./alert";
 import {
   personalInfoMappings,
@@ -1858,6 +1858,10 @@ async function processDs160ProofItem(
     if (!securityAnswer) {
       throw new Error("DS-160 proof recovery requires the stored security answer.");
     }
+    // Backfill the applicant's readable copy for drafts created before it
+    // was saved at capture time. Best-effort.
+    await rememberDs160SecurityAnswer(supabase, item.application_id, securityAnswer)
+      .catch((error: unknown) => console.warn(`[ceac] security answer copy not saved: ${error instanceof Error ? error.message : String(error)}`));
 
     // Proof recovery uses the same applicant-selected CEAC post as the live
     // submit flow.  Missing/invalid saved data is a typed terminal condition;
@@ -2675,6 +2679,10 @@ async function processDs160Item(
         `[ceac] confirm-application checkpoint captured applicationId=${redactIdentifier(confirm.applicationId)}`,
       );
     }
+    // Keep a readable copy in the applicant's own answers so they can always
+    // retrieve this draft. Best-effort: the run never fails on it.
+    await rememberDs160SecurityAnswer(supabase, item.application_id, recoveryIdentity.securityAnswer)
+      .catch((error: unknown) => console.warn(`[ceac] security answer copy not saved: ${error instanceof Error ? error.message : String(error)}`));
 
     const finalSubmit = passportNumberForSignature
       ? {

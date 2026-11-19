@@ -18,6 +18,35 @@ export function generateDs160SecurityAnswer(random: (max: number) => number = ra
 }
 
 /**
+ * Keep a readable copy of the CEAC security answer actually used for this
+ * application in the applicant's own answers, so the applicant can retrieve
+ * their draft. Fills a missing or blank row only; an existing different
+ * answer is never overwritten.
+ */
+export async function rememberDs160SecurityAnswer(
+  client: SupabaseClient,
+  applicationId: string,
+  answer: string,
+): Promise<void> {
+  const value = answer.trim();
+  if (!value) return;
+  const { error: fillError } = await client
+    .from("visa_application_answers")
+    .update({ value_text: value })
+    .eq("application_id", applicationId)
+    .eq("field_name", DS160_SECURITY_ANSWER_FIELD)
+    .or("value_text.is.null,value_text.eq.");
+  if (fillError) throw new Error(`DS-160 security answer could not be saved: ${fillError.message}`);
+  const { error: insertError } = await client
+    .from("visa_application_answers")
+    .upsert(
+      { application_id: applicationId, field_name: DS160_SECURITY_ANSWER_FIELD, value_text: value },
+      { onConflict: "application_id,field_name", ignoreDuplicates: true },
+    );
+  if (insertError) throw new Error(`DS-160 security answer could not be saved: ${insertError.message}`);
+}
+
+/**
  * Return the application's saved CEAC security answer, creating and saving
  * one first when none exists. The answer is stored with the applicant's own
  * answers before CEAC sees it, so a draft created with it can always be
