@@ -151,7 +151,7 @@ export function HelpArticle({
       {heroTheme ? (
         // Country hero laid out like the client home: the section sizes to its
         // content (no overlap with the body), with the home page's gutters and
-        // 1090px content width.
+        // a centered 820px reading column.
         <section
           className="relative overflow-hidden"
           data-testid="help-article-hero"
@@ -175,7 +175,7 @@ export function HelpArticle({
           )}
           <div className="absolute inset-0 bg-[rgba(0,0,0,0.12)]" />
           <div className="relative z-10 px-4 sm:px-6 md:px-10 xl:px-20 pt-[156px] xl:pt-[148px] pb-12 sm:pb-16">
-            <div className="mx-auto flex w-full max-w-[1090px] flex-col gap-4">
+            <div className="mx-auto flex w-full max-w-[820px] flex-col gap-4">
               {backLink}
               <div className="max-w-[820px]">{heading}</div>
             </div>
@@ -210,7 +210,7 @@ export function HelpArticle({
         <div
           className={
             heroTheme
-              ? "mx-auto w-full max-w-[1090px] pt-12 sm:pt-16 pb-[80px] sm:pb-[100px]"
+              ? "mx-auto w-full max-w-[820px] pt-12 sm:pt-16 pb-[80px] sm:pb-[100px]"
               : "w-full max-w-[720px] mt-[20px] sm:mt-[72px] pb-[80px] sm:pb-[100px]"
           }
         >
