@@ -671,3 +671,11 @@ that logged the session out before expiry: an unsubmitted handoff is abandoned
 immediately (result gets `officialSessionLost`), a submitted one is closed.
 All 0209 ownership, lease, and evidence checks are unchanged. Keep
 `20261118090000_official_handoff_session_lost.sql` byte-identical.
+
+`0213_france_accommodation_postcodes.sql` adds `host_postcode` (step 8, after
+the host address) and `accommodation_postcode` (step 9, after the
+accommodation address) to `EU_SCHENGEN_C_SHORT_STAY`, shifting later fields of
+those steps down by one. France-Visas requires a postcode; the worker no longer
+invents one and fails with `france_answers_invalid` when it is missing.
+Idempotent. Keep `20261119140000_france_accommodation_postcodes.sql`
+byte-identical.
