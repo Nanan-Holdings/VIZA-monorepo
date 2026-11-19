@@ -2720,6 +2720,9 @@ export function SubmissionStatusStep({
         resetProgressOnMount={Boolean(activeProgressCycleKey)}
         country={country}
         visaType={visaType}
+        queueStage={
+          snapshot?.queue && snapshot.queue.id === effectiveQueueId ? snapshot.queue.currentStage ?? null : null
+        }
       />
     </div>
   );

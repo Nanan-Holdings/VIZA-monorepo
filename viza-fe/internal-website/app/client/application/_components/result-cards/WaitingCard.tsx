@@ -13,6 +13,8 @@ import { useSmoothProgress } from "@/hooks/use-smooth-progress";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { cn } from "@/lib/utils";
 import type { SubmissionResultStatus } from "@/lib/submission-result";
+import { ds160ProgressForStage, type Ds160ProgressPhase } from "@/lib/ds160-progress";
+import { isDs160VisaType } from "@/lib/submission-queue";
 
 export type SubmissionVisualStatus =
   | "scheduled"
@@ -72,6 +74,41 @@ function phaseIndexForProgress(progress: number): number {
   if (progress <= PHASE_PROGRESS[0]) return 0;
   if (progress <= PHASE_PROGRESS[1]) return 1;
   return 2;
+}
+
+const DS160_PHASE_INDEX: Record<Ds160ProgressPhase, number> = {
+  preparing: 0,
+  filling: 1,
+  confirming: 2,
+};
+
+/** Seconds per 1% of slow creep between two DS-160 checkpoints. */
+const CHECKPOINT_CREEP_SECONDS_PER_PERCENT = 25;
+
+/**
+ * Progress that starts at a reported checkpoint and rises 1% every
+ * CHECKPOINT_CREEP_SECONDS_PER_PERCENT seconds, never past `ceiling`, so the
+ * bar keeps moving steadily while the worker fills a page.
+ */
+function useCheckpointCreep(base: number | null, ceiling: number | null): number | null {
+  const [elapsed, setElapsed] = useState<{ base: number | null; seconds: number }>({
+    base: null,
+    seconds: 0,
+  });
+
+  useEffect(() => {
+    if (base === null) return;
+    const since = Date.now();
+    const timer = window.setInterval(() => {
+      setElapsed({ base, seconds: Math.floor((Date.now() - since) / 1000) });
+    }, 5_000);
+    return () => window.clearInterval(timer);
+  }, [base]);
+
+  if (base === null || ceiling === null) return null;
+  const seconds = elapsed.base === base ? elapsed.seconds : 0;
+  const creep = Math.floor(seconds / CHECKPOINT_CREEP_SECONDS_PER_PERCENT);
+  return Math.max(base, Math.min(ceiling, base + creep));
 }
 
 function normalizeStatus(status: SubmissionVisualStatus | null | undefined): string {
@@ -228,6 +265,7 @@ function WaitingCardBody({
   resetProgressOnMount,
   country,
   visaType,
+  queueStage,
   onVisualComplete,
 }: {
   status: SubmissionVisualStatus | null;
@@ -241,6 +279,8 @@ function WaitingCardBody({
   resetProgressOnMount?: boolean;
   country?: string | null;
   visaType?: string | null;
+  /** The queue row's `current_stage`, e.g. `ceac_page:passport` for DS-160. */
+  queueStage?: string | null;
   onVisualComplete?: () => void;
 }) {
   const locale = useLocale();
@@ -266,12 +306,25 @@ function WaitingCardBody({
         ? 1
         : 0);
   const reportedPhaseProgress = PHASE_PROGRESS[reportedPhaseIdx] ?? PHASE_PROGRESS[0];
+  // DS-160 runs report the CEAC page they reached: show that checkpoint, and
+  // creep slowly toward (never past) the next one while the page is filled.
+  const isDs160Run = isDs160VisaType(visaType);
+  const ds160Checkpoint =
+    isDs160Run && normalizedStatus === "running" ? ds160ProgressForStage(queueStage) : null;
+  const ds160CreepProgress = useCheckpointCreep(
+    ds160Checkpoint?.progress ?? null,
+    ds160Checkpoint?.ceiling ?? null,
+  );
+  const showDs160RunNotes =
+    isDs160Run && (normalizedStatus === "running" || normalizedStatus === "queued");
   const visualServerProgress =
     completeStatus
       ? 100
-      : typeof serverProgress === "number"
-        ? Math.max(serverProgress, reportedPhaseProgress)
-        : reportedPhaseProgress;
+      : ds160Checkpoint && ds160CreepProgress !== null
+        ? ds160CreepProgress
+        : typeof serverProgress === "number"
+          ? Math.max(serverProgress, reportedPhaseProgress)
+          : reportedPhaseProgress;
   const {
     displayedProgress,
     isVisuallyComplete,
@@ -292,7 +345,9 @@ function WaitingCardBody({
     syncToServerProgress: false,
     onVisualComplete,
   });
-  const activePhaseIdx = phaseIndexForProgress(displayedProgress);
+  const activePhaseIdx = ds160Checkpoint
+    ? DS160_PHASE_INDEX[ds160Checkpoint.phase]
+    : phaseIndexForProgress(displayedProgress);
   const activePhase = PHASES[activePhaseIdx] ?? PHASES[0];
 
   useEffect(() => {
@@ -360,6 +415,13 @@ function WaitingCardBody({
   }, [applicationId, isFrance, officialAccount]);
 
   const progressMessage = (() => {
+    if (ds160Checkpoint) {
+      const label = isZh ? ds160Checkpoint.labelZh : ds160Checkpoint.labelEn;
+      if (ds160Checkpoint.phase !== "filling") return isZh ? `${label}。` : `${label}.`;
+      return isZh
+        ? `正在填写：${label}（第 ${ds160Checkpoint.step}/${ds160Checkpoint.totalSteps} 步）`
+        : `Filling: ${label} (step ${ds160Checkpoint.step} of ${ds160Checkpoint.totalSteps})`;
+    }
     const localizedError = localizeProgressMessage(error, isZh);
     const localizedMessage = localizeProgressMessage(message, isZh);
     if (failedStatus && localizedError) return localizedError;
@@ -494,6 +556,31 @@ function WaitingCardBody({
             {progressMessage}
           </p>
         </div>
+
+        {showDs160RunNotes ? (
+          <div className="space-y-1.5 rounded-lg border border-input bg-muted/30 px-4 py-3 text-xs leading-relaxed text-muted-foreground">
+            <p className="flex items-start gap-2">
+              <Clock3 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-500" />
+              <span>
+                {ds160Checkpoint
+                  ? isZh
+                    ? `预计还需约 ${ds160Checkpoint.minutesLeft} 分钟（整个流程通常需要 30–40 分钟）。`
+                    : `About ${ds160Checkpoint.minutesLeft} min left (the whole run usually takes 30–40 minutes).`
+                  : isZh
+                    ? "整个流程通常需要 30–40 分钟。"
+                    : "The whole run usually takes 30–40 minutes."}
+              </span>
+            </p>
+            <p className="flex items-start gap-2">
+              <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-500" />
+              <span>
+                {isZh
+                  ? "您可以关闭或离开本页面，提交在 VIZA 云端运行，不会被打断。之后回到此页面即可查看最新进度和结果。"
+                  : "You can close or leave this page. The submission runs on VIZA's servers and won't be interrupted; come back here any time to see the latest progress and result."}
+              </span>
+            </p>
+          </div>
+        ) : null}
 
         <ol className="grid gap-2 sm:grid-cols-3" aria-label={isZh ? "提交阶段" : "Submission phases"}>
           {PHASES.map((phase, i) => {

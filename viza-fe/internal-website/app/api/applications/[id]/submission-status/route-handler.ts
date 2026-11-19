@@ -19,6 +19,7 @@ import {
 } from "./payment-country";
 import { sanitizeCustomerSubmissionResult } from "../../customer-submission-result";
 import { getAutomatedOnlineSubmissionEvidence } from "@/lib/submission-result-evidence";
+import { ds160ProgressForStage } from "@/lib/ds160-progress";
 
 export const dynamic = "force-dynamic";
 
@@ -1188,6 +1189,27 @@ export function deriveNonTerminalStatus(
           ? "Submission job is still queued. The worker has not picked it up yet."
           : "Still confirming the submission result. The runner heartbeat has not changed recently."),
       error,
+    };
+  }
+
+  // DS-160 runs report the CEAC page they reached; show real progress.
+  const ds160Progress =
+    queueDerived.status === "running" && queueStatus.startsWith("ds160_")
+      ? ds160ProgressForStage(currentStage)
+      : null;
+  if (ds160Progress && !error) {
+    const stage: SubmissionApiStage =
+      ds160Progress.phase === "preparing"
+        ? "preparing"
+        : ds160Progress.phase === "confirming"
+          ? "submitting_form"
+          : "filling_form";
+    return {
+      status: "running",
+      stage,
+      progress: ds160Progress.progress,
+      message: messageForStage(stage),
+      error: null,
     };
   }
 

@@ -1202,3 +1202,52 @@ describe("automated online entry status mapping", () => {
     }
   });
 });
+
+describe("DS-160 page checkpoints", () => {
+  const now = () => new Date().toISOString();
+  const application = () => ({
+    id: "us_application",
+    applicant_id: "profile_1",
+    country: "united_states",
+    visa_type: "B1_B2",
+    submitted_at: now(),
+    submission_result: null,
+    submission_result_status: "processing",
+    submission_result_updated_at: now(),
+    updated_at: now(),
+  });
+  const queue = (currentStage: string | null) => ({
+    id: "queue_1",
+    status: "ds160_live_assisted_processing",
+    attempts: 1,
+    mode: "live_assisted",
+    provider: "ceac_live",
+    last_error: null,
+    error_code: null,
+    error_message: null,
+    current_stage: currentStage,
+    heartbeat_at: now(),
+    manual_action_status: null,
+    official_status: null,
+    official_portal_url: null,
+    payment_status: null,
+    vn_result_payload: null,
+    created_at: now(),
+    updated_at: now(),
+  });
+
+  it("reports the CEAC page the worker reached as real progress", () => {
+    const status = deriveNonTerminalStatus(application(), queue("ceac_page:passport"));
+    expect(status).toMatchObject({ status: "running", stage: "filling_form", progress: 42 });
+  });
+
+  it("moves to the submit phase on Sign and Submit", () => {
+    const status = deriveNonTerminalStatus(application(), queue("ceac_page:sign_and_submit"));
+    expect(status).toMatchObject({ status: "running", stage: "submitting_form", progress: 94 });
+  });
+
+  it("keeps the generic progress for stages that are not checkpoints", () => {
+    const status = deriveNonTerminalStatus(application(), queue(null));
+    expect(status).toMatchObject({ status: "running", progress: 72 });
+  });
+});
