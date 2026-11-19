@@ -2246,6 +2246,58 @@ export default function ApplicationPage() {
     explicitProductCountry ?? visaPackage?.country ?? "indonesia",
     resolvedVisaType,
   );
+  // When the URL names the application and visa, its context, saved answers
+  // and documents depend only on that ID. Start all three as soon as the page
+  // opens (alongside the schema) instead of one after another; loadData and
+  // the documents effect then use these in-flight requests.
+  const explicitPrefetchKey = explicitApplicationId && explicitVisaType && !isExplicitStatusView
+    ? `${explicitApplicationId}|${resolvedCountry}|${resolvedVisaType}`
+    : null;
+  const explicitPrefetchRef = useRef<{
+    key: string;
+    startedAt: number;
+    context: ReturnType<typeof getTeamApplicationContext> | null;
+    answers: ReturnType<typeof loadDynamicAnswers> | null;
+    documents: ReturnType<typeof loadDocumentCenterData> | null;
+  } | null>(null);
+  useEffect(() => {
+    if (!explicitApplicationId || !explicitPrefetchKey) return;
+    if (explicitPrefetchRef.current?.key === explicitPrefetchKey) return;
+    // Callers await these later; a rejection is handled there, not here.
+    const tracked = <T,>(promise: Promise<T>): Promise<T> => {
+      promise.catch(() => undefined);
+      return promise;
+    };
+    explicitPrefetchRef.current = {
+      key: explicitPrefetchKey,
+      startedAt: Date.now(),
+      context: tracked(getTeamApplicationContext(explicitApplicationId)),
+      answers: tracked(loadDynamicAnswers(explicitApplicationId)),
+      documents: tracked(loadDocumentCenterData({
+        applicationId: explicitApplicationId,
+        country: resolvedCountry,
+        visaType: resolvedVisaType,
+      })),
+    };
+  }, [explicitApplicationId, explicitPrefetchKey, resolvedCountry, resolvedVisaType]);
+  /** The prefetched context/answers for this exact application, used once. */
+  const takePrefetched = useCallback(<K extends "context" | "answers">(
+    kind: K,
+    applicationId: string,
+  ) => {
+    const prefetch = explicitPrefetchRef.current;
+    if (!prefetch || !prefetch.key.startsWith(`${applicationId}|`)) return null;
+    const promise = prefetch[kind];
+    prefetch[kind] = null;
+    return promise as NonNullable<(typeof prefetch)[K]> | null;
+  }, []);
+  /** The prefetched documents for this application, shared while still fresh. */
+  const prefetchedDocuments = useCallback((key: string) => {
+    const prefetch = explicitPrefetchRef.current;
+    if (!prefetch || prefetch.key !== key || Date.now() - prefetch.startedAt > 15_000) return null;
+    return prefetch.documents;
+  }, []);
+
   const isTaiwanEntryPermit = resolvedVisaType === "TW_ENTRY_PERMIT";
   const isArrivalCardApplication = isDigitalArrivalCardApplication(resolvedCountry, resolvedVisaType);
   const isPhilippinesEtravel = isPhilippinesEtravelApplication(resolvedCountry, resolvedVisaType);
@@ -3050,7 +3102,10 @@ export default function ApplicationPage() {
       } | null = null;
 
       if (explicitApplicationId) {
-        const context = await getTeamApplicationContext(explicitApplicationId);
+        const context = await (
+          takePrefetched("context", explicitApplicationId) ??
+          getTeamApplicationContext(explicitApplicationId)
+        );
         if (!context.ok || !context.application || !context.profile) {
           if (isLatestRequest()) {
             setError(context.reason ?? t("errors.noApplicationFound"));
@@ -3150,7 +3205,10 @@ export default function ApplicationPage() {
           if (preloadedAnswers?.applicationId === application.id) {
             ds160Answers = preloadedAnswers.answers;
           } else {
-            const { answers } = await loadDynamicAnswers(application.id);
+            const { answers } = await (
+              takePrefetched("answers", application.id) ??
+              loadDynamicAnswers(application.id)
+            );
             ds160Answers = answers;
           }
           if (
@@ -3304,6 +3362,7 @@ export default function ApplicationPage() {
     scrollToStepPanel,
     statusStepIndex,
     t,
+    takePrefetched,
   ]);
 
   useEffect(() => {
@@ -5153,11 +5212,14 @@ export default function ApplicationPage() {
     setDocumentCenterError(null);
     setDocumentCenterLoaded(false);
 
-    loadDocumentCenterData({
-      applicationId,
-      country: resolvedCountry,
-      visaType: resolvedVisaType,
-    })
+    (
+      prefetchedDocuments(`${applicationId}|${resolvedCountry}|${resolvedVisaType}`) ??
+      loadDocumentCenterData({
+        applicationId,
+        country: resolvedCountry,
+        visaType: resolvedVisaType,
+      })
+    )
       .then((result) => {
         if (cancelled) return;
         if (result.ok) {
@@ -5185,7 +5247,7 @@ export default function ApplicationPage() {
     return () => {
       cancelled = true;
     };
-  }, [appState.applicationId, loading, packageLoaded, resolvedCountry, resolvedVisaType, t]);
+  }, [appState.applicationId, loading, packageLoaded, prefetchedDocuments, resolvedCountry, resolvedVisaType, t]);
 
   const handlePassportOcrFieldsApplied = useCallback((
     fields: UniversalProfileSnapshot,
