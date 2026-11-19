@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import {
   Warning as AlertTriangle,
   CalendarCheck,
+  CaretRight,
   ArrowSquareOut as ExternalLink,
   Eye,
   EyeSlash as EyeOff,
@@ -46,6 +47,7 @@ type FvOfficialAccount = {
 export function FrResultCard({ applicationId, result }: FrResultCardProps) {
   const isZh = isChineseLocale(useLocale());
   const appointmentT = useTranslations("franceAppointment.nextStepCard");
+  const guideT = useTranslations("franceAppointment.nextStepsGuide");
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
   const [manualAction, setManualAction] = useState<ManualAction | null>(null);
@@ -65,6 +67,14 @@ export function FrResultCard({ applicationId, result }: FrResultCardProps) {
     result.officialStatus === "official_record_confirmed" ||
     Boolean(result.applicationReference && liveAssisted && !result.manualAction);
   const lodgedAtVisaCentre = result.status === "submitted" || result.officialStatus === "lodged_at_visa_centre";
+  // The application exists on France-Visas (saved with a reference, or
+  // confirmed), so the applicant's next move is booking at TLScontact.
+  const savedOnFranceVisas =
+    officialConfirmed ||
+    (liveAssisted &&
+      (result.officialStatus === "official_record_created" ||
+        result.officialStatus === "appointment_required" ||
+        result.officialStatus === "payment_required"));
   const badgeLabel = officialConfirmed
     ? (isZh ? "提交成功" : "Submitted")
     : liveAssisted
@@ -367,6 +377,21 @@ export function FrResultCard({ applicationId, result }: FrResultCardProps) {
           </div>
         )}
 
+        {savedOnFranceVisas && (
+          <Link
+            href={`/client/application/fr-next-steps?applicationId=${encodeURIComponent(applicationId)}`}
+            className="group flex min-h-11 items-center gap-3 rounded-md border border-brand-200 bg-brand-50 p-4 transition-colors hover:bg-brand-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+            data-testid="fr-next-steps-link"
+          >
+            <CalendarCheck className="h-6 w-6 shrink-0 text-brand-500" aria-hidden="true" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold text-foreground">{guideT("title")}</span>
+              <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{guideT("body")}</span>
+            </span>
+            <NextStepsLinkIndicator label={guideT("loading")} />
+          </Link>
+        )}
+
         {liveAssisted && !officialConfirmed && (manualAction || manualActionError) && (
           <div className="space-y-3 rounded-md border border-amber-200 bg-amber-50 p-3">
             <div className="flex items-center gap-2 text-xs font-medium text-amber-700">
@@ -468,5 +493,24 @@ export function FrResultCard({ applicationId, result }: FrResultCardProps) {
         )}
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * Arrow that turns into a spinner while the guide is loading, so the
+ * applicant can see the click registered. Must render inside the Link.
+ */
+function NextStepsLinkIndicator({ label }: { label: string }) {
+  const { pending } = useLinkStatus();
+  return pending ? (
+    <span className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-brand-500" role="status">
+      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+      <span>{label}</span>
+    </span>
+  ) : (
+    <CaretRight
+      className="h-4 w-4 shrink-0 text-brand-500 transition-transform group-hover:translate-x-0.5"
+      aria-hidden="true"
+    />
   );
 }

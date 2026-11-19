@@ -5615,6 +5615,11 @@
       "body": "Continue to TLScontact China account preparation and user-triggered, read-only availability checks. Selection, payment, and booking remain disabled.",
       "button": "Open TLS appointment assistant",
       "badge": "TLScontact China"
+    },
+    "nextStepsGuide": {
+      "title": "After you submit: booking and next steps",
+      "body": "Booking at TLScontact, printing and signing the form, fees, what to bring, biometrics, all visa centre addresses, tracking and getting your passport back.",
+      "loading": "Opening…"
     }
   },
   "JapanAppointment": {
