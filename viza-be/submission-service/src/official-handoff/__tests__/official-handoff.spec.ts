@@ -292,6 +292,10 @@ test("Indonesia logout detection only matches home, selection, and sign-in pages
   assert.equal(isIndonesiaLoggedOutSnapshot({ url: "https://evisa.imigrasi.go.id/web/application-detail-otp/abc" }), false);
   assert.equal(isIndonesiaLoggedOutSnapshot({ url: "https://pay.example/checkout" }), false);
   assert.equal(
+    isIndonesiaLoggedOutSnapshot({ url: "https://evisa.imigrasi.go.id/front/login", text: "Enter OTP Code OTP Code * Submit" }),
+    false,
+  );
+  assert.equal(
     inspectIndonesiaHandoffSnapshot({ url: "https://evisa.imigrasi.go.id/web/visa-selection", text: "Passport/Country/Region", capturedAt: "t" }).outcome,
     "lost",
   );

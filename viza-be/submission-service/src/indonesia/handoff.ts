@@ -93,6 +93,9 @@ export function isIndonesiaLoggedOutSnapshot(snapshot: IndonesiaPortalSnapshot):
     return false;
   }
   if (!INDONESIA_PORTAL_HOST.test(url.hostname)) return false;
+  // The official Submit asks for an emailed OTP on a login-style page; the
+  // applicant is mid-verification there, not logged out.
+  if (/\botp\b/i.test(url.pathname) || /enter otp code|kode otp/i.test(snapshot.text ?? "")) return false;
   const path = url.pathname.replace(/\/+$/, "").toLowerCase();
   if (path === "" || path === "/web" || path === "/front") return true;
   if (/^\/(?:web|front)\/(?:visa-selection|login|register)(?:\/|$)/.test(path)) return true;

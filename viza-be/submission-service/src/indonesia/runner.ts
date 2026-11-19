@@ -4088,20 +4088,37 @@ async function continueFromApplicationStepThree(
   });
   await dismissIndonesiaDialogs(page, diagnostics);
   const checkboxes = page.locator('input[type="checkbox"]');
-  const count = await checkboxes.count().catch(() => 0);
-  const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
   const expectedPassportNumber = input.application?.passportNumber ?? input.registration?.passportNumber;
-  const reviewPassportNumber = await page
-    .locator("#number, input[name='passport_number']")
-    .first()
-    .inputValue({ timeout: 2_000 })
-    .catch(() => null);
-  if (!isIndonesiaStepThreePassportReviewComplete({
-    bodyText,
-    expectedPassportNumber,
-    reviewPassportNumber,
-    checkboxCount: count,
-  })) {
+  // The review page renders large passport/photo previews; give it time to
+  // finish before judging whether step 1 data persisted.
+  await page.waitForLoadState("load", { timeout: 20_000 }).catch(() => undefined);
+  await checkboxes.first().waitFor({ state: "attached", timeout: 15_000 }).catch(() => undefined);
+  let count = 0;
+  let bodyText = "";
+  let reviewPassportNumber: string | null = null;
+  let reviewComplete = false;
+  for (let attempt = 0; attempt < 5 && !reviewComplete; attempt += 1) {
+    if (attempt > 0) await page.waitForTimeout(2_000);
+    count = await checkboxes.count().catch(() => 0);
+    bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+    reviewPassportNumber = await page
+      .locator("#number, input[name='passport_number']")
+      .first()
+      .inputValue({ timeout: 2_000 })
+      .catch(() => null);
+    reviewComplete = isIndonesiaStepThreePassportReviewComplete({
+      bodyText,
+      expectedPassportNumber,
+      reviewPassportNumber,
+      checkboxCount: count,
+    });
+  }
+  if (!reviewComplete) {
+    const normalize = (value: string | null | undefined) => (value ?? "").replace(/[^a-z0-9]/gi, "").toUpperCase();
+    diagnostics.push(
+      `indonesia_step_3_review_check checkboxes=${count} expectedLen=${normalize(expectedPassportNumber).length} ` +
+        `reviewLen=${normalize(reviewPassportNumber).length} reviewMatches=${normalize(reviewPassportNumber) === normalize(expectedPassportNumber)}`,
+    );
     diagnostics.push(
       expectedPassportNumber &&
         !bodyText.replace(/[^a-z0-9]/gi, "").toUpperCase().includes(
