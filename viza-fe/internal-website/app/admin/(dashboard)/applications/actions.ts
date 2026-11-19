@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { wakeCloudSubmissionWorker } from "@/lib/submission-worker-wake.server";
+import { wakeCloudSubmissionWorker, wakeDs160SubmissionWorker } from "@/lib/submission-worker-wake.server";
 import { assertRunnerCutoverActive } from "@/lib/runner-cutover-pause.server";
 import { sendTransitionNotification } from "@/lib/notify/dispatch";
 import { getDestinationDisplayNameZh } from "@/lib/visa-destinations";
@@ -283,7 +283,10 @@ export async function completeLiveManualAction(formData: FormData) {
       .eq("id", jobId);
     if (updateQueueError) redirect(target);
 
-    const wake = await wakeCloudSubmissionWorker(jobId, { target: "legacy" });
+    // CEAC jobs run on the dedicated US East DS-160 worker.
+    const wake = queue.provider?.startsWith("ceac_")
+      ? await wakeDs160SubmissionWorker(jobId)
+      : await wakeCloudSubmissionWorker(jobId, { target: "legacy" });
     if (!wake.ok) {
       console.warn("[submission-queue] Staff manual-action requeue wake failed; durable queue remains recoverable.", wake);
     }

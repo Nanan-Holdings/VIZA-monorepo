@@ -4,7 +4,7 @@ import { isRunnerCutoverPaused } from "@/lib/runner-cutover-pause.server";
 
 type WakeEnvironment = Partial<NodeJS.ProcessEnv>;
 
-export type FlyWakeTarget = "legacy" | "pool" | "indonesia" | "south_korea";
+export type FlyWakeTarget = "legacy" | "ds160" | "pool" | "indonesia" | "south_korea";
 
 export type FlyMachineWakeResult =
   | { ok: true; target: FlyWakeTarget; app: string; state: "already_running" | "start_requested" }
@@ -43,6 +43,8 @@ interface FlyMachineSummary {
 const DEFAULT_TARGET_APPS: Record<FlyWakeTarget, string> = {
   pool: "viza-runner-pool",
   legacy: "viza-submission-legacy",
+  // DS-160 (CEAC) runs on its own US East worker next to the CEAC browser.
+  ds160: "viza-prod-submission-ds160",
   indonesia: "viza-runner-indonesia",
   south_korea: "viza-runner-south-korea",
 };
@@ -52,6 +54,7 @@ function targetApps(env: WakeEnvironment): Record<FlyWakeTarget, string> {
     pool: env.FLY_RUNNER_POOL_APP?.trim() || DEFAULT_TARGET_APPS.pool,
     legacy:
       env.FLY_SUBMISSION_LEGACY_APP?.trim() || DEFAULT_TARGET_APPS.legacy,
+    ds160: env.FLY_SUBMISSION_DS160_APP?.trim() || DEFAULT_TARGET_APPS.ds160,
     indonesia:
       env.FLY_RUNNER_INDONESIA_APP?.trim() || DEFAULT_TARGET_APPS.indonesia,
     south_korea:
@@ -61,10 +64,10 @@ function targetApps(env: WakeEnvironment): Record<FlyWakeTarget, string> {
 }
 
 const COUNTRY_ALIASES: Record<string, FlyWakeTarget> = {
-  us: "legacy",
-  usa: "legacy",
-  united_states: "legacy",
-  united_states_of_america: "legacy",
+  us: "ds160",
+  usa: "ds160",
+  united_states: "ds160",
+  united_states_of_america: "ds160",
   id: "indonesia",
   indonesia: "indonesia",
   vn: "pool",
@@ -94,11 +97,15 @@ export const MAX_PARALLEL_MACHINE_STARTS = 3;
 function normalizeTarget(target: string): FlyWakeTarget | null {
   const normalized = target.trim().toLowerCase().replace(/[\s-]+/gu, "_");
   if (normalized === "legacy") return "legacy";
+  if (normalized === "ds160") return "ds160";
   if (normalized === "pool" || normalized === "runner_pool") return "pool";
   return COUNTRY_ALIASES[normalized] ?? null;
 }
 
 function slotKind(target: FlyWakeTarget): "pool" | "legacy" | "south_korea" | "indonesia" | null {
+  // The DS-160 worker is the legacy image in another region; it takes a
+  // legacy-kind slot like the Singapore legacy worker.
+  if (target === "ds160") return "legacy";
   if (
     target === "pool" ||
     target === "legacy" ||

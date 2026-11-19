@@ -50,11 +50,11 @@ describe("ensureFlyMachineStarted", () => {
     });
   });
 
-  it("routes United States aliases to the retained legacy app", async () => {
+  it("routes United States aliases to the US East DS-160 app", async () => {
     const fetchImpl = vi
       .fn()
       .mockResolvedValueOnce(
-        new Response(JSON.stringify([{ id: "legacy-machine-1", state: "stopped" }]), {
+        new Response(JSON.stringify([{ id: "ds160-machine-1", state: "stopped" }]), {
           status: 200,
         }),
       )
@@ -70,13 +70,13 @@ describe("ensureFlyMachineStarted", () => {
       }),
     ).resolves.toMatchObject({
       ok: true,
-      target: "legacy",
-      app: "viza-prod-submission-legacy",
+      target: "ds160",
+      app: "viza-prod-submission-ds160",
       state: "start_requested",
     });
     expect(fetchImpl).toHaveBeenNthCalledWith(
       2,
-      "https://api.machines.dev/v1/apps/viza-prod-submission-legacy/machines/legacy-machine-1/start",
+      "https://api.machines.dev/v1/apps/viza-prod-submission-ds160/machines/ds160-machine-1/start",
       expect.objectContaining({ method: "POST" }),
     );
   });

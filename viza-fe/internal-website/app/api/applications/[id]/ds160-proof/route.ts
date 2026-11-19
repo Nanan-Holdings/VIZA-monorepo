@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createHash } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { wakeCloudSubmissionWorker } from "@/lib/submission-worker-wake.server";
+import { wakeDs160SubmissionWorker } from "@/lib/submission-worker-wake.server";
 import { isRunnerCutoverPaused } from "@/lib/runner-cutover-pause.server";
 import {
   ds160ProofEmailAccountOnlyResponse,
@@ -400,7 +400,7 @@ export async function POST(
       Object.assign(response, safeOfficialEmailError(emailPayload.status));
     }
     if (emailPayload.status === "queued" && emailQueue?.id) {
-      const wake = await wakeCloudSubmissionWorker(emailQueue.id, { target: "legacy" });
+      const wake = await wakeDs160SubmissionWorker(emailQueue.id);
       if (!wake.ok) {
         console.warn("[submission-queue] official DS-160 email wake failed; durable queue remains recoverable.", {
           jobId: emailQueue.id,
@@ -454,7 +454,7 @@ export async function POST(
       if (rpcError) throw new Error("DS-160 proof recovery could not be queued.");
       const row = mapEmailQueueRow(rpcData);
       const jobId = row?.id ?? null;
-      const wake = await wakeCloudSubmissionWorker(jobId, { target: "legacy" });
+      const wake = await wakeDs160SubmissionWorker(jobId);
       if (!wake.ok) {
         console.warn("[submission-queue] DS-160 proof queue wake failed; durable queue remains recoverable.", wake);
       }

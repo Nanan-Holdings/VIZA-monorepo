@@ -4,7 +4,7 @@ import { isRunnerCutoverPaused } from "@/lib/runner-cutover-pause.server";
 
 type WakeEnvironment = Partial<NodeJS.ProcessEnv>;
 
-type WakeEndpoint = "default" | "legacy";
+type WakeEndpoint = "default" | "legacy" | "ds160";
 
 export type SubmissionWorkerWakeResult =
   | { ok: true }
@@ -20,7 +20,10 @@ function resolveWakeBaseUrl(
       ["vn", "vietnam", "sg", "singapore", "my", "malaysia", "th", "thailand"].includes(normalized)
   const isIndonesia = normalized === "indonesia" || normalized === "id";
   const isSouthKorea = normalized === "south_korea" || normalized === "korea" || normalized === "kr" || normalized === "kor";
-  const explicitUrl = endpoint === "legacy"
+  const isDs160 = endpoint === "ds160" || normalized === "ds160";
+  const explicitUrl = isDs160
+    ? env.SUBMISSION_SERVICE_DS160_URL
+    : endpoint === "legacy"
     ? env.SUBMISSION_SERVICE_CLOUD_URL
     : isPool
       ? env.RUNNER_POOL_SUBMISSION_SERVICE_URL
@@ -31,7 +34,9 @@ function resolveWakeBaseUrl(
           : env.VIETNAM_SUBMISSION_SERVICE_URL ?? env.SUBMISSION_SERVICE_CLOUD_URL;
   if (explicitUrl?.trim()) return explicitUrl.trim().replace(/\/+$/u, "");
 
-  const app = isPool
+  const app = isDs160
+    ? env.FLY_SUBMISSION_DS160_APP?.trim() || "viza-prod-submission-ds160"
+    : isPool
     ? env.FLY_RUNNER_POOL_APP?.trim() || "viza-runner-pool"
     : isIndonesia
       ? env.FLY_RUNNER_INDONESIA_APP?.trim() || "viza-runner-indonesia"
@@ -116,9 +121,9 @@ export async function wakeCloudSubmissionWorker(
 }
 
 /**
- * DS-160 is served by the retained legacy worker even though its application
- * country is United States. Keep this mapping explicit so the generic legacy
- * compatibility path used by Vietnam is not changed accidentally.
+ * DS-160 runs on its own US East worker (the legacy image, next to the CEAC
+ * browser), not on the Singapore legacy worker. Keep this mapping explicit so
+ * the generic legacy compatibility path used by Vietnam is not changed.
  */
 export async function wakeDs160SubmissionWorker(
   jobId: string | null,
@@ -129,7 +134,7 @@ export async function wakeDs160SubmissionWorker(
 ): Promise<SubmissionWorkerWakeResult> {
   return wakeCloudSubmissionWorker(jobId, {
     ...options,
-    target: "legacy",
-    endpoint: "legacy",
+    target: "ds160",
+    endpoint: "ds160",
   });
 }
