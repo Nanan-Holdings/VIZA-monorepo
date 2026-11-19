@@ -79,6 +79,11 @@ interface DocumentCenterClientProps {
   hideOptionalDocuments?: boolean;
   forceRequiredRequirementKeys?: string[];
   onDataChange?: (data: DocumentCenterData | null) => void;
+  /**
+   * The parent is still loading this same application's documents and will
+   * pass them in as initialData; do not start a second identical request.
+   */
+  parentLoading?: boolean;
   onUploadComplete?: () => void;
   highlightRequirementKey?: string | null;
   onContinue?: () => void;
@@ -1152,6 +1157,7 @@ export function DocumentCenterClient({
   hideOptionalDocuments = false,
   forceRequiredRequirementKeys,
   onDataChange,
+  parentLoading = false,
   onUploadComplete,
   highlightRequirementKey,
   onContinue,
@@ -1288,7 +1294,7 @@ export function DocumentCenterClient({
   const isTaiwanInline = presentation === "taiwan-inline";
 
   useEffect(() => {
-    if (!applicationId) return;
+    if (!applicationId || parentLoading) return;
     if (data?.selectedApplication?.id === applicationId) return;
 
     let cancelled = false;
@@ -1313,7 +1319,7 @@ export function DocumentCenterClient({
     return () => {
       cancelled = true;
     };
-  }, [applicationId, country, data?.selectedApplication?.id, onDataChange, visaType]);
+  }, [applicationId, country, data?.selectedApplication?.id, onDataChange, parentLoading, visaType]);
 
   useEffect(() => {
     setTravelCandidates(

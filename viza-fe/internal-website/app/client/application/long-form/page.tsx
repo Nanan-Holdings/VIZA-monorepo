@@ -5562,6 +5562,7 @@ export default function ApplicationPage() {
                           onlyRequirementKeys={missingRequiredDocumentKeys}
                           hideOptionalDocuments
                           onDataChange={setDocumentCenterData}
+                          parentLoading={!documentCenterLoaded}
                         />
                       )
                     : null
@@ -5650,6 +5651,7 @@ export default function ApplicationPage() {
                                 embedded
                                 onlyRequirementKeys={["photo"]}
                                 onDataChange={setDocumentCenterData}
+                          parentLoading={!documentCenterLoaded}
                               />
                             ) : null}
                             <DynamicStepForm
@@ -5687,6 +5689,7 @@ export default function ApplicationPage() {
                                   forceRequiredRequirementKeys={taiwanEntryPermitRequiredDocumentKeys}
                                   presentation="taiwan-inline"
                                   onDataChange={setDocumentCenterData}
+                          parentLoading={!documentCenterLoaded}
                                 />
                               </div>
                             ) : null}
@@ -5717,6 +5720,7 @@ export default function ApplicationPage() {
                               visaType={activeVisaType}
                               embedded
                               onDataChange={setDocumentCenterData}
+                          parentLoading={!documentCenterLoaded}
                             />
                           ) : (
                             <div className="flex min-h-[240px] items-center justify-center">
@@ -5854,6 +5858,7 @@ export default function ApplicationPage() {
                               visaType={activeVisaType}
                               embedded
                               onDataChange={setDocumentCenterData}
+                          parentLoading={!documentCenterLoaded}
                             />
                           ) : (
                             <div className="flex min-h-[240px] items-center justify-center">
