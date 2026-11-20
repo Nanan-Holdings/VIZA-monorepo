@@ -101,7 +101,7 @@ describe("UK application-scoped account access", () => {
     expect(isUkStandardVisitorApplication("united_states", "UK_STANDARD_VISITOR")).toBe(false);
   });
 
-  it("accepts only official HTTPS forceResume URL shapes", () => {
+  it("accepts only the observed official HTTPS resume URL shapes", () => {
     expect(isAllowedUkResumeUrl(
       "https://visas-immigration.service.gov.uk/forceResume/application-token",
     )).toBe(true);
@@ -112,6 +112,46 @@ describe("UK application-scoped account access", () => {
     expect(isAllowedUkResumeUrl("https://visas-immigration.service.gov.uk/forceResume/token#secret")).toBe(false);
     expect(isAllowedUkResumeUrl("https://apply-uk-visa.service.gov.uk/forceResume?token=token&next=https://evil.example")).toBe(false);
     expect(isAllowedUkResumeUrl("https://evil.example/forceResume/token")).toBe(false);
+    expect(isAllowedUkResumeUrl(
+      "https://visas-immigration.service.gov.uk/resume/12345678-1234-1234-1234-123456789abc",
+    )).toBe(true);
+    expect(isAllowedUkResumeUrl(
+      "https://visas-immigration.service.gov.uk/resume/12345678-1234-1234-1234-123456789ABC",
+    )).toBe(true);
+    for (const url of [
+      "https://visas-immigration.service.gov.uk/resume/",
+      "https://visas-immigration.service.gov.uk/resume/not-a-uuid",
+      "https://visas-immigration.service.gov.uk/RESUME/12345678-1234-1234-1234-123456789abc",
+      "https://visas-immigration.service.gov.uk/resume/12345678-1234-1234-1234-123456789abc/extra",
+      "https://visas-immigration.service.gov.uk/resume/12345678-1234-1234-1234-123456789abc?next=https://evil.example",
+      "https://visas-immigration.service.gov.uk/resume/12345678-1234-1234-1234-123456789abc#token",
+      "http://visas-immigration.service.gov.uk/resume/12345678-1234-1234-1234-123456789abc",
+      "https://visas-immigration.service.gov.uk:8443/resume/12345678-1234-1234-1234-123456789abc",
+      "https://visas-immigration.service.gov.uk:443/resume/12345678-1234-1234-1234-123456789abc",
+      "https://user:password@visas-immigration.service.gov.uk/resume/12345678-1234-1234-1234-123456789abc",
+      "https://visas-immigration.service.gov.uk.evil.example/resume/12345678-1234-1234-1234-123456789abc",
+      "https://apply-uk-visa.service.gov.uk/resume/12345678-1234-1234-1234-123456789abc",
+    ]) {
+      expect(isAllowedUkResumeUrl(url)).toBe(false);
+    }
+  });
+
+  it("reveals a current UKVI save-and-return resume link to its owner", async () => {
+    const resumeUrl = "https://visas-immigration.service.gov.uk/resume/12345678-1234-1234-1234-123456789abc";
+    accountQuery.maybeSingle.mockResolvedValue({
+      data: {
+        email: "application@viza.it.com",
+        password_encrypted: encryptSecret("TestPassword2!"),
+        resume_url: resumeUrl,
+      },
+      error: null,
+    });
+    const response = await request(buildApp())
+      .post("/api/applications/application-id/uk-account/reveal")
+      .set("Authorization", "Bearer owner-token");
+    expect(response.status).toBe(200);
+    expect(response.headers["cache-control"]).toBe("private, no-store");
+    expect(response.body.resumeUrl).toBe(resumeUrl);
   });
 
   it("authenticates the owner, binds account lookup to both application and applicant, and disables caching", async () => {

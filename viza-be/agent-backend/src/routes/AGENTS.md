@@ -30,7 +30,10 @@ and internal admin flows.
 - `uk-account.routes.ts`: owner-bearer UK Standard Visitor account writes and
   explicit application-scoped credential reveal. Reads and writes must bind
   both `application_id` and `applicant_id`, keep the account table service-role
-  only, and allow only exact official HTTPS forceResume URLs.
+  only, and allow only exact official HTTPS forceResume URLs or the observed
+  `visas-immigration.service.gov.uk/resume/<UUID>` save-and-return format.
+  Current resume links reject query strings, fragments, extra path segments,
+  credentials, and explicit ports; never log their private UUID tokens.
 - `uk-account.routes.test.ts` and
   `submission-result.routes.uk-legacy.test.ts`: regressions for owner/product
   checks, application binding, decryption/error sanitization, no-store

@@ -3,7 +3,7 @@
  *
  * POST /api/applications/:id/uk-account
  *   Body: { email, password, resumeUrl }
- *   Persists encrypted password + forceResume URL to uk_accounts so the
+ *   Persists encrypted password + official resume URL to uk_accounts so the
  *   submission-service worker can drive the post-auth resume walk.
  *
  * Owner-validated via the same bearer-JWT pattern as
@@ -43,16 +43,27 @@ const UK_STANDARD_VISITOR_COUNTRIES = new Set(["uk", "united_kingdom"]);
  * with credentials, a non-HTTPS URL, or a different path must never enter the
  * credential vault or be returned to an applicant.
  */
+const UK_RESUME_UUID = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/iu;
 const UK_RESUME_URL_RULES = [
   {
     hostname: "visas-immigration.service.gov.uk",
-    path: (pathname: string) => pathname.startsWith("/forceResume/") && pathname.length > "/forceResume/".length,
+    path: (pathname: string) => (
+      (pathname.startsWith("/forceResume/") && pathname.length > "/forceResume/".length)
+      // UKVI's current save-and-return email uses /resume/<UUID>.
+      || (pathname.startsWith("/resume/") && UK_RESUME_UUID.test(pathname.slice("/resume/".length)))
+    ),
   },
   {
     hostname: "apply-uk-visa.service.gov.uk",
     path: (pathname: string) => pathname === "/forceResume",
   },
 ] as const;
+
+function hasExplicitPort(value: string): boolean {
+  const authority = value.match(/^[a-z][a-z0-9+.-]*:\/\/([^/?#]*)/iu)?.[1];
+  if (!authority) return false;
+  return authority.slice(authority.lastIndexOf("@") + 1).includes(":");
+}
 
 export function isUkStandardVisitorApplication(
   country: string | null | undefined,
@@ -78,6 +89,7 @@ export function isAllowedUkResumeUrl(value: string): boolean {
     || url.username
     || url.password
     || url.port
+    || hasExplicitPort(value)
     || url.hash
   ) {
     return false;
@@ -216,7 +228,7 @@ router.post(
     }
     const normalizedResumeUrl = resumeUrl.trim();
     if (!isAllowedUkResumeUrl(normalizedResumeUrl)) {
-      res.status(400).json({ error: "resumeUrl must be an official UKVI HTTPS forceResume URL" });
+      res.status(400).json({ error: "resumeUrl must be an official UKVI HTTPS resume URL" });
       return;
     }
 
