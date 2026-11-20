@@ -18,7 +18,9 @@ import type { Browser, BrowserContext, Page } from "@playwright/test";
 import { launchFvBrowser } from "./browser";
 import { FV_URLS, FV_LOGIN_SELECTORS } from "./selectors";
 import { waitForPage } from "./pages";
-import { assertNoGate } from "./gates";
+import { assertNoGate, ENTRY_RENDER_TIMEOUT_MS, waitForRenderedPage } from "./gates";
+
+export { ENTRY_RENDER_TIMEOUT_MS, waitForRenderedPage };
 import { makeSessionCloser } from "./session";
 import { SessionBootstrapError } from "./errors";
 import { redactOfficialUrl } from "../appointment-free-smoke";
@@ -129,20 +131,6 @@ export async function restoreFvSession(
  * path will fail with a gate error — the caller should retry from a fresh
  * IP or surface the blocker to ops.
  */
-/** How long the France-Visas entry/login page may take to render. */
-export const ENTRY_RENDER_TIMEOUT_MS = 30_000;
-
-/** Resolve once the page has a title or visible text, or after `timeoutMs`. */
-export async function waitForRenderedPage(page: Page, timeoutMs: number): Promise<void> {
-  await page
-    .waitForFunction(
-      `(() => Boolean(document.title.trim()) || Boolean(document.body && document.body.innerText.trim()))()`,
-      undefined,
-      { timeout: timeoutMs, polling: 250 },
-    )
-    .catch(() => undefined);
-}
-
 export async function signInWithPassword(
   input: FvSignInInput,
   options: FvSignInOptions = {},

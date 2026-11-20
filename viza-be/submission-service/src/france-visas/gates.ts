@@ -91,7 +91,25 @@ export async function detectGate(page: Page): Promise<GateDetectionResult> {
   };
 }
 
+/** How long a France-Visas page may take to render before it is judged. */
+export const ENTRY_RENDER_TIMEOUT_MS = 30_000;
+
+/** Resolve once the page has a title or visible text, or after `timeoutMs`. */
+export async function waitForRenderedPage(page: Page, timeoutMs: number): Promise<void> {
+  await page
+    .waitForFunction(
+      `(() => Boolean(document.title.trim()) || Boolean(document.body && document.body.innerText.trim()))()`,
+      undefined,
+      { timeout: timeoutMs, polling: 250 },
+    )
+    .catch(() => undefined);
+}
+
 export async function assertNoGate(page: Page): Promise<void> {
+  // Through the remote browser France-Visas pages (login, registration) stay
+  // empty for several seconds after their HTML arrives. Judge a page only
+  // once it has rendered; one still blank after this is a real gate.
+  await waitForRenderedPage(page, ENTRY_RENDER_TIMEOUT_MS);
   const result = await detectGate(page);
   if (!result.gated) return;
 
