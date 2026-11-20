@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { ManualHandoffSubmissionResult } from "@/lib/submission-result";
+import { sanitizeCustomerSubmissionResult } from "@/app/api/applications/customer-submission-result";
 import { resolveMx } from "node:dns/promises";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -9,6 +10,7 @@ import { compareFaces } from "@/lib/face/match";
 import {
   wakeCloudSubmissionWorker,
   wakeDs160SubmissionWorker,
+  wakeUkSubmissionWorker,
 } from "@/lib/submission-worker-wake.server";
 import { isRunnerCutoverPaused } from "@/lib/runner-cutover-pause.server";
 import { ensureFlyMachineStarted } from "@/lib/fly-machine-wake.server";
@@ -2014,7 +2016,7 @@ export async function POST(
         mode,
       ),
       alreadySubmitted: true,
-      result: ownedApplication.submission_result,
+      result: sanitizeCustomerSubmissionResult(ownedApplication.submission_result),
     });
   }
 
@@ -2591,6 +2593,12 @@ export async function POST(
       queueResult.jobId
         ? await wakeDs160SubmissionWorker(queueResult.jobId)
         : null;
+    const ukWake =
+      isUkStandardVisitorApplication(ownedApplication.country, ownedApplication.visa_type) &&
+      (queueResult.queueStatus === "uk_prefill_pending" || queueResult.queueStatus === "uk_live_assisted_pending") &&
+      queueResult.jobId
+        ? await wakeUkSubmissionWorker(queueResult.jobId)
+        : null;
     return NextResponse.json({
       ok: true,
       applicationId,
@@ -2601,10 +2609,11 @@ export async function POST(
       alreadyQueued: true,
       newApplication: freshDs160Submission,
       supersededCount: queueResult.supersededCount,
-      result: ownedApplication.submission_result,
+      result: sanitizeCustomerSubmissionResult(ownedApplication.submission_result),
       queueTransport: isTaiwanFormalSubmit ? "runner_job" : poolEnqueue?.transport ?? "submission_queue",
       queueBackend: isTaiwanFormalSubmit ? "runner_job" : undefined,
-      workerTriggered: poolEnqueue?.workerTriggered ?? stickyWake?.ok ?? ds160Wake?.ok ?? false,
+      workerTriggered: poolEnqueue?.workerTriggered ?? stickyWake?.ok ?? ds160Wake?.ok ?? ukWake?.ok ?? false,
+      ...(ukWake ? { workerWakeStatus: ukWake.ok ? "accepted" : "pending" } : {}),
     });
   }
 
@@ -2632,8 +2641,8 @@ export async function POST(
   const { error: appUpdateError } = await admin
     .from("applications")
     .update({
-      status: isTaiwanFormalSubmit ? "processing" : "submitted",
-      submitted_at: isTaiwanFormalSubmit ? null : now,
+      status: isTaiwanFormalSubmit || isUkStandardVisitorApplication(ownedApplication.country, ownedApplication.visa_type) ? "processing" : "submitted",
+      submitted_at: isTaiwanFormalSubmit || isUkStandardVisitorApplication(ownedApplication.country, ownedApplication.visa_type) ? null : now,
       submission_result_status: nextSubmissionResultStatus,
       submission_result: nextSubmissionResult,
       confirmation_number: null,
@@ -2652,6 +2661,8 @@ export async function POST(
       ? poolEnqueue.workerTriggered
       : isDs160VisaType(ownedApplication.visa_type)
         ? (await wakeDs160SubmissionWorker(queueResult.jobId)).ok
+        : isUkStandardVisitorApplication(ownedApplication.country, ownedApplication.visa_type)
+          ? (await wakeUkSubmissionWorker(queueResult.jobId)).ok
         : isIndonesiaEVisaApplication(
             ownedApplication.country,
             ownedApplication.visa_type,
@@ -2673,8 +2684,11 @@ export async function POST(
     supersededCount: queueResult.supersededCount,
     scheduled: Boolean(scheduledResult),
     scheduledFor,
-    result: nextSubmissionResult,
+    result: sanitizeCustomerSubmissionResult(nextSubmissionResult),
     workerTriggered,
+    ...(isUkStandardVisitorApplication(ownedApplication.country, ownedApplication.visa_type)
+      ? { workerWakeStatus: workerTriggered ? "accepted" : "pending" }
+      : {}),
     queueTransport: isTaiwanFormalSubmit ? "runner_job" : poolEnqueue?.transport ?? "submission_queue",
   });
 }

@@ -58,7 +58,52 @@ Database leases and queue-specific claim RPCs prevent duplicate submissions.
 
 ## Scaling and operations
 
-- `scale-submission-service-fly` runs every five minutes and converts shared
+### UK Standard Visitor
+
+UK runs on the retained `FLY_SUBMISSION_LEGACY_APP` (default
+`viza-submission-legacy`), using `submission_queue` and the existing Machine
+slot/lease limits. The frontend UK wake explicitly starts that app, waits up to
+12 seconds for `/ready`, then POSTs the same job ID to the authenticated
+`/internal/submission-queue/wake` endpoint. Configure `SUBMISSION_SERVICE_CLOUD_URL`
+to that app's HTTPS `fly.dev` origin (or omit it); a Vietnam compatibility URL
+must not be used for UK. New and reused pending UK jobs wake; processing jobs
+are not replayed. A failed wake leaves the queued job intact for retry/recovery.
+
+The frontend server environment needs `FLY_SUBMISSION_ORG_TOKEN` for the
+Machines API and `SUBMISSION_QUEUE_INTERNAL_TOKEN` matching the retained worker.
+The GitHub deployment's `FLY_API_TOKEN` and a workstation CLI login do not
+configure those frontend environment variables.
+
+The legacy Fly configuration enables UK live-assisted prefill and headless
+Chromium. Set `UK_REGISTER_COMMIT=1` in the protected deployment environment
+only when real saved-application account creation is authorized; the optional
+secret is copied only to legacy and never logged. Without it, first account
+creation remains a needs-attention checkpoint. Existing account resumption still
+requires an exact application binding, working alias inbox, and shared encryption
+key. Payment execution remains retired.
+
+Apply `0215_uk_account_application_scope.sql` (or its byte-identical frontend
+Supabase migration) before releasing the UK API and runner changes. Historical
+rows remain unbound until an operator verifies the application association;
+the runner must pause for that association instead of guessing or registering
+a duplicate official application. Roll out the backend credential endpoint and
+runner before the frontend reveal/continue controls.
+
+Before accepting credential reveal, verify that the backend and runner use the
+same existing `SUBMISSION_RESULT_SECRET_KEY` by encrypting/decrypting an ephemeral
+test value across the two service configurations. Presence and minimum length
+alone do not prove compatibility. Reconcile against the key that decrypts the
+existing records; overwriting either key without that check can strand historical
+credentials. Keep key values and ciphertext out of logs and test artifacts.
+
+Both `uk_prefill_pending` and `uk_live_assisted_pending` contribute to the
+30-minute recovery scaler. Do not classify a Machine start or HTTP wake as
+official completion. Live acceptance requires frontend enqueue, Fly claim and
+progress for the same job, official saved-answer/checkpoint evidence, returned
+result, browser cleanup and eventual safe idle stop. Do not launch a fabricated
+UKVI application to test machine startup.
+
+- `scale-submission-service-fly` runs every 30 minutes and converts shared
   pool and Indonesia queue depth into Machine start/stop decisions. Retained
   Machines stop at desired capacity zero and restart when work appears. The
   authenticated frontend enqueue path explicitly wakes immediately claimable

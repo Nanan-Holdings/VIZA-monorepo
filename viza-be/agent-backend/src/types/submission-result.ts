@@ -143,11 +143,16 @@ export interface UkSubmissionResult {
   country: "UK";
   status:
     | "registered"
+    | "needs_attention"
     | "stopped_at_pay"
     | "funding_required"
     | "payment_pending"
     | "payment_review_required"
     | "paid";
+  /** Verified runner checkpoint; additive so historical rows remain readable. */
+  checkpoint?: "registration" | "form_incomplete" | "review" | "declaration" | "payment";
+  /** Safe runner checkpoint reason; customer projections must localize from checkpoint. */
+  reason?: string;
   paymentStatus?: "funding_required" | "pending" | "review_required" | "paid";
   paymentStateCode?: string;
   staffReviewCode?: string;

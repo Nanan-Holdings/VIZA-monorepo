@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   SUBMISSION_STATUS_REQUEST_TIMEOUT_MS,
@@ -30,6 +30,16 @@ vi.mock("../WaitingCard", () => ({
 
 vi.mock("../UsResultCard", () => ({
   UsResultCard: () => <div data-testid="us-result-card" />,
+}));
+
+vi.mock("../UkResultCard", () => ({
+  UkResultCard: ({ onContinue }: { onContinue?: () => void | Promise<void> }) => (
+    <div data-testid="uk-result-card">
+      <button type="button" onClick={() => void onContinue?.()}>
+        continue uk
+      </button>
+    </div>
+  ),
 }));
 
 type Snapshot = {
@@ -490,5 +500,140 @@ describe("SubmissionStatusStep status polling", () => {
       status: "submitted",
       result: successfulResult,
     });
+  });
+
+  it("uses the UK parent continuation once and keeps the old result hidden while the new queue starts", async () => {
+    const onResubmit = vi.fn().mockResolvedValue(undefined);
+    let resolveStatus: ((response: unknown) => void) | null = null;
+    const fetchMock = vi.fn().mockImplementation(() => new Promise((resolve) => {
+      resolveStatus = resolve;
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <SubmissionStatusStep
+        applicationId="application-id"
+        country="united_kingdom"
+        visaType="UK_STANDARD_VISITOR"
+        status="needs_attention"
+        result={{
+          country: "UK",
+          status: "needs_attention",
+          checkpoint: "form_incomplete",
+          prefillProgress: { pagesFilled: 3, pagesSkipped: 0, totalPages: 10 },
+        }}
+        onResubmit={onResubmit}
+      />,
+    );
+
+    expect(screen.getByTestId("uk-result-card")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "continue uk" }));
+
+    await waitFor(() => expect(onResubmit).toHaveBeenCalledTimes(1));
+    expect(fetchMock.mock.calls.some(([input]) => String(input).includes("retry-submission"))).toBe(false);
+
+    await act(async () => {
+      resolveStatus?.(createResponse({
+        status: "completed",
+        stage: "completed",
+        progress: 100,
+        result: {
+          country: "UK",
+          status: "needs_attention",
+          checkpoint: "form_incomplete",
+          prefillProgress: { pagesFilled: 3, pagesSkipped: 0, totalPages: 10 },
+        },
+        error: null,
+        message: "old attempt",
+        updatedAt: "2026-09-08T00:00:00.000Z",
+        applicationStatus: "needs_attention",
+        country: "united_kingdom",
+        visaType: "UK_STANDARD_VISITOR",
+        queue: null,
+      }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(screen.getByTestId("waiting-card")).toHaveAttribute("data-status", "queued");
+    expect(screen.queryByTestId("uk-result-card")).not.toBeInTheDocument();
+  });
+
+  it("does not accept an old terminal UK queue by id alone, then accepts the new active queue", async () => {
+    vi.useFakeTimers();
+    setVisibility("visible");
+    const onResubmit = vi.fn().mockResolvedValue(undefined);
+    const ukResult = {
+      country: "UK" as const,
+      status: "needs_attention" as const,
+      checkpoint: "form_incomplete" as const,
+      prefillProgress: { pagesFilled: 3, pagesSkipped: 0, totalPages: 10 },
+    };
+    const oldTerminal = createSnapshot({
+      status: "completed",
+      stage: "completed",
+      progress: 100,
+      result: ukResult,
+      message: "old terminal attempt",
+      applicationStatus: "needs_attention",
+      country: "united_kingdom",
+      visaType: "UK_STANDARD_VISITOR",
+      queue: createQueue({
+        id: "old-uk-queue",
+        status: "completed",
+        provider: "uk_visas_live",
+        currentStage: "completed",
+        createdAt: "2026-09-08T00:00:00.000Z",
+        updatedAt: "2026-09-08T00:00:01.000Z",
+      }),
+    });
+    const newActive = createSnapshot({
+      status: "queued",
+      stage: "preparing",
+      progress: 12,
+      result: null,
+      message: "new queue",
+      applicationStatus: "waiting",
+      country: "united_kingdom",
+      visaType: "UK_STANDARD_VISITOR",
+      queue: createQueue({
+        id: "new-uk-queue",
+        status: "pending",
+        provider: "uk_visas_live",
+        currentStage: "preparing",
+        createdAt: new Date(Date.now() + 2_000).toISOString(),
+      }),
+    });
+    const responses = [oldTerminal, oldTerminal, newActive];
+    let responseIndex = 0;
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(createResponse(responses[Math.min(responseIndex++, responses.length - 1)])),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <SubmissionStatusStep
+        applicationId="application-id"
+        country="united_kingdom"
+        visaType="UK_STANDARD_VISITOR"
+        status="needs_attention"
+        result={ukResult}
+        onResubmit={onResubmit}
+      />,
+    );
+    await flushEffects();
+    expect(screen.getByTestId("uk-result-card")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "continue uk" }));
+    await flushEffects();
+    expect(onResubmit).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("waiting-card")).toHaveAttribute("data-status", "queued");
+    expect(screen.queryByTestId("uk-result-card")).not.toBeInTheDocument();
+
+    await advanceAndFlush(5_000);
+    expect(responseIndex).toBeGreaterThanOrEqual(3);
+    expect(screen.getByTestId("waiting-card")).toHaveAttribute("data-status", "queued");
+    expect(screen.getByTestId("waiting-message")).toHaveTextContent("new queue");
+    expect(screen.queryByTestId("uk-result-card")).not.toBeInTheDocument();
   });
 });

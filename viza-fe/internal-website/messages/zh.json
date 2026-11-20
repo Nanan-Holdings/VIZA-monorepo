@@ -346,8 +346,8 @@
           "subtitle": "填写 44 页的英国标准访客签证申请表。"
         },
         "pay": {
-          "title": "支付签证费",
-          "subtitle": "在线支付英国签证申请费。"
+          "title": "官网费用检查点",
+          "subtitle": "如官网申请要求费用，请通过 GOV.UK 继续；VIZA 不收取该费用。"
         },
         "documents": {
           "title": "辅助材料",
@@ -5827,6 +5827,81 @@
       "paymentRequired": "请先完成 VFS 安全付款授权。",
       "finalRequired": "提交前请批准最终预约。",
       "sessionRequired": "登录会话已过期，请重新登录后继续。"
+    }
+  },
+  "ukVisaResult": {
+    "status": {
+      "title": {
+        "registration": "英国签证申请账户步骤需要处理",
+        "registration_ready": "英国签证申请账户已准备好",
+        "form_incomplete": "英国签证申请仍需要补充信息",
+        "review": "英国签证申请等待核对",
+        "declaration": "英国签证申请等待声明确认",
+        "payment": "英国签证申请需要处理"
+      },
+      "badge": {
+        "registration": "账户步骤",
+        "registration_ready": "账户已准备",
+        "form_incomplete": "需要补充信息",
+        "review": "需要核对",
+        "declaration": "需要确认声明",
+        "payment": "需要处理"
+      },
+      "description": {
+        "registration": "英国 UKVI 账户步骤需要处理后，申请才能继续。请按照这里显示的下一步操作。",
+        "registration_ready": "英国 UKVI 申请账户已经准备好，但申请还没有通过下一个官网表格检查点。",
+        "form_incomplete": "官网表格在进入核对前仍需要信息或材料。请回到 VIZA 申请中补齐缺失内容。",
+        "review": "官网申请正在等待核对。请检查已保存的答案，并在官网提示时继续操作。",
+        "declaration": "官网申请正在等待声明或最终核对。任何最终操作前，请先在官网确认内容。",
+        "payment": "申请已到达官网费用检查点。VIZA 不收取或处理英国政府签证费用，请仅通过英国官方入口按照页面提示继续。"
+      }
+    },
+    "retry": {
+      "body": "可以重新沿着官网继续流程处理已保存的英国申请。VIZA 会在遇到官网检查点时暂停，并显示需要你处理的事项。",
+      "confirm": "现在通过官网继续这份已保存的英国申请吗？VIZA 不会支付费用，也不会确认预约。",
+      "button": "继续英国签证申请",
+      "loading": "正在启动…",
+      "error": "无法启动英国申请继续流程，请稍后重试。"
+    },
+    "progress": "自动填写进度：约 {pagesFilled}/{totalPages} 页已保存。",
+    "reference": {
+      "label": "申请参考号"
+    },
+    "credentials": {
+      "title": "UKVI 申请账户",
+      "body": "这些凭据仅用于 UKVI 签证申请账户，不是签证申请中心/生物信息预约账户，也不是 eVisa 账户。需要继续申请时再显示凭据。",
+      "reveal": "显示申请账户凭据",
+      "revealing": "正在读取凭据…",
+      "hide": "隐藏并清除凭据",
+      "resume": "打开官方申请",
+      "email": "邮箱",
+      "password": "密码",
+      "resumeUrl": "官方继续申请链接",
+      "copy": "复制值",
+      "copied": "已复制",
+      "notBound": "这份申请暂时没有绑定 UKVI 凭据。",
+      "timeout": "读取凭据超时，请重试。",
+      "error": "暂时无法读取 UKVI 凭据，请稍后重试。",
+      "copyUnavailable": "当前浏览器不支持复制，请手动选择并复制。",
+      "copyError": "复制失败，请手动选择并复制。"
+    },
+    "officialLinks": {
+      "title": "申请与生物信息采集入口",
+      "body": "英国标准访客签证通常先完成在线申请，再按照官网指引前往签证申请中心采集生物信息。VIZA 不创建或管理签证中心预约账户。",
+      "signIn": "继续英国签证申请",
+      "signInDescription": "打开 GOV.UK 官方入口，继续已保存的申请。",
+      "findCentre": "查找签证申请中心",
+      "findCentreDescription": "使用官方目录查找所在地区的中心，并按照中心的预约说明操作。"
+    },
+    "evisa": {
+      "title": "获得签证决定后",
+      "body": "eVisa 用于设置或访问 UKVI 账户，以及查看或证明移民身份；它不是 VIZA 中需要付费激活的步骤。",
+      "setup": "设置 UKVI/eVisa 账户",
+      "setupDescription": "在 UKVI 要求创建或关联账户时，打开 GOV.UK 官方设置页面。",
+      "view": "查看或证明移民身份",
+      "viewDescription": "打开官方服务查看 eVisa 状态或生成分享代码。",
+      "update": "更新 UKVI 账户信息",
+      "updateDescription": "使用官方服务更新 UKVI 账户中的护照或个人信息。"
     }
   },
   "subscriptionReturn": {

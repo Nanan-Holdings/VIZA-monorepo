@@ -1,4 +1,5 @@
 import type { VisaJourney } from "./types";
+import { UK_VISA_LINKS } from "../uk-visa-links";
 
 export const ukStandardVisitorJourney: VisaJourney = {
   visaType: "UK_STANDARD_VISITOR",
@@ -30,26 +31,40 @@ export const ukStandardVisitorJourney: VisaJourney = {
       triggers: {
         completedWhen: {
           kind: "submissionResultStatusIn",
-          values: ["registered", "appointment_held", "submitted_pending_email", "submitted"],
+          values: [
+            "stopped_at_pay",
+            "funding_required",
+            "payment_pending",
+            "payment_review_required",
+            "paid",
+            "submitted_pending_email",
+            "submitted",
+          ],
         },
         activeWhen: { kind: "applicationStatusIn", values: ["draft", "in_progress"] },
       },
     },
     {
       id: "pay",
-      icon: "💳",
+      icon: "📄",
       etaDays: 1,
       durationLabelKey: "home.duration.sameDay",
-      ctaHrefWhenActive: "/client/application",
-      ctaLabelKey: "home.nextAction.cta.payNow",
+      ctaHrefWhenActive: UK_VISA_LINKS.signInVisaApplication,
+      ctaLabelKey: "home.nextAction.cta.continue",
       triggers: {
         completedWhen: {
           kind: "submissionResultStatusIn",
-          values: ["appointment_held", "submitted_pending_email", "submitted"],
+          values: ["submitted_pending_email", "submitted"],
         },
         activeWhen: {
           kind: "submissionResultStatusIn",
-          values: ["registered"],
+          values: [
+            "stopped_at_pay",
+            "funding_required",
+            "payment_pending",
+            "payment_review_required",
+            "paid",
+          ],
         },
       },
     },

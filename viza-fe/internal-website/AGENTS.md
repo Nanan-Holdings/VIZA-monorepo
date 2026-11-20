@@ -1,5 +1,10 @@
 # Internal Website Agent Guide
 
+`lib/uk-placeholder-answers.ts` clears historical UK Standard Visitor input
+hints and translated hint mirrors before draft hydration and answer persistence.
+Keep real applicant answers intact; hints belong only in placeholder metadata.
+Its adjacent regression tests cover Chinese/English hints and repeated rows.
+
 DS-160 national identity numbers are literal structured values, not bilingual
 translations. `lib/bilingual-schema-contract.ts` keeps entry and final review
 on the canonical value even when historical `_zh`/`_en` mirrors remain stored;
@@ -125,6 +130,16 @@ applicant answers.
 
 `lib/submission-worker-wake.server.ts` centralizes authenticated Fly worker
 wake requests; its focused tests live under `lib/__tests__/`.
+UK Standard Visitor uses the explicit legacy Machine target and bounded HTTP
+readiness before wake acceptance. Both new and reused pending UK jobs wake the
+same retained Machine; a start acknowledgement is not a queue claim.
+
+`lib/client/uk-visa-links.ts` owns GOV.UK next-step links and the exact official
+resume URL allowlist, with focused tests beside it. UK result cards reveal
+application-bound credentials only on explicit POST; normal application/status
+reads must keep credentials, continuation URLs, and raw UK runner diagnostics
+behind `app/api/applications/customer-submission-result.ts` and the status API's
+safe projection. An active retry hides the previous UK checkpoint result.
 
 `lib/runner-cutover-pause.server.ts` owns the server-only controlled-cutover
 guard. `RUNNER_CUTOVER_PAUSED=true` must reject every new durable runner or

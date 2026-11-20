@@ -14,6 +14,10 @@ Supabase service-role client setup for the agent backend.
   marked `TYPE-ONLY SCHEMA COMPATIBILITY` intentionally omit identity/per-column
   DESC details unsupported by Drizzle 0.30; their named SQL migrations remain
   authoritative and those entries must not drive `db:generate`/`db:push`.
+- `uk_accounts` is listed as Drizzle-managed in
+  `schema-ownership.manifest.json`, not REST/type-only. Its nullable unique
+  `application_id` binding is therefore represented in `schema.ts`; the SQL
+  migration remains authoritative for legacy NULL rows and service-role ACLs.
 - `schema-ownership.manifest.json`: reconciled ownership inventory separating
   Drizzle-managed, REST/service-only, and compatibility relations. Its
   production claim is valid only while its run/job identity and SHA-256 match
@@ -81,6 +85,10 @@ Supabase service-role client setup for the agent backend.
 - `../../drizzle/0190_public_status_aggregate_once.sql`: public-only status
   history aggregation with unchanged time windows, JSON, and service-only RPC
   execution. No table, index, applicant row, or access-policy changes.
+- `../../drizzle/0215_uk_account_application_scope.sql`: adds the nullable,
+  unique application binding for `uk_accounts`, preserves unmapped legacy
+  rows, retains partial legacy applicant/email uniqueness, and keeps UK portal
+  credentials service-role-only. Its frontend mirror must remain byte-identical.
 - `../../drizzle/0140_prevent_qa_placeholder_submission.sql`: database-level
   rejection of synthetic QA data in customer applications and live queues.
 - `../../drizzle/0141_block_known_qa_account_sentinel.sql`: follow-up protection
@@ -151,6 +159,8 @@ For schema changes, also run any affected route/eval tests.
 - `visa_chunks`
 - `visa_form_fields`
 - `visa_packages`
+- `uk_accounts` (application-scoped UK Standard Visitor credentials; legacy
+  rows may remain NULL-bound and are never backfilled)
 - `user_packages`
 - `visa_application_answers`
 - `application_translations`

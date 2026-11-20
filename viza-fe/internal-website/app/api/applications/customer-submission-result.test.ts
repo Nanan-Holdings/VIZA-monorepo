@@ -9,6 +9,7 @@ describe("sanitizeCustomerSubmissionResult", () => {
       portalUrl: "https://visas-immigration.service.gov.uk/forceResume/private-token",
       portalUsername: "private@example.com",
       generatedPasswordCipher: "salt:iv:ciphertext:tag",
+      reason: "Raw runner error with a private continuation URL",
       credentials: { password: "secret" },
       applicationReference: "GWF123456789",
       prefillProgress: { pagesFilled: 44, pagesSkipped: 0, totalPages: 44 },
@@ -23,8 +24,22 @@ describe("sanitizeCustomerSubmissionResult", () => {
   });
 
   it("does not rewrite other country result contracts", () => {
-    const result = { country: "VN", status: "submitted_pending_email" };
+    const result = { country: "VN", status: "submitted_pending_email", reason: "Awaiting official email" };
     expect(sanitizeCustomerSubmissionResult(result)).toBe(result);
+  });
+
+  it("preserves the UK checkpoint while stripping nested operator explanations", () => {
+    expect(sanitizeCustomerSubmissionResult({
+      country: "UK",
+      status: "needs_attention",
+      checkpoint: "form_incomplete",
+      diagnostic: { reason: "Private browser diagnostic", token: "private-token" },
+    })).toEqual({
+      country: "UK",
+      status: "needs_attention",
+      checkpoint: "form_incomplete",
+      diagnostic: {},
+    });
   });
 
   it("removes nested payment and mailbox secrets while preserving Kenya evidence", () => {

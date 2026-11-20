@@ -89,6 +89,7 @@ jobs:
       IMAP_PASSWORD: ${{ secrets.IMAP_PASSWORD }}
       FV_EMAIL: ${{ secrets.FV_EMAIL }}
       FV_PASSWORD: ${{ secrets.FV_PASSWORD }}
+      UK_REGISTER_COMMIT: ${{ secrets.UK_REGISTER_COMMIT }}
       RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
       RESEND_OPS_ALERT_TO: ${{ secrets.RESEND_OPS_ALERT_TO }}
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

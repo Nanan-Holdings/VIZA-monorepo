@@ -395,6 +395,12 @@ export const officialStatusChecks = pgTable("official_status_checks", {
 export const ukAccounts = pgTable("uk_accounts", {
 	id: uuid("id").primaryKey().defaultRandom(),
 	applicantId: uuid("applicant_id").notNull(),
+	// Nullable for historical rows; new UK runner writes are application-scoped.
+	// A nullable unique key keeps legacy NULL rows while enforcing one account
+	// per application for all new application-scoped writes.
+	applicationId: uuid("application_id")
+		.references(() => applications.id, { onDelete: "cascade" })
+		.unique("uk_accounts_application_id_key"),
 	email: text("email").notNull(),
 	passwordEncrypted: text("password_encrypted").notNull(),
 	resumeUrl: text("resume_url").notNull(),

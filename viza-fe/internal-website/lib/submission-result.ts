@@ -193,11 +193,16 @@ export interface UkSubmissionResult {
   country: "UK";
   status:
     | "registered"
+    | "needs_attention"
     | "stopped_at_pay"
     | "funding_required"
     | "payment_pending"
     | "payment_review_required"
     | "paid";
+  /** The durable official-portal checkpoint that explains the current status. */
+  checkpoint?: "registration" | "form_incomplete" | "review" | "declaration" | "payment";
+  /** Safe operator/applicant-facing explanation for a needs-attention checkpoint. */
+  reason?: string;
   paymentStatus?: "funding_required" | "pending" | "review_required" | "paid";
   paymentStateCode?: string;
   staffReviewCode?: string;

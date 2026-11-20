@@ -4,6 +4,10 @@ Scope: this file applies to `viza-be/agent-backend/**`.
 
 ## Purpose
 
+`scripts/autoscale-runners.ts` includes both UK prefill and live pending states
+in legacy recovery demand. Its UK regression is `src/tests/uk-autoscale.test.ts`;
+importing the script for tests never executes its live database reads or scaler.
+
 `agent-backend` is the main AI and data backend for VIZA. It serves Express REST
 routes, Socket.IO streaming chat, RAG retrieval, field guidance, application
 translation/validation, Supabase service-role access, Drizzle migrations, and

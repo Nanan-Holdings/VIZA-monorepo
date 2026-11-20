@@ -24,7 +24,17 @@ and internal admin flows.
 - `translation.routes.ts`: translation generation/read/update under
   `/api/applications/:id/...`.
 - `submission-result.routes.ts`: owner-authorized result artifacts plus the
-  explicit POST-only Visit Japan Web account reveal boundary.
+  explicit POST-only Visit Japan Web account reveal boundary. Its legacy UK
+  credential GET is retired with a 410/no-store response; UK credentials are
+  revealed only through the application-scoped POST in `uk-account.routes.ts`.
+- `uk-account.routes.ts`: owner-bearer UK Standard Visitor account writes and
+  explicit application-scoped credential reveal. Reads and writes must bind
+  both `application_id` and `applicant_id`, keep the account table service-role
+  only, and allow only exact official HTTPS forceResume URLs.
+- `uk-account.routes.test.ts` and
+  `submission-result.routes.uk-legacy.test.ts`: regressions for owner/product
+  checks, application binding, decryption/error sanitization, no-store
+  responses, and retirement of the legacy UK GET.
 - `jp-vjw-credentials.ts`: application-scoped Visit Japan Web vault-key and
   strict legacy-alias compatibility policy. Plaintext credentials must never
   enter logs, GET responses, or `submission_result`.

@@ -6,8 +6,8 @@
  * user owns the application before returning anything sensitive.
  *
  * GET /api/applications/:id/uk-portal-credentials
- *   Decrypts and returns the UK portal password for the owner. Never logs the
- *   plaintext. Cipher lives in applications.submission_result.generatedPasswordCipher.
+ *   Retired compatibility boundary. UK credentials are available only from
+ *   the explicit application-scoped POST in uk-account.routes.ts.
  *
  * GET /api/applications/:id/artifact-url?path=<storage-path>
  *   Mints a 1-hour signed URL for a Supabase Storage object, after verifying
@@ -21,7 +21,6 @@ import { Router, Request, Response, NextFunction } from "express";
 import { createClient } from "@supabase/supabase-js";
 import { getSupabaseClient } from "../db/supabase-client.js";
 import { Logger } from "../utils/logger.js";
-import { decryptSecret } from "../utils/secret-cipher.js";
 import { applicantVault } from "../db/applicant-vault.js";
 import type { SubmissionResult } from "../types/submission-result.js";
 import {
@@ -38,6 +37,14 @@ const logger = new Logger({ serviceName: "SubmissionResultRoutes" });
 
 const ARTIFACT_BUCKET = "submission-artifacts";
 const SIGNED_URL_TTL_SECONDS = 60 * 60; // 1h
+
+function setNoStoreHeaders(res: Response): void {
+  res.set({
+    "Cache-Control": "private, no-store",
+    Pragma: "no-cache",
+    "X-Content-Type-Options": "nosniff",
+  });
+}
 
 interface ResolvedOwnership {
   authUserId: string;
@@ -135,34 +142,22 @@ async function requireApplicationOwner(
 /**
  * GET /api/applications/:id/uk-portal-credentials
  *
- * Returns the decrypted UK portal password to the application owner. Never
- * logs the plaintext. Returns 404 if there's no UK result on file.
+ * Retired. Keep the owner middleware on this compatibility path so an
+ * unauthenticated caller cannot use it as an application-existence oracle,
+ * but never read or decrypt legacy submission_result credentials.
  */
 router.get(
   "/:id/uk-portal-credentials",
+  (_req: Request, res: Response, next: NextFunction): void => {
+    setNoStoreHeaders(res);
+    next();
+  },
   requireApplicationOwner,
   async (_req: Request, res: Response): Promise<void> => {
-    const ownership = res.locals.ownership as ResolvedOwnership;
-    const result = ownership.submissionResult;
-    if (!result || result.country !== "UK") {
-      res.status(404).json({ error: "No UK submission result on this application" });
-      return;
-    }
-    if (!result.generatedPasswordCipher) {
-      res.status(404).json({ error: "No portal password captured for this application" });
-      return;
-    }
-    try {
-      const password = decryptSecret(result.generatedPasswordCipher);
-      res.json({ password });
-    } catch (err) {
-      logger.error(
-        "uk_credentials_decrypt_failed",
-        err instanceof Error ? err : new Error(String(err)),
-        { applicationId: ownership.applicationId },
-      );
-      res.status(500).json({ error: "Decrypt failed" });
-    }
+    setNoStoreHeaders(res);
+    res.status(410).json({
+      error: "UK portal credentials require the explicit application-scoped reveal request",
+    });
   },
 );
 

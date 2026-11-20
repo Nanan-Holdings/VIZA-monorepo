@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   wakeCloudSubmissionWorker,
   wakeDs160SubmissionWorker,
+  wakeUkSubmissionWorker,
 } from "../submission-worker-wake.server";
 
 describe("wakeCloudSubmissionWorker", () => {
@@ -241,5 +242,78 @@ describe("wakeCloudSubmissionWorker", () => {
     });
 
     expect(result).toEqual({ ok: false, reason: "request_failed" });
+  });
+});
+
+describe("UK Fly wake", () => {
+  const env = {
+    NODE_ENV: "production" as const,
+    FLY_SUBMISSION_ORG_TOKEN: "fly-token",
+    FLY_SUBMISSION_LEGACY_APP: "viza-prod-legacy",
+    SUBMISSION_QUEUE_INTERNAL_TOKEN: "internal-token",
+    VIETNAM_SUBMISSION_SERVICE_URL: "https://unrelated-vietnam.example.test",
+  };
+
+  it.each(["stopped", "started"])("readies the legacy Machine (%s) before dispatching the same UK job", async (state) => {
+    const calls: string[] = [];
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      calls.push(url);
+      if (url.endsWith("/machines")) return Response.json([{ id: "uk-machine", state }]);
+      return new Response(null, { status: url.endsWith("/ready") ? 200 : 202 });
+    });
+    expect(await wakeUkSubmissionWorker("uk-job", { env, fetchImpl })).toEqual({ ok: true });
+    expect(calls[0]).toBe("https://api.machines.dev/v1/apps/viza-prod-legacy/machines");
+    expect(calls.at(-2)).toBe("https://viza-prod-legacy.fly.dev/ready");
+    expect(fetchImpl).toHaveBeenLastCalledWith("https://viza-prod-legacy.fly.dev/internal/submission-queue/wake", expect.objectContaining({
+      method: "POST", body: JSON.stringify({ jobId: "uk-job" }),
+      headers: expect.objectContaining({ Authorization: "Bearer internal-token" }),
+    }));
+    expect(calls.some((url) => url.includes("/start"))).toBe(state === "stopped");
+    expect(calls.some((url) => url.includes("unrelated-vietnam"))).toBe(false);
+  });
+
+  it("rejects a mismatched endpoint before starting a Machine", async () => {
+    const fetchImpl = vi.fn();
+    expect(await wakeUkSubmissionWorker("uk-job", { env: { ...env, SUBMISSION_SERVICE_CLOUD_URL: "https://other-app.fly.dev" }, fetchImpl })).toEqual({ ok: false, reason: "target_mismatch" });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("preserves the pending job when no retained Machine exists", async () => {
+    const fetchImpl = vi.fn(async () => Response.json([]));
+    expect(await wakeUkSubmissionWorker("uk-job", { env, fetchImpl })).toEqual({ ok: false, reason: "machine_not_found" });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not call Fly when paused or the internal token is missing", async () => {
+    const fetchImpl = vi.fn();
+    expect(await wakeUkSubmissionWorker("uk-job", { env: { ...env, RUNNER_CUTOVER_PAUSED: "true" }, fetchImpl })).toEqual({ ok: false, reason: "cutover_paused" });
+    expect(await wakeUkSubmissionWorker("uk-job", { env: { ...env, SUBMISSION_QUEUE_INTERNAL_TOKEN: "" }, fetchImpl })).toEqual({ ok: false, reason: "not_configured" });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("does not call a start acknowledgement a successful wake when dispatch fails", async () => {
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("/machines")) return Response.json([{ id: "uk-machine", state: "stopped" }]);
+      return new Response(null, { status: url.endsWith("/wake") ? 503 : 200 });
+    });
+    expect(await wakeUkSubmissionWorker("uk-job", { env, fetchImpl })).toEqual({ ok: false, reason: "request_failed" });
+  });
+
+  it("leaves wake pending when the Machine never becomes HTTP-ready", async () => {
+    vi.useFakeTimers();
+    try {
+      const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+        if (String(input).endsWith("/machines")) return Response.json([{ id: "uk-machine", state: "started" }]);
+        return new Response(null, { status: 503 });
+      });
+      const operation = wakeUkSubmissionWorker("uk-job", { env, fetchImpl });
+      await vi.advanceTimersByTimeAsync(13_000);
+      expect(await operation).toEqual({ ok: false, reason: "readiness_timeout" });
+      expect(fetchImpl.mock.calls.some(([url]) => String(url).endsWith("/wake"))).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

@@ -33,8 +33,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 /**
  * Builds the browser-safe projection of a durable submission result.
- * UK portal credentials and force-resume URLs are runner-only data and must
- * never cross the customer status API boundary, even as ciphertext.
+ * UK portal credentials, force-resume URLs and raw runner explanations must
+ * never cross the customer status API boundary. The UI explains UK checkpoints
+ * with localized copy; credentials use a separate explicit owner-only reveal.
  */
 export function sanitizeCustomerSubmissionResult(result: unknown): unknown {
   if (!isRecord(result)) return result;
@@ -59,7 +60,7 @@ export function sanitizeCustomerSubmissionResult(result: unknown): unknown {
       const normalizedKey = key.trim().toLowerCase();
       if (
         PRIVATE_RESULT_FIELDS.has(normalizedKey) ||
-        (removePortalUrl && normalizedKey === "portalurl")
+        (removePortalUrl && (normalizedKey === "portalurl" || normalizedKey === "reason"))
       ) {
         changed = true;
         continue;

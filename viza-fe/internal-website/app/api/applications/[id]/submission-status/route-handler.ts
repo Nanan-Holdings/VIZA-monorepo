@@ -5,6 +5,7 @@ import {
   isDs160VisaType,
   isUkMisroutedDryRunError,
   isUkPrefillSubmissionResult,
+  isUkStandardVisitorApplication,
   ukPrefillProgressPercent,
 } from "@/lib/submission-queue";
 import {
@@ -180,6 +181,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function normalizeStatus(value: string | null | undefined): string {
   return (value ?? "").trim().toLowerCase();
+}
+
+function hasUkAttentionCheckpoint(application: ApplicationForStatus): boolean {
+  const result = application.submission_result;
+  return isUkStandardVisitorApplication(application.country, application.visa_type) &&
+    normalizeStatus(application.submission_result_status) === "needs_attention" &&
+    isRecord(result) && result.country === "UK" && result.status === "needs_attention" &&
+    typeof result.checkpoint === "string" &&
+    ["registration", "form_incomplete", "review", "declaration", "payment"].includes(result.checkpoint);
 }
 
 function hasStoredSubmittedResult(application: ApplicationForStatus): boolean {
@@ -542,6 +552,19 @@ function deriveTerminalApplicationStatus(
     : null;
   const staleUkMisroute =
     ukPrefillStored && queueError ? isUkMisroutedDryRunError(queueError) : false;
+
+  if (hasUkAttentionCheckpoint(application)) {
+    const checkpoint = (storedResult as Record<string, unknown>).checkpoint;
+    return {
+      status: "needs_user_action",
+      stage: checkpoint === "payment" ? "payment_handoff" : "confirming_result",
+      progress: Math.min(99, ukPrefillStored ? ukPrefillProgressPercent(storedResult) ?? 0 : 0),
+      // The result card owns localized checkpoint copy. Raw runner/queue
+      // explanations can contain private URLs and stay on the server.
+      message: "",
+      error: null,
+    };
+  }
 
   if (appStatus === "failed") {
     if (ukPrefillStored) {
@@ -1039,6 +1062,13 @@ export function deriveNonTerminalStatus(
   const error = queueMessage;
   const runnerJobLeaseActive = hasActiveRunnerJobLease(queue);
 
+  // Queue settlement is written after the result. Its newer timestamp must
+  // not turn an observed UK handoff back into a running/failed status.
+  if (!activeQueue && hasUkAttentionCheckpoint(application)) {
+    const checkpoint = deriveTerminalApplicationStatus(application, queue);
+    if (checkpoint) return checkpoint;
+  }
+
   if (currentStage === "bank_authentication_waiting") {
     return {
       status: "running",
@@ -1397,8 +1427,8 @@ async function getSubmissionStatus(
   );
   const resolvedResult =
     queueResult ??
-    (isUkPrefillSubmissionResult(storedResult) ? storedResult : null) ??
     (activeQueueOverridesTerminal ? null : storedResult ?? null);
+  const isUkApplication = isUkStandardVisitorApplication(application.country, application.visa_type);
 
   return NextResponse.json(
     {
@@ -1410,9 +1440,9 @@ async function getSubmissionStatus(
       status: derived.status,
       stage: derived.stage,
       progress: derived.progress,
-      message: derived.message,
+      message: isUkApplication ? "" : derived.message,
       result: sanitizeCustomerSubmissionResult(resolvedResult),
-      error: derived.error,
+      error: isUkApplication ? null : derived.error,
       updatedAt,
       applicationStatus: deriveApplicationStatus(
         application,
@@ -1429,9 +1459,9 @@ async function getSubmissionStatus(
             attempts: queue.attempts,
             mode: queue.mode,
             provider: queue.provider,
-            lastError: queue.last_error,
+            lastError: isUkApplication ? null : queue.last_error,
             errorCode: queue.error_code,
-            errorMessage: queue.error_message,
+            errorMessage: isUkApplication ? null : queue.error_message,
             currentStage: queue.current_stage,
             heartbeatAt: queue.heartbeat_at,
             manualActionStatus: queue.manual_action_status,

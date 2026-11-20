@@ -4,14 +4,17 @@ import { POST } from "../route";
 const {
   mockWakeCloudSubmissionWorker,
   mockWakeDs160SubmissionWorker,
+  mockWakeUkSubmissionWorker,
 } = vi.hoisted(() => ({
   mockWakeCloudSubmissionWorker: vi.fn(async () => ({ ok: true as const })),
   mockWakeDs160SubmissionWorker: vi.fn(async () => ({ ok: true as const })),
+  mockWakeUkSubmissionWorker: vi.fn(async (): Promise<{ ok: boolean }> => ({ ok: true })),
 }));
 
 vi.mock("@/lib/submission-worker-wake.server", () => ({
   wakeCloudSubmissionWorker: mockWakeCloudSubmissionWorker,
   wakeDs160SubmissionWorker: mockWakeDs160SubmissionWorker,
+  wakeUkSubmissionWorker: mockWakeUkSubmissionWorker,
 }));
 
 const applicationId = "app_tw_entry";
@@ -326,6 +329,7 @@ describe("Taiwan entry permit retry submission API", () => {
     };
     mockWakeCloudSubmissionWorker.mockClear();
     mockWakeDs160SubmissionWorker.mockClear();
+    mockWakeUkSubmissionWorker.mockReset().mockResolvedValue({ ok: true });
     mockCompleteness = {
       complete: true,
       missingInfoCount: 0,
@@ -581,6 +585,53 @@ describe("Taiwan entry permit retry submission API", () => {
     });
     expect(mockWakeDs160SubmissionWorker).toHaveBeenCalledWith("ds160_new_job");
     expect(mockWakeCloudSubmissionWorker).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])("wakes the exact pending UK job (reused=%s)", async (reused) => {
+    currentApplication = { ...baseApplication, country: "united_kingdom", visa_type: "UK_STANDARD_VISITOR" };
+    submissionRetryRpcRow = {
+      queue_id: "uk_pending_job", queue_status: "uk_live_assisted_pending",
+      queue_mode: "live_assisted", queue_provider: "uk_standard_visitor_live",
+      reused_existing: reused, superseded_count: 0,
+    };
+    const result = await post({ mode: "live_assisted", country: "united_kingdom", visaType: "UK_STANDARD_VISITOR" });
+    expect(result.status).toBe(200);
+    expect(result.body).toMatchObject({ jobId: "uk_pending_job", workerTriggered: true, workerWakeStatus: "accepted" });
+    expect(mockWakeUkSubmissionWorker).toHaveBeenCalledExactlyOnceWith("uk_pending_job");
+    expect(mockWakeCloudSubmissionWorker).not.toHaveBeenCalled();
+    expect(mockWakeDs160SubmissionWorker).not.toHaveBeenCalled();
+    if (!reused) expect(lastApplicationUpdate).toMatchObject({ status: "processing", submitted_at: null });
+  });
+
+  it("does not re-wake a processing UK job", async () => {
+    currentApplication = { ...baseApplication, country: "united_kingdom", visa_type: "UK_STANDARD_VISITOR" };
+    submissionRetryRpcRow = {
+      queue_id: "uk_processing_job", queue_status: "uk_live_processing",
+      queue_mode: "live_assisted", queue_provider: "uk_standard_visitor_live",
+      reused_existing: true, superseded_count: 0,
+    };
+    const result = await post({ mode: "live_assisted", country: "united_kingdom", visaType: "UK_STANDARD_VISITOR" });
+    expect(result.status).toBe(200);
+    expect(result.body).toMatchObject({ jobId: "uk_processing_job", workerTriggered: false });
+    expect(mockWakeUkSubmissionWorker).not.toHaveBeenCalled();
+  });
+
+  it("keeps an existing pending UK job when Fly wake fails", async () => {
+    currentApplication = {
+      ...baseApplication, country: "united_kingdom", visa_type: "UK_STANDARD_VISITOR",
+      submission_result: { country: "UK", status: "registered", portalUsername: "private@example.test", portalUrl: "https://visas-immigration.service.gov.uk/forceResume/private", generatedPasswordCipher: "private-cipher" },
+    };
+    submissionRetryRpcRow = {
+      queue_id: "uk_pending_job", queue_status: "uk_live_assisted_pending",
+      queue_mode: "live_assisted", queue_provider: "uk_standard_visitor_live",
+      reused_existing: true, superseded_count: 0,
+    };
+    mockWakeUkSubmissionWorker.mockResolvedValueOnce({ ok: false });
+    const result = await post({ mode: "live_assisted", country: "united_kingdom", visaType: "UK_STANDARD_VISITOR" });
+    expect(result.status).toBe(200);
+    expect(result.body).toMatchObject({ jobId: "uk_pending_job", alreadyQueued: true, workerTriggered: false, workerWakeStatus: "pending" });
+    expect(lastApplicationUpdate).toBeNull();
+    expect(JSON.stringify(result.body)).not.toMatch(/private-cipher|private@example|forceResume/);
   });
 
   it("re-wakes the same pending DS-160 job when a retry reuses it", async () => {

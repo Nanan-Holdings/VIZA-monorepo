@@ -214,6 +214,12 @@ interface SubmissionStatusSnapshot {
   } | null;
 }
 
+interface RetryQueueBaseline {
+  id: string | null;
+  createdAtMs: number | null;
+  startedAtMs: number | null;
+}
+
 function submissionProgressPersistenceKey(queueId: string | null | undefined): string | null {
   const normalizedQueueId = queueId?.trim();
   return normalizedQueueId ? `submission-run:${normalizedQueueId}` : null;
@@ -1774,12 +1780,12 @@ function UkResubmitPanel({
       <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
           <p className="text-sm font-semibold text-foreground">
-            {isZh ? "继续 gov.uk 自动填表" : "Continue gov.uk automated pre-fill"}
+            {isZh ? "继续英国签证申请" : "Continue UK visa application"}
           </p>
           <p className="text-xs leading-relaxed text-muted-foreground">
             {isZh
-              ? "会先保存当前表单里的最新答案，再通过 UK 专用 worker 继续填写 gov.uk（与 France-Visas 一样走 live assisted 队列）。"
-              : "VIZA saves your latest answers first, then enqueues a UK-specific live worker to continue gov.uk pre-fill (same live-assisted pattern as France-Visas)."}
+              ? "系统会先保存当前表单的最新答案，然后继续这份申请；官网需要你处理时会显示下一步。"
+              : "VIZA saves your latest answers first, then continues this application. If the official site needs you to act, this page will show the next step."}
           </p>
           {error ? <ClientErrorAlert message={error} /> : null}
         </div>
@@ -1795,8 +1801,8 @@ function UkResubmitPanel({
             <RotateCw className="mr-2 h-4 w-4" />
           )}
           {busy
-            ? (isZh ? "正在提交" : "Submitting")
-            : (isZh ? "继续填表" : "Continue pre-fill")}
+            ? (isZh ? "正在继续" : "Continuing")
+            : (isZh ? "继续申请" : "Continue application")}
         </Button>
       </CardContent>
     </Card>
@@ -1825,8 +1831,14 @@ export function SubmissionStatusStep({
   const [resubmitting, setResubmitting] = useState(false);
   const [localRetryActive, setLocalRetryActive] = useState(false);
   const [activeRetryQueueId, setActiveRetryQueueId] = useState<string | null>(null);
+  const [awaitingRetryQueue, setAwaitingRetryQueue] = useState(false);
   const [activeProgressCycleKey, setActiveProgressCycleKey] = useState<string | null>(null);
   const submissionStartingRef = useRef(false);
+  const retryQueueBaselineRef = useRef<RetryQueueBaseline>({
+    id: null,
+    createdAtMs: null,
+    startedAtMs: null,
+  });
   const [retryCompleteness, setRetryCompleteness] = useState<ApplicationCompletenessResult | null>(null);
 
   const handleRetry = useCallback(async (
@@ -1834,13 +1846,34 @@ export function SubmissionStatusStep({
     taiwanOfficialTermsConsent?: TaiwanOfficialTermsConsentInput,
   ) => {
     if (!applicationId) return;
+    const retryCountry = snapshot?.country ?? country;
+    const retryVisaType = snapshot?.visaType ?? visaType;
+    const isTaiwanRetry = isTaiwanEntryPermitApplication(retryCountry, retryVisaType);
+    const isVietnamPrearrivalRetry = isVietnamPrearrivalApplication(retryCountry, retryVisaType);
+    const isUkRetry = isUkStandardVisitorApplication(retryCountry, retryVisaType);
+    const usesParentResubmit = Boolean(
+      onResubmit &&
+      !isDs160VisaType(retryVisaType) &&
+      !isTaiwanRetry &&
+      !isVietnamPrearrivalRetry,
+    );
+    if (isUkRetry && usesParentResubmit) {
+      const baselineQueue = snapshot?.queue;
+      const baselineCreatedAtMs = baselineQueue?.createdAt ? Date.parse(baselineQueue.createdAt) : Number.NaN;
+      retryQueueBaselineRef.current = {
+        id: baselineQueue?.id?.trim() || null,
+        createdAtMs: Number.isFinite(baselineCreatedAtMs) ? baselineCreatedAtMs : null,
+        startedAtMs: Date.now(),
+      };
+    } else {
+      retryQueueBaselineRef.current = { id: null, createdAtMs: null, startedAtMs: null };
+    }
     setActiveProgressCycleKey(`retry:${applicationId}:${Date.now()}`);
     setActiveRetryQueueId(null);
+    setAwaitingRetryQueue(isUkRetry && usesParentResubmit);
     setRetryError(null);
     setRetryCompleteness(null);
     setResubmitting(true);
-    const retryCountry = snapshot?.country ?? country;
-    const retryVisaType = snapshot?.visaType ?? visaType;
     const optimisticStartedAt = new Date().toISOString();
     setLocalRetryActive(true);
     setSnapshot({
@@ -1860,17 +1893,18 @@ export function SubmissionStatusStep({
       // A failed submission already has a persisted answer set. Retry the
       // existing VIZA application directly; a fresh DS-160 belongs to the
       // separate new-application endpoint after a confirmed success.
-      const isTaiwanRetry = isTaiwanEntryPermitApplication(retryCountry, retryVisaType);
-      const isVietnamPrearrivalRetry = isVietnamPrearrivalApplication(retryCountry, retryVisaType);
       if (
-        onResubmit &&
-        !isDs160VisaType(retryVisaType) &&
-        !isTaiwanRetry &&
-        !isVietnamPrearrivalRetry
+        usesParentResubmit && onResubmit
       ) {
         await onResubmit(mode, taiwanOfficialTermsConsent);
-        setSnapshot(null);
-        setLocalRetryActive(false);
+        if (!isUkRetry) {
+          setSnapshot(null);
+          setLocalRetryActive(false);
+        }
+        // Keep the optimistic queue and local retry guard until the status
+        // endpoint exposes the queue created by the UK parent save/validation
+        // flow. Clearing it here would immediately reveal the previous result
+        // while that new queue is still being accepted.
         return;
       }
       const response = await fetch(`/api/applications/${applicationId}/retry-submission`, {
@@ -1902,12 +1936,14 @@ export function SubmissionStatusStep({
         setRetryError(message);
         setSnapshot(null);
         setLocalRetryActive(false);
+        setAwaitingRetryQueue(false);
         return;
       }
       const now = new Date().toISOString();
       const retryQueueId = typeof body?.jobId === "string" ? body.jobId : "";
       setLocalRetryActive(true);
       setActiveRetryQueueId(retryQueueId || null);
+      setAwaitingRetryQueue(false);
       setSnapshot({
         status: "queued",
         stage: "preparing",
@@ -1938,11 +1974,12 @@ export function SubmissionStatusStep({
     } catch (error) {
       setSnapshot(null);
       setLocalRetryActive(false);
+      setAwaitingRetryQueue(false);
       throw error;
     } finally {
       setResubmitting(false);
     }
-  }, [applicationId, country, isZh, onResubmit, snapshot?.country, snapshot?.visaType, visaType]);
+  }, [applicationId, country, isZh, onResubmit, snapshot?.country, snapshot?.queue, snapshot?.visaType, visaType]);
 
   const fallbackVisualStatus = useMemo(
     () => visualStatusFromApplication(status),
@@ -2082,7 +2119,7 @@ export function SubmissionStatusStep({
   const retryModes = isFranceSubmissionCurrent
     ? [{ mode: "live_assisted" as const, label: isZh ? "再次提交申请" : "Submit again" }]
     : isUkSubmission
-      ? [{ mode: "live_assisted" as const, label: isZh ? "继续 gov.uk 填表" : "Continue gov.uk pre-fill" }]
+      ? [{ mode: "live_assisted" as const, label: isZh ? "继续英国签证申请" : "Continue UK visa application" }]
     : isSgacSubmission || isMdacSubmission || isTdacSubmission || isDs160Submission || isVnPrearrivalSubmission || isTaiwanSubmission
     ? [{ mode: "live_assisted" as const, label: isZh ? "提交" : "Submit" }]
     : supportsLiveRetry(snapshot?.country ?? country, snapshot?.visaType ?? visaType)
@@ -2094,6 +2131,8 @@ export function SubmissionStatusStep({
     setRetryError(null);
     setLocalRetryActive(false);
     setActiveRetryQueueId(null);
+    setAwaitingRetryQueue(false);
+    retryQueueBaselineRef.current = { id: null, createdAtMs: null, startedAtMs: null };
     setActiveProgressCycleKey(null);
     submissionStartingRef.current = false;
   }, [applicationId, country, visaType]);
@@ -2196,8 +2235,17 @@ export function SubmissionStatusStep({
           isRecord(body.queue) && typeof body.queue.id === "string"
             ? body.queue.id
             : null;
+        const polledQueueCreatedAt =
+          isRecord(body.queue) && typeof body.queue.createdAt === "string"
+            ? body.queue.createdAt
+            : null;
+        const polledQueueCreatedAtMs = polledQueueCreatedAt ? Date.parse(polledQueueCreatedAt) : Number.NaN;
         const polledApplicationStatus =
           typeof body.applicationStatus === "string" ? body.applicationStatus : null;
+        const polledSnapshotIsActive =
+          body.status === "scheduled" ||
+          body.status === "queued" ||
+          body.status === "running";
         // On the first submit click the new queue may not have been inserted
         // when this request reaches the status endpoint. Never let a terminal
         // snapshot from the previous attempt replace the parent's optimistic
@@ -2216,11 +2264,33 @@ export function SubmissionStatusStep({
         // The status endpoint can briefly return the previous terminal queue
         // immediately after a new retry is accepted. Keep the new loading UI
         // authoritative until the exact queue created by this click appears.
+        // The UK parent callback saves/validates the draft before enqueueing.
+        // Until that new queue (or an active replacement snapshot) appears,
+        // ignore a terminal response belonging to the previous attempt.
+        const retryQueueBaseline = retryQueueBaselineRef.current;
+        const queueIdentityChanged =
+          Boolean(polledQueueId) &&
+          (retryQueueBaseline.id === null || polledQueueId !== retryQueueBaseline.id);
+        const queueTimestampAdvanced =
+          Number.isFinite(polledQueueCreatedAtMs) &&
+          (
+            (retryQueueBaseline.createdAtMs !== null && polledQueueCreatedAtMs > retryQueueBaseline.createdAtMs) ||
+            (retryQueueBaseline.startedAtMs !== null && polledQueueCreatedAtMs >= retryQueueBaseline.startedAtMs - 1_000)
+          );
+        const confirmedNewRetryQueue = queueIdentityChanged && queueTimestampAdvanced;
+        const retryQueueAccepted =
+          localRetryActive &&
+          awaitingRetryQueue &&
+          (polledSnapshotIsActive || confirmedNewRetryQueue);
+        if (retryQueueAccepted) {
+          if (polledQueueId) setActiveRetryQueueId(polledQueueId);
+          setAwaitingRetryQueue(false);
+        }
         if (
           localRetryActive &&
           (
-            (activeRetryQueueId && polledQueueId !== activeRetryQueueId) ||
-            (!activeRetryQueueId && resubmitting)
+            (activeRetryQueueId && polledQueueId && polledQueueId !== activeRetryQueueId) ||
+            (!activeRetryQueueId && (resubmitting || awaitingRetryQueue) && !retryQueueAccepted)
           )
         ) {
           return;
@@ -2353,6 +2423,7 @@ export function SubmissionStatusStep({
   }, [
     actionWithResult,
     activeRetryQueueId,
+    awaitingRetryQueue,
     applicationId,
     completedWithResult,
     failed,
@@ -2369,11 +2440,17 @@ export function SubmissionStatusStep({
   ]);
 
   const ukStoredResult = useMemo(() => {
+    // A UK retry owns the display until its replacement queue/result arrives;
+    // otherwise the previous durable result would be rendered again as soon
+    // as the parent save callback finishes.
+    if (localRetryActive) {
+      return isUkPrefillSubmissionResult(snapshot?.result) ? snapshot.result : null;
+    }
     if (isUkPrefillSubmissionResult(result)) return result;
     if (isUkPrefillSubmissionResult(snapshot?.result)) return snapshot.result;
     if (isUkPrefillSubmissionResult(effectiveResult)) return effectiveResult;
     return null;
-  }, [effectiveResult, result, snapshot?.result]);
+  }, [effectiveResult, localRetryActive, result, snapshot?.result]);
 
   /* Handed to a consultant: there is no automation run to show progress for,
      whatever the stored status says, until staff record the outcome. */
@@ -2410,6 +2487,7 @@ export function SubmissionStatusStep({
 
   if (resubmitting) {
     const isTaiwanResubmitting = isTaiwanEntryPermitApplication(snapshot?.country ?? country, snapshot?.visaType ?? visaType);
+    const isUkResubmitting = isUkStandardVisitorApplication(snapshot?.country ?? country, snapshot?.visaType ?? visaType);
     return (
       <div className="space-y-4">
         <WaitingCard
@@ -2420,7 +2498,11 @@ export function SubmissionStatusStep({
             ? isZh
               ? "正在排队台湾官网正式提交任务；只有官方回执验证通过后才会显示成功。"
               : "Queueing the formal Taiwan submission; success is shown only after official receipt verification."
-            : isZh ? "正在启动 Fly 云端提交任务。" : "Starting the Fly cloud submission job."}
+            : isUkResubmitting
+              ? isZh
+                ? "正在继续英国签证申请，系统会在官网需要处理时提示你。"
+                : "Continuing the UK visa application; this page will show you if the official site needs action."
+              : isZh ? "自动提交任务正在启动。" : "The automated submission is starting."}
           applicationId={applicationId}
           persistenceKey={submissionProgressPersistenceKey(
             activeRetryQueueId ?? snapshot?.queue?.id ?? null,
@@ -2478,37 +2560,31 @@ export function SubmissionStatusStep({
             <CardHeader>
               <CardTitle className="flex items-center gap-3 text-brand-900">
                 <ShieldCheck className="h-5 w-5 text-brand-500" />
-                {isZh ? "自动填表部分完成" : "Automated pre-fill partially completed"}
+                {isZh ? "英国签证申请需要继续处理" : "Your UK visa application needs to continue"}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm leading-relaxed text-brand-900">
               <p>
                 {isZh
-                  ? "之前显示的 profile.phone 等错误来自旧 worker 的误校验，不是你的表单缺字段。"
-                  : "Earlier profile.phone-style errors came from a legacy worker — your form answers are complete."}
+                  ? "请使用下方入口继续申请；如果官网需要你确认，页面会显示下一步。"
+                  : "Continue with the application below. If the official site needs your confirmation, this page will show the next step."}
               </p>
-              <p className="text-brand-800">
-                {isZh
-                  ? `gov.uk 上约 ${ukStoredResult.prefillProgress?.pagesFilled ?? 0}/${ukStoredResult.prefillProgress?.totalPages ?? 44} 页已保存。`
-                  : `About ${ukStoredResult.prefillProgress?.pagesFilled ?? 0}/${ukStoredResult.prefillProgress?.totalPages ?? 44} pages are saved on gov.uk.`}
-              </p>
+              {ukStoredResult.prefillProgress?.totalPages ? (
+                <p className="text-brand-800">
+                  {isZh
+                    ? `gov.uk 上约 ${ukStoredResult.prefillProgress.pagesFilled ?? 0}/${ukStoredResult.prefillProgress.totalPages} 页已保存。`
+                    : `About ${ukStoredResult.prefillProgress.pagesFilled ?? 0}/${ukStoredResult.prefillProgress.totalPages} pages are saved on gov.uk.`}
+                </p>
+              ) : null}
             </CardContent>
           </Card>
         )}
-        <UkResubmitPanel
-          isZh={isZh}
-          busy={resubmitting}
-          disabled={!applicationId}
-          error={retryError}
-          onSubmitAgain={() => {
-            void handleRetry("live_assisted").catch(() => undefined);
-          }}
-        />
         <UkResultCard
           applicationId={applicationId}
           result={ukStoredResult as UkSubmissionResult}
           applicationCountry={country}
           applicationVisaType={visaType}
+          onContinue={() => handleRetry("live_assisted")}
         />
       </div>
     );
@@ -2540,14 +2616,14 @@ export function SubmissionStatusStep({
           <CardHeader>
             <CardTitle className="flex items-center gap-3 text-brand-900">
               <ShieldCheck className="h-5 w-5 text-brand-500" />
-              {isZh ? "表单数据完整，但自动填表被旧 worker 拦截" : "Your answers are complete — an old worker blocked auto-fill"}
+              {isZh ? "英国签证申请需要继续处理" : "Your UK visa application needs to continue"}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm leading-relaxed text-brand-900">
             <p>
               {isZh
-                ? "这不是缺 phone/address 等字段。请刷新此页；若仍无进度，请用下方按钮通过 UK 专用 worker 重新排队（与 France-Visas 相同方式）。"
-                : "This is not missing phone/address data. Refresh this page; if progress is still missing, use the button below to re-enqueue via the UK-specific worker (same pattern as France-Visas)."}
+                ? "请使用下方按钮继续申请，系统会先保存最新答案；如果官网需要你确认，页面会显示下一步。"
+                : "Use the button below to save the latest answers and continue. If the official site needs your confirmation, this page will show the next step."}
             </p>
           </CardContent>
         </Card>

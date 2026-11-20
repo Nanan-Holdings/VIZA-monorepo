@@ -477,6 +477,59 @@ describe("submission status request lifecycle", () => {
     ]);
   });
 
+  it.each(["registration", "form_incomplete", "review", "declaration", "payment"])("returns the observed UK %s checkpoint after queue settlement", async (checkpoint) => {
+    const now = new Date().toISOString();
+    installAdminMock({
+      applicant_profiles: resultPlan({ id: PROFILE_ID }),
+      applications: resultPlan({
+        ...baseApplication,
+        country: "united_kingdom", visa_type: "UK_STANDARD_VISITOR",
+        submission_result_status: "needs_attention",
+        submission_result_updated_at: new Date(Date.now() - 1_000).toISOString(),
+        submission_result: {
+          country: "UK", status: "needs_attention", checkpoint,
+          reason: "private-runner-diagnostic",
+          prefillProgress: { pagesFilled: 45, pagesSkipped: 0, totalPages: 49 },
+        },
+      }),
+      submission_queue: resultPlan([{
+        id: "uk-job", application_id: APPLICATION_ID,
+        status: checkpoint === "declaration" || checkpoint === "payment" ? "uk_prefilled" : "action_required",
+        attempts: 0, mode: "live_assisted", provider: "uk_standard_visitor_live",
+        current_stage: "handoff_ready", heartbeat_at: null,
+        last_error: "private-queue-diagnostic", error_message: null,
+        created_at: now, updated_at: now,
+      }]),
+    });
+    const response = await GET(makeRequest(APPLICATION_ID, new AbortController().signal), routeContext());
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    expect(body).toMatchObject({ status: "needs_user_action", error: null, result: { country: "UK", status: "needs_attention", checkpoint } });
+    expect(body.progress).toBeLessThan(100);
+    expect(JSON.stringify(body)).not.toContain("private-");
+  });
+
+  it("hides the previous UK checkpoint result while a new retry is pending", async () => {
+    const now = new Date().toISOString();
+    installAdminMock({
+      applicant_profiles: resultPlan({ id: PROFILE_ID }),
+      applications: resultPlan({
+        ...baseApplication, country: "united_kingdom", visa_type: "UK_STANDARD_VISITOR",
+        submission_result_status: "needs_attention",
+        submission_result: { country: "UK", status: "needs_attention", checkpoint: "form_incomplete", prefillProgress: { pagesFilled: 4, totalPages: 49 } },
+      }),
+      submission_queue: resultPlan([{
+        id: "uk-retry", application_id: APPLICATION_ID, status: "uk_live_assisted_pending",
+        attempts: 0, mode: "live_assisted", provider: "uk_standard_visitor_live",
+        current_stage: "starting", heartbeat_at: now,
+        created_at: now, updated_at: now,
+      }]),
+    });
+    const response = await GET(makeRequest(APPLICATION_ID, new AbortController().signal), routeContext());
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ status: "queued", result: null, queue: { id: "uk-retry" } });
+  });
+
   it("returns completed for submitted DS-160 and excludes proof jobs before limiting the query", async () => {
     const admin = installAdminMock({
       applicant_profiles: resultPlan({ id: PROFILE_ID }),

@@ -346,8 +346,8 @@
           "subtitle": "Fill out the 44-page Standard Visitor application."
         },
         "pay": {
-          "title": "Pay visa fee",
-          "subtitle": "Pay the UK visa application fee online."
+          "title": "Official fee checkpoint",
+          "subtitle": "Continue through GOV.UK if the official application asks for its fee; VIZA does not collect it."
         },
         "documents": {
           "title": "Supporting documents",
@@ -5827,6 +5827,81 @@
       "paymentRequired": "Complete the secure VFS payment authorization first.",
       "finalRequired": "Approve the final booking before submission.",
       "sessionRequired": "Your sign-in session expired. Sign in again to continue."
+    }
+  },
+  "ukVisaResult": {
+    "status": {
+      "title": {
+        "registration": "Your UKVI account step needs attention",
+        "registration_ready": "Your UKVI application account is ready",
+        "form_incomplete": "Your UK application still needs information",
+        "review": "Your UK application is waiting for review",
+        "declaration": "Your UK application is waiting for declaration",
+        "payment": "Your UK visa application needs attention"
+      },
+      "badge": {
+        "registration": "Account step",
+        "registration_ready": "Account ready",
+        "form_incomplete": "Needs information",
+        "review": "Review needed",
+        "declaration": "Declaration needed",
+        "payment": "Needs attention"
+      },
+      "description": {
+        "registration": "The UKVI account step needs attention before the application can continue. Follow the next instruction shown here.",
+        "registration_ready": "Your UKVI application account is ready. The saved application has not crossed the next official form checkpoint yet.",
+        "form_incomplete": "The official form still needs information or materials before it can move to review. Check the application and correct the missing items in VIZA.",
+        "review": "The official application is waiting for a review step. Check the saved answers, then continue through the official UK portal when instructed.",
+        "declaration": "The official application is waiting for its declaration or final review. Confirm the content on the official site before any final action.",
+        "payment": "The application has reached an official fee checkpoint. VIZA does not collect or process the UK government fee. Continue only through the official UK portal and follow the instructions shown there."
+      }
+    },
+    "retry": {
+      "body": "The saved UK application can be sent through the official continuation flow again. VIZA will stop at any official checkpoint and show you what needs your attention.",
+      "confirm": "Continue the saved UK application through the official portal now? VIZA will not pay a fee or confirm an appointment.",
+      "button": "Continue UK application",
+      "loading": "Starting…",
+      "error": "Could not start the UK application continuation. Please try again later."
+    },
+    "progress": "Prefill progress: about {pagesFilled}/{totalPages} pages saved.",
+    "reference": {
+      "label": "Application reference"
+    },
+    "credentials": {
+      "title": "UKVI application account",
+      "body": "These credentials are for the UKVI visa application account only. They are not a VAC/biometrics appointment account and not an eVisa account. Reveal them only when you need to continue the application.",
+      "reveal": "Reveal account credentials",
+      "revealing": "Loading credentials…",
+      "hide": "Hide and clear credentials",
+      "resume": "Open official application",
+      "email": "Email",
+      "password": "Password",
+      "resumeUrl": "Official resume link",
+      "copy": "Copy value",
+      "copied": "Copied",
+      "notBound": "No UKVI credentials are bound to this application yet.",
+      "timeout": "The credential request timed out. Please try again.",
+      "error": "The UKVI credentials could not be loaded. Please try again later.",
+      "copyUnavailable": "Copy is unavailable in this browser. Select the value and copy it manually.",
+      "copyError": "The value could not be copied. Please select it and copy it manually."
+    },
+    "officialLinks": {
+      "title": "Application and biometrics links",
+      "body": "A UK Standard Visitor applicant normally completes the online application first and then follows the official instructions to give biometrics at a visa application centre. VIZA does not create or manage the VAC appointment account.",
+      "signIn": "Continue UK visa application",
+      "signInDescription": "Open the official GOV.UK sign-in page for a saved application.",
+      "findCentre": "Find a visa application centre",
+      "findCentreDescription": "Use the official directory to find the centre for your location and follow its appointment instructions."
+    },
+    "evisa": {
+      "title": "After a visa decision",
+      "body": "eVisa is for setting up or accessing your UKVI account and viewing or proving immigration status. It is not a paid activation step in VIZA.",
+      "setup": "Set up a UKVI/eVisa account",
+      "setupDescription": "Open the official GOV.UK setup page when UKVI asks you to create or link an account.",
+      "view": "View or prove immigration status",
+      "viewDescription": "Open the official service to view your eVisa status or generate a share code.",
+      "update": "Update UKVI account details",
+      "updateDescription": "Use the official service to update passport or personal details on your UKVI account."
     }
   },
   "subscriptionReturn": {

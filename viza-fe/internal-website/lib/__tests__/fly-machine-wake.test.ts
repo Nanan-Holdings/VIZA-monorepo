@@ -7,6 +7,11 @@ import {
 } from "../fly-machine-wake.server";
 
 describe("ensureFlyMachineStarted", () => {
+  it.each(["UK", "GB", "GBR", "united_kingdom", "United Kingdom", "great-britain"])("routes %s to the retained legacy Machine", async (alias) => {
+    await expect(ensureFlyMachineStarted(alias, { env: {}, fetchImpl: vi.fn() })).resolves.toEqual({
+      ok: false, target: "legacy", reason: "not_configured",
+    });
+  });
   it("does not inspect or start Fly Machines during cutover pause", async () => {
     const fetchImpl = vi.fn() as unknown as typeof fetch;
 

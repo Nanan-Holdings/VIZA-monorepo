@@ -8,6 +8,8 @@
  */
 
 import "dotenv/config";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 interface PoolDepthRow {
@@ -66,6 +68,7 @@ const LEGACY_CLAIMABLE_QUEUE_STATUSES = [
   "fv_prefill_pending",
   "france_live_assisted_pending",
   "uk_prefill_pending",
+  "uk_live_assisted_pending",
   "vn_dry_run_pending",
   "vn_live_assisted_pending",
   "vn_cloud_live_pending",
@@ -190,7 +193,7 @@ async function fetchDs160QueueDepth(supabase: SupabaseClient): Promise<number> {
   return count ?? 0;
 }
 
-async function fetchLegacyQueueDepth(supabase: SupabaseClient): Promise<number> {
+export async function fetchLegacyQueueDepth(supabase: SupabaseClient): Promise<number> {
   const { count, error } = await supabase
     .from("submission_queue")
     .select("id", { count: "exact", head: true })
@@ -330,7 +333,9 @@ async function main(): Promise<void> {
   console.log(`${ds160.app} queued=${ds160.queued} desired=${ds160.desired}`);
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.stack ?? error.message : error);
-  process.exit(2);
-});
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.stack ?? error.message : error);
+    process.exit(2);
+  });
+}

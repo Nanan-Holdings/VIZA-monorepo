@@ -1,5 +1,5 @@
 import "server-only";
-import { ensureFlyMachineStarted } from "@/lib/fly-machine-wake.server";
+import { ensureFlyMachineStarted, waitForHttpReady } from "@/lib/fly-machine-wake.server";
 import { isRunnerCutoverPaused } from "@/lib/runner-cutover-pause.server";
 
 type WakeEnvironment = Partial<NodeJS.ProcessEnv>;
@@ -8,7 +8,7 @@ type WakeEndpoint = "default" | "legacy" | "ds160";
 
 export type SubmissionWorkerWakeResult =
   | { ok: true }
-  | { ok: false; reason: "cutover_paused" | "not_configured" | "insecure_url" | "request_failed" };
+  | { ok: false; reason: "cutover_paused" | "not_configured" | "insecure_url" | "request_failed" | "target_mismatch" | "capacity_full" | "machine_not_found" | "readiness_timeout" };
 
 function resolveWakeBaseUrl(
   env: WakeEnvironment,
@@ -137,4 +137,48 @@ export async function wakeDs160SubmissionWorker(
     target: "ds160",
     endpoint: "ds160",
   });
+}
+
+/** UK jobs use the retained legacy Machine and its authenticated queue wake.
+ * A Machine start acknowledgement alone is not proof the worker accepted wake.
+ */
+export async function wakeUkSubmissionWorker(
+  jobId: string | null,
+  options: { env?: WakeEnvironment; fetchImpl?: typeof fetch } = {},
+): Promise<SubmissionWorkerWakeResult> {
+  const env = options.env ?? process.env;
+  if (isRunnerCutoverPaused(env)) return { ok: false, reason: "cutover_paused" };
+  const config = resolveWakeConfig(env, "legacy", "legacy");
+  if (!config || !jobId) return { ok: false, reason: "not_configured" };
+  const app = env.FLY_SUBMISSION_LEGACY_APP?.trim() || "viza-submission-legacy";
+  try {
+    const url = new URL(config.baseUrl);
+    if (url.protocol !== "https:") return { ok: false, reason: "insecure_url" };
+    if (url.origin !== `https://${app}.fly.dev` || url.pathname !== "/" || url.search || url.hash || url.username || url.password) {
+      return { ok: false, reason: "target_mismatch" };
+    }
+  } catch {
+    return { ok: false, reason: "insecure_url" };
+  }
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const machine = await ensureFlyMachineStarted("legacy", { env, fetchImpl });
+  if (!machine.ok) {
+    return { ok: false, reason: machine.reason === "unmanaged_target" ? "request_failed" : machine.reason };
+  }
+  const ready = await waitForHttpReady(`${config.baseUrl}/ready`, {
+    fetchImpl, timeoutMs: 12_000, requestTimeoutMs: 3_000, pollIntervalMs: 500,
+  });
+  if (!ready.ok) return { ok: false, reason: "readiness_timeout" };
+  try {
+    const response = await fetchImpl(`${config.baseUrl}/internal/submission-queue/wake`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${config.token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ jobId }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(8_000),
+    });
+    return response.ok ? { ok: true } : { ok: false, reason: "request_failed" };
+  } catch {
+    return { ok: false, reason: "request_failed" };
+  }
 }
