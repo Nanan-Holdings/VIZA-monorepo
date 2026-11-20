@@ -123,6 +123,7 @@ import {
 } from "./france-visas/fallbacks";
 import {
   ensureApplicantInboxAlias,
+  ensureApplicationInboxAlias,
   generateApplicantInboxAlias,
 } from "./inbox/alias";
 import { assertInboxAliasDomainRoutable } from "./inbox/wait-for-message";
@@ -4265,7 +4266,7 @@ async function processFvItem(
 
 // ─── UK Standard Visitor Job Processor ───────────────────────────────
 //
-// Delegates to runUkHalt (register → resume → 44 pages → halt at pay).
+// Delegates to runUkHalt (register → resume → verified declaration/payment checkpoint).
 async function processUkItem(item: SubmissionQueueItem, config?: UkSubmissionConfig): Promise<void> {
   const runId = createRunId("uk");
   const live = isUkLiveAssistedQueueItem(item);
@@ -4273,7 +4274,7 @@ async function processUkItem(item: SubmissionQueueItem, config?: UkSubmissionCon
   const processingStatus: SubmissionQueueItem["status"] = live
     ? "uk_live_processing"
     : "uk_prefill_processing";
-  const successStatus: SubmissionQueueItem["status"] = live ? "uk_prefilled" : "uk_prefilled";
+  const successStatus: SubmissionQueueItem["status"] = "uk_prefilled";
   console.log(
     `[uk] Starting ${live ? "live" : "prefill"} run ${runId} for application=${redactIdentifier(item.application_id)} (attempt ${item.attempts + 1})`,
   );
@@ -4312,14 +4313,18 @@ async function processUkItem(item: SubmissionQueueItem, config?: UkSubmissionCon
     await writeUkStage("loading_application_data");
     const { application } = await loadApplicantData(item.application_id);
     await writeUkStage("ensuring_inbox_alias");
-    await ensureApplicantInboxAlias(application.applicant_id);
+    await ensureApplicationInboxAlias(item.application_id, application.applicant_id);
 
     await writeUkStage("gov_uk_automation");
-    if (live) {
-      await writeUkStage("gov_uk_portal_opened", { status: "uk_live_official_portal_opened" });
-    }
     const outcome = await runUkHalt(item.application_id, item.id);
-    await writeUkStage("halted_before_pay", { status: successStatus });
+    const verifiedHandoff = outcome.reachedStep === "declaration" || outcome.reachedStep === "payment";
+    await writeUkStage(
+      verifiedHandoff ? "handoff_ready" : `needs_attention_${outcome.reachedStep}`,
+      {
+        status: verifiedHandoff ? successStatus : "action_required",
+        ...(verifiedHandoff ? {} : { last_error: `UK runner stopped at ${outcome.reachedStep}; applicant/staff action is required` }),
+      },
+    );
     console.log(
       `[uk] Run ${runId} halted @ ${outcome.reachedStep} (outcome=${outcome.outcome})`,
     );

@@ -25,6 +25,17 @@ interface DecryptedAccount<T> {
   password: string;
 }
 
+export type UkAccountLoaderClient = Pick<typeof supabase, "from">;
+
+export class UkAccountBindingAmbiguousError extends Error {
+  constructor(applicationId: string, applicantId: string) {
+    super(
+      `An unbound legacy UK account exists for application ${applicationId} and applicant ${applicantId}; manual binding is required before registration`,
+    );
+    this.name = "UkAccountBindingAmbiguousError";
+  }
+}
+
 async function loadOne<T extends { password_encrypted: string }>(
   table: string,
   applicantId: string,
@@ -46,8 +57,55 @@ async function loadOne<T extends { password_encrypted: string }>(
   return { row, password: decryptSecret(row.password_encrypted) };
 }
 
-export async function loadUkAccount(applicantId: string) {
-  return loadOne<UkAccount>("uk_accounts", applicantId);
+/**
+ * Load a UKVI account only when both ownership dimensions match exactly.
+ *
+ * UK accounts used to be applicant-scoped and the old helper selected the
+ * latest row. That is unsafe when one applicant has concurrent applications:
+ * a resume URL/password from another application could be sent to UKVI. Keep
+ * the stricter query separate from the generic country loaders so their
+ * historical semantics do not leak into this path.
+ */
+export async function loadUkAccount(
+  applicationId: string,
+  applicantId: string,
+  client: UkAccountLoaderClient = supabase,
+) {
+  const { data, error } = await client
+    .from("uk_accounts")
+    .select("*")
+    .eq("application_id", applicationId)
+    .eq("applicant_id", applicantId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      `Failed to load uk_accounts for application ${applicationId} and applicant ${applicantId}: ${error.message}`,
+    );
+  }
+  if (data) {
+    const row = data as UkAccount;
+    return { row, password: decryptSecret(row.password_encrypted) };
+  }
+
+  // Legacy rows are intentionally not adopted or decrypted. Their existence
+  // means the applicant may already have a UKVI account whose application
+  // binding is unknown; creating another official account would be unsafe.
+  const { data: legacyRows, error: legacyError } = await client
+    .from("uk_accounts")
+    .select("id, application_id, applicant_id")
+    .eq("applicant_id", applicantId)
+    .is("application_id", null)
+    .limit(2);
+  if (legacyError) {
+    throw new Error(
+      `Failed to inspect legacy uk_accounts for applicant ${applicantId}: ${legacyError.message}`,
+    );
+  }
+  if (legacyRows && legacyRows.length > 0) {
+    throw new UkAccountBindingAmbiguousError(applicationId, applicantId);
+  }
+  return null;
 }
 
 export async function loadAuAccount(applicantId: string) {

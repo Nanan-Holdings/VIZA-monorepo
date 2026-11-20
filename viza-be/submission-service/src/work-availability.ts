@@ -9,6 +9,7 @@ export const LEGACY_IMMEDIATE_QUEUE_STATUSES = [
   "fv_prefill_pending",
   "france_live_assisted_pending",
   "uk_prefill_pending",
+  "uk_live_assisted_pending",
   "vn_dry_run_pending",
   "vn_live_assisted_pending",
   "vn_cloud_live_pending",

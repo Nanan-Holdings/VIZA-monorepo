@@ -1,35 +1,31 @@
 /**
  * UK Standard Visitor — resume an in-flight application via forceResume URL.
  *
- * Flow:
- *   1. Open the applicant's forceResume URL.
- *   2. Fill the password input + click Sign in.
- *   3. Walk every page in UK_PAGE_ORDER (44 application pages):
- *        - navigate to /edit/application.0.<slug>
- *        - run the page-binding filler (best-effort; missing answers stay empty)
- *        - click Save and continue
- *   4. Walk Documents (tick all checkboxes + Save and continue).
- *   5. Walk Declaration and, only with an allocation-bound managed-card
- *      callback, continue through the verified official payment boundary.
- *
- * Returns a structured result the orchestrator can write back to
- * applications.submission_result.
+ * The runner is deliberately fail-closed: a page is counted as filled only
+ * when its filler completed and the portal reported a real navigation. A
+ * declaration page is an applicant checkpoint; VIZA never checks its legal
+ * acknowledgement or advances into payment.
  */
 
 import type { Page } from "@playwright/test";
 import { launchStealthBrowser } from "../ceac/stealth-browser";
 import {
-  UK_DECLARATION_FILLER,
   UK_DOCUMENTS_FILLER,
   UK_PAGE_FILLERS,
   UK_PAGE_ORDER,
 } from "./page-bindings";
-import { ukClickSaveContinue } from "./fillers";
 import {
-  payUkWithManagedCard,
-  type UkManagedPaymentCard,
-  verifyUkPaymentPageAmount,
-} from "./payment";
+  ukClickSaveContinue,
+  ukPageHasValidationErrors,
+  ukValidationErrorText,
+} from "./fillers";
+import {
+  createUkTimingRecorder,
+  type UkTimingClock,
+  type UkTimingOutcome,
+  type UkTimingRecorder,
+  type UkTimingSink,
+} from "./timing.js";
 
 export interface UkResumeInput {
   resumeUrl: string;
@@ -46,13 +42,13 @@ export interface UkResumeOptions {
   pageTimeoutMs?: number;
   /** Where to write failure screenshots. */
   outputDir?: string;
-  /**
-   * Lazily acquires a VIZA-managed card only after the payment page is
-   * visible. Omit this callback for prefill-only runs.
-   */
-  takePaymentCard?: () => Promise<UkManagedPaymentCard | null>;
-  expectedPaymentAmount?: number;
-  expectedPaymentCurrency?: string;
+  /** Test seam for deterministic browser lifecycle tests. */
+  browserLauncher?: typeof launchStealthBrowser;
+  /** Optional redacted timing recorder; defaults to a safe summary logger. */
+  timing?: UkTimingRecorder;
+  /** Clock/sink seams used when the runner creates its timing recorder. */
+  timingClock?: UkTimingClock;
+  timingSink?: UkTimingSink;
 }
 
 export type UkResumeResult =
@@ -65,6 +61,7 @@ export type UkResumeResult =
       pagesSkipped: string[];
       finalUrl: string;
       applicationReference?: string;
+      checkpoint?: "payment";
     }
   | {
       status: "halted_before_pay";
@@ -72,8 +69,11 @@ export type UkResumeResult =
       portalUrl: string;
       portalUsername: string;
       pagesFilled: string[];
+      pagesSkipped?: string[];
       finalUrl: string;
       reason: string;
+      checkpoint?: "registration" | "form_incomplete" | "review" | "declaration";
+      applicationReference?: string;
     }
   | {
       status: "failed";
@@ -82,6 +82,8 @@ export type UkResumeResult =
       error: Record<string, unknown> | null;
       url: string;
     }
+  // Historical result variants remain readable by callers, but the current
+  // payment-removed runner never produces them.
   | {
       status: "paid";
       runId?: string;
@@ -100,11 +102,11 @@ export type UkResumeResult =
       reason: string;
       paymentOutcome?: "declined" | "review_required";
       applicationReference?: string;
+      checkpoint?: "payment";
     };
 
 const STOP_TITLE_PATTERNS = [/^Pay\b/i, /payment/i];
 const PAY_URL_PATTERNS = [/\/pay\b/i, /\/payment\b/i];
-
 const APP_BASE = "https://visas-immigration.service.gov.uk/edit/application.0.";
 
 export async function resumeUkApplication(
@@ -116,381 +118,462 @@ export async function resumeUkApplication(
   const pageTimeoutMs = options.pageTimeoutMs ?? 30_000;
   const pagesFilled: string[] = [];
   const pagesSkipped: string[] = [];
+  const timing = options.timing ?? createUkTimingRecorder({
+    runId,
+    clock: options.timingClock,
+    sink: options.timingSink,
+  });
+  let runOutcome: UkTimingOutcome = "failed";
+  const complete = <T extends UkResumeResult>(result: T): T => {
+    runOutcome = result.status === "failed" ? "failed" : "stopped";
+    return result;
+  };
   let page: Page | null = null;
   let browser: Awaited<ReturnType<typeof launchStealthBrowser>>["browser"] | null = null;
   let context: Awaited<ReturnType<typeof launchStealthBrowser>>["context"] | null = null;
 
   try {
-    const handles = await launchStealthBrowser({ headless, acceptDownloads: false });
+    const launcher = options.browserLauncher ?? launchStealthBrowser;
+    const browserLaunchSpan = timing.start("browser_launch", "resume");
+    let handles: Awaited<ReturnType<typeof launchStealthBrowser>>;
+    try {
+      handles = await launcher({ headless, acceptDownloads: false });
+      browserLaunchSpan.end("success");
+    } catch (err) {
+      browserLaunchSpan.end("failed");
+      throw err;
+    }
     browser = handles.browser;
     context = handles.context;
     page = handles.page;
 
-    // ── Login ──────────────────────────────────────────────────────────
-    await page.goto(input.resumeUrl, { waitUntil: "domcontentloaded", timeout: pageTimeoutMs });
-    const pwInput = page.locator('input[type="password"]').first();
-    if ((await pwInput.count()) === 0) {
-      throw new Error("Login page did not expose a password input — resume URL may be expired");
+    const loginSpan = timing.start("login", "resume");
+    try {
+      await page.goto(input.resumeUrl, { waitUntil: "domcontentloaded", timeout: pageTimeoutMs });
+      const pwInput = page.locator('input[type="password"]').first();
+      if ((await pwInput.count()) === 0) {
+        throw new Error("Login page did not expose a password input — resume URL may be expired");
+      }
+      await pwInput.fill(input.password, { timeout: 10_000 });
+      await Promise.all([
+        page.waitForLoadState("domcontentloaded", { timeout: pageTimeoutMs }),
+        page.locator('button[type="submit"], input[type="submit"]').first().click({ timeout: 10_000 }),
+      ]);
+      loginSpan.end("success");
+    } catch (err) {
+      loginSpan.end("failed");
+      throw err;
     }
-    await pwInput.fill(input.password, { timeout: 10_000 });
-    await Promise.all([
-      page.waitForLoadState("domcontentloaded", { timeout: pageTimeoutMs }),
-      page.locator('button[type="submit"], input[type="submit"]').first().click({ timeout: 10_000 }),
-    ]);
 
-    // ── Walk all 44 application pages ──────────────────────────────────
     for (const slug of UK_PAGE_ORDER) {
-      const url = `${APP_BASE}${slug}`;
+      const gotoSpan = timing.start("page_goto", slug);
       try {
-        await page.goto(url, { waitUntil: "domcontentloaded", timeout: pageTimeoutMs });
-      } catch {
-        pagesSkipped.push(slug);
-        continue;
+        await page.goto(`${APP_BASE}${slug}`, { waitUntil: "domcontentloaded", timeout: pageTimeoutMs });
+      } catch (err) {
+        gotoSpan.end("failed");
+        return complete(incompleteResult(
+          page,
+          input,
+          runId,
+          pagesFilled,
+          pagesSkipped,
+          `Navigation failed on ${slug}: ${errorMessage(err)}`,
+          "form_incomplete",
+        ));
       }
 
-      // Pages that don't apply to this applicant (conditional skips)
-      // redirect to Check-Your-Answers or the next-applicable page.
-      // Detect by URL drift away from the requested slug.
       const landed = page.url();
       if (!landed.includes(slug)) {
-        pagesSkipped.push(slug);
         if (await isStopBoundary(page)) {
-          return handleVisiblePaymentBoundary(
-            page,
-            input,
-            options,
-            runId,
-            pagesFilled,
-            pagesSkipped,
-          );
+          gotoSpan.end("stopped");
+          runOutcome = "stopped";
+          return handleVisiblePaymentBoundary(page, input, runId, pagesFilled, pagesSkipped);
         }
-        continue;
+        if (/Declaration/i.test(await page.title())) {
+          gotoSpan.end("stopped");
+          runOutcome = "stopped";
+          return declarationCheckpoint(page, input, runId, pagesFilled, pagesSkipped);
+        }
+        if (await isExplicitlyNotApplicable(page)) {
+          gotoSpan.end("skipped");
+          pagesSkipped.push(slug);
+          continue;
+        }
+        gotoSpan.end("failed");
+        return complete(incompleteResult(
+          page,
+          input,
+          runId,
+          pagesFilled,
+          pagesSkipped,
+          `UKVI redirected away from ${slug} without an explicit not-applicable explanation`,
+          (await isReviewPage(page)) ? "review" : "form_incomplete",
+        ));
       }
+      gotoSpan.end("success");
 
       const filler = UK_PAGE_FILLERS[slug];
+      const fillSpan = timing.start("page_fill", slug);
       if (filler) {
         try {
           await filler(page, input.answers);
         } catch (err) {
-          console.warn(
-            `[uk] page filler errored on ${slug}: ${err instanceof Error ? err.message : String(err)}`,
-          );
+          fillSpan.end("failed");
+          return complete(incompleteResult(
+            page,
+            input,
+            runId,
+            pagesFilled,
+            pagesSkipped,
+            `Filler failed on ${slug}: ${errorMessage(err)}`,
+            "form_incomplete",
+          ));
         }
+        fillSpan.end("success");
+      } else {
+        fillSpan.end("skipped");
       }
 
+      const saveSpan = timing.start("page_save", slug);
       try {
-        await ukClickSaveContinue(page, pageTimeoutMs);
+        const save = await ukClickSaveContinue(page, pageTimeoutMs);
+        if (!save.navigated) {
+          saveSpan.end("failed");
+          const validationSpan = timing.start("validation", slug);
+          let validation = "";
+          try {
+            validation = await validationSuffix(page);
+            validationSpan.end(validation ? "failed" : "success");
+          } catch (err) {
+            validationSpan.end("failed");
+            throw err;
+          }
+          return complete(incompleteResult(
+            page,
+            input,
+            runId,
+            pagesFilled,
+            pagesSkipped,
+            `Save and continue did not navigate on ${slug}${validation}`,
+            "form_incomplete",
+          ));
+        }
+        saveSpan.end("success");
         pagesFilled.push(slug);
-      } catch {
-        pagesSkipped.push(slug);
-      }
-
-      // Every Save can land us on either the next application page, the
-      // Check-Your-Answers summary, or — for the LAST page in the list —
-      // the Documents step. Bail if we've crossed into a stop URL.
-      if (await isStopBoundary(page)) {
-        return handleVisiblePaymentBoundary(
+      } catch (err) {
+        saveSpan.end("failed");
+        return complete(incompleteResult(
           page,
           input,
-          options,
           runId,
           pagesFilled,
           pagesSkipped,
-        );
+          `Save and continue failed on ${slug}: ${errorMessage(err)}`,
+          "form_incomplete",
+        ));
+      }
+
+      if (await isStopBoundary(page)) {
+        runOutcome = "stopped";
+        return handleVisiblePaymentBoundary(page, input, runId, pagesFilled, pagesSkipped);
+      }
+      if (/Declaration/i.test(await page.title())) {
+        runOutcome = "stopped";
+        return declarationCheckpoint(page, input, runId, pagesFilled, pagesSkipped);
       }
     }
 
-    // ── Check-Your-Answers + Continue → Documents ──────────────────────
-    await page.goto("https://visas-immigration.service.gov.uk/edit/application", {
-      waitUntil: "domcontentloaded",
-      timeout: pageTimeoutMs,
-    });
-    const continueBtn = page.locator('button[type="submit"], input[type="submit"]', { hasText: /^Continue$/i }).first();
-    if ((await continueBtn.count()) > 0) {
+    const reviewGotoSpan = timing.start("review", "goto");
+    try {
+      await page.goto("https://visas-immigration.service.gov.uk/edit/application", {
+        waitUntil: "domcontentloaded",
+        timeout: pageTimeoutMs,
+      });
+    } catch (err) {
+      reviewGotoSpan.end("failed");
+      return complete(incompleteResult(
+        page,
+        input,
+        runId,
+        pagesFilled,
+        pagesSkipped,
+        `Navigation to the UK review page failed: ${errorMessage(err)}`,
+        "review",
+      ));
+    }
+    reviewGotoSpan.end("success");
+
+    if (await isStopBoundary(page)) {
+      runOutcome = "stopped";
+      return handleVisiblePaymentBoundary(page, input, runId, pagesFilled, pagesSkipped);
+    }
+    if (!(await isReviewPage(page))) {
+      return complete(incompleteResult(
+        page,
+        input,
+        runId,
+        pagesFilled,
+        pagesSkipped,
+        `Unexpected page before UK documents: ${await page.title()}`,
+        "review",
+      ));
+    }
+
+    const continueBtn = page.locator(
+      'button[type="submit"], input[type="submit"]',
+      { hasText: /^Continue$/i },
+    ).first();
+    if ((await continueBtn.count()) === 0) {
+      const validationSpan = timing.start("validation", "review");
+      let validation = "";
+      try {
+        validation = await validationSuffix(page);
+        validationSpan.end(validation ? "failed" : "success");
+      } catch (err) {
+        validationSpan.end("failed");
+        throw err;
+      }
+      return complete(incompleteResult(
+        page,
+        input,
+        runId,
+        pagesFilled,
+        pagesSkipped,
+        `UK review page has no Continue control${validation}`,
+        "review",
+      ));
+    }
+    const reviewContinueSpan = timing.start("review", "continue");
+    try {
       await Promise.all([
         page.waitForLoadState("domcontentloaded", { timeout: pageTimeoutMs }),
         continueBtn.click({ timeout: 10_000 }),
       ]);
+      reviewContinueSpan.end("success");
+    } catch (err) {
+      reviewContinueSpan.end("failed");
+      return complete(incompleteResult(
+        page,
+        input,
+        runId,
+        pagesFilled,
+        pagesSkipped,
+        `UK review Continue failed: ${errorMessage(err)}`,
+        "review",
+      ));
+    }
+    const reviewValidationSpan = timing.start("validation", "review");
+    let reviewHasValidationErrors = false;
+    try {
+      reviewHasValidationErrors = await ukPageHasValidationErrors(page);
+      reviewValidationSpan.end(reviewHasValidationErrors ? "failed" : "success");
+    } catch (err) {
+      reviewValidationSpan.end("failed");
+      throw err;
+    }
+    if (reviewHasValidationErrors) {
+      const validationSuffixSpan = timing.start("validation", "review");
+      let validation = "";
+      try {
+        validation = await validationSuffix(page);
+        validationSuffixSpan.end(validation ? "failed" : "success");
+      } catch (err) {
+        validationSuffixSpan.end("failed");
+        throw err;
+      }
+      return complete(incompleteResult(
+        page,
+        input,
+        runId,
+        pagesFilled,
+        pagesSkipped,
+        `UK review validation failed${validation}`,
+        "review",
+      ));
     }
 
-    // ── Documents step ─────────────────────────────────────────────────
     if (/Documents/i.test(await page.title())) {
-      await UK_DOCUMENTS_FILLER(page, input.answers);
-      await ukClickSaveContinue(page, pageTimeoutMs);
+      const documentsSpan = timing.start("documents", "documents");
+      try {
+        await UK_DOCUMENTS_FILLER(page, input.answers);
+        const save = await ukClickSaveContinue(page, pageTimeoutMs);
+        if (!save.navigated) {
+          documentsSpan.end("failed");
+          const validationSpan = timing.start("validation", "documents");
+          let validation = "";
+          try {
+            validation = await validationSuffix(page);
+            validationSpan.end(validation ? "failed" : "success");
+          } catch (err) {
+            validationSpan.end("failed");
+            throw err;
+          }
+          return complete(incompleteResult(
+            page,
+            input,
+            runId,
+            pagesFilled,
+            pagesSkipped,
+            `UK documents did not save${validation}`,
+            "form_incomplete",
+          ));
+        }
+        documentsSpan.end("success");
+      } catch (err) {
+        documentsSpan.end("failed");
+        return complete(incompleteResult(
+          page,
+          input,
+          runId,
+          pagesFilled,
+          pagesSkipped,
+          `UK documents step failed: ${errorMessage(err)}`,
+          "form_incomplete",
+        ));
+      }
       pagesFilled.push("__documents__");
     }
 
     if (await isStopBoundary(page)) {
-      return handleVisiblePaymentBoundary(
-        page,
-        input,
-        options,
-        runId,
-        pagesFilled,
-        pagesSkipped,
-      );
+      runOutcome = "stopped";
+      return handleVisiblePaymentBoundary(page, input, runId, pagesFilled, pagesSkipped);
     }
-
-    // ── Declaration + VIZA-managed payment ────────────────────────────
     if (/Declaration/i.test(await page.title())) {
-      const applicationReference = await captureApplicationReference(page);
-      if (!options.takePaymentCard) {
-        await UK_DECLARATION_FILLER(page, input.answers);
-        pagesFilled.push("__declaration__");
-        // Prefill-only runs preserve the payment boundary. No credential or
-        // payment link should be exposed to the applicant by the caller.
-        return {
-          status: "stopped_at_pay",
-          runId,
-          portalUrl: input.resumeUrl,
-          portalUsername: input.email,
-          pagesFilled,
-          pagesSkipped,
-          finalUrl: page.url(),
-          ...(applicationReference ? { applicationReference } : {}),
-        };
-      }
-
-      // UKVI currently uses two declaration pages. Complete every declaration
-      // page already represented by the applicant's VIZA final confirmation,
-      // then acquire card material only after the official pay page is visible.
-      for (let declarationPage = 0; declarationPage < 4; declarationPage += 1) {
-        if (!/Declaration/i.test(await page.title())) break;
-        await UK_DECLARATION_FILLER(page, input.answers);
-        await ukClickSaveContinue(page, pageTimeoutMs);
-        pagesFilled.push(`__declaration_${declarationPage + 1}__`);
-      }
-
-      if (!(await isStopBoundary(page))) {
-        return {
-          status: "payment_review_required",
-          runId,
-          pagesFilled,
-          pagesSkipped,
-          finalUrl: page.url(),
-          reason: "UKVI did not reach the expected official payment page after declaration",
-          ...(applicationReference ? { applicationReference } : {}),
-        };
-      }
-
-      const expectedPaymentAmount = options.expectedPaymentAmount;
-      const expectedPaymentCurrency = options.expectedPaymentCurrency;
-      if (
-        typeof expectedPaymentAmount !== "number" ||
-        !Number.isFinite(expectedPaymentAmount) ||
-        expectedPaymentAmount <= 0 ||
-        !expectedPaymentCurrency
-      ) {
-        return {
-          status: "payment_review_required",
-          runId,
-          pagesFilled,
-          pagesSkipped,
-          finalUrl: page.url(),
-          reason: "The allocated UK official-fee amount or currency was unavailable",
-          ...(applicationReference ? { applicationReference } : {}),
-        };
-      }
-      const amountCheck = await verifyUkPaymentPageAmount({
-        page,
-        expectedAmount: expectedPaymentAmount,
-        expectedCurrency: expectedPaymentCurrency,
-      });
-      if (!amountCheck.ok) {
-        return {
-          status: "payment_review_required",
-          runId,
-          pagesFilled,
-          pagesSkipped,
-          finalUrl: page.url(),
-          reason: amountCheck.reason,
-          ...(applicationReference ? { applicationReference } : {}),
-        };
-      }
-
-      const card = await options.takePaymentCard();
-      if (!card) {
-        return {
-          status: "payment_review_required",
-          runId,
-          pagesFilled,
-          pagesSkipped,
-          finalUrl: page.url(),
-          reason: "A VIZA-managed official-fee card was not available",
-          ...(applicationReference ? { applicationReference } : {}),
-        };
-      }
-      const payment = await payUkWithManagedCard({
-        page,
-        card,
-        expectedAmount: expectedPaymentAmount,
-        expectedCurrency: expectedPaymentCurrency,
-      });
-      if (payment.status === "paid") {
-        return {
-          status: "paid",
-          runId,
-          pagesFilled,
-          pagesSkipped,
-          finalUrl: payment.finalUrl,
-          portalReceiptId: payment.portalReceiptId,
-          ...(applicationReference ? { applicationReference } : {}),
-        };
-      }
-      return {
-        status: "payment_review_required",
-        runId,
-        pagesFilled,
-        pagesSkipped,
-        finalUrl: payment.finalUrl,
-        reason: payment.reason,
-        paymentOutcome: payment.status,
-        ...(applicationReference ? { applicationReference } : {}),
-      };
+      runOutcome = "stopped";
+      return declarationCheckpoint(page, input, runId, pagesFilled, pagesSkipped);
     }
 
-    // Couldn't reach Declaration — return whatever we got.
-    return {
-      status: "halted_before_pay",
+    return complete(incompleteResult(
+      page,
+      input,
       runId,
-      portalUrl: input.resumeUrl,
-      portalUsername: input.email,
       pagesFilled,
-      finalUrl: page.url(),
-      reason: `Unexpected terminal page: ${await page.title()}`,
-    };
+      pagesSkipped,
+      `UKVI did not reach the declaration checkpoint: ${await page.title()}`,
+      "review",
+    ));
   } catch (err) {
+    runOutcome = "failed";
     const url = page?.url() ?? input.resumeUrl;
-    return {
+    return complete({
       status: "failed",
       runId,
       failedAt: url,
       error: serializeError(err),
       url,
-    };
+    });
   } finally {
+    const cleanupSpan = timing.start("cleanup", "resume");
+    let cleanupFailed = false;
     try {
       if (context) await context.close();
     } catch {
       /* best-effort */
+      cleanupFailed = true;
     }
     try {
       if (browser) await browser.close();
     } catch {
       /* best-effort */
+      cleanupFailed = true;
     }
+    cleanupSpan.end(cleanupFailed ? "failed" : "success");
+    timing.finish(runOutcome);
   }
 }
 
 async function isStopBoundary(page: Page): Promise<boolean> {
   const title = await page.title().catch(() => "");
   if (STOP_TITLE_PATTERNS.some((rx) => rx.test(title))) return true;
-  const url = page.url();
-  if (PAY_URL_PATTERNS.some((rx) => rx.test(url))) return true;
-  return false;
+  return PAY_URL_PATTERNS.some((rx) => rx.test(page.url()));
+}
+
+async function isReviewPage(page: Page): Promise<boolean> {
+  const title = await page.title().catch(() => "");
+  if (/check your answers|review/i.test(title)) return true;
+  return /\/edit\/application(?:[/?#]|$)/i.test(page.url());
+}
+
+async function isExplicitlyNotApplicable(page: Page): Promise<boolean> {
+  const body = ((await page.textContent("body").catch(() => "")) ?? "").replace(/\s+/g, " ");
+  return /\b(?:not applicable|does not apply|not required for this application|you do not need to answer)\b/i.test(body);
 }
 
 async function handleVisiblePaymentBoundary(
   page: Page,
   input: UkResumeInput,
-  options: UkResumeOptions,
   runId: string | undefined,
   pagesFilled: string[],
   pagesSkipped: string[],
 ): Promise<UkResumeResult> {
   const applicationReference = await captureApplicationReference(page);
-  if (!options.takePaymentCard) {
-    return {
-      status: "stopped_at_pay",
-      runId,
-      portalUrl: input.resumeUrl,
-      portalUsername: input.email,
-      pagesFilled,
-      pagesSkipped,
-      finalUrl: page.url(),
-      ...(applicationReference ? { applicationReference } : {}),
-    };
-  }
-
-  const expectedPaymentAmount = options.expectedPaymentAmount;
-  const expectedPaymentCurrency = options.expectedPaymentCurrency;
-  if (
-    typeof expectedPaymentAmount !== "number" ||
-    !Number.isFinite(expectedPaymentAmount) ||
-    expectedPaymentAmount <= 0 ||
-    !expectedPaymentCurrency
-  ) {
-    return {
-      status: "payment_review_required",
-      runId,
-      pagesFilled,
-      pagesSkipped,
-      finalUrl: page.url(),
-      reason: "The allocated UK official-fee amount or currency was unavailable",
-      ...(applicationReference ? { applicationReference } : {}),
-    };
-  }
-  const amountCheck = await verifyUkPaymentPageAmount({
-    page,
-    expectedAmount: expectedPaymentAmount,
-    expectedCurrency: expectedPaymentCurrency,
-  });
-  if (!amountCheck.ok) {
-    return {
-      status: "payment_review_required",
-      runId,
-      pagesFilled,
-      pagesSkipped,
-      finalUrl: page.url(),
-      reason: amountCheck.reason,
-      ...(applicationReference ? { applicationReference } : {}),
-    };
-  }
-
-  const card = await options.takePaymentCard();
-  if (!card) {
-    return {
-      status: "payment_review_required",
-      runId,
-      pagesFilled,
-      pagesSkipped,
-      finalUrl: page.url(),
-      reason: "A VIZA-managed official-fee card was not available",
-      ...(applicationReference ? { applicationReference } : {}),
-    };
-  }
-  const payment = await payUkWithManagedCard({
-    page,
-    card,
-    expectedAmount: expectedPaymentAmount,
-    expectedCurrency: expectedPaymentCurrency,
-  });
-  if (payment.status === "paid") {
-    return {
-      status: "paid",
-      runId,
-      pagesFilled,
-      pagesSkipped,
-      finalUrl: payment.finalUrl,
-      portalReceiptId: payment.portalReceiptId,
-      ...(applicationReference ? { applicationReference } : {}),
-    };
-  }
   return {
-    status: "payment_review_required",
+    status: "stopped_at_pay",
     runId,
+    portalUrl: input.resumeUrl,
+    portalUsername: input.email,
     pagesFilled,
     pagesSkipped,
-    finalUrl: payment.finalUrl,
-    reason: payment.reason,
-    paymentOutcome: payment.status,
+    finalUrl: page.url(),
+    checkpoint: "payment",
     ...(applicationReference ? { applicationReference } : {}),
   };
 }
 
+function declarationCheckpoint(
+  page: Page,
+  input: UkResumeInput,
+  runId: string | undefined,
+  pagesFilled: string[],
+  pagesSkipped: string[],
+): Promise<UkResumeResult> {
+  return captureApplicationReference(page).then((applicationReference) => ({
+    status: "halted_before_pay" as const,
+    runId,
+    portalUrl: input.resumeUrl,
+    portalUsername: input.email,
+    pagesFilled,
+    pagesSkipped,
+    finalUrl: page.url(),
+    reason: "Official declaration requires applicant review and acknowledgement",
+    checkpoint: "declaration" as const,
+    ...(applicationReference ? { applicationReference } : {}),
+  }));
+}
+
+function incompleteResult(
+  page: Page,
+  input: UkResumeInput,
+  runId: string | undefined,
+  pagesFilled: string[],
+  pagesSkipped: string[],
+  reason: string,
+  checkpoint: "form_incomplete" | "review",
+): UkResumeResult {
+  return {
+    status: "halted_before_pay",
+    runId,
+    portalUrl: input.resumeUrl,
+    portalUsername: input.email,
+    pagesFilled,
+    pagesSkipped,
+    finalUrl: page.url(),
+    reason,
+    checkpoint,
+  };
+}
+
+async function validationSuffix(page: Page): Promise<string> {
+  if (!(await ukPageHasValidationErrors(page))) return "";
+  const text = await ukValidationErrorText(page);
+  return text ? `: ${text.slice(0, 500)}` : ": official validation errors are visible";
+}
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
 async function captureApplicationReference(page: Page): Promise<string | null> {
-  // gov.uk shows "Your application reference number is …" on declaration
-  // and confirmation surfaces. Best-effort regex over the body text.
   const body = await page.textContent("body").catch(() => null);
   if (!body) return null;
   const m = body.match(/application\s*reference\s*(?:number)?\s*(?:is)?\s*([A-Z0-9]{6,})/i);

@@ -729,10 +729,15 @@ and must fail closed; callers must not perform a direct table settlement.
 - `src/vn-prearrival/data/`: build-owned snapshots of the official Vietnam
   Pre-Arrival option catalogs used by the cloud worker. Keep these synchronized
   with the frontend catalogs whenever the official portal options are refreshed.
-- `src/uk/**`: UKVI saved-application resume and allocation-bound managed-card
-  official-fee flow. It verifies the displayed portal amount/currency before
-  card acquisition or PAN entry and sends unsupported/uncertain outcomes to
-  staff review without exposing an applicant portal handoff.
+- `src/uk/**`: application-scoped UKVI saved-application registration/resume
+  flow. It binds credentials to the exact application and applicant, fails
+  closed on legacy-unbound accounts or ambiguous widget fills, and records
+  registration, incomplete-form, review, declaration, and payment checkpoints.
+  Declaration/legal acknowledgement and payment remain applicant/staff
+  handoffs; no unsupported terminal success or credential-bearing result is
+  exposed. Deterministic lifecycle/contract coverage lives beside the runner
+  in `src/uk/*.{spec,test}.ts`; `src/uk/timing.ts` emits only redacted,
+  fixed-stage timing summaries and never records portal or applicant values.
 - `src/us-appointment/**`: China `CN/usvisascheduling` assisted-live
   appointment runner. It processes `appointment_assistance_jobs` only when
   `US_APPOINTMENT_ASSISTED_LIVE_ENABLED=true`, reads VIZA-created
@@ -1139,7 +1144,7 @@ and must fail closed; callers must not perform a direct table settlement.
 | Vietnam Pre-Arrival | Live dispatch scaffold + 72-hour scheduling | Dry-run validates `VN_PREARRIVAL_DECLARATION`; live worker dispatches to `https://prearrival.immigration.gov.vn/`, records portal mismatch/error evidence, and must not mark success without official QR/reference evidence. |
 | Korea e-Arrival Card | Live dispatch gated + KST scheduling | Dry-run validates `KR_E_ARRIVAL_CARD`; the shared pool injects only a VIZA-managed inbox alias, the pre-submit QA always stops before the official final action, and live success requires both an official confirmation page and issue number before PDF evidence is persisted. |
 | Taiwan Online Entry Permit | `runner_job` dispatch, DOM-verified fill | `TW_ENTRY_PERMIT` fills every field via confirmed-live DOM `name` attributes (see `src/tw/**`), uploads required supporting documents, best-effort auto-fills the CAPTCHA, and halts before the real "確認資料" submit POST — never clicks it. No persistent account; single continuous session with inline email-OTP verification. |
-| UK Standard Visitor | Phase 2 | Pre-auth/register/resume scaffold only; post-auth full form selectors remain unmapped. |
+| UK Standard Visitor | Application-scoped assisted handoff | Pre-auth registration is explicitly gated; the bound resume runner fills only verified answer bindings, stops before declaration/legal acknowledgement or payment, and records needs-attention checkpoints. No real-portal completion is claimed without terminal evidence. |
 | India/Sri Lanka/Cambodia/Laos/South Africa | Smoke/scaffold | Use per-country smoke scripts and status docs before promoting. |
 | Italy/Egypt/Indonesia/Japan/Canada | Recon/docs or document renderer scope | Requires official-form recon and schema/runner acceptance before queue enablement. |
 | Korea C-3-9 | Official e-Form + center-specific appointment flows | Frontend prioritizes Korea Visa Portal barcode e-Form generation/download and keeps Annex-17 only as fallback. `src/korea-eform/**` models official e-Form checkpoints; Shenyang VFS uses the fail-closed applicant-details contract and authenticated slot/account FSM, while other KVAC centers retain their dry-run/assisted gates pending per-center selector validation and official PDF capture. |

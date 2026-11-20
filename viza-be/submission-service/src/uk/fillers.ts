@@ -28,11 +28,17 @@ async function settle(page: Page): Promise<void> {
 export async function ukFillText(page: Page, domId: string, value: string): Promise<void> {
   if (!value) return;
   const input = page.locator(`#${cssEscape(domId)}`).first();
-  if ((await input.count()) === 0) return;
+  if ((await input.count()) === 0) {
+    throw new Error(`Text control "#${domId}" was not found`);
+  }
   const current = (await input.inputValue().catch(() => "")).trim();
   if (current === value.trim()) return;
   await input.fill(value, { timeout: SHORT_TIMEOUT });
-  await input.press("Tab", { timeout: SHORT_TIMEOUT }).catch(() => undefined);
+  await input.press("Tab", { timeout: SHORT_TIMEOUT });
+  const filled = (await input.inputValue()).trim();
+  if (filled !== value.trim()) {
+    throw new Error(`Text control "#${domId}" did not retain the requested value`);
+  }
   await settle(page);
 }
 
@@ -51,8 +57,22 @@ export async function ukFillTextarea(page: Page, domId: string, value: string): 
 export async function ukFillDateSplit(page: Page, base: string, isoDate: string): Promise<void> {
   if (!isoDate) return;
   const m = isoDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!m) return;
+  if (!m) throw new Error(`Invalid date for "${base}": expected YYYY-MM-DD`);
   const [, y, mo, d] = m;
+  const year = Number(y);
+  const month = Number(mo);
+  const day = Number(d);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  if (
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    parsed.getUTCFullYear() !== year ||
+    parsed.getUTCMonth() !== month - 1 ||
+    parsed.getUTCDate() !== day
+  ) {
+    throw new Error(`Invalid date for "${base}": ${isoDate}`);
+  }
   await ukFillText(page, `${base}_day`, String(Number(d)));
   await ukFillText(page, `${base}_month`, String(Number(mo)));
   await ukFillText(page, `${base}_year`, y);
@@ -63,9 +83,12 @@ export async function ukFillDateSplit(page: Page, base: string, isoDate: string)
  */
 export async function ukFillMonthYearSplit(page: Page, base: string, isoMonth: string): Promise<void> {
   if (!isoMonth) return;
-  const m = isoMonth.match(/^(\d{4})-(\d{2})/);
-  if (!m) return;
+  const m = isoMonth.match(/^(\d{4})-(\d{2})(?:-\d{2})?$/);
+  if (!m) throw new Error(`Invalid month for "${base}": expected YYYY-MM`);
   const [, y, mo] = m;
+  if (Number(mo) < 1 || Number(mo) > 12) {
+    throw new Error(`Invalid month for "${base}": ${isoMonth}`);
+  }
   await ukFillText(page, `${base}_month`, String(Number(mo)));
   await ukFillText(page, `${base}_year`, y);
 }
@@ -100,11 +123,16 @@ export async function ukFillAddressBlock(
   if (addr.postCode) {
     // Try both id variants — different pages use different names.
     const postCodeIds = [`${base}_postCode`, `${base}_postalCode`];
+    let foundPostCode = false;
     for (const id of postCodeIds) {
       if ((await page.locator(`#${cssEscape(id)}`).count()) > 0) {
         await ukFillText(page, id, addr.postCode);
+        foundPostCode = true;
         break;
       }
+    }
+    if (!foundPostCode) {
+      throw new Error(`Postal code control for "${base}" was not found`);
     }
   }
   if (addr.countryRefLabel) {
@@ -132,11 +160,18 @@ export async function ukPickRadio(
     if (!labelText) continue;
     if (labelText.trim().toLowerCase() === visibleLabel.trim().toLowerCase()) {
       if (await radio.isChecked().catch(() => false)) return;
-      await radio.check({ force: true, timeout: SHORT_TIMEOUT }).catch(() => undefined);
+      if (await radio.isDisabled().catch(() => true)) {
+        throw new Error(`Radio "${visibleLabel}" is disabled in group "${groupName}"`);
+      }
+      await radio.check({ force: true, timeout: SHORT_TIMEOUT });
+      if (!(await radio.isChecked())) {
+        throw new Error(`Radio "${visibleLabel}" did not become checked in group "${groupName}"`);
+      }
       await settle(page);
       return;
     }
   }
+  throw new Error(`Radio label "${visibleLabel}" was not found in group "${groupName}"`);
 }
 
 /** Pick a gov.uk yes/no radio group backed by `true`/`false` values. */
@@ -153,8 +188,11 @@ export async function ukPickBooleanRadio(
       .locator(`input[type="radio"][name="${cssEscape(groupName)}"][value="${cssEscape(value)}"]`)
       .first();
     if ((await radio.count()) > 0) {
-      if (await radio.isChecked().catch(() => false)) return;
-      await radio.check({ force: true, timeout: SHORT_TIMEOUT }).catch(() => undefined);
+      if (await radio.isChecked()) return;
+      await radio.check({ force: true, timeout: SHORT_TIMEOUT });
+      if (!(await radio.isChecked())) {
+        throw new Error(`Radio value "${value}" did not become checked in group "${groupName}"`);
+      }
       await settle(page);
       return;
     }
@@ -168,38 +206,20 @@ export async function ukPickCorrespondenceAddressSame(
   sameAsHome: boolean,
 ): Promise<void> {
   const targetId = sameAsHome ? "isCorrespondenceAddress_true" : "isCorrespondenceAddress_false";
-  const label = page.locator(`label[for="${cssEscape(targetId)}"]`).first();
-  if ((await label.count()) > 0) {
-    await label.click({ timeout: SHORT_TIMEOUT });
-    await page.waitForTimeout(300);
-  } else {
-    const radio = page.locator(`#${cssEscape(targetId)}`).first();
-    if ((await radio.count()) > 0) {
-      await radio.click({ force: true, timeout: SHORT_TIMEOUT });
-      await page.waitForTimeout(300);
-    } else {
-      await ukPickBooleanRadio(page, "isCorrespondenceAddress", sameAsHome);
-    }
+  const radio = page.locator(`#${cssEscape(targetId)}`).first();
+  if ((await radio.count()) === 0) {
+    await ukPickBooleanRadio(page, "isCorrespondenceAddress", sameAsHome);
+    return;
   }
-
-  const checked = await page
-    .locator(`#${cssEscape(targetId)}`)
-    .first()
-    .isChecked()
-    .catch(() => false);
-  if (!checked) {
-    await page
-      .evaluate((id) => {
-        const el = document.getElementById(id) as HTMLInputElement | null;
-        if (!el) return;
-        el.checked = true;
-        el.dispatchEvent(new Event("input", { bubbles: true }));
-        el.dispatchEvent(new Event("change", { bubbles: true }));
-        el.dispatchEvent(new Event("click", { bubbles: true }));
-      }, targetId)
-      .catch(() => undefined);
-    await page.waitForTimeout(300);
+  if (await radio.isChecked()) return;
+  if (await radio.isDisabled()) {
+    throw new Error(`Correspondence address radio "${targetId}" is disabled`);
   }
+  await radio.check({ force: true, timeout: SHORT_TIMEOUT });
+  if (!(await radio.isChecked())) {
+    throw new Error(`Correspondence address radio "${targetId}" did not become checked`);
+  }
+  await page.waitForTimeout(300);
 }
 
 /**
@@ -217,6 +237,7 @@ export async function ukPickCheckboxes(
     `input[type="checkbox"][name^="${cssEscape(groupNamePrefix)}"]`,
   );
   const n = await boxes.count();
+  const matched = new Set<string>();
   for (let i = 0; i < n; i++) {
     const box = boxes.nth(i);
     const id = await box.getAttribute("id");
@@ -224,8 +245,24 @@ export async function ukPickCheckboxes(
     const labelText = await page.locator(`label[for="${cssEscape(id)}"]`).first().textContent().catch(() => null);
     if (!labelText) continue;
     if (wanted.has(labelText.trim().toLowerCase())) {
-      await box.check({ force: true, timeout: SHORT_TIMEOUT }).catch(() => undefined);
+      const normalized = labelText.trim().toLowerCase();
+      if (await box.isChecked().catch(() => false)) {
+        matched.add(normalized);
+        continue;
+      }
+      if (await box.isDisabled().catch(() => true)) {
+        throw new Error(`Checkbox "${labelText.trim()}" is disabled in group "${groupNamePrefix}"`);
+      }
+      await box.check({ force: true, timeout: SHORT_TIMEOUT });
+      if (!(await box.isChecked())) {
+        throw new Error(`Checkbox "${labelText.trim()}" did not become checked`);
+      }
+      matched.add(normalized);
     }
+  }
+  const missing = [...wanted].filter((label) => !matched.has(label));
+  if (missing.length > 0) {
+    throw new Error(`Checkbox label(s) not found in group "${groupNamePrefix}": ${missing.join(", ")}`);
   }
   await settle(page);
 }
@@ -240,10 +277,26 @@ export async function ukSelectOption(
 ): Promise<void> {
   if (!visibleLabel) return;
   const sel = page.locator(`#${cssEscape(domId)}`).first();
-  if ((await sel.count()) === 0) return;
-  await sel
-    .selectOption({ label: visibleLabel }, { timeout: SHORT_TIMEOUT })
-    .catch(() => undefined);
+  if ((await sel.count()) === 0) {
+    throw new Error(`Select control "#${domId}" was not found`);
+  }
+  let selected: string[];
+  try {
+    selected = await sel.selectOption({ label: visibleLabel }, { timeout: SHORT_TIMEOUT });
+  } catch (labelError) {
+    try {
+      selected = await sel.selectOption(visibleLabel, { timeout: SHORT_TIMEOUT });
+    } catch (valueError) {
+      throw new Error(
+        `Select control "#${domId}" could not select "${visibleLabel}": ${
+          valueError instanceof Error ? valueError.message : labelError instanceof Error ? labelError.message : String(valueError)
+        }`,
+      );
+    }
+  }
+  if (selected.length === 0 || !(await sel.inputValue())) {
+    throw new Error(`Select control "#${domId}" did not retain "${visibleLabel}"`);
+  }
   await settle(page);
 }
 
@@ -265,7 +318,9 @@ export async function ukSelectCountry(
 ): Promise<void> {
   if (!codeOrLabel) return;
   const sel = page.locator(`#${cssEscape(baseId)}`).first();
-  if ((await sel.count()) === 0) return;
+  if ((await sel.count()) === 0) {
+    throw new Error(`Country select "#${baseId}" was not found`);
+  }
 
   const iso3 =
     (resolveCountryIso3(codeOrLabel) ??
@@ -305,7 +360,7 @@ export async function ukSelectCountry(
         await page.waitForTimeout(200);
         await ui.press("Enter", { timeout: 2_000 });
       }
-      const committed = await sel.evaluate((el) => (el as HTMLSelectElement).value).catch(() => "");
+      const committed = await sel.evaluate((el) => (el as HTMLSelectElement).value);
       if (committed === iso3) {
         await settle(page);
         return;
@@ -325,13 +380,17 @@ export async function ukSelectCountry(
       .then(() => true)
       .catch(() => false);
   }
-  if (!selected) return;
-  await sel
-    .evaluate((el) => {
-      el.dispatchEvent(new Event("input", { bubbles: true }));
-      el.dispatchEvent(new Event("change", { bubbles: true }));
-    })
-    .catch(() => undefined);
+  if (!selected) {
+    throw new Error(`Country select "#${baseId}" could not select "${codeOrLabel}"`);
+  }
+  await sel.evaluate((el) => {
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  const committed = await sel.evaluate((el) => (el as HTMLSelectElement).value);
+  if (committed !== iso3) {
+    throw new Error(`Country select "#${baseId}" did not retain "${iso3}"`);
+  }
   await settle(page);
 
   if ((await page.locator(`#${cssEscape(uiId)}`).count()) > 0) {
@@ -485,7 +544,9 @@ export async function clickThroughUkSaveAck(
   const probe = await probeUkFormState(page);
   if (!probe.url.includes("/save/application.0.")) return probe;
   const submit = ukSubmitLocator(page);
-  if ((await submit.count()) === 0) return probe;
+  if ((await submit.count()) === 0) {
+    throw new Error(`clickThroughUkSaveAck: no submit control found at ${page.url()}`);
+  }
   await submit.scrollIntoViewIfNeeded().catch(() => undefined);
   await submit.click({ timeout: 20_000 });
   await page.waitForLoadState("domcontentloaded", { timeout: navTimeoutMs }).catch(() => undefined);
@@ -526,7 +587,7 @@ export async function ukClickSaveContinue(
       const postAck = await clickThroughUkSaveAck(page, navTimeoutMs);
       const advanced =
         formStateAdvanced(after, postAck) || postAck.url.includes("/edit/application.0.");
-      return { url: postAck.url, navigated: advanced || landedOnSaveAck };
+      return { url: postAck.url, navigated: advanced };
     }
     return { url: after.url, navigated: true };
   }

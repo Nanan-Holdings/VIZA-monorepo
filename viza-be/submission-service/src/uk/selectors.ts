@@ -34,8 +34,9 @@ export const UK_HEADING_SELECTOR = "h1";
 /** Hidden csrf token input — informational only; never clear/rewrite. */
 export const UK_CSRF_SELECTOR = 'input[name="csrfToken"]';
 
-/** Per-page selector bindings for the pre-auth flow. Post-auth selectors
- *  live under `POST_AUTH_TODO` and are populated from the form-recon run. */
+/** Selector bindings for the pre-auth flow. Post-auth field bindings live in
+ *  `page-bindings.ts`; `POST_AUTH_TODO` is retained only for older recon
+ *  consumers and is not used by the strict resume runner. */
 export const UK_PAGE_SELECTORS = {
   language_selection: {
     /** Radio: languageCode. Value = 2-letter code ("en"/"zh"/"hi"/...). */
@@ -97,7 +98,6 @@ export const UK_MARKERS = {
   sessionExpiredHeadingPattern: /your session has timed out|sign in again/i,
 } as const;
 
-/** Post-auth selectors are captured by running `form-recon.ts` against a
- *  logged-in browser session — see the script header for instructions.
- *  This map is intentionally empty until that walk is performed. */
+/** Legacy recon placeholder. The active post-auth selectors are bound by the
+ *  strict page fillers and still require runtime validation on each run. */
 export const POST_AUTH_TODO: Record<string, never> = {};

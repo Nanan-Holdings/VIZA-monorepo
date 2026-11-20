@@ -2,11 +2,11 @@
 /**
  * UK Standard Visitor visa form reconnaissance.
  *
- * Purpose: the ~50 post-auth pages / 222 fields of the UKVI form are
- * gated behind an email-verified account. Rather than hand-mapping
- * selectors blind, this script runs a **headful** browser, parks at the
- * UK portal, and auto-dumps every form page as the human drives through
- * the flow. One JSON file per page lands in `uk-recon-out/`.
+ * Purpose: capture additional/conditional post-auth pages and selector drift
+ * behind an email-verified account. Rather than hand-mapping selectors blind,
+ * this script runs a **headful** browser, parks at the UK portal, and
+ * auto-dumps each observed form page as the human drives through the flow.
+ * One JSON file per page lands in `uk-recon-out/`.
  *
  * Usage:
  *   npx ts-node src/uk/form-recon.ts

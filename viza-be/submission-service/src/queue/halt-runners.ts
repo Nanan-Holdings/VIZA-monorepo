@@ -27,7 +27,8 @@ import { resumeUkApplication, normalizeUkAnswers, UkNormalizationError } from ".
 import { registerUkAccount } from "../uk/register.js";
 import { writeRunnerPoolSubmissionResult, writeSubmissionResult } from "../result-writer.js";
 import type { UkSubmissionResult, TwSubmissionResult } from "../submission-result.js";
-import { ukProgress } from "../uk/managed-result.js";
+import { deriveUkBiometricsCountryIso3 } from "../uk/country-iso3.js";
+import { mapUkResumeResult } from "../uk/managed-result.js";
 import {
   fillFranceVisasApplication,
   buildAnswerMap,
@@ -37,7 +38,12 @@ import {
 import { fillVisitor600Application } from "../au-visitor/run.js";
 import { generateTotp } from "../au-visitor/totp.js";
 import { launchStealthBrowser } from "../ceac/stealth-browser.js";
-import { loadUkAccount, loadFvAccount, loadAuAccount } from "../account-loader.js";
+import {
+  loadUkAccount,
+  UkAccountBindingAmbiguousError,
+  loadFvAccount,
+  loadAuAccount,
+} from "../account-loader.js";
 import {
   fillTwEntryPermitApplication,
   type TwApplyInput,
@@ -189,7 +195,7 @@ export const runUsHalt: RunOne = async (applicationId, jobId) => {
 
 export const runUkHalt: RunOne = async (applicationId, jobId) => {
   const runId = jobId ?? applicationId;
-  const { applicantId, profile, application } = await loadProfileAndApp(applicationId);
+  const { applicantId, profile } = await loadProfileAndApp(applicationId);
   const answerMap = buildAnswerMap(await loadRawAnswers(applicationId));
 
   // Translate the wizard's answer shape → the seed wire-shape the
@@ -204,30 +210,82 @@ export const runUkHalt: RunOne = async (applicationId, jobId) => {
     throw err;
   }
 
-  let account = await loadUkAccount(applicantId);
+  let account;
+  try {
+    account = await loadUkAccount(applicationId, applicantId);
+  } catch (err) {
+    if (err instanceof UkAccountBindingAmbiguousError) {
+      const payload: UkSubmissionResult = {
+        country: "UK",
+        status: "needs_attention",
+        checkpoint: "registration",
+        staffReviewCode: "legacy_account_unbound",
+        reason: err.message,
+      };
+      await writeSubmissionResult(applicationId, payload, "needs_attention");
+      return HALTED("registration");
+    }
+    throw err;
+  }
   if (!account) {
     // No saved-application (email+password) provisioned yet → register one on
     // gov.uk: fills the "Enter an email address and password to save your
     // answers" page and captures the emailed unique resume link into
     // uk_accounts. Real account creation stays gated behind UK_REGISTER_COMMIT,
     // so this is safe to reach in QA without creating live accounts.
-    const reg = await registerUkAccount({
-      applicantId,
-      biometricsCountryIso3: profile.nationality ?? undefined,
-      runId,
-    });
+    const biometricsCountryIso3 = deriveUkBiometricsCountryIso3(answers);
+    if (!biometricsCountryIso3) {
+      const payload: UkSubmissionResult = {
+        country: "UK",
+        status: "needs_attention",
+        checkpoint: "registration",
+        staffReviewCode: "biometrics_country_missing",
+        reason: "An explicit biometrics country or country of residence is required before UK registration",
+      };
+      await writeSubmissionResult(applicationId, payload, "needs_attention");
+      return HALTED("registration");
+    }
+    const reg = await registerUkAccount({ applicationId, applicantId, biometricsCountryIso3, runId });
     if (reg.status === "stopped_before_commit") {
-      throw new NeedsHumanError(
-        "uk: account provisioning is gated — set UK_REGISTER_COMMIT=1 to create the UKVI saved-application account",
-      );
+      const payload: UkSubmissionResult = {
+        country: "UK",
+        status: "needs_attention",
+        checkpoint: "registration",
+        staffReviewCode: "registration_gate",
+        reason: "UKVI account registration is gated; no official account was created",
+      };
+      await writeSubmissionResult(applicationId, payload, "needs_attention");
+      return HALTED("registration");
+    }
+    if (reg.status === "needs_attention") {
+      const payload: UkSubmissionResult = {
+        country: "UK",
+        status: "needs_attention",
+        checkpoint: "registration",
+        staffReviewCode: "registration_ambiguous",
+        reason: reg.reason,
+      };
+      await writeSubmissionResult(applicationId, payload, "needs_attention");
+      return HALTED("registration");
     }
     if (reg.status !== "registered") {
       throw new RetryableRunnerError(`uk: account registration failed (${reg.reason})`);
     }
-    account = await loadUkAccount(applicantId);
+    account = await loadUkAccount(applicationId, applicantId);
     if (!account) {
       throw new RetryableRunnerError("uk: account registered but uk_accounts row not yet readable");
     }
+  }
+  if (account.row.application_id !== applicationId || !account.row.resume_url) {
+    const payload: UkSubmissionResult = {
+      country: "UK",
+      status: "needs_attention",
+      checkpoint: "registration",
+      staffReviewCode: "resume_link_missing",
+      reason: "The application-bound UKVI account has no usable resume link yet",
+    };
+    await writeSubmissionResult(applicationId, payload, "needs_attention");
+    return HALTED("registration");
   }
   const result = await resumeUkApplication(
     {
@@ -239,22 +297,14 @@ export const runUkHalt: RunOne = async (applicationId, jobId) => {
     {
       headless: process.env.UK_PLAYWRIGHT_HEADLESS !== "false",
       runId,
-
     },
   );
   if (result.status === "failed") {
     throw new RetryableRunnerError(`uk failed at ${result.failedAt}`);
   }
-  const payload: UkSubmissionResult = {
-    country: "UK",
-    status: "payment_review_required",
-    paymentStatus: "review_required",
-    staffReviewCode: "payment_removed",
-    ...("applicationReference" in result && result.applicationReference ? { applicationReference: result.applicationReference } : {}),
-    prefillProgress: ukProgress(result),
-  };
-  await writeSubmissionResult(applicationId, payload, "processing");
-  return HALTED("payment_removed");
+  const mapped = mapUkResumeResult(result);
+  await writeSubmissionResult(applicationId, mapped.payload, "needs_attention");
+  return HALTED(mapped.reachedStep);
 };
 
 /* ---------------------------- France ---------------------------- */

@@ -11,6 +11,11 @@ kill_timeout = "5m"
   SUBMISSION_SERVICE_LEGACY_QUEUE_ENABLED = "true"
   SUBMISSION_SERVICE_RUNNER_JOB_CONSUMER_ENABLED = "false"
   SUBMISSION_SERVICE_IDLE_EXIT_MS = "120000"
+  # UK uses this retained Machine; fill only, with applicant declaration/pay handoff.
+  UK_SUBMISSION_MODE = "live_assisted"
+  UK_LIVE_SUBMISSION_ENABLED = "true"
+  UK_PLAYWRIGHT_HEADLESS = "true"
+  # Account creation remains an explicit operator gate (UK_REGISTER_COMMIT secret).
   # DS-160 runs on its own US East worker (fly.ds160.toml) next to the CEAC
   # browser. Needs claim RPC migration 0212; without it the denylist is not sent
   # successfully, so apply 0212 before deploying this.

@@ -2,11 +2,9 @@
  * UK Standard Visitor visa orchestrator.
  *
  * Walks the pre-auth flow (language → country → VAC → visa-type-start) to
- * prove the stealth session reaches the registration page. Post-auth
- * pages are not yet selector-mapped; the orchestrator stops at the
- * registration page and returns a `handoffReady=false` result with a
- * clear reason. Selectors for post-auth pages are harvested via
- * `form-recon.ts` and plugged into `field-mappings.ts`.
+ * reach the registration page. Registration remains an explicit gate; the
+ * application-scoped resume runner handles the mapped post-registration pages
+ * after a bound UKVI account and resume link are available.
  */
 
 import type { Page } from "@playwright/test";
@@ -14,7 +12,7 @@ import { dismissUkCookieBanner } from "./cookies";
 import { UK_PAGE_SELECTORS, UK_SUBMIT_SELECTOR } from "./selectors";
 import { detectPage, type UkPageIdentity } from "./pages";
 import { assertNoGate } from "./gates";
-import { UkNavigationError, UkWidgetFillError } from "./errors";
+import { UkNavigationError, UkValidationError, UkWidgetFillError } from "./errors";
 import { deriveUkBiometricsCountryIso3, resolveCountryIso3 } from "./country-iso3";
 import { tryCaptureScreenshot, type UkScreenshotArtifact } from "./diagnostics";
 import type { UkSession } from "./session";
@@ -32,10 +30,8 @@ export interface UkOrchestrateOptions {
   /** Where to write failure screenshots. If unset, no screenshots. */
   outputDir?: string;
 }
-
 export interface UkOrchestrateResult {
-  /** True once the full form has been filled up to the payment step.
-   *  Always false today — post-auth pages are not yet mapped. */
+  /** Pre-auth orchestration never claims a declaration/payment handoff. */
   handoffReady: boolean;
   /** Terminal page identity. */
   stoppedAt: UkPageIdentity;
@@ -49,10 +45,10 @@ export interface UkOrchestrateResult {
 
 /** Drive the UK flow from language selection up to the registration page.
  *
- *  Does NOT submit the registration form — that creates a real UKVI
- *  account. Stops with `handoffReady=false` and `stoppedAt.id =
- *  "registration"` so the caller can hand off to a human, or (once
- *  post-auth selectors are mapped) continue into the 222-field form. */
+ * Does NOT submit the registration form — that creates a real UKVI account.
+ * The caller applies the registration gate and then invokes the strict
+ * application-scoped resume runner.
+ */
 export async function orchestrateUkFill(
   session: UkSession,
   options: UkOrchestrateOptions,
@@ -96,10 +92,14 @@ export async function orchestrateUkFill(
     await dismissUkCookieBanner(page);
     await waitForCountryPage(page, navTimeout);
     const countryIso = resolveCountryIso3(
-      options.biometricsCountryIso3
-        ?? deriveBiometricsCountry(options.answers)
-        ?? deriveUkBiometricsCountryIso3(options.answers),
-    ) ?? "CHN";
+      options.biometricsCountryIso3 ?? deriveUkBiometricsCountryIso3(options.answers),
+    );
+    if (!countryIso) {
+      throw new UkValidationError(
+        "An explicit UK biometrics country or country of residence is required",
+        { details: { reason: "biometrics_country_missing" } },
+      );
+    }
     await fillIso3Autocomplete(
       page,
       UK_PAGE_SELECTORS.country_selection.countryCode.selector,
@@ -134,9 +134,8 @@ export async function orchestrateUkFill(
     visited.push("visa_type_start");
 
     // ── Page 5: registration — STOP HERE ────────────────────────────
-    // Submitting this form creates a real UKVI account. Don't submit
-    // until post-auth selectors are mapped AND the applicant has an
-    // enrolled email account we can use for verification.
+    // Submitting this form creates a real UKVI account. The caller owns the
+    // explicit commit gate and the application-scoped inbox binding.
     await assertNoGate(page);
     const identity = await detectPage(page);
 
@@ -146,9 +145,7 @@ export async function orchestrateUkFill(
       pagesVisited: visited,
       reason:
         identity.id === "registration"
-          ? "Reached registration page. Post-auth form selectors are not yet mapped — " +
-            "run src/uk/form-recon.ts against a logged-in browser session to harvest them, " +
-            "then extend UK_FIELD_DEFINITIONS in field-mappings.ts."
+          ? "Reached the UKVI registration page; registration commit is controlled by the caller."
           : `Unexpected terminal page: ${identity.id} (url=${identity.url})`,
     };
   } catch (err) {
@@ -367,18 +364,4 @@ async function clickNext(page: Page, navTimeout: number, fromPage: string): Prom
       details: { fromPage, cause: err instanceof Error ? err.message : String(err) },
     });
   }
-}
-
-/** Best-effort: pull a biometrics country from the applicant's answer
- *  set. The seed doesn't have an explicit `biometrics_country` field
- *  today, so we fall back to home-address or nationality. Returns the
- *  value verbatim — caller is responsible for ISO-3 normalization. */
-function deriveBiometricsCountry(answers: Record<string, string>): string | undefined {
-  return (
-    answers.biometrics_country ??
-    answers.home_address_country ??
-    answers.current_residence_country ??
-    answers.nationality ??
-    undefined
-  );
 }

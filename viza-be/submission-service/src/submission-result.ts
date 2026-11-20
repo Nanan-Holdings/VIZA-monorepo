@@ -169,6 +169,7 @@ export interface UkSubmissionResult {
   country: "UK";
   status:
     | "registered"
+    | "needs_attention"
     | "stopped_at_pay"
     | "funding_required"
     | "payment_pending"
@@ -177,6 +178,10 @@ export interface UkSubmissionResult {
   paymentStatus?: "funding_required" | "pending" | "review_required" | "paid";
   paymentStateCode?: string;
   staffReviewCode?: string;
+  /** Verified runner checkpoint. This is additive so historical rows remain readable. */
+  checkpoint?: "registration" | "form_incomplete" | "review" | "declaration" | "payment";
+  /** Safe operator/applicant-facing explanation for non-terminal checkpoints. */
+  reason?: string;
   officialFeeReceiptId?: string;
   applicationReference?: string;
   /** @deprecated Legacy rows only; new runners must never write portal handoff data. */

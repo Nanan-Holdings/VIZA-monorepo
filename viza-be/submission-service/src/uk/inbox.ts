@@ -50,11 +50,12 @@ export interface UkSecurityCodeEmail {
 }
 
 export async function waitForUkResumeEmail(
+  applicationId: string,
   applicantId: string,
   timeoutMs: number = 90_000,
   since?: string,
 ): Promise<UkResumeEmail> {
-  const message = await inbox.waitForMessage(applicantId, isUkResume, timeoutMs, {
+  const message = await inbox.waitForApplicationMessage(applicationId, applicantId, isUkResume, timeoutMs, {
     since: since ?? new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
   });
   const parsed = extractAuto({
@@ -70,10 +71,11 @@ export async function waitForUkResumeEmail(
 }
 
 export async function waitForUkSecurityCode(
+  applicationId: string,
   applicantId: string,
   timeoutMs: number = 60_000,
 ): Promise<UkSecurityCodeEmail> {
-  const message = await inbox.waitForMessage(applicantId, isUkSecurityCode, timeoutMs);
+  const message = await inbox.waitForApplicationMessage(applicationId, applicantId, isUkSecurityCode, timeoutMs);
   const parsed = extractAuto({
     from: message.from_addr,
     subject: message.subject,

@@ -221,6 +221,9 @@ export interface AuAccount {
 export interface UkAccount {
   id: string;
   applicant_id: string;
+  /** Application binding. Legacy rows may remain null, but new reads must
+   * always include the exact application id and applicant id. */
+  application_id: string | null;
   email: string;
   password_encrypted: string;
   resume_url: string;

@@ -12,15 +12,11 @@ import type { Page } from "@playwright/test";
 import { UK_HEADING_SELECTOR, UK_MARKERS } from "./selectors";
 import { UkUnexpectedPageError } from "./errors";
 
-/** UK Standard Visitor page identities — full set verified by walking
- *  the form end-to-end on 2026-04-25. Additions here should also
- *  extend `PAGE_SIGNATURES` below. Post-auth identifiers are derived
- *  from the form `action` suffix (the UKVI step identifier).
- *
- *  The 44 post-auth identifiers below come from the review page's
- *  "Change ___" edit links, which enumerate every section the form
- *  walks. Some (email/phone/name) are filled at registration time so
- *  weren't visited during the resumed walk.
+/** UK Standard Visitor page identities currently known to the detector.
+ * Additions should also extend `PAGE_SIGNATURES` below. Post-auth
+ * identifiers are derived from the form `action` suffix (the UKVI step
+ * identifier); this registry is not a claim that every conditional page has
+ * been observed in a real applicant run.
  */
 export type UkPageId =
   // ── Pre-auth (no account) ───────────────────────────────────────

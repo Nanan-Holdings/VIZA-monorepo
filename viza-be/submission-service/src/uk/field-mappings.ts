@@ -7,11 +7,9 @@
  * different `name` attributes on its form inputs (e.g. "givenNames",
  * "expiryDate.day"). This file is the translation table.
  *
- * The map below covers the 8 pages walked in the 2026-04-25 recon
- * session (gender/relationship, address, about-property, passport,
- * identity card, nationality+DOB, other nationalities, immigration
- * status). Roughly ~40 pages remain — extend the map as those are
- * walked.
+ * This legacy registry is retained for recon/tools compatibility. The active
+ * resume runner uses the stricter per-page bindings in `page-bindings.ts`;
+ * entries here are not evidence of complete live-portal coverage.
  *
  * Pre-auth fields (language, biometrics country, VAC confirm) are
  * driven by the orchestrator directly with hardcoded values, so they
@@ -129,8 +127,10 @@ const employmentStatusToUkvi = (v: string): string => {
   return s;
 };
 
-/** Seed `owns_home` ("yes"/"no") → UKVI `ownershipCategory`.
- *  Lossy: seed can't distinguish own vs rent vs other; default no→rent. */
+/** Legacy `owns_home` ("yes"/"no") → UKVI `ownershipCategory` transform.
+ * The active page bindings require an explicit ownership answer and do not
+ * use this lossy fallback for missing data.
+ */
 const ownsHomeToOwnership = (v: string): string => {
   const s = v.trim().toLowerCase();
   if (s === "yes" || s === "y" || s === "true") return "own";
@@ -234,8 +234,9 @@ export const UK_FIELD_DEFINITIONS: Record<string, UkFieldDefinition> = {
     kind: "radio",
     transform: yesNoToTrueFalse,
   },
-  // The repeatable other_nationality entries unfold on a separate page
-  // not yet walked.
+  // The repeatable other_nationality entries require a separate conditional
+  // page; the active runner leaves that page for review unless explicit data
+  // and a binding are available.
 
   // ─── immigrationStatus ────────────────────────────────────────────
   // SEED GAP: immigration-status fields are not in seed today. They are
@@ -410,10 +411,9 @@ export async function fillField(
 
 /** Fill every mapped field whose seed name is present in the answer
  *  set AND in UK_FIELD_DEFINITIONS. Unknown fields are reported via
- *  `unmapped` rather than throwing, so a single missing definition
- *  doesn't abort the page. The caller decides whether `unmapped` is a
- *  hard error (early development) or soft warning (production with
- *  optional new fields). */
+ *  `unmapped` for recon tooling; the active resume runner does not use this
+ *  permissive helper and stops on a missing required binding/fill.
+ */
 export async function fillKnownFields(
   page: Page,
   answers: Record<string, string>,
