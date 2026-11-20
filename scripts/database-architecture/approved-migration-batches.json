@@ -1434,6 +1434,34 @@
           ], "forbidden_roles": ["PUBLIC", "anon", "authenticated"], "allowed_direct_roles": ["postgres", "service_role"], "grant_options_forbidden": true }
         ]
       }
+    },
+    {
+      "batch_id": "uk-live-assisted-claim-v1",
+      "source_ref": "19c3d33b1d348a050d1770b5a4d0716612011cc8",
+      "mode": "transactional",
+      "migrations": [
+        {
+          "version": "20261120150000",
+          "name": "claim_uk_live_assisted",
+          "path": "viza-fe/internal-website/supabase/migrations/20261120150000_claim_uk_live_assisted.sql",
+          "sha256": "1252794b131f42aeef86e727e05a9fb70fc39b8dbd1ac0befbcc3e00dea8970b"
+        }
+      ],
+      "preconditions": {
+        "absent_migration_versions": ["20261120150000"],
+        "catalog_assertions": [
+          { "id": "pre_uk_live_claim_signature", "kind": "function_exists", "identity": "public.claim_submission_queue_batch(text,integer,integer,uuid,integer,text[],boolean,text[])" },
+          { "id": "pre_uk_live_claim_acl", "kind": "function_execute_acl", "identity": "public.claim_submission_queue_batch(text,integer,integer,uuid,integer,text[],boolean,text[])", "required_roles": ["service_role"], "forbidden_roles": ["PUBLIC", "anon", "authenticated"] }
+        ]
+      },
+      "postconditions": {
+        "required_migration_versions": ["20261120150000"],
+        "catalog_assertions": [
+          { "id": "uk_live_claim_migration_record", "kind": "migration_record", "version": "20261120150000", "name": "claim_uk_live_assisted", "sha256": "1252794b131f42aeef86e727e05a9fb70fc39b8dbd1ac0befbcc3e00dea8970b" },
+          { "id": "post_uk_live_claim_signature", "kind": "function_exists", "identity": "public.claim_submission_queue_batch(text,integer,integer,uuid,integer,text[],boolean,text[])" },
+          { "id": "post_uk_live_claim_acl", "kind": "function_execute_acl", "identity": "public.claim_submission_queue_batch(text,integer,integer,uuid,integer,text[],boolean,text[])", "required_roles": ["service_role"], "forbidden_roles": ["PUBLIC", "anon", "authenticated"] }
+        ]
+      }
     }
   ]
 }

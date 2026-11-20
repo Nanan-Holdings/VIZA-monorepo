@@ -231,5 +231,12 @@ stricter than the target PostgreSQL catalog representation, use the read-only
 structured assertion. Never replay an already-recorded migration to repair a
 postflight-only failure.
 
+The `uk-live-assisted-claim-v1` approved batch restores the UK live pending
+status to the existing atomic legacy claim. Its pinned migration asserts the
+eight-argument routine, candidate status, lease fence, and service-role-only
+execution inside the transaction; the batch checks the signature/ACL and exact
+ledger hash. Preserve queued jobs and let the normal worker claim them after
+the migration instead of rewriting statuses or manually claiming a job.
+
 Payment removal (2026-09-15): the PhotonPay connectivity smoke and Vietnam
 autopay wrapper scripts are removed; the root npm autopay command is retired.
