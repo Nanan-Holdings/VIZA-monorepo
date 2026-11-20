@@ -7,7 +7,7 @@ import { NormalizationError } from "./normalize";
  * an official visa form must only ever contain the applicant's own data.
  */
 export interface FranceAnswerIssue {
-  step: "step2" | "step5";
+  step: "step1" | "step2" | "step5";
   /** France-Visas field (FvApplicationAnswers key). */
   field: string;
   /** VIZA answer field(s) the value comes from, for the fix-it message. */
@@ -75,8 +75,11 @@ function check(
  */
 export function findFranceAnswerIssues(answers: FvApplicationAnswers): FranceAnswerIssue[] {
   const issues: FranceAnswerIssue[] = [];
+  const s1 = answers.step1;
   const s2 = answers.step2;
   const s5 = answers.step5;
+
+  check("step1", s1.depositTown || s1.depositTownCity, { field: "depositTown", answerFields: ["submission_centre"], labelZh: "递交签证申请的城市", labelEn: "City of submission" }, issues);
 
   check("step2", s2.placeOfBirth, { field: "placeOfBirth", answerFields: ["place_of_birth"], labelZh: "出生地", labelEn: "Place of birth", latinOnly: true }, issues);
   check("step2", s2.street, { field: "street", answerFields: ["home_address_line_1"], labelZh: "现居住址", labelEn: "Home address", latinOnly: true }, issues);

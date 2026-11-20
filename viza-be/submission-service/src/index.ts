@@ -3886,11 +3886,13 @@ async function processFvItem(
       profile,
       application,
       fvOverrides: {
-        depositCountry: requireAnswer(answerMap, "fv_deposit_country"),
-        depositTown: requireAnswer(answerMap, "fv_deposit_town"),
+        // Optional overrides: by default the filing country is the country of
+        // residence and the town is matched from the applicant's submission_centre.
+        depositCountry: answerMap.fv_deposit_country?.trim() || undefined,
+        depositTown: answerMap.fv_deposit_town?.trim() || undefined,
         authority: answerMap.fv_authority ?? undefined,
         destination: answerMap.fv_destination ?? undefined,
-        purpose: requireAnswer(answerMap, "fv_purpose"),
+        purpose: answerMap.fv_purpose?.trim() || undefined,
         occupationCode: answerMap.fv_occupation_code ?? undefined,
         businessSegment: answerMap.fv_business_segment ?? undefined,
       },
@@ -4109,6 +4111,7 @@ async function processFvItem(
       // Data problems and the hotel-field capture stop are not fixed by retrying.
       const nonRetryableResult =
         resultErrorCode === "france_answers_invalid" ||
+        resultErrorCode === "france_option_unmatched" ||
         resultErrorCode === "france_host_organization_capture";
       const isManualGateFailure =
         liveAssisted &&
@@ -6117,14 +6120,6 @@ async function processAuItem(item: SubmissionQueueItem): Promise<void> {
     }
     try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch { /* ignore */ }
   }
-}
-
-function requireAnswer(map: Record<string, string | null>, field: string): string {
-  const v = map[field];
-  if (!v || v.trim().length === 0) {
-    throw new Error(`Missing required FV-override field "${field}" in visa_application_answers`);
-  }
-  return v.trim();
 }
 
 function buildScheduledSgacResult(input: {

@@ -10,7 +10,7 @@ import { NormalizationError } from "../normalize";
 
 function validAnswers(): FvApplicationAnswers {
   return {
-    step1: {},
+    step1: { depositTown: "", depositTownCity: "Changsha" },
     step2: {
       placeOfBirth: "CHANGSHA",
       street: "No. 18 Dongsanhuan North Road",
@@ -105,4 +105,12 @@ test("the invalid-answers error is a non-retryable data error carrying every iss
   assert.equal(error.errorCode, "france_answers_invalid");
   assert.equal(error.issues.length, 1);
   assert.doesNotMatch(error.message, /确定/, "answer values are not logged");
+});
+
+test("a missing submission centre is reported before France-Visas is opened", () => {
+  const answers = validAnswers();
+  answers.step1 = { ...answers.step1, depositTown: "", depositTownCity: undefined };
+  assert.deepEqual(findFranceAnswerIssues(answers).map((issue) => [issue.field, issue.reason, issue.answerFields[0]]), [
+    ["depositTown", "missing", "submission_centre"],
+  ]);
 });

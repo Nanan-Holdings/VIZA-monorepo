@@ -27,8 +27,12 @@ export interface FvStep1Answers {
   stayDuration: "C" | "D" | "A";
   /** Destination code — "MET"=France mainland, "MCO"=Monaco, etc. */
   destination: string;
-  /** FV internal town code (e.g. "1PE" for Beijing). Depends on depositCountry. */
+  /** FV internal town code (e.g. "1PE" for Beijing). Depends on depositCountry.
+   *  Empty when only the city is known: it is then picked by label. */
   depositTown: string;
+  /** The applicant's TLScontact centre city, matched against the live
+   *  dropdown labels when `depositTown` is empty. */
+  depositTownCity?: string;
   /** ISO-3 passport-issuing authority country. */
   authority: string;
   /** Travel document type — "10"=Ordinary passport, etc. */
@@ -41,7 +45,8 @@ export interface FvStep1Answers {
   expirationDate: string;
   /** Purpose category enum, e.g. "TOUR". */
   purposeCategory: string;
-  /** Specific purpose value (depends on purposeCategory). */
+  /** Specific purpose value (depends on purposeCategory). Empty: take the
+   *  only option the category offers. */
   purpose: string;
 }
 

@@ -16,6 +16,7 @@
  * callers should fail the run rather than submit garbage to France-Visas.
  */
 
+import { submissionCentreCity } from "./option-match";
 import type { VisaApplicationAnswer, ApplicantProfile, Application } from "../types";
 import type {
   FvApplicationAnswers,
@@ -148,6 +149,10 @@ const PURPOSE_CATEGORY_MAP: Record<string, string> = {
   study: "ETUD",
   airport_transit: "TOUR", // FR routes transit through step 1 stayDuration=A
   other: "ETAR",
+};
+/** Specific-purpose codes confirmed on the live form (TOUR → "1", tourism). */
+const KNOWN_FV_PURPOSE: Record<string, string> = {
+  TOUR: "1",
 };
 function toFvPurposeCategory(v: string | null | undefined, field: string): string {
   if (!v) throw new NormalizationError(field, "missing purpose_of_journey");
@@ -326,23 +331,56 @@ export interface NormalizeInput {
    * destination, city of submission, and the resolved `purpose` sub-code.
    */
   fvOverrides: {
-    /** ISO-3 country where the applicant will submit. */
-    depositCountry: string;
-    /** FV town code (e.g. "1PE" for Beijing). Must match the deposit-country
-     *  cascade output — the frontend should fetch this list from FV. */
-    depositTown: string;
+    /** ISO-3 country where the applicant will submit. Default: the country
+     *  of residence (current nationality unless the applicant lives abroad). */
+    depositCountry?: string;
+    /** FV town code (e.g. "1PE" for Beijing). Default: the applicant's
+     *  `submission_centre`, matched by city on the live dropdown. */
+    depositTown?: string;
     /** ISO-3 passport-issuing authority (default: same as current_nationality). */
     authority?: string;
     /** Main destination code — "MET"=France mainland by default. */
     destination?: string;
-    /** Second-level purpose code (depends on purposeCategory). */
-    purpose: string;
+    /** Second-level purpose code (depends on purposeCategory). Default: the
+     *  known code for the category, else the category's only option. */
+    purpose?: string;
     /** Occupation override if the frontend collects a specific FV code. */
     occupationCode?: string;
     /** Business segment override if occupation gates employer fields on. */
     businessSegment?: string;
     /** Step 5 host / funding structure — frontend-owned. */
     step5?: Partial<FvStep5Answers>;
+  };
+}
+
+/** Step 1 ("Your plans") in France-Visas wire format. */
+export function normalizeFvStep1(input: NormalizeInput): FvStep1Answers {
+  const { answers: a, profile, fvOverrides } = input;
+
+  const nationality = toFvCountryCode(a.current_nationality, "current_nationality");
+  const livesAbroad = (a.residence_country_different ?? "").trim().toLowerCase() === "yes";
+  const depositCountry = fvOverrides.depositCountry
+    ?? (livesAbroad ? toFvCountryCode(a.residence_country, "residence_country") : nationality);
+  const purposeCategory = toFvPurposeCategory(a.purpose_of_journey, "purpose_of_journey");
+  const authority = fvOverrides.authority ?? nationality;
+  const destination = fvOverrides.destination ?? "MET";
+
+  return {
+    nationality,
+    // Seed key: has_eu_family_member (radio Yes/No) — Annex I 17-18.
+    hasNationalFamily: toYesNo(a.has_eu_family_member ?? "no", "has_eu_family_member"),
+    depositCountry,
+    stayDuration: "C",
+    destination,
+    depositTown: fvOverrides.depositTown ?? "",
+    depositTownCity: fvOverrides.depositTown ? undefined : submissionCentreCity(a.submission_centre),
+    authority,
+    travelDocument: toFvTravelDocument(a.travel_document_type, "travel_document_type"),
+    travelDocumentNumber: requireStr(a.travel_document_number ?? profile.passport_number, "travel_document_number"),
+    releaseDate: toFvDate(a.travel_document_issue_date ?? profile.passport_issue_date, "travel_document_issue_date"),
+    expirationDate: toFvDate(a.travel_document_expiry_date ?? profile.passport_expiry_date, "travel_document_expiry_date"),
+    purposeCategory,
+    purpose: fvOverrides.purpose ?? KNOWN_FV_PURPOSE[purposeCategory] ?? "",
   };
 }
 
@@ -353,27 +391,7 @@ export interface NormalizeInput {
 export function normalizeFvAnswers(input: NormalizeInput): FvApplicationAnswers {
   const { answers: a, profile, application, fvOverrides } = input;
 
-  const nationality = toFvCountryCode(a.current_nationality, "current_nationality");
-  const depositCountry = fvOverrides.depositCountry;
-  const authority = fvOverrides.authority ?? nationality;
-  const destination = fvOverrides.destination ?? "MET";
-
-  const step1: FvStep1Answers = {
-    nationality,
-    // Seed key: has_eu_family_member (radio Yes/No) — Annex I 17-18.
-    hasNationalFamily: toYesNo(a.has_eu_family_member ?? "no", "has_eu_family_member"),
-    depositCountry,
-    stayDuration: "C",
-    destination,
-    depositTown: fvOverrides.depositTown,
-    authority,
-    travelDocument: toFvTravelDocument(a.travel_document_type, "travel_document_type"),
-    travelDocumentNumber: requireStr(a.travel_document_number ?? profile.passport_number, "travel_document_number"),
-    releaseDate: toFvDate(a.travel_document_issue_date ?? profile.passport_issue_date, "travel_document_issue_date"),
-    expirationDate: toFvDate(a.travel_document_expiry_date ?? profile.passport_expiry_date, "travel_document_expiry_date"),
-    purposeCategory: toFvPurposeCategory(a.purpose_of_journey, "purpose_of_journey"),
-    purpose: fvOverrides.purpose,
-  };
+  const step1 = normalizeFvStep1(input);
 
   const dob = splitDateParts(a.date_of_birth ?? profile.date_of_birth, "date_of_birth");
 

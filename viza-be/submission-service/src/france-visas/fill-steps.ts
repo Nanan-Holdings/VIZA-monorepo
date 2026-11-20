@@ -28,6 +28,7 @@ import {
   setJsfTextInput,
   waitForJsfIdle,
 } from "./primefaces-ajax";
+import { resolveOptionFromPage } from "./option-match";
 import type {
   FvStep1Answers,
   FvStep2Answers,
@@ -40,7 +41,8 @@ import type {
 // Step 1 — Your plans
 // ──────────────────────────────────────────────────────────────────────────────
 
-export async function fillStep1(page: Page, a: FvStep1Answers): Promise<void> {
+export async function fillStep1(page: Page, answers: FvStep1Answers): Promise<void> {
+  const a = { ...answers };
   // Selects in cascade order. Each triggerChange waits for the server
   // postback before the next call so the dependent select has fresh options.
   await selectPrimeFacesOption(page, "widget_formStep1_visas_selected_nationality", a.nationality);
@@ -48,10 +50,23 @@ export async function fillStep1(page: Page, a: FvStep1Answers): Promise<void> {
   await selectPrimeFacesOption(page, "widget_formStep1_Visas_selected_deposit_country", a.depositCountry);
   await selectPrimeFacesOption(page, "widget_formStep1_Visas_selected_stayDuration", a.stayDuration);
   await selectPrimeFacesOption(page, "widget_formStep1_Visas_selected_destination", a.destination);
+  // France-Visas publishes no town-code list: when only the centre city is
+  // known, pick it from the options the deposit-country cascade loaded.
+  if (!a.depositTown) {
+    a.depositTown = await resolveOptionFromPage(
+      page,
+      "depositTown",
+      "formStep1:Visas-selected-deposit-town_input",
+      a.depositTownCity ?? "",
+    );
+  }
   await selectPrimeFacesOption(page, "widget_formStep1_Visas_selected_deposit_town", a.depositTown);
   await selectPrimeFacesOption(page, "widget_formStep1_Visas_selected_authority", a.authority);
   await selectPrimeFacesOption(page, "widget_formStep1_Visas_dde_travel_document", a.travelDocument);
   await selectPrimeFacesOption(page, "widget_formStep1_Visas_selected_purposeCategory", a.purposeCategory);
+  if (!a.purpose) {
+    a.purpose = await resolveOptionFromPage(page, "purpose", "formStep1:Visas-selected-purpose_input", "");
+  }
   await selectPrimeFacesOption(page, "widget_formStep1_Visas_selected_purpose", a.purpose);
 
   await waitForJsfIdle(page);
