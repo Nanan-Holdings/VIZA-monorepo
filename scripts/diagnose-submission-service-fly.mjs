@@ -200,6 +200,71 @@ function logMessage(record) {
   return candidates.find((candidate) => typeof candidate === "string") ?? null;
 }
 
+function parseJsonValues(stdout) {
+  const text = String(stdout);
+  const values = [];
+  let start = -1;
+  let stack = [];
+  let inString = false;
+  let escaped = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const character = text[index];
+
+    if (start === -1) {
+      // flyctl emits one object per pretty-printed record. Starting only at an
+      // object also lets us recover records from an optional array or prefix.
+      if (character === "{") {
+        start = index;
+        stack = [character];
+      }
+      continue;
+    }
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (character === "\\") {
+        escaped = true;
+      } else if (character === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (character === '"') {
+      inString = true;
+      continue;
+    }
+    if (character === "{" || character === "[") {
+      stack.push(character);
+      continue;
+    }
+    if (character !== "}" && character !== "]") continue;
+
+    const expected = character === "}" ? "{" : "[";
+    if (stack[stack.length - 1] !== expected) {
+      start = -1;
+      stack = [];
+      inString = false;
+      escaped = false;
+      continue;
+    }
+
+    stack.pop();
+    if (stack.length !== 0) continue;
+
+    try {
+      values.push(JSON.parse(text.slice(start, index + 1)));
+    } catch {
+      // Ignore malformed or prefixed fragments without echoing their contents.
+    }
+    start = -1;
+  }
+
+  return values;
+}
+
 function timingRecord(value) {
   if (!isRecord(value) || typeof value.stage !== "string" || !ALLOWED_STAGES.has(value.stage)) {
     return null;
@@ -217,26 +282,22 @@ function timingRecord(value) {
 
 export function parseUkTimingLogs(stdout) {
   const reports = [];
-  for (const line of String(stdout).split(/\r?\n/u)) {
-    if (!line.trim()) continue;
-    let parsed;
-    try {
-      parsed = JSON.parse(line);
-    } catch {
-      continue;
-    }
-    const message = logMessage(parsed);
-    if (!message || !message.startsWith(TIMING_PREFIX)) continue;
-    let payload;
-    try {
-      payload = JSON.parse(message.slice(TIMING_PREFIX.length).trim());
-    } catch {
-      continue;
-    }
-    if (!isRecord(payload) || !Array.isArray(payload.records)) continue;
-    for (const record of payload.records) {
-      const sanitized = timingRecord(record);
-      if (sanitized) reports.push(sanitized);
+  for (const parsed of parseJsonValues(stdout)) {
+    const logRecords = Array.isArray(parsed) ? parsed : [parsed];
+    for (const record of logRecords) {
+      const message = logMessage(record);
+      if (!message || !message.startsWith(TIMING_PREFIX)) continue;
+      let payload;
+      try {
+        payload = JSON.parse(message.slice(TIMING_PREFIX.length).trim());
+      } catch {
+        continue;
+      }
+      if (!isRecord(payload) || !Array.isArray(payload.records)) continue;
+      for (const timing of payload.records) {
+        const sanitized = timingRecord(timing);
+        if (sanitized) reports.push(sanitized);
+      }
     }
   }
   return reports;

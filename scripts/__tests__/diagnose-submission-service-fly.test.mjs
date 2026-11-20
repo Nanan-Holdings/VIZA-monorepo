@@ -87,6 +87,50 @@ test("timing parser reconstructs only allowlisted fields and silently drops raw 
   assert.equal(JSON.stringify(parseUkTimingLogs(logs)).includes("example.com"), false);
 });
 
+test("timing parser accepts flyctl's pretty JSON log records without exposing raw fields", () => {
+  const timingMessage = `[uk-timing] ${JSON.stringify({
+    runId: "private-run-id",
+    records: [
+      { stage: "run", durationMs: 321, outcome: "failed", count: 1 },
+    ],
+  })}`;
+  const logs = [
+    JSON.stringify({ level: "info", message: "unrelated private text" }, null, 4),
+    JSON.stringify({ level: "info", message: timingMessage, privateField: "secret" }, null, 4),
+  ].join("\n");
+
+  assert.deepEqual(parseUkTimingLogs(logs), [{
+    stage: "run",
+    slug: null,
+    durationMs: 321,
+    outcome: "failed",
+    count: 1,
+  }]);
+  assert.equal(JSON.stringify(parseUkTimingLogs(logs)).includes("private-run-id"), false);
+  assert.equal(JSON.stringify(parseUkTimingLogs(logs)).includes("privateField"), false);
+});
+
+test("timing parser recovers object records from array or prefixed JSON", () => {
+  const logs = `[prefix] ${JSON.stringify([{
+    message: `[uk-timing] ${JSON.stringify({
+      records: [{ stage: "run", durationMs: 7, outcome: "success", count: 1 }],
+    })}`,
+  }], null, 4)}`;
+  assert.deepEqual(parseUkTimingLogs(logs), [{
+    stage: "run",
+    slug: null,
+    durationMs: 7,
+    outcome: "success",
+    count: 1,
+  }]);
+});
+
+test("timing parser keeps malformed or empty JSON from producing timing records", () => {
+  assert.deepEqual(parseUkTimingLogs(""), []);
+  assert.deepEqual(parseUkTimingLogs('{\n    "message": "[uk-timing] not-json"\n}\n'), []);
+  assert.deepEqual(parseUkTimingLogs('{\n    "message": "[uk-timing] {\\"records\\": [null]}"\n'), []);
+});
+
 test("report shape and workflow commands remain read-only and fixed", () => {
   const report = buildReport({ machineJson: "[]", logJson: "" });
   assert.deepEqual(report, { ok: true, target: "legacy", machines: [], ukTiming: [] });
