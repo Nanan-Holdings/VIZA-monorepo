@@ -114,3 +114,9 @@ scheduled recovery workflows.
   a best-effort instantaneous diagnostic under Supavisor transaction pooling,
   not a user/request count, authorization signal, or capacity denominator, and
   a high `other` count is never an automatic blocker.
+- `diagnose-submission-service-fly.yml` is a manual, read-only UK legacy-worker
+  diagnostic. It uses only the protected `production-submission_service`
+  `FLY_API_TOKEN` and the configured `FLY_SUBMISSION_LEGACY_APP`; it has no
+  workflow inputs and cannot start, stop, deploy, or change Fly secrets. Its
+  script reconstructs only fixed machine fields and allowlisted `[uk-timing]`
+  records, silently dropping all other log content.

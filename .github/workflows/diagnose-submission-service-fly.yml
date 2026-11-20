@@ -1,0 +1,49 @@
+name: diagnose-submission-service-fly
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-submission-service-fly-diagnose
+  cancel-in-progress: false
+
+env:
+  # The diagnostic script accepts this variable only when it is the fixed
+  # production legacy app. There are no workflow inputs for another target.
+  FLY_SUBMISSION_LEGACY_APP: ${{ vars.FLY_SUBMISSION_LEGACY_APP }}
+
+jobs:
+  diagnose:
+    environment: production-submission_service
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pinned Fly CLI
+        shell: bash
+        env:
+          FLYCTL_VERSION: 0.4.82
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/flyctl.tar.gz"
+          install_dir="$RUNNER_TEMP/flyctl-bin"
+          mkdir -p "$install_dir"
+          curl --fail --silent --show-error --location \
+            --retry 5 --retry-delay 2 --retry-all-errors \
+            --connect-timeout 15 --max-time 180 \
+            --output "$archive" \
+            "https://github.com/superfly/flyctl/releases/download/v${FLYCTL_VERSION}/flyctl_${FLYCTL_VERSION}_Linux_x86_64.tar.gz"
+          tar -xzf "$archive" -C "$install_dir" flyctl
+          chmod +x "$install_dir/flyctl"
+          mkdir -p "$RUNNER_TEMP/fly-bin"
+          ln -s "$install_dir/flyctl" "$RUNNER_TEMP/fly-bin/fly"
+          echo "$RUNNER_TEMP/fly-bin" >> "$GITHUB_PATH"
+
+      - name: Collect fixed-scope UK diagnostics
+        run: node scripts/diagnose-submission-service-fly.mjs
