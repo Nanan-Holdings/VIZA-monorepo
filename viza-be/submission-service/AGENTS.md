@@ -738,6 +738,10 @@ and must fail closed; callers must not perform a direct table settlement.
   exposed. Deterministic lifecycle/contract coverage lives beside the runner
   in `src/uk/*.{spec,test}.ts`; `src/uk/timing.ts` emits only redacted,
   fixed-stage timing summaries and never records portal or applicant values.
+  The current `standardApplicantsEmail` contract is covered by
+  `src/uk/page-bindings.spec.ts`: UKVI's applicant branch has no
+  `#emailAddress`, while the conditional "Someone else" branch remains
+  fail-closed when its input is absent.
 - `src/us-appointment/**`: China `CN/usvisascheduling` assisted-live
   appointment runner. It processes `appointment_assistance_jobs` only when
   `US_APPOINTMENT_ASSISTED_LIVE_ENABLED=true`, reads VIZA-created

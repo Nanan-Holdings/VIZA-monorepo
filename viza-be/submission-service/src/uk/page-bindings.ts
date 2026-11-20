@@ -100,8 +100,25 @@ async function fillUkParentDetails(
 export const UK_PAGE_FILLERS: Record<string, UkPageFiller> = {
   // ── Personal information ────────────────────────────────────────────
   standardApplicantsEmail: async (page, a) => {
-    if (a["email_owner_label"]) await ukPickRadio(page, "emailOwner", a["email_owner_label"]);
-    if (a["email_address"]) await ukFillText(page, "emailAddress", a["email_address"]);
+    // Current UKVI DOM (live read-only recon, 2026-11-20) renders this page
+    // with only `emailOwner` radios. Selecting "You" intentionally has no
+    // `#emailAddress` control; the saved-application account is the contact
+    // address. `#emailAddress` is conditional on the "Someone else" branch.
+    // The normalized application answers do not have an owner field, so use
+    // the truthful applicant branch whenever the official radio group exists.
+    const ownerGroup = page.locator('input[type="radio"][name="emailOwner"]');
+    const ownerLabel = a["email_owner_label"] ||
+      ((await ownerGroup.count()) > 0 ? "You" : undefined);
+    if (ownerLabel) await ukPickRadio(page, "emailOwner", ownerLabel);
+
+    const emailAddress = a["email_address"];
+    if (!emailAddress) return;
+    const emailControl = page.locator("#emailAddress").first();
+    if ((await emailControl.count()) === 0) {
+      if (ownerLabel?.trim().toLowerCase() === "you") return;
+      throw new Error(`Text control "#emailAddress" was not found for email owner "${ownerLabel ?? "unknown"}"`);
+    }
+    await ukFillText(page, "emailAddress", emailAddress);
   },
 
   hasAdditionalEmailEV: async (page, a) => {
