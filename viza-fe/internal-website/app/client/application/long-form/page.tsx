@@ -127,6 +127,7 @@ import {
 } from "@/lib/universal-profile-prefill";
 import { SubmissionStatusStep } from "../_components/result-cards/SubmissionStatusStep";
 import { UniversalProfileSyncCard } from "@/components/application-steps/universal-profile-sync-card";
+import { FranceVisasAccountLink } from "@/components/application-steps/france-visas-account-link";
 import {
   getTeamApplicationContext,
   markTeamCompanionReviewed,
@@ -5832,6 +5833,9 @@ export default function ApplicationPage() {
                               {!isCompanionFlow ? (
                                 <UniversalProfileSyncCard applicationId={appState.applicationId} />
                               ) : null}
+                              {!isCompanionFlow && liveAssistedTarget === "france" && liveAssistedEnabled && appState.applicationId ? (
+                                <FranceVisasAccountLink applicationId={appState.applicationId} />
+                              ) : null}
                               {!isCompanionFlow ? (
                                 <FinalConfirmationPanel
                                   isZh={isZhInterface}
@@ -5975,6 +5979,9 @@ export default function ApplicationPage() {
                               />
                               {!isCompanionFlow && appState.applicationId ? (
                                 <UniversalProfileSyncCard applicationId={appState.applicationId} />
+                              ) : null}
+                              {!isCompanionFlow && liveAssistedTarget === "france" && liveAssistedEnabled && appState.applicationId ? (
+                                <FranceVisasAccountLink applicationId={appState.applicationId} />
                               ) : null}
                               {!isCompanionFlow ? (
                                 <FinalConfirmationPanel

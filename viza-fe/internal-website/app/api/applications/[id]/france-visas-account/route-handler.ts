@@ -1,37 +1,30 @@
 type FvAccountRow = {
   id: string;
-  applicant_id?: string | null;
-  email?: string | null;
   updated_at?: string | null;
   created_at?: string | null;
 };
 
 export interface FranceVisasAccountBrowserProjection {
-  email: string | null;
+  /** Always null: the login is encrypted with a key this app does not hold. */
+  email: null;
   configured: true;
   verificationStatus: "unknown";
   portalUrl: string;
   updatedAt: string | null;
 }
 
-function maskEmail(value: string | null | undefined): string | null {
-  if (!value) return null;
-  const [localPart, domain] = value.split("@", 2);
-  if (!localPart || !domain) return "••••";
-  const visible = localPart.length <= 2 ? localPart.slice(0, 1) : localPart.slice(0, 2);
-  return `${visible}•••@${domain}`;
-}
+export const FRANCE_VISAS_PORTAL_URL = "https://application-form.france-visas.gouv.fr/fv-fo-dde/";
 
 export function toBrowserSafeFranceVisasAccount(
   account: FvAccountRow,
 ): FranceVisasAccountBrowserProjection {
   return {
-    email: maskEmail(account.email),
+    email: null,
     configured: true,
     // fv_accounts has no persisted email-verification state. Keep this
     // explicitly unknown instead of presenting account existence as verified.
     verificationStatus: "unknown",
-    portalUrl: "https://application-form.france-visas.gouv.fr/fv-fo-dde/",
+    portalUrl: FRANCE_VISAS_PORTAL_URL,
     updatedAt: account.updated_at ?? account.created_at ?? null,
   };
 }

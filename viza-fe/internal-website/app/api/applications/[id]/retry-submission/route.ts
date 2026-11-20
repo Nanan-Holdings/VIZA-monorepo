@@ -2266,6 +2266,26 @@ export async function POST(
           { status: 503 },
         );
       }
+      // The worker signs in with the France-Visas login the applicant linked;
+      // without one a queued run can only fail.
+      const accountFilter = authUserId
+        ? `user_id.eq.${authUserId},application_id.eq.${applicationId}`
+        : `application_id.eq.${applicationId}`;
+      const { data: linkedAccount } = await admin
+        .from("fv_accounts")
+        .select("id")
+        .or(accountFilter)
+        .limit(1)
+        .maybeSingle();
+      if (!linkedAccount) {
+        return NextResponse.json(
+          {
+            error: "请先关联您的 France-Visas 账号：在 France-Visas 官网注册后，在本页填写登录邮箱和密码。",
+            code: "france_account_required",
+          },
+          { status: 422 },
+        );
+      }
     }
     if (isSgArrivalCardApplication(ownedApplication.country, ownedApplication.visa_type)) {
       const scheduleDecision = await decideSgacLiveSchedule({
