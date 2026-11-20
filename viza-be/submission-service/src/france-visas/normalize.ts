@@ -308,9 +308,26 @@ const OCCUPATION_MAP: Record<string, string> = {
   fashion: "77003",
   other: "65005",
 };
-function toFvOccupation(v: string | null | undefined): string {
+/** "Software Engineer" → "software_engineer", so free text matches the map keys. */
+function occupationKey(v: string): string {
+  return v.toLowerCase().trim().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+}
+
+export function toFvOccupation(v: string | null | undefined): string {
   if (!v) return "65005"; // default to "Other"
-  return OCCUPATION_MAP[v.toLowerCase().trim()] ?? "65005";
+  return OCCUPATION_MAP[occupationKey(v)] ?? "65005";
+}
+
+/**
+ * The applicant's occupation as words. Some answers carry a code from another
+ * country's form (e.g. "0800") in `current_occupation`, with the words in the
+ * `_en` companion; prefer words so the France mapping can recognise them.
+ */
+export function occupationText(a: AnswerMap, fallback: string | null | undefined): string | null {
+  const raw = a.current_occupation?.trim() || fallback?.trim() || "";
+  const english = a.current_occupation_en?.trim() || "";
+  if (english && (!raw || /^[0-9]+$/.test(raw))) return english;
+  return raw || english || null;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -395,8 +412,10 @@ export function normalizeFvAnswers(input: NormalizeInput): FvApplicationAnswers 
 
   const dob = splitDateParts(a.date_of_birth ?? profile.date_of_birth, "date_of_birth");
 
-  const rawOccupation = a.current_occupation ?? profile.occupation;
-  const occupation = fvOverrides.occupationCode ?? toFvOccupation(rawOccupation);
+  const rawOccupation = occupationText(a, profile.occupation);
+  const isStudent = (a.is_student ?? "").trim().toLowerCase() === "yes";
+  const occupation = fvOverrides.occupationCode
+    ?? (isStudent ? OCCUPATION_MAP.student : toFvOccupation(rawOccupation));
 
   const step2: FvStep2Answers = {
     sex: toFvSex(a.sex ?? profile.gender, "sex"),

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { ApplicantProfile, Application } from "../../types";
-import { normalizeFvStep1, type AnswerMap } from "../normalize";
+import { normalizeFvStep1, occupationText, toFvOccupation, type AnswerMap } from "../normalize";
 import {
   FranceOptionUnmatchedError,
   pickOptionByLabel,
@@ -84,4 +84,13 @@ test("explicit fv_* overrides still win", () => {
 test("an applicant living abroad files in their country of residence", () => {
   const s1 = step1(answers({ residence_country_different: "yes", residence_country: "SG" }));
   assert.equal(s1.depositCountry, "SGP");
+});
+
+test("occupation words map to France-Visas codes; codes from other forms fall back to the English words", () => {
+  assert.equal(toFvOccupation("Software Engineer"), "73001");
+  assert.equal(toFvOccupation("software_engineer"), "73001");
+  assert.equal(toFvOccupation("Astronaut"), "65005");
+  assert.equal(occupationText({ current_occupation: "0800", current_occupation_en: "Software Engineer" }, null), "Software Engineer");
+  assert.equal(occupationText({ current_occupation: "Teacher" }, null), "Teacher");
+  assert.equal(occupationText({}, "Farmer"), "Farmer");
 });
