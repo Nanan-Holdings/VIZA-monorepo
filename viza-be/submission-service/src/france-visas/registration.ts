@@ -11,11 +11,11 @@
  *   → return credentials plus storageState for the subsequent sign-in/fill.
  */
 
-import type { BrowserContext } from "@playwright/test";
+import type { BrowserContext, Page } from "@playwright/test";
 import { launchFvBrowser, type FvBrowserHandles } from "./browser";
 import { FV_URLS, FV_REGISTRATION_SELECTORS } from "./selectors";
 import { detectPage, waitForPage } from "./pages";
-import { assertNoGate } from "./gates";
+import { assertNoGate, ENTRY_RENDER_TIMEOUT_MS, waitForRenderedPage } from "./gates";
 import type { MailboxProvider } from "./inbox-poller";
 import { RegistrationFailedError } from "./errors";
 import { redactOfficialUrl } from "../appointment-free-smoke";
@@ -113,8 +113,11 @@ export async function registerFvAccount(
       await page.locator(FV_REGISTRATION_SELECTORS.firstName).first().fill(input.firstName);
       await page.locator(FV_REGISTRATION_SELECTORS.email).first().fill(input.email);
       await page.locator(FV_REGISTRATION_SELECTORS.emailConfirmation).first().fill(input.email);
-      await page.locator(FV_REGISTRATION_SELECTORS.password).first().fill(input.password);
-      await page.locator(FV_REGISTRATION_SELECTORS.passwordConfirm).first().fill(input.password);
+      // The current France-Visas form no longer asks for a password at
+      // registration (it is set after the verification link); fill the
+      // password fields only where an older form still shows them.
+      await fillIfPresent(page, FV_REGISTRATION_SELECTORS.password, input.password);
+      await fillIfPresent(page, FV_REGISTRATION_SELECTORS.passwordConfirm, input.password);
       await page.locator(FV_REGISTRATION_SELECTORS.languageSelect).first().selectOption(language);
     };
 
@@ -202,6 +205,11 @@ export async function registerFvAccount(
       waitUntil: "domcontentloaded",
       timeout: 60_000,
     });
+    await waitForRenderedPage(page, ENTRY_RENDER_TIMEOUT_MS);
+    // The verification link now leads to a "choose your password" step.
+    if (await setPasswordIfAsked(page, input.password)) {
+      await waitForRenderedPage(page, ENTRY_RENDER_TIMEOUT_MS);
+    }
     await waitForPage(page, ["email_verified", "login", "accueil"], { timeoutMs: 60_000 }).catch(async () => {
       const detected = await detectPage(page);
       if (detected.id === "registration" || detected.id === "check_mailbox" || detected.id === "session_expired") {
@@ -233,6 +241,34 @@ export async function registerFvAccount(
     await context.close().catch(() => undefined);
     await browser.close().catch(() => undefined);
   }
+}
+
+/** Fill the first matching field if the page shows one. */
+async function fillIfPresent(page: Page, selector: string, value: string): Promise<boolean> {
+  const field = page.locator(selector).first();
+  if ((await field.count()) === 0) return false;
+  await field.fill(value);
+  return true;
+}
+
+/**
+ * If the page asks the applicant to choose a password (Keycloak's
+ * update-password step after email verification), fill every visible password
+ * field with the generated password and submit. Returns whether it did.
+ */
+export async function setPasswordIfAsked(page: Page, password: string): Promise<boolean> {
+  const fields = page.locator('input[type="password"]:visible');
+  const count = await fields.count();
+  if (count === 0) return false;
+  for (let index = 0; index < count; index += 1) {
+    await fields.nth(index).fill(password);
+  }
+  const submit = page.locator('button[type="submit"], input[type="submit"]').first();
+  await Promise.all([
+    page.waitForLoadState("domcontentloaded", { timeout: 60_000 }).catch(() => undefined),
+    submit.click(),
+  ]);
+  return true;
 }
 
 export type FvStealthHandles = FvBrowserHandles;
