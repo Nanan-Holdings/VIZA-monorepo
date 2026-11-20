@@ -250,6 +250,11 @@
       "drizzle": "viza-be/agent-backend/drizzle/0213_france_accommodation_postcodes.sql",
       "supabase": "viza-fe/internal-website/supabase/migrations/20261119140000_france_accommodation_postcodes.sql",
       "sha256": "d515c6e2a6ffb306211d441aa87c854f95ccdd9e42a2794bb01d60e0692837e4"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0214_france_form_wording.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20261120120000_france_form_wording.sql",
+      "sha256": "8448be8dff4f4fa54997034423a9512ad47499b45db7c5d33d41c35a27c02ed9"
     }
   ],
   "no_mirror": [

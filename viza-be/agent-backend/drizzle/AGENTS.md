@@ -679,3 +679,10 @@ those steps down by one. France-Visas requires a postcode; the worker no longer
 invents one and fails with `france_answers_invalid` when it is missing.
 Idempotent. Keep `20261119140000_france_accommodation_postcodes.sql`
 byte-identical.
+
+`0214_france_form_wording.sql` rewrites the question wording of
+`EU_SCHENGEN_C_SHORT_STAY`: questions that map to a box on the harmonised
+Schengen form (Visa Code Annex I) take its English verbatim, and every question
+gets an explicit `validation_rules.label_zh` so the client stops deriving
+Chinese from field names. Only `label` and `label_zh` change. Idempotent. Keep
+`20261120120000_france_form_wording.sql` byte-identical.
