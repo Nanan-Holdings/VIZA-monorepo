@@ -686,3 +686,10 @@ Schengen form (Visa Code Annex I) take its English verbatim, and every question
 gets an explicit `validation_rules.label_zh` so the client stops deriving
 Chinese from field names. Only `label` and `label_zh` change. Idempotent. Keep
 `20261120120000_france_form_wording.sql` byte-identical.
+
+`0216_france_submission_centre.sql` adds the required `submission_centre`
+select to `EU_SCHENGEN_C_SHORT_STAY` (step 7, after the overseas-territories
+question): the 15 mainland-China TLScontact centres, values are centre keys
+(`changsha`, ...). France-Visas step 1 needs the city of submission; the worker
+matches the chosen city against the live dropdown. Idempotent. Keep
+`20261120140000_france_submission_centre.sql` byte-identical.
