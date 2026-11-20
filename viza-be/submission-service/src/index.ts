@@ -3456,16 +3456,14 @@ function normalizeFvAccountRow(row: Record<string, unknown> | null): FvAccount |
 }
 
 async function loadFvAccount(
-  userId: string | null | undefined,
   applicationId: string,
   queueId: string,
 ): Promise<FvAccount | null> {
-  // An account written for this application or queue item wins; otherwise
-  // the applicant's linked France-Visas login (one per user) is reused.
+  // Each application has its own France-Visas account; never reuse another
+  // application's (a new application registers a fresh one).
   const lookups: Array<{ column: string; value: string }> = [
     { column: "application_id", value: applicationId },
     { column: "submission_queue_id", value: queueId },
-    ...(userId ? [{ column: "user_id", value: userId }] : []),
   ];
 
   for (const lookup of lookups) {
@@ -3636,7 +3634,9 @@ async function registerFvAccountForQueue(input: {
     throw new Error("France-Visas account registration is disabled by configuration.");
   }
 
-  const alias = await ensureApplicantInboxAlias(input.profile.id);
+  // Every France application gets its own France-Visas account on its own
+  // inbox alias, so verification mail and logins never cross applications.
+  const alias = await ensureApplicationInboxAlias(input.item.application_id, input.profile.id);
   const password = generateFvPortalPassword();
   const name = registrationNameParts(input.profile, input.answers);
   const registration = await registerFvAccount(
@@ -3648,7 +3648,7 @@ async function registerFvAccountForQueue(input: {
       language: "English",
     },
     {
-      mailbox: createSupabaseMailboxProvider(input.profile.id),
+      mailbox: createSupabaseMailboxProvider(input.item.application_id, input.profile.id),
       headless: input.config.playwrightHeadless,
       maxCaptchaAttempts: input.config.registrationMaxCaptchaAttempts,
       verificationTimeoutMs: input.config.registrationEmailTimeoutMs,
@@ -3910,7 +3910,7 @@ async function processFvItem(
     if (answerIssues.length > 0) throw new FranceAnswersInvalidError(answerIssues);
 
     await writeFvStage("loading_official_account");
-    let account = await loadFvAccount(profile.auth_user_id, item.application_id, item.id);
+    let account = await loadFvAccount(item.application_id, item.id);
     if (!account && !config.accountRegistrationEnabled) {
       // Applicants link the France-Visas login they registered themselves.
       throw new FranceAccountRequiredError();

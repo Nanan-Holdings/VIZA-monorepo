@@ -60,10 +60,12 @@ export function extractVerificationUrlFromMessage(message: Pick<InboundMessage, 
   return null;
 }
 
-export function createSupabaseMailboxProvider(applicantId: string): MailboxProvider {
+/** Reads France-Visas verification mail from the application's own inbox alias. */
+export function createSupabaseMailboxProvider(applicationId: string, applicantId: string): MailboxProvider {
   return {
     async waitForVerificationLink(params) {
-      const message = await inbox.waitForMessage(
+      const message = await inbox.waitForApplicationMessage(
+        applicationId,
         applicantId,
         (row) => {
           if (params.subjectPattern && !params.subjectPattern.test(row.subject ?? "")) return false;

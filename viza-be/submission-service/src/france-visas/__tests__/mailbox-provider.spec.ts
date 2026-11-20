@@ -40,4 +40,26 @@ describe("France-Visas mailbox provider", () => {
 
     assert.equal(url, null);
   });
+
+  it("waits on the application's own inbox alias, not the applicant's", async () => {
+    const { inbox } = require("../../inbox/wait-for-message") as typeof import("../../inbox/wait-for-message");
+    const { createSupabaseMailboxProvider } = require("../mailbox-provider") as typeof import("../mailbox-provider");
+    const original = inbox.waitForApplicationMessage;
+    const calls: Array<[string, string]> = [];
+    inbox.waitForApplicationMessage = (async (applicationId: string, applicantId: string) => {
+      calls.push([applicationId, applicantId]);
+      return {
+        html: '<a href="https://connect.france-visas.gouv.fr/realms/usager/login-actions/action-token?key=k">Verify</a>',
+        text: null,
+      };
+    }) as unknown as typeof inbox.waitForApplicationMessage;
+    try {
+      const url = await createSupabaseMailboxProvider("application-1", "applicant-1")
+        .waitForVerificationLink({ mailboxAddress: "alias@viza.test", timeoutMs: 1_000 });
+      assert.equal(url.hostname, "connect.france-visas.gouv.fr");
+      assert.deepEqual(calls, [["application-1", "applicant-1"]]);
+    } finally {
+      inbox.waitForApplicationMessage = original;
+    }
+  });
 });
