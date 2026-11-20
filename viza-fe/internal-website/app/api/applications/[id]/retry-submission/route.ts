@@ -9,6 +9,7 @@ import { compareFaces } from "@/lib/face/match";
 import {
   wakeCloudSubmissionWorker,
   wakeDs160SubmissionWorker,
+  wakeFranceSubmissionWorker,
 } from "@/lib/submission-worker-wake.server";
 import { isRunnerCutoverPaused } from "@/lib/runner-cutover-pause.server";
 import { ensureFlyMachineStarted } from "@/lib/fly-machine-wake.server";
@@ -2652,6 +2653,8 @@ export async function POST(
       ? poolEnqueue.workerTriggered
       : isDs160VisaType(ownedApplication.visa_type)
         ? (await wakeDs160SubmissionWorker(queueResult.jobId)).ok
+        : isFranceLiveRetryApplication(ownedApplication.country, ownedApplication.visa_type)
+          ? (await wakeFranceSubmissionWorker(queueResult.jobId)).ok
         : isIndonesiaEVisaApplication(
             ownedApplication.country,
             ownedApplication.visa_type,
