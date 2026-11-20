@@ -249,10 +249,11 @@ export async function signInWithPassword(
       });
     }
     const diagnosticBase = await captureSignInFailureDiagnostics(page, options.runId);
+    const where = await describeSignInPage(page, title);
     await context.close().catch(() => undefined);
     await browser.close().catch(() => undefined);
     throw new SessionBootstrapError(
-      `France-Visas sign-in failed: ${err instanceof Error ? err.message : String(err)}`,
+      `France-Visas sign-in failed: ${err instanceof Error ? err.message : String(err)} [${where}]`,
       {
         url: redactOfficialUrl(page.url()),
         details: {
@@ -264,6 +265,31 @@ export async function signInWithPassword(
       },
     );
   }
+}
+
+/**
+ * Where sign-in stopped, safe to store in queue errors: the official page path
+ * (no query), its title, and the login form's own feedback message (e.g.
+ * "Invalid username or password."). Never page body text, which can contain
+ * applicant data.
+ */
+async function describeSignInPage(page: Page, title: string): Promise<string> {
+  let pathPart = "";
+  try {
+    const url = new URL(page.url());
+    pathPart = `${url.host}${url.pathname}`;
+  } catch {
+    pathPart = "(no url)";
+  }
+  const feedback = await page
+    .locator("#input-error, .kc-feedback-text, .alert-error, .alert-warning, [id^='input-error']")
+    .first()
+    .innerText({ timeout: 1_000 })
+    .catch(() => "");
+  const parts = [`page=${pathPart}`, `title=${title.trim() || "(none)"}`];
+  const message = feedback.replace(/s+/g, " ").trim().slice(0, 200);
+  if (message) parts.push(`message=${message}`);
+  return parts.join("; ");
 }
 
 async function captureSignInFailureDiagnostics(
