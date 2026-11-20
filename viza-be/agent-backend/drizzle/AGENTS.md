@@ -687,6 +687,14 @@ gets an explicit `validation_rules.label_zh` so the client stops deriving
 Chinese from field names. Only `label` and `label_zh` change. Idempotent. Keep
 `20261120120000_france_form_wording.sql` byte-identical.
 
+`0215_uk_account_application_scope.sql` adds the nullable, unique
+`uk_accounts.application_id` binding to `applications`, deliberately leaves
+historical unbound rows untouched, retains legacy `(applicant_id, email)` only
+for NULL-bound rows, and removes applicant-facing access so encrypted UK
+credentials remain service-role-only. Keep its frontend mirror
+`20261120130000_uk_account_application_scope.sql` byte-identical. Do not add a
+production approved-batch source ref until the release commit is reviewed.
+
 `0216_france_submission_centre.sql` adds the required `submission_centre`
 select to `EU_SCHENGEN_C_SHORT_STAY` (step 7, after the overseas-territories
 question): the 15 mainland-China TLScontact centres, values are centre keys

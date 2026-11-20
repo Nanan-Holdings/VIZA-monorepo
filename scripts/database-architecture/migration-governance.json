@@ -257,6 +257,11 @@
       "sha256": "8448be8dff4f4fa54997034423a9512ad47499b45db7c5d33d41c35a27c02ed9"
     },
     {
+      "drizzle": "viza-be/agent-backend/drizzle/0215_uk_account_application_scope.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20261120130000_uk_account_application_scope.sql",
+      "sha256": "5e0cffced8e6fc249a866131e17bafda129497acf305878eb7e3ca71af0dfb73"
+    },
+    {
       "drizzle": "viza-be/agent-backend/drizzle/0216_france_submission_centre.sql",
       "supabase": "viza-fe/internal-website/supabase/migrations/20261120140000_france_submission_centre.sql",
       "sha256": "52f44db9d748864bc0c406dfa4ff5de2cdf46ea3b575d51d9d08327fbcf346fe"
