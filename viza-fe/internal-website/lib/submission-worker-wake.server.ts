@@ -182,3 +182,23 @@ export async function wakeUkSubmissionWorker(
     return { ok: false, reason: "request_failed" };
   }
 }
+
+/**
+ * France-Visas runs on the Singapore legacy worker. "france" is not a Fly
+ * country target, so waking by country neither started that Machine nor
+ * reached its endpoint (the generic path goes to the Vietnam compatibility
+ * URL), and France jobs sat unclaimed. Wake the legacy worker explicitly.
+ */
+export async function wakeFranceSubmissionWorker(
+  jobId: string | null,
+  options: {
+    env?: WakeEnvironment;
+    fetchImpl?: typeof fetch;
+  } = {},
+): Promise<SubmissionWorkerWakeResult> {
+  return wakeCloudSubmissionWorker(jobId, {
+    ...options,
+    target: "legacy",
+    endpoint: "legacy",
+  });
+}

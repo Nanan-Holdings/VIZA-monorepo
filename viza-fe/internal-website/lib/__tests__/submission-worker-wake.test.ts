@@ -4,6 +4,7 @@ import {
   wakeCloudSubmissionWorker,
   wakeDs160SubmissionWorker,
   wakeUkSubmissionWorker,
+  wakeFranceSubmissionWorker,
 } from "../submission-worker-wake.server";
 
 describe("wakeCloudSubmissionWorker", () => {
@@ -187,6 +188,48 @@ describe("wakeCloudSubmissionWorker", () => {
         method: "POST",
         body: JSON.stringify({ jobId: "job-ds160" }),
       }),
+    );
+  });
+
+  it("cold-starts France on the legacy app and calls the legacy endpoint, not Vietnam's", async () => {
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("/apps/viza-prod-submission-legacy/machines")) {
+        return Response.json([{ id: "legacy-machine", state: "stopped" }]);
+      }
+      if (url.endsWith("/apps/viza-prod-submission-legacy/machines/legacy-machine/start")) {
+        return new Response(null, { status: 202 });
+      }
+      if (url === "https://legacy-worker.example.test/internal/submission-queue/wake") {
+        return new Response(null, { status: 202 });
+      }
+      return new Response(null, { status: 404 });
+    });
+
+    const result = await wakeFranceSubmissionWorker("job-france", {
+      env: {
+        NODE_ENV: "production",
+        FLY_SUBMISSION_ORG_TOKEN: "fly-token",
+        FLY_SUBMISSION_LEGACY_APP: "viza-prod-submission-legacy",
+        SUBMISSION_SERVICE_CLOUD_URL: "https://legacy-worker.example.test",
+        VIETNAM_SUBMISSION_SERVICE_URL: "https://vietnam-worker.example.test",
+        SUBMISSION_QUEUE_INTERNAL_TOKEN: "secret-token",
+      },
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "https://api.machines.dev/v1/apps/viza-prod-submission-legacy/machines",
+      expect.anything(),
+    );
+    expect(fetchImpl).not.toHaveBeenCalledWith(
+      "https://vietnam-worker.example.test/internal/submission-queue/wake",
+      expect.anything(),
+    );
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "https://legacy-worker.example.test/internal/submission-queue/wake",
+      expect.objectContaining({ body: JSON.stringify({ jobId: "job-france" }) }),
     );
   });
 
