@@ -79,6 +79,13 @@ the 0151 definition; service_role-only grants are re-applied. Apply it before
 deploying a worker that sets `SUBMISSION_SERVICE_PROVIDER_DENYLIST`. Keep
 `20261119120000_claim_provider_denylist.sql` byte-identical.
 
+`0217_claim_uk_live_assisted.sql` restores `uk_live_assisted_pending` to the
+eight-argument `claim_submission_queue_batch` status list omitted by 0212. It
+preserves the provider denylist, `FOR UPDATE SKIP LOCKED` lease fence, and
+service-role-only execution, and asserts those invariants against
+`pg_get_functiondef` inside the migration transaction. Keep
+`20261120150000_claim_uk_live_assisted.sql` byte-identical.
+
 ## Key Responsibilities
 
 - Keep migration filenames sequentially numbered.

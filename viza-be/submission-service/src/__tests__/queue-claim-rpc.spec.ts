@@ -122,6 +122,50 @@ test("submission_queue claim migration uses skip-locked leases and service-role-
   assert.match(sql, /grant execute on function public\.claim_submission_queue_batch[\s\S]*to service_role/);
 });
 
+test("migration 0217 restores UK live-assisted claims with the lease and ACL fences", () => {
+  const drizzlePath = path.join(
+    repoRoot,
+    "viza-be",
+    "agent-backend",
+    "drizzle",
+    "0217_claim_uk_live_assisted.sql",
+  );
+  const supabasePath = path.join(
+    repoRoot,
+    "viza-fe",
+    "internal-website",
+    "supabase",
+    "migrations",
+    "20261120150000_claim_uk_live_assisted.sql",
+  );
+  const sql = readFileSync(drizzlePath, "utf8");
+  const legacySql = readFileSync(
+    path.join(repoRoot, "viza-be", "agent-backend", "drizzle", "0212_claim_provider_denylist.sql"),
+    "utf8",
+  );
+  assert.equal(readFileSync(supabasePath, "utf8"), sql);
+  assert.match(sql, /CREATE OR REPLACE FUNCTION public\.claim_submission_queue_batch\(/i);
+  const extractCandidateStatuses = (source: string) => {
+    const match = source.match(/sq\.status IN \(\s*([\s\S]*?)\s*\)\s*OR\s*\(/i);
+    assert.ok(match, "claim candidate status list is present");
+    return [...(match?.[1].matchAll(/'([^']+)'/g) ?? [])].map((entry) => entry[1]);
+  };
+  const legacyCandidates = extractCandidateStatuses(legacySql);
+  const currentCandidates = extractCandidateStatuses(sql);
+  assert.deepEqual(
+    currentCandidates.filter((status) => !legacyCandidates.includes(status)),
+    ["uk_live_assisted_pending"],
+  );
+  assert.match(sql, /WHEN sq\.status IN \(\s*'vn_live_assisted_pending',\s*'uk_live_assisted_pending'\s*\) THEN 2/s);
+  assert.match(sql, /FOR UPDATE SKIP LOCKED/);
+  assert.match(sql, /locked_until = NOW\(\) \+ MAKE_INTERVAL/);
+  assert.match(sql, /REVOKE ALL ON FUNCTION public\.claim_submission_queue_batch\([\s\S]*?TEXT\[\], BOOLEAN, TEXT\[\]\s*\) FROM PUBLIC, anon, authenticated;/i);
+  assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.claim_submission_queue_batch\([\s\S]*?TEXT\[\], BOOLEAN, TEXT\[\]\s*\) TO service_role;/i);
+  assert.match(sql, /to_regprocedure\(/);
+  assert.match(sql, /pg_get_functiondef/);
+  assert.match(sql, /has_function_privilege\('service_role'/);
+});
+
 test("Vietnam cloud claim migration isolates the new status behind its own service-role RPC", () => {
   const legacySql = readFileSync(migrationPath, "utf8").toLowerCase();
   const cloudSql = readFileSync(vietnamCloudMigrationPath, "utf8").toLowerCase();
