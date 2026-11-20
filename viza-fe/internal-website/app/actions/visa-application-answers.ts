@@ -1794,6 +1794,7 @@ const APPLICATION_FORM_CONTEXT_COLUMNS = [
   "country",
   "visa_type",
   "purpose",
+  "qa_archived_at",
   "status",
   "submission_result_status",
   "result_status",
@@ -1854,8 +1855,11 @@ export async function loadApplicationFormContext(
     const resolvedVisaType = getFormVisaType(visaType);
     const applicationRows = (applicationRowsResult.data ?? []) as unknown as
       Record<string, unknown>[];
+    // QA dry runs and records archived out of the queues by QA are never the
+    // applicant's current application. Home applies the same rule, so the
+    // form and Home always resolve the same application.
     const applications = applicationRows.filter(
-      (row) => !isQaDryRunPurpose(row.purpose)
+      (row) => !isQaDryRunPurpose(row.purpose) && !row.qa_archived_at
     );
     const matchingApplications = applications.filter((row) =>
       applicationIdentityMatches(row, country, resolvedVisaType)

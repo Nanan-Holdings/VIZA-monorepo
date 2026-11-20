@@ -303,6 +303,38 @@ describe("visa application answer query budget", () => {
     );
   });
 
+  it("never resolves a QA-archived application for the form, so Home and the form agree", async () => {
+    const profileQuery = query({ data: { ...owner, full_name: "Chen Ming" }, error: null });
+    const applicationsQuery = query({
+      data: [
+        {
+          id: "qa-archived-france",
+          country: "france",
+          visa_type: "EU_SCHENGEN_C_SHORT_STAY",
+          purpose: null,
+          status: "archived",
+          qa_archived_at: "2026-10-18T17:58:48Z",
+          submission_result_status: "completed",
+          result_status: null,
+          submission_result: null,
+        },
+      ],
+      error: null,
+    });
+    const from = vi.fn((table: string) => {
+      if (table === "applicant_profiles") return profileQuery;
+      if (table === "applications") return applicationsQuery;
+      if (table === "universal_profile_answers") return query({ data: [], error: null });
+      throw new Error(`Unexpected table query: ${table}`);
+    });
+    mocks.createAdminClient.mockReturnValue({ from });
+
+    const result = await loadApplicationFormContext("france", "EU_SCHENGEN_C_SHORT_STAY", { preferExplicit: true });
+
+    expect(result.application ?? null).toBeNull();
+    expect(applicationsQuery.select).toHaveBeenCalledWith(expect.stringContaining("qa_archived_at"));
+  });
+
   it("skips the package read when resolving an explicit product", async () => {
     const profileQuery = query({ data: owner, error: null });
     const applicationsQuery = query({
