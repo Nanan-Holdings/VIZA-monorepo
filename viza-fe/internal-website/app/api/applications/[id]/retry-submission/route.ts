@@ -2620,6 +2620,13 @@ export async function POST(
       queueResult.jobId
         ? await wakeUkSubmissionWorker(queueResult.jobId)
         : null;
+    // A France job waiting for its next attempt is only picked up when the
+    // legacy worker is awake; resubmitting must wake it, not just echo the job.
+    const franceWake =
+      isFranceLiveRetryApplication(ownedApplication.country, ownedApplication.visa_type) &&
+      queueResult.jobId
+        ? await wakeFranceSubmissionWorker(queueResult.jobId)
+        : null;
     return NextResponse.json({
       ok: true,
       applicationId,
@@ -2633,7 +2640,7 @@ export async function POST(
       result: sanitizeCustomerSubmissionResult(ownedApplication.submission_result),
       queueTransport: isTaiwanFormalSubmit ? "runner_job" : poolEnqueue?.transport ?? "submission_queue",
       queueBackend: isTaiwanFormalSubmit ? "runner_job" : undefined,
-      workerTriggered: poolEnqueue?.workerTriggered ?? stickyWake?.ok ?? ds160Wake?.ok ?? ukWake?.ok ?? false,
+      workerTriggered: poolEnqueue?.workerTriggered ?? stickyWake?.ok ?? ds160Wake?.ok ?? ukWake?.ok ?? franceWake?.ok ?? false,
       ...(ukWake ? { workerWakeStatus: ukWake.ok ? "accepted" : "pending" } : {}),
     });
   }
