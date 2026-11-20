@@ -32,7 +32,7 @@ import {
 } from "./accueil";
 import { fillStep1, fillStep2, fillStep3, fillStep4, fillStep5 } from "./fill-steps";
 import { waitForPage, detectPage, type FvPageId } from "./pages";
-import { readValidationMessages } from "./navigator";
+import { readInvalidFieldNames, readValidationMessages } from "./navigator";
 import { waitForJsfIdle } from "./primefaces-ajax";
 import { NavigationError, serializeError } from "./errors";
 import type { FvApplicationAnswers } from "./field-mappings";
@@ -425,8 +425,9 @@ async function advanceStep(
       if (validation?.all.length) {
         const buttons = await readVisibleButtons(page).catch(() => []);
         const bodyPreview = await readBodyPreview(page).catch(() => "");
+        const invalidFields = await readInvalidFieldNames(page).catch(() => [] as string[]);
         throw new NavigationError(
-          `France-Visas ${from} rejected advance: ${validation.all[0]}`,
+          `France-Visas ${from} rejected advance: ${validation.all[0]}${invalidFields.length ? ` [fields=${invalidFields.join(",")}]` : ""}`,
           {
             expected: to,
             detected: from,

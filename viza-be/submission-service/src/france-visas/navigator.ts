@@ -44,6 +44,26 @@ export async function readValidationMessages(page: Page): Promise<FvValidationRe
   return { summary, fieldErrors, all };
 }
 
+/**
+ * Names of the form fields France-Visas marked invalid (PrimeFaces/JSF
+ * `ui-state-error` or `aria-invalid`), e.g. "formStep2:visas-input-applicant-zipcode".
+ * Field names only — never their values.
+ */
+export async function readInvalidFieldNames(page: Page): Promise<string[]> {
+  const names = await page.evaluate(`(() => {
+    const out = new Set();
+    const controls = document.querySelectorAll(
+      '[aria-invalid="true"], input.ui-state-error, select.ui-state-error, textarea.ui-state-error, .ui-state-error input, .ui-state-error select, .ui-state-error textarea'
+    );
+    for (const el of controls) {
+      const name = el.getAttribute("name") || el.getAttribute("id") || "";
+      if (name && el.getAttribute("type") !== "hidden") out.add(name);
+    }
+    return Array.from(out).slice(0, 20);
+  })()`);
+  return Array.isArray(names) ? (names as string[]) : [];
+}
+
 export async function hasValidationErrors(page: Page): Promise<boolean> {
   const report = await readValidationMessages(page);
   return report.all.length > 0;
