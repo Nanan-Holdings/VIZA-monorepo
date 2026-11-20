@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { FvApplicationAnswers } from "../field-mappings";
 import {
+  FranceAccountRequiredError,
   FranceAnswersInvalidError,
   containsNonLatinText,
   findFranceAnswerIssues,
@@ -113,4 +114,11 @@ test("a missing submission centre is reported before France-Visas is opened", ()
   assert.deepEqual(findFranceAnswerIssues(answers).map((issue) => [issue.field, issue.reason, issue.answerFields[0]]), [
     ["depositTown", "missing", "submission_centre"],
   ]);
+});
+
+test("a missing France-Visas login is a non-retried data error with a Chinese fix-it", () => {
+  const error = new FranceAccountRequiredError();
+  assert.ok(error instanceof NormalizationError);
+  assert.equal(error.errorCode, "france_account_required");
+  assert.match(error.messageZh, /关联您的 France-Visas 账号/);
 });

@@ -73,6 +73,12 @@ kill_timeout = "5m"
   FRANCE_TLS_ACCOUNT_REGISTRATION_ENABLED = "false"
   FRANCE_TLS_LOCAL_OFFICIAL_SESSION_ENABLED = "false"
   FRANCE_TLS_LIVE_BOOKING_ENABLED = "false"
+  # France-Visas live prefill (no payment, no appointment). Applicants link the
+  # France-Visas login they registered themselves; automatic registration and
+  # CAPTCHA solving stay off. Fly has no display, so the browser is headless.
+  FRANCE_SUBMISSION_MODE = "live_assisted"
+  FRANCE_LIVE_SUBMISSION_ENABLED = "true"
+  FRANCE_PLAYWRIGHT_HEADLESS = "true"
 
 [http_service]
   internal_port = 8080

@@ -140,6 +140,21 @@ export class FranceAnswersInvalidError extends NormalizationError {
   }
 }
 
+/**
+ * No France-Visas login is linked and automatic registration is off. The
+ * applicant registers on france-visas.gouv.fr themselves and links the login
+ * in VIZA; retrying without one cannot succeed, so it is a data error.
+ */
+export class FranceAccountRequiredError extends NormalizationError {
+  readonly errorCode = "france_account_required" as const;
+  readonly messageZh =
+    "请先在 VIZA 关联您的 France-Visas 账号（在 france-visas.gouv.fr 注册后填写邮箱和密码），然后重新提交。";
+  constructor() {
+    super("fv_account", "No France-Visas account is linked for this applicant");
+    this.name = "FranceAccountRequiredError";
+  }
+}
+
 /** Applicant-facing Chinese message listing what to fix (no answer values). */
 export function franceAnswerIssuesMessageZh(issues: FranceAnswerIssue[]): string {
   const byReason = (reason: FranceAnswerIssue["reason"]) =>

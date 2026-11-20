@@ -118,6 +118,7 @@ import {
 } from "./france-visas";
 import {
   FranceAnswersInvalidError,
+  FranceAccountRequiredError,
   findFranceAnswerIssues,
   franceAnswerIssuesMessageZh,
 } from "./france-visas/fallbacks";
@@ -3455,14 +3456,16 @@ function normalizeFvAccountRow(row: Record<string, unknown> | null): FvAccount |
 }
 
 async function loadFvAccount(
-  applicantId: string,
+  userId: string | null | undefined,
   applicationId: string,
   queueId: string,
 ): Promise<FvAccount | null> {
+  // An account written for this application or queue item wins; otherwise
+  // the applicant's linked France-Visas login (one per user) is reused.
   const lookups: Array<{ column: string; value: string }> = [
-    { column: "applicant_id", value: applicantId },
     { column: "application_id", value: applicationId },
     { column: "submission_queue_id", value: queueId },
+    ...(userId ? [{ column: "user_id", value: userId }] : []),
   ];
 
   for (const lookup of lookups) {
@@ -3470,6 +3473,7 @@ async function loadFvAccount(
       .from("fv_accounts")
       .select("*")
       .eq(lookup.column, lookup.value)
+      .order("updated_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
@@ -3906,7 +3910,11 @@ async function processFvItem(
     if (answerIssues.length > 0) throw new FranceAnswersInvalidError(answerIssues);
 
     await writeFvStage("loading_official_account");
-    let account = await loadFvAccount(application.applicant_id, item.application_id, item.id);
+    let account = await loadFvAccount(profile.auth_user_id, item.application_id, item.id);
+    if (!account && !config.accountRegistrationEnabled) {
+      // Applicants link the France-Visas login they registered themselves.
+      throw new FranceAccountRequiredError();
+    }
     if (!account) {
       if (liveAssisted) {
         try {
@@ -4223,14 +4231,16 @@ async function processFvItem(
               official_status: isGateFailure ? "manual_action_required" : "official_portal_error",
               error_code: isGateFailure
                 ? "france_visas_manual_gate"
-                : err instanceof FranceAnswersInvalidError
+                : err instanceof FranceAnswersInvalidError || err instanceof FranceAccountRequiredError
                   ? err.errorCode
                   : isNormalizationFailure
                     ? "france_visas_normalization_failed"
                     : "france_visas_unhandled_error",
               error_message: err instanceof FranceAnswersInvalidError
                 ? franceAnswerIssuesMessageZh(err.issues)
-                : errorMsg,
+                : err instanceof FranceAccountRequiredError
+                  ? err.messageZh
+                  : errorMsg,
             }
           : {}),
         ...(err instanceof FranceAnswersInvalidError
@@ -4254,7 +4264,11 @@ async function processFvItem(
       // fix-it list instead of the internal field codes.
       await markSubmissionFailed(
         item.application_id,
-        err instanceof FranceAnswersInvalidError ? franceAnswerIssuesMessageZh(err.issues) : errorMsg,
+        err instanceof FranceAnswersInvalidError
+          ? franceAnswerIssuesMessageZh(err.issues)
+          : err instanceof FranceAccountRequiredError
+            ? err.messageZh
+            : errorMsg,
       );
       await sendFailureAlert(item.application_id, `[FV] ${errorMsg}`);
     }
