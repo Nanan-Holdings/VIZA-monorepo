@@ -91,6 +91,10 @@ export function validateFranceOfficialAnswers(
   };
 
   checkFields(APPLICANT_FIELDS);
+  // France-Visas step 1 needs the city of submission (TLScontact centre).
+  if (!text("submission_centre") && !text("fv_deposit_town")) {
+    problems.push({ field: "submission_centre", labelZh: "递交签证申请的城市", reason: "missing" });
+  }
 
   const accommodationType = text("accommodation_type").toLowerCase();
   if (accommodationType === "private_host") {

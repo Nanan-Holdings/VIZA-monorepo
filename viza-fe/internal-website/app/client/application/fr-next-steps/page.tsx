@@ -43,14 +43,16 @@ async function loadOwnedApplication(
       .eq("id", applicationId)
       .maybeSingle();
     if (!data || data.applicant_id !== profile.id) return null;
-    const { data: depositTownAnswer } = await admin
+    // The applicant's chosen centre (submission_centre) wins over a raw
+    // France-Visas town code (fv_deposit_town).
+    const { data: centreAnswers } = await admin
       .from("visa_application_answers")
-      .select("value_text")
+      .select("field_name, value_text")
       .eq("application_id", applicationId)
-      .eq("field_name", "fv_deposit_town")
-      .order("updated_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .in("field_name", ["submission_centre", "fv_deposit_town"])
+      .order("updated_at", { ascending: false });
+    const centreAnswer = (field: string) =>
+      centreAnswers?.find((answer) => answer.field_name === field)?.value_text;
     const result =
       data.submission_result && typeof data.submission_result === "object"
         ? (data.submission_result as Record<string, unknown>)
@@ -59,7 +61,7 @@ async function loadOwnedApplication(
       country: text(data.country),
       visaType: text(data.visa_type),
       applicationReference: text(result.applicationReference),
-      depositTown: text(depositTownAnswer?.value_text),
+      depositTown: text(centreAnswer("submission_centre")) ?? text(centreAnswer("fv_deposit_town")),
     };
   });
 }

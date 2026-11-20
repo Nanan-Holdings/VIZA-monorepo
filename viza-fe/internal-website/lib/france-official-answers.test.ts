@@ -16,6 +16,7 @@ const validHotelStay = {
   accommodation_address_line_1: "Place André Malraux",
   accommodation_postcode: "75001",
   accommodation_city: "Paris",
+  submission_centre: "changsha",
 };
 
 describe("validateFranceOfficialAnswers", () => {
@@ -59,5 +60,12 @@ describe("validateFranceOfficialAnswers", () => {
     expect(containsNonLatinText("Москва")).toBe(true);
     expect(containsNonLatinText("Beijing，Chaoyang")).toBe(true);
     expect(containsNonLatinText("Saint-Étienne (42)")).toBe(false);
+  });
+
+  it("requires the submission centre France-Visas files the application at", () => {
+    const { submission_centre: _omitted, ...withoutCentre } = validHotelStay;
+    expect(validateFranceOfficialAnswers(withoutCentre)).toEqual([
+      { field: "submission_centre", labelZh: "递交签证申请的城市", reason: "missing" },
+    ]);
   });
 });

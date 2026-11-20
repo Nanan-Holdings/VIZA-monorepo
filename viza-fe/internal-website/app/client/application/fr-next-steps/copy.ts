@@ -62,8 +62,12 @@ export const FV_DEPOSIT_TOWN_CENTRES: Readonly<Record<string, string>> = {
   "1PE": "beijing",
 };
 
+/** The applicant's centre from a VIZA centre key ("changsha") or a France-Visas town code ("1PE"). */
 export function centreForDepositTown(depositTown: string | null | undefined): TlsCentre | null {
-  const key = FV_DEPOSIT_TOWN_CENTRES[depositTown?.trim().toUpperCase() ?? ""];
+  const raw = depositTown?.trim() ?? "";
+  const key = TLS_CENTRES.some((centre) => centre.key === raw.toLowerCase())
+    ? raw.toLowerCase()
+    : FV_DEPOSIT_TOWN_CENTRES[raw.toUpperCase()];
   return TLS_CENTRES.find((centre) => centre.key === key) ?? null;
 }
 

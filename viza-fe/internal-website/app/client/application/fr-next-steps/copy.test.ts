@@ -42,6 +42,7 @@ describe("France next-steps guide", () => {
 
   it("maps the France-Visas deposit town code to its centre", () => {
     expect(centreForDepositTown("1pe")?.key).toBe("beijing");
+    expect(centreForDepositTown("changsha")?.key).toBe("changsha");
     expect(centreForDepositTown("XYZ")).toBeNull();
     expect(centreForDepositTown(null)).toBeNull();
   });
