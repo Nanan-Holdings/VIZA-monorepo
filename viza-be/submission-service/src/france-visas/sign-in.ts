@@ -234,6 +234,15 @@ export async function signInWithPassword(
         page.waitForURL(/accueil\.xhtml/i, { timeout: loginRedirectTimeoutMs }).catch(() => undefined),
         page.locator(FV_LOGIN_SELECTORS.submit).first().click(),
       ]);
+      // The redirect after the code sometimes fails in the remote browser
+      // (Chrome's own error page), although the session is signed in. Open
+      // the application home directly instead of waiting on the error page.
+      if (!/accueil\.xhtml/i.test(page.url())) {
+        await page
+          .goto(FV_URLS.ACCUEIL, { waitUntil: "domcontentloaded", timeout: loginRedirectTimeoutMs })
+          .catch(() => undefined);
+        await waitForRenderedPage(page, ENTRY_RENDER_TIMEOUT_MS);
+      }
     }
 
     const postLoginText = await page
