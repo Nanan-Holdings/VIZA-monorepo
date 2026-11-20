@@ -94,3 +94,14 @@ test("occupation words map to France-Visas codes; codes from other forms fall ba
   assert.equal(occupationText({ current_occupation: "Teacher" }, null), "Teacher");
   assert.equal(occupationText({}, "Farmer"), "Farmer");
 });
+
+test("the France-Visas access code is read from the authentication email", async () => {
+  const { extractFranceVisasLoginCode } = await import("../sign-in");
+  assert.equal(
+    extractFranceVisasLoginCode("Access code: 482913.\n\nThis code will expire within 300 seconds."),
+    "482913",
+  );
+  assert.equal(extractFranceVisasLoginCode("Code d'accès : 004512."), "004512");
+  assert.equal(extractFranceVisasLoginCode("This code will expire within 300 seconds."), null);
+  assert.equal(extractFranceVisasLoginCode(null), null);
+});

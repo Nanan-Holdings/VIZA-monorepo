@@ -127,7 +127,8 @@ import {
   ensureApplicationInboxAlias,
   generateApplicantInboxAlias,
 } from "./inbox/alias";
-import { assertInboxAliasDomainRoutable } from "./inbox/wait-for-message";
+import { assertInboxAliasDomainRoutable, inbox } from "./inbox/wait-for-message";
+import { extractFranceVisasLoginCode } from "./france-visas/sign-in";
 import { hasAliasEmailForwardingConsent } from "./inbox/forwarding-consent.js";
 import { createSupabaseMailboxProvider } from "./france-visas/mailbox-provider";
 import {
@@ -3995,6 +3996,22 @@ async function processFvItem(
         stepTimeoutMs: Math.min(config.liveMaxDurationSeconds * 1000, 30 * 60 * 1000),
         // Live progress: the current France-Visas phase, e.g. fv_stage:step3.
         onStage: (phase) => writeFvStage(`fv_stage:${phase}`),
+        // France-Visas emails a one-time access code after the password; read
+        // it from this application's own inbox alias.
+        loginCodeProvider: async (sinceIso) => {
+          const message = await inbox.waitForApplicationMessage(
+            item.application_id,
+            application.applicant_id,
+            (row) =>
+              /authentication code|code d'authentification/i.test(row.subject ?? "")
+              && extractFranceVisasLoginCode(row.text ?? row.html) !== null,
+            180_000,
+            { since: sinceIso, newestFirst: true },
+          );
+          const code = extractFranceVisasLoginCode(message.text ?? message.html);
+          if (!code) throw new Error("France-Visas access-code email had no 6-digit code");
+          return code;
+        },
         onOfficialPortalOpened: liveAssisted
           ? async ({ url }) => {
               const now = new Date().toISOString();

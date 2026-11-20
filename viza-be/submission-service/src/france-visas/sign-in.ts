@@ -52,6 +52,25 @@ export interface FvSignInOptions {
   retrySingleTabConflict?: boolean;
   /** Internal counter for bounded single-tab conflict recovery. */
   singleTabRetryAttempt?: number;
+  /**
+   * France-Visas emails a one-time access code after the password. Given the
+   * ISO time the login was submitted, resolve the 6-digit code from the
+   * account's inbox.
+   */
+  loginCodeProvider?: (sinceIso: string) => Promise<string>;
+}
+
+/** The one-time access-code field France-Visas shows after the password. */
+export const FV_LOGIN_CODE_INPUT =
+  'input[autocomplete="one-time-code"], input[name="otp"], input[id="otp"], input[name="code"], input[name="totp"], input[name*="code" i]:not([type="hidden"]):not([type="password"])';
+
+/** The 6-digit access code in France-Visas' "Your authentication code" email. */
+export function extractFranceVisasLoginCode(text: string | null | undefined): string | null {
+  if (!text) return null;
+  const labelled = text.match(/code\D{0,20}(\d{6})\b/i);
+  if (labelled) return labelled[1];
+  const bare = text.match(/\b(\d{6})\b/);
+  return bare ? bare[1] : null;
 }
 
 export interface FvSessionHandles {
@@ -185,13 +204,37 @@ export async function signInWithPassword(
     await username.fill(input.email);
     await password.fill(input.password);
 
-    // Click Log in and wait for the redirect chain to settle on accueil.
+    // Click Log in, then either land on accueil or reach France-Visas'
+    // emailed one-time access-code step.
     const submit = page.locator(FV_LOGIN_SELECTORS.submit).first();
     const loginRedirectTimeoutMs = Math.min(timeoutMs, 60_000);
-    await Promise.all([
-      page.waitForURL(/accueil\.xhtml/i, { timeout: loginRedirectTimeoutMs }).catch(() => undefined),
-      submit.click(),
+    const loginSubmittedAt = new Date(Date.now() - 5_000).toISOString();
+    await submit.click();
+    const reachedAccueil = page
+      .waitForURL(/accueil\.xhtml/i, { timeout: loginRedirectTimeoutMs })
+      .then(() => "accueil" as const)
+      .catch(() => "timeout" as const);
+    const askedForCode = page
+      .locator(FV_LOGIN_CODE_INPUT)
+      .first()
+      .waitFor({ state: "visible", timeout: loginRedirectTimeoutMs })
+      .then(() => "code" as const)
+      .catch(() => "timeout" as const);
+    const afterLogin = await Promise.race([
+      reachedAccueil,
+      askedForCode.then((outcome) => (outcome === "code" ? outcome : reachedAccueil)),
     ]);
+    if (afterLogin === "code") {
+      if (!options.loginCodeProvider) {
+        throw new Error("France-Visas asked for the emailed access code, but no inbox is available to read it");
+      }
+      const code = await options.loginCodeProvider(loginSubmittedAt);
+      await page.locator(FV_LOGIN_CODE_INPUT).first().fill(code);
+      await Promise.all([
+        page.waitForURL(/accueil\.xhtml/i, { timeout: loginRedirectTimeoutMs }).catch(() => undefined),
+        page.locator(FV_LOGIN_SELECTORS.submit).first().click(),
+      ]);
+    }
 
     const postLoginText = await page
       .locator("body")

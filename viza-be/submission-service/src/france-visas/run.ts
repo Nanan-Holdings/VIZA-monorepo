@@ -64,6 +64,8 @@ export interface FillFranceVisasOptions {
   pdfOutputDir?: string;
   /** Optional heartbeat invoked once a signed-in official portal page is open. */
   onOfficialPortalOpened?: (info: { url: string }) => Promise<void> | void;
+  /** Reads the one-time access code France-Visas emails at sign-in. */
+  loginCodeProvider?: (sinceIso: string) => Promise<string>;
   /** Called when the run enters a phase (sign-in, step1..step6, finalize), for live progress. */
   onStage?: (phase: string) => Promise<void> | void;
   /** Where to save failure screenshots. Default: an OS temp directory. */
@@ -188,6 +190,7 @@ export async function fillFranceVisasApplication(
     session = await signInWithPassword(input.credentials, {
       headless: options.headless ?? true,
       runId,
+      loginCodeProvider: options.loginCodeProvider,
     });
     logRun(runId, "sign-in complete");
     await enterPhase("start_application");
