@@ -28,8 +28,8 @@ function noStoreHeaders() {
 }
 
 /**
- * Whether a France-Visas login is linked: the applicant's own linked account
- * (by auth user) or one written for this application. Browser-safe status
+ * Whether this application's France-Visas account exists (the worker
+ * registers one per application). Browser-safe status
  * only — credentials are encrypted with a key this app does not hold, and are
  * never selected here.
  */
@@ -82,7 +82,7 @@ export async function GET(
   const { data: accountData, error: accountError } = await admin
     .from("fv_accounts")
     .select("id, updated_at, created_at")
-    .or(`user_id.eq.${user.id},application_id.eq.${application.id}`)
+    .eq("application_id", application.id)
     .order("updated_at", { ascending: false, nullsFirst: false })
     .limit(1)
     .maybeSingle();
