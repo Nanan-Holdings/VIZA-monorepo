@@ -18,9 +18,11 @@ import {
 
 const refresh = vi.fn();
 const push = vi.fn();
+const prefetch = vi.fn();
+const router = { push, refresh, prefetch };
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push, refresh }),
+  useRouter: () => router,
 }));
 
 vi.mock("@/app/actions/user-package", () => ({
@@ -267,6 +269,11 @@ describe("applications selector", () => {
     );
     expect(push).not.toHaveBeenCalledWith("/client/home");
     expect(readActiveApplicationSelection()).toMatchObject({ applicationId: null, country: "france" });
+    // The package's form and Home were preloaded before the click.
+    expect(prefetch).toHaveBeenCalledWith(
+      "/client/application/long-form?country=france&visaType=EU_SCHENGEN_C_SHORT_STAY",
+    );
+    expect(prefetch).toHaveBeenCalledWith("/client/home");
   });
 
   it("keeps the clicked country panel mounted while the switch is pending", async () => {

@@ -1922,6 +1922,17 @@ export default function ApplicationPage() {
     return prefetch.documents;
   }, []);
 
+  // Resolves once the first application-data load has finished (loading false).
+  const initialFormDataGateRef = useRef<{ promise: Promise<void>; resolve: () => void } | null>(null);
+  const waitForInitialFormData = useCallback((): Promise<void> => {
+    if (!initialFormDataGateRef.current) {
+      let resolve: () => void = () => undefined;
+      const promise = new Promise<void>((settle) => { resolve = settle; });
+      initialFormDataGateRef.current = { promise, resolve };
+    }
+    return initialFormDataGateRef.current.promise;
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     let packageLookupFailed = false;
@@ -1980,13 +1991,6 @@ export default function ApplicationPage() {
       }
     };
 
-    const stepsPromise = explicitVisaType
-      ? loadStepsWithRetry(explicitVisaType, explicitProductCountry)
-      : packagePromise.then((pkg) => loadStepsWithRetry(
-          pkg?.visa_type ?? "ID_C1_TOURIST",
-          pkg?.country ?? null,
-        ));
-
     // Render a returning applicant's form from the browser copy of the schema
     // right away; the server copy below replaces it only if it changed.
     const cachedSteps = explicitVisaType
@@ -1996,6 +2000,22 @@ export default function ApplicationPage() {
       setDbSteps(ensureVnPrearrivalOtherFlightFlow(cachedSteps));
       setPackageLoaded(true);
     }
+
+    // Next.js runs a page's server actions one at a time. With a browser copy
+    // the refresh is not urgent, so let the application data load first
+    // (or wait at most 8s) instead of queueing it behind the refresh.
+    const refreshAfterInitialData = (): Promise<void> =>
+      Promise.race([
+        waitForInitialFormData(),
+        new Promise<void>((resolve) => window.setTimeout(resolve, 8_000)),
+      ]);
+    const stepsPromise = explicitVisaType
+      ? (cachedSteps ? refreshAfterInitialData() : Promise.resolve())
+          .then(() => loadStepsWithRetry(explicitVisaType, explicitProductCountry))
+      : packagePromise.then((pkg) => loadStepsWithRetry(
+          pkg?.visa_type ?? "ID_C1_TOURIST",
+          pkg?.country ?? null,
+        ));
 
     void stepsPromise
       .then((steps) => {
@@ -2015,9 +2035,15 @@ export default function ApplicationPage() {
     return () => {
       cancelled = true;
     };
-  }, [explicitApplicationId, explicitProductCountry, explicitVisaType, isExplicitStatusView, router]);
+  }, [explicitApplicationId, explicitProductCountry, explicitVisaType, isExplicitStatusView, router, waitForInitialFormData]);
 
   const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    if (!loading) {
+      waitForInitialFormData();
+      initialFormDataGateRef.current?.resolve();
+    }
+  }, [loading, waitForInitialFormData]);
   const [currentStep, setCurrentStep] = useState(0);
   const [_completedUpTo, setCompletedUpTo] = useState(0);
   const [appState, setAppState] = useState<ApplicationState>({

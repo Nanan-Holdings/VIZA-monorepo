@@ -203,6 +203,16 @@ export function ApplicationsList({
     [progressItems]
   );
 
+  // Preload where a switch will go (Home, or a package's own form) so the page
+  // is ready by the time the destination switch finishes.
+  useEffect(() => {
+    const targets = new Set<string>(["/client/home"]);
+    for (const record of ongoingRecords) {
+      if (!record.applicationId && record.continueHref) targets.add(record.continueHref);
+    }
+    for (const target of targets) router.prefetch(target);
+  }, [ongoingRecords, router]);
+
   useEffect(() => {
     const synchronizeSelection = () => {
       // Keep the status-page panels stable while the selected application is
