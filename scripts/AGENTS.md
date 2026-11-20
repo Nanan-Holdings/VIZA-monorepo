@@ -97,6 +97,9 @@ smoke-test helpers for the VIZA monorepo.
   version/name, the superseded local version is confirmed absent, and the
   project ref plus durable read-only evidence run are pinned. Never replay the
   migration merely to manufacture the repository's former version number.
+  The UK 0215 mirror entry is only a repository classification; it does not
+  authorize production apply. An approved batch must separately pin the final
+  source commit and structured catalog/ledger preconditions.
 - `database-architecture/approved-migration-batches.json`: reviewed batch ids,
   exact migration paths/versions/SHA-256 values, execution modes, and migration
   ledger pre/postconditions used by `apply-approved-batch`.
