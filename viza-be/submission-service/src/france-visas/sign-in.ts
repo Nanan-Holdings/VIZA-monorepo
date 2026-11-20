@@ -129,6 +129,20 @@ export async function restoreFvSession(
  * path will fail with a gate error — the caller should retry from a fresh
  * IP or surface the blocker to ops.
  */
+/** How long the France-Visas entry/login page may take to render. */
+export const ENTRY_RENDER_TIMEOUT_MS = 30_000;
+
+/** Resolve once the page has a title or visible text, or after `timeoutMs`. */
+export async function waitForRenderedPage(page: Page, timeoutMs: number): Promise<void> {
+  await page
+    .waitForFunction(
+      `(() => Boolean(document.title.trim()) || Boolean(document.body && document.body.innerText.trim()))()`,
+      undefined,
+      { timeout: timeoutMs, polling: 250 },
+    )
+    .catch(() => undefined);
+}
+
 export async function signInWithPassword(
   input: FvSignInInput,
   options: FvSignInOptions = {},
@@ -146,6 +160,11 @@ export async function signInWithPassword(
       waitUntil: "domcontentloaded",
       timeout: timeoutMs,
     });
+
+    // Through the remote browser the Keycloak login page stays empty for
+    // several seconds after the HTML arrives (measured ~6-10s). Wait for it to
+    // render before judging it; a page still blank after this is a real gate.
+    await waitForRenderedPage(page, ENTRY_RENDER_TIMEOUT_MS);
 
     const entryText = await page
       .locator("body")
