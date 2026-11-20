@@ -62,6 +62,7 @@ import {
   isSyntheticQaValue,
 } from "@/lib/applications/qa-safety";
 import { sanitizeCustomerSubmissionResult } from "@/app/api/applications/customer-submission-result";
+import { sanitizeUkPlaceholderAnswers } from "@/lib/uk-placeholder-answers";
 import { canContinueKoreaArrivalPreflight } from "@/app/client/arrival-cards/south-korea/eligibility";
 import { buildKoreaEArrivalPreflightAnswerPatch } from "@/features/kr-arrival-card/preflight";
 import { CANADA_IRCC_PORTAL_TERMS_CONSENT, isCanadaTrvApplication } from "@/lib/canada-trv-completion";
@@ -816,7 +817,7 @@ async function saveDynamicAnswersOnce(
 
     const normalized = normalizeDynamicAnswers(data);
     if (!normalized.ok) return { error: normalized.error };
-    const answers = normalized.data;
+    let answers = normalized.data;
     const savedAt = new Date().toISOString();
     let resilienceEvent: ApplicationAnswersEvent = {
       version: 1,
@@ -872,9 +873,11 @@ async function saveDynamicAnswersOnce(
     })) {
       return { error: "Application is already submitted and read-only" };
     }
+    answers = sanitizeUkPlaceholderAnswers(answers, app.visa_type);
     resilienceEvent = {
       ...resilienceEvent,
       applicantId: ownedSession.userId,
+      answers,
     };
 
     const now = savedAt;
@@ -1283,8 +1286,10 @@ export async function saveUniversalProfileAnswerValues(input: {
       existingResult.answers.map((answer) => answer.canonicalKey)
     );
     const now = new Date().toISOString();
-    const upserts: Record<string, unknown>[] = [];
-    const deletes: string[] = [];
+    // Keyed by canonical key so two inputs that canonicalize to the same key
+    // never put the same row into one upsert batch twice (last one wins).
+    const upsertsByKey = new Map<string, Record<string, unknown>>();
+    const deletes = new Set<string>();
 
     for (const answer of input.answers) {
       const canonicalKey = canonicalizeUniversalProfileFieldName(
@@ -1294,9 +1299,11 @@ export async function saveUniversalProfileAnswerValues(input: {
       if (!definition && !existingKeys.has(canonicalKey)) continue;
       const value = cleanOptional(answer.value);
       if (!value) {
-        deletes.push(canonicalKey);
+        upsertsByKey.delete(canonicalKey);
+        deletes.add(canonicalKey);
         continue;
       }
+      deletes.delete(canonicalKey);
       const valueZh = cleanOptional(answer.valueZh);
       const valueEn = cleanOptional(answer.valueEn);
       if (
@@ -1308,7 +1315,7 @@ export async function saveUniversalProfileAnswerValues(input: {
           error: `Synthetic QA data is not allowed in Universal Profile (${canonicalKey}).`,
         };
       }
-      upserts.push({
+      upsertsByKey.set(canonicalKey, {
         applicant_id: profileResult.profile.id,
         auth_user_id: user.id,
         canonical_key: canonicalKey,
@@ -1326,12 +1333,13 @@ export async function saveUniversalProfileAnswerValues(input: {
       });
     }
 
-    if (deletes.length > 0) {
+    const upserts = [...upsertsByKey.values()];
+    if (deletes.size > 0) {
       const { error } = await adminClient
         .from("universal_profile_answers")
         .delete()
         .eq("auth_user_id", user.id)
-        .in("canonical_key", deletes);
+        .in("canonical_key", [...deletes]);
       if (error) return { error: error.message };
     }
     if (upserts.length > 0) {
@@ -1341,7 +1349,7 @@ export async function saveUniversalProfileAnswerValues(input: {
       if (error) return { error: error.message };
     }
 
-    return { savedCount: upserts.length, deletedCount: deletes.length };
+    return { savedCount: upserts.length, deletedCount: deletes.size };
   } catch (err) {
     return {
       error:
@@ -1413,7 +1421,10 @@ export async function syncApplicationAnswersToUniversalProfile(
       ).map((row) => [row.field_name, row.value_text?.trim() ?? ""] as const)
     );
     const now = new Date().toISOString();
-    const upserts: Record<string, unknown>[] = [];
+    // Keyed by canonical key: several form fields (aliases, renamed fields)
+    // can canonicalize to the same key, and Postgres rejects an upsert batch
+    // that touches the same (auth_user_id, canonical_key) row twice.
+    const upsertsByKey = new Map<string, Record<string, unknown>>();
     const legacyProfilePatch: Record<string, string> = {};
     let skippedCount = 0;
 
@@ -1443,6 +1454,14 @@ export async function syncApplicationAnswersToUniversalProfile(
         continue;
       }
       const canonicalKey = `${canonicalizeUniversalProfileFieldName(baseKey)}${repeatSuffix}`;
+      // When two fields share a canonical key, the field already named with
+      // the canonical key wins over an alias.
+      const existing = upsertsByKey.get(canonicalKey);
+      if (existing && existing.source_field_name === canonicalKey) {
+        skippedCount += 1;
+        continue;
+      }
+      if (existing) skippedCount += 1;
       const legacyColumn = repeatSuffix
         ? null
         : UNIVERSAL_TO_LEGACY_PROFILE_COLUMN[canonicalKey];
@@ -1461,7 +1480,7 @@ export async function syncApplicationAnswersToUniversalProfile(
           legacyProfilePatch[`${legacyColumn}_en`] = valueEn;
         }
       }
-      upserts.push({
+      upsertsByKey.set(canonicalKey, {
         applicant_id: application.applicant_id,
         auth_user_id: user.id,
         canonical_key: canonicalKey,
@@ -1483,6 +1502,7 @@ export async function syncApplicationAnswersToUniversalProfile(
       });
     }
 
+    const upserts = [...upsertsByKey.values()];
     if (upserts.length === 0) return { savedCount: 0, skippedCount };
     const { error: upsertError } = await adminClient
       .from("universal_profile_answers")
