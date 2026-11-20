@@ -35,6 +35,11 @@ and internal admin flows.
   `submission-result.routes.uk-legacy.test.ts`: regressions for owner/product
   checks, application binding, decryption/error sanitization, no-store
   responses, and retirement of the legacy UK GET.
+- `france-visas-account.routes.ts`: owner-bearer POST that links the France-Visas
+  login an applicant registered themselves. Both values are encrypted with the
+  shared submission cipher into `fv_accounts` (service-role only), one row per
+  user (`provider = 'france_visas'`); the password is never returned or logged.
+  The worker signs in with it; it never creates France-Visas accounts.
 - `jp-vjw-credentials.ts`: application-scoped Visit Japan Web vault-key and
   strict legacy-alias compatibility policy. Plaintext credentials must never
   enter logs, GET responses, or `submission_result`.

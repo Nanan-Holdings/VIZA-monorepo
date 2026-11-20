@@ -17,6 +17,7 @@ import submissionResultRouter from './routes/submission-result.routes.js';
 import passportScanRouter from './routes/passport-scan.routes.js';
 import { createPassportScanAdmission } from './routes/passport-scan-admission.js';
 import ukAccountRouter from './routes/uk-account.routes.js';
+import franceVisasAccountRouter from './routes/france-visas-account.routes.js';
 import {
   usAppointmentApplicationRouter,
   usAppointmentOperationsRouter,
@@ -213,6 +214,7 @@ app.use('/api/applications', submissionResultRouter);
 
 // UK account credential registration (for forceResume + post-auth walk)
 app.use('/api/applications', ukAccountRouter);
+app.use('/api/applications', franceVisasAccountRouter);
 
 const bodyParserErrorHandler: ErrorRequestHandler = (error, _req, res, next) => {
   if (
