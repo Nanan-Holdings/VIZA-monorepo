@@ -1073,7 +1073,7 @@ function TravelAiPickerDialog({
                 : "No Travel AI itinerary was found in this browser for this application."}
             </p>
             <Button asChild type="button" variant="outline" className="mt-4">
-              <Link href="/client/travel-chat">
+              <Link href="/client/travel-chat" target="_blank" rel="noopener noreferrer">
                 <ExternalLink className="h-4 w-4" />
                 {isZh ? "打开旅行 AI" : "Open Travel AI"}
               </Link>
