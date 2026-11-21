@@ -151,7 +151,7 @@ export async function finalizeAndDownloadPdf(
 
   // 1. Locate the just-created application's row + its in-progress PDF
   //    link + the FRA reference assigned during step 6.
-  const target = await pickInProgressPdfTarget(page, options.draftReference);
+  const target = await retryAfterNavigation(page, () => pickInProgressPdfTarget(page, options.draftReference));
   if (!target) {
     throw new NavigationError(
       `Could not locate "Read pdf application in progress" link for our draft on accueil`,
@@ -571,6 +571,25 @@ async function downloadFinalApplicationPdf(
     throw new NavigationError("Final France-Visas PDF could not be saved", { url: page.url() });
   }
   return saved;
+}
+
+/**
+ * Run a page read that can race the dashboard's own navigation ("Execution
+ * context was destroyed"): wait for the page to settle and try again.
+ */
+export async function retryAfterNavigation<T>(page: Page, read: () => Promise<T>, attempts = 4): Promise<T> {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await read();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (attempt >= attempts || !/context was destroyed|because of a navigation/i.test(message)) {
+        throw err;
+      }
+      await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
+      await page.waitForTimeout(1_000 * attempt);
+    }
+  }
 }
 
 /**

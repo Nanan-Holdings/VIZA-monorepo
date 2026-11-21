@@ -28,6 +28,7 @@ import { signInWithPassword, type FvSignInInput, type FvSessionHandles } from ".
 import {
   continueConfirmedApplication,
   finalizeAndDownloadPdf,
+  retryAfterNavigation,
   startNewApplication,
 } from "./accueil";
 import { fillStep1, fillStep2, fillStep3, fillStep4, fillStep5 } from "./fill-steps";
@@ -270,7 +271,8 @@ export async function fillFranceVisasApplication(
       })()`,
       { timeout: Math.min(stepTimeoutMs, 30_000) },
     ).catch(() => undefined);
-    const draftReference = await captureLatestApplicationReference(session.page);
+    const dashboard = session.page;
+    const draftReference = await retryAfterNavigation(dashboard, () => captureLatestApplicationReference(dashboard));
     logRun(runId, `dashboard reached; draftReference=${draftReference ? "<captured>" : "(none)"}`);
 
     // ── Finalize + download PDF (optional but on by default) ────────────
