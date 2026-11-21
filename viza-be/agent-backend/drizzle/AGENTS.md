@@ -86,6 +86,10 @@ service-role-only execution, and asserts those invariants against
 `pg_get_functiondef` inside the migration transaction. Keep
 `20261120150000_claim_uk_live_assisted.sql` byte-identical.
 
+`0219_uk_additional_email_fields.sql` adds the official additional-email
+question and its conditional answer to UK Standard Visitor without changing
+application answers. Keep the timestamped Supabase mirror byte-identical.
+
 ## Key Responsibilities
 
 - Keep migration filenames sequentially numbered.
