@@ -239,6 +239,8 @@ ledger hash. Preserve queued jobs and let the normal worker claim them after
 the migration instead of rewriting statuses or manually claiming a job.
 The `uk-additional-email-fields-v1` batch adds the UKVI additional-email
 questions to the existing schema. It does not write or infer applicant answers.
+The `uk-purpose-showif-values-v1` batch corrects four purpose conditions in
+the UK schema without changing application answers.
 
 Payment removal (2026-09-15): the PhotonPay connectivity smoke and Vietnam
 autopay wrapper scripts are removed; the root npm autopay command is retired.

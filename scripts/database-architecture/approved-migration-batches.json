@@ -1488,6 +1488,32 @@
           { "id": "post_uk_email_form_fields", "kind": "relation_exists", "identity": "public.visa_form_fields" }
         ]
       }
+    },
+    {
+      "batch_id": "uk-purpose-showif-values-v1",
+      "source_ref": "a7256c1a9971722114f89d278f6747ff6e975c2a",
+      "mode": "transactional",
+      "migrations": [
+        {
+          "version": "20261121153000",
+          "name": "uk_purpose_showif_values",
+          "path": "viza-fe/internal-website/supabase/migrations/20261121153000_uk_purpose_showif_values.sql",
+          "sha256": "874a0e6f4b7650c801ca984e6c9477fa849e920700388a531356c7d23c67a0b6"
+        }
+      ],
+      "preconditions": {
+        "absent_migration_versions": ["20261121153000"],
+        "catalog_assertions": [
+          { "id": "pre_uk_purpose_form_fields", "kind": "relation_exists", "identity": "public.visa_form_fields" }
+        ]
+      },
+      "postconditions": {
+        "required_migration_versions": ["20261121153000"],
+        "catalog_assertions": [
+          { "id": "uk_purpose_showif_migration_record", "kind": "migration_record", "version": "20261121153000", "name": "uk_purpose_showif_values", "sha256": "874a0e6f4b7650c801ca984e6c9477fa849e920700388a531356c7d23c67a0b6" },
+          { "id": "post_uk_purpose_form_fields", "kind": "relation_exists", "identity": "public.visa_form_fields" }
+        ]
+      }
     }
   ]
 }
