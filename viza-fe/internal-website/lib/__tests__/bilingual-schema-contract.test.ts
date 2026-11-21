@@ -34,6 +34,30 @@ function field(overrides: Partial<VisaFormFieldRow>): VisaFormFieldRow {
 }
 
 describe("bilingual schema contract", () => {
+  it("localizes the UK additional-email branch without changing its answer keys", () => {
+    const hasAlternativeEmail = normalizeBilingualFormField(field({
+      visaType: "UK_STANDARD_VISITOR",
+      fieldName: "has_alternative_email",
+      fieldType: "radio",
+      label: "Do you have any other email addresses?",
+      options: [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }],
+    }));
+    const alternativeEmail = normalizeBilingualFormField(field({
+      visaType: "UK_STANDARD_VISITOR",
+      fieldName: "alternative_email_address",
+      label: "Alternative email address",
+      validationRules: { pattern: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$" },
+      conditionalLogic: { showIf: "has_alternative_email === yes" },
+    }));
+
+    expect(resolveLocalizedFieldLabel(hasAlternativeEmail, "zh")).toBe("您是否有其他电子邮箱地址？");
+    expect(resolveLocalizedFieldLabel(alternativeEmail, "zh")).toBe("其他电子邮箱地址");
+    expect(alternativeEmail.conditionalLogic).toEqual({ showIf: "has_alternative_email === yes" });
+    expect(hasAlternativeEmail.options?.map((option) => (
+      typeof option === "string" ? option : option.value
+    ))).toEqual(["yes", "no"]);
+  });
+
   it("keeps DS-160 national identity numbers literal in every language", () => {
     expect(usesBilingualAnswerPair(field({
       fieldName: "national_id_number", visaType: "DS160",

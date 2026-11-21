@@ -1,7 +1,7 @@
 # UK Standard Visitor Visa — Gap Report
 
-**Generated:** 2026-04-24
-**Schema version:** v3 (seed-uk-standard-visitor-form-fields.ts)
+**Generated:** 2026-11-21
+**Schema version:** v4 (seed-uk-standard-visitor-form-fields.ts)
 **Visa type:** `UK_STANDARD_VISITOR`
 
 Goal: when a user is assigned the UK Standard Visitor package, their
@@ -14,38 +14,41 @@ on the live Access UK Standard Visitor form.
 
 | Section | Step | Fields | Notes |
 |---------|------|--------|-------|
+| Passport Upload | 0 | 1 | Passport bio-data page upload slot; file is stored in `application_documents` |
 | About You — Personal Details | 1 | 19 | Previous-names repeatable; under-18 applicant fields |
-| About You — Passport & Identity Documents | 2 | 15 | Other passports repeatable; National ID + BRP |
-| Your Contact Details | 3 | 16 | |
+| About You — Passport & Identity Documents | 2 | 17 | Other passports repeatable; National ID + BRP; recon extensions |
+| Your Contact Details | 3 | 25 | Includes the required UKVI additional-email question and conditional address/residence branches |
 | Your Family | 4 | 17 | |
-| Your Accommodation in the UK | 5 | 10 | |
+| Your Accommodation in the UK | 5 | 9 | |
 | Your Travel History | 6 | 28 | Structured repeatable: Schengen, US/Canada/ANZ, other; previous UK visits repeatable with visa reference |
-| Your Trip to the UK | 7 | 8 | Purpose expanded to full Standard Visitor umbrella (11 purposes) |
-| Purpose-Specific Details | 8 | 54 | Business, Short-Study, Medical, Transit, Marriage/CP, PPE, Academic 12-month, Organ Donor, Clinical Training |
-| Your Employment | 9 | 13 | |
-| Your Finances | 10 | 13 | |
+| Your Trip to the UK | 7 | 13 | Purpose selector matches the eight options captured from Access UK, plus recon extensions |
+| Purpose-Specific Details | 8 | 55 | Supported purpose branches plus generic activity details; PPE, organ-donor, and clinical-training groups remain future branches without standalone selector values |
+| Your Employment | 9 | 26 | Includes employer contact and job-detail recon extensions |
+| Your Finances | 10 | 16 | Includes income/savings and monthly outgoings recon extensions |
 | Dependants Travelling With You | 11 | 7 | Repeatable dependant group (schema only — see §3.1) |
 | Additional Information, Immigration History & Declaration | 12 | 22 | Medical-condition-affecting-travel, TB test, immigration-law breach, civil penalty, public-funds use |
-| **Total** | **12** | **222** | — |
+| **Total** | **12** | **255** | — |
 
 ---
 
 ## 2. Purpose Options (Step 7)
 
-`purpose_of_visit` covers the full Standard Visitor umbrella — 11 purposes:
-- `tourism` — Tourism / holiday
-- `visiting_family_friends` — Visiting family or friends
-- `business` — Business (meetings, conferences)
-- `short_study` — Short-term study (up to 6 months)
-- `medical` — Private medical treatment
-- `transit` — Transit to another country
-- `marriage_civil_partnership` — Marriage or civil partnership
-- `ppe` — Permitted Paid Engagement (up to 1 month)
-- `academic_12m` — Academic or researcher (up to 12 months)
-- `organ_donor` — Organ donation
-- `clinical_training` — Clinical attachment, dental observer, PLAB or OSCE
+`purpose_of_visit` matches the eight options captured from the live Access UK
+purpose page (`uk-walk-out/page-purposeOfVisitForVV.json`):
+- `tourism` — Tourism (including visiting family and friends)
+- `business` — Business (including sports and entertainment)
+- `transit` — Transit through the UK
+- `academic` — Academic visit (including teaching, exchange and visiting as a dependant of an academic visitor)
+- `marriage` — Marriage or civil partnership
+- `medicalTreatment` — Private medical treatment or organ donation
+- `study` — Short-term study (up to 6 months), including recreational course
+- `other` — Other - I am visiting for another reason
 
-Each purpose unlocks a bespoke sub-journey in Step 8.
+The live selector has no standalone `ppe`, `organ_donor`, or
+`clinical_training` values. The corresponding VIZA branch fields remain
+explicitly unaliased until the official parent-flow questions for those
+activities are modelled; mapping them to a broad purpose would show unrelated
+required fields.
 
 ---
 
@@ -96,16 +99,26 @@ scope for the form schema.**
 
 ---
 
-## 4. Closed in v3
+## 4. Closed in v4
+
+The live UKVI walk identified and closed the missing additional-email branch:
+
+- **Additional email** — `has_alternative_email` is required and offers Yes/No;
+  `alternative_email_address` is required only when Yes is selected. The
+  values are persisted under the same canonical keys consumed by the UK runner.
+
+## 4.1 Closed in v3
 
 The following gaps from v2 have been resolved:
 
 - **Under-18 applicant fields** — `is_applicant_under_18`, parental
   consent letter reference, accompanying adult name/relationship/passport
   number (step 1, gated on `is_applicant_under_18 === yes`)
-- **Specialised sub-categories** — PPE, Academic/researcher 12-month,
-  Organ donor, Clinical training now exist as purpose options with
-  their own sub-journey field sets in step 8
+- **Specialised sub-categories** — fields for PPE, organ donor, and clinical
+  training remain in the schema as reviewed future branches, but the live
+  purpose selector does not expose standalone values for them. They must not
+  be aliased to business, medical treatment, study, or academic without a
+  confirmed official parent-flow question.
 - **TB test declaration** — added to step 12 (user-declared, not
   nationality-gated — see §3.2)
 
@@ -160,15 +173,15 @@ re-run any time the field definitions change.
 
 ## 7. Reviewer Checklist
 
-- [x] Seed applied (222 rows in `visa_form_fields` with visa_type = `UK_STANDARD_VISITOR`)
+- [x] Seed/migration contract defines 255 rows in `visa_form_fields` with visa_type = `UK_STANDARD_VISITOR`
 - [ ] Assign a test user the `UK_STANDARD_VISITOR` package
-- [ ] Walk each of the 11 purposes in Step 7 and confirm correct Step 8 sub-journey shows
+- [ ] Walk each of the 8 purposes in Step 7 and confirm the purpose-specific fields and generic activity details
 - [ ] Test all 8 repeatable groups (add/remove instance, values persist)
 - [ ] Test multi-value `||` in partner gating (step 4)
 - [ ] Test cross-step gating (step 7 purpose → step 8 sub-journey fields)
 - [ ] Test under-18 conditional fields (step 1)
 - [ ] Test TB test conditional fields (step 12)
-- [ ] Submit a test application and verify all 222 fields persist to `visa_application_answers`
+- [ ] Submit a test application and verify all 255 fields persist to `visa_application_answers`
 - [ ] Confirm review step (`DynamicReviewStep`) renders all fields correctly
 
 ---

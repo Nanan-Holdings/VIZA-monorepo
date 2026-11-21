@@ -52,14 +52,21 @@ interface FieldDef {
 
 const YES_NO = [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }];
 
-// Purpose showIf expressions (reused across sub-journey fields)
+// Purpose showIf expressions (reused across sub-journey fields). The values
+// below must match the official Access UK purposeRef values represented by
+// the purpose_of_visit options in Step 7. A mismatch leaves the dependent
+// fields permanently hidden because showIf compares stored values exactly.
 const IS_BUSINESS = "purpose_of_visit === business";
-const IS_STUDY = "purpose_of_visit === short_study";
-const IS_MEDICAL = "purpose_of_visit === medical";
+const IS_STUDY = "purpose_of_visit === study";
+const IS_MEDICAL = "purpose_of_visit === medicalTreatment";
 const IS_TRANSIT = "purpose_of_visit === transit";
-const IS_MARRIAGE = "purpose_of_visit === marriage_civil_partnership";
+const IS_MARRIAGE = "purpose_of_visit === marriage";
+// Access UK's live purpose selector has no standalone PPE, organ-donation,
+// or clinical-training values. Keep these gates unaliased until their
+// official parent-flow questions are modelled; aliasing them to a broad
+// purpose would incorrectly show required fields to unrelated applicants.
 const IS_PPE = "purpose_of_visit === ppe";
-const IS_ACADEMIC = "purpose_of_visit === academic_12m";
+const IS_ACADEMIC = "purpose_of_visit === academic";
 const IS_ORGAN_DONOR = "purpose_of_visit === organ_donor";
 const IS_CLINICAL = "purpose_of_visit === clinical_training";
 
@@ -119,20 +126,22 @@ const FIELDS: FieldDef[] = [
   // STEP 3: Your Contact Details
   // ═══════════════════════════════════════════════════════════════════════════
   { field_name: "email_address", label: "Email address", field_type: "text", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 1, placeholder: "e.g., name@example.com", validation_rules: { maxLength: 100, pattern: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$" } },
-  { field_name: "phone_number", label: "Phone number (including country code)", field_type: "text", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 2, placeholder: "e.g., +62 812 3456 7890", validation_rules: { maxLength: 20 } },
-  { field_name: "has_alternative_phone", label: "Do you have an alternative phone number?", field_type: "radio", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 3, options: YES_NO },
-  { field_name: "alternative_phone_number", label: "Alternative phone number", field_type: "text", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 4, conditional_logic: { showIf: "has_alternative_phone === yes" }, validation_rules: { maxLength: 20 } },
-  { field_name: "home_address_line_1", label: "Home address — line 1", field_type: "text", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 5, validation_rules: { maxLength: 100, block_group: "home_address" } },
-  { field_name: "home_address_line_2", label: "Home address — line 2", field_type: "text", required: false, step_number: 3, step_name: "Your Contact Details", display_order: 6, validation_rules: { maxLength: 100, block_group: "home_address" } },
-  { field_name: "home_address_city", label: "Town or city", field_type: "text", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 7, validation_rules: { maxLength: 60, block_group: "home_address" } },
-  { field_name: "home_address_state", label: "County / state / province", field_type: "text", required: false, step_number: 3, step_name: "Your Contact Details", display_order: 8, validation_rules: { maxLength: 60, block_group: "home_address" } },
-  { field_name: "home_address_postcode", label: "Postcode / ZIP code", field_type: "text", required: false, step_number: 3, step_name: "Your Contact Details", display_order: 9, validation_rules: { maxLength: 15, block_group: "home_address" } },
-  { field_name: "home_address_country", label: "Country", field_type: "country", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 10, validation_rules: { source: "ISO3166-1", block_group: "home_address" } },
-  { field_name: "how_long_at_address", label: "How long have you lived at this address?", field_type: "text", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 11, placeholder: "e.g., 3 years", validation_rules: { maxLength: 40 } },
-  { field_name: "correspondence_address_different", label: "Is your correspondence address different from your home address?", field_type: "radio", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 13, options: YES_NO },
-  { field_name: "correspondence_address_line_1", label: "Correspondence address — line 1", field_type: "text", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 14, conditional_logic: { showIf: "correspondence_address_different === yes" }, validation_rules: { maxLength: 100 } },
-  { field_name: "correspondence_address_city", label: "Correspondence address — town or city", field_type: "text", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 15, conditional_logic: { showIf: "correspondence_address_different === yes" }, validation_rules: { maxLength: 60 } },
-  { field_name: "correspondence_address_country", label: "Correspondence address — country", field_type: "country", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 16, conditional_logic: { showIf: "correspondence_address_different === yes" }, validation_rules: { source: "ISO3166-1" } },
+  { field_name: "has_alternative_email", label: "Do you have any other email addresses?", field_type: "radio", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 2, options: YES_NO },
+  { field_name: "alternative_email_address", label: "Alternative email address", field_type: "text", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 3, conditional_logic: { showIf: "has_alternative_email === yes" }, validation_rules: { maxLength: 100, pattern: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$" } },
+  { field_name: "phone_number", label: "Phone number (including country code)", field_type: "text", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 4, placeholder: "e.g., +62 812 3456 7890", validation_rules: { maxLength: 20 } },
+  { field_name: "has_alternative_phone", label: "Do you have an alternative phone number?", field_type: "radio", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 5, options: YES_NO },
+  { field_name: "alternative_phone_number", label: "Alternative phone number", field_type: "text", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 6, conditional_logic: { showIf: "has_alternative_phone === yes" }, validation_rules: { maxLength: 20 } },
+  { field_name: "home_address_line_1", label: "Home address — line 1", field_type: "text", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 7, validation_rules: { maxLength: 100, block_group: "home_address" } },
+  { field_name: "home_address_line_2", label: "Home address — line 2", field_type: "text", required: false, step_number: 3, step_name: "Your Contact Details", display_order: 8, validation_rules: { maxLength: 100, block_group: "home_address" } },
+  { field_name: "home_address_city", label: "Town or city", field_type: "text", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 9, validation_rules: { maxLength: 60, block_group: "home_address" } },
+  { field_name: "home_address_state", label: "County / state / province", field_type: "text", required: false, step_number: 3, step_name: "Your Contact Details", display_order: 10, validation_rules: { maxLength: 60, block_group: "home_address" } },
+  { field_name: "home_address_postcode", label: "Postcode / ZIP code", field_type: "text", required: false, step_number: 3, step_name: "Your Contact Details", display_order: 11, validation_rules: { maxLength: 15, block_group: "home_address" } },
+  { field_name: "home_address_country", label: "Country", field_type: "country", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 12, validation_rules: { source: "ISO3166-1", block_group: "home_address" } },
+  { field_name: "how_long_at_address", label: "How long have you lived at this address?", field_type: "text", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 13, placeholder: "e.g., 3 years", validation_rules: { maxLength: 40 } },
+  { field_name: "correspondence_address_different", label: "Is your correspondence address different from your home address?", field_type: "radio", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 15, options: YES_NO },
+  { field_name: "correspondence_address_line_1", label: "Correspondence address — line 1", field_type: "text", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 16, conditional_logic: { showIf: "correspondence_address_different === yes" }, validation_rules: { maxLength: 100 } },
+  { field_name: "correspondence_address_city", label: "Correspondence address — town or city", field_type: "text", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 17, conditional_logic: { showIf: "correspondence_address_different === yes" }, validation_rules: { maxLength: 60 } },
+  { field_name: "correspondence_address_country", label: "Correspondence address — country", field_type: "country", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 18, conditional_logic: { showIf: "correspondence_address_different === yes" }, validation_rules: { source: "ISO3166-1" } },
 
   // ═══════════════════════════════════════════════════════════════════════════
   // STEP 4: Your Family
@@ -206,7 +215,7 @@ const FIELDS: FieldDef[] = [
   // ═══════════════════════════════════════════════════════════════════════════
   // STEP 7: Your Trip to the UK
   // ═══════════════════════════════════════════════════════════════════════════
-  { field_name: "purpose_of_visit", label: "What is the main reason for your visit to the UK?", field_type: "select", required: true, step_number: 7, step_name: "Your Trip to the UK", display_order: 1, options: [{ value: "tourism", text: "Tourism (including visiting family and friends)" }, { value: "business", text: "Business (including sports and entertainment)" }, { value: "transit", text: "Transit through the UK" }, { value: "academic", text: "Academic visit (teaching, exchange, dependant of academic)" }, { value: "marriage", text: "Marriage or civil partnership" }, { value: "medicalTreatment", text: "Private medical treatment or organ donation" }, { value: "study", text: "Short-term study (up to 6 months)" }, { value: "other", text: "Other — for another reason" }] },
+  { field_name: "purpose_of_visit", label: "What is the main reason for your visit to the UK?", field_type: "select", required: true, step_number: 7, step_name: "Your Trip to the UK", display_order: 1, options: [{ value: "tourism", text: "Tourism (including visiting family and friends)" }, { value: "business", text: "Business (including sports and entertainment)" }, { value: "transit", text: "Transit through the UK" }, { value: "academic", text: "Academic visit (including teaching, exchange and visiting as a dependant of an academic visitor)" }, { value: "marriage", text: "Marriage or civil partnership" }, { value: "medicalTreatment", text: "Private medical treatment or organ donation" }, { value: "study", text: "Short-term study (up to 6 months), including recreational course" }, { value: "other", text: "Other - I am visiting for another reason" }] },
   { field_name: "uk_arrival_date", label: "When do you plan to arrive in the UK?", field_type: "date", required: true, step_number: 7, step_name: "Your Trip to the UK", display_order: 2, validation_rules: { format: "DD/MM/YYYY", inline_group: "trip_dates" } },
   { field_name: "uk_departure_date", label: "When do you plan to leave the UK?", field_type: "date", required: true, step_number: 7, step_name: "Your Trip to the UK", display_order: 3, validation_rules: { format: "DD/MM/YYYY", inline_group: "trip_dates" } },
   { field_name: "visiting_family_in_uk", label: "Will you be visiting family while in the UK?", field_type: "radio", required: true, step_number: 7, step_name: "Your Trip to the UK", display_order: 4, options: YES_NO },
@@ -371,10 +380,10 @@ const FIELDS: FieldDef[] = [
   { field_name: "home_ownership_other_details", label: "Tell us more about your living situation", field_type: "textarea", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 103, conditional_logic: { showIf: "home_ownership === other" }, validation_rules: { maxLength: 500 } },
 
   // ─── Step 3: Immigration status in residence country ──────────────────
-  { field_name: "immigration_status_in_residence_country", label: "Your immigration status in your country of residence", field_type: "radio", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 17, options: [{ value: "temporaryVisa", text: "I have a temporary visa" }, { value: "permanentResident", text: "I am a permanent resident" }, { value: "other", text: "I do not have a visa and I am not a permanent resident" }] },
-  { field_name: "immigration_status_visa_expiry", label: "Visa expiry date", field_type: "date", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 18, conditional_logic: { showIf: "immigration_status_in_residence_country === temporaryVisa" }, validation_rules: { format: "DD/MM/YYYY" } },
-  { field_name: "immigration_status_pr_year", label: "Year you became a permanent resident", field_type: "text", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 19, conditional_logic: { showIf: "immigration_status_in_residence_country === permanentResident" }, validation_rules: { pattern: "^[0-9]{4}$", maxLength: 4 } },
-  { field_name: "immigration_status_other_details", label: "Tell us about your immigration situation", field_type: "textarea", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 20, conditional_logic: { showIf: "immigration_status_in_residence_country === other" }, validation_rules: { maxLength: 1000 } },
+  { field_name: "immigration_status_in_residence_country", label: "Your immigration status in your country of residence", field_type: "radio", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 19, options: [{ value: "temporaryVisa", text: "I have a temporary visa" }, { value: "permanentResident", text: "I am a permanent resident" }, { value: "other", text: "I do not have a visa and I am not a permanent resident" }] },
+  { field_name: "immigration_status_visa_expiry", label: "Visa expiry date", field_type: "date", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 20, conditional_logic: { showIf: "immigration_status_in_residence_country === temporaryVisa" }, validation_rules: { format: "DD/MM/YYYY" } },
+  { field_name: "immigration_status_pr_year", label: "Year you became a permanent resident", field_type: "text", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 21, conditional_logic: { showIf: "immigration_status_in_residence_country === permanentResident" }, validation_rules: { pattern: "^[0-9]{4}$", maxLength: 4 } },
+  { field_name: "immigration_status_other_details", label: "Tell us about your immigration situation", field_type: "textarea", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 22, conditional_logic: { showIf: "immigration_status_in_residence_country === other" }, validation_rules: { maxLength: 1000 } },
 
   // ─── Step 7: spend + sponsorship + language (uk_arrival_date / uk_departure_date already seeded above) ─
   { field_name: "planned_spend_currency", label: "Planned spend — currency", field_type: "select", required: true, step_number: 7, step_name: "Your Trip to the UK", display_order: 100, options: [{ value: "GBP", text: "GBP" }, { value: "USD", text: "USD" }, { value: "EUR", text: "EUR" }, { value: "CNY", text: "CNY" }] },

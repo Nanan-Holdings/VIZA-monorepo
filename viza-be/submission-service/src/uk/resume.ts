@@ -16,8 +16,11 @@ import {
 } from "./page-bindings";
 import {
   ukClickSaveContinue,
+  probeUkFormState,
+  resolveUkPageSlug,
   ukPageHasValidationErrors,
   ukValidationErrorText,
+  type UkFormProbe,
 } from "./fillers";
 import {
   createUkTimingRecorder,
@@ -107,7 +110,12 @@ export type UkResumeResult =
 
 const STOP_TITLE_PATTERNS = [/^Pay\b/i, /payment/i];
 const PAY_URL_PATTERNS = [/\/pay\b/i, /\/payment\b/i];
-const APP_BASE = "https://visas-immigration.service.gov.uk/edit/application.0.";
+const UK_ORIGIN = "https://visas-immigration.service.gov.uk";
+const UK_LEGACY_ORIGIN = "https://apply-uk-visa.service.gov.uk";
+const UK_RESUME_ORIGINS = new Set([UK_ORIGIN, UK_LEGACY_ORIGIN]);
+const UK_RESUME_UUID = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/iu;
+const MAX_PAGE_HOPS = Math.max(UK_PAGE_ORDER.length + 8, 64);
+const UK_PAGE_SLUGS = new Set(UK_PAGE_ORDER);
 
 export async function resumeUkApplication(
   input: UkResumeInput,
@@ -133,6 +141,17 @@ export async function resumeUkApplication(
   let context: Awaited<ReturnType<typeof launchStealthBrowser>>["context"] | null = null;
 
   try {
+    if (!isOfficialResumeUrl(input.resumeUrl)) {
+      return complete(navigationFailure(
+        null,
+        input,
+        runId,
+        `UK resume URL must use the official origin and a supported resume path`,
+        pagesFilled,
+        pagesSkipped,
+      ));
+    }
+
     const launcher = options.browserLauncher ?? launchStealthBrowser;
     const browserLaunchSpan = timing.start("browser_launch", "resume");
     let handles: Awaited<ReturnType<typeof launchStealthBrowser>>;
@@ -150,6 +169,9 @@ export async function resumeUkApplication(
     const loginSpan = timing.start("login", "resume");
     try {
       await page.goto(input.resumeUrl, { waitUntil: "domcontentloaded", timeout: pageTimeoutMs });
+      if (!isAllowedResumeOrigin(page.url())) {
+        throw new Error("UKVI resume navigation left the allowed official origins");
+      }
       const pwInput = page.locator('input[type="password"]').first();
       if ((await pwInput.count()) === 0) {
         throw new Error("Login page did not expose a password input — resume URL may be expired");
@@ -159,58 +181,76 @@ export async function resumeUkApplication(
         page.waitForLoadState("domcontentloaded", { timeout: pageTimeoutMs }),
         page.locator('button[type="submit"], input[type="submit"]').first().click({ timeout: 10_000 }),
       ]);
+      if (!isOfficialUrl(page.url())) {
+        throw new Error("UKVI login navigation left the official origin");
+      }
       loginSpan.end("success");
     } catch (err) {
       loginSpan.end("failed");
       throw err;
     }
 
-    for (const slug of UK_PAGE_ORDER) {
-      const gotoSpan = timing.start("page_goto", slug);
-      try {
-        await page.goto(`${APP_BASE}${slug}`, { waitUntil: "domcontentloaded", timeout: pageTimeoutMs });
-      } catch (err) {
-        gotoSpan.end("failed");
-        return complete(incompleteResult(
+    let probe = await probeUkFormState(page);
+    const probeProblem = validateUkProbe(probe);
+    if (probeProblem) {
+      return complete(navigationFailure(page, input, runId, probeProblem, pagesFilled, pagesSkipped));
+    }
+    if (await isStopBoundary(page)) {
+      runOutcome = "stopped";
+      return handleVisiblePaymentBoundary(page, input, runId, pagesFilled, pagesSkipped);
+    }
+    if (await isDeclarationPage(page)) {
+      runOutcome = "stopped";
+      return declarationCheckpoint(page, input, runId, pagesFilled, pagesSkipped);
+    }
+
+    const visited = new Set<string>();
+    let pageHops = 0;
+    while (true) {
+      if (pageHops >= MAX_PAGE_HOPS) {
+        return complete(navigationFailure(
           page,
           input,
           runId,
+          `UKVI exceeded the maximum page-hop limit (${MAX_PAGE_HOPS})`,
           pagesFilled,
           pagesSkipped,
-          `Navigation failed on ${slug}: ${errorMessage(err)}`,
-          "form_incomplete",
         ));
+      }
+      pageHops += 1;
+
+      if (await isReviewPage(page)) break;
+      if (await isStopBoundary(page)) {
+        runOutcome = "stopped";
+        return handleVisiblePaymentBoundary(page, input, runId, pagesFilled, pagesSkipped);
+      }
+      if (await isDeclarationPage(page)) {
+        runOutcome = "stopped";
+        return declarationCheckpoint(page, input, runId, pagesFilled, pagesSkipped);
       }
 
-      const landed = page.url();
-      if (!landed.includes(slug)) {
-        if (await isStopBoundary(page)) {
-          gotoSpan.end("stopped");
-          runOutcome = "stopped";
-          return handleVisiblePaymentBoundary(page, input, runId, pagesFilled, pagesSkipped);
-        }
-        if (/Declaration/i.test(await page.title())) {
-          gotoSpan.end("stopped");
-          runOutcome = "stopped";
-          return declarationCheckpoint(page, input, runId, pagesFilled, pagesSkipped);
-        }
-        if (await isExplicitlyNotApplicable(page)) {
-          gotoSpan.end("skipped");
-          pagesSkipped.push(slug);
-          continue;
-        }
-        gotoSpan.end("failed");
-        return complete(incompleteResult(
+      const slug = resolveUkPageSlug(probe);
+      if (!slug || !UK_PAGE_SLUGS.has(slug)) {
+        return complete(navigationFailure(
           page,
           input,
           runId,
+          `UKVI returned an unknown application page${slug ? ` "${slug}"` : ""}`,
           pagesFilled,
           pagesSkipped,
-          `UKVI redirected away from ${slug} without an explicit not-applicable explanation`,
-          (await isReviewPage(page)) ? "review" : "form_incomplete",
         ));
       }
-      gotoSpan.end("success");
+      if (visited.has(slug)) {
+        return complete(navigationFailure(
+          page,
+          input,
+          runId,
+          `UKVI application navigation looped on "${slug}"`,
+          pagesFilled,
+          pagesSkipped,
+        ));
+      }
+      visited.add(slug);
 
       const filler = UK_PAGE_FILLERS[slug];
       const fillSpan = timing.start("page_fill", slug);
@@ -273,35 +313,32 @@ export async function resumeUkApplication(
         ));
       }
 
+      probe = await probeUkFormState(page);
+      const nextProbeProblem = validateUkProbe(probe);
+      if (nextProbeProblem) {
+        return complete(navigationFailure(page, input, runId, nextProbeProblem, pagesFilled, pagesSkipped));
+      }
       if (await isStopBoundary(page)) {
         runOutcome = "stopped";
         return handleVisiblePaymentBoundary(page, input, runId, pagesFilled, pagesSkipped);
       }
-      if (/Declaration/i.test(await page.title())) {
+      if (await isDeclarationPage(page)) {
         runOutcome = "stopped";
         return declarationCheckpoint(page, input, runId, pagesFilled, pagesSkipped);
       }
+      if (await isReviewPage(page)) break;
+      const nextSlug = resolveUkPageSlug(probe);
+      if (!nextSlug || !UK_PAGE_SLUGS.has(nextSlug)) {
+        return complete(navigationFailure(
+          page,
+          input,
+          runId,
+          `UKVI returned an unknown next application page${nextSlug ? ` "${nextSlug}"` : ""}`,
+          pagesFilled,
+          pagesSkipped,
+        ));
+      }
     }
-
-    const reviewGotoSpan = timing.start("review", "goto");
-    try {
-      await page.goto("https://visas-immigration.service.gov.uk/edit/application", {
-        waitUntil: "domcontentloaded",
-        timeout: pageTimeoutMs,
-      });
-    } catch (err) {
-      reviewGotoSpan.end("failed");
-      return complete(incompleteResult(
-        page,
-        input,
-        runId,
-        pagesFilled,
-        pagesSkipped,
-        `Navigation to the UK review page failed: ${errorMessage(err)}`,
-        "review",
-      ));
-    }
-    reviewGotoSpan.end("success");
 
     if (await isStopBoundary(page)) {
       runOutcome = "stopped";
@@ -362,6 +399,22 @@ export async function resumeUkApplication(
         "review",
       ));
     }
+    const postReviewProbe = await probeUkFormState(page);
+    const postReviewProbeProblem = validateUkProbe(postReviewProbe);
+    if (postReviewProbeProblem) {
+      return complete(navigationFailure(page, input, runId, postReviewProbeProblem, pagesFilled, pagesSkipped));
+    }
+    if (await isReviewPage(page)) {
+      return complete(incompleteResult(
+        page,
+        input,
+        runId,
+        pagesFilled,
+        pagesSkipped,
+        "UK review Continue did not navigate to a new official checkpoint",
+        "review",
+      ));
+    }
     const reviewValidationSpan = timing.start("validation", "review");
     let reviewHasValidationErrors = false;
     try {
@@ -392,69 +445,91 @@ export async function resumeUkApplication(
       ));
     }
 
-    if (/Documents/i.test(await page.title())) {
-      const documentsSpan = timing.start("documents", "documents");
-      try {
-        await UK_DOCUMENTS_FILLER(page, input.answers);
-        const save = await ukClickSaveContinue(page, pageTimeoutMs);
-        if (!save.navigated) {
-          documentsSpan.end("failed");
-          const validationSpan = timing.start("validation", "documents");
-          let validation = "";
-          try {
-            validation = await validationSuffix(page);
-            validationSpan.end(validation ? "failed" : "success");
-          } catch (err) {
-            validationSpan.end("failed");
-            throw err;
-          }
-          return complete(incompleteResult(
-            page,
-            input,
-            runId,
-            pagesFilled,
-            pagesSkipped,
-            `UK documents did not save${validation}`,
-            "form_incomplete",
-          ));
-        }
-        documentsSpan.end("success");
-      } catch (err) {
+    if (await isStopBoundary(page)) {
+      runOutcome = "stopped";
+      return handleVisiblePaymentBoundary(page, input, runId, pagesFilled, pagesSkipped);
+    }
+    if (await isDeclarationPage(page)) {
+      runOutcome = "stopped";
+      return declarationCheckpoint(page, input, runId, pagesFilled, pagesSkipped);
+    }
+
+    if (!(await isDocumentsPage(page))) {
+      return complete(navigationFailure(
+        page,
+        input,
+        runId,
+        "UKVI returned an unknown page after the review checkpoint",
+        pagesFilled,
+        pagesSkipped,
+      ));
+    }
+
+    const documentsSpan = timing.start("documents", "documents");
+    try {
+      await UK_DOCUMENTS_FILLER(page, input.answers);
+      const save = await ukClickSaveContinue(page, pageTimeoutMs);
+      if (!save.navigated) {
         documentsSpan.end("failed");
+        const validationSpan = timing.start("validation", "documents");
+        let validation = "";
+        try {
+          validation = await validationSuffix(page);
+          validationSpan.end(validation ? "failed" : "success");
+        } catch (err) {
+          validationSpan.end("failed");
+          throw err;
+        }
         return complete(incompleteResult(
           page,
           input,
           runId,
           pagesFilled,
           pagesSkipped,
-          `UK documents step failed: ${errorMessage(err)}`,
+          `UK documents did not save${validation}`,
           "form_incomplete",
         ));
       }
-      pagesFilled.push("__documents__");
+      documentsSpan.end("success");
+    } catch (err) {
+      documentsSpan.end("failed");
+      return complete(incompleteResult(
+        page,
+        input,
+        runId,
+        pagesFilled,
+        pagesSkipped,
+        `UK documents step failed: ${errorMessage(err)}`,
+        "form_incomplete",
+      ));
     }
+    pagesFilled.push("__documents__");
 
+    const postDocumentsProbe = await probeUkFormState(page);
+    const postDocumentsProbeProblem = validateUkProbe(postDocumentsProbe);
+    if (postDocumentsProbeProblem) {
+      return complete(navigationFailure(page, input, runId, postDocumentsProbeProblem, pagesFilled, pagesSkipped));
+    }
     if (await isStopBoundary(page)) {
       runOutcome = "stopped";
       return handleVisiblePaymentBoundary(page, input, runId, pagesFilled, pagesSkipped);
     }
-    if (/Declaration/i.test(await page.title())) {
+    if (await isDeclarationPage(page)) {
       runOutcome = "stopped";
       return declarationCheckpoint(page, input, runId, pagesFilled, pagesSkipped);
     }
 
-    return complete(incompleteResult(
+    return complete(navigationFailure(
       page,
       input,
       runId,
+      "UKVI returned an unknown page after the documents checkpoint",
       pagesFilled,
       pagesSkipped,
-      `UKVI did not reach the declaration checkpoint: ${await page.title()}`,
-      "review",
     ));
   } catch (err) {
     runOutcome = "failed";
-    const url = page?.url() ?? input.resumeUrl;
+    const url = redactUkFailureUrl(page?.url() ?? input.resumeUrl);
     return complete({
       status: "failed",
       runId,
@@ -488,15 +563,148 @@ async function isStopBoundary(page: Page): Promise<boolean> {
   return PAY_URL_PATTERNS.some((rx) => rx.test(page.url()));
 }
 
-async function isReviewPage(page: Page): Promise<boolean> {
-  const title = await page.title().catch(() => "");
-  if (/check your answers|review/i.test(title)) return true;
-  return /\/edit\/application(?:[/?#]|$)/i.test(page.url());
+function isOfficialUrl(value: string): boolean {
+  try {
+    return new URL(value).origin === UK_ORIGIN && !hasExplicitPort(value);
+  } catch {
+    return false;
+  }
 }
 
-async function isExplicitlyNotApplicable(page: Page): Promise<boolean> {
-  const body = ((await page.textContent("body").catch(() => "")) ?? "").replace(/\s+/g, " ");
-  return /\b(?:not applicable|does not apply|not required for this application|you do not need to answer)\b/i.test(body);
+function isAllowedResumeOrigin(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:"
+      && !hasExplicitPort(value)
+      && UK_RESUME_ORIGINS.has(url.origin);
+  } catch {
+    return false;
+  }
+}
+
+function isOfficialResumeUrl(value: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return false;
+  }
+  if (
+    url.protocol !== "https:"
+    || url.username
+    || url.password
+    || url.port
+    || hasExplicitPort(value)
+    || url.hash
+  ) return false;
+
+  if (url.origin === UK_ORIGIN) {
+    if (url.search !== "") return false;
+    if (url.pathname.startsWith("/forceResume/") && url.pathname.length > "/forceResume/".length) {
+      return true;
+    }
+    return url.pathname.startsWith("/resume/")
+      && UK_RESUME_UUID.test(url.pathname.slice("/resume/".length));
+  }
+
+  if (url.origin !== UK_LEGACY_ORIGIN || url.pathname !== "/forceResume") return false;
+  const queryKeys = [...url.searchParams.keys()];
+  return queryKeys.length === 1
+    && queryKeys[0] === "token"
+    && Boolean(url.searchParams.get("token"));
+}
+
+function hasExplicitPort(value: string): boolean {
+  const authority = value.match(/^[a-z][a-z0-9+.-]*:\/\/([^/?#]*)/iu)?.[1];
+  if (!authority) return false;
+  return authority.slice(authority.lastIndexOf("@") + 1).includes(":");
+}
+
+function validateUkProbe(probe: UkFormProbe): string | null {
+  if (!isOfficialUrl(probe.url)) {
+    return "UKVI page probe left the official origin";
+  }
+  if (/\/save\/application\.0\./i.test(probe.url)) {
+    return "UKVI remained on a save acknowledgement page after navigation";
+  }
+  if (probe.formAction) {
+    try {
+      if (new URL(probe.formAction, UK_ORIGIN).origin !== UK_ORIGIN) {
+        return "UKVI form action left the official origin";
+      }
+    } catch {
+      return "UKVI page exposed an invalid form action";
+    }
+  }
+  return null;
+}
+
+async function isReviewPage(page: Page): Promise<boolean> {
+  const url = page.url();
+  if (!/\/(?:edit\/application|next)(?:[/?#]|$)/i.test(url)) return false;
+  const title = await page.title().catch(() => "");
+  if (/check your answers|review/i.test(title)) return true;
+  const heading = ((await page.locator("h1").textContent().catch(() => "")) ?? "").trim();
+  return /check your answers|review/i.test(heading);
+}
+
+async function isDeclarationPage(page: Page): Promise<boolean> {
+  const title = await page.title().catch(() => "");
+  if (/declaration/i.test(title)) return true;
+  return /\/declaration(?:[/?#]|$)/i.test(page.url());
+}
+
+async function isDocumentsPage(page: Page): Promise<boolean> {
+  const title = await page.title().catch(() => "");
+  let pathname = "";
+  try {
+    pathname = new URL(page.url()).pathname;
+  } catch {
+    return false;
+  }
+  if (!/^\/(?:next|documents(?:[./]|$)|edit\/documents(?:[./]|$))/i.test(pathname)) {
+    return false;
+  }
+  if (/documents/i.test(title)) return true;
+  const heading = ((await page.locator("h1").textContent().catch(() => "")) ?? "").trim();
+  return /documents/i.test(heading);
+}
+
+function navigationFailure(
+  page: Page | null,
+  input: UkResumeInput,
+  runId: string | undefined,
+  reason: string,
+  pagesFilled: string[],
+  pagesSkipped: string[],
+): UkResumeResult {
+  const url = redactUkFailureUrl(page?.url() ?? input.resumeUrl);
+  return {
+    status: "halted_before_pay",
+    runId,
+    portalUrl: redactUkFailureUrl(input.resumeUrl),
+    portalUsername: input.email,
+    pagesFilled,
+    pagesSkipped,
+    finalUrl: url,
+    reason,
+    checkpoint: "form_incomplete",
+  };
+}
+
+function redactUkFailureUrl(value: string): string {
+  try {
+    const url = new URL(value);
+    if (url.origin === UK_LEGACY_ORIGIN && url.pathname === "/forceResume") {
+      return `${url.origin}${url.pathname}`;
+    }
+    if (url.origin === UK_ORIGIN && url.pathname.startsWith("/forceResume/")) {
+      return `${url.origin}/forceResume/[redacted]`;
+    }
+    return `${url.origin}${url.pathname}`;
+  } catch {
+    return UK_ORIGIN;
+  }
 }
 
 async function handleVisiblePaymentBoundary(

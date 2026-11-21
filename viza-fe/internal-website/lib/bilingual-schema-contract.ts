@@ -120,6 +120,8 @@ const UK_FIELD_NAME_ZH: Record<string, string> = {
   has_held_brp: "您是否曾持有英国生物识别居留许可（BRP）？",
   brp_number: "BRP 编号",
   email_address: "电子邮箱地址",
+  has_alternative_email: "您是否有其他电子邮箱地址？",
+  alternative_email_address: "其他电子邮箱地址",
   phone_number: "电话号码（含国家/地区区号）",
   has_alternative_phone: "您是否有备用电话号码？",
   alternative_phone_number: "备用电话号码",

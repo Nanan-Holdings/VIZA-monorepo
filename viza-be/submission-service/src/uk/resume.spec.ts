@@ -7,13 +7,17 @@ import {
   type UkResumeResult,
 } from "./resume.js";
 
-const RESUME_URL = "https://example.test/uk/resume";
+const UK_ORIGIN = "https://visas-immigration.service.gov.uk";
+const RESUME_URL = `${UK_ORIGIN}/forceResume/test-resume-token`;
+const LEGACY_RESUME_URL = "https://apply-uk-visa.service.gov.uk/forceResume?token=test-resume-token";
+const APP_URL = `${UK_ORIGIN}/edit/application.0.`;
 
 class FakeLocator {
   public constructor(
     private readonly present: boolean,
     private readonly onClick?: () => void,
     private readonly onCheck?: () => void,
+    private readonly attributes: Record<string, string> = {},
   ) {}
 
   public async count(): Promise<number> {
@@ -34,6 +38,10 @@ class FakeLocator {
 
   public async click(): Promise<void> {
     this.onClick?.();
+  }
+
+  public async getAttribute(name: string): Promise<string | null> {
+    return this.attributes[name] ?? null;
   }
 
   public async check(): Promise<void> {
@@ -59,13 +67,29 @@ class FakeLocator {
   }
 }
 
+type FakeMode =
+  | "no_navigation"
+  | "fill_failure"
+  | "declaration"
+  | "actual_next"
+  | "unknown_next"
+  | "loop"
+  | "foreign_action"
+  | "overview";
+
 class FakePage {
   public checkedCount = 0;
+  public readonly gotoUrls: string[] = [];
   private currentUrl = RESUME_URL;
+  private saveAck = false;
 
-  public constructor(private readonly mode: "no_navigation" | "fill_failure" | "declaration") {}
+  public constructor(
+    private readonly mode: FakeMode,
+    private readonly initialSlug = "standardApplicantsEmail",
+  ) {}
 
   public async goto(url: string): Promise<void> {
+    this.gotoUrls.push(url);
     this.currentUrl = url;
   }
 
@@ -74,7 +98,11 @@ class FakePage {
   }
 
   public async title(): Promise<string> {
-    return this.currentUrl.includes("declaration") ? "Declaration" : "Application";
+    if (this.currentUrl.includes("declaration")) return "Declaration";
+    if (this.currentUrl.endsWith("/edit/application")) {
+      return this.mode === "overview" ? "Application" : "Check your answers";
+    }
+    return "Application";
   }
 
   public async waitForLoadState(): Promise<void> {}
@@ -88,12 +116,55 @@ class FakePage {
   public locator(selector: string): FakeLocator {
     if (selector.includes('input[type="password"]')) return new FakeLocator(true);
     if (selector === 'button[type="submit"], input[type="submit"]') {
-      return new FakeLocator(true);
+      return new FakeLocator(true, () => {
+        if (this.currentUrl === RESUME_URL || this.currentUrl === LEGACY_RESUME_URL) {
+          this.currentUrl = this.mode === "overview"
+            ? `${UK_ORIGIN}/edit/application`
+            : `${APP_URL}${this.initialSlug}`;
+          return;
+        }
+        if (this.currentUrl.endsWith("/edit/application")) {
+          this.currentUrl = `${UK_ORIGIN}/edit/declaration.standardDeclaration`;
+        }
+      });
     }
     if (selector.includes("input#submit")) {
       return new FakeLocator(true, () => {
-        if (this.mode === "declaration" && this.currentUrl.includes("/edit/application.0.")) {
-          this.currentUrl = "https://example.test/edit/declaration.standardDeclaration";
+        if (!/(?:edit|save)\/application\.0\./.test(this.currentUrl)) return;
+        if (this.saveAck) {
+          this.saveAck = false;
+          if (this.mode === "declaration") {
+            this.currentUrl = `${UK_ORIGIN}/edit/declaration.standardDeclaration`;
+          } else if (this.mode === "actual_next") {
+            const slug = this.currentUrl.endsWith("standardApplicantsEmail")
+              ? "standardTelephoneDetailsList.0"
+              : "review";
+            this.currentUrl = slug === "review"
+              ? `${UK_ORIGIN}/edit/application`
+              : `${APP_URL}${slug}`;
+          } else if (this.mode === "unknown_next") {
+            this.currentUrl = `${APP_URL}unobservedConditionalPage`;
+          } else if (this.mode === "loop") {
+            this.currentUrl = `${APP_URL}standardApplicantsEmail`;
+          }
+          return;
+        }
+        if (this.mode === "no_navigation") return;
+        if (this.mode === "declaration") {
+          this.currentUrl = `${UK_ORIGIN}/save/application.0.standardApplicantsEmail`;
+          this.saveAck = true;
+        } else if (this.mode === "actual_next") {
+          this.currentUrl = `${UK_ORIGIN}/save/application.0.${this.currentUrl.split(".0.")[1]}`;
+          this.saveAck = true;
+        } else if (this.mode === "unknown_next") {
+          this.currentUrl = `${UK_ORIGIN}/save/application.0.standardApplicantsEmail`;
+          this.saveAck = true;
+        } else if (this.mode === "loop") {
+          this.currentUrl = `${UK_ORIGIN}/save/application.0.standardApplicantsEmail`;
+          this.saveAck = true;
+        } else if (this.mode === "foreign_action") {
+          this.currentUrl = `${UK_ORIGIN}/save/application.0.standardApplicantsEmail`;
+          this.saveAck = true;
         }
       }, () => {
         this.checkedCount += 1;
@@ -109,10 +180,19 @@ class FakePage {
   }
 
   public async evaluate<T>(_callback: unknown, ..._args: unknown[]): Promise<T> {
+    const currentSlug = this.currentUrl.match(/application\.0\.([^/?#]+)/i)?.[1] ?? null;
     return {
       url: this.currentUrl,
-      formAction: null,
-      heading: this.currentUrl.includes("declaration") ? "Declaration" : "Application",
+      formAction: this.mode === "foreign_action" && currentSlug
+        ? "https://evil.example/save/application.0.foreign"
+        : currentSlug
+          ? `/save/application.0.${currentSlug}`
+          : null,
+      heading: this.currentUrl.includes("declaration")
+        ? "Declaration"
+        : this.currentUrl.endsWith("/edit/application")
+          ? this.mode === "overview" ? "Application" : "Check your answers"
+          : "Application",
     } as T;
   }
 }
@@ -215,6 +295,107 @@ test("declaration is returned before any legal checkbox is touched", async () =>
     assert.deepEqual(result.pagesFilled, ["standardApplicantsEmail"]);
   }
   assert.equal(page.checkedCount, 0);
+  assert.equal(context.closed, true);
+  assert.equal(browser.closed, true);
+});
+
+test("accepts the legacy apply-uk-visa resume form and requires post-login migration", async () => {
+  const page = new FakePage("declaration");
+  const context = new FakeContext();
+  const browser = new FakeBrowser();
+  const result = await resumeUkApplication(
+    { ...baseInput(), resumeUrl: LEGACY_RESUME_URL },
+    resumeOptions(page, context, browser),
+  );
+
+  assert.equal(result.status, "halted_before_pay");
+  if (result.status === "halted_before_pay") {
+    assert.equal(result.checkpoint, "declaration");
+  }
+  assert.deepEqual(page.gotoUrls, [LEGACY_RESUME_URL]);
+  assert.equal(context.closed, true);
+  assert.equal(browser.closed, true);
+});
+
+test("follows the official next page and does not goto review directly", async () => {
+  const page = new FakePage("actual_next");
+  const context = new FakeContext();
+  const browser = new FakeBrowser();
+  const result = await resumeUkApplication(baseInput(), resumeOptions(page, context, browser));
+
+  assert.equal(result.status, "halted_before_pay");
+  if (result.status === "halted_before_pay") {
+    assert.equal(result.checkpoint, "declaration");
+    assert.deepEqual(result.pagesFilled, [
+      "standardApplicantsEmail",
+      "standardTelephoneDetailsList.0",
+    ]);
+  }
+  assert.deepEqual(page.gotoUrls, [RESUME_URL]);
+  assert.equal(context.closed, true);
+  assert.equal(browser.closed, true);
+});
+
+test("fails closed on an unknown official next page", async () => {
+  const page = new FakePage("unknown_next");
+  const context = new FakeContext();
+  const browser = new FakeBrowser();
+  const result = await resumeUkApplication(baseInput(), resumeOptions(page, context, browser));
+
+  assert.equal(result.status, "halted_before_pay");
+  if (result.status === "halted_before_pay") {
+    assert.equal(result.checkpoint, "form_incomplete");
+    assert.deepEqual(result.pagesFilled, ["standardApplicantsEmail"]);
+    assert.match(result.reason, /unknown next application page/);
+  }
+  assert.equal(context.closed, true);
+  assert.equal(browser.closed, true);
+});
+
+test("fails closed on a page loop instead of refilling the same slug", async () => {
+  const page = new FakePage("loop");
+  const context = new FakeContext();
+  const browser = new FakeBrowser();
+  const result = await resumeUkApplication(baseInput(), resumeOptions(page, context, browser));
+
+  assert.equal(result.status, "halted_before_pay");
+  if (result.status === "halted_before_pay") {
+    assert.equal(result.checkpoint, "form_incomplete");
+    assert.deepEqual(result.pagesFilled, ["standardApplicantsEmail"]);
+    assert.match(result.reason, /looped on/);
+  }
+  assert.equal(context.closed, true);
+  assert.equal(browser.closed, true);
+});
+
+test("rejects a non-official form action before filling answers", async () => {
+  const page = new FakePage("foreign_action");
+  const context = new FakeContext();
+  const browser = new FakeBrowser();
+  const result = await resumeUkApplication(baseInput(), resumeOptions(page, context, browser));
+
+  assert.equal(result.status, "halted_before_pay");
+  if (result.status === "halted_before_pay") {
+    assert.equal(result.checkpoint, "form_incomplete");
+    assert.deepEqual(result.pagesFilled, []);
+    assert.match(result.reason, /form action left the official origin/);
+  }
+  assert.equal(context.closed, true);
+  assert.equal(browser.closed, true);
+});
+
+test("does not treat an unverified application overview as review", async () => {
+  const page = new FakePage("overview");
+  const context = new FakeContext();
+  const browser = new FakeBrowser();
+  const result = await resumeUkApplication(baseInput(), resumeOptions(page, context, browser));
+
+  assert.equal(result.status, "halted_before_pay");
+  if (result.status === "halted_before_pay") {
+    assert.equal(result.checkpoint, "form_incomplete");
+    assert.deepEqual(result.pagesFilled, []);
+    assert.match(result.reason, /unknown application page/);
+  }
   assert.equal(context.closed, true);
   assert.equal(browser.closed, true);
 });
