@@ -80,6 +80,37 @@ export async function readInvalidFieldNames(page: Page): Promise<string[]> {
   return Array.isArray(names) ? (names as string[]) : [];
 }
 
+/**
+ * Names of visible required fields that are still empty (marked `required`,
+ * `aria-required`, or labelled with "*"). Field names only — values are only
+ * checked for emptiness and never returned.
+ */
+export async function readEmptyRequiredFieldNames(page: Page): Promise<string[]> {
+  const names = await page.evaluate(`(() => {
+    const out = [];
+    const isVisible = (el) => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+    const labelFor = (el) => {
+      const id = el.getAttribute("id");
+      const byFor = id ? document.querySelector('label[for="' + CSS.escape(id) + '"]') : null;
+      return (byFor || el.closest("label") || el.closest("div")?.querySelector("label"))?.textContent || "";
+    };
+    const fields = document.querySelectorAll('form input:not([type="hidden"]):not([type="submit"]):not([type="button"]), form select, form textarea');
+    for (const el of fields) {
+      const type = (el.getAttribute("type") || "").toLowerCase();
+      if (type === "checkbox" || type === "radio") continue;
+      // PrimeFaces hides the native <select> and shows its own widget.
+      const shown = isVisible(el) || (el.tagName === "SELECT" && el.closest(".ui-selectonemenu") && isVisible(el.closest(".ui-selectonemenu")));
+      if (!shown) continue;
+      const required = el.required || el.getAttribute("aria-required") === "true" || /\\*/.test(labelFor(el));
+      if (!required) continue;
+      if (String(el.value || "").trim() !== "") continue;
+      out.push(el.getAttribute("name") || el.getAttribute("id") || "unnamed");
+    }
+    return out.slice(0, 20);
+  })()`);
+  return Array.isArray(names) ? (names as string[]) : [];
+}
+
 export async function hasValidationErrors(page: Page): Promise<boolean> {
   const report = await readValidationMessages(page);
   return report.all.length > 0;
