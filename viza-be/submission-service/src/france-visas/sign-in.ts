@@ -196,53 +196,19 @@ export async function signInWithPassword(
     // Else we land on Keycloak login. Assert no unsolvable gate.
     await assertNoGate(page);
 
-    // Fill credentials. Keycloak surfaces the form as plain HTML; no PrimeFaces
-    // here, so direct field access works.
-    const username = page.locator(FV_LOGIN_SELECTORS.email).first();
-    const password = page.locator(FV_LOGIN_SELECTORS.password).first();
-    await username.waitFor({ state: "visible", timeout: timeoutMs });
-    await username.fill(input.email);
-    await password.fill(input.password);
-
-    // Click Log in, then either land on accueil or reach France-Visas'
-    // emailed one-time access-code step.
-    const submit = page.locator(FV_LOGIN_SELECTORS.submit).first();
+    // Through the remote browser the access-code POST is occasionally lost and
+    // France-Visas returns to its login form; one fresh login (with a new
+    // emailed code) recovers it.
     const loginRedirectTimeoutMs = Math.min(timeoutMs, 60_000);
-    const loginSubmittedAt = new Date(Date.now() - 5_000).toISOString();
-    await submit.click();
-    const reachedAccueil = page
-      .waitForURL(/accueil\.xhtml/i, { timeout: loginRedirectTimeoutMs })
-      .then(() => "accueil" as const)
-      .catch(() => "timeout" as const);
-    const askedForCode = page
-      .locator(FV_LOGIN_CODE_INPUT)
-      .first()
-      .waitFor({ state: "visible", timeout: loginRedirectTimeoutMs })
-      .then(() => "code" as const)
-      .catch(() => "timeout" as const);
-    const afterLogin = await Promise.race([
-      reachedAccueil,
-      askedForCode.then((outcome) => (outcome === "code" ? outcome : reachedAccueil)),
-    ]);
-    if (afterLogin === "code") {
-      if (!options.loginCodeProvider) {
-        throw new Error("France-Visas asked for the emailed access code, but no inbox is available to read it");
-      }
-      const code = await options.loginCodeProvider(loginSubmittedAt);
-      await page.locator(FV_LOGIN_CODE_INPUT).first().fill(code);
-      await Promise.all([
-        page.waitForURL(/accueil\.xhtml/i, { timeout: loginRedirectTimeoutMs }).catch(() => undefined),
-        page.locator(FV_LOGIN_SELECTORS.submit).first().click(),
-      ]);
-      // The redirect after the code sometimes fails in the remote browser
-      // (Chrome's own error page), although the session is signed in. Open
-      // the application home directly instead of waiting on the error page.
-      if (!/accueil\.xhtml/i.test(page.url())) {
-        await page
-          .goto(FV_URLS.ACCUEIL, { waitUntil: "domcontentloaded", timeout: loginRedirectTimeoutMs })
-          .catch(() => undefined);
-        await waitForRenderedPage(page, ENTRY_RENDER_TIMEOUT_MS);
-      }
+    for (let loginAttempt = 1; loginAttempt <= MAX_LOGIN_ATTEMPTS; loginAttempt += 1) {
+      await submitLoginWithCode(page, input, options, timeoutMs, loginRedirectTimeoutMs);
+      if (/accueil\.xhtml/i.test(page.url())) break;
+      const backOnLogin = await page
+        .locator(FV_LOGIN_SELECTORS.email)
+        .first()
+        .isVisible()
+        .catch(() => false);
+      if (!backOnLogin || loginAttempt === MAX_LOGIN_ATTEMPTS) break;
     }
 
     const postLoginText = await page
@@ -358,4 +324,70 @@ async function captureSignInFailureDiagnostics(
     out.screenshotPath = null;
   }
   return out;
+}
+
+
+const MAX_LOGIN_ATTEMPTS = 2;
+
+/**
+ * Fill the login form, submit it, and complete France-Visas' emailed
+ * access-code step if it appears. Leaves the page wherever France-Visas lands.
+ */
+async function submitLoginWithCode(
+  page: Page,
+  input: FvSignInInput,
+  options: FvSignInOptions,
+  timeoutMs: number,
+  loginRedirectTimeoutMs: number,
+): Promise<void> {
+  // Fill credentials. Keycloak surfaces the form as plain HTML; no PrimeFaces
+  // here, so direct field access works.
+  const username = page.locator(FV_LOGIN_SELECTORS.email).first();
+  const password = page.locator(FV_LOGIN_SELECTORS.password).first();
+  await username.waitFor({ state: "visible", timeout: timeoutMs });
+  await username.fill(input.email);
+  await password.fill(input.password);
+
+  // Click Log in, then either land on accueil or reach France-Visas'
+  // emailed one-time access-code step.
+  const submit = page.locator(FV_LOGIN_SELECTORS.submit).first();
+  const loginSubmittedAt = new Date(Date.now() - 5_000).toISOString();
+  await submit.click();
+  const reachedAccueil = page
+    .waitForURL(/accueil\.xhtml/i, { timeout: loginRedirectTimeoutMs })
+    .then(() => "accueil" as const)
+    .catch(() => "timeout" as const);
+  const askedForCode = page
+    .locator(FV_LOGIN_CODE_INPUT)
+    .first()
+    .waitFor({ state: "visible", timeout: loginRedirectTimeoutMs })
+    .then(() => "code" as const)
+    .catch(() => "timeout" as const);
+  const afterLogin = await Promise.race([
+    reachedAccueil,
+    askedForCode.then((outcome) => (outcome === "code" ? outcome : reachedAccueil)),
+  ]);
+  if (afterLogin === "code") {
+    if (!options.loginCodeProvider) {
+      throw new Error("France-Visas asked for the emailed access code, but no inbox is available to read it");
+    }
+    const code = await options.loginCodeProvider(loginSubmittedAt);
+    // Submit the form that owns the code field (Enter), so a sibling
+    // "send a new code" button can never be pressed by mistake.
+    const codeField = page.locator(FV_LOGIN_CODE_INPUT).first();
+    await codeField.fill(code);
+    await Promise.all([
+      page.waitForURL(/accueil\.xhtml/i, { timeout: loginRedirectTimeoutMs }).catch(() => undefined),
+      codeField.press("Enter"),
+    ]);
+    // The redirect after the code sometimes fails in the remote browser
+    // (Chrome's own error page), although the session is signed in. Open
+    // the application home directly instead of waiting on the error page.
+    if (!/accueil\.xhtml/i.test(page.url())) {
+      await page
+        .goto(FV_URLS.ACCUEIL, { waitUntil: "domcontentloaded", timeout: loginRedirectTimeoutMs })
+        .catch(() => undefined);
+      await waitForRenderedPage(page, ENTRY_RENDER_TIMEOUT_MS);
+    }
+  }
 }
