@@ -59,6 +59,22 @@ export async function readInvalidFieldNames(page: Page): Promise<string[]> {
       const name = el.getAttribute("name") || el.getAttribute("id") || "";
       if (name && el.getAttribute("type") !== "hidden") out.add(name);
     }
+    // France-Visas also shows plain error messages next to a field without
+    // marking the field itself: name the closest field around each visible
+    // message (or the message's own id, which embeds the field id).
+    const messages = document.querySelectorAll(
+      '.ui-message-error, .field-error, [class*="invalid-feedback"], [class*="error-text"], .fr-error-text, .fr-message--error'
+    );
+    for (const msg of messages) {
+      if (!(msg.offsetWidth || msg.offsetHeight || msg.getClientRects().length)) continue;
+      let node = msg.parentElement;
+      let found = "";
+      for (let depth = 0; node && depth < 5 && !found; depth += 1, node = node.parentElement) {
+        const field = node.querySelector('input:not([type="hidden"]), select, textarea');
+        if (field) found = field.getAttribute("name") || field.getAttribute("id") || "";
+      }
+      out.add(found || ("message:" + (msg.getAttribute("id") || msg.className || "unknown")));
+    }
     return Array.from(out).slice(0, 20);
   })()`);
   return Array.isArray(names) ? (names as string[]) : [];
