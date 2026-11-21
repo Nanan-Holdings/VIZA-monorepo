@@ -270,6 +270,11 @@
       "drizzle": "viza-be/agent-backend/drizzle/0217_claim_uk_live_assisted.sql",
       "supabase": "viza-fe/internal-website/supabase/migrations/20261120150000_claim_uk_live_assisted.sql",
       "sha256": "1252794b131f42aeef86e727e05a9fb70fc39b8dbd1ac0befbcc3e00dea8970b"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0218_france_school_contact_fields.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20261121140000_france_school_contact_fields.sql",
+      "sha256": "d0327d14eff6ddf556ff72a8ed3adf74d09c3d466fe348cb632cb5ea352e0c28"
     }
   ],
   "no_mirror": [

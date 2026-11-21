@@ -708,3 +708,11 @@ question): the 15 mainland-China TLScontact centres, values are centre keys
 (`changsha`, ...). France-Visas step 1 needs the city of submission; the worker
 matches the chosen city against the live dropdown. Idempotent. Keep
 `20261120140000_france_submission_centre.sql` byte-identical.
+
+`0218_france_school_contact_fields.sql` adds `school_city`, `school_country`
+and `school_email` (required, step 6, students only) to
+`EU_SCHENGEN_C_SHORT_STAY`, and makes `school_phone` and `employer_email`
+required. France-Visas' employer / educational-establishment section needs the
+name, street, city, phone and e-mail; the worker fills it from the school
+answers for students. Idempotent. Keep
+`20261121140000_france_school_contact_fields.sql` byte-identical.
