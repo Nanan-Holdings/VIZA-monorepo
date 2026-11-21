@@ -68,4 +68,19 @@ describe("validateFranceOfficialAnswers", () => {
       { field: "submission_centre", labelZh: "递交签证申请的城市", reason: "missing" },
     ]);
   });
+
+  it("requires every school detail France-Visas asks students for", () => {
+    const problems = validateFranceOfficialAnswers({
+      ...validHotelStay,
+      is_student: "yes",
+      school_name: "National University of Singapore",
+      school_address: "21 Lower Kent Ridge Road",
+      school_country: "SG",
+      school_phone: "+65 6516 6666",
+    });
+    expect(problems).toEqual([
+      { field: "school_city", labelZh: "学校所在城市", reason: "missing" },
+      { field: "school_email", labelZh: "学校电子邮箱", reason: "missing" },
+    ]);
+  });
 });

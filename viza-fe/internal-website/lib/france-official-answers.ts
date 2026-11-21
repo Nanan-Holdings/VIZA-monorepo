@@ -29,7 +29,7 @@ export function containsNonLatinText(value: string): boolean {
   return NON_LATIN_LETTER_RE.test(value) || hasFullWidthText(value);
 }
 
-type Kind = "latin" | "phone" | "email";
+type Kind = "latin" | "phone" | "email" | "any";
 
 const APPLICANT_FIELDS: Array<[string, string, Kind]> = [
   ["place_of_birth", "出生地", "latin"],
@@ -42,6 +42,19 @@ const APPLICANT_FIELDS: Array<[string, string, Kind]> = [
   ["employer_city", "雇主或学校所在城市", "latin"],
   ["employer_phone", "雇主或学校电话", "phone"],
   ["employer_email", "雇主或学校邮箱", "email"],
+];
+
+/**
+ * France-Visas opens its employer / educational-establishment section for
+ * students and requires every field in it; VIZA fills it from these answers.
+ */
+const SCHOOL_FIELDS: Array<[string, string, Kind]> = [
+  ["school_name", "学校名称", "latin"],
+  ["school_address", "学校地址", "latin"],
+  ["school_city", "学校所在城市", "latin"],
+  ["school_country", "学校所在国家", "any"],
+  ["school_phone", "学校电话", "phone"],
+  ["school_email", "学校电子邮箱", "email"],
 ];
 
 const HOST_FIELDS: Array<[string, string, Kind]> = [
@@ -91,6 +104,12 @@ export function validateFranceOfficialAnswers(
   };
 
   checkFields(APPLICANT_FIELDS);
+  if (text("is_student").toLowerCase() === "yes") {
+    checkFields(SCHOOL_FIELDS);
+    for (const [field, labelZh] of SCHOOL_FIELDS) {
+      if (!text(field)) problems.push({ field, labelZh, reason: "missing" });
+    }
+  }
   // France-Visas step 1 needs the city of submission (TLScontact centre).
   if (!text("submission_centre") && !text("fv_deposit_town")) {
     problems.push({ field: "submission_centre", labelZh: "递交签证申请的城市", reason: "missing" });
