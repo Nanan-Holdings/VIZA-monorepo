@@ -290,6 +290,11 @@
       "drizzle": "viza-be/agent-backend/drizzle/0221_official_handoff_vietnam.sql",
       "supabase": "viza-fe/internal-website/supabase/migrations/20261119090000_official_handoff_vietnam.sql",
       "sha256": "d0640b1096a2cc38740aa6e39a96d5c8e11362fe8b852738237e0bea81ede330"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0222_france_accommodation_contact_required.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20261121170000_france_accommodation_contact_required.sql",
+      "sha256": "89fb863f8f545b987f2a10df3b937ff6c1f5128e8e39997589a65ceba481ae64"
     }
   ],
   "no_mirror": [

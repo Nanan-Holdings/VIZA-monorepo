@@ -733,3 +733,10 @@ written and applied to production as 0211 on 2026-11-19, before main's
 `0211_archive_superseded_applications.sql`; it was renumbered to 0221 when the
 Vietnam branch was rebased. It touches only the handoff functions above, which
 0211-0220 do not redefine, so the order of application does not matter.
+
+`0222_france_accommodation_contact_required.sql` makes `accommodation_phone`
+and `accommodation_email` required on `EU_SCHENGEN_C_SHORT_STAY` (shown only for
+hotel/rented stays) with Chinese helper text. France-Visas step 5 requires the
+host organisation's telephone and e-mail; VIZA also uses them for the hotel
+reception contact. Idempotent. Keep
+`20261121170000_france_accommodation_contact_required.sql` byte-identical.
