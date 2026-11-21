@@ -648,7 +648,7 @@ async function captureHostOrganizationFields(page: Page): Promise<Array<{
         return {
           name: control.name || id,
           type: control.type,
-          label: label.replace(/s+/g, " ").trim(),
+          label: label.replace(/\s+/g, " ").trim(),
           required: control.required || control.getAttribute("aria-required") === "true",
           maxLength: "maxLength" in control && control.maxLength > 0 ? control.maxLength : null,
         };
