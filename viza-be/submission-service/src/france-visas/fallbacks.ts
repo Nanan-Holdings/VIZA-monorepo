@@ -136,6 +136,18 @@ export function findFranceAnswerIssues(answers: FvApplicationAnswers): FranceAns
     check("step5", s5.hostPersonEmail, { field: "hostPersonEmail", answerFields: ["host_email"], labelZh: "邀请人邮箱", labelEn: "Host email", email: true }, issues);
   }
 
+  // Hotel / rental: the establishment fills France-Visas' host-organisation
+  // block and, as reception, its contact person — all from accommodation_*.
+  if (s5.cbxHasHostOrganization) {
+    check("step5", s5.hostOrgName, { field: "hostOrgName", answerFields: ["accommodation_name"], labelZh: "酒店名称或住宿名称", labelEn: "Hotel or accommodation name", latinOnly: true }, issues);
+    check("step5", s5.hostOrgStreet, { field: "hostOrgStreet", answerFields: ["accommodation_address_line_1"], labelZh: "住宿地址", labelEn: "Accommodation address", latinOnly: true }, issues);
+    check("step5", s5.hostOrgZipcode, { field: "hostOrgZipcode", answerFields: ["accommodation_postcode"], labelZh: "住宿地址邮编", labelEn: "Accommodation postcode", latinOnly: true }, issues);
+    check("step5", s5.hostOrgPlace, { field: "hostOrgPlace", answerFields: ["accommodation_city"], labelZh: "住宿城市", labelEn: "Accommodation city", latinOnly: true }, issues);
+    check("step5", s5.hostOrgCountry, { field: "hostOrgCountry", answerFields: ["accommodation_country"], labelZh: "住宿所在申根国", labelEn: "Accommodation country" }, issues);
+    check("step5", s5.hostOrgPhone, { field: "hostOrgPhone", answerFields: ["accommodation_phone"], labelZh: "住宿电话", labelEn: "Accommodation phone", phone: true }, issues);
+    check("step5", s5.hostOrgEmail, { field: "hostOrgEmail", answerFields: ["accommodation_email"], labelZh: "住宿电子邮箱", labelEn: "Accommodation email", email: true }, issues);
+  }
+
   return issues;
 }
 

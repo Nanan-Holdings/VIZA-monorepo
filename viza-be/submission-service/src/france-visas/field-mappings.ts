@@ -126,6 +126,24 @@ export interface FvStep5Answers {
   hostPersonPhone?: string;
   hostPersonEmail?: string;
 
+  // Required iff cbxHasHostOrganization (hotel / rental): the establishment
+  // and its contact person. Phones in international extended form (0033…).
+  hostOrgName?: string;
+  hostOrgStreet?: string;
+  hostOrgZipcode?: string;
+  hostOrgPlace?: string;
+  hostOrgCountry?: string; // ISO-3
+  hostOrgPhone?: string;
+  hostOrgEmail?: string;
+  hostOrgContactSurname?: string;
+  hostOrgContactFirstnames?: string;
+  hostOrgContactAddress?: string;
+  hostOrgContactZipcode?: string;
+  hostOrgContactPlace?: string;
+  hostOrgContactCountry?: string; // ISO-3
+  hostOrgContactPhone?: string;
+  hostOrgContactEmail?: string;
+
   // Required iff cbxHasAutoFunding — at least one funding method must be selected.
   autoFundings?: FvAutoFunding[];
 

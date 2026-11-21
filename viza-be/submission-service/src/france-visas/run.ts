@@ -246,23 +246,6 @@ export async function fillFranceVisasApplication(
     // ── Step 5 — Your contacts ───────────────────────────────────────────
     logRun(runId, "filling step5");
     await fillStep5(session.page, answers.step5);
-    if (answers.step5.cbxHasHostOrganization) {
-      // Hotel/rental stays go in the host-organisation block, whose fields are
-      // not mapped yet. Record them from the live page and stop before
-      // advancing, rather than entering anything invented.
-      const hostOrganizationFields = await captureHostOrganizationFields(session.page);
-      logRun(runId, `host-organisation block captured (${hostOrganizationFields.length} controls)`);
-      return {
-        status: "failed",
-        runId,
-        failedStep: "step5",
-        validationMessages: ["France-Visas host-organisation (hotel) fields are not mapped yet"],
-        diagnostics: null,
-        error: { code: "france_host_organization_capture", hostOrganizationFields },
-        stepTimings: closeTimings(),
-        url: redactOfficialUrl(session.page.url()),
-      };
-    }
     logRun(runId, "advancing step5 to step6");
     await advanceStep(session.page, "step5", "step6", stepTimeoutMs);
     stepsCompleted.push("step5");
