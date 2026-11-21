@@ -16,6 +16,8 @@ const validHotelStay = {
   accommodation_address_line_1: "Place André Malraux",
   accommodation_postcode: "75001",
   accommodation_city: "Paris",
+  accommodation_phone: "+33 1 44 58 38 38",
+  accommodation_email: "reservations@hotel.test",
   submission_centre: "changsha",
 };
 
@@ -81,6 +83,14 @@ describe("validateFranceOfficialAnswers", () => {
     expect(problems).toEqual([
       { field: "school_city", labelZh: "学校所在城市", reason: "missing" },
       { field: "school_email", labelZh: "学校电子邮箱", reason: "missing" },
+    ]);
+  });
+
+  it("requires the hotel's phone and e-mail for a hotel stay", () => {
+    const { accommodation_phone: _phone, accommodation_email: _email, ...withoutContact } = validHotelStay;
+    expect(validateFranceOfficialAnswers(withoutContact)).toEqual([
+      { field: "accommodation_phone", labelZh: "住宿电话", reason: "missing" },
+      { field: "accommodation_email", labelZh: "住宿电子邮箱", reason: "missing" },
     ]);
   });
 });
