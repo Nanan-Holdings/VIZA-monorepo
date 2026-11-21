@@ -92,7 +92,14 @@ export async function readEmptyRequiredFieldNames(page: Page): Promise<string[]>
     const labelFor = (el) => {
       const id = el.getAttribute("id");
       const byFor = id ? document.querySelector('label[for="' + CSS.escape(id) + '"]') : null;
-      return (byFor || el.closest("label") || el.closest("div")?.querySelector("label"))?.textContent || "";
+      if (byFor || el.closest("label")) return (byFor || el.closest("label")).textContent || "";
+      // PrimeFaces wraps the real control; its label sits a few levels up.
+      let node = el.parentElement;
+      for (let depth = 0; node && depth < 4; depth += 1, node = node.parentElement) {
+        const label = node.querySelector("label");
+        if (label) return label.textContent || "";
+      }
+      return "";
     };
     const fields = document.querySelectorAll('form input:not([type="hidden"]):not([type="submit"]):not([type="button"]), form select, form textarea');
     for (const el of fields) {
@@ -105,6 +112,21 @@ export async function readEmptyRequiredFieldNames(page: Page): Promise<string[]>
       if (!required) continue;
       if (String(el.value || "").trim() !== "") continue;
       out.push(el.getAttribute("name") || el.getAttribute("id") || "unnamed");
+    }
+    // Radio groups (yes/no questions): name every visible group with no
+    // option chosen. PrimeFaces hides the native radios behind its widgets.
+    const groups = new Map();
+    for (const radio of document.querySelectorAll('form input[type="radio"]')) {
+      const name = radio.getAttribute("name");
+      if (!name) continue;
+      const widget = radio.closest(".ui-radiobutton, table, fieldset") || radio;
+      const entry = groups.get(name) || { checked: false, visible: false };
+      entry.checked = entry.checked || radio.checked;
+      entry.visible = entry.visible || isVisible(widget);
+      groups.set(name, entry);
+    }
+    for (const [name, entry] of groups) {
+      if (entry.visible && !entry.checked) out.push("radio:" + name);
     }
     return out.slice(0, 20);
   })()`);
