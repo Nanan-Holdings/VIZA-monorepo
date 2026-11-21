@@ -224,7 +224,34 @@ export function toFvCountryCode(code: string | null | undefined, field: string):
   }
   const nameMapped = COUNTRY_NAME_TO_A3[code.trim().toLowerCase()];
   if (nameMapped) return nameMapped;
+  const displayMapped = countryNameIndex().get(countryNameKey(code));
+  if (displayMapped) return displayMapped;
   throw new NormalizationError(field, `unrecognized country code "${code}"`);
+}
+
+function countryNameKey(name: string): string {
+  return name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^a-z一-鿿]/g, "");
+}
+
+let countryNames: Map<string, string> | null = null;
+
+/**
+ * English and Chinese country names → alpha-3, for every country France-Visas
+ * accepts (A2_TO_A3). The form stores countries by name ("Singapore",
+ * "新加坡"), so names are matched through Node's built-in region names.
+ */
+function countryNameIndex(): Map<string, string> {
+  if (countryNames) return countryNames;
+  const index = new Map<string, string>();
+  const displays = ["en", "zh-Hans"].map((locale) => new Intl.DisplayNames([locale], { type: "region" }));
+  for (const [a2, a3] of Object.entries(A2_TO_A3)) {
+    for (const display of displays) {
+      const name = display.of(a2);
+      if (name && name !== a2) index.set(countryNameKey(name), a3);
+    }
+  }
+  countryNames = index;
+  return index;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
