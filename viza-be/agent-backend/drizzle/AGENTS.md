@@ -89,6 +89,8 @@ service-role-only execution, and asserts those invariants against
 `0219_uk_additional_email_fields.sql` adds the official additional-email
 question and its conditional answer to UK Standard Visitor without changing
 application answers. Keep the timestamped Supabase mirror byte-identical.
+`0220_uk_purpose_showif_values.sql` corrects four UK purpose conditional
+values to match the available selection values without changing answers.
 
 ## Key Responsibilities
 

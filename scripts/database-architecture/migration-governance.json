@@ -280,6 +280,11 @@
       "drizzle": "viza-be/agent-backend/drizzle/0219_uk_additional_email_fields.sql",
       "supabase": "viza-fe/internal-website/supabase/migrations/20261121150000_uk_additional_email_fields.sql",
       "sha256": "781abb92db03c01b78063b2fb77390518891fbce4e579bd16d67ae25bb3ae4f0"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0220_uk_purpose_showif_values.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20261121153000_uk_purpose_showif_values.sql",
+      "sha256": "874a0e6f4b7650c801ca984e6c9477fa849e920700388a531356c7d23c67a0b6"
     }
   ],
   "no_mirror": [
