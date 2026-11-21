@@ -343,8 +343,27 @@ function occupationKey(v: string): string {
 /** France-Visas business-segment code for education (NACE section P, "Teaching"). */
 export const EDUCATION_SEGMENT = "P";
 
-/** Contact person for a hotel or rental stay: the establishment's reception. */
-export const HOTEL_RECEPTION_CONTACT = "Réception";
+/**
+ * Contact person for a hotel or rental stay: the establishment's reception.
+ * France-Visas requires both a last name and first name(s) for the contact.
+ */
+export const HOTEL_RECEPTION_CONTACT = "RECEPTION";
+export const HOTEL_RECEPTION_CONTACT_FIRST_NAME = "HOTEL";
+
+/**
+ * Free text for France-Visas' host-organisation block, which rejects accented
+ * and punctuation characters ("non-permitted characters"): accents are folded
+ * (é → e), separators other than space, apostrophe and hyphen become spaces.
+ */
+export function toFvPlainText(value: string | null | undefined): string | undefined {
+  if (!value?.trim()) return undefined;
+  return value
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/[^A-Za-z0-9' -]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 /**
  * France-Visas wants telephone numbers in "international extended" form —
@@ -600,18 +619,19 @@ export function normalizeFvAnswers(input: NormalizeInput): FvApplicationAnswers 
     hostPersonEmail: fvOverrides.step5?.hostPersonEmail ?? a.host_email ?? undefined,
     ...(hostOrganization
       ? {
-          hostOrgName: a.accommodation_name ?? undefined,
-          hostOrgStreet: a.accommodation_address_line_1 ?? undefined,
-          hostOrgZipcode: a.accommodation_postcode ?? undefined,
-          hostOrgPlace: a.accommodation_city ?? undefined,
+          hostOrgName: toFvPlainText(a.accommodation_name),
+          hostOrgStreet: toFvPlainText(a.accommodation_address_line_1),
+          hostOrgZipcode: toFvPlainText(a.accommodation_postcode),
+          hostOrgPlace: toFvPlainText(a.accommodation_city),
           hostOrgCountry: orgCountry,
           hostOrgPhone: orgPhone,
-          hostOrgEmail: a.accommodation_email ?? undefined,
+          hostOrgEmail: a.accommodation_email?.trim() || undefined,
           // The hotel's reception is the contact person, at the hotel itself.
           hostOrgContactSurname: HOTEL_RECEPTION_CONTACT,
-          hostOrgContactAddress: a.accommodation_address_line_1 ?? undefined,
-          hostOrgContactZipcode: a.accommodation_postcode ?? undefined,
-          hostOrgContactPlace: a.accommodation_city ?? undefined,
+          hostOrgContactFirstnames: HOTEL_RECEPTION_CONTACT_FIRST_NAME,
+          hostOrgContactAddress: toFvPlainText(a.accommodation_address_line_1),
+          hostOrgContactZipcode: toFvPlainText(a.accommodation_postcode),
+          hostOrgContactPlace: toFvPlainText(a.accommodation_city),
           hostOrgContactCountry: orgCountry,
           hostOrgContactPhone: orgPhone,
           hostOrgContactEmail: a.accommodation_email ?? undefined,

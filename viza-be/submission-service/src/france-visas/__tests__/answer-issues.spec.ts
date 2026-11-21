@@ -216,9 +216,9 @@ test("a hotel stay fills the host organisation with the reception as contact", a
       email_address: "a@viza.test", is_student: "no", current_occupation: "Engineer",
       intended_arrival_date: "2027-01-16", intended_departure_date: "2027-01-31", intended_duration_days: "16",
       number_of_entries_requested: "single", cost_covered_by: "self", self_means_cash: "yes",
-      accommodation_type: "hotel", accommodation_name: "Hotel du Louvre", accommodation_address_line_1: "Place Andre Malraux",
-      accommodation_postcode: "75001", accommodation_city: "Paris", accommodation_country: "France",
-      accommodation_phone: "+33 1 44 58 10 10", accommodation_email: "reservations@hotel.test",
+      accommodation_type: "hotel", accommodation_name: "Novotel Paris Créteil Le Lac", accommodation_address_line_1: "Rue Jean Gabin, RN 186",
+      accommodation_postcode: "94000", accommodation_city: "Créteil", accommodation_country: "France",
+      accommodation_phone: "+33 1 56 72 56 72", accommodation_email: "H0382@accor.com",
     },
     profile: {} as never,
     application: {} as never,
@@ -227,12 +227,15 @@ test("a hotel stay fills the host organisation with the reception as contact", a
   const s5 = answers.step5;
   assert.equal(s5.cbxHasHostOrganization, true);
   assert.equal(s5.cbxHasHostPerson, false);
-  assert.equal(s5.hostOrgName, "Hotel du Louvre");
+  assert.equal(s5.hostOrgName, "Novotel Paris Creteil Le Lac");
+  assert.equal(s5.hostOrgStreet, "Rue Jean Gabin RN 186");
+  assert.equal(s5.hostOrgPlace, "Creteil");
   assert.equal(s5.hostOrgCountry, "FRA");
-  assert.equal(s5.hostOrgPhone, "0033144581010");
+  assert.equal(s5.hostOrgPhone, "0033156725672");
   assert.equal(s5.hostOrgContactSurname, HOTEL_RECEPTION_CONTACT);
-  assert.equal(s5.hostOrgContactAddress, "Place Andre Malraux");
-  assert.equal(s5.hostOrgContactPhone, "0033144581010");
-  assert.equal(s5.hostOrgContactEmail, "reservations@hotel.test");
+  assert.equal(s5.hostOrgContactFirstnames, "HOTEL");
+  assert.equal(s5.hostOrgContactAddress, "Rue Jean Gabin RN 186");
+  assert.equal(s5.hostOrgContactPhone, "0033156725672");
+  assert.equal(s5.hostOrgContactEmail, "H0382@accor.com");
   assert.deepEqual(s5.autoFundings, ["ARG"]);
 });
