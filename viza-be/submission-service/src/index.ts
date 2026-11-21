@@ -4185,6 +4185,16 @@ async function processFvItem(
                   ? "france_visas_manual_gate"
                   : nonRetryableResult ? resultErrorCode : "france_visas_prefill_failed",
                 error_message: errorMsg,
+                // submission_queue has no France payload column: keep the
+                // captured hotel-block field list (names, types, labels and
+                // limits — no answers) where it can be read to map step 5.
+                ...(resultErrorCode === "france_host_organization_capture"
+                  ? {
+                      official_error_message: JSON.stringify(
+                        (result.error as { hostOrganizationFields?: unknown }).hostOrganizationFields ?? [],
+                      ).slice(0, 8_000),
+                    }
+                  : {}),
               }
             : {}),
           fv_result_payload: result as unknown as Record<string, unknown>,
