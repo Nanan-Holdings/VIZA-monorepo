@@ -80,7 +80,7 @@ test("hotel stays skip host-person checks", () => {
   assert.deepEqual(findFranceAnswerIssues(answers), []);
 });
 
-test("an 'Other' occupation needs employer details and at least one employer contact", () => {
+test("an 'Other' occupation needs every employer detail, phone and email included", () => {
   const answers = validAnswers();
   answers.step2 = {
     ...answers.step2,
@@ -94,7 +94,8 @@ test("an 'Other' occupation needs employer details and at least one employer con
   };
   const issues = findFranceAnswerIssues(answers);
   assert.deepEqual(issues.map((issue) => [issue.field, issue.answerFields]), [
-    ["employerPhone", ["employer_phone", "employer_email"]],
+    ["employerPhone", ["employer_phone"]],
+    ["employerEmail", ["employer_email"]],
   ]);
 });
 
@@ -121,4 +122,21 @@ test("a missing France-Visas login is a non-retried data error with a Chinese fi
   assert.ok(error instanceof NormalizationError);
   assert.equal(error.errorCode, "france_account_required");
   assert.match(error.messageZh, /关联您的 France-Visas 账号/);
+});
+
+test("a student's educational establishment is checked against the school answers", () => {
+  const answers = validAnswers();
+  answers.step2 = {
+    ...answers.step2,
+    occupation: "69005",
+    employerName: "National University of Singapore",
+    employerStreet: "21 Lower Kent Ridge Road",
+    employerCountry: "SGP",
+    employerPhone: "+65 6516 6666",
+  };
+  const issues = findFranceAnswerIssues(answers);
+  assert.deepEqual(issues.map((issue) => [issue.field, issue.answerFields[0], issue.labelZh]), [
+    ["employerPlace", "school_city", "学校所在城市"],
+    ["employerEmail", "school_email", "学校电子邮箱"],
+  ]);
 });

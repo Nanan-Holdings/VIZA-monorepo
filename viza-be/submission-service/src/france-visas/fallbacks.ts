@@ -17,6 +17,27 @@ export interface FranceAnswerIssue {
   labelEn: string;
 }
 
+const OTHER_OCCUPATION = "65005";
+const STUDENT_OCCUPATION = "69005";
+
+/** VIZA answer field and Chinese label behind each employer-section field. */
+const EMPLOYER_FIELDS = {
+  name: ["employer_name", "工作单位名称"],
+  street: ["employer_address_line_1", "工作单位地址"],
+  city: ["employer_city", "工作单位所在城市"],
+  country: ["employer_country", "工作单位所在国家"],
+  phone: ["employer_phone", "工作单位电话"],
+  email: ["employer_email", "工作单位电子邮箱"],
+} as const;
+const SCHOOL_FIELDS = {
+  name: ["school_name", "学校名称"],
+  street: ["school_address", "学校地址"],
+  city: ["school_city", "学校所在城市"],
+  country: ["school_country", "学校所在国家"],
+  phone: ["school_phone", "学校电话"],
+  email: ["school_email", "学校电子邮箱"],
+} as const;
+
 /** Any letter that is not Latin script (Han, kana, Hangul, Cyrillic, Arabic…). */
 const NON_LATIN_LETTER_RE = /(?!\p{Script=Latin})\p{L}/u;
 /** Full-width forms and CJK punctuation, e.g. "，" or "（". */
@@ -87,22 +108,21 @@ export function findFranceAnswerIssues(answers: FvApplicationAnswers): FranceAns
   check("step2", s2.phoneNumber, { field: "phoneNumber", answerFields: ["phone_number"], labelZh: "电话号码", labelEn: "Phone number", phone: true }, issues);
   check("step2", s2.email, { field: "email", answerFields: ["email_address"], labelZh: "电子邮箱", labelEn: "Email address", email: true }, issues);
 
-  // France-Visas opens the job-details subsection for "Other" occupations.
-  if (s2.occupation === "65005") {
+  // France-Visas opens the employer / educational-establishment section for
+  // "Other" occupations and for students, and requires every field in it.
+  const isStudent = s2.occupation === STUDENT_OCCUPATION;
+  if (s2.occupation === OTHER_OCCUPATION) {
     check("step2", s2.occupationOtherSpecify, { field: "occupationOtherSpecify", answerFields: ["current_occupation"], labelZh: "职业说明", labelEn: "Occupation (please specify)", latinOnly: true }, issues);
     check("step2", s2.businessSegment, { field: "businessSegment", answerFields: ["fv_business_segment"], labelZh: "所属行业", labelEn: "Business sector" }, issues);
-    check("step2", s2.employerName, { field: "employerName", answerFields: ["employer_name"], labelZh: "雇主或学校名称", labelEn: "Employer or school name", latinOnly: true }, issues);
-    check("step2", s2.employerStreet, { field: "employerStreet", answerFields: ["employer_address_line_1"], labelZh: "雇主或学校地址", labelEn: "Employer or school address", latinOnly: true }, issues);
-    check("step2", s2.employerPlace, { field: "employerPlace", answerFields: ["employer_city"], labelZh: "雇主或学校所在城市", labelEn: "Employer or school city", latinOnly: true }, issues);
-    check("step2", s2.employerCountry, { field: "employerCountry", answerFields: ["employer_country"], labelZh: "雇主或学校所在国家", labelEn: "Employer or school country" }, issues);
-    // France-Visas needs at least one employer contact; whichever is given must be valid.
-    const hasPhone = Boolean(s2.employerPhone?.trim());
-    const hasEmail = Boolean(s2.employerEmail?.trim());
-    if (!hasPhone && !hasEmail) {
-      check("step2", undefined, { field: "employerPhone", answerFields: ["employer_phone", "employer_email"], labelZh: "雇主或学校电话或邮箱", labelEn: "Employer or school phone or email" }, issues);
-    }
-    if (hasPhone) check("step2", s2.employerPhone, { field: "employerPhone", answerFields: ["employer_phone"], labelZh: "雇主或学校电话", labelEn: "Employer or school phone", phone: true }, issues);
-    if (hasEmail) check("step2", s2.employerEmail, { field: "employerEmail", answerFields: ["employer_email"], labelZh: "雇主或学校邮箱", labelEn: "Employer or school email", email: true }, issues);
+  }
+  if (s2.occupation === OTHER_OCCUPATION || isStudent) {
+    const f = isStudent ? SCHOOL_FIELDS : EMPLOYER_FIELDS;
+    check("step2", s2.employerName, { field: "employerName", answerFields: [f.name[0]], labelZh: f.name[1], labelEn: "Employer or school name", latinOnly: true }, issues);
+    check("step2", s2.employerStreet, { field: "employerStreet", answerFields: [f.street[0]], labelZh: f.street[1], labelEn: "Employer or school address", latinOnly: true }, issues);
+    check("step2", s2.employerPlace, { field: "employerPlace", answerFields: [f.city[0]], labelZh: f.city[1], labelEn: "Employer or school city", latinOnly: true }, issues);
+    check("step2", s2.employerCountry, { field: "employerCountry", answerFields: [f.country[0]], labelZh: f.country[1], labelEn: "Employer or school country" }, issues);
+    check("step2", s2.employerPhone, { field: "employerPhone", answerFields: [f.phone[0]], labelZh: f.phone[1], labelEn: "Employer or school phone", phone: true }, issues);
+    check("step2", s2.employerEmail, { field: "employerEmail", answerFields: [f.email[0]], labelZh: f.email[1], labelEn: "Employer or school email", email: true }, issues);
   }
 
   if (s5.cbxHasHostPerson) {

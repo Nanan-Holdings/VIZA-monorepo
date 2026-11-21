@@ -452,12 +452,17 @@ export function normalizeFvAnswers(input: NormalizeInput): FvApplicationAnswers 
       ? rawOccupation.trim().toUpperCase()
       : undefined,
     businessSegment: fvOverrides.businessSegment,
-    employerName: a.employer_name ?? undefined,
-    employerStreet: a.employer_address_line_1 ?? undefined,
-    employerPlace: a.employer_city ?? undefined,
-    employerCountry: a.employer_country ? toFvCountryCode(a.employer_country, "employer_country") : undefined,
-    employerPhone: a.employer_phone ?? undefined,
-    employerEmail: a.employer_email ?? undefined,
+    // France-Visas' employer section is the educational establishment for
+    // students, so it is filled from the school answers.
+    employerName: (isStudent ? a.school_name : a.employer_name) ?? undefined,
+    employerStreet: (isStudent ? a.school_address : a.employer_address_line_1) ?? undefined,
+    employerPlace: (isStudent ? a.school_city : a.employer_city) ?? undefined,
+    employerCountry: (() => {
+      const country = isStudent ? a.school_country : a.employer_country;
+      return country ? toFvCountryCode(country, isStudent ? "school_country" : "employer_country") : undefined;
+    })(),
+    employerPhone: (isStudent ? a.school_phone : a.employer_phone) ?? undefined,
+    employerEmail: (isStudent ? a.school_email : a.employer_email) ?? undefined,
   };
 
   // Seed step 10 (Travel History) names: prior_schengen_visa_5y is a NEW seed
