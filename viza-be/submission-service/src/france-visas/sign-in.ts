@@ -208,7 +208,20 @@ export async function signInWithPassword(
         .first()
         .isVisible()
         .catch(() => false);
-      if (!backOnLogin || loginAttempt === MAX_LOGIN_ATTEMPTS) break;
+      if (loginAttempt === MAX_LOGIN_ATTEMPTS) break;
+      if (!backOnLogin) {
+        // A dropped connection leaves Chrome's error page: start the login
+        // over from the application entry.
+        if (!isBrowserErrorPage(page)) break;
+        await page
+          .goto(`${FV_URLS.ACCUEIL.replace(/\/accueil\.xhtml$/, "/")}`, {
+            waitUntil: "domcontentloaded",
+            timeout: timeoutMs,
+          })
+          .catch(() => undefined);
+        await waitForRenderedPage(page, ENTRY_RENDER_TIMEOUT_MS);
+        if (/accueil\.xhtml/i.test(page.url())) break;
+      }
     }
 
     const postLoginText = await page
@@ -383,11 +396,23 @@ async function submitLoginWithCode(
     // The redirect after the code sometimes fails in the remote browser
     // (Chrome's own error page), although the session is signed in. Open
     // the application home directly instead of waiting on the error page.
-    if (!/accueil\.xhtml/i.test(page.url())) {
+    // The connection itself can drop for a moment, so retry a few times.
+    for (let open = 1; open <= HOME_OPEN_ATTEMPTS && !/accueil\.xhtml/i.test(page.url()); open += 1) {
+      if (open > 1) await page.waitForTimeout(3_000 * (open - 1));
       await page
         .goto(FV_URLS.ACCUEIL, { waitUntil: "domcontentloaded", timeout: loginRedirectTimeoutMs })
         .catch(() => undefined);
       await waitForRenderedPage(page, ENTRY_RENDER_TIMEOUT_MS);
+      // Back on the login form means the session was not signed in: no use
+      // reopening the home page, the caller logs in again.
+      if (await page.locator(FV_LOGIN_SELECTORS.email).first().isVisible().catch(() => false)) break;
     }
   }
+}
+
+const HOME_OPEN_ATTEMPTS = 3;
+
+/** Chrome's own "page could not be loaded" screen (the connection dropped). */
+function isBrowserErrorPage(page: Page): boolean {
+  return /^chrome-error:|chromewebdata/i.test(page.url());
 }
