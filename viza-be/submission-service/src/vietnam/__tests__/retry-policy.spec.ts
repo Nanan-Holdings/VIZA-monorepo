@@ -189,3 +189,26 @@ test("vn.retry-policy: exhausts a queue retry after consuming a one-time card", 
     1,
   );
 });
+
+test("slow-session and stalled Vietnam attempts retry in a fresh browser", () => {
+  const slowSession = {
+    status: "failed" as const,
+    failedStep: "filling_fields",
+    error: {
+      message: "Vietnam form fill hit a timeout on a slow remote session: date_of_birth",
+      code: "vietnam_slow_session",
+    },
+    url: "https://evisa.gov.vn/e-visa/foreigners",
+  };
+  const stalled = {
+    status: "failed" as const,
+    failedStep: "stalled",
+    error: {
+      message: "Vietnam run made no progress for 600s (stall timeout); closed the remote browser so the job can be retried",
+      code: "vietnam_run_stalled",
+    },
+    url: "https://evisa.gov.vn/",
+  };
+  assert.equal(isRetryableVietnamResult(slowSession), true);
+  assert.equal(isRetryableVietnamResult(stalled), true);
+});

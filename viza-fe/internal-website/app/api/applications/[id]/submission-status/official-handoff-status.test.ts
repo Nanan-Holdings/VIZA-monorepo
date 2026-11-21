@@ -69,4 +69,30 @@ describe("official applicant handoff status", () => {
       progress: 100,
     });
   });
+
+  it("maps the Vietnam handoff statuses the same way", () => {
+    const vnApplication = {
+      ...application,
+      country: "vietnam",
+      visa_type: "VN_E_VISA",
+      submission_result: { ...application.submission_result, targetCountry: "VN" },
+    };
+    const vnQueue = (status: string, payload: Record<string, unknown> = {}) => ({
+      ...queue(status, payload),
+      provider: "vietnam_evisa_live",
+    }) as Parameters<typeof deriveNonTerminalStatus>[1];
+    const open = deriveNonTerminalStatus(
+      vnApplication,
+      vnQueue("vn_applicant_handoff", { checkpoint: "payment_page_visible", actionType: "payment_required" }),
+      true,
+    );
+    expect(open).toMatchObject({ status: "needs_user_action", stage: "payment_handoff" });
+    expect(open.message).toMatch(/submit, and pay the government fee yourself/);
+    expect(deriveNonTerminalStatus(vnApplication, vnQueue("vn_live_assisted_cancelled"), true)).toMatchObject({
+      status: "failed",
+    });
+    expect(deriveNonTerminalStatus(vnApplication, vnQueue("vn_applicant_submitted"), true)).toMatchObject({
+      status: "completed",
+    });
+  });
 });

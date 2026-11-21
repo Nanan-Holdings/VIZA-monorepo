@@ -46,7 +46,7 @@ export function officialHandoffExpiresAt(sessionCreatedAtMs: number, nowMs = Dat
 /** A handoff shorter than this is not worth giving the applicant. */
 export const OFFICIAL_HANDOFF_MIN_WINDOW_SECONDS = 15 * 60;
 
-export type OfficialHandoffProvider = "indonesia_c1_live" | "indonesia_b1_evoa_live";
+export type OfficialHandoffProvider = "indonesia_c1_live" | "indonesia_b1_evoa_live" | "vietnam_evisa_live";
 
 export interface OfficialHandoffSession {
   /** Browserbase session id; the live-view URL is fetched separately. */
@@ -168,6 +168,8 @@ export interface OfficialHandoffWatchDeps {
   inspectors: Partial<Record<string, OfficialHandoffInspector>>;
   /** Builds the submitted application result from official evidence. */
   submittedResult: (handoff: LeasedOfficialHandoff, receipt: OfficialReceiptEvidence) => Record<string, unknown>;
+  /** Provider follow-up after the applicant's submit was recorded (e.g. start status tracking). Failures are logged only. */
+  onSubmitted?: (handoff: LeasedOfficialHandoff, receipt: OfficialReceiptEvidence) => Promise<void>;
   resolveConnectUrl?: (sessionId: string) => Promise<string | null>;
   connect?: (connectUrl: string) => Promise<Browser>;
   releaseSession?: (sessionId: string) => Promise<void>;
@@ -309,6 +311,15 @@ export async function runOfficialHandoffWatchTick(deps: OfficialHandoffWatchDeps
       } else if (inspection.outcome === "submitted") {
         const status = await settle("submitted", deps.submittedResult(handoff, inspection.receipt));
         log(`[official-handoff] takeover=${handoff.takeover_id} submitted settle=${status ?? "skipped"}`);
+        if (status && deps.onSubmitted) {
+          await deps.onSubmitted(handoff, inspection.receipt).catch((error: unknown) => {
+            log(
+              `[official-handoff] takeover=${handoff.takeover_id} post-submit follow-up failed: ${
+                error instanceof Error ? error.message : String(error)
+              }`.slice(0, 300),
+            );
+          });
+        }
       } else if (expired) {
         const status = await settle("abandoned");
         if (status) await release();

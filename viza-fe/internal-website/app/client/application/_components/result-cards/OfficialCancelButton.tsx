@@ -5,8 +5,8 @@ import { CircleNotch as Loader2, XCircle } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
 
-/** Visa types whose official submission the applicant can cancel (migration 0209). */
-const OFFICIAL_CANCEL_VISA_TYPES = new Set(["ID_C1_TOURIST", "ID_B1_EVOA"]);
+/** Visa types whose official submission the applicant can cancel (migrations 0209, 0211). */
+const OFFICIAL_CANCEL_VISA_TYPES = new Set(["ID_C1_TOURIST", "ID_B1_EVOA", "VN_E_VISA", "VIETNAM_E_VISA"]);
 
 export function supportsOfficialCancel(visaType: string | null | undefined): boolean {
   return OFFICIAL_CANCEL_VISA_TYPES.has((visaType ?? "").trim().toUpperCase());

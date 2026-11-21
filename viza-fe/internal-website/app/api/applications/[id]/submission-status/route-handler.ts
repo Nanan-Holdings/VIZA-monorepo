@@ -128,20 +128,28 @@ const COMPLETED_APPLICATION_STATUSES = new Set([
   "form_ready_for_agency",
 ]);
 
-const OFFICIAL_HANDOFF_OPEN_STATUSES = new Set(["id_c1_applicant_handoff", "id_b1_evoa_applicant_handoff"]);
+const OFFICIAL_HANDOFF_OPEN_STATUSES = new Set([
+  "id_c1_applicant_handoff",
+  "id_b1_evoa_applicant_handoff",
+  "vn_applicant_handoff",
+]);
 const OFFICIAL_HANDOFF_EXPIRED_STATUSES = new Set([
   "id_c1_applicant_handoff_expired",
   "id_b1_evoa_applicant_handoff_expired",
+  "vn_applicant_handoff_expired",
 ]);
 const OFFICIAL_CANCELLED_STATUSES = new Set([
   "id_c1_live_assisted_cancelled",
   "id_b1_evoa_live_assisted_cancelled",
   "id_c1_applicant_cancelled",
   "id_b1_evoa_applicant_cancelled",
+  "vn_live_assisted_cancelled",
+  "vn_applicant_cancelled",
 ]);
 const OFFICIAL_HANDOFF_SUBMITTED_STATUSES = new Set([
   "id_c1_applicant_submitted",
   "id_b1_evoa_applicant_submitted",
+  "vn_applicant_submitted",
 ]);
 
 const COMPLETED_QUEUE_STATUSES = new Set([
@@ -250,6 +258,9 @@ function readPayloadString(payload: Record<string, unknown>, key: string): strin
 
 function isVietnamPaymentCheckpointQueue(queue: QueueRow | null): boolean {
   if (!queue) return false;
+  // Applicant handoff rows (0211) may carry a stale payload from an earlier
+  // run; their own status is authoritative.
+  if (normalizeStatus(queue.status).startsWith("vn_applicant_")) return false;
   const payload = isRecord(queue.vn_result_payload) ? queue.vn_result_payload : {};
   return isVietnamPaymentCheckpointState({
     status: queue.status,

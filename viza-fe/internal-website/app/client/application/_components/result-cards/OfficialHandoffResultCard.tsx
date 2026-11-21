@@ -16,6 +16,7 @@ import { isChineseLocale } from "@/lib/i18n/locale";
 import { openOfficialHandoffWindow } from "./official-handoff-client";
 import { OfficialCancelButton } from "./OfficialCancelButton";
 import { IndonesiaOfficialSubmitGuide } from "./IndonesiaOfficialSubmitGuide";
+import { VietnamOfficialSubmitGuide } from "./VietnamOfficialSubmitGuide";
 
 /** Stored result written by open_official_applicant_handoff (migration 0209). */
 export interface OfficialHandoffResult {
@@ -41,6 +42,7 @@ export function isOfficialHandoffResult(value: unknown): value is OfficialHandof
 
 const COUNTRY_NAME: Record<string, { en: string; zh: string }> = {
   ID: { en: "Indonesia", zh: "印尼" },
+  VN: { en: "Vietnam", zh: "越南" },
 };
 
 export function OfficialHandoffResultCard({
@@ -138,8 +140,8 @@ export function OfficialHandoffResultCard({
             <p className="text-sm leading-relaxed text-muted-foreground">
               {result.officialSessionLost
                 ? isZh
-                  ? "印尼官网闲置一段时间后自动登出了，之前的官网页面已经不能用。"
-                  : "The Indonesia official site logged the session out after it sat idle, so the earlier page can no longer be used."
+                  ? `${countryLabel}官网闲置一段时间后自动登出了，之前的官网页面已经不能用。`
+                  : `The ${countryLabel} official site logged the session out after it sat idle, so the earlier page can no longer be used.`
                 : null}
               {isZh
                 ? "你的资料仍然保存在 VIZA。点击下方按钮，VIZA 会重新填写官网并准备一个新的会话，完成后这里会再次出现前往官网的按钮。"
@@ -183,6 +185,7 @@ export function OfficialHandoffResultCard({
               {isZh ? `前往${countryLabel}官网确认并提交` : `Open the ${countryLabel} official site`}
             </Button>
             {result.targetCountry === "ID" ? <IndonesiaOfficialSubmitGuide isZh={isZh} /> : null}
+            {result.targetCountry === "VN" ? <VietnamOfficialSubmitGuide isZh={isZh} /> : null}
           </>
         )}
         {error ? <ClientErrorAlert message={error} /> : null}
