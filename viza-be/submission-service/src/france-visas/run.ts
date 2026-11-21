@@ -292,12 +292,21 @@ export async function fillFranceVisasApplication(
       logRun(runId, `finalize complete; applicationReference=${applicationReference ? "<captured>" : "(none)"} pdf=${pdfPath ? "<saved>" : "(none)"}`);
     }
 
-    const postConfirmationContinue = options.continueAfterConfirmation && applicationReference
-      ? await continueConfirmedApplication(session.page, {
-          applicationReference,
-          timeoutMs: stepTimeoutMs,
-        })
-      : undefined;
+    // The application is finalised and has its reference by now. A failure in
+    // the follow-up confirmation clicks must not throw that away: a failed run
+    // is retried, and every retry files a new France-Visas application.
+    let postConfirmationContinue: Awaited<ReturnType<typeof continueConfirmedApplication>> | undefined;
+    if (options.continueAfterConfirmation && applicationReference) {
+      const confirmedPage = session.page;
+      const reference = applicationReference;
+      try {
+        postConfirmationContinue = await retryAfterNavigation(confirmedPage, () =>
+          continueConfirmedApplication(confirmedPage, { applicationReference: reference, timeoutMs: stepTimeoutMs }),
+        );
+      } catch (err) {
+        logRun(runId, `post-confirmation steps failed after finalize (kept reference): ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
     if (postConfirmationContinue) {
       logRun(
         runId,
