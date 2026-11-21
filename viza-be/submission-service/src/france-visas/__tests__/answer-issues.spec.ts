@@ -140,3 +140,30 @@ test("a student's educational establishment is checked against the school answer
     ["employerEmail", "school_email", "学校电子邮箱"],
   ]);
 });
+
+test("a student's establishment is in the Teaching / Education sector", async () => {
+  const { normalizeFvAnswers, EDUCATION_SEGMENT } = await import("../normalize");
+  assert.equal(EDUCATION_SEGMENT, "P");
+  const answers = normalizeFvAnswers({
+    answers: {
+      current_nationality: "CHN", has_eu_family_member: "no", travel_document_type: "ordinary",
+      travel_document_number: "EA1234567", travel_document_issue_date: "2024-06-25",
+      travel_document_expiry_date: "2034-06-24", purpose_of_journey: "tourism", submission_centre: "changsha",
+      sex: "male", civil_status: "single", surname: "CHEN", given_names: "HONGYU", date_of_birth: "2006-07-01",
+      place_of_birth: "Changsha", country_of_birth: "China", home_address_line_1: "1 Main St",
+      home_address_city: "Changsha", home_address_country: "China", phone_number: "+86 138 0013 8000",
+      email_address: "a@viza.test", is_student: "yes", current_occupation: "Student",
+      school_name: "National University of Singapore", school_address: "21 Lower Kent Ridge Road",
+      school_city: "Singapore", school_country: "Singapore", school_phone: "+65 6516 6666", school_email: "s@nus.edu",
+      intended_arrival_date: "2027-01-16", intended_departure_date: "2027-01-31", intended_duration_days: "16",
+      number_of_entries_requested: "single", cost_covered_by: "self", self_means_cash: "yes",
+      accommodation_type: "hotel", accommodation_name: "Hotel", accommodation_address_line_1: "1 Rue",
+      accommodation_postcode: "75001", accommodation_city: "Paris", accommodation_country: "France",
+    },
+    profile: {} as never,
+    application: {} as never,
+    fvOverrides: {},
+  });
+  assert.equal(answers.step2.businessSegment, "P");
+  assert.equal(answers.step2.employerCountry, "SGP");
+});

@@ -340,6 +340,9 @@ function occupationKey(v: string): string {
   return v.toLowerCase().trim().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 }
 
+/** France-Visas business-segment code for education (NACE section P, "Teaching"). */
+export const EDUCATION_SEGMENT = "P";
+
 export function toFvOccupation(v: string | null | undefined): string {
   if (!v) return "65005"; // default to "Other"
   return OCCUPATION_MAP[occupationKey(v)] ?? "65005";
@@ -478,7 +481,9 @@ export function normalizeFvAnswers(input: NormalizeInput): FvApplicationAnswers 
     occupationOtherSpecify: occupation === "65005" && rawOccupation
       ? rawOccupation.trim().toUpperCase()
       : undefined,
-    businessSegment: fvOverrides.businessSegment,
+    // France-Visas also asks students for the establishment's sector: an
+    // educational establishment is in Teaching/Education (NACE section P).
+    businessSegment: fvOverrides.businessSegment ?? (isStudent ? EDUCATION_SEGMENT : undefined),
     // France-Visas' employer section is the educational establishment for
     // students, so it is filled from the school answers.
     employerName: (isStudent ? a.school_name : a.employer_name) ?? undefined,
