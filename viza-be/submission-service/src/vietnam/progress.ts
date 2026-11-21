@@ -14,6 +14,7 @@ export const VN_PROGRESS_STAGES = [
   "payment_handoff",
   "bank_authentication_waiting",
   "registration_code_visible",
+  "applicant_handoff_ready",
   "failed",
 ] as const;
 

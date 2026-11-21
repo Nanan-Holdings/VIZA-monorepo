@@ -58,7 +58,9 @@ ports directly.
   calls `request_official_applicant_handoff_regeneration`; both rely on the RPC
   for expiry, ownership, and the 24-hour cap. `official-handoff/cancel` calls
   `cancel_official_applicant_submission` for the signed-in applicant (never
-  under impersonation). VIZA never submits or pays.
+  under impersonation). VIZA never submits or pays. Supported: Indonesia C1/B1 and Vietnam e-Visa; a
+  Vietnam submitted result keeps status `submitted_pending_email` with
+  `submittedBy: applicant_on_official_portal` and stays claimable for payment.
 - `viza-fe/internal-website/app/api/applications/[id]/taiwan-handoff/route.ts`
   claims the authoritative Taiwan handoff through
   `claim_tw_applicant_handoff` with the exact application, applicant, and

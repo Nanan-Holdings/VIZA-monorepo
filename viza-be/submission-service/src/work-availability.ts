@@ -140,6 +140,15 @@ export async function hasLegacyWorkerWork(now = new Date()): Promise<boolean> {
   if (error) throw new Error(`submission_queue idle work check: ${error.message}`);
   if ((count ?? 0) > 0) return true;
 
+  // An open Vietnam applicant handoff keeps the worker alive so its watcher
+  // can record the official registration code or expire the handoff.
+  const { count: handoffCount, error: handoffError } = await supabase
+    .from("submission_queue")
+    .select("id", { count: "exact", head: true })
+    .in("status", ["vn_applicant_handoff", "vn_applicant_submitted"]);
+  if (handoffError) throw new Error(`Vietnam handoff work check: ${handoffError.message}`);
+  if ((handoffCount ?? 0) > 0) return true;
+
   const [scheduledDue, statusDue] = await Promise.all([
     hasDueScheduledSubmission(now),
     hasDueVietnamStatusCheck(now.toISOString()),

@@ -285,6 +285,11 @@
       "drizzle": "viza-be/agent-backend/drizzle/0220_uk_purpose_showif_values.sql",
       "supabase": "viza-fe/internal-website/supabase/migrations/20261121153000_uk_purpose_showif_values.sql",
       "sha256": "874a0e6f4b7650c801ca984e6c9477fa849e920700388a531356c7d23c67a0b6"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0221_official_handoff_vietnam.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20261119090000_official_handoff_vietnam.sql",
+      "sha256": "d0640b1096a2cc38740aa6e39a96d5c8e11362fe8b852738237e0bea81ede330"
     }
   ],
   "no_mirror": [

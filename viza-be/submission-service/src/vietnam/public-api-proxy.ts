@@ -33,6 +33,21 @@ export function getVietnamPublicCatalogFallback(
   return VIETNAM_EVISA_PASSPORT_TYPE_CATALOG;
 }
 
+/**
+ * The official SPA sends these catalog requests with credentials, so a
+ * synthesized fallback must echo the origin and allow credentials exactly like
+ * the official API does; otherwise the browser rejects it as a CORS failure
+ * and the dropdown (e.g. passport type) stays empty.
+ */
+export function vietnamFallbackCorsHeaders(origin: string | undefined): Record<string, string> | undefined {
+  if (!origin) return undefined;
+  return {
+    "access-control-allow-origin": origin,
+    "access-control-allow-credentials": "true",
+    vary: "Origin",
+  };
+}
+
 export function shouldProxyVietnamPublicRequest(method: string, rawUrl: string): boolean {
   let url: URL;
   try {
@@ -92,7 +107,7 @@ export async function installVietnamPublicApiProxy(
         await route.fulfill({
           status: 200,
           contentType: "application/json",
-          headers: origin ? { "access-control-allow-origin": origin } : undefined,
+          headers: vietnamFallbackCorsHeaders(origin),
           body: JSON.stringify(fallback),
         });
         callbacks.onSuccess?.(request.url());
@@ -114,7 +129,7 @@ export async function installVietnamPublicApiProxy(
         await route.fulfill({
           status: 200,
           contentType: "application/json",
-          headers: origin ? { "access-control-allow-origin": origin } : undefined,
+          headers: vietnamFallbackCorsHeaders(origin),
           body: JSON.stringify(fallback),
         });
         callbacks.onSuccess?.(request.url());

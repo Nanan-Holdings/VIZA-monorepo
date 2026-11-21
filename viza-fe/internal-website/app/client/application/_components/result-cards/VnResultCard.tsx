@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import type { VnSubmissionResult } from "@/lib/submission-result";
+import { openOfficialHandoffWindow } from "./official-handoff-client";
 
 type ManualAction = {
   id: string;
@@ -75,6 +76,7 @@ function safeInstruction(result: VnSubmissionResult, isZh: boolean, needsAttenti
 }
 
 export function VnResultCard({
+  applicationId,
   result,
   jobId,
 }: {
@@ -83,6 +85,16 @@ export function VnResultCard({
   jobId?: string | null;
 }) {
   const isZh = isChineseLocale(useLocale());
+  // The applicant submitted on the official site (0211 handoff) and may still
+  // need to pay there; the same official session stays open until it expires.
+  const submittedByApplicant = result.submittedBy === "applicant_on_official_portal";
+  const awaitingApplicantPayment = submittedByApplicant && result.paymentStatus !== "paid";
+  const [handoffState, setHandoffState] = useState<"idle" | "opening" | "closed">("idle");
+  const canReturnToPay =
+    awaitingApplicantPayment &&
+    Boolean(applicationId && result.handoffId) &&
+    handoffState !== "closed" &&
+    (!result.handoffExpiresAt || Date.parse(result.handoffExpiresAt) > Date.now());
   const [manualAction, setManualAction] = useState<ManualAction | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [completing, setCompleting] = useState(false);
@@ -189,6 +201,32 @@ export function VnResultCard({
             </div>
           </div>
         )}
+
+        {awaitingApplicantPayment ? (
+          <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+            {isZh
+              ? "如果你还没有付款，请在越南官网缴纳官方费用；未付款的申请不会被审批。官网会话关闭后，也可以在越南 e-Visa 官网用上面的登记编号、邮箱和出生日期查询并付款。"
+              : "If you haven't paid yet, pay the government fee on the Vietnam official site; unpaid applications are not processed. After this session closes you can still search the application on the official site with the registration code above, your email, and date of birth, and pay there."}
+            {canReturnToPay ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="mt-3 w-full bg-white"
+                disabled={handoffState === "opening"}
+                onClick={() => {
+                  if (!applicationId) return;
+                  setHandoffState("opening");
+                  void openOfficialHandoffWindow(applicationId).then((outcome) => {
+                    setHandoffState(outcome === "opened" ? "idle" : "closed");
+                  });
+                }}
+              >
+                <ExternalLink className="mr-2 h-4 w-4" />
+                {isZh ? "回到越南官网付款" : "Return to the Vietnam official site to pay"}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
 
         {hasManualAction && (
           <Alert variant="warning">

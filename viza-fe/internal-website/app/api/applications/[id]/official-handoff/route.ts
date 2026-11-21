@@ -64,9 +64,11 @@ export async function POST(
   const result = application.submission_result as Record<string, unknown> | null;
   // Before submit, or after the applicant submitted but may still need to pay
   // in the same session; the RPC decides whether that session is still open.
+  // Vietnam's submitted result keeps its own status vocabulary (0211).
   const handoffResult =
     result?.status === "awaiting_applicant_official_submit" ||
-    (result?.status === "submitted" && result.submittedBy === "applicant_on_official_portal");
+    ((result?.status === "submitted" || result?.status === "submitted_pending_email") &&
+      result.submittedBy === "applicant_on_official_portal");
   if (!handoffResult || !nonBlank(result.handoffId)) {
     return NextResponse.json({ error: "Official handoff is not ready", code: "handoff_not_ready" }, { status: 409 });
   }

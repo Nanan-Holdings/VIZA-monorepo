@@ -12,7 +12,15 @@ import { chromium, type Browser, type BrowserContext, type Locator, type Page } 
 import {
   browserbaseEnabled,
   connectBrowserbaseCloudBrowser,
+  getBrowserbaseLiveViewUrl,
+  releaseBrowserbaseCloudSession,
 } from "../browserbase-session";
+import {
+  OFFICIAL_HANDOFF_MIN_WINDOW_SECONDS,
+  OFFICIAL_HANDOFF_SESSION_TIMEOUT_SECONDS,
+  officialHandoffExpiresAt,
+  type OfficialHandoffSession,
+} from "../official-handoff";
 import fs from "node:fs";
 import path from "node:path";
 import { chooseVietnamApplyEntry } from "./apply-entry";
@@ -46,7 +54,9 @@ import {
   commitVietnamOfficialExpenseSelectModel,
   fillDate,
   fillText,
+  fillVietnamFieldWithTimeoutRetry,
   pickRadio,
+  withVietnamFieldDeadline,
   pickSelect,
   tickCheckbox,
   toDdMmYyyy,
@@ -111,9 +121,29 @@ export interface VietnamApplicationPageFillResult {
   validationErrors: VietnamPortalValidationError[];
 }
 
+export function getVietnamRunStallTimeoutMs(
+  rawValue: string | undefined = process.env.VN_RUN_STALL_TIMEOUT_MS,
+): number {
+  if (rawValue === "0") return 0;
+  // Above the 8-minute CAPTCHA total budget (captcha.ts), which emits no
+  // progress while it solves; field fills are bounded separately (150s each).
+  if (!rawValue) return 600_000;
+  const parsed = Number.parseInt(rawValue, 10);
+  if (!Number.isFinite(parsed)) return 600_000;
+  return Math.max(60_000, Math.min(parsed, 1_800_000));
+}
+
+/** A field failure caused by a slow/unresponsive remote browser, not a portal rejection. */
+export function isVietnamSlowSessionValidationError(error: { message?: string }): boolean {
+  return /Timeout \d+ms exceeded|did not finish within \d+s|has been closed|Target closed/i
+    .test(error.message ?? "");
+}
+
 export interface VietnamApplicationPageFillOptions {
   /** Repair an existing draft without rewriting immutable, already-populated fields. */
   repairExisting?: boolean;
+  /** Called after every field attempt (success or failure) so a watchdog can see progress. */
+  onFieldSettled?: () => void;
 }
 
 /**
@@ -167,7 +197,14 @@ export async function fillVietnamOfficialApplicationPage(
         continue;
       }
       console.log(`[vn] filling field ${fieldName} (${mapping.type})`);
-      await fillByType(page, fieldName, mapping.type, mapping.domId, value);
+      if (mapping.type === "upload") {
+        await withVietnamFieldDeadline(fieldName, () =>
+          fillByType(page, fieldName, mapping.type, mapping.domId, value));
+      } else {
+        await fillVietnamFieldWithTimeoutRetry(page, fieldName, () =>
+          withVietnamFieldDeadline(fieldName, () =>
+            fillByType(page, fieldName, mapping.type, mapping.domId, value)));
+      }
       if (fieldName === "intended_province_city") {
         await waitForDependentAntSelectToHydrate(page, VN_FIELD_MAPPINGS.intended_ward_commune.domId);
       }
@@ -183,6 +220,8 @@ export async function fillVietnamOfficialApplicationPage(
       });
       console.warn(`[vn] fill failed for ${fieldName} (${mapping.domId}); no fallback used: ${message}`);
       skipped += 1;
+    } finally {
+      options.onFieldSettled?.();
     }
   }
 
@@ -260,6 +299,13 @@ export interface FillVietnamOptions {
   stopAtFirstCheckpoint?: boolean;
   /** Queue/UI progress callback for long official-portal runs. */
   onProgress?: (stage: VietnamProgressStage) => void | Promise<void>;
+  /**
+   * Abort one portal attempt when it makes no progress (no stage and no field
+   * settled) for this long. Defaults to VN_RUN_STALL_TIMEOUT_MS or 10 minutes;
+   * 0 disables. A stalled attempt closes its browser and returns a retryable
+   * failure instead of hanging while a timer keeps the queue lease alive.
+   */
+  stallTimeoutMs?: number;
   /** Full browser-session retries for intermittent official-portal failures. */
   maxPortalAttempts?: number;
   retryBackoffMs?: number;
@@ -279,9 +325,27 @@ export interface FillVietnamOptions {
   /** Durable managed-intent amount expected on the visible official page. */
   expectedPaymentAmountCents?: number | null;
   expectedPaymentCurrency?: string | null;
+  /**
+   * Product policy (2026-11): the applicant submits and pays on the official
+   * site. Fill the form in a keepAlive Browserbase session, stop on the
+   * official review CAPTCHA (the official submit step) without solving it,
+   * and return the session for the applicant.
+   */
+  applicantHandoff?: boolean;
 }
 
 export type FillVietnamResult =
+  | {
+      status: "awaiting_applicant_official_submit";
+      runId?: string;
+      checkpoint: VietnamPortalStateId;
+      url: string;
+      /** Live-view URL is a bearer link: never persist it in results or logs. */
+      applicantHandoff: OfficialHandoffSession;
+      fieldsFilled: number;
+      fieldsSkipped: number;
+      diagnostics?: VietnamDiagnostics;
+    }
   | {
       status: "scaffolded_pending_walk";
       runId?: string;
@@ -477,6 +541,9 @@ async function fillVietnamApplicationOnce(
   let context: BrowserContext | null = null;
   let traceStarted = false;
   let keepBrowserOpenForHumanPayment = false;
+  let browserbaseSessionId: string | null = null;
+  let sessionCreatedAtMs = 0;
+  let handedOffToApplicant = false;
   const consoleErrors: string[] = [];
   const failedRequests: string[] = [];
   const fieldFallbacks: VnFieldFallbackRecord[] = [];
@@ -494,6 +561,36 @@ async function fillVietnamApplicationOnce(
   };
   options.executionContext?.signal.addEventListener("abort", abortListener, { once: true });
 
+  // Progress watchdog: the queue heartbeat only proves this process is alive,
+  // not that the official page is moving. On 2026-11-21 a dead CDP link froze
+  // a run at an upload for 40+ minutes while the heartbeat kept its lease.
+  const stallTimeoutMs = options.stallTimeoutMs ?? getVietnamRunStallTimeoutMs();
+  let lastProgressAt = Date.now();
+  let stalledMessage: string | null = null;
+  const markProgress = (): void => {
+    lastProgressAt = Date.now();
+  };
+  const stallTimer = stallTimeoutMs > 0
+    ? setInterval(() => {
+        if (stalledMessage || handedOffToApplicant) return;
+        if (Date.now() - lastProgressAt < stallTimeoutMs) return;
+        stalledMessage =
+          `Vietnam run made no progress for ${Math.round(stallTimeoutMs / 1000)}s ` +
+          "(stall timeout); closed the remote browser so the job can be retried";
+        console.warn(`[vn] Run ${options.runId ?? "(unknown)"} ${stalledMessage}`);
+        abortListener();
+      }, Math.min(15_000, stallTimeoutMs))
+    : undefined;
+  stallTimer?.unref?.();
+  const stalledResult = (): FillVietnamResult => ({
+    status: "failed",
+    runId: options.runId,
+    failedStep: "stalled",
+    error: { message: stalledMessage ?? "Vietnam run stalled (timeout)", code: "vietnam_run_stalled" },
+    url: VN_LANDING_URL,
+    diagnostics: diagnostics(),
+  });
+
   const diagnostics = (): VietnamDiagnostics => ({
     consoleErrors: consoleErrors.slice(-20),
     failedRequests: failedRequests.slice(-30),
@@ -510,6 +607,7 @@ async function fillVietnamApplicationOnce(
     reviewBlockers,
   });
   const emitProgress = async (stage: VietnamProgressStage): Promise<void> => {
+    markProgress();
     await options.onProgress?.(stage);
   };
   const resolveFixedCard = async (): Promise<VietnamFixedCard | null> => {
@@ -533,7 +631,20 @@ async function fillVietnamApplicationOnce(
 
   try {
     await emitProgress("browser_launching");
-    if (browserbaseEnabled("VN")) {
+    if (options.applicantHandoff) {
+      // The applicant later opens this exact session, so it must outlive the
+      // worker's CDP connection and cover fill + applicant window + grace.
+      sessionCreatedAtMs = Date.now();
+      const cloud = await connectBrowserbaseCloudBrowser({
+        prefix: "VN",
+        keepAlive: true,
+        timeoutSeconds: OFFICIAL_HANDOFF_SESSION_TIMEOUT_SECONDS,
+      });
+      browserbaseSessionId = cloud.sessionId;
+      browser = cloud.browser;
+      context = cloud.context;
+      page = cloud.page;
+    } else if (browserbaseEnabled("VN")) {
       const cloud = await connectBrowserbaseCloudBrowser({ prefix: "VN" });
       browser = cloud.browser;
       context = cloud.context;
@@ -647,9 +758,31 @@ async function fillVietnamApplicationOnce(
     // ── Fill every mapped field that we have an answer for ─────────────
     await emitProgress("application_form_visible");
     await emitProgress("filling_fields");
-    const pageFill = await fillVietnamOfficialApplicationPage(page, input.answers);
+    const pageFill = await fillVietnamOfficialApplicationPage(page, input.answers, {
+      onFieldSettled: markProgress,
+    });
     const { filled, skipped } = pageFill;
     validationErrors.push(...pageFill.validationErrors);
+
+    if (stalledMessage) return stalledResult();
+    if (validationErrors.length > 0 && validationErrors.every(isVietnamSlowSessionValidationError)) {
+      // Every failure was the remote browser being slow or unresponsive, not
+      // the portal rejecting a value: return a retryable failure so the
+      // runner retries in a fresh browser session instead of stopping the job.
+      return {
+        status: "failed",
+        runId,
+        failedStep: "filling_fields",
+        error: {
+          message: `Vietnam form fill hit a timeout on a slow remote session: ${validationErrors
+            .map((error) => error.label || error.domId || "field")
+            .join(", ")}`,
+          code: "vietnam_slow_session",
+        },
+        url: page.url(),
+        diagnostics: diagnostics(),
+      };
+    }
 
     if (validationErrors.length > 0) {
       const documentUploadFailed = validationErrors.some(
@@ -676,9 +809,57 @@ async function fillVietnamApplicationOnce(
     reviewBlockers = reviewAdvance.blockers;
     lastSnapshot = await readVietnamPortalSnapshot(page, failedRequests.length, mainRequestFailed);
     const reviewState = classifyVietnamPortalSnapshot(lastSnapshot);
+    if (options.applicantHandoff && isVietnamApplicantHandoffState(reviewState)) {
+      // The review CAPTCHA + Next is the official submit. Leave it, and every
+      // later payment step, to the applicant in this same session.
+      options.executionContext?.assertOwned();
+      const expiresAt = officialHandoffExpiresAt(sessionCreatedAtMs);
+      const unavailable = (message: string): FillVietnamResult => ({
+        status: "failed",
+        runId,
+        failedStep: reviewState,
+        error: { code: "official_applicant_handoff_unavailable", message },
+        url: page?.url() ?? VN_LANDING_URL,
+        checkpoint: reviewState,
+        diagnostics: diagnostics(),
+      });
+      if (!browserbaseSessionId) {
+        return unavailable("The Vietnam applicant handoff needs a Browserbase session.");
+      }
+      if (expiresAt.getTime() - Date.now() < OFFICIAL_HANDOFF_MIN_WINDOW_SECONDS * 1_000) {
+        return unavailable("Filling took too long to leave the applicant enough time on the official site.");
+      }
+      let liveViewUrl: string;
+      try {
+        liveViewUrl = await getBrowserbaseLiveViewUrl(browserbaseSessionId);
+      } catch (error) {
+        return unavailable(
+          `Browserbase live view was unavailable: ${error instanceof Error ? error.message : String(error)}`.slice(0, 180),
+        );
+      }
+      await emitProgress("applicant_handoff_ready");
+      handedOffToApplicant = true;
+      return {
+        status: "awaiting_applicant_official_submit",
+        runId,
+        checkpoint: reviewState,
+        url: page.url(),
+        applicantHandoff: {
+          sessionId: browserbaseSessionId,
+          liveViewUrl,
+          expiresAt: expiresAt.toISOString(),
+          readyAt: reviewState === "payment_page_visible" || reviewState === "registration_code_visible"
+            ? "official_payment_pending"
+            : "official_final_review",
+        },
+        fieldsFilled: filled,
+        fieldsSkipped: skipped,
+        diagnostics: diagnostics(),
+      };
+    }
     let stateAfterCaptcha = reviewState;
     let lastReviewCaptchaReason = "The official portal rejected the automatic CAPTCHA answer.";
-    if (stateAfterCaptcha === "captcha_visible") {
+    if (stateAfterCaptcha === "captcha_visible" && !options.applicantHandoff) {
       const maxReviewCaptchaAttempts = readPositiveInt(
         process.env.VN_REVIEW_CAPTCHA_MAX_ATTEMPTS,
         DEFAULT_VIETNAM_CAPTCHA_ATTEMPTS,
@@ -1091,6 +1272,10 @@ async function fillVietnamApplicationOnce(
       fieldFallbacks,
     };
   } catch (err) {
+    // Applicant cancellation (raised from onProgress) must stop the whole run,
+    // not become a retryable portal failure.
+    if (err instanceof Error && err.name === "ApplicantCancelledError") throw err;
+    if (stalledMessage) return stalledResult();
     const isAbortError = err instanceof Error && err.name === "AbortError";
     if (isRunnerOwnershipLoss(err) || isAbortError || options.executionContext?.signal.aborted) {
       const abortReason = options.executionContext?.signal.reason;
@@ -1105,8 +1290,9 @@ async function fillVietnamApplicationOnce(
       diagnostics: diagnostics(),
     };
   } finally {
+    if (stallTimer) clearInterval(stallTimer);
     options.executionContext?.signal.removeEventListener("abort", abortListener);
-    if (options.finalScreenshotPath && page) {
+    if (options.finalScreenshotPath && page && !stalledMessage) {
       try {
         fs.mkdirSync(path.dirname(options.finalScreenshotPath), { recursive: true });
         await page.screenshot({ path: options.finalScreenshotPath, fullPage: true });
@@ -1121,7 +1307,15 @@ async function fillVietnamApplicationOnce(
         /* best-effort diagnostics */
       }
     }
-    if (keepBrowserOpenForHumanPayment) {
+    if (handedOffToApplicant) {
+      // Only disconnect this worker's CDP client. Closing the context would
+      // close the applicant's official page inside the keepAlive session.
+      try {
+        if (browser) await browser.close();
+      } catch {
+        /* best-effort */
+      }
+    } else if (keepBrowserOpenForHumanPayment) {
       console.warn(
         `[vn] Run ${runId ?? "(unknown)"} left the official payment browser open for 3DS/OTP/bank-app confirmation.`,
       );
@@ -1137,7 +1331,26 @@ async function fillVietnamApplicationOnce(
         /* best-effort */
       }
     }
+    // A keepAlive session survives the CDP disconnect; release it unless the
+    // applicant now owns it.
+    if (browserbaseSessionId && !handedOffToApplicant) {
+      await releaseBrowserbaseCloudSession(browserbaseSessionId);
+    }
   }
+}
+
+/**
+ * Official checkpoints at which the Vietnam run hands the session to the
+ * applicant: the review CAPTCHA / final confirmation (nothing submitted yet),
+ * or, if the portal skipped the CAPTCHA, the registration-code / payment page.
+ */
+export function isVietnamApplicantHandoffState(state: VietnamPortalStateId): boolean {
+  return (
+    state === "captcha_visible" ||
+    state === "final_submit_visible" ||
+    state === "registration_code_visible" ||
+    state === "payment_page_visible"
+  );
 }
 
 type VietnamBootstrapResult =

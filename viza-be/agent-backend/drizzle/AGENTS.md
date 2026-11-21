@@ -722,3 +722,14 @@ required. France-Visas' employer / educational-establishment section needs the
 name, street, city, phone and e-mail; the worker fills it from the school
 answers for students. Idempotent. Keep
 `20261121140000_france_school_contact_fields.sql` byte-identical.
+
+`0221_official_handoff_vietnam.sql` adds `vietnam_evisa_live` (prefix `vn_`)
+to `official_handoff_queue_prefix()` and the `vn_` statuses to the watch
+lease, regeneration, and cancel status lists. Vietnam work is enqueued and
+regenerated as `vn_cloud_live_pending` (claimed by the cloud worker), which
+cancel treats as queued work. Ownership, lease, and evidence checks are
+unchanged. Keep `20261119090000_official_handoff_vietnam.sql` byte-identical. It was
+written and applied to production as 0211 on 2026-11-19, before main's
+`0211_archive_superseded_applications.sql`; it was renumbered to 0221 when the
+Vietnam branch was rebased. It touches only the handoff functions above, which
+0211-0220 do not redefine, so the order of application does not matter.
