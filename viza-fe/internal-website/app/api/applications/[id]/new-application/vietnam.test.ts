@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   hasActiveVietnamRun,
   hasVietnamOfficialSubmission,
+  isOpenSiblingApplication,
   startNewVietnamApplication,
   type VietnamSourceApplication,
 } from "./vietnam";
@@ -230,4 +231,54 @@ describe("startNewVietnamApplication", () => {
     const { admin } = fakeAdmin(tables);
     expect(await startNewVietnamApplication(admin, SOURCE)).toMatchObject({ status: 409, code: "no_answers" });
   });
+
+  it("archives another open draft of the same product so the new draft is allowed", async () => {
+    const tables = baseTables();
+    tables.applications.push(
+      { id: "draft-2", applicant_id: "applicant-1", country: "vietnam", visa_type: "VN_E_VISA", status: "draft", purpose: null, submission_result_status: null },
+      { id: "other-country", applicant_id: "applicant-1", country: "indonesia", visa_type: "C1", status: "draft", purpose: null, submission_result_status: null },
+    );
+    const { admin } = fakeAdmin(tables);
+    const result = await startNewVietnamApplication(admin, SOURCE);
+
+    expect(result.status).toBe(201);
+    const newId = "applicationId" in result ? result.applicationId : "";
+    expect(tables.applications.find((row) => row.id === "draft-2")).toMatchObject({
+      status: "archived",
+      superseded_previous_status: "draft",
+      superseded_by_application_id: newId,
+    });
+    expect(tables.applications.find((row) => row.id === "other-country")?.status).toBe("draft");
+  });
+
+  it("refuses when VIZA is working on another open application of the same product", async () => {
+    const tables = baseTables();
+    tables.applications.push({ id: "draft-2", applicant_id: "applicant-1", country: "vietnam", visa_type: "VN_E_VISA", status: "processing", purpose: null, submission_result_status: null });
+    tables.submission_queue.push({ application_id: "draft-2", status: "vn_cloud_live_pending" });
+    const { admin } = fakeAdmin(tables);
+    expect(await startNewVietnamApplication(admin, SOURCE)).toMatchObject({ status: 409, code: "submission_in_progress" });
+    expect(tables.applications.map((row) => row.status)).toEqual(["action_required", "processing"]);
+  });
+
+  it("restores the other open draft too when the copy fails", async () => {
+    const tables = baseTables();
+    tables.applications.push({ id: "draft-2", applicant_id: "applicant-1", country: "vietnam", visa_type: "VN_E_VISA", status: "draft", purpose: null, submission_result_status: null });
+    const { admin } = fakeAdmin(tables, { failInsertInto: "visa_application_answers" });
+    expect(await startNewVietnamApplication(admin, SOURCE)).toMatchObject({ status: 500, code: "copy_failed" });
+    expect(tables.applications.map((row) => [row.id, row.status])).toEqual([["app-1", "action_required"], ["draft-2", "draft"]]);
+  });
 });
+
+describe("isOpenSiblingApplication", () => {
+  const source = { id: "app-1", country: "vietnam", visa_type: "VN_E_VISA" };
+  const row = { id: "x", country: "Vietnam", visa_type: "vn_e_visa", status: "draft", purpose: null, submission_result_status: null };
+  it("matches only open rows of the same product, like the ongoing index", () => {
+    expect(isOpenSiblingApplication(source, row)).toBe(true);
+    expect(isOpenSiblingApplication(source, { ...row, id: "app-1" })).toBe(false);
+    expect(isOpenSiblingApplication(source, { ...row, status: "archived" })).toBe(false);
+    expect(isOpenSiblingApplication(source, { ...row, submission_result_status: "submitted" })).toBe(false);
+    expect(isOpenSiblingApplication(source, { ...row, purpose: "VIZA_PLACEHOLDER_DRY_RUN" })).toBe(false);
+    expect(isOpenSiblingApplication(source, { ...row, visa_type: "evisa_tourism" })).toBe(false);
+  });
+});
+
