@@ -3,6 +3,8 @@ import { isUsDs160 } from "@/lib/application-tab-completion";
 import { isFranceVisasVisaType } from "@/lib/submission-queue";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { isVietnamEVisaApplication } from "@/lib/submission-queue";
+import { startNewVietnamApplication } from "./vietnam";
 
 const DS160_LEGACY_ANSWER_ALIASES: Record<string, string> = {
   who_is_paying: "trip_payer_type",
@@ -37,6 +39,8 @@ export type NewUsApplicationIntent = "restart_unsigned";
 
 type NewUsApplicationOptions = {
   readonly intent?: NewUsApplicationIntent;
+  /** Vietnam only: the applicant confirmed starting again after an official submission. */
+  readonly confirmOfficialDuplicate?: boolean;
 };
 
 type SourceApplication = {
@@ -476,6 +480,16 @@ export async function createNewUsApplication(
     .maybeSingle();
   if (!source) return { error: "Application not found", status: 404 } as const;
   if (source.applicant_id !== profile.id) return { error: "Forbidden", status: 403 } as const;
+  if (isVietnamEVisaApplication(source.country, source.visa_type)) {
+    // Vietnam can start again at any time (revise details, recover a stuck
+    // attempt); see ./vietnam.ts for the safety rules.
+    if (intent === "restart_unsigned") {
+      return { error: "Restarting an unsigned application is only available for U.S. DS-160", status: 400 } as const;
+    }
+    return startNewVietnamApplication(admin, source as SourceApplication, {
+      confirmOfficialDuplicate: options.confirmOfficialDuplicate,
+    });
+  }
   const isFrance = isFranceSource(source.country, source.visa_type);
   if (!isUsDs160(source.country, source.visa_type) && !isFrance) {
     return { error: "This action is only available for U.S. DS-160 and France-Visas applications", status: 400 } as const;
@@ -763,8 +777,10 @@ export async function POST(
 
   let intent: NewUsApplicationIntent | undefined;
   let invalidIntent = false;
+  let confirmOfficialDuplicate = false;
   try {
     const body = record(await request.json());
+    confirmOfficialDuplicate = body?.confirmOfficialDuplicate === true;
     if (body && "intent" in body) {
       if (body.intent === "restart_unsigned") intent = "restart_unsigned";
       else invalidIntent = true;
@@ -778,9 +794,10 @@ export async function POST(
     return NextResponse.json({ error: "Unsupported new-application intent" }, { status: 400 });
   }
 
-  const result = await createNewUsApplication(auth.user.id, id, { intent });
+  const result = await createNewUsApplication(auth.user.id, id, { intent, confirmOfficialDuplicate });
   if ("error" in result) {
-    return NextResponse.json({ error: result.error }, { status: result.status });
+    const code = "code" in result ? result.code : undefined;
+    return NextResponse.json(code ? { error: result.error, code } : { error: result.error }, { status: result.status });
   }
 
   const params = new URLSearchParams({

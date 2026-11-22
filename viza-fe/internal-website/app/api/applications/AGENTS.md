@@ -108,6 +108,16 @@ ports directly.
   `application_documents` references, and never copies CEAC identifiers,
   recovery metadata, or secrets. Both paths return `{ applicationId, href }`;
   copied drafts use HTTP 201 and non-empty owner drafts use HTTP 200.
+  Vietnam e-Visa (`vietnam.ts`) can start again at any time, not only after
+  a submitted result: it refuses while a VIZA run is queued or running,
+  cancels an open official handoff through `cancel_official_applicant_submission`,
+  requires `{ "confirmOfficialDuplicate": true }` once the old attempt reached
+  the official site (registration code / official status), archives the old
+  row with the 0211 `superseded_*` columns before inserting the draft (the
+  one-ongoing-application index would reject it otherwise), copies answers
+  and document references, and restores the old row if any later step fails.
+  Errors carry a `code` (`submission_in_progress`, `official_submission_exists`,
+  `source_changed`, `no_answers`, `cancel_unavailable`, `copy_failed`).
 - `viza-fe/internal-website/app/api/applications/[id]/sgac-new-application/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/submission-status/route.ts`
   returns a retryable `503` response when its database dependency times out so
