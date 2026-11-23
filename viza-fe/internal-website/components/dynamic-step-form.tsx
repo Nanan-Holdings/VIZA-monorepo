@@ -57,6 +57,7 @@ import { VIETNAM_WARDS_BY_PROVINCE } from "@/lib/vietnam-administrative-units";
 import { getVnPrearrivalStaticOptions } from "@/lib/vn-prearrival/static-options";
 import { localizePhEtravelOptions } from "@/features/ph-etravel/option-labels";
 import { countries } from "country-data-list";
+import { splitPhoneCountryCodeForSchema } from "@/lib/phone-country-code-split";
 import { getDateFieldValueState, parseDateFieldValue } from "@/lib/date-field-validation";
 import { isDs160FieldVisibleForRuntime } from "@/lib/ds160-age-gate";
 import { isLegacyCompatibilityOnlyField } from "@/lib/legacy-compatibility-fields";
@@ -1667,7 +1668,12 @@ function normalizeTdacStepValues(
   changedFieldName?: string,
 ): Record<string, string> {
   const resolvedVisaType = visaType ?? fields[0]?.visaType;
-  const fixedChoiceValues = normalizeFixedChoiceStepValues(fields, values, changedFieldName);
+  // A stored "+65 80381309" must become code + digits where the official form
+  // asks for them separately (e.g. Indonesia phone_country_code/mobile_phone).
+  const fixedChoiceValues = splitPhoneCountryCodeForSchema(
+    normalizeFixedChoiceStepValues(fields, values, changedFieldName),
+    fields,
+  );
   if (resolvedVisaType === "VN_E_VISA" || resolvedVisaType === "evisa_tourism") {
     const next = { ...fixedChoiceValues };
     const legacyChinaAliases = new Set([
