@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { describeAcceptedFileTypes } from "@/lib/documents/accept-hint";
 import {
   useEffect,
   useMemo,
@@ -876,9 +877,7 @@ function RequirementRow({
           acceptHint={
             isDs160PhotoRequirement({ country, visaType, documentType: requirement.documentType, requirementKey: requirement.key })
               ? isZh ? "JPG/JPEG · 不超过 240 KB · 600–1200 像素的正方形彩色照片" : "JPG/JPEG · Up to 240 KB · Square color image, 600–1200 pixels"
-              : isZh
-              ? "支持 PDF、JPG、PNG、WebP、DOC 和 DOCX"
-              : "PDF, JPG, PNG, WebP, DOC or DOCX"
+              : describeAcceptedFileTypes(getRequirementAccept(requirement, country, visaType), isZh)
           }
           action={action}
           removeLabel={isZh ? "移除文件" : "Remove file"}
