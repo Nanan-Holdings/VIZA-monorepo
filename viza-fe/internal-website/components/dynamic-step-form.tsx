@@ -1546,6 +1546,50 @@ function parsePhoneParts(rawPhone: string | null | undefined) {
   return { countryCode: "", localNumber: value.replace(/[^\d\s-]/g, "").trim() };
 }
 
+/** Local-number fields that pair with a separate `phone_country_code` select. */
+const LOCAL_PHONE_FIELD_NAMES = ["mobile_phone", "phone_number", "mobile_number", "telephone_number"] as const;
+
+/**
+ * Saved profile phones are free text such as "+65 80381309". When a form asks
+ * for the calling code and the local number separately, move a leading
+ * "+code" into `phone_country_code` so the applicant does not re-enter it on
+ * every application. Only an explicit "+code" followed by a separator is
+ * split; the field being typed in is left alone, and a different code the
+ * applicant already chose is never overwritten.
+ */
+export function splitInternationalPhonePrefix(
+  fields: Pick<VisaFormFieldRow, "fieldName" | "options">[],
+  values: Record<string, string>,
+  changedFieldName?: string,
+): Record<string, string> {
+  const codeField = fields.find((field) => field.fieldName === "phone_country_code");
+  if (!codeField) return values;
+  const codeOptions = codeField.options?.length ? codeField.options : getPhoneCountryCodeOptions();
+  const optionValues = codeOptions
+    .map((option) => (typeof option === "string" ? option : option.value))
+    .filter((value): value is string => typeof value === "string");
+  let next = values;
+  for (const field of fields) {
+    const fieldName = field.fieldName;
+    if (!(LOCAL_PHONE_FIELD_NAMES as readonly string[]).includes(fieldName)) continue;
+    if (fieldName === changedFieldName) continue;
+    const match = values[fieldName]?.trim().match(/^\+(\d{1,4})[\s-]+(\d[\d\s-]{3,})$/);
+    if (!match) continue;
+    const digits = match[1];
+    const codeValue = optionValues.find((value) => value === `+${digits}`) ??
+      optionValues.find((value) => value === digits);
+    if (!codeValue) continue;
+    const currentCode = next.phone_country_code?.trim();
+    if (currentCode && currentCode.replace(/^\+/, "") !== digits) continue;
+    next = {
+      ...next,
+      phone_country_code: currentCode || codeValue,
+      [fieldName]: match[2].replace(/\s+/g, " ").trim(),
+    };
+  }
+  return next;
+}
+
 const TDAC_ACCOMMODATION_VALUE_KEYS = [
   "accommodation_type",
   "accommodation_type_other",
@@ -1667,7 +1711,13 @@ function normalizeTdacStepValues(
   changedFieldName?: string,
 ): Record<string, string> {
   const resolvedVisaType = visaType ?? fields[0]?.visaType;
-  const fixedChoiceValues = normalizeFixedChoiceStepValues(fields, values, changedFieldName);
+  const fixedChoiceValues = resolvedVisaType === "TH_TDAC_ARRIVAL_CARD"
+    ? normalizeFixedChoiceStepValues(fields, values, changedFieldName)
+    : splitInternationalPhonePrefix(
+        fields,
+        normalizeFixedChoiceStepValues(fields, values, changedFieldName),
+        changedFieldName,
+      );
   if (resolvedVisaType === "VN_E_VISA" || resolvedVisaType === "evisa_tourism") {
     const next = { ...fixedChoiceValues };
     const legacyChinaAliases = new Set([
