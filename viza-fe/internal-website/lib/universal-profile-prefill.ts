@@ -2,6 +2,7 @@ import { countries } from "country-data-list";
 import { toChineseSourceValue, toOfficialEnglishValue } from "@/lib/ds160-translations";
 import { buildReusableAnswerPatch, type UniversalProfileAnswerRecord } from "@/lib/universal-profile-fields";
 import { omitSyntheticQaValues } from "@/lib/applications/qa-safety";
+import { splitPhoneCountryCodeForSchema } from "@/lib/phone-country-code-split";
 import type { VisaFormFieldOption, VisaFormFieldRow } from "@/types/visa-form-fields";
 
 interface CountryRecord {
@@ -221,7 +222,7 @@ export function normalizeUniversalProfilePatchForSchema(
 ): Record<string, string> {
   const fieldsByName = new Map(fields.map((field) => [field.fieldName, field]));
   const normalized: Record<string, string> = {};
-  for (const [fieldName, value] of Object.entries(patch)) {
+  for (const [fieldName, value] of Object.entries(splitPhoneCountryCodeForSchema(patch, fields))) {
     const field = fieldsByName.get(fieldName);
     if (!field?.options?.length) {
       normalized[fieldName] = value;

@@ -81,6 +81,12 @@ Before changing this route, read:
   shows customer-safe receipts/results and application updates only after the
   application has crossed a reliable submission boundary.
 - `app/actions/visa-form-fields.ts`: loads `visa_form_fields` rows and groups them into wizard steps.
+- `lib/phone-country-code-split.ts`: when a schema has `phone_country_code` and a
+  digits-only `mobile_phone`/`phone_number` (its own `pattern` rejects "+"), moves
+  an international prefix from a Universal Profile phone ("+65 80381309") into
+  the code field. Used by profile seeding (`normalizeUniversalProfilePatchForSchema`)
+  and step normalization in `dynamic-step-form.tsx`; never overwrites a chosen code
+  and leaves forms that expect the full international number unchanged.
 - `lib/application-schema-ui-contract.ts`: compiles the complete visa schema to
   canonical `/ui-components` controls and assigns one shared conditional panel
   owner before the steps reach the renderer.
