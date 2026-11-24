@@ -819,12 +819,21 @@ async function pickSelectWithKeyboardAliases(
     for (const candidate of ownedCandidates) {
       if (!seen.includes(candidate)) seen.push(candidate);
     }
-    await input.press("ArrowDown", { timeout: SHORT_TIMEOUT }).catch(() => undefined);
-    await page.waitForTimeout(150);
-    await input.press("Enter", { timeout: SHORT_TIMEOUT }).catch(() => undefined);
-    await page.waitForTimeout(600);
-    if (await selectDisplayMatches(page, domId, matchTexts)) {
-      return { ok: true, candidates: seen };
+    // Click the visible option that actually matches; a blind ArrowDown+Enter
+    // picks whatever row is next (e.g. "Female" after searching "M").
+    const visibleCandidates = await readVisibleSelectCandidates(page);
+    const best = pickVietnamSelectOption(visibleCandidates, matchTexts);
+    if (best) {
+      await page
+        .locator(".ant-select-dropdown:visible .ant-select-item-option")
+        .filter({ hasText: new RegExp(`^\\s*${escapeRegExp(best)}\\s*$`) })
+        .first()
+        .click({ timeout: SHORT_TIMEOUT })
+        .catch(() => undefined);
+      await page.waitForTimeout(600);
+      if (await selectDisplayMatches(page, domId, matchTexts)) {
+        return { ok: true, candidates: seen };
+      }
     }
     await input.press("Escape", { timeout: SHORT_TIMEOUT }).catch(() => undefined);
   }
@@ -833,6 +842,22 @@ async function pickSelectWithKeyboardAliases(
     reason: Date.now() >= deadline ? "select_field_timeout" : "keyboard_selection_not_confirmed",
     candidates: seen,
   };
+}
+
+/** Best visible option for any of the expected texts, or null if none is a confident match. */
+export function pickVietnamSelectOption(candidates: string[], matchTexts: string[]): string | null {
+  let best: { text: string; score: number } | null = null;
+  for (const matchText of matchTexts) {
+    const top = rankAntSelectCandidates(candidates, matchText)[0];
+    if (top && isAcceptableAntSelectMatch(top.score) && (!best || top.score > best.score)) {
+      best = { text: top.text, score: top.score };
+    }
+  }
+  return best?.text ?? null;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 async function readOwnedSelectCandidates(page: Page, domId: string): Promise<string[]> {
@@ -1066,10 +1091,15 @@ async function selectDisplayMatches(page: Page, domId: string, matchTexts: strin
       ]
         .filter(Boolean)
         .join(" ");
+      // Whole-word match only: "female" must not satisfy an expected "male".
+      const textTokens = normalize(text).split(" ").filter(Boolean);
       return expectedTexts.some((expected) => {
         const normalizedExpected = normalize(expected);
-        return normalize(text) === normalizedExpected ||
-          (normalizedExpected.length > 1 && normalize(text).includes(normalizedExpected));
+        if (!normalizedExpected) return false;
+        if (normalize(text) === normalizedExpected) return true;
+        const expectedTokens = normalizedExpected.split(" ").filter(Boolean);
+        return normalizedExpected.length > 1 &&
+          expectedTokens.every((token) => textTokens.includes(token));
       });
     },
     { domId, matchTexts },
