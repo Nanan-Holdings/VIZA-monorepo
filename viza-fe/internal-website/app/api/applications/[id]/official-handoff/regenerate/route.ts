@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getApplicationApiApplicantProfileId } from "@/lib/application-api-auth";
 import { getImpersonationSession } from "@/lib/impersonation-session";
+import { wakeCloudSubmissionWorker } from "@/lib/submission-worker-wake.server";
 
 export const dynamic = "force-dynamic";
 
@@ -34,5 +35,16 @@ export async function POST(
       { status: 409 },
     );
   }
+  // The requeued row only runs once its worker is awake; Fly suspends idle
+  // workers. The route reads nothing beyond the RPC, so wake both workers
+  // that own handoff providers; each claims only its own queue statuses.
+  // Best effort: the reconciler still recovers if a wake fails.
+  const queueId = (row as { submission_queue_id?: unknown }).submission_queue_id;
+  const jobId = typeof queueId === "string" && queueId ? queueId : null;
+  await Promise.all(
+    ["legacy", "indonesia"].map((target) =>
+      wakeCloudSubmissionWorker(jobId, { target }).catch(() => undefined),
+    ),
+  );
   return NextResponse.json({ requested: true }, { headers: { "Cache-Control": "no-store" } });
 }
