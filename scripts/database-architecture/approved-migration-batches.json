@@ -1514,6 +1514,32 @@
           { "id": "post_uk_purpose_form_fields", "kind": "relation_exists", "identity": "public.visa_form_fields" }
         ]
       }
+    },
+    {
+      "batch_id": "uk-telephone-contact-fields-v1",
+      "source_ref": "284621523b175a4797c25c2195ebf4902caaaf21",
+      "mode": "transactional",
+      "migrations": [
+        {
+          "version": "20261125110000",
+          "name": "uk_telephone_contact_fields",
+          "path": "viza-fe/internal-website/supabase/migrations/20261125110000_uk_telephone_contact_fields.sql",
+          "sha256": "831f6d670109a6f515d0a9aaee727d6ac66be87153170705f3de6c33bf89d5a7"
+        }
+      ],
+      "preconditions": {
+        "absent_migration_versions": ["20261125110000"],
+        "catalog_assertions": [
+          { "id": "pre_uk_telephone_form_fields", "kind": "relation_exists", "identity": "public.visa_form_fields" }
+        ]
+      },
+      "postconditions": {
+        "required_migration_versions": ["20261125110000"],
+        "catalog_assertions": [
+          { "id": "uk_telephone_contact_migration_record", "kind": "migration_record", "version": "20261125110000", "name": "uk_telephone_contact_fields", "sha256": "831f6d670109a6f515d0a9aaee727d6ac66be87153170705f3de6c33bf89d5a7" },
+          { "id": "post_uk_telephone_form_fields", "kind": "relation_exists", "identity": "public.visa_form_fields" }
+        ]
+      }
     }
   ]
 }
