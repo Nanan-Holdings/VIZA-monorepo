@@ -740,3 +740,10 @@ hotel/rented stays) with Chinese helper text. France-Visas step 5 requires the
 host organisation's telephone and e-mail; VIZA also uses them for the hotel
 reception contact. Idempotent. Keep
 `20261121170000_france_accommodation_contact_required.sql` byte-identical.
+
+`0223_france_option_labels_zh.sql` sets `label_zh` on the choice options of
+`EU_SCHENGEN_C_SHORT_STAY` (yes/no, civil status, document type, purpose,
+entries, accommodation, sponsor, EU family, host status) and repairs the
+mis-encoded `fv_business_segment` J / M / OTH labels. Only option `label_zh`
+changes. Idempotent. Keep `20261125090000_france_option_labels_zh.sql`
+byte-identical.

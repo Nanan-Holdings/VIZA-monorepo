@@ -148,6 +148,9 @@ ports directly.
   and its `route-handler.ts` expose only a masked, browser-safe France-Visas
   account status projection; the focused regression test must keep passwords
   and official references out of the response.
+  Its `reveal/route.ts` is the only path that returns the login: an explicit
+  owner-session POST (staff impersonation rejected) proxied to agent-backend,
+  which holds the cipher key.
 - `viza-fe/internal-website/app/api/applications/[id]/korea-evidence/route.ts`
   serves private Korea appointment screenshots and PDFs only after application
   ownership checks. Storage paths must stay under the owned application's

@@ -295,6 +295,11 @@
       "drizzle": "viza-be/agent-backend/drizzle/0222_france_accommodation_contact_required.sql",
       "supabase": "viza-fe/internal-website/supabase/migrations/20261121170000_france_accommodation_contact_required.sql",
       "sha256": "89fb863f8f545b987f2a10df3b937ff6c1f5128e8e39997589a65ceba481ae64"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0223_france_option_labels_zh.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20261125090000_france_option_labels_zh.sql",
+      "sha256": "7e4a515388f22f55820142188b88053ce7ab083e7970e3b7749541751c7f11ca"
     }
   ],
   "no_mirror": [

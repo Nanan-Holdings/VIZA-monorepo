@@ -11,34 +11,35 @@ const { authGetUser, createClient, getSupabaseClient } = vi.hoisted(() => ({
 vi.mock("@supabase/supabase-js", () => ({ createClient }));
 vi.mock("../db/supabase-client.js", () => ({ getSupabaseClient }));
 
-import router, { maskEmail, validateFranceVisasLogin } from "./france-visas-account.routes.js";
-import { decryptSecret } from "../utils/secret-cipher.js";
+import router from "./france-visas-account.routes.js";
+import { encryptSecret } from "../utils/secret-cipher.js";
+
+type QueryResult = { data: unknown; error: { message: string } | null };
 
 interface FakeQuery {
   select: ReturnType<typeof vi.fn>;
   eq: ReturnType<typeof vi.fn>;
+  order: ReturnType<typeof vi.fn>;
+  limit: ReturnType<typeof vi.fn>;
   single: ReturnType<typeof vi.fn>;
-  delete: ReturnType<typeof vi.fn>;
-  insert: ReturnType<typeof vi.fn>;
-  then?: unknown;
+  maybeSingle: ReturnType<typeof vi.fn>;
 }
 
-function chain(result: { data: unknown; error: { message: string } | null }): FakeQuery {
+function chain(result: QueryResult): FakeQuery {
   const query: FakeQuery = {
     select: vi.fn(),
     eq: vi.fn(),
+    order: vi.fn(),
+    limit: vi.fn(),
     single: vi.fn(),
-    delete: vi.fn(),
-    insert: vi.fn(),
+    maybeSingle: vi.fn(),
   };
   query.select.mockReturnValue(query);
-  query.delete.mockReturnValue(query);
+  query.eq.mockReturnValue(query);
+  query.order.mockReturnValue(query);
+  query.limit.mockReturnValue(query);
   query.single.mockResolvedValue(result);
-  query.insert.mockResolvedValue({ error: null });
-  // `await admin.from().delete().eq().eq()` resolves the query itself.
-  query.eq.mockImplementation(() => Object.assign(query, {
-    then: (resolve: (value: unknown) => void) => resolve({ error: null }),
-  }));
+  query.maybeSingle.mockResolvedValue(result);
   return query;
 }
 
@@ -49,7 +50,9 @@ function buildApp() {
   return app;
 }
 
-describe("France-Visas account linking", () => {
+const REVEAL_URL = "/api/applications/application-id/france-visas-account/reveal";
+
+describe("France-Visas account reveal", () => {
   let appQuery: FakeQuery;
   let accountQuery: FakeQuery;
 
@@ -65,7 +68,13 @@ describe("France-Visas account linking", () => {
       },
       error: null,
     });
-    accountQuery = chain({ data: null, error: null });
+    accountQuery = chain({
+      data: {
+        official_account_email_encrypted: encryptSecret("fr-alias@inbox.example.com"),
+        official_account_password_encrypted: encryptSecret("Generated-pass1"),
+      },
+      error: null,
+    });
     getSupabaseClient.mockReset().mockReturnValue({
       from: vi.fn((table: string) => (table === "applications" ? appQuery : accountQuery)),
     });
@@ -73,52 +82,43 @@ describe("France-Visas account linking", () => {
     authGetUser.mockReset().mockResolvedValue({ data: { user: { id: "owner-id" } }, error: null });
   });
 
-  it("validates the login and masks the email", () => {
-    expect(validateFranceVisasLogin(" Me@Example.com ", "Secret-pass1")).toEqual({
-      email: "me@example.com",
-      password: "Secret-pass1",
-    });
-    expect(validateFranceVisasLogin("not-an-email", "Secret-pass1")).toHaveProperty("error");
-    expect(validateFranceVisasLogin("me@example.com", "short")).toHaveProperty("error");
-    expect(validateFranceVisasLogin("me@example.com", " padded-pass ")).toHaveProperty("error");
-    expect(maskEmail("applicant@example.com")).toBe("ap•••@example.com");
-  });
-
   it("rejects a request without a bearer token", async () => {
-    const response = await request(buildApp())
-      .post("/api/applications/application-id/france-visas-account")
-      .send({ email: "me@example.com", password: "Secret-pass1" });
+    const response = await request(buildApp()).post(REVEAL_URL);
     expect(response.status).toBe(401);
   });
 
-  it("rejects another user's application before touching fv_accounts", async () => {
+  it("rejects another user's application before reading fv_accounts", async () => {
     authGetUser.mockResolvedValue({ data: { user: { id: "someone-else" } }, error: null });
-    const response = await request(buildApp())
-      .post("/api/applications/application-id/france-visas-account")
-      .set("Authorization", "Bearer token")
-      .send({ email: "me@example.com", password: "Secret-pass1" });
+    const response = await request(buildApp()).post(REVEAL_URL).set("Authorization", "Bearer token");
     expect(response.status).toBe(403);
-    expect(accountQuery.insert).not.toHaveBeenCalled();
+    expect(accountQuery.select).not.toHaveBeenCalled();
   });
 
-  it("stores the login encrypted for the owner and never echoes the password", async () => {
-    const response = await request(buildApp())
-      .post("/api/applications/application-id/france-visas-account")
-      .set("Authorization", "Bearer token")
-      .send({ email: "Me@Example.com", password: "Secret-pass1" });
-
+  it("returns the decrypted per-application login to the owner, uncached", async () => {
+    const response = await request(buildApp()).post(REVEAL_URL).set("Authorization", "Bearer token");
     expect(response.status).toBe(200);
     expect(response.headers["cache-control"]).toBe("private, no-store");
-    expect(response.body).toMatchObject({ ok: true, email: "me•••@example.com" });
-    expect(JSON.stringify(response.body)).not.toContain("Secret-pass1");
+    expect(response.body).toMatchObject({
+      email: "fr-alias@inbox.example.com",
+      password: "Generated-pass1",
+    });
+    expect(accountQuery.eq).toHaveBeenCalledWith("application_id", "application-id");
+  });
 
-    expect(accountQuery.delete).toHaveBeenCalled();
-    expect(accountQuery.eq).toHaveBeenCalledWith("user_id", "owner-id");
-    const row = accountQuery.insert.mock.calls[0][0] as Record<string, string>;
-    expect(row).toMatchObject({ user_id: "owner-id", application_id: "application-id", provider: "france_visas", status: "linked" });
-    expect(row.official_account_password_encrypted).not.toContain("Secret-pass1");
-    expect(decryptSecret(row.official_account_email_encrypted)).toBe("me@example.com");
-    expect(decryptSecret(row.official_account_password_encrypted)).toBe("Secret-pass1");
+  it("returns 404 before the worker has created the account", async () => {
+    accountQuery.maybeSingle.mockResolvedValue({ data: null, error: null });
+    const response = await request(buildApp()).post(REVEAL_URL).set("Authorization", "Bearer token");
+    expect(response.status).toBe(404);
+  });
+
+  it("returns 500 without leaking anything when the login cannot be decrypted", async () => {
+    accountQuery.maybeSingle.mockResolvedValue({
+      data: { official_account_email_encrypted: "garbage", official_account_password_encrypted: "garbage" },
+      error: null,
+    });
+    const response = await request(buildApp()).post(REVEAL_URL).set("Authorization", "Bearer token");
+    expect(response.status).toBe(500);
+    expect(response.body).not.toHaveProperty("password");
   });
 
   it("refuses a non-France application", async () => {
@@ -126,10 +126,7 @@ describe("France-Visas account linking", () => {
       data: { id: "application-id", visa_type: "DS160", applicant_profiles: { auth_user_id: "owner-id" } },
       error: null,
     });
-    const response = await request(buildApp())
-      .post("/api/applications/application-id/france-visas-account")
-      .set("Authorization", "Bearer token")
-      .send({ email: "me@example.com", password: "Secret-pass1" });
+    const response = await request(buildApp()).post(REVEAL_URL).set("Authorization", "Bearer token");
     expect(response.status).toBe(409);
   });
 });

@@ -1,63 +1,31 @@
 /**
- * France-Visas account linking.
+ * France-Visas account reveal.
  *
- * POST /api/applications/:id/france-visas-account
- *   Body: { email, password }
+ * POST /api/applications/:id/france-visas-account/reveal
  *
- * The applicant registers on france-visas.gouv.fr themselves (they solve the
- * registration CAPTCHA and verify their email), then gives VIZA the login once.
- * Both values are encrypted with the shared submission secret cipher and stored
- * in fv_accounts for the submission worker, which signs in with them. One
- * linked account per user, reused by every France application.
- *
- * The password is never returned, logged, or cached.
+ * The submission worker registers one France-Visas account per application
+ * (on the application's inbox alias) and stores the login in fv_accounts,
+ * encrypted with the shared submission secret cipher. This explicit,
+ * owner-only route decrypts it so the applicant can sign in to France-Visas
+ * themselves. The values are never logged, cached, or returned by a GET.
  */
 
 import { Router, Request, Response, NextFunction } from "express";
 import { createClient } from "@supabase/supabase-js";
 import { getSupabaseClient } from "../db/supabase-client.js";
 import { Logger } from "../utils/logger.js";
-import { encryptSecret } from "../utils/secret-cipher.js";
+import { decryptSecret } from "../utils/secret-cipher.js";
 import { readSupabaseUserAuthConfig } from "./supabase-user-auth-config.js";
 
 const router = Router();
 const logger = new Logger({ serviceName: "FranceVisasAccountRoutes" });
 
 export const FRANCE_VISAS_VISA_TYPE = "EU_SCHENGEN_C_SHORT_STAY";
-export const FRANCE_VISAS_ACCOUNT_PROVIDER = "france_visas";
-
-/** France-Visas limits its login email field to 70 characters. */
-const MAX_EMAIL_LENGTH = 70;
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 interface FranceAccountOwner {
   authUserId: string;
   applicationId: string;
   visaType: string;
-}
-
-export function validateFranceVisasLogin(
-  email: unknown,
-  password: unknown,
-): { email: string; password: string } | { error: string } {
-  if (typeof email !== "string" || typeof password !== "string") {
-    return { error: "email and password are required" };
-  }
-  const normalizedEmail = email.trim().toLowerCase();
-  if (!normalizedEmail || normalizedEmail.length > MAX_EMAIL_LENGTH || !EMAIL_RE.test(normalizedEmail)) {
-    return { error: "email must be the address you registered on France-Visas" };
-  }
-  if (password.length < 8 || password.length > 128 || password.trim() !== password) {
-    return { error: "password must be your France-Visas password (8-128 characters)" };
-  }
-  return { email: normalizedEmail, password };
-}
-
-/** "ab•••@domain" — enough for the applicant to recognise their address. */
-export function maskEmail(email: string): string {
-  const [local, domain] = email.split("@");
-  if (!local || !domain) return "•••";
-  return `${local.slice(0, 2)}•••@${domain}`;
 }
 
 function setNoStoreHeaders(res: Response): void {
@@ -66,6 +34,15 @@ function setNoStoreHeaders(res: Response): void {
     Pragma: "no-cache",
     "X-Content-Type-Options": "nosniff",
   });
+}
+
+function decryptOrEmpty(payload: unknown): string {
+  if (typeof payload !== "string" || !payload) return "";
+  try {
+    return decryptSecret(payload);
+  } catch {
+    return "";
+  }
 }
 
 async function requireApplicationOwner(
@@ -136,72 +113,59 @@ async function requireApplicationOwner(
 }
 
 router.post(
-  "/:id/france-visas-account",
+  "/:id/france-visas-account/reveal",
   (_req: Request, res: Response, next: NextFunction): void => {
     setNoStoreHeaders(res);
     next();
   },
   requireApplicationOwner,
-  async (req: Request, res: Response): Promise<void> => {
+  async (_req: Request, res: Response): Promise<void> => {
     const owner = res.locals.franceAccountOwner as FranceAccountOwner;
     if (owner.visaType !== FRANCE_VISAS_VISA_TYPE) {
       res.status(409).json({ error: "This application is not a France short-stay application" });
       return;
     }
 
-    const body = (req.body ?? {}) as { email?: unknown; password?: unknown };
-    const login = validateFranceVisasLogin(body.email, body.password);
-    if ("error" in login) {
-      res.status(400).json({ error: login.error });
-      return;
-    }
-
-    let emailEncrypted: string;
-    let passwordEncrypted: string;
     try {
-      emailEncrypted = encryptSecret(login.email);
-      passwordEncrypted = encryptSecret(login.password);
+      const admin = getSupabaseClient();
+      const { data: account, error } = await admin
+        .from("fv_accounts")
+        .select("official_account_email_encrypted, official_account_password_encrypted")
+        .eq("application_id", owner.applicationId)
+        .order("updated_at", { ascending: false, nullsFirst: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) {
+        logger.error("france_account_reveal_lookup_failed", new Error(error.message), {
+          applicationId: owner.applicationId,
+        });
+        res.status(500).json({ error: "Could not load the France-Visas account" });
+        return;
+      }
+      if (!account) {
+        res.status(404).json({ error: "The France-Visas account has not been created yet" });
+        return;
+      }
+
+      const email = decryptOrEmpty(account.official_account_email_encrypted);
+      const password = decryptOrEmpty(account.official_account_password_encrypted);
+      if (!email || !password) {
+        logger.error("france_account_reveal_incomplete", new Error("missing or undecryptable login"), {
+          applicationId: owner.applicationId,
+        });
+        res.status(500).json({ error: "The France-Visas account is incomplete" });
+        return;
+      }
+
+      res.json({ email, password, revealedAt: new Date().toISOString() });
     } catch (err) {
-      logger.error("france_account_encrypt_failed", err instanceof Error ? err : new Error(String(err)));
-      res.status(500).json({ error: "Could not secure the France-Visas login" });
-      return;
+      logger.error(
+        "france_account_reveal_failed",
+        err instanceof Error ? err : new Error(String(err)),
+        { applicationId: owner.applicationId },
+      );
+      res.status(500).json({ error: "Could not reveal the France-Visas account" });
     }
-
-    const admin = getSupabaseClient();
-    // One linked account per user: replace any earlier one.
-    const { error: deleteError } = await admin
-      .from("fv_accounts")
-      .delete()
-      .eq("user_id", owner.authUserId)
-      .eq("provider", FRANCE_VISAS_ACCOUNT_PROVIDER);
-    if (deleteError) {
-      logger.error("france_account_replace_failed", new Error(deleteError.message), {
-        applicationId: owner.applicationId,
-      });
-      res.status(500).json({ error: "Could not save the France-Visas login" });
-      return;
-    }
-
-    const now = new Date().toISOString();
-    const { error: insertError } = await admin.from("fv_accounts").insert({
-      user_id: owner.authUserId,
-      application_id: owner.applicationId,
-      official_account_email_encrypted: emailEncrypted,
-      official_account_password_encrypted: passwordEncrypted,
-      provider: FRANCE_VISAS_ACCOUNT_PROVIDER,
-      status: "linked",
-      created_at: now,
-      updated_at: now,
-    });
-    if (insertError) {
-      logger.error("france_account_insert_failed", new Error(insertError.message), {
-        applicationId: owner.applicationId,
-      });
-      res.status(500).json({ error: "Could not save the France-Visas login" });
-      return;
-    }
-
-    res.json({ ok: true, email: maskEmail(login.email), linkedAt: now });
   },
 );
 
