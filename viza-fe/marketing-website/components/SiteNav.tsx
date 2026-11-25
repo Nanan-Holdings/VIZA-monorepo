@@ -16,7 +16,7 @@ const PASSPORT_CODES = [
 ] as const;
 type PassportCode = (typeof PASSPORT_CODES)[number];
 
-type Tab = "explore" | "events" | "arrivalCards" | "blog";
+type Tab = "explore" | "events" | "arrivalCards" | "guides" | "blog";
 
 type Props = {
   /** "explore" or "events", adds .active to that tab. Omit for none. */
@@ -33,11 +33,12 @@ export default function SiteNav({ activeTab: initialTab }: Props) {
   const eventsRef = useRef<HTMLAnchorElement>(null);
   const blogRef = useRef<HTMLAnchorElement>(null);
   const arrivalRef = useRef<HTMLAnchorElement>(null);
+  const guidesRef = useRef<HTMLAnchorElement>(null);
   const [pill, setPill] = useState<{ left: number; width: number }>({ left: 0, width: 0 });
 
   useLayoutEffect(() => {
     if (!activeTab) return;
-    const el = activeTab === "explore" ? exploreRef.current : activeTab === "blog" ? blogRef.current : activeTab === "arrivalCards" ? arrivalRef.current : eventsRef.current;
+    const el = activeTab === "explore" ? exploreRef.current : activeTab === "blog" ? blogRef.current : activeTab === "arrivalCards" ? arrivalRef.current : activeTab === "guides" ? guidesRef.current : eventsRef.current;
     const wrap = tabsRef.current;
     if (!el || !wrap) return;
     const r = el.getBoundingClientRect();
@@ -48,7 +49,7 @@ export default function SiteNav({ activeTab: initialTab }: Props) {
   useEffect(() => {
     const onResize = () => {
       if (!activeTab) return;
-      const el = activeTab === "explore" ? exploreRef.current : activeTab === "blog" ? blogRef.current : activeTab === "arrivalCards" ? arrivalRef.current : eventsRef.current;
+      const el = activeTab === "explore" ? exploreRef.current : activeTab === "blog" ? blogRef.current : activeTab === "arrivalCards" ? arrivalRef.current : activeTab === "guides" ? guidesRef.current : eventsRef.current;
       const wrap = tabsRef.current;
       if (!el || !wrap) return;
       const r = el.getBoundingClientRect();
@@ -204,6 +205,15 @@ export default function SiteNav({ activeTab: initialTab }: Props) {
             onClick={() => setActiveTab("arrivalCards")}
           >
             {t("nav.arrivalCards")}
+          </Link>
+          <Link
+            ref={guidesRef}
+            className={`nav-tab${activeTab === "guides" ? " active" : ""}`}
+            data-tab="guides"
+            href="/guides"
+            onClick={() => setActiveTab("guides")}
+          >
+            {t("nav.guides")}
           </Link>
           <Link
             ref={blogRef}
