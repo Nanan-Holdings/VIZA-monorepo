@@ -91,6 +91,10 @@ question and its conditional answer to UK Standard Visitor without changing
 application answers. Keep the timestamped Supabase mirror byte-identical.
 `0220_uk_purpose_showif_values.sql` corrects four UK purpose conditional
 values to match the available selection values without changing answers.
+`0224_uk_telephone_contact_fields.sql` adds the observed UK telephone purpose,
+type, contact-preference, and conditional explanation controls without
+changing application answers. Keep the timestamped Supabase mirror
+byte-identical.
 
 ## Key Responsibilities
 

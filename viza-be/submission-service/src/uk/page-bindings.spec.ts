@@ -143,3 +143,161 @@ test("UKVI email page fails closed for someone else when its conditional input i
     /#emailAddress.*not found/,
   );
 });
+
+class FakeTelephoneControl {
+  public constructor(
+    private readonly page: FakeTelephonePage,
+    public readonly id: string,
+    private readonly label?: string,
+  ) {}
+
+  public async count(): Promise<number> {
+    return 1;
+  }
+
+  public first(): FakeTelephoneControl {
+    return this;
+  }
+
+  public async getAttribute(name: string): Promise<string | null> {
+    return name === "id" ? this.id : null;
+  }
+
+  public async textContent(): Promise<string | null> {
+    return this.label ?? null;
+  }
+
+  public async isChecked(): Promise<boolean> {
+    return this.page.checked.has(this.id);
+  }
+
+  public async isDisabled(): Promise<boolean> {
+    return false;
+  }
+
+  public async check(): Promise<void> {
+    this.page.checked.add(this.id);
+  }
+
+  public async inputValue(): Promise<string> {
+    return this.page.textValues.get(this.id) ?? "";
+  }
+
+  public async fill(value: string): Promise<void> {
+    this.page.textValues.set(this.id, value);
+  }
+
+  public async press(): Promise<void> {}
+}
+
+class FakeTelephoneList {
+  public constructor(private readonly controls: FakeTelephoneControl[]) {}
+
+  public async count(): Promise<number> {
+    return this.controls.length;
+  }
+
+  public first(): FakeTelephoneControl {
+    return this.controls[0]!;
+  }
+
+  public nth(index: number): FakeTelephoneControl {
+    return this.controls[index]!;
+  }
+}
+
+class FakeTelephonePage {
+  public readonly checked = new Set<string>();
+  public readonly textValues = new Map<string, string>();
+
+  public locator(selector: string): FakeTelephoneList | FakeTelephoneControl {
+    if (selector === 'input[type="radio"][name="addAnother"]') {
+      return new FakeTelephoneList([
+        new FakeTelephoneControl(this, "addAnother_true", "Yes"),
+        new FakeTelephoneControl(this, "addAnother_false", "No"),
+      ]);
+    }
+    if (selector === 'input[type="radio"][name="contactByTelephone"]') {
+      return new FakeTelephoneList([
+        new FakeTelephoneControl(this, "contactByTelephone_callAndText", "I can be contacted by telephone call and text message (SMS)"),
+        new FakeTelephoneControl(this, "contactByTelephone_callOnly", "I can only be contacted by telephone call"),
+      ]);
+    }
+    if (selector === 'input[type="checkbox"][name^="telephoneNumberPurpose"]') {
+      return new FakeTelephoneList([
+        new FakeTelephoneControl(this, "purpose_in_uk", "For use whilst in the UK"),
+        new FakeTelephoneControl(this, "purpose_outside_uk", "For use whilst out of the UK"),
+      ]);
+    }
+    if (selector === 'input[type="checkbox"][name^="telephoneNumberType"]') {
+      return new FakeTelephoneList([
+        new FakeTelephoneControl(this, "type_mobile", "Mobile telephone number"),
+      ]);
+    }
+    const labelMatch = selector.match(/^label\[for="([^"]+)"\]$/);
+    if (labelMatch) {
+      const control = [
+        ["addAnother_true", "Yes"],
+        ["addAnother_false", "No"],
+        ["contactByTelephone_callAndText", "I can be contacted by telephone call and text message (SMS)"],
+        ["contactByTelephone_callOnly", "I can only be contacted by telephone call"],
+        ["purpose_in_uk", "For use whilst in the UK"],
+        ["purpose_outside_uk", "For use whilst out of the UK"],
+        ["type_mobile", "Mobile telephone number"],
+      ].find(([id]) => id === labelMatch[1]);
+      return new FakeTelephoneControl(this, labelMatch[1]!, control?.[1]);
+    }
+    const idMatch = selector.match(/^#(.+)$/);
+    if (idMatch) return new FakeTelephoneControl(this, idMatch[1]!);
+    return new FakeTelephoneList([]);
+  }
+}
+
+const asTelephonePage = (page: FakeTelephonePage): Page => page as unknown as Page;
+
+test("UKVI phone page fills observed purpose and type choices", async () => {
+  const page = new FakeTelephonePage();
+  await UK_PAGE_FILLERS["standardTelephoneDetailsList.0"]!(asTelephonePage(page), {
+    phone_number: "8613800138000",
+    phone_purpose_labels: "For use whilst in the UK|For use whilst out of the UK",
+    phone_type_labels: "Mobile telephone number",
+  });
+
+  assert.equal(page.textValues.get("telephoneNumber"), "8613800138000");
+  assert.deepEqual(
+    [...page.checked].sort(),
+    ["purpose_in_uk", "purpose_outside_uk", "type_mobile"].sort(),
+  );
+});
+
+test("UKVI phone repeat gate requires an explicit no and fails closed for yes", async () => {
+  const noPage = new FakeTelephonePage();
+  await UK_PAGE_FILLERS.standardTelephoneDetailsList!(asTelephonePage(noPage), {
+    has_alternative_phone: "no",
+  });
+  assert.deepEqual([...noPage.checked], ["addAnother_false"]);
+
+  await assert.rejects(
+    UK_PAGE_FILLERS.standardTelephoneDetailsList!(asTelephonePage(new FakeTelephonePage()), {}),
+    /alternative telephone-number choice is required/,
+  );
+  await assert.rejects(
+    UK_PAGE_FILLERS.standardTelephoneDetailsList!(asTelephonePage(new FakeTelephonePage()), {
+      has_alternative_phone: "yes",
+    }),
+    /repeat row is not fully modelled/,
+  );
+});
+
+test("UKVI telephone-contact page requires the observed preference", async () => {
+  const page = new FakeTelephonePage();
+  await UK_PAGE_FILLERS.standardContactingYouByTelephone!(asTelephonePage(page), {
+    contact_by_phone_label: "I can only be contacted by telephone call",
+  });
+  assert.deepEqual([...page.checked], ["contactByTelephone_callOnly"]);
+
+  await assert.rejects(
+    UK_PAGE_FILLERS.standardContactingYouByTelephone!(asTelephonePage(new FakeTelephonePage()), {}),
+    /telephone contact preference is required/,
+  );
+});

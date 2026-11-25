@@ -112,6 +112,52 @@ const EMPLOYMENT_STATUSES = new Set([
   "unemployed",
 ]);
 
+/**
+ * Access UK's telephone pages submit visible-label choices. The applicant
+ * form stores stable VIZA values, so normalize them at the runner boundary
+ * instead of making the browser filler guess which option a value means.
+ */
+const UK_PHONE_PURPOSE_LABELS: Record<string, string> = {
+  in_uk: "For use whilst in the UK",
+  outside_uk: "For use whilst out of the UK",
+};
+
+const UK_PHONE_TYPE_LABELS: Record<string, string> = {
+  home: "Home telephone number",
+  business: "Business telephone number",
+  mobile: "Mobile telephone number",
+};
+
+const UK_CONTACT_BY_PHONE_LABELS: Record<string, string> = {
+  call_and_text: "I can be contacted by telephone call and text message (SMS)",
+  call_only: "I can only be contacted by telephone call",
+  text_only: "I can only be contacted by text message (SMS)",
+  no_call_or_text: "I cannot be contacted by telephone call or text message (SMS)",
+};
+
+function normalizeOfficialLabelList(
+  raw: string | null | undefined,
+  labels: Record<string, string>,
+): string | undefined {
+  const value = clean(raw);
+  if (!value) return undefined;
+  return value
+    .split(/[|,]/u)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => labels[part] ?? part)
+    .join("|");
+}
+
+function normalizeOfficialLabel(
+  raw: string | null | undefined,
+  labels: Record<string, string>,
+): string | undefined {
+  const value = clean(raw);
+  if (!value) return undefined;
+  return labels[value] ?? value;
+}
+
 /** Wizard / seed purpose value → the seed value the purposeOfVisitForVV filler maps. */
 const PURPOSE_MAP: Record<string, string> = {
   tourism: "tourism",
@@ -240,6 +286,29 @@ export function normalizeUkAnswers(input: UkNormalizeInput): Record<string, stri
   const rawPhone =
     clean(a.phone_number) || clean(a.telephone_number) || clean(profile?.phone);
   if (rawPhone) put(out, "phone_number", normalizePhoneForGovUk(rawPhone));
+  put(
+    out,
+    "phone_purpose_labels",
+    normalizeOfficialLabelList(a.phone_purpose_labels, UK_PHONE_PURPOSE_LABELS),
+  );
+  put(
+    out,
+    "phone_type_labels",
+    normalizeOfficialLabelList(a.phone_type_labels, UK_PHONE_TYPE_LABELS),
+  );
+  put(out, "has_alternative_phone", toYesNo(a.has_alternative_phone));
+  const alternativePhone = clean(a.alternative_phone_number);
+  if (alternativePhone) {
+    put(out, "alternative_phone_number", normalizePhoneForGovUk(alternativePhone));
+  }
+  put(
+    out,
+    "contact_by_phone_label",
+    normalizeOfficialLabel(a.contact_by_phone_label, UK_CONTACT_BY_PHONE_LABELS),
+  );
+  put(out, "contact_call_only_reason", clean(a.contact_call_only_reason));
+  put(out, "contact_text_only_reason", clean(a.contact_text_only_reason));
+  put(out, "contact_no_contact_reason", clean(a.contact_no_contact_reason));
 
   put(
     out,

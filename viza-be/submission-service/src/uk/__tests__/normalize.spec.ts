@@ -193,6 +193,31 @@ describe("normalizeUkAnswers — key + value translation", () => {
     assert.equal(out.mother_given_names, "Li");
     assert.equal(out.visit_activities_description.length > 0, true);
   });
+
+  it("maps UK telephone schema values to the observed official labels", () => {
+    const out = normalizeUkAnswers({
+      answers: {
+        given_names: "Wei",
+        surname: "Zhang",
+        phone_number: "+86 138 0013 8000",
+        phone_purpose_labels: "in_uk,outside_uk",
+        phone_type_labels: "mobile",
+        contact_by_phone_label: "call_only",
+        contact_call_only_reason: "SMS is not available on this number.",
+        has_alternative_phone: "no",
+      },
+    });
+
+    assert.equal(out.phone_number, "8613800138000");
+    assert.equal(
+      out.phone_purpose_labels,
+      "For use whilst in the UK|For use whilst out of the UK",
+    );
+    assert.equal(out.phone_type_labels, "Mobile telephone number");
+    assert.equal(out.contact_by_phone_label, "I can only be contacted by telephone call");
+    assert.equal(out.contact_call_only_reason, "SMS is not available on this number.");
+    assert.equal(out.has_alternative_phone, "no");
+  });
 });
 
 describe("normalizeUkAnswers — guards", () => {

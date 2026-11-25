@@ -13,11 +13,15 @@ const LEGACY_RESUME_URL = "https://apply-uk-visa.service.gov.uk/forceResume?toke
 const APP_URL = `${UK_ORIGIN}/edit/application.0.`;
 
 class FakeLocator {
+  private checked = false;
+  private value = "";
+
   public constructor(
     private readonly present: boolean,
     private readonly onClick?: () => void,
     private readonly onCheck?: () => void,
     private readonly attributes: Record<string, string> = {},
+    private readonly label = "",
   ) {}
 
   public async count(): Promise<number> {
@@ -32,7 +36,9 @@ class FakeLocator {
     return this;
   }
 
-  public async fill(_value: string): Promise<void> {}
+  public async fill(value: string): Promise<void> {
+    this.value = value;
+  }
 
   public async press(_key: string): Promise<void> {}
 
@@ -45,6 +51,7 @@ class FakeLocator {
   }
 
   public async check(): Promise<void> {
+    this.checked = true;
     this.onCheck?.();
   }
 
@@ -55,7 +62,7 @@ class FakeLocator {
   }
 
   public async isChecked(): Promise<boolean> {
-    return false;
+    return this.checked;
   }
 
   public async isDisabled(): Promise<boolean> {
@@ -63,7 +70,27 @@ class FakeLocator {
   }
 
   public async textContent(): Promise<string> {
-    return "";
+    return this.label;
+  }
+
+  public async inputValue(): Promise<string> {
+    return this.value;
+  }
+}
+
+class FakeList {
+  public constructor(private readonly items: FakeLocator[]) {}
+
+  public async count(): Promise<number> {
+    return this.items.length;
+  }
+
+  public first(): FakeLocator {
+    return this.items[0]!;
+  }
+
+  public nth(index: number): FakeLocator {
+    return this.items[index]!;
   }
 }
 
@@ -113,7 +140,7 @@ class FakePage {
     return "";
   }
 
-  public locator(selector: string): FakeLocator {
+  public locator(selector: string): FakeLocator | FakeList {
     if (selector.includes('input[type="password"]')) return new FakeLocator(true);
     if (selector === 'button[type="submit"], input[type="submit"]') {
       return new FakeLocator(true, () => {
@@ -169,6 +196,29 @@ class FakePage {
       }, () => {
         this.checkedCount += 1;
       });
+    }
+    if (this.mode === "actual_next" && selector === "#telephoneNumber") {
+      return new FakeLocator(true);
+    }
+    if (this.mode === "actual_next" && selector === 'input[type="checkbox"][name^="telephoneNumberPurpose"]') {
+      return new FakeList([
+        new FakeLocator(true, undefined, undefined, { id: "purpose_in_uk" }, "For use whilst in the UK"),
+        new FakeLocator(true, undefined, undefined, { id: "purpose_outside_uk" }, "For use whilst out of the UK"),
+      ]);
+    }
+    if (this.mode === "actual_next" && selector === 'input[type="checkbox"][name^="telephoneNumberType"]') {
+      return new FakeList([
+        new FakeLocator(true, undefined, undefined, { id: "type_mobile" }, "Mobile telephone number"),
+      ]);
+    }
+    if (this.mode === "actual_next" && selector.startsWith("label[for=\"")) {
+      const id = selector.match(/^label\[for="([^"]+)"\]$/)?.[1];
+      const labels: Record<string, string> = {
+        purpose_in_uk: "For use whilst in the UK",
+        purpose_outside_uk: "For use whilst out of the UK",
+        type_mobile: "Mobile telephone number",
+      };
+      return new FakeLocator(Boolean(id && labels[id]), undefined, undefined, {}, id ? labels[id] : "");
     }
     if (selector.includes('input[type="radio"]') && this.mode === "fill_failure") {
       return new FakeLocator(false);
@@ -321,7 +371,14 @@ test("follows the official next page and does not goto review directly", async (
   const page = new FakePage("actual_next");
   const context = new FakeContext();
   const browser = new FakeBrowser();
-  const result = await resumeUkApplication(baseInput(), resumeOptions(page, context, browser));
+  const result = await resumeUkApplication(
+    baseInput({
+      phone_number: "8613800138000",
+      phone_purpose_labels: "For use whilst in the UK|For use whilst out of the UK",
+      phone_type_labels: "Mobile telephone number",
+    }),
+    resumeOptions(page, context, browser),
+  );
 
   assert.equal(result.status, "halted_before_pay");
   if (result.status === "halted_before_pay") {

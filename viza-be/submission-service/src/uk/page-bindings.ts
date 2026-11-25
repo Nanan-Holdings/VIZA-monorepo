@@ -130,13 +130,17 @@ export const UK_PAGE_FILLERS: Record<string, UkPageFiller> = {
   },
 
   "standardTelephoneDetailsList.0": async (page, a) => {
-    if (a["phone_number"]) await ukFillText(page, "telephoneNumber", a["phone_number"]);
-    if (a["phone_purpose_labels"]) {
-      await ukPickCheckboxes(page, "telephoneNumberPurpose", a["phone_purpose_labels"].split("|"));
-    }
-    if (a["phone_type_labels"]) {
-      await ukPickCheckboxes(page, "telephoneNumberType", a["phone_type_labels"].split("|"));
-    }
+    const phoneNumber = a["phone_number"];
+    if (!phoneNumber) throw new Error("UK telephone number is required before saving the official phone page");
+    await ukFillText(page, "telephoneNumber", phoneNumber);
+
+    const purposes = a["phone_purpose_labels"];
+    if (!purposes) throw new Error("UK telephone number purpose is required before saving the official phone page");
+    await ukPickCheckboxes(page, "telephoneNumberPurpose", purposes.split("|"));
+
+    const types = a["phone_type_labels"];
+    if (!types) throw new Error("UK telephone number type is required before saving the official phone page");
+    await ukPickCheckboxes(page, "telephoneNumberType", types.split("|"));
   },
 
   // Follow-up gate after standardTelephoneDetailsList.0: "Do you have any
@@ -144,15 +148,25 @@ export const UK_PAGE_FILLERS: Record<string, UkPageFiller> = {
   // as identityNameForLeaveToEnterList/otherAccommodationDetailsList.
   // Confirmed live: radio `name="addAnother"` values true/false, labels
   // Yes/No. An absent answer is left for the applicant to resolve.
-  standardTelephoneDetailsList: async () => {
-    // An absent answer is not an explicit "No". Leave the required choice
-    // for the applicant/review page instead of inventing it.
+  standardTelephoneDetailsList: async (page, a) => {
+    const hasAlternative = yn(a["has_alternative_phone"]);
+    if (!hasAlternative) {
+      throw new Error("UK alternative telephone-number choice is required; no default was selected");
+    }
+    if (hasAlternative === "Yes") {
+      // The current schema has no second-number purpose/type fields and the
+      // runner has no verified `.1` repeated-page contract. Do not click Yes
+      // and allow the portal to continue with an incomplete second row.
+      throw new Error("UK alternative telephone-number repeat row is not fully modelled");
+    }
+    await ukPickRadio(page, "addAnother", hasAlternative);
   },
 
   // RADIO group `contactByTelephone` w/ 4 options (not checkbox group).
   standardContactingYouByTelephone: async (page, a) => {
     const label = a["contact_by_phone_label"];
-    if (label) await ukPickRadio(page, "contactByTelephone", label);
+    if (!label) throw new Error("UK telephone contact preference is required before saving the official page");
+    await ukPickRadio(page, "contactByTelephone", label);
     if (a["contact_call_only_reason"]) await ukFillTextarea(page, "callOnlyDontContactReason", a["contact_call_only_reason"]);
     if (a["contact_text_only_reason"]) await ukFillTextarea(page, "textOnlyDontContactReason", a["contact_text_only_reason"]);
     if (a["contact_no_contact_reason"]) await ukFillTextarea(page, "noContactDontContactReason", a["contact_no_contact_reason"]);
