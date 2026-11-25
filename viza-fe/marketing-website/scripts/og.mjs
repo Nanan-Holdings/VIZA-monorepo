@@ -8,7 +8,7 @@ import satori from "satori";
 import { Resvg } from "@resvg/resvg-js";
 import sharp from "sharp";
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
-import { COUNTRIES } from "../lib/countries.ts";
+import { COUNTRIES, isPublished } from "../lib/countries.ts";
 import { destinationTitle } from "../lib/seo/titles.ts";
 
 const ROOT = new URL("../", import.meta.url);
@@ -120,7 +120,7 @@ for (const locale of ENABLED) {
   if (m.pages?.[BLOG]) {
     items.push({ key: BLOG, title: stripBrand(m.pages.blog.metaTitle), subtitle: clip(m.pages.blog.metaDescription, 110), img: null });
   }
-  for (const c of COUNTRIES.filter((x) => x.launched)) {
+  for (const c of COUNTRIES.filter(isPublished)) {
     const name = m.countries?.[c.slug] ?? c.name;
     const full = stripBrand(destinationTitle(c, name, locale));
     const [head, tail] = full.split(/[:：]/);

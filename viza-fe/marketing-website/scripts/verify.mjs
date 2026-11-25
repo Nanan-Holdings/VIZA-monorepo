@@ -22,9 +22,20 @@ const fail = (where, msg) => {
   console.log(`FAIL ${where}: ${msg}`);
 };
 
+// Next.js escapes quotes and ampersands in HTML (for example &#x27;), so lengths are measured on the decoded text.
+const NAMED = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: "\u00a0" };
+const decode = (text) =>
+  text?.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e) => {
+    if (e[0] === "#") {
+      const code = e[1].toLowerCase() === "x" ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
+      return Number.isFinite(code) ? String.fromCodePoint(code) : m;
+    }
+    return NAMED[e.toLowerCase()] ?? m;
+  });
+
 const meta = (html, attr, name) => {
   const tag = html.match(new RegExp(`<meta[^>]+${attr}="${name}"[^>]*>`, "i"))?.[0];
-  return tag?.match(/content="([^"]*)"/i)?.[1];
+  return decode(tag?.match(/content="([^"]*)"/i)?.[1]);
 };
 const links = (html, rel) => [...html.matchAll(new RegExp(`<link[^>]+rel="${rel}"[^>]*>`, "gi"))].map((m) => m[0]);
 const attr = (tag, name) => tag.match(new RegExp(`${name}="([^"]*)"`, "i"))?.[1];
@@ -66,7 +77,7 @@ async function check(path, uaName) {
 
   const h1 = (html.match(/<h1[\s>]/g) || []).length;
   if (h1 !== 1) fail(where, `${h1} h1 tags`);
-  const title = html.match(/<title>([^<]*)<\/title>/)?.[1];
+  const title = decode(html.match(/<title>([^<]*)<\/title>/)?.[1]);
   if (!title) fail(where, "no title");
   else if ([...title].length > 60) fail(where, `title is ${[...title].length} characters`);
   const description = meta(html, "name", "description");

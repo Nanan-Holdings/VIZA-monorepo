@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { COUNTRIES } from "@/lib/countries";
+import { COUNTRIES, isPublished } from "@/lib/countries";
 import { ENABLED_LOCALES, DEFAULT_LOCALE, LOCALE_HTML_LANG, buildLocalePath, type Locale } from "@/lib/locales";
 import { getPublishedCatalogue } from "@/lib/public-catalogue";
 import { getMarketingBlogFeed, type MarketingBlogSummary } from "@/lib/marketing-blog";
@@ -48,7 +48,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const publishedAt = new Map(published.map((p) => [p.slug, p.publishedAt]));
 
   // Destinations come from lib/countries.ts (plus any extra published slug), not only the catalogue API.
-  const slugs = [...COUNTRIES.filter((c) => c.launched).map((c) => c.slug)];
+  const slugs = [...COUNTRIES.filter(isPublished).map((c) => c.slug)];
   for (const entry of published) if (!slugs.includes(entry.slug)) slugs.push(entry.slug);
 
   const out: Entry[] = [];

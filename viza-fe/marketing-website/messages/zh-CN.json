@@ -194,7 +194,47 @@
     "priceTotalToViza": "您需支付给 VIZA",
     "breadcrumbVisas": "签证目的地",
     "serviceDescription": "VIZA 帮助在新加坡生活的人准备、核对并提交{country}{type}申请，AI 辅助，专业顾问审核。",
-    "offerDescription": "VIZA 服务费。政府签证费用另计，直接支付给签发机关。"
+    "offerDescription": "VIZA 服务费。政府签证费用另计，直接支付给签发机关。",
+    "dest": {
+      "tabGlance": "概览",
+      "tabPassports": "护照",
+      "tabTypes": "签证类型",
+      "tabResidents": "在新加坡居住",
+      "tabFees": "费用",
+      "tabApply": "办理方式",
+      "tabChecklist": "材料",
+      "tabRejection": "拒签原因",
+      "tabTravel": "出行前",
+      "tabFaq": "常见问题",
+      "tabRelated": "相关",
+      "glanceTitle": "概览",
+      "glanceVisa": "是否需要签证",
+      "glanceGovFee": "政府费用",
+      "glanceVizaFee": "VIZA 费用",
+      "glanceProcessing": "办理时间",
+      "glanceMaxStay": "最长停留",
+      "glanceChecked": "核对日期",
+      "passportsTitle": "需要签证吗？",
+      "typesTitle": "签证类型",
+      "residentsTitle": "在新加坡居住",
+      "feesTitle": "费用与时间",
+      "applyTitle": "办理方式",
+      "checklistTitle": "材料清单",
+      "travelTitle": "出行前",
+      "colPassport": "护照",
+      "colEntry": "入境",
+      "colNotes": "说明",
+      "colItem": "项目",
+      "colAmount": "金额",
+      "vizaFeeNote": "VIZA 的协助免费，您只需向签发机关直接支付政府费用。",
+      "reviewedBy": "VIZA 顾问已于 {date} 审核。",
+      "relatedTitle": "相关目的地",
+      "relatedSub": "同一行程常一起办理的目的地，以及更多参考。",
+      "startTitle": "开始申请",
+      "startBody": "从护照和出行日期开始。VIZA 的协助免费，政府费用由您直接支付给签发机关。",
+      "startConsultBody": "告诉 VIZA 顾问您的居住情况、护照和出行日期。VIZA 的协助免费。",
+      "consultCta": "咨询顾问"
+    }
   },
   "apply": {
     "stepOf": "第 {n} 步 / 共 3 步",
@@ -430,7 +470,10 @@
     "united-arab-emirates": "阿联酋",
     "france": "法国",
     "italy": "意大利",
-    "india": "印度"
+    "india": "印度",
+    "china": "中国",
+    "south-korea": "韩国",
+    "schengen": "申根"
   },
   "visaTypes": {
     "Test checkout": "测试支付",
@@ -591,7 +634,7 @@
       "photos": [
         {
           "label": "照片 · 新加坡总部 — 开放式办公区",
-          "mark": "Pasir Panjang Rd, SG"
+          "mark": "Paya Lebar Square, SG"
         },
         {
           "label": "照片 · 顾问一线工作区",
@@ -611,7 +654,7 @@
         },
         {
           "label": "照片 · 拜访使馆合作伙伴",
-          "mark": "Pasir Panjang Rd, SG"
+          "mark": "Paya Lebar Square, SG"
         }
       ],
       "pull": "“我们招的人在加入之前就对签证有自己的见解。到第二个月，你的见解会更加鲜明。”",
@@ -821,8 +864,8 @@
           "photo": "照片 · 新加坡总部",
           "open": "12 个在招",
           "name": "新加坡",
-          "addr1": "225 Pasir Panjang Rd,",
-          "addr2": "Singapore",
+          "addr1": "60 Paya Lebar Road, #06-28 Paya Lebar Square,",
+          "addr2": "Singapore 409051",
           "tz": "GMT+8 · 亚太总部",
           "since": "总部 · 始于 2021"
         }
@@ -1290,7 +1333,7 @@
         "intro": "隐私问题、请求、投诉——均由同一地址受理。",
         "email": "<strong>电子邮箱：</strong><a>privacy@viza.it.com</a>",
         "dpo": "<strong>数据保护官：</strong><a>dpo@viza.it.com</a>",
-        "address": "<strong>邮寄地址：</strong>225 Pasir Panjang Rd, Singapore",
+        "address": "<strong>邮寄地址：</strong>60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapore 409051",
         "pdpc": "<strong>新加坡 PDPC：</strong><a>pdpc.gov.sg</a>"
       }
     },
@@ -1460,7 +1503,7 @@
         "title": "联系方式",
         "legal": "<strong>法律问题：</strong><a>legal@viza.it.com</a>",
         "privacy": "<strong>隐私 / 数据请求：</strong><a>privacy@viza.it.com</a>",
-        "address": "<strong>邮寄地址：</strong>225 Pasir Panjang Rd, Singapore",
+        "address": "<strong>邮寄地址：</strong>60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapore 409051",
         "uen": "<strong>UEN：</strong>202312345A"
       }
     },

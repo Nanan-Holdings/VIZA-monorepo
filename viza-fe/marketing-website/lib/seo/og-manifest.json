@@ -26,7 +26,10 @@
     "visa-united-arab-emirates",
     "visa-france",
     "visa-italy",
-    "visa-india"
+    "visa-india",
+    "visa-china",
+    "visa-schengen",
+    "visa-south-korea"
   ],
   "zh-CN": [
     "home",
@@ -55,6 +58,9 @@
     "visa-united-arab-emirates",
     "visa-france",
     "visa-italy",
-    "visa-india"
+    "visa-india",
+    "visa-china",
+    "visa-schengen",
+    "visa-south-korea"
   ]
 }
