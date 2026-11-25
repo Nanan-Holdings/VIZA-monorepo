@@ -1,4 +1,4 @@
-import { COUNTRIES, type CountryMeta } from "@/lib/countries";
+import { COUNTRIES, isPublished, type CountryMeta } from "@/lib/countries";
 
 /** Extra words that name a destination in a post, besides the country's own name. */
 const ALIASES: Record<string, string[]> = {
@@ -8,6 +8,9 @@ const ALIASES: Record<string, string[]> = {
   turkiye: ["turkey", "turkish", "istanbul"],
   "saudi-arabia": ["saudi"],
   japan: ["japanese", "tokyo"],
+  china: ["chinese", "beijing"],
+  "south-korea": ["korea", "korean", "k-eta", "seoul"],
+  schengen: ["europe visa"],
   india: ["indian"],
   indonesia: ["bali", "indonesian"],
   vietnam: ["vietnamese"],
@@ -38,7 +41,7 @@ function firstMatch(text: string, country: CountryMeta): number {
  * only those have a /visa/<slug> page worth linking to.
  */
 export function destinationForPost(post: { title: string; slug: string; excerpt: string }): CountryMeta | null {
-  const launched = COUNTRIES.filter((c) => c.launched);
+  const launched = COUNTRIES.filter(isPublished);
   for (const text of [post.title, post.slug.replace(/-/g, " "), post.excerpt]) {
     const lower = text.toLowerCase();
     let best: { country: CountryMeta; at: number } | null = null;

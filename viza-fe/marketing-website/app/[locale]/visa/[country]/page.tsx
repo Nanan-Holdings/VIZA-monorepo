@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import VisaCountryPageClient from "@/components/VisaCountryPageClient";
 import { locales } from "@/i18n";
-import { COUNTRIES, type CountryMeta } from "@/lib/countries";
+import { COUNTRIES, isPublished, type CountryMeta } from "@/lib/countries";
 import { getPublishedCatalogue } from "@/lib/public-catalogue";
 import { destinationDescription, destinationTitle } from "@/lib/seo/titles";
 import { pageMetadata } from "@/lib/seo/metadata";
@@ -23,7 +23,7 @@ export const dynamicParams = true;
 
 export function generateStaticParams() {
   return locales.flatMap((locale) =>
-    COUNTRIES.filter((c) => c.launched).map((c) => ({ locale, country: c.slug })),
+    COUNTRIES.filter(isPublished).map((c) => ({ locale, country: c.slug })),
   );
 }
 
@@ -33,7 +33,7 @@ async function resolveCountry(slug: string): Promise<{ country: CountryMeta; lau
   const published = (await getPublishedCatalogue()).find((entry) => entry.slug === slug);
   if (!known && !published) return null;
   const base = known ?? published!;
-  return { country: base as CountryMeta, launched: Boolean(known?.launched || published) };
+  return { country: base as CountryMeta, launched: Boolean((known && isPublished(known)) || published) };
 }
 
 export async function generateMetadata({

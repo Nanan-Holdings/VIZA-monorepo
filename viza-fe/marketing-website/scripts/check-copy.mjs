@@ -13,7 +13,7 @@
 import { readdirSync, readFileSync, statSync, existsSync } from "node:fs";
 import { join, relative } from "node:path";
 import { execSync } from "node:child_process";
-import { COUNTRIES } from "../lib/countries.ts";
+import { COUNTRIES, isPublished } from "../lib/countries.ts";
 import { ENABLED_LOCALES } from "../lib/locales.ts";
 import { destinationDescription, destinationTitle, TITLE_MAX, DESCRIPTION_MAX } from "../lib/seo/titles.ts";
 
@@ -99,7 +99,7 @@ for (const locale of ENABLED_LOCALES) {
   if (!m) continue;
   const rows = PAGE_KEYS.filter((k) => m.pages?.[k]).map((k) => ({ id: `${locale} pages.${k}`, title: m.pages[k].title, description: m.pages[k].description }));
   if (m.pages?.blog) rows.push({ id: `${locale} pages.blog`, title: m.pages.blog.metaTitle, description: m.pages.blog.metaDescription });
-  for (const c of COUNTRIES.filter((x) => x.launched)) {
+  for (const c of COUNTRIES.filter(isPublished)) {
     const name = m.countries?.[c.slug] ?? c.name;
     rows.push({ id: `${locale} /visa/${c.slug}`, title: destinationTitle(c, name, locale), description: destinationDescription(c, name, locale) });
   }
@@ -124,4 +124,4 @@ if (hits.length) {
   console.error(`Copy check failed (${hits.length}):\n${hits.join("\n")}`);
   process.exit(1);
 }
-console.log(`Copy check passed (${ENABLED_LOCALES.length} locales, ${COUNTRIES.filter((c) => c.launched).length} destinations)`);
+console.log(`Copy check passed (${ENABLED_LOCALES.length} locales, ${COUNTRIES.filter(isPublished).length} destinations)`);

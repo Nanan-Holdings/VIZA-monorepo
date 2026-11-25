@@ -26,9 +26,19 @@ export interface CountryMeta {
   image: string;
   /** Card emphasis tag. */
   tag: "fast" | "evisa";
+  /** Checkout is available. A launched entry must be backed by the portal pricing matrix. */
   launched: boolean;
+  /**
+   * Published and indexed, but the portal cannot check it out (no pricing row). The page shows a
+   * "Talk to a consultant" CTA linking to /contact instead of /apply. Never set together with `launched`.
+   */
+  consultOnly?: boolean;
   featured?: boolean;
 }
+
+/** A destination whose /visa/<slug> page is public: it has checkout or it is consult-only. */
+export const isPublished = (c: Pick<CountryMeta, "launched" | "consultOnly">): boolean =>
+  c.launched || Boolean(c.consultOnly);
 
 /**
  * Hero/card image. Local assets under public/assets/heroes/ (downloaded once via
@@ -54,6 +64,12 @@ export const COUNTRIES: CountryMeta[] = [
   { slug: "france", portalCountry: "france", name: "France", city: "Paris · Nice", flagCode: "fr", type: "Schengen", visaType: "EU_SCHENGEN_C_SHORT_STAY", validity: "90 days", image: HERO("france"), tag: "evisa", launched: true },
   { slug: "italy", portalCountry: "italy", name: "Italy", city: "Rome · Florence", flagCode: "it", type: "Schengen", visaType: "EU_SCHENGEN_C_SHORT_STAY", validity: "90 days", image: HERO("italy"), tag: "evisa", launched: true },
   { slug: "india", portalCountry: "india", name: "India", city: "Delhi · Mumbai", flagCode: "in", type: "e-Visa", visaType: "IN_E_VISA", validity: "30 days", image: HERO("india"), tag: "fast", launched: true },
+  // Destination pages with no portal checkout row. Keep launched false.
+  { slug: "china", portalCountry: "china", name: "China", city: "Beijing · Shanghai", flagCode: "cn", type: "Visitor visa (L)", visaType: "CN_L_TOURIST", validity: "30 days visa-free for Singapore passports", image: HERO("china"), tag: "evisa", launched: false, consultOnly: true },
+  { slug: "schengen", portalCountry: "european_union", name: "Schengen", city: "Paris · Rome · Berlin", flagCode: "eu", type: "Schengen", visaType: "EU_SCHENGEN_C_SHORT_STAY", validity: "90 days in any 180", image: HERO("schengen"), tag: "evisa", launched: false, consultOnly: true },
+  // The portal prices south_korea KR_C39_SHORT_TERM_VISIT (lib/pricing.ts), so the visa route has checkout.
+  // K-ETA itself is a free application on k-eta.go.kr and is not a portal product.
+  { slug: "south-korea", portalCountry: "south_korea", name: "South Korea", city: "Seoul · Busan", flagCode: "kr", type: "K-ETA and visa", visaType: "KR_C39_SHORT_TERM_VISIT", validity: "90 days", image: HERO("south-korea"), tag: "fast", launched: true },
 ];
 
 /** Slug for a country card CTA; unlaunched/unknown still route to the (coming-soon) page, never a 404. */
@@ -70,15 +86,18 @@ export const NEIGHBOURS: Record<string, string[]> = {
   malaysia: ["thailand", "indonesia", "vietnam", "india"],
   vietnam: ["thailand", "malaysia", "indonesia", "japan"],
   thailand: ["vietnam", "malaysia", "india", "indonesia"],
-  japan: ["vietnam", "thailand", "malaysia", "indonesia"],
+  japan: ["south-korea", "china", "vietnam", "thailand"],
   india: ["thailand", "malaysia", "united-arab-emirates", "saudi-arabia"],
+  china: ["japan", "south-korea", "vietnam", "thailand"],
+  "south-korea": ["japan", "china", "vietnam", "thailand"],
+  schengen: ["france", "italy", "united-kingdom", "turkiye"],
   australia: ["indonesia", "malaysia", "vietnam", "thailand"],
   "united-arab-emirates": ["saudi-arabia", "egypt", "india", "turkiye"],
   "saudi-arabia": ["united-arab-emirates", "egypt", "turkiye", "india"],
   egypt: ["saudi-arabia", "turkiye", "united-arab-emirates", "italy"],
   turkiye: ["egypt", "italy", "saudi-arabia", "united-arab-emirates"],
-  france: ["italy", "united-kingdom", "turkiye", "egypt"],
-  italy: ["france", "united-kingdom", "turkiye", "egypt"],
+  france: ["schengen", "italy", "united-kingdom", "turkiye"],
+  italy: ["schengen", "france", "united-kingdom", "turkiye"],
   "united-kingdom": ["france", "italy", "united-states", "canada"],
   "united-states": ["canada", "united-kingdom", "japan", "australia"],
   canada: ["united-states", "united-kingdom", "france", "japan"],

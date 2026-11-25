@@ -35,6 +35,9 @@ const HEROES = {
   france: "photo-1431274172761-fca41d930114",
   italy: "photo-1531572753322-ad063cecc140",
   india: "photo-1524492412937-b28074a5d7da",
+  china: "photo-1508804185872-d7badad00f7d",
+  "south-korea": "photo-1517154421773-0529f29ea451",
+  schengen: "photo-1467269204594-9661b134dd2b",
 };
 
 const unsplashUrl = (id) =>
