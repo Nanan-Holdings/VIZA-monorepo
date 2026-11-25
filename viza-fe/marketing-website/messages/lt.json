@@ -1,0 +1,2147 @@
+{
+  "cta": {
+    "startFreeApplication": "Pradėkite nemokamą paraišką"
+  },
+  "nav": {
+    "home": "Pradžia",
+    "apply": "Teikti paraišką",
+    "visas": "Vizos",
+    "explore": "Naršyti",
+    "events": "Renginiai",
+    "blog": "Naujienos",
+    "careers": "Karjera",
+    "contact": "Kontaktai",
+    "signIn": "Prisijungti",
+    "getStarted": "Pradėti",
+    "yourPassport": "Jūsų pasas",
+    "searchPlaceholder": "Ieškokite šalies ar vizos...",
+    "arrivalCards": "Atvykimo kortelės",
+    "guides": "Gidai"
+  },
+  "footer": {
+    "followUs": "Sekite mus:",
+    "followOn": "Sekite VIZA: {platform}",
+    "product": "Produktai",
+    "company": "Įmonė",
+    "legal": "Teisinė informacija",
+    "offices": "Biurai",
+    "askAi": "Paklauskite DI apie VIZA",
+    "security": "Sauga",
+    "status": "Būsena",
+    "privacy": "Privatumas",
+    "terms": "Sąlygos",
+    "rights": "Visos teisės saugomos.",
+    "tagline": "VIZA padeda planuoti, teikti ir sekti vizas visame pasaulyje sklandžiai.",
+    "careers": "Karjera",
+    "contact": "Kontaktai",
+    "copyright": "© VIZA, visos teisės saugomos",
+    "prodMockInterview": "JAV bandomasis interviu",
+    "prodVisaReq": "Vizų reikalavimai",
+    "prodSchengen": "Šengeno registracijos tikrintuvas",
+    "prodPhoto": "Vizos nuotraukų kūrėjas",
+    "prodHelpline": "VIZA pagalbos linija skubiais atvejais",
+    "prodStudent": "Studento viza",
+    "arrivalCards": "Atvykimo kortelės",
+    "guides": "Gidai",
+    "news": "Naujienos"
+  },
+  "pages": {
+    "blog": {
+      "metaTitle": "Vizų naujienos ir politikos pokyčiai | VIZA",
+      "metaDescription": "VIZA vizų naujienos: taisyklių pakeitimai, naujos e. vizų ir ETA sistemos ir ką tai reiškia Singapūre gyvenantiems žmonėms. Atnaujinama keičiantis taisyklėms.",
+      "title": "Vizų naujienos",
+      "lede": "Taisyklių pakeitimai ir politikos naujienos paprastais žodžiais. Patarimų, kurie nesensta, ieškokite giduose.",
+      "readArticle": "Skaityti straipsnį",
+      "featuredLabel": "Naujausios naujienos",
+      "articlesTitle": "Naujausios naujienos",
+      "articlesDescription": "Politikos naujienos ir kelionių taisyklių pakeitimai.",
+      "allPosts": "Visi įrašai",
+      "noMorePosts": "Daugiau naujienų netrukus.",
+      "emptyTitle": "Naujienų dar nepaskelbta",
+      "emptyBody": "Pirmieji pranešimai ruošiami. Užsukite vėliau.",
+      "unavailableTitle": "Naujienos laikinai nepasiekiamos",
+      "unavailableBody": "Nepavyko įkelti naujausių paskelbtų naujienų. Netrukus bandykite dar kartą.",
+      "backToBlog": "Atgal į naujienas",
+      "by": "Autorius:",
+      "updated": "Atnaujinta",
+      "categoriesLabel": "Naujienų temos",
+      "topicLabel": "Tema",
+      "relatedTitle": "Daugiau naujienų",
+      "relatedDescription": "Daugiau VIZA vizų naujienų.",
+      "ctaEyebrow": "Planuokite užtikrintai",
+      "ctaTitle": "Pasiruošę pradėti paraišką?",
+      "ctaBody": "Pasakykite, kur norite keliauti. VIZA padės išsiaiškinti reikalavimus ir tolesnius žingsnius.",
+      "ctaAction": "Pradėti paraišką",
+      "categoryMetaTitle": "{category}: naujienos | VIZA",
+      "categoryMetaDescription": "Skaitykite VIZA naujienas tema „{category}“: kas pasikeitė, ką tai paliečia ir ką daryti toliau.",
+      "categoryLede": "Naujienos tema: {category}.",
+      "visaLinkTitle": "Kreipiatės dėl vizos: {country}?",
+      "visaLinkBody": "Pažiūrėkite dokumentus, valstybės rinkliavą ir žingsnius Singapūre gyvenantiems žmonėms.",
+      "visaLinkAction": "Vizos gidas: {country}",
+      "guidesTitle": "Susiję gidai",
+      "guidesBody": "Gidai, kurie šia tema nuolat atnaujinami."
+    },
+    "home": {
+      "title": "Vizų paraiškos Singapūre: JAV, Indija, Vietnamas | VIZA",
+      "description": "Teikite paraišką JAV vizai (DS-160), Indijos, Vietnamo ar Egipto e. vizai arba Prancūzijos Šengeno vizai. Konsultantas patikrina kiekvieną formą.",
+      "heroTitle": "Kur toliau?",
+      "heroLede": "Naršykite vizų galimybes bet kuriai krypčiai. Jūsų VIZA konsultantas ir mūsų DI sutvarko dokumentus, o jūs užsisakote kelionę."
+    },
+    "apply": {
+      "title": "Pradėkite vizos paraišką | VIZA",
+      "description": "Įkelkite pasą, patvirtinkite duomenis ir patikėkite vizos paraišką VIZA konsultantui. VIZA paslauga nemokama.",
+      "saveBadge": "Išsaugota · tęskite bet kada"
+    },
+    "careers": {
+      "title": "Karjera | VIZA",
+      "description": "Dirbkite su VIZA, nemokama vizų paslauga, kurią Singapūre valdo Kelin Studio. Pažiūrėkite, kokioms komandoms samdome ir kaip susisiekti dėl pozicijos.",
+      "rightCta": "Žiūrėti pozicijas"
+    },
+    "contact": {
+      "title": "Kontaktai: WhatsApp, WeChat, telefonas, el. paštas | VIZA",
+      "description": "Susisiekite su VIZA komanda per WhatsApp, WeChat, telefonu ar el. paštu. Keturi kanalai, keturi stalai ir atsako tikras žmogus.",
+      "rightCta": "Rašykite mums"
+    },
+    "security": {
+      "title": "Sauga ir atsakingas pranešimas apie spragas | VIZA",
+      "description": "Privatu, skaidru ir saugu pagal nutylėjimą. Kaip VIZA saugo klientų duomenis, mūsų pranešimų apie spragas programa ir saugus uostas.",
+      "rightCta": "Pranešti apie spragą"
+    },
+    "status": {
+      "title": "Sistemos būsena | VIZA",
+      "description": "VIZA ir valstybinių vizų portalų, kuriems teikiame paraiškas, būsena gyvai.",
+      "navPill": "Visos sistemos veikia"
+    },
+    "visa": {
+      "applyCta": "Teikti paraišką",
+      "applicationProcess": "Paraiškos procesas",
+      "documents": "Dokumentai",
+      "rejectionReasons": "Atmetimo priežastys",
+      "entryExit": "Įvažiavimas ir išvažiavimas",
+      "extension": "Pratęsimas",
+      "reviews": "Atsiliepimai",
+      "nearby": "Kaimyninės šalys",
+      "sources": "Oficialūs šaltiniai"
+    },
+    "privacy": {
+      "title": "Privatumo politika | VIZA",
+      "description": "Ką VIZA renka, kai teikiate vizos paraišką, kodėl, kas tai mato ir kiek laiko saugome pagal Singapūro PDPA."
+    },
+    "terms": {
+      "title": "Taisyklės ir sąlygos | VIZA",
+      "description": "VIZA vizų paraiškų paslaugos, kurią Singapūre valdo Kelin Studio Pte. Ltd., naudojimo sąlygos. VIZA paslauga nemokama."
+    },
+    "product": {
+      "title": "Kaip VIZA padeda su vizos paraiška | VIZA",
+      "description": "Vizos paruošimas, dokumentų peržiūra ir paraiškos būsena vienoje vietoje. VIZA paslauga nemokama. Apimtis ir prieinamumas rodomi kiekvienai krypčiai."
+    },
+    "events": {
+      "title": "Renginiai | VIZA",
+      "description": "VIZA vizų konsultacijos, informaciniai ir partnerių renginiai."
+    },
+    "arrivalCards": {
+      "title": "Atvykimo kortelių gidai: MDAC, SG Arrival Card, TDAC | VIZA",
+      "description": "Nemokami gidai apie atvykimo korteles Malaizijai, Singapūrui, Japonijai, Tailandui, Korėjai ir Indonezijai: kam reikia, kada pateikti ir kaip užpildyti."
+    },
+    "guides": {
+      "title": "Vizų gidai Singapūre gyvenantiems žmonėms | VIZA",
+      "description": "Aiškūs gidai Singapūre gyvenantiems žmonėms: bevizės šalys, Šengeno dokumentai, JAV interviu, ETA, e. vizos ir atsisakymai. Nemokami, dažnai tikrinami."
+    },
+    "about": {
+      "title": "Apie VIZA: nemokama vizų pagalba Singapūre | VIZA",
+      "description": "VIZA paruošia, patikrina ir pateikia vizų paraiškas Singapūre gyvenantiems žmonėms su DI ir konsultantais. Paslauga nemokama, rinkliavas gauna institucija."
+    },
+    "visaIndex": {
+      "title": "Vizų kryptys: reikalavimai pagal šalį | VIZA",
+      "description": "Palyginkite vizų reikalavimus pagal šalį, su kiekvienos dokumentais ir rinkliavomis. VIZA pagalba nemokama.",
+      "heroTitle": "Vizų kryptys"
+    },
+    "refunds": {
+      "title": "Grąžinimų politika | VIZA",
+      "description": "VIZA paslauga nemokama, todėl grąžinti paslaugos mokesčio nėra ko. Kaip veikia valstybės rinkliavos ir kitų paslaugų teikėjų mokesčiai."
+    },
+    "businessInformation": {
+      "title": "Informacija apie įmonę | VIZA",
+      "description": "VIZA valdo Kelin Studio Pte. Ltd., Singapūro įmonė. Registracijos adresas, UEN ir kontaktiniai duomenys."
+    }
+  },
+  "common": {
+    "comingSoon": "Netrukus",
+    "learnMore": "Sužinoti daugiau",
+    "readMore": "Skaityti daugiau",
+    "applyNow": "Teikti paraišką",
+    "talkToHuman": "Pasikalbėti su žmogumi",
+    "viewAll": "Peržiūrėti viską"
+  },
+  "visa": {
+    "heroTitle": "Viza: {country}",
+    "validity": "Galiojimas",
+    "howItWorks": "Kaip tai veikia",
+    "step1": "Pateikite kelionės duomenis ir įkelkite pasą.",
+    "step2": "Užpildome ir patikriname jūsų paraišką pagal naujausias taisykles.",
+    "step3": "Pateikiame ją valstybės portale ir sekame sprendimą.",
+    "step4": "Patvirtinta viza ateina el. paštu, o mes stebime viską nuo pradžios iki galo.",
+    "documents": "Ko jums reikės",
+    "doc1": "Pasas, galiojantis bent 6 mėnesius.",
+    "doc2": "Neseniai daryta paso formato nuotrauka.",
+    "doc3": "Kelionės datos ir apgyvendinimas.",
+    "doc4": "Jei kryptis taiko vizos rinkliavą, mokėjimo kortelė, kuria sumokėsite tiesiai valstybei.",
+    "nearby": "Netoliese esančios kryptys",
+    "startApplication": "Pradėkite paraišką",
+    "comingSoonTitle": "{country}: netrukus",
+    "comingSoonBody": "Baigiame paruošti kryptį {country}. Susikurkite paskyrą, ir pranešime, kai tik ji pradės veikti.",
+    "browseDestinations": "Naršyti kryptis",
+    "notifyMe": "Pranešti man",
+    "back": "Atgal į naršymą",
+    "tabOverview": "Apžvalga",
+    "tabProcess": "Paraiškos procesas",
+    "tabDocuments": "Dokumentai",
+    "tabRejection": "Atmetimo priežastys",
+    "tabEntry": "Įvažiavimas ir išvažiavimas",
+    "tabExtension": "Pratęsimas",
+    "tabReviews": "Atsiliepimai",
+    "tabNearby": "Kaimyninės šalys",
+    "reviewsTitle": "Atsiliepimai",
+    "nearbyTitle": "Kaimyninės šalys",
+    "nearbySub": "Keliaujate po regioną? Pridėkite prie kelionės dar vieną vizą, o jūsų VIZA konsultantas sujungs jas į vieną rinkinį.",
+    "faqTitle": "Dažniausiai užduodami klausimai",
+    "editorial": "Šis puslapis atitinka VIZA redakcinę politiką. Remiamės oficialiais valstybės šaltiniais ir atnaujiname kiekvieną reikalavimą, kai keičiasi politika.",
+    "editorialLink": "Skaityti, kaip peržiūrime",
+    "sourcesTitle": "Šaltiniai",
+    "priceGovt": "Valstybės rinkliava",
+    "priceFree": "Nemokama",
+    "pillAllInclusive": "Viskas įskaičiuota",
+    "priceCta": "Pradėti paraišką",
+    "onTime": "Laiku",
+    "freeService": "Nemokama VIZA paslauga",
+    "freeServiceNote": "VIZA už savo pagalbą neima nieko",
+    "govFeePaidDirect": "Valstybės rinkliava {fee}, mokama tiesiai vizą išduodančiai institucijai.",
+    "govFeeSetByAuthority": "Bet kokią valstybės rinkliavą nustato vizą išduodanti institucija, ir ji mokama tiesiai jai.",
+    "govFeeSetByAuthorityShort": "Nustato institucija",
+    "priceService": "VIZA paslauga",
+    "pillPaidToAuthority": "Mokama institucijai",
+    "priceTotalToViza": "Mokate VIZA",
+    "breadcrumbVisas": "Vizų kryptys",
+    "serviceDescription": "VIZA padeda Singapūre gyvenantiems žmonėms paruošti, peržiūrėti ir pateikti paraiškas ({country}, {type}) su DI pagalba ir ekspertų peržiūra.",
+    "offerDescription": "VIZA paslaugos mokestis. Valstybės vizų rinkliavos yra atskiros ir mokamos tiesiai vizą išduodančiai institucijai.",
+    "dest": {
+      "tabGlance": "Trumpai",
+      "tabPassports": "Pasai",
+      "tabTypes": "Vizų tipai",
+      "tabResidents": "Gyventojai",
+      "tabFees": "Rinkliavos",
+      "tabApply": "Kaip teikti paraišką",
+      "tabChecklist": "Dokumentai",
+      "tabRejection": "Atmetimai",
+      "tabTravel": "Prieš kelionę",
+      "tabRelated": "Susiję",
+      "glanceTitle": "Trumpai",
+      "glanceVisa": "Reikalinga viza",
+      "glanceGovFee": "Valstybės rinkliava",
+      "glanceVizaFee": "VIZA mokestis",
+      "glanceProcessing": "Nagrinėjimo trukmė",
+      "glanceMaxStay": "Maksimali buvimo trukmė",
+      "glanceChecked": "Patikrinimo data",
+      "passportsTitle": "Ar jums reikia vizos?",
+      "typesTitle": "Vizų tipai",
+      "residentsTitle": "Singapūro gyventojai",
+      "feesTitle": "Rinkliavos ir terminai",
+      "applyTitle": "Kaip teikti paraišką",
+      "checklistTitle": "Dokumentų kontrolinis sąrašas",
+      "travelTitle": "Prieš kelionę",
+      "colPassport": "Pasas",
+      "colEntry": "Įvažiavimas",
+      "colNotes": "Pastabos",
+      "colItem": "Punktas",
+      "colAmount": "Suma",
+      "vizaFeeNote": "VIZA pagalba nemokama. Mokate tik valstybės rinkliavą tiesiai institucijai.",
+      "reviewedBy": "Peržiūrėjo VIZA konsultantas {date}.",
+      "relatedTitle": "Susijusios kryptys",
+      "relatedSub": "Kitos vietos, kurias žmonės prideda prie tos pačios kelionės, ir kur skaityti daugiau.",
+      "startTitle": "Pradėkite paraišką",
+      "startBody": "Pradėkite nuo paso ir kelionės datų. VIZA pagalba nemokama, o valstybės rinkliavą mokate tiesiai institucijai.",
+      "startConsultBody": "Pasakykite VIZA konsultantui, kur gyvenate, savo pasą ir kelionės datas. VIZA pagalba nemokama.",
+      "consultCta": "Pasikalbėkite su konsultantu"
+    }
+  },
+  "apply": {
+    "stepOf": "{n} žingsnis iš 3",
+    "back": "Atgal",
+    "continue": "Tęsti",
+    "step1Name": "Įkelkite pasą",
+    "step2Name": "Patvirtinkite duomenis",
+    "step3Name": "Pradėkite paraišką",
+    "s1Title": "Įkelkite savo pasą",
+    "s1Desc": "Duomenis nuskaitysime automatiškai, nieko vesti nereikia. Naudokite puslapį su jūsų nuotrauka.",
+    "segUpload": "Įkelti failą",
+    "segCapture": "Nufotografuoti",
+    "dzTitle": "Numeskite čia savo paso nuotrauką",
+    "dzSub": "Arba spustelėkite ir pasirinkite failą. Failas užšifruojamas ir niekam neperduodamas",
+    "dzBrowse": "Pasirinkti failą",
+    "dzUpTo": "Iki 10 MB",
+    "tip1Title": "Matomi visi keturi kampai",
+    "tip1Sub": "Į kadrą įtraukite visą puslapį su asmens duomenimis, taip pat apačioje esančią MRZ zoną.",
+    "tip2Title": "Ryškus, tolygus apšvietimas",
+    "tip2Sub": "Venkite šešėlių nuo rankos ar telefono dėklo.",
+    "tip3Title": "Jokių atspindžių ir blizgesio",
+    "tip3Sub": "Jei atsispindi apsauginis ženklas, šiek tiek pakreipkite pasą.",
+    "errReadFail": "Nepavyko nuskaityti paso: {detail}. Pabandykite padaryti aiškesnę puslapio su asmens duomenimis nuotrauką.",
+    "extReading": "Skaitomas dokumentas",
+    "extExtracting": "Išgaunami jūsų duomenys",
+    "extVerifying": "Tikrinamas autentiškumas",
+    "stReading": "Skaitoma...",
+    "stExtracting": "Išgaunama...",
+    "stVerifying": "Tikrinama...",
+    "s2Title": "Patvirtinkite savo duomenis",
+    "s2Desc": "Šiuos duomenis paėmėme tiesiai iš jūsų paso. Bakstelėkite bet kurį lauką, kad jį pakeistumėte.",
+    "successHigh": "Paso duomenys nuskaityti sėkmingai, patikimumas aukštas",
+    "warnLow": "Kai kuriuos laukus buvo sunku perskaityti. Dar kartą patikrinkite kiekvieną žemiau pateiktą reikšmę.",
+    "warnMed": "Nuskaitėme daugumą jūsų duomenų. Patikrinkite paryškintus laukus.",
+    "ppDetails": "Paso duomenys",
+    "autoExtracted": "Nuskaityta automatiškai",
+    "fSurname": "Pavardė",
+    "fGiven": "Vardai",
+    "fPassport": "Paso numeris",
+    "fDob": "Gimimo data",
+    "fNationality": "Pilietybė",
+    "fExpires": "Galioja iki",
+    "reachTitle": "Kaip su jumis susisiekti?",
+    "reachDesc": "Vizą atsiųsime čia, o būsenos pranešimus tekstinėmis žinutėmis į jūsų telefoną.",
+    "email": "El. paštas",
+    "phone": "Telefonas",
+    "consent": "Patvirtinu, kad pirmiau nurodyti duomenys sutampa su mano paso duomenimis, ir įgalioju VIZA mano vardu pateikti šią paraišką šalies {country} imigracijos institucijoms.",
+    "s3Title": "Pradėkite paraišką",
+    "s3Desc": "VIZA paslauga nemokama. Prisijunkite prie VIZA portalo, o toliau viską perimsime mes.",
+    "headsUp": "Atkreipkite dėmesį:",
+    "headsUpBody": "jei {country} vyriausybė taiko vizos rinkliavą, ją sumokate tiesiogiai jiems. VIZA šios sumos niekada nesurenka ir jos nedidina.",
+    "yourApp": "Jūsų paraiška",
+    "guaranteedBy": "Garantuotas pristatymas iki",
+    "govFee": "Valstybės rinkliava",
+    "expressUpgrade": "Skubus apdorojimas",
+    "total": "Iš viso",
+    "footEncrypted": "Šifruojama nuo pradžios iki galo. VIZA už šią paraišką jums neskaičiuoja mokesčio.",
+    "helpOnline": "Priya prisijungusi",
+    "helpTap": "Bakstelėkite, kad pasikalbėtumėte su savo VIZA konsultante",
+    "totalAmount": "SGD {amount}",
+    "totalFree": "Nemokama",
+    "etaStandard": "2026 m. gegužės 12 d., 8:00 val. Singapūro laiku",
+    "failTitle": "Nepavyko perskaityti dokumento",
+    "failNotPassport": "Atrodo, kad tai ne paso puslapis su asmens duomenimis. Įkelkite puslapio su nuotrauka ir asmens duomenimis nuotrauką.",
+    "failUnreadable": "Nepavyko perskaityti nė vieno privalomo lauko. Nufotografuokite iš naujo gerai apšviestoje vietoje, kad visas puslapis būtų lygus ir ryškus.",
+    "tryAgain": "Bandyti dar kartą",
+    "warnPartial": "Nepavyko perskaityti visko. Užpildykite žemiau paryškintus laukus.",
+    "warnExpired": "Atrodo, kad paso galiojimas pasibaigęs. Daugumai šalių reikia, kad pasas galiotų bent 6 mėnesius.",
+    "warnMrz": "Mašininio skaitymo zonos (dviejų eilučių apačioje) nepavyko perskaityti. Dar kartą patikrinkite kiekvieną lauką.",
+    "warnBlurry": "Nuotrauka buvo neryški. Atidžiai dar kartą patikrinkite kiekvieną lauką.",
+    "fieldRequired": "Privaloma, užpildykite",
+    "editField": "Redaguoti: {field}",
+    "emailInvalid": "Įveskite galiojantį el. pašto adresą. Čia gausite vizos naujienas ir prisijungimo nuorodą.",
+    "phoneInvalid": "Įveskite galiojantį telefono numerį.",
+    "consentRequired": "Norėdami tęsti, patvirtinkite deklaraciją.",
+    "continueToStart": "Tęsti",
+    "startTitle": "Tęskite VIZA portale",
+    "startSub": "Prisijunkite arba susikurkite nemokamą paskyrą. Paraiška šiai šaliai atsidarys iškart.",
+    "vizaService": "VIZA paslauga",
+    "govFeeSetByAuthority": "Nustato institucija",
+    "govFeeNote": "Valstybės vizos rinkliava mokama tiesiogiai vizą išduodančiai institucijai, ne VIZA.",
+    "completeBeforeStart": "Prieš tęsdami užpildykite aukščiau paryškintus laukus."
+  },
+  "explore": {
+    "help": "Pagalba",
+    "passportLabel": "Pasas: {name}",
+    "passportSub": "Vizų reikalavimai {n} kryptims · Reitingas {rank}",
+    "freeLabel": "Bevizis režimas",
+    "freeNote": "be dokumentų",
+    "voaLabel": "E. vizas arba VOA",
+    "voaNote": "mes sutvarkome",
+    "reqLabel": "Reikalinga viza",
+    "reqNote": "teikiama ambasadoje",
+    "fullMap": "Žiūrėti visą vizų žemėlapį",
+    "grid": "Tinklelis",
+    "map": "Žemėlapis",
+    "mapLegendEvisa": "E. vizos ir lankytojų vizos",
+    "mapHint": "Užveskite žymeklį ant paryškinto taško ir pamatysite kryptį",
+    "sectionTitle": "Pasams: {country}",
+    "seeAll": "Žiūrėti visus {n}",
+    "footnote": "VIZA paslauga nemokama. Bet kokia valstybės vizos rinkliava mokama tiesiogiai vizą išduodančiai institucijai ir skiriasi pagal šalį.",
+    "fastTrack": "Greitasis kelias",
+    "cardType": "Tipas",
+    "cardValid": "Galioja",
+    "cardFee": "VIZA paslauga",
+    "save": "Išsaugoti",
+    "startApplication": "Pradėti paraišką",
+    "catalogueUnavailable": "Šiuo metu nėra krypčių, kurioms galima teikti paraišką internetu. Užsukite vėliau.",
+    "choosePassport": "Pasirinkite savo pasą",
+    "searchPassport": "Ieškoti paso šalies...",
+    "visaFree": "{n} bevizių",
+    "ppFoot": "Atnaujinta 2026 m. gegužei · Šaltinis: IATA Timatic",
+    "noMatch": "Pagal „{q}“ pasų nerasta",
+    "filters": {
+      "delivery": "Vizos pristatymas",
+      "type": "Vizos tipas",
+      "documents": "Dokumentai",
+      "dates": "Kelionės datos"
+    },
+    "filterOpts": {
+      "delivery": [
+        "Bet kada",
+        "Per 24 valandas",
+        "Per 3 dienas",
+        "Per 1 savaitę",
+        "Per 1 mėnesį"
+      ],
+      "type": [
+        "Visi tipai",
+        "Turistinė",
+        "Verslo",
+        "Darbo",
+        "Studento",
+        "Skaitmeninio klajoklio"
+      ],
+      "documents": [
+        "Bet kokie dokumentai",
+        "Minimalūs (tik pasas)",
+        "Standartiniai",
+        "Išsamus rinkinys"
+      ],
+      "dates": [
+        "Pasirinkite datas",
+        "Šią savaitę",
+        "Šį mėnesį",
+        "Po 3 mėnesių",
+        "Po 6 mėnesių"
+      ]
+    }
+  },
+  "cities": {
+    "viza-test": "Gyvas atsiskaitymo bandymas",
+    "indonesia": "Balis · Džakarta",
+    "egypt": "Kairas · Giza",
+    "australia": "Sidnėjus · Melburnas",
+    "saudi-arabia": "Rijadas · Al Ula",
+    "united-kingdom": "Londonas · Edinburgas",
+    "vietnam": "Hanojus · Hojanas",
+    "malaysia": "Kuala Lumpūras · Penangas",
+    "japan": "Tokijas · Kiotas",
+    "united-states": "Niujorkas · Los Andželas",
+    "canada": "Torontas · Vankuveris",
+    "turkiye": "Stambulas · Kapadokija",
+    "thailand": "Bankokas · Puketas",
+    "united-arab-emirates": "Dubajus · Abu Dabis",
+    "france": "Paryžius · Nica",
+    "italy": "Roma · Florencija",
+    "india": "Delis · Mumbajus"
+  },
+  "validity": {
+    "viza-test": "Tik demonstracija",
+    "indonesia": "90 dienų",
+    "egypt": "90 dienų",
+    "australia": "1 metai",
+    "saudi-arabia": "365 dienos",
+    "united-kingdom": "6 mėnesiai",
+    "vietnam": "90 dienų",
+    "malaysia": "3 mėnesiai",
+    "japan": "90 dienų",
+    "united-states": "10 metų",
+    "canada": "10 metų",
+    "turkiye": "180 dienų",
+    "thailand": "3 mėnesiai",
+    "united-arab-emirates": "60 dienų",
+    "france": "90 dienų",
+    "italy": "90 dienų",
+    "india": "30 dienų"
+  },
+  "passports": {
+    "SG": "Singapūras",
+    "JP": "Japonija",
+    "KR": "Pietų Korėja",
+    "DE": "Vokietija",
+    "FR": "Prancūzija",
+    "GB": "Jungtinė Karalystė",
+    "US": "Jungtinės Valstijos",
+    "AU": "Australija",
+    "CA": "Kanada",
+    "AE": "Jungtiniai Arabų Emyratai",
+    "CN": "Kinija",
+    "IN": "Indija",
+    "BR": "Brazilija",
+    "PH": "Filipinai",
+    "ID": "Indonezija",
+    "MY": "Malaizija",
+    "TH": "Tailandas"
+  },
+  "countries": {
+    "viza-test": "VIZA bandymas",
+    "indonesia": "Indonezija",
+    "egypt": "Egiptas",
+    "australia": "Australija",
+    "saudi-arabia": "Saudo Arabija",
+    "united-kingdom": "Jungtinė Karalystė",
+    "vietnam": "Vietnamas",
+    "malaysia": "Malaizija",
+    "japan": "Japonija",
+    "united-states": "Jungtinės Valstijos",
+    "canada": "Kanada",
+    "turkiye": "Turkija",
+    "thailand": "Tailandas",
+    "united-arab-emirates": "Jungtiniai Arabų Emyratai",
+    "france": "Prancūzija",
+    "italy": "Italija",
+    "india": "Indija",
+    "china": "Kinija",
+    "south-korea": "Pietų Korėja",
+    "schengen": "Šengenas"
+  },
+  "visaTypes": {
+    "Test checkout": "Bandomasis atsiskaitymas",
+    "e-Visa": "E. vizas",
+    "Standard Visitor": "Standartinė lankytojo viza",
+    "Visitor 600": "Visitor 600",
+    "Tourist": "Turistinė",
+    "B1/B2": "B1/B2",
+    "eTA": "eTA",
+    "Schengen": "Šengenas",
+    "eVisa": "E. vizas",
+    "Visitor visa": "Lankytojo viza",
+    "Tourist visa": "Turistinė viza"
+  },
+  "careers": {
+    "hero": {
+      "nowHiring": "Dabar samdome:",
+      "cities": [
+        "Šanchajuje",
+        "Singapūre"
+      ],
+      "openRoles": "28 laisvos pozicijos",
+      "title": "Padėkite padaryti, kad sienos<br></br><em>išnyktų</em>: <u>tyliai,</u><br></br>programinės įrangos greičiu.",
+      "lead": "Mėnesius trunkantį vizų popierizmą paverčiame valandomis programinės įrangos darbo milijonams žmonių, kurie tiesiog nori įlipti į lėktuvą. Atneškite savo meistriškumą į komandą, kuri dirba pagal realius terminus.",
+      "ctaRoles": "Žiūrėti visas laisvas pozicijas",
+      "ctaWhy": "Kodėl mes egzistuojame"
+    },
+    "board": {
+      "ariaLabel": "Išvykimo lentelė su laisvomis VIZA pozicijomis",
+      "head": "Laisvos pozicijos · gyvai",
+      "live": "Laiku",
+      "cols": {
+        "req": "Nr.",
+        "role": "Pozicija",
+        "office": "Biuras",
+        "status": "Būsena"
+      },
+      "rows": [
+        {
+          "role": "Vyresnysis inžinierius (Staff Engineer)",
+          "sub": "Dokumentų apdorojimo grandinė",
+          "status": "Įlaipinimas"
+        },
+        {
+          "role": "Produktų dizaineris",
+          "sub": "Pareiškėjų srautai",
+          "status": "Atvira"
+        },
+        {
+          "role": "Ryšių su ambasadomis specialistas",
+          "sub": "Partnerystės su valstybės institucijomis",
+          "status": "Paskutinis kvietimas"
+        },
+        {
+          "role": "Klientų operacijos",
+          "sub": "Tier-2 eskalacijos",
+          "status": "Atvira"
+        }
+      ],
+      "foot": "+24 kitos pozicijos inžinerijos, operacijų ir dizaino srityse",
+      "browseAll": "Žiūrėti visas",
+      "chip1Label": "Samdome",
+      "chip1Value": "4 biuruose",
+      "chip2Label": "Vid. atsakymo laikas",
+      "chip2Value": "3.2 dienos iki pirmo pokalbio"
+    },
+    "stats": [
+      {
+        "value": "2.4M",
+        "label": "Vizų, išduotų per VIZA praėjusiais metais"
+      },
+      {
+        "label": "Kryptys, palaikomos gyvu apdorojimu"
+      },
+      {
+        "label": "Patvirtinimų dalis visų tipų vizoms 2025 m."
+      },
+      {
+        "label": "Žmonių Šanchajuje ir Singapūre"
+      }
+    ],
+    "mission": {
+      "eyebrow": "Mūsų istorija",
+      "title": "Didžioji pasaulio dalis<br></br>vis dar keliauja su<br></br><em>popieriniais dokumentais.</em>",
+      "kicker1": "VIZA įkūrėme 2021 m., kai per daug savaičių praleidome laukdami linijoje su ambasadomis. Žmonių judėjimo per sienas sistema yra senesnė už internetą, o joje įstrigę žmonės nusipelno geresnio požiūrio.",
+      "kicker2": "Šiandien 340 žmonių komanda keturiuose biuruose kuria programinę įrangą, pateikia dokumentus ir vykdo operacijas 194 šalyse. Mes atliekame nuobodų, varginantį darbą, kad kelionė atrodytų taip pat kaip likęs internetas: keli bakstelėjimai ir jau judate.",
+      "founderName": "Mira Kohli",
+      "founderRole": "Įkūrėja ir vadovė (CEO) · Singapūras",
+      "beliefs": [
+        {
+          "title": "Esame operacijų įmonė, kuri kuria programinę įrangą.",
+          "body": "Pusė VIZA yra inžinieriai, dizaineriai ir produktų vadovai. Kita pusė yra konsultantai, operacijų ir dokumentų specialistai šalyse. Nė viena pusė nelaimi be kitos."
+        },
+        {
+          "title": "Pareiškėjas visada yra klientas.",
+          "body": "Ambasados, partneriai, oro linijos: visi jie svarbūs. Bet žmogus, kuris 3 val. nakties stovi eilėje ir atnaujina portalą, yra tas, kuriam dirbame ir pagal kurį save vertiname."
+        },
+        {
+          "title": "Greitis auga, kai kantriai rūpiniesi kokybe.",
+          "body": "Greitai leidžiame naujoves, lėtai priimame negrįžtamus sprendimus. Klaidingas vizos sprendimas gali sugriauti vestuves, darbą ar laidotuves. Šios kartelės laikomės, net kai tai mus lėtina."
+        },
+        {
+          "title": "Atstumas yra naudotojo patirties uždavinys, o ne kliūtis.",
+          "body": "Mūsų komandos dirba keturiose laiko juostose. Rašytinis bendravimas, aiški atsakomybė ir gera dokumentavimo kultūra leidžia mums mainyti laiką į pasitikėjimą ir dirbti visame pasaulyje nieko neišvarginant."
+        }
+      ]
+    },
+    "values": {
+      "eyebrow": "Ko sau reikalaujame",
+      "title": "Penki dalykai, kuriais tikime, net kai tai brangu.",
+      "lead": "Vertybes lengva užrašyti ir sunku taikyti. Šias penkias iš tikrųjų naudojame samdydami, vertindami ir priimdami retus sunkius sprendimus.",
+      "cards": [
+        {
+          "title": "Sakyti tiesą, ypač kai tai kainuoja.",
+          "body": "Jei viza nebus laiku, pasakome tai šiandien, o ne dieną prieš skrydį. Verčiau prarasime pardavimą, nei pateiksime melą.",
+          "kicker": "Praktikoje → paskelbtos taisyklės, pakeitimų auditas"
+        },
+        {
+          "title": "Užsitarnauti greitį. Ne tik atrodyti užsiėmus.",
+          "body": "Švenčiame sprendimus ir atliktą darbą, o ne susitikimus ir susirašinėjimus. Svarbi našumas misijos link, o ne judėjimas jūsų kalendoriuje.",
+          "kicker": "Praktikoje → ketvirtinė našumo apžvalga"
+        },
+        {
+          "title": "Galvoti pasais, o ne personomis.",
+          "body": "Vizų taisyklės priklauso nuo pilietybės. „Naudotojo“ nėra, yra Filipinų paso turėtojas, teikiantis paraišką Šengenui. Kuriame realiems žmonėms, o ne vidurkiams.",
+          "kicker": "Praktikoje → produkto specifikacija pagal pasą"
+        },
+        {
+          "title": "Viską užrašyti. Ypač sprendimus.",
+          "body": "Keturi biurai, keturios laiko juostos. Jei sprendimas neužrašytas, jo nebuvo. Mūsų wiki privaloma skaityti, o rytiniai susitikimai neprivalomi.",
+          "kicker": "Praktikoje → ADR, savaitės pranešimas, pirmiausia asinchroniškai"
+        },
+        {
+          "title": "Būti arti eilės.",
+          "body": "Kiekvienas inžinierius kartą per ketvirtį dirba pamainą konsultantų aukšte. Negalima pašalinti trinties, kurios niekada nepajutote 11pm sekmadienį.",
+          "kicker": "Praktikoje → rotacinės eilės pamainos"
+        },
+        {
+          "title": "Rinktis ilgąją versiją.",
+          "body": "Trisdešimties sekundžių atsakymas dažniausiai klaidingas. Investuojame į išsamią dokumentaciją, tvirtas instrukcijas ir paaiškinimus, kurie išlaiko patikrą, net kai užtektų lengvesnės versijos.",
+          "kicker": "Praktikoje → naujokų vadovas, vieši vadovai"
+        }
+      ]
+    },
+    "inside": {
+      "eyebrow": "VIZA viduje",
+      "title": "Kaip iš tikrųjų<br></br>atrodo čia dirbti.",
+      "lead": "Biurus turime dviejuose miestuose, nes samdome arti vietų, kur pateikiamos paraiškos. Garsiai džiaugiamės laimėjimais, tyliai vengiame politikavimo ir sąžiningai sakome, kiek dar turime sukurti.",
+      "photos": [
+        {
+          "label": "nuotrauka · Singapūro būstinė, atvira erdvė",
+          "mark": "Paya Lebar Square, Singapūras"
+        },
+        {
+          "label": "nuotrauka · konsultantų eilės aukštas",
+          "mark": "Luoshan Rd, Šanchajus"
+        },
+        {
+          "label": "nuotrauka · darbas prie lentos",
+          "mark": "Technologijų išvyka, Balis"
+        },
+        {
+          "label": "nuotrauka · Šanchajaus operacijų aukštas",
+          "mark": "Pudongas, Šanchajus"
+        },
+        {
+          "label": "nuotrauka · komandos vakarienė",
+          "mark": "Visos įmonės susitikimas, Lisabona"
+        },
+        {
+          "label": "nuotrauka · partnerių iš ambasados vizitas",
+          "mark": "Paya Lebar Square, Singapūras"
+        }
+      ],
+      "pull": "„Samdome žmones, kurie turi nuomonę apie vizas dar prieš prisijungdami. Antrą mėnesį jūsų nuomonė bus stipresnė.“",
+      "pullBy": "Felix Adekunle, inžinerijos viceprezidentas",
+      "para1": "VIZA yra didelė savarankiškumo ir daug konteksto aplinka. Už viską, ką darote, turėsite atsakingą asmenį, realius biudžetus ir lūkestį, kad likusiai įmonei paaiškinsite savo darbo logiką.",
+      "para2": "Jei norite, kad kasdien jums pasakytų, ką daryti, tai ne ta vieta. Jei laukėte, kol kas nors įteiks vairą, jis čia."
+    },
+    "how": {
+      "eyebrow": "Inžinerija ir operacijos VIZA",
+      "title": "Kaip darbas iš tikrųjų juda.",
+      "lead": "Jei čia kuriate, pateikiate ar projektuojate, jūsų savaitė atrodo taip. Mažiau ceremonijų, daugiau atlikto darbo. Mažiau Slack, daugiau užrašytų sprendimų.",
+      "cells": [
+        {
+          "title": "Atsakomybė nuo pradžios iki galo",
+          "body": "Jūs suprojektuojate, sukuriate, paleidžiate ir atsakote už tai produkcijoje. Jokių perdavimo eilių, jokių planų, parašytų žmonių, esančių trimis lygiais toliau. Jei tai jūsų, tai iš tikrųjų jūsų."
+        },
+        {
+          "title": "Diegimai kasdien, pagal nutylėjimą",
+          "body": "Dauguma komandų diegia keletą kartų per dieną. Grįžtamojo ryšio ciklai trumpi pagal paskirtį, o trisdešimties minučių atšaukimas geresnis nei trijų savaičių ginčas."
+        },
+        {
+          "title": "Tikros, painios problemos",
+          "body": "Tai ne CRUD. Dirbsite su dokumentų OCR, delsai jautriu registracijų planavimu daugiau nei 90 valstybės portalų ir naudotojų srautais, kuriais naudojasi milijonai."
+        },
+        {
+          "title": "Kartelė aukšta ir atvirai",
+          "body": "Dizaino peržiūras darome poroje. PR komentuojame eilutėse. Tikime, kad skonį galima išmokyti, ir tikimės, kad žmonės aktyviai padeda visiems aplink tobulėti."
+        },
+        {
+          "title": "Tikras mokymosi biudžetas",
+          "body": "$2,000 vienam žmogui per metus, be klausimų, konferencijoms, knygoms, kursams ir viskam, kas grįžta į darbą čia."
+        },
+        {
+          "title": "Jūsų parašyta architektūra",
+          "body": "RFC atviri visiems. Nauji inžinieriai suformavo pagrindinę infrastruktūrą pirmą mėnesį. Jei turite geresnį planą, aprašykite jį, mes perskaitysime."
+        }
+      ]
+    },
+    "roles": {
+      "eyebrow": "Laisvos pozicijos · atnaujinama kas savaitę",
+      "title": "Prisijunkite prie kelionės.",
+      "lead": "28 laisvos pozicijos keturiuose biuruose. Samdome inžinerijos, dizaino, operacijų, konsultantų ir partnerysčių srityse. Naujos pozicijos atsiranda pirmadieniais.",
+      "allDepartments": "Visi skyriai",
+      "deps": {
+        "eng": "Inžinerija",
+        "design": "Dizainas",
+        "ops": "Operacijos",
+        "consult": "Konsultantai",
+        "data": "Duomenys ir ML",
+        "gtm": "Rinkodara ir GTM"
+      },
+      "showing": "Rodoma pozicijų: <strong>{count}</strong> · visos vietos · visos komandos",
+      "anyLocation": "Bet kuri vieta",
+      "groupCount": "Laisva: {count}",
+      "posSub": "{team} · samdome pagal meistriškumą ir sprendimą, o ne kilmę",
+      "locationLabel": "Vieta",
+      "typeLabel": "Tipas",
+      "fullTime": "Visa darbo diena",
+      "viewRole": "Žiūrėti poziciją",
+      "locations": {
+        "sg": "Singapūras",
+        "sf": "Šanchajus",
+        "ldn": "Singapūras",
+        "dxb": "Šanchajus"
+      },
+      "jobs": {
+        "backendPayments": "Vyresnysis užpakalinės dalies inžinierius, platforma",
+        "staffDocPipeline": "Vyresnysis inžinierius (Staff Engineer): dokumentų apdorojimo grandinė",
+        "iosApplicant": "iOS inžinierius: pareiškėjo programėlė",
+        "platformInfra": "Platformos inžinierius: infrastruktūra ir sauga",
+        "frontendConsole": "Priekinės dalies inžinierius: konsultantų konsolė",
+        "emWeb": "Inžinerijos vadovas: žiniatinklis",
+        "sre": "Svetainės patikimumo inžinierius (SRE)",
+        "androidSenior": "Vyresnysis Android inžinierius",
+        "leadEmbassy": "Inžinerijos komandos vadovas: integracijos su ambasadomis",
+        "productDesignerApplicant": "Vyresnysis produktų dizaineris: pareiškėjo srautas",
+        "brandDesigner": "Prekės ženklo dizaineris",
+        "designLeadConsultant": "Dizaino vadovas: konsultantų įrankiai",
+        "headOpsMe": "Operacijų vadovas, Artimieji Rytai",
+        "visaOpsSchengen": "Vizų operacijų vadovas: Šengenas",
+        "logistics": "Logistikos ir kurjerių vadovas",
+        "processDocQa": "Procesų inžinierius: dokumentų kokybės kontrolė",
+        "opsAnalyst": "Operacijų analitikas: užsakymai",
+        "consultSchengen": "Vizų konsultantas: Šengenas",
+        "consultUs": "Vizų konsultantas: JAV B1/B2",
+        "consultUae": "Vizų konsultantas: gyvenimo JAE leidimas",
+        "consultStudent": "Vyresnysis konsultantas: studentų vizos",
+        "consultApac": "Konsultantų vadovas: Azijos ir Ramiojo vandenyno regionas",
+        "consultUk": "Vizų konsultantas: Jungtinė Karalystė",
+        "dataScientist": "Vyresnysis duomenų mokslininkas: patvirtinimų modeliavimas",
+        "mlOcr": "ML inžinierius: OCR ir dokumentų DI",
+        "perfMarketing": "Efektyvumo rinkodaros vadovas",
+        "contentLead": "Turinio vadovas: pasakojimas",
+        "lifecycleCrm": "Gyvavimo ciklo ir CRM vadovas"
+      }
+    },
+    "fellowship": {
+      "tag": "▲ VIZA Launchpad · 12 savaičių programa",
+      "title": "Dvylika savaičių. Viena produkto komanda.<br></br><em>Viena galimybė kažką paleisti.</em>",
+      "para1": "Launchpad yra mūsų programa pradedantiesiems inžinieriams, produktų vadovams ir dizaineriams: žmonėms, kuriems kitaip reikėtų dar dvejų metų „patirties“, kad gautų tikrą šansą.",
+      "para2": "Dirbsite poroje su vyresniaisiais vadovais, atsakysite už tikrą produkto dalį nuo starto iki išleidimo ir išeisite su tuo, kuo naudosis milijonai žmonių. Visos darbo dienos pasiūlymą gauna apie 60 % grupės.",
+      "meta": [
+        {
+          "k": "Trukmė",
+          "v": "12 savaičių"
+        },
+        {
+          "k": "Vieta",
+          "v": "Biure, bet kurioje būstinėje"
+        },
+        {
+          "k": "Stipendija",
+          "v": "Didesnė nei rinkos"
+        },
+        {
+          "k": "Kita grupė",
+          "v": "2026 m. rugsėjis"
+        }
+      ],
+      "apply": "Teikti paraišką į Launchpad",
+      "readCohort": "Skaityti apie 2025 m. grupę",
+      "projects": [
+        {
+          "k": "2024 · Inžinerija",
+          "title": "OCR grandinės perrašymas",
+          "meta1": "Paleista į produkciją",
+          "meta2": "3.2× greičiau"
+        },
+        {
+          "k": "2025 · Dizainas",
+          "title": "Šengeno srauto pertvarkymas",
+          "meta1": "14 šalių veikia",
+          "meta2": "↑ 22 % konv."
+        },
+        {
+          "k": "2025 · Produktas",
+          "title": "Ambasadų vietų planuoklis",
+          "meta1": "9 ambasados",
+          "meta2": "40 tūkst. vietų per mėn."
+        }
+      ]
+    },
+    "benefits": {
+      "eyebrow": "Pasirūpiname (tikrai)",
+      "title": "Nuobodūs dalykai,<br></br>sutvarkyti kaip reikiant.",
+      "lead": "Manome, kad išmokos nėra privalumas. Tai pagrindas, leidžiantis žmonėms dirbti geriausiai. Štai ką gauna kiekvienas VIZA darbuotojas kiekviename biure nuo pirmos dienos.",
+      "items": [
+        {
+          "title": "Išsami sveikatos apsauga, sutvarkyta.",
+          "body": "Pilna medicininė, odontologinė ir regos priežiūra nuo pirmos dienos jums, jūsų partneriui ir vaikams. Įmoką mokame mes, be išskaitų žaidimų."
+        },
+        {
+          "title": "Kaupkite turtą, ne tik atlyginimą.",
+          "body": "Didesnis nei rinkos bazinis atlyginimas kiekvienoje rinkoje, kurioje samdome, ir dosnus akcijų paketas, susietas su etapais, o ne vien su stažu. Atnaujiname kas dvejus metus."
+        },
+        {
+          "title": "Mokykitės to, kas iš tiesų svarbu.",
+          "body": "$2,000 per metus mokymuisi, kas mėnesį vidiniai mokymai ir laikas kalendoriuje, o ne tik leidimas nueiti į kursus ar konferenciją."
+        },
+        {
+          "title": "Džiuginkite klientus tarsi tai būtų jūsų pinigai.",
+          "body": "Kiekvienam pareiškėjui turite $100 geranoriškumo biudžetą virš to, ko reikia. Be patvirtinimo, be eskalavimo: išspręskite, tada aprašykite, kas nutiko."
+        },
+        {
+          "title": "Protas svarbiau už viską.",
+          "body": "Konfidenciali, profesionali psichikos sveikatos pagalba be draudimo kliūčių. Be to, trys dienos per mėnesį be susitikimų visai įmonei."
+        },
+        {
+          "title": "Kelionių privalumai (turėjome).",
+          "body": "Mes tvarkome vizas, todėl mūsų komanda turėtų keliauti už mūsų sąskaitą. $4k kelionių kreditas per metus, o VIZA sutvarko bet kokią jums reikalingą vizą iš karto, viduje."
+        },
+        {
+          "title": "Dosnios, tikros atostogos.",
+          "body": "30 apmokamų atostogų dienų, jūsų šalies šventės ir apmokama savaitė tarp gruodžio 24 d. ir sausio 1 d. Sekame naudojimą ir skatiname imti daugiau, o ne mažiau."
+        },
+        {
+          "title": "Įranga be klausimų.",
+          "body": "Pirmą dieną pasirinkite nešiojamąjį kompiuterį, monitorių ir kėdę. Pašalpa darbo vietai namuose. Pasitikime, kad žinote, ko reikia gerai dirbti."
+        },
+        {
+          "title": "Tėvystės atostogos, kurios tikrai veikia.",
+          "body": "20 savaičių pagrindiniam globėjui, 12 antriniam, visiškai apmokamos. Be to, laipsniškas grįžimas, kad pirmą dieną nereikėtų dirbti visu greičiu."
+        }
+      ]
+    },
+    "offices": {
+      "eyebrow": "Kur dirbame",
+      "title": "Du biurai, vienas produktas.",
+      "lead": "Samdome arti ambasadų, partnerių ir rinkų, kurias aptarnaujame. Kiekviename biure dirba ir inžinieriai, ir operacijų specialistai: neskiriame komandų, kurios kuria, nuo tų, kurios vykdo kasdienį darbą.",
+      "cards": [
+        {
+          "photo": "nuotrauka · Šanchajus",
+          "open": "6 laisvos",
+          "name": "Šanchajus",
+          "addr1": "Lane 1502, Luoshan Road,",
+          "addr2": "Kinija (Šanchajus), bandomoji laisvosios prekybos zona",
+          "tz": "GMT+8 · Kinijos operacijos",
+          "since": "Nuo 2023 m."
+        },
+        {
+          "photo": "nuotrauka · Singapūro būstinė",
+          "open": "12 laisvų",
+          "name": "Singapūras",
+          "addr1": "Paya Lebar Square, #06-28, 60 Paya Lebar Road,",
+          "addr2": "Singapūras 409051",
+          "tz": "GMT+8 · Azijos ir Ramiojo vandenyno regiono būstinė",
+          "since": "Būstinė · nuo 2021 m."
+        }
+      ]
+    },
+    "ctaStrip": {
+      "title": "Nematote savo pozicijos,<br></br>bet norite prisijungti?",
+      "body": "Jei turite neįprastą patirtį ir manote, kad padėtumėte mums greičiau judinti pasaulio keliautojus, norime jus išgirsti. Esame samdę autobusų vairuotojų, buvusių ambasadų darbuotojų ir teisininkų. Neturime vieno tipo.",
+      "lead": "Bendra paraiška",
+      "cta": "Papasakokite mums savo istoriją",
+      "note": "Atsakome per 7 dienas, net jei atsakymas neigiamas."
+    },
+    "footer": {
+      "tagline": "VIZA padeda planuoti, teikti ir sekti vizas visame pasaulyje sklandžiai.",
+      "company": "Įmonė",
+      "products": "Produktai",
+      "offices": "Biurai",
+      "careers": "Karjera",
+      "contact": "Kontaktai",
+      "security": "Sauga",
+      "privacy": "Privatumas",
+      "terms": "Sąlygos",
+      "prodVisaReq": "Vizų reikalavimai",
+      "prodSchengen": "Šengeno registracijos tikrintuvas",
+      "prodPhoto": "Vizos nuotraukų kūrėjas",
+      "prodHelpline": "VIZA pagalbos linija skubiais atvejais",
+      "prodStudent": "Studento viza",
+      "officeSg": "Singapūras, būstinė",
+      "officeSf": "Šanchajus",
+      "copyright": "© VIZA, visos teisės saugomos"
+    }
+  },
+  "security": {
+    "hero": {
+      "eyebrow": "Sauga VIZA · paskutinį kartą atnaujinta 2026 m. gegužę",
+      "title": "Privatu. Skaidru.<br></br><em>Saugu pagal nutylėjimą.</em>",
+      "lead": "Klientai visame pasaulyje patiki mums milijonus jautrių dokumentų: pasus, banko išrašus, nuotraukas. Štai kaip tiksliai juos renkame, saugome ir įrodome, kad darome tai teisingai.",
+      "ctaPrimary": "Kaip saugome jūsų duomenis",
+      "ctaVdp": "Pranešti apie spragą"
+    },
+    "clearance": {
+      "republicKey": "Respublika:",
+      "officeKey": "Išdavusi tarnyba",
+      "officeVal": "Pasitikėjimas ir sauga",
+      "title": "Saugumo patvirtinimas /<br></br>Klientų duomenys",
+      "grid": {
+        "encryption": {
+          "k": "Šifravimas",
+          "v": "AES-256 / TLS 1.3"
+        },
+        "region": {
+          "k": "Regionas",
+          "v": "SG · US · EU"
+        },
+        "audit": {
+          "k": "Auditų periodiškumas",
+          "v": "Kas ketvirtį"
+        },
+        "retention": {
+          "k": "Saugojimas",
+          "v": "daugiausia 90 dienų"
+        }
+      },
+      "referenceKey": "Nuoroda",
+      "glyph": "PATVIRTINTA<br></br>VIZA · 26"
+    },
+    "chips": {
+      "transitLabel": "Perduodant",
+      "transitVal": "Visapusis TLS 1.3",
+      "restLabel": "Saugomi",
+      "restVal": "AES-256, pririšta prie regiono"
+    },
+    "stats": {
+      "docs": {
+        "value": "2.4M",
+        "label": "Dokumentų apdorota 2025 m., nė vieno klientų duomenų pažeidimo"
+      },
+      "retention": {
+        "unit": "d.",
+        "label": "Maksimalus pirminių dokumentų saugojimas po vizos išdavimo"
+      },
+      "pentests": {
+        "label": "Išoriniai skverbties testai, visos ataskaitos paskelbtos viduje"
+      },
+      "ack": {
+        "unit": "val.",
+        "label": "Vidutinis laikas iki pranešimo apie spragą patvirtinimo"
+      }
+    },
+    "docs": {
+      "eyebrow": "Ką renkame",
+      "title": "Penki dokumentų tipai.<br></br><em>Nieko daugiau.</em>",
+      "copy1": "Vizos paraiška yra dokumentų klausimas. Renkame tik tai, ko aiškiai prašo ambasada, ir, kur įmanoma, duomenis anonimizuojame. Kiekvienas dokumentas susietas su viena paraiška, gavus užšifruojamas ir pašalinamas pagal nustatytą tvarkaraštį.",
+      "copy2": "Niekada neparduodame jūsų duomenų. Niekada jų neperduodame trečiosioms šalims, išskyrus konsulatą ar partnerį, tiesiogiai susijusį su jūsų viza.",
+      "cards": {
+        "payment": {
+          "name": "Mokėjimo informacija",
+          "meta": "nerenkama"
+        },
+        "photos": {
+          "name": "Vizos nuotraukos",
+          "meta": "apdorojama · daugiausia 90 d."
+        },
+        "bank": {
+          "name": "Banko išrašai",
+          "meta": "paslėpti duomenys · tik pdf"
+        },
+        "pastVisas": {
+          "name": "Ankstesnės vizos",
+          "meta": "tik skaitymui · OCR"
+        },
+        "passport": {
+          "name": "Pasas",
+          "meta": "MRZ išgauta"
+        }
+      }
+    },
+    "features": {
+      "eyebrow": "Septynios kontrolės, visada įjungtos",
+      "title": "Kaip jūsų duomenys lieka<br></br>jūsų, nuo pradžios iki <em>galo.</em>",
+      "intro": "Numatytoji kiekvieno VIZA baito būsena yra „užšifruota, apribota ir riboto laiko“. Šios septynios kontrolės tai užtikrina: tai ne siekiai, o tai, kas šiandien iš tikrųjų įdiegta platformoje.",
+      "cells": {
+        "minimise": {
+          "title": "Duomenų minimizavimas ir anonimizavimas",
+          "body": "Renkame tik tai, ko iš tikrųjų reikia ambasadai ar partneriui konkrečiai paraiškai, ir anonimizuojame visur, kur likusi platforma tai leidžia. Laukų, kurių nematote mūsų formose, mes nesaugome.",
+          "why": "<strong>Kodėl:</strong> pažeidimas negali atskleisti duomenų, kurie niekada nebuvo surinkti."
+        },
+        "payments": {
+          "title": "Jokių mokėjimo duomenų",
+          "body": "VIZA paslauga nemokama ir mes nepriimame mokėjimų, todėl niekada neprašome, nematome ir nesaugome kortelių numerių.",
+          "why": "<strong>Kodėl:</strong> duomenų, kurių niekada neturime, negalima pavogti."
+        },
+        "atRest": {
+          "title": "Šifravimas saugant",
+          "body": "Kiekvienas dokumentas, žinutė ir metaduomenų laukas VIZA serveriuose užšifruojamas AES-256, kol pasiekia diską. Raktai keičiami automatiškai ir saugomi aparatine įranga paremtoje KMS, kurios tiesiogiai neįstengia perskaityti net mūsų infrastruktūros komanda.",
+          "why": "<strong>Kodėl:</strong> pavogti diskai ar atsarginės kopijos be raktų lieka neperskaitomi."
+        },
+        "inTransit": {
+          "title": "Visapusis šifravimas",
+          "body": "Visas srautas tarp jūsų įrenginio, mūsų serverių ir partnerių konsulatų naudoja TLS 1.3 su griežtu prisegimu. Dokumentų įkėlimui naudojamas atskiras pasirašytas kanalas, kad net tinklo lygio užpuolikai nematytų, ką siunčiate.",
+          "why": "<strong>Kodėl:</strong> priešiški tinklai, įskaitant oro uosto Wi-Fi, negali perskaityti jūsų paraiškos."
+        },
+        "audits": {
+          "title": "Reguliarūs saugumo auditai",
+          "body": "Kas ketvirtį atliekame išorinį skverbties testą, kasmet SOC 2 Type II auditą ir nuolat automatiškai skenuojame spragas. Kiekviena išvada registruojama su sutvarkymo terminu, o pavėlavus apie tai pranešama inžinerijos vadovui.",
+          "why": "<strong>Kodėl:</strong> grėsmės keičiasi, o mūsų apsauga tikrinama pagal grafiką."
+        },
+        "access": {
+          "title": "Saugios prieigos kontrolės",
+          "body": "Vidinė prieiga prie klientų duomenų apribota pagal vaidmenį, audituojama kiekvienai užklausai ir suteikiama pagal poreikį laikinai. Konsultantai mato tik tą paraišką, su kuria aktyviai dirba. Kiekvienas skaitymas registruojamas 12 mėnesių.",
+          "why": "<strong>Kodėl:</strong> vidinės klaidos ir piktnaudžiavimas apribojami, priskiriami ir peržiūrimi."
+        },
+        "education": {
+          "title": "Naudotojų švietimas ir informuotumas",
+          "body": "Sunkiausia saugumo dalis yra ta, kurios negalime įdiegti už jus. Vos pradėjus paraišką siunčiame aiškius gidus apie sukčiavimą, paso nuotraukų apgaules ir netikras ambasadų SMS, o produkte juos parodome dar kartą, kai tik kas nors atrodo įtartina. Jūs esate paskutinė gynybos linija, verčiau jus apginkluosime, nei kaltinsime.",
+          "why": "<strong>Kodėl:</strong> gerai informuotas pareiškėjas yra pigiausia ir veiksmingiausia mūsų saugumo kontrolė."
+        }
+      }
+    },
+    "vdp": {
+      "tag": "▲ Pranešimai apie spragas · atvira visiems tyrėjams",
+      "title": "Radote kažką?<br></br><em>Norime apie tai išgirsti.</em>",
+      "p1": "Mūsų naudotojų ir partnerių sauga yra viskas. Jei manote radę tikrą spragą, paveikiančią VIZA paslaugas, norėtume, kad apie ją pasakytumėte mums tiesiogiai, o mes pagarbiai ir greitai kartu ją ištaisysime.",
+      "p2": "Savo radinius siųskite el. paštu <strong>security@viza.it.com</strong>. Gavimą patvirtinsime per vieną darbo dieną, net jei paaiškės, kad apie tai jau žinome arba tai nepatenka į programos apimtį.",
+      "meta": {
+        "ack": {
+          "k": "Patvirtinama per",
+          "v": "'<' 24 valandas"
+        },
+        "triage": {
+          "k": "Įvertinama per",
+          "v": "3 darbo dienas"
+        },
+        "lang": {
+          "k": "Kalbos",
+          "v": "anglų · indoneziečių · arabų"
+        },
+        "pgp": {
+          "k": "PGP raktas",
+          "v": "0xVIZA · 2026 m."
+        }
+      },
+      "ctaEmail": "Rašyti security@viza.it.com",
+      "ctaScope": "Skaityti apimtį",
+      "terminal": {
+        "title": "ataskaitos juodraštis · security@viza.it.com",
+        "l1": "# pranešimas apie spragą",
+        "typeKey": "tipas:",
+        "typeVal": "autentifikavimo apėjimas",
+        "urlKey": "adresas:",
+        "reproKey": "atkūrimas:",
+        "reproVal": "[veiksmai 1-4]",
+        "impactKey": "poveikis:",
+        "impactVal": "paskyros perėmimas",
+        "pocKey": "įrodymas:",
+        "l7": "# ↳ užšifruota 0xVIZA raktu",
+        "send": "siųsti"
+      }
+    },
+    "report": {
+      "eyebrow": "Pranešimas apie spragą",
+      "title": "Ką įtraukti į savo<br></br>pranešimą ir <em>ko ne.</em>",
+      "intro": "Geras pranešimas mums abiem sutaupo savaitę. Štai formatas, pagal kurį viskas įvertinama greičiausiai, ir dalykai, kurių verčiau negauti pašto dėžutėje.",
+      "include": {
+        "heading": "Prašome įtraukti",
+        "sub": "Penki laukai. Kuo aiškesni, tuo greičiau galime patvirtinti ir ištaisyti.",
+        "items": {
+          "type": "<strong>Problemos tipas</strong>: pvz., autentifikavimas, prieigos kontrolė, injekcija, IDOR, SSRF.",
+          "steps": "<strong>Aiškūs atkūrimo žingsniai</strong>: sunumeruoti, iš eilės, jei įmanoma, švarioje sesijoje.",
+          "impact": "<strong>Galimas saugumo poveikis</strong>: ką užpuolikas galėtų padaryti, paprastai pasakius.",
+          "poc": "<strong>Koncepcijos įrodymas</strong>: pageidautini ekrano nuotraukos ar trumpas ekrano įrašas, po jų žurnalai."
+        }
+      },
+      "dontSend": {
+        "heading": "Prašome nesiųsti",
+        "sub": "Tai nesaugu, nenaudinga arba abu, ir turėsime juos ištrinti gavę.",
+        "items": {
+          "secrets": "<strong>Slaptažodžių ar autentifikavimo žetonų</strong>, jūsų ar kitų. Parodykite vektorių, o ne paslaptį.",
+          "malware": "<strong>Neapdorotų kenkėjiškų programų pavyzdžių ar duomenų vagiančių programų žurnalų.</strong> Aprašykite, ką matėte, neprisekite.",
+          "scanners": "<strong>Didelių automatinių skenerių ataskaitų</strong> be rankiniu būdu išrinkto, įrodyto radinio.",
+          "customerData": "<strong>Klientų asmens duomenų ar dokumentų</strong>, net jei jie buvo jūsų radinio pagrindas.",
+          "socialEng": "<strong>Socialinės inžinerijos bandymų įrašų</strong> prieš mūsų darbuotojus ar konsultantus."
+        }
+      }
+    },
+    "scope": {
+      "eyebrow": "Programos apimtis",
+      "title": "Kas įtraukta, kas ne.",
+      "intro": "Jei nesate tikri, ar pranešimas patenka į šį sąrašą, vis tiek siųskite ir paklauskite. Verčiau įvertinsime ir judėsime toliau, nei jūs laikysite tikrą problemą dėl neaiškios ribos.",
+      "fileRef": "/security/scope.md · v6",
+      "in": {
+        "pill": "Įtraukta",
+        "heading": "Pranešimai, kuriuos aktyviai vertiname",
+        "items": {
+          "web": "VIZA žiniatinklio programos ir API adresu <code>*.viza.com</code>, įskaitant pareiškėjų portalą, konsultantų konsolę ir partnerių galinius taškus.",
+          "infra": "VIZA priklausanti infrastruktūra ir paslaugos: autentifikavimas, dokumentų apdorojimas, planavimas.",
+          "mobile": "Mobiliosios programėlės (iOS, Android), paskelbtos su VIZA kūrėjo paskyra.",
+          "marketing": "Viešai prieinamos rinkodaros ir turinio svetainės VIZA valdomuose domenuose."
+        }
+      },
+      "out": {
+        "pill": "Neįtraukta",
+        "heading": "Pranešimai, kurių pagal šią programą negalime nagrinėti",
+        "items": {
+          "devices": "Problemos dėl pažeistų naudotojų įrenginių, naršyklės plėtinių ar pavogtų prisijungimo duomenų.",
+          "phishing": "Socialinės inžinerijos ar sukčiavimo atakos prieš VIZA darbuotojus, partnerius ar konsultantus.",
+          "thirdParty": "Trečiųjų šalių paslaugos ar integracijos, kurių tiesiogiai neveikia VIZA (konsulatų portalai, kurjerių svetainės).",
+          "scanners": "Automatinių skenerių radiniai be įrodyto realaus išnaudojamumo.",
+          "headers": "Trūkstamos saugumo antraštės ar bendros geriausios praktikos rekomendacijos be išnaudojimo kelio."
+        }
+      }
+    },
+    "pledge": {
+      "eyebrow": "Atsakingas pranešimas",
+      "title": "Susitarimas, kurį<br></br>sudarome vieni su kitais.",
+      "intro": "Pranešimai veikia, nes abi pusės elgiasi sąžiningai. Štai ko prašome iš jūsų ir ką galite iš mūsų reikalauti, viskas užrašyta, kad niekam nereikėtų spėlioti.",
+      "researcher": {
+        "kicker": "Ko prašome iš jūsų",
+        "title": "Tyrėjo <em>įsipareigojimai.</em>",
+        "p": "Pateikdami pranešimą sutinkate elgtis sąžiningai ir laikytis programos dvasios, ne tik raidės.",
+        "items": {
+          "1": "Elkitės sąžiningai: tyrimo metu venkite privatumo pažeidimų, duomenų naikinimo ar paslaugos sutrikdymo.",
+          "2": "Neišnaudokite spragos daugiau, nei būtina jai patvirtinti, ir niekada nesinaudokite duomenimis, kurie nėra jūsų.",
+          "3": "Laikykite spragos detales konfidencialias, kol išleisime pataisymą ir patvirtinsime jį su jumis.",
+          "4": "Neskelbkite radinių viešai be išankstinio rašytinio VIZA saugumo komandos sutikimo."
+        }
+      },
+      "viza": {
+        "kicker": "Ką galite iš mūsų reikalauti",
+        "title": "VIZA <em>įsipareigojimai.</em>",
+        "p": "Mainais mes nepaliekame pranešėjų be atsakymo, nesiginčijame dėl rimtumo, kad išvengtume pataisymo, ir neduodame į teismą tų, kurie mums padeda.",
+        "items": {
+          "1": "Peržiūrėsime kiekvieną pagrįstą pranešimą ir atsakysime per vieną darbo dieną, nesvarbu, koks rimtas.",
+          "2": "Bendrausime pagarbiai: jokios gynybinės kalbos, jokio „veikia taip, kaip numatyta“ atsikalbinėjimo.",
+          "3": "Imsimės reikiamų taisomųjų veiksmų, kai reikės, ir pranešime, kai pataisymas bus išleistas.",
+          "4": "Kai problema bus išspręsta, paminėsime jus (gavę sutikimą) savo saugumo pakeitimų žurnale."
+        }
+      }
+    },
+    "legal": {
+      "eyebrow": "Teisinė informacija ir atlygis",
+      "title": "Saugus uostas, premijos<br></br>ir smulkus šriftas.",
+      "intro": "Jei sąžiningai laikotės šios politikos, jūsų tyrimą laikome įgaliotu. Likusi puslapio dalis yra nuobodi, bet svarbi, ir ji pateikta atvirai, o ne paslėpta.",
+      "cards": {
+        "safeHarbour": {
+          "title": "Teisinis saugus uostas",
+          "body": "Jei sąžiningai laikotės šios politikos, VIZA nesiims teisinių veiksmų prieš jus dėl atsitiktinių ar netyčinių su jūsų tyrimu susijusių pažeidimų. Vis tiek turite laikytis taikomų įstatymų ir teisės aktų."
+        },
+        "rewards": {
+          "title": "Atlygis ir spragų premija",
+          "body": "VIZA šiuo metu neturi viešos spragų premijų programos. Teikiame savo nuožiūra skiriamą padėkos ženklą už pagrįstus, atsakingai pranešamus radinius, vertinamus pagal poveikį, naujumą ir pranešimo kokybę.",
+          "meta": "savo nuožiūra · kiekvienu atveju atskirai"
+        },
+        "updates": {
+          "title": "Programos pakeitimai",
+          "body": "VIZA pasilieka teisę bet kada keisti ar nutraukti šią programą. Jei nesate tikri, ar jūsų tyrimas atitinka politiką, susisiekite adresu security@viza.it.com <em>prieš</em> tęsdami.",
+          "meta": "paskutinį kartą peržiūrėta · 2026 m. gegužę"
+        }
+      }
+    },
+    "cta": {
+      "title": "Pastebėjote kažką keisto?<br></br>Pasakykite mūsų saugumo komandai.",
+      "body": "Verčiau du kartus išgirsime apie mažą radinį, nei vieną kartą praleisime didelį. Pranešimai keliauja tiesiai tikram žmogui saugumo komandoje: jokio bilietų portalo, jokio vertinimo roboto.",
+      "lead": "Tiesiai saugumo komandai",
+      "small": "Vidutinis atsakymo laikas yra mažiau nei 24 valandos, kiekvieną savaitės dieną."
+    },
+    "footer": {
+      "tagline": "VIZA padeda planuoti, teikti ir sekti vizas visame pasaulyje sklandžiai.",
+      "company": "Įmonė",
+      "careers": "Karjera",
+      "contact": "Kontaktai",
+      "security": "Sauga",
+      "privacy": "Privatumas",
+      "terms": "Sąlygos",
+      "products": "Produktai",
+      "prodVisaReq": "Vizų reikalavimai",
+      "prodSchengen": "Šengeno registracijos tikrintuvas",
+      "prodPhoto": "Vizos nuotraukų kūrėjas",
+      "prodHelpline": "VIZA pagalbos linija skubiais atvejais",
+      "prodStudent": "Studento viza",
+      "offices": "Biurai",
+      "officeSg": "Singapūras, būstinė",
+      "officeSf": "Šanchajus",
+      "copyright": "© VIZA, visos teisės saugomos"
+    }
+  },
+  "status": {
+    "crumbHome": "Skaidrumas",
+    "crumbHere": "Sistemos būsena",
+    "hero": {
+      "title": "Sistemos būsena",
+      "lead": "Įrodymais pagrįstas VIZA ir valstybinių vizų portalų, su kuriais dirbame, prieinamumas. Kiekvienas procentas, laiko juostos stulpelis ir incidentas žemiau gaunamas iš užfiksuoto sintetinio patikrinimo."
+    },
+    "console": {
+      "title": "VIZA patikimumas · gyvai",
+      "live": "Patikrinta",
+      "unverified": "Nepatikrinta",
+      "allOperational": "Visos sistemos veikia",
+      "degraded": "Kai kurios sistemos veikia sutrikusios",
+      "majorOutage": "Stebima sistema nepasiekiama",
+      "dataUnavailable": "Stebėjimo duomenų nėra",
+      "lastChecked": "Paskutinis užfiksuotas patikrinimas: {time}",
+      "noChecks": "Dar neužfiksuota nė vieno baigto patikrinimo",
+      "kUptime": "Sėkmingos 90 dienų patikros",
+      "kMonitors": "Stebimi galiniai taškai",
+      "kIncidents": "Aktyvus incidentas"
+    },
+    "subnav": {
+      "current": "Dabartinė būsena",
+      "incidents": "Ankstesni incidentai",
+      "subscribe": "Prenumeruoti",
+      "searchPlaceholder": "Ieškoti šalių",
+      "subscribeBtn": "Prenumeruoti naujienas"
+    },
+    "platform": {
+      "title": "VIZA platforma",
+      "realMeta": "Tikrinama kas 5 minutes · galinių taškų: {count}",
+      "meta": "Tikrinama kas 5 minutes",
+      "name": "VIZA paraiškų platforma",
+      "sub": "Vieši VIZA servisai"
+    },
+    "uptime": {
+      "ago": "Prieš 90 dienų",
+      "today": "Šiandien",
+      "pct": "Sėkmingų patikrų: {pct} %",
+      "noData": "Užfiksuotų patikrų nėra"
+    },
+    "dayObservation": "{date}: užfiksuotų patikrų: {checks}",
+    "dayNoData": "{date}: užfiksuotų duomenų nėra",
+    "dayTitle": "{n} diena",
+    "statusLabels": {
+      "op": "Veikia",
+      "deg": "Sutrikęs",
+      "part": "Dalinis nutrūkimas",
+      "maj": "Nepasiekiama",
+      "none": "Šiuo metu duomenų nėra"
+    },
+    "lastChecked": "Patikrinta {time}",
+    "monitorStale": "Trūksta patikros arba ji pasenusi",
+    "monitoringUnavailable": "Būsenos API neturi šviežių įrodymų. VIZA nerodys podėlyje esančio ar sugeneruoto prieinamumo kaip dabartinės paslaugos būklės.",
+    "noSearchResults": "Nė viena stebima šalis neatitinka šios paieškos.",
+    "noRecordedIncidents": "Per pastarąsias 90 dienų iš užfiksuotų patikrų neišvesta jokių incidentų.",
+    "incidentCount": "{count, plural, one {# incidentas} few {# incidentai} many {# incidento} other {# incidentų}}",
+    "incidentRecovered": "Užfiksuotos patikros rodo, kad ši paslauga atsistatė.",
+    "noIssues": "Aktyvių problemų nėra",
+    "activeIncident": "Aktyvus incidentas",
+    "portalsHead": {
+      "title": "Valstybiniai portalai",
+      "lead": "Ribota sintetinė užklausa tikrina kiekvieną sukonfigūruotą portalą kas penkias minutes. Pilka istorija reiškia, kad stebėjimas neužfiksuotas, ji niekada neužpildoma apskaičiuotais duomenimis."
+    },
+    "incidentsHead": {
+      "title": "Ankstesni incidentai",
+      "lead": "Incidentai atidaromi ir uždaromi pagal išsaugotus stebėjimo perėjimus. Tai veiklos prieinamumas, o ne asmeninė pareiškėjo vizos sprendimo būsena."
+    },
+    "tags": {
+      "identified": "Nustatyta",
+      "investigating": "Tiriama",
+      "resolved": "Išspręsta"
+    },
+    "portals": {
+      "AE": {
+        "name": "Jungtiniai Arabų Emyratai",
+        "sub": "GDRFA · ICA portalai"
+      },
+      "AM": {
+        "name": "Armėnija",
+        "sub": "E. vizų portalas"
+      },
+      "AU": {
+        "name": "Australija",
+        "sub": "ImmiAccount"
+      },
+      "AZ": {
+        "name": "Azerbaidžanas",
+        "sub": "ASAN Visa"
+      },
+      "DE": {
+        "name": "Vokietija",
+        "sub": "VIDEX · konsulato laikai"
+      },
+      "DK": {
+        "name": "Danija"
+      },
+      "EG": {
+        "name": "Egiptas",
+        "sub": "E. vizų portalas"
+      },
+      "FI": {
+        "name": "Suomija",
+        "sub": "EnterFinland"
+      },
+      "FR": {
+        "name": "Prancūzija",
+        "sub": "France-Visas"
+      },
+      "GB": {
+        "name": "Jungtinė Karalystė",
+        "sub": "UKVCAS · UK Visas",
+        "bannerText": "Kai kurie paraiškų tipai šiuo metu neveikia.",
+        "bannerLink": "Žiūrėti incidento chronologiją"
+      },
+      "GE": {
+        "name": "Gruzija"
+      },
+      "GR": {
+        "name": "Graikija",
+        "sub": "AEGEAN · konsulatas"
+      },
+      "HK": {
+        "name": "Honkongas",
+        "sub": "Imigracijos e. vizas"
+      },
+      "ID": {
+        "name": "Indonezija",
+        "sub": "e-Visa Indonesia"
+      },
+      "IN": {
+        "name": "Indija",
+        "sub": "Indian Visa Online"
+      },
+      "JO": {
+        "name": "Jordanija"
+      },
+      "KE": {
+        "name": "Kenija",
+        "sub": "eCitizen / eVisa"
+      },
+      "KH": {
+        "name": "Kambodža"
+      },
+      "LK": {
+        "name": "Šri Lanka",
+        "sub": "ETA portalas"
+      },
+      "MA": {
+        "name": "Marokas"
+      },
+      "TH": {
+        "name": "Tailandas",
+        "sub": "Thailand e-Visa"
+      }
+    },
+    "incidents": {
+      "count": "<strong>{count}</strong> {count, plural, one {šalis} few {šalys} many {šalies} other {šalių}} patyrė veikimo sutrikimų",
+      "events": "{count, plural, one {# įvykis} few {# įvykiai} many {# įvykio} other {# įvykių}}",
+      "days": [
+        {
+          "date": "2026 m. gegužės 10 d.",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "gegužės 10 d., 3:05 PM",
+                  "desc": "Incidentas išspręstas. Paslauga grįžo į įprastą veiklą."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "gegužės 10 d., 5:05 PM",
+                  "desc": "Incidentas išspręstas. Paslauga grįžo į įprastą veiklą."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2026 m. gegužės 9 d.",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "gegužės 9 d., 10:50 PM",
+                  "desc": "Tiriame išaugusį gedimų dažnį."
+                },
+                {
+                  "time": "gegužės 10 d., 12:20 AM",
+                  "desc": "Rimtumas padidėjo nuo sutrikimo iki dalinio nutrūkimo."
+                },
+                {
+                  "time": "gegužės 10 d., 2:50 AM",
+                  "desc": "Rimtumas padidėjo nuo dalinio nutrūkimo iki visiško nutrūkimo."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "gegužės 9 d., 3:05 PM",
+                  "desc": "Tiriame išaugusį gedimų dažnį."
+                },
+                {
+                  "time": "gegužės 9 d., 7:20 PM",
+                  "desc": "Rimtumas padidėjo nuo dalinio nutrūkimo iki visiško nutrūkimo."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2026 m. gegužės 8 d.",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "gegužės 8 d., 1:05 PM",
+                  "desc": "Tiriame išaugusį gedimų dažnį."
+                },
+                {
+                  "time": "gegužės 8 d., 2:05 PM",
+                  "desc": "Incidentas išspręstas. Paslauga grįžo į įprastą veiklą."
+                },
+                {
+                  "time": "gegužės 8 d., 2:50 PM",
+                  "desc": "Tiriame išaugusį gedimų dažnį."
+                },
+                {
+                  "time": "gegužės 8 d., 7:35 PM",
+                  "desc": "Incidentas išspręstas. Paslauga grįžo į įprastą veiklą."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2026 m. gegužės 5 d.",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "gegužės 5 d., 1:36 PM",
+                  "desc": "Rimtumas padidėjo nuo sutrikimo iki dalinio nutrūkimo."
+                },
+                {
+                  "time": "gegužės 5 d., 4:50 PM",
+                  "desc": "Incidentas išspręstas."
+                },
+                {
+                  "time": "gegužės 5 d., 9:20 PM",
+                  "desc": "Tiriame išaugusį gedimų dažnį."
+                },
+                {
+                  "time": "gegužės 5 d., 10:20 PM",
+                  "desc": "Incidentas išspręstas."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "gegužės 5 d., 2:43 PM",
+                  "desc": "Incidentas išspręstas."
+                },
+                {
+                  "time": "gegužės 5 d., 3:35 PM",
+                  "desc": "Tiriame išaugusį gedimų dažnį."
+                },
+                {
+                  "time": "gegužės 5 d., 7:35 PM",
+                  "desc": "Rimtumas padidėjo nuo dalinio nutrūkimo iki visiško nutrūkimo."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2026 m. gegužės 4 d.",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "gegužės 4 d., 4:05 PM",
+                  "desc": "Tiriame išaugusį gedimų dažnį."
+                },
+                {
+                  "time": "gegužės 4 d., 5:05 PM",
+                  "desc": "Incidentas išspręstas."
+                },
+                {
+                  "time": "gegužės 4 d., 7:36 PM",
+                  "desc": "Tiriame išaugusį gedimų dažnį."
+                },
+                {
+                  "time": "gegužės 4 d., 8:35 PM",
+                  "desc": "Incidentas išspręstas."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "gegužės 4 d., 12:05 PM",
+                  "desc": "Incidentas išspręstas."
+                },
+                {
+                  "time": "gegužės 4 d., 1:50 PM",
+                  "desc": "Tiriame išaugusį gedimų dažnį."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2026 m. gegužės 2 d.",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "gegužės 2 d., 6:35 PM",
+                  "desc": "Tiriame išaugusį gedimų dažnį."
+                },
+                {
+                  "time": "gegužės 2 d., 7:50 PM",
+                  "desc": "Incidentas išspręstas."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "gegužės 2 d., 9:20 AM",
+                  "desc": "Tiriame išaugusį gedimų dažnį."
+                },
+                {
+                  "time": "gegužės 2 d., 10:20 AM",
+                  "desc": "Incidentas išspręstas."
+                },
+                {
+                  "time": "gegužės 2 d., 8:20 PM",
+                  "desc": "Tiriame išaugusį gedimų dažnį."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "gegužės 2 d., 8:20 PM",
+                  "desc": "Tiriame išaugusį gedimų dažnį."
+                },
+                {
+                  "time": "gegužės 3 d., 12:05 AM",
+                  "desc": "Incidentas išspręstas."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2026 m. gegužės 1 d.",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "gegužės 1 d., 2:05 PM",
+                  "desc": "Tiriame išaugusį gedimų dažnį."
+                },
+                {
+                  "time": "gegužės 1 d., 3:05 PM",
+                  "desc": "Incidentas išspręstas."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2026 m. balandžio 30 d.",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "balandžio 30 d., 8:20 AM",
+                  "desc": "Tiriame išaugusį gedimų dažnį."
+                },
+                {
+                  "time": "balandžio 30 d., 9:50 AM",
+                  "desc": "Incidentas išspręstas."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "balandžio 30 d., 3:05 PM",
+                  "desc": "Incidentas išspręstas."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "balandžio 30 d., 4:51 PM",
+                  "desc": "Incidentas išspręstas."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "balandžio 30 d., 1:20 PM",
+                  "desc": "Tiriame išaugusį gedimų dažnį."
+                },
+                {
+                  "time": "balandžio 30 d., 2:37 PM",
+                  "desc": "Rimtumas padidėjo nuo sutrikimo iki dalinio nutrūkimo."
+                },
+                {
+                  "time": "balandžio 30 d., 8:20 PM",
+                  "desc": "Incidentas išspręstas."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "balandžio 30 d., 6:50 PM",
+                  "desc": "Incidentas išspręstas."
+                },
+                {
+                  "time": "balandžio 30 d., 7:50 PM",
+                  "desc": "Tiriame išaugusį gedimų dažnį."
+                },
+                {
+                  "time": "gegužės 1 d., 12:20 AM",
+                  "desc": "Incidentas išspręstas."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "subscribe": {
+      "title": "Sužinokite pirmi,<br></br>kai kas nors sugenda.",
+      "lead": "Pasirinkite jus dominančias šalis, ir atsiųsime vieną aiškų pranešimą, kai jų ar mūsų portalai nustos veikti arba vėl pradės veikti.",
+      "emailLabel": "Gauti incidentų naujienas el. paštu",
+      "button": "Prenumeruoti",
+      "follow": "Arba sekite būseną per:",
+      "chipEmail": "El. pašto santrauka",
+      "chipSms": "SMS ir WhatsApp",
+      "chipRss": "RSS srautas",
+      "chipWebhook": "Webhook operacijoms"
+    },
+    "footer": {
+      "tagline": "VIZA padeda planuoti, teikti ir sekti vizas visame pasaulyje sklandžiai.",
+      "company": "Įmonė",
+      "careers": "Karjera",
+      "contact": "Kontaktai",
+      "security": "Sauga",
+      "systemStatus": "Sistemos būsena",
+      "privacy": "Privatumas",
+      "terms": "Sąlygos",
+      "products": "Produktai",
+      "prodVisaReq": "Vizų reikalavimai",
+      "prodSchengen": "Šengeno registracijos tikrintuvas",
+      "prodPhoto": "Vizos nuotraukų kūrėjas",
+      "prodHelpline": "VIZA pagalbos linija skubiais atvejais",
+      "copyright": "© VIZA, visos teisės saugomos"
+    }
+  },
+  "arrival": {
+    "breadcrumbHome": "Pradžia",
+    "breadcrumbHub": "Atvykimo kortelės",
+    "hubH1": "Atvykimo kortelių gidai",
+    "hubLead": "Atvykimo kortelė yra trumpa valstybės forma, kurią užpildote prieš atvykdami į šalį. Daugumą galima užpildyti internetu, nemokamai, per maždaug penkias minutes. Šie gidai parodo, kam kuri kortelė reikalinga, kada ją pateikti ir kaip išvengti netikrų svetainių, kurios už ją ima pinigus.",
+    "hubWhatTitle": "Kas yra atvykimo kortelė",
+    "hubWhat": [
+      "Atvykimo kortelė yra deklaracija, kurios kelionės tikslo šalis prašo greta paso ir vizos. Joje nurodoma, kas jūs esate, kaip atvykstate ir kur apsistosite. Daug šalių lėktuve dalytą popierinę kortelę pakeitė internetine forma.",
+      "Tai nėra vizos. Viza leidžia prašyti įvažiavimo. Atvykimo kortelė informuoja sienos kontrolės instituciją apie jūsų kelionę, o vizos vis tiek reikia, jei jūsų pilietybei ji privaloma."
+    ],
+    "hubFreeTitle": "Atvykimo kortelės nemokamos",
+    "hubFree": [
+      "Kiekviena šiuose giduose aprašyta kortelė yra nemokama oficialioje valstybės svetainėje. Kai kurios svetainės nukopijuoja valstybės formą ir ima už ją mokestį. Jums nereikia mokėti nė vienai iš jų.",
+      "Visada pradėkite nuo oficialaus adreso, nurodyto kiekviename gide. VIZA yra nepriklausoma paslauga, o ne valstybės svetainė."
+    ],
+    "hubWhenTitle": "Kada jos reikia",
+    "hubWhen": [
+      "Daugumą kortelių galima pildyti likus trims dienoms iki atvykimo ir reikia pateikti per šį laikotarpį. Tikslią taisyklę rasite kiekviename gide, nes Japonijos Visit Japan Web neturi nustatyto termino ir nėra privaloma.",
+      "Gyventojai, piliečiai ir tranzito keleiviai dažnai atleidžiami arba pildo trumpesnę formą. Kiekviename gide nurodyta, kas atleidžiamas, įskaitant Singapūro piliečių atleidimą nuo Malaizijos MDAC."
+    ],
+    "hubGuidesTitle": "Visi gidai",
+    "hubGuidesSub": "Pasirinkite kelionės tikslą. Kiekviename gide rasite veiksmus, dažniausias klaidas ir oficialias nuorodas.",
+    "readGuide": "Skaityti gidą",
+    "cardWhen": "Kada",
+    "cardsLabel": "Atvykimo kortelė",
+    "hubVisaTitle": "Reikia ir vizos?",
+    "hubVisaBody": "Atvykimo kortelė nepakeičia vizos. Kelionės tikslo šalies puslapyje pažiūrėkite, ar jūsų pasui ji reikalinga.",
+    "hubVisaCta": "Naršyti vizų puslapius",
+    "glanceTitle": "Trumpai",
+    "stepsTitle": "Kaip užpildyti, žingsnis po žingsnio",
+    "mistakesTitle": "Dažniausios klaidos",
+    "feesTitle": "Mokesčiai ir netikros svetainės",
+    "faqTitle": "Klausimai",
+    "sourcesTitle": "Šaltiniai",
+    "relatedTitle": "Kiti atvykimo kortelių gidai",
+    "independent": "VIZA yra nepriklausoma paslauga, o ne valstybės svetainė.",
+    "officialCta": "Atidaryti oficialią svetainę",
+    "officialLabel": "Oficiali svetainė",
+    "vizaTitle": "Leiskite VIZA tai padaryti už jus",
+    "vizaBody": "Pradėkite pildyti {name} savo VIZA paskyroje. VIZA forma užduoda tuos pačius klausimus kaip oficiali, o jūsų duomenis išsaugo būsimoms kelionėms. Visada galite naudoti nemokamą oficialią svetainę.",
+    "vizaFee": "VIZA paslaugos mokestis",
+    "vizaFeeFree": "Nemokama",
+    "vizaCta": "Pradėti VIZA",
+    "noVizaTitle": "Naudokite oficialią svetainę",
+    "noVizaBody": "VIZA šios kortelės kol kas neužpildo. Naudokite žemiau pateiktą oficialią svetainę ir pirmiausia perskaitykite šio gido žingsnius.",
+    "visaTitle": "Viza į šalį: {country}",
+    "visaBody": "Atvykimo kortelė yra atskira nuo vizos. Pažiūrėkite, kam reikia vizos į šalį {country}, kokios rinkliavos ir kaip teikti paraišką.",
+    "visaCta": "Atidaryti {country} vizos puslapį",
+    "reviewedTitle": "Patikrinta 2026 m. lapkričio 25 d.",
+    "stepLabel": "Žingsnis",
+    "cards": {
+      "malaysia-mdac": {
+        "summary": "Nemokama internetinė kortelė užsienio lankytojams. Singapūro piliečiai atleidžiami.",
+        "when": "Likus iki 3 dienų iki atvykimo"
+      },
+      "singapore-sg-arrival-card": {
+        "summary": "ICA internetinė kortelė su sveikatos deklaracija. Pateikite svetainėje arba programėlėje MyICA.",
+        "when": "Likus iki 3 dienų iki atvykimo"
+      },
+      "japan-visit-japan-web": {
+        "summary": "Nemokami QR kodai imigracijai ir muitinei. Rekomenduojama, bet neprivaloma.",
+        "when": "Prieš skrendant"
+      },
+      "thailand-tdac": {
+        "summary": "Nemokama kortelė kiekvienam užsienio lankytojui, su viza ar be jos. Pakeitė popierinę TM6.",
+        "when": "Likus iki 3 dienų iki atvykimo"
+      },
+      "korea-e-arrival-card": {
+        "summary": "Privaloma nuo 2026 m. sausio 1 d. Galiojančios K-ETA turėtojai atleidžiami.",
+        "when": "Likus iki 3 dienų iki atvykimo"
+      },
+      "indonesia-all-indonesia": {
+        "summary": "Viena kortelė imigracijai, muitinei ir sveikatai. Nemokama ir nėra viza.",
+        "when": "Likus iki 3 dienų iki atvykimo"
+      }
+    }
+  },
+  "guides": {
+    "breadcrumbHome": "Pradžia",
+    "breadcrumbHub": "Gidai",
+    "hubH1": "Vizų gidai Singapūre gyvenantiems žmonėms",
+    "hubLead": "Nesvarbu, ar turite Singapūro, Kinijos, Indijos ar Filipinų pasą, šie gidai atsako į tą patį klausimą: ko reikia norint įvažiuoti į šalį ir kur teikti paraišką iš Singapūro. Kiekviename nurodyti šaltiniai ir patikrinimo data.",
+    "hubGuidesTitle": "Visi gidai",
+    "hubGuidesSub": "Pasirinkite temą. Taisyklės keičiasi, todėl kiekviename gide išvardyti oficialūs puslapiai, kuriuos reikia patikrinti prieš kelionę.",
+    "readGuide": "Skaityti gidą",
+    "hubMoreTitle": "Daugiau iš VIZA",
+    "hubMoreBody": "Ieškote konkrečios šalies, atvykimo kortelės ar naujausio taisyklių pakeitimo?",
+    "hubDestinations": "Vizų puslapiai",
+    "hubArrival": "Atvykimo kortelių gidai",
+    "hubNews": "Vizų naujienos",
+    "glanceTitle": "Trumpas atsakymas",
+    "relatedVisaTitle": "Krypčių puslapiai",
+    "relatedVisaSub": "Rinkliavos, dokumentai ir žingsniai Singapūre gyvenantiems žmonėms.",
+    "relatedArrivalTitle": "Atvykimo kortelių gidai",
+    "relatedGuidesTitle": "Daugiau gidų",
+    "faqTitle": "Klausimai",
+    "sourcesTitle": "Šaltiniai",
+    "reviewedTitle": "Kaip tikrinome",
+    "published": "Paskelbta",
+    "updated": "Atnaujinta",
+    "independent": "VIZA yra nepriklausoma paslauga, o ne valstybės svetainė."
+  },
+  "ds": {
+    "header": {
+      "home": "VIZA pradžia",
+      "primary": "Pagrindinis",
+      "language": "Kalba",
+      "signIn": "Prisijungti",
+      "openMenu": "Atidaryti meniu",
+      "closeMenu": "Uždaryti meniu",
+      "nav": {
+        "home": "Pradžia",
+        "arrivalCards": "Atvykimo kortelės",
+        "guides": "Gidai",
+        "news": "Naujienos",
+        "about": "Apie mus",
+        "contact": "Kontaktai"
+      }
+    },
+    "footer": {
+      "home": "VIZA pradžia",
+      "tagline": "Vizų paraiškas paruošia VIZA dirbtinis intelektas, o patikrina mūsų konsultantai. Naudojimas nemokamas.",
+      "explore": "Naršyti",
+      "follow": "Sekite mus",
+      "followOn": "Sekite VIZA: {platform}",
+      "links": {
+        "arrivalCards": "Atvykimo kortelės",
+        "guides": "Gidai",
+        "news": "Naujienos",
+        "about": "Apie mus",
+        "contact": "Kontaktai",
+        "careers": "Karjera",
+        "security": "Sauga",
+        "status": "Būsena"
+      },
+      "copyright": "© {year} VIZA. Visos teisės saugomos.",
+      "office": "Registruota buveinė: Paya Lebar Square, #06-28, 60 Paya Lebar Road, Singapūras 409051",
+      "privacy": "Privatumas",
+      "terms": "Sąlygos",
+      "kelin": "Kelin Studio projektas",
+      "refunds": "Grąžinimai",
+      "business": "Informacija apie įmonę"
+    },
+    "form": {
+      "fullName": {
+        "label": "Jūsų vardas",
+        "placeholder": "Jonė Tan"
+      },
+      "email": {
+        "label": "El. paštas"
+      },
+      "phone": {
+        "label": "Telefonas"
+      },
+      "destination": {
+        "label": "Kelionės tikslas",
+        "placeholder": "Japonija, Šengenas, Jungtinės Valstijos"
+      },
+      "message": {
+        "label": "Jūsų klausimas",
+        "placeholder": "Kur keliaujate, jūsų pasas ir kelionės datos."
+      },
+      "submit": "Siųsti žinutę",
+      "sending": "Siunčiama",
+      "success": "Ačiū, jūsų žinutė gauta. Atsakysime el. paštu.",
+      "error": "Nepavyko išsiųsti žinutės. Bandykite dar kartą arba parašykite adresu sales@kelin.studio.",
+      "consent": "Siųsdami sutinkate su mūsų <privacy>Privatumo politika</privacy> ir <terms>Sąlygomis</terms>."
+    },
+    "gallery": {
+      "title": "Kryptys",
+      "lede": "Pasirinkite kryptį ir pamatysite, kokios vizos jums reikia, dokumentus ir valstybės rinkliavą.",
+      "view": "Žiūrėti",
+      "passportSummary": "{free} bevizis režimas · {voa} e. vizas arba vizas atvykus · {req} reikalinga viza",
+      "noResults": "Pagal jūsų paiešką krypčių nerasta.",
+      "sorts": {
+        "featured": "Rekomenduojamos",
+        "open": "Pirmiausia atviros dabar",
+        "name": "Nuo A iki Ž"
+      }
+    },
+    "dest": {
+      "all": "Visos kryptys",
+      "onPage": "Šiame puslapyje",
+      "applyTitle": "Pradėti paraišką",
+      "facts": "Faktai"
+    },
+    "article": {
+      "toc": "Šiame puslapyje",
+      "down": "Pereiti prie straipsnio",
+      "faqLede": "Trumpi atsakymai šia tema."
+    },
+    "legal": {
+      "updated": "Paskutinį kartą atnaujinta",
+      "contents": "Turinys"
+    }
+  },
+  "homePage": {
+    "hero": {
+      "browse": "Naršyti kryptis",
+      "picks": "Kryptys"
+    },
+    "types": {
+      "title": "Vizų tipai",
+      "lede": "Turistinės, verslo, darbo, studentų ir ilgalaikės vizos.",
+      "prev": "Ankstesnis",
+      "next": "Kitas",
+      "items": {
+        "tourist": {
+          "title": "Turistinė",
+          "body": "Atostogos, apsilankymai pas šeimą ir trumpi pasilikimai."
+        },
+        "business": {
+          "title": "Verslo",
+          "body": "Susitikimai, konferencijos ir vizitai į objektus."
+        },
+        "work": {
+          "title": "Darbo",
+          "body": "Darbo leidimai ir darbo vizos."
+        },
+        "student": {
+          "title": "Studento",
+          "body": "Studijų vizos mokykloms ir universitetams."
+        },
+        "long": {
+          "title": "Ilgalaikė",
+          "body": "Gyvenimo ir kitos ilgalaikės vizos."
+        }
+      }
+    },
+    "steps": {
+      "title": "Kaip tai veikia",
+      "cta": "Pradėkite nemokamą paraišką",
+      "side": {
+        "freeValue": "Nemokama",
+        "freeLabel": "VIZA paslauga",
+        "langLabel": "Kalbos: anglų ir kinų",
+        "note": "Mokate tik valstybės rinkliavą.",
+        "noteBody": "Ji keliauja tiesiai vizą išduodančiai institucijai. VIZA neprideda savo mokesčio."
+      },
+      "items": {
+        "choose": {
+          "title": "Pasirinkite kryptį",
+          "body": "Prieš pradėdami pamatysite, kokios vizos jums reikia, kokius dokumentus paruošti ir kokia valstybės rinkliava.",
+          "chips": "Vizos tipas|Dokumentai|Valstybės rinkliava"
+        },
+        "passport": {
+          "title": "Įkelkite pasą",
+          "body": "VIZA nuskaito jūsų duomenis iš puslapio su nuotrauka, todėl beveik nieko nereikia vesti.",
+          "chips": "Puslapis su nuotrauka|Duomenys užpildyti"
+        },
+        "confirm": {
+          "title": "Patvirtinkite duomenis",
+          "body": "Patikrinkite, ką nuskaitė VIZA, pridėkite kelionės datas ir tęskite savo nemokamoje VIZA paskyroje.",
+          "chips": "Kelionės datos|Nemokama paskyra"
+        },
+        "file": {
+          "title": "VIZA patikrina ir pateikia",
+          "body": "Konsultantas patikrina kiekvieną formą prieš ją pateikiant, o eigą sekate savo paskyroje.",
+          "chips": "Konsultanto patikra|Eigos naujiniai"
+        }
+      }
+    },
+    "tiers": {
+      "title": "Kainos",
+      "lede": "Du būdai teikti paraišką, abu nemokami.",
+      "cta": "Susisiekite su mumis",
+      "criteria": "Palyginti",
+      "guided": "Su pagalba",
+      "full": "Pilna paslauga",
+      "rows": {
+        "fee": {
+          "label": "VIZA mokestis",
+          "guided": "Nemokama",
+          "full": "Nemokama"
+        },
+        "form": {
+          "label": "Paraiškos forma",
+          "guided": "Atsakote jūs, o VIZA DI jus veda",
+          "full": "Konsultantas paruošia atsakymus kartu su jumis"
+        },
+        "documents": {
+          "label": "Dokumentai",
+          "guided": "Kontrolinis sąrašas jūsų situacijai",
+          "full": "Konsultantas patikrina jūsų dokumentus"
+        },
+        "interview": {
+          "label": "Registracija ir interviu",
+          "guided": "Registruojatės ir dalyvaujate jūs",
+          "full": "Kartu pereiname galimus klausimus"
+        },
+        "govFee": {
+          "label": "Valstybės rinkliava",
+          "guided": "Mokama tiesiai institucijai",
+          "full": "Mokama tiesiai institucijai"
+        },
+        "bestFor": {
+          "label": "Tinka",
+          "guided": "Paprastoms paraiškoms",
+          "full": "Sudėtingiems atvejams arba po ankstesnio atsisakymo"
+        }
+      }
+    },
+    "why": {
+      "title": "Kodėl VIZA",
+      "lede": "Aiškūs žingsniai, patikrintos formos ir tikri žmonės, su kuriais galima pasikalbėti.",
+      "items": {
+        "free": {
+          "title": "Nemokama paslauga",
+          "body": "VIZA pagalba nieko nekainuoja. Mokate tik valstybės rinkliavą tiesiai institucijai."
+        },
+        "checked": {
+          "title": "Patikrintos formos",
+          "body": "Konsultantas patikrina kiekvieną formą prieš ją pateikiant, todėl smulkios klaidos pastebimos anksti."
+        },
+        "language": {
+          "title": "Anglų ir kinų kalbos",
+          "body": "Kalbėkite su VIZA anglų ar kinų kalba per WhatsApp, WeChat ar el. paštu."
+        }
+      },
+      "photos": {
+        "arrival": {
+          "title": "Atvykimo kortelės",
+          "body": "Pagalba žingsnis po žingsnio su nemokamomis atvykimo kortelėmis Malaizijai, Singapūrui, Japonijai, Tailandui, Korėjai ir Indonezijai."
+        },
+        "news": {
+          "title": "Naujienos",
+          "body": "Vizų taisyklių pakeitimai ir naujos e. vizų sistemos paprastais žodžiais."
+        }
+      }
+    },
+    "guides": {
+      "title": "Gidai",
+      "cta": "Visi gidai"
+    },
+    "faq": {
+      "lede": "Trumpi atsakymai apie VIZA vizų paslaugą.",
+      "more": "Daugiau klausimų?",
+      "items": {
+        "cost": {
+          "q": "Ar VIZA ima mokestį už paslaugą?",
+          "a": "Ne. VIZA pagalba nemokama. Jei kryptis taiko valstybės vizos rinkliavą, ją sumokate tiesiai tos šalies vyriausybei."
+        },
+        "visas": {
+          "q": "Su kokiomis vizomis VIZA gali padėti?",
+          "a": "Turistinėmis, verslo, darbo, studentų ir ilgalaikėmis vizomis šiame puslapyje nurodytoms kryptims. Jei jūsų nėra sąraše, parašykite mums, ir konsultantas pasakys, kas įmanoma."
+        },
+        "approval": {
+          "q": "Kas priima sprendimą dėl mano vizos?",
+          "a": "Kiekvieną sprendimą priima vizą išduodanti institucija. VIZA patikrina jūsų formą ir dokumentus prieš pateikiant, kad paraiška būtų išsami ir nuosekli."
+        },
+        "tiers": {
+          "q": "Kuo skiriasi Su pagalba ir Pilna paslauga?",
+          "a": "Su pagalba: VIZA DI veda jus per formą ir kontrolinį sąrašą, o kiekvieną atsakymą kontroliuojate jūs. Pilna paslauga: konsultantas kartu su jumis paruošia atsakymus ir patikrina jūsų dokumentus. Abi galimybės nemokamos."
+        },
+        "language": {
+          "q": "Kokias kalbas palaikote?",
+          "a": "Anglų ir kinų per WhatsApp, WeChat, telefonu ir el. paštu."
+        }
+      }
+    },
+    "contactCard": {
+      "title": "Pasikalbėkite su VIZA konsultantu",
+      "body": "Atsakome anglų arba kinų kalba.",
+      "cta": "Susisiekite su mumis"
+    },
+    "cta": {
+      "title": "Pradėkite paraišką",
+      "point1": "Jūsų duomenys lieka privatūs",
+      "point2": "Atsako tikras žmogus",
+      "formTitle": "Užduokite klausimą",
+      "formBody": "Pasakykite, kur keliaujate, ir VIZA konsultantas atsakys el. paštu."
+    }
+  },
+  "aboutPage": {
+    "h1": "Apie VIZA",
+    "intro": {
+      "title": "Kas yra VIZA",
+      "text": "VIZA paruošia, patikrina ir pateikia vizų paraiškas Singapūre gyvenantiems žmonėms. Dokumentus tvarko mūsų dirbtinis intelektas, o kiekvieną formą peržiūri konsultantai. Paslauga nemokama."
+    },
+    "facts": {
+      "guides": "Vizų gidai",
+      "arrival": "Atvykimo kortelių gidai",
+      "free": "Nemokama",
+      "freeLabel": "VIZA paslauga"
+    },
+    "tiersTitle": "Su pagalba arba Pilna paslauga",
+    "tiersLede": "Pasirinkite, kiek pagalbos norite. Abi galimybės nemokamos.",
+    "free": {
+      "title": "Nemokama paslauga",
+      "text": "VIZA už savo pagalbą neima jokio mokesčio. Jei šalis taiko valstybės vizos rinkliavą, VIZA ją parodo prieš pradedant, o sumokate ją tiesiai vizą išduodančiai institucijai. Mokamų papildomų paslaugų nėra."
+    },
+    "company": {
+      "title": "Įmonės duomenys",
+      "office": "Registruota buveinė",
+      "officeValue": "60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapūras 409051",
+      "email": "El. paštas",
+      "phone": "Telefonas ir WhatsApp",
+      "languages": "Kalbos",
+      "languagesValue": "anglų ir kinų"
+    }
+  },
+  "contactPage": {
+    "h1": "Kontaktai",
+    "lines": {
+      "whatsapp": {
+        "title": "Telefonas ir WhatsApp",
+        "body": "Paskambinkite arba parašykite konsultantui."
+      },
+      "wechat": {
+        "body": "Susiraskite ID programoje WeChat ir pridėkite mus."
+      },
+      "email": {
+        "title": "El. paštas",
+        "body": "Geriausia dokumentams ir ilgesniems klausimams."
+      },
+      "office": {
+        "top": "Singapūras",
+        "title": "Biuras",
+        "body": "Paya Lebar Square, #06-28, 60 Paya Lebar Road, Singapūras 409051"
+      }
+    },
+    "message": {
+      "title": "Siųsti žinutę",
+      "text": "Klausimai apie vizą, kelionės kryptį ar darbą su VIZA. Parašykite mums, ir konsultantas atsakys."
+    }
+  },
+  "careersPage": {
+    "title": "Karjera",
+    "lede": "VIZA padeda Singapūre gyvenantiems žmonėms gauti vizą su dirbtiniu intelektu ir konsultantais, o paslauga nemokama. Samdome žmones, kuriems patinka kruopštus, naudingas darbas.",
+    "teamsTitle": "Komandos",
+    "teams": [
+      {
+        "title": "Inžinerija",
+        "body": "Kurkite dokumentų patikras, paraiškos srautą ir įrankius, kuriais naudojasi mūsų konsultantai."
+      },
+      {
+        "title": "Dizainas",
+        "body": "Padarykite įtemptą procesą aiškų paraišką teikiančiam žmogui."
+      },
+      {
+        "title": "Operacijos",
+        "body": "Užtikrinkite, kad kiekviena paraiška judėtų pirmyn, o visi reikalavimai būtų atnaujinti."
+      },
+      {
+        "title": "Konsultavimas",
+        "body": "Padėkite pareiškėjams sudėtingais atvejais, kuriems reikia žmogaus, anglų ir kinų kalbomis."
+      },
+      {
+        "title": "Duomenys",
+        "body": "Paverskite valstybės šaltinius patikromis, kurios anksti pastebi problemas."
+      },
+      {
+        "title": "Rinkodara",
+        "body": "Paprastai paaiškinkite vizas gidais ir puslapiais, kuriais žmonės gali pasitikėti."
+      }
+    ],
+    "applyTitle": "Susisiekite",
+    "applyBody": "Papasakokite apie save ir komandą, prie kurios norėtumėte prisijungti. Perskaitome kiekvieną žinutę.",
+    "applyCta": "Susisiekite su mumis"
+  },
+  "pageCopy": {
+    "product": {
+      "introTitle": "Kaip VIZA padeda su jūsų vizos paraiška",
+      "introLede": "Susipažinkite su galimomis vizų paruošimo, dokumentų peržiūros ir paraiškos būsenos paslaugomis. VIZA paslauga nemokama. Tikslią apimtį ir prieinamumą pamatysite pasirinkę kryptį.",
+      "browse": "Naršyti kryptis"
+    },
+    "events": {
+      "title": "Renginių kol kas nėra",
+      "lede": "Būsimus vizų konsultacijų, informacinius ir partnerių renginius paskelbsime čia.",
+      "contact": "Susisiekite su mumis"
+    }
+  },
+  "og": {
+    "band": "VIZA nemokama. Valstybės rinkliavos atskirai.",
+    "destSubtitle": "Rinkliavos ir kaip teikti paraišką"
+  }
+}

@@ -1,0 +1,2147 @@
+{
+  "cta": {
+    "startFreeApplication": "Nisni aplikimin tuaj falas"
+  },
+  "nav": {
+    "home": "Kreu",
+    "apply": "Aplikoni",
+    "visas": "Vizat",
+    "explore": "Eksploroni",
+    "events": "Evente",
+    "blog": "Lajme",
+    "careers": "Karriera",
+    "contact": "Kontakt",
+    "signIn": "Hyni",
+    "getStarted": "Filloni",
+    "yourPassport": "Pasaporta juaj",
+    "searchPlaceholder": "Kërkoni një vend ose vizë…",
+    "arrivalCards": "Kartat e mbërritjes",
+    "guides": "Udhëzues"
+  },
+  "footer": {
+    "followUs": "Na ndiqni:",
+    "followOn": "Ndiqni VIZA në {platform}",
+    "product": "Produktet",
+    "company": "Kompania",
+    "legal": "Ligjore",
+    "offices": "Zyrat",
+    "askAi": "Pyetni AI-në për VIZA",
+    "security": "Siguria",
+    "status": "Statusi",
+    "privacy": "Privatësia",
+    "terms": "Kushtet",
+    "rights": "Të gjitha të drejtat të rezervuara.",
+    "tagline": "VIZA ju ndihmon të planifikoni, të aplikoni dhe të ndiqni vizat lehtësisht në mbarë botën.",
+    "careers": "Karriera",
+    "contact": "Kontakt",
+    "copyright": "© VIZA, Të gjitha të drejtat të rezervuara",
+    "prodMockInterview": "Intervistë provë për SHBA",
+    "prodVisaReq": "Kërkesat për vizë",
+    "prodSchengen": "Kontrolli i takimeve Schengen",
+    "prodPhoto": "Krijuesi i fotos për vizë",
+    "prodHelpline": "Linja e urgjencës VIZA",
+    "prodStudent": "Vizë studenti",
+    "arrivalCards": "Kartat e mbërritjes",
+    "guides": "Udhëzues",
+    "news": "Lajme"
+  },
+  "pages": {
+    "blog": {
+      "metaTitle": "Lajme për vizat dhe ndryshime rregullash | VIZA",
+      "metaDescription": "Lajme për vizat nga VIZA: ndryshime rregullash, skema të reja vizash elektronike dhe ETA, dhe çfarë do të thonë për ata që jetojnë në Singapor.",
+      "title": "Lajme për vizat",
+      "lede": "Ndryshimet e rregullave dhe politikave, të shpjeguara me fjalë të thjeshta. Për këshilla që mbeten të vlefshme, lexoni udhëzuesit.",
+      "readArticle": "Lexoni artikullin",
+      "featuredLabel": "Lajmet më të fundit",
+      "articlesTitle": "Lajmet më të fundit",
+      "articlesDescription": "Ndryshime politikash dhe rregullash udhëtimi.",
+      "allPosts": "Të gjitha postimet",
+      "noMorePosts": "Lajme të tjera po vijnë.",
+      "emptyTitle": "Ende nuk ka lajme të publikuara",
+      "emptyBody": "Po përgatisim përditësimet tona të para. Ju lutemi kontrolloni sërish së shpejti.",
+      "unavailableTitle": "Lajmet nuk janë të disponueshme përkohësisht",
+      "unavailableBody": "Nuk arritëm të ngarkojmë lajmet më të fundit. Ju lutemi provoni sërish pas pak.",
+      "backToBlog": "Kthehuni te lajmet",
+      "by": "Nga",
+      "updated": "Përditësuar",
+      "categoriesLabel": "Temat e lajmeve",
+      "topicLabel": "Tema",
+      "relatedTitle": "Më shumë lajme",
+      "relatedDescription": "Më shumë lajme për vizat nga VIZA.",
+      "ctaEyebrow": "Planifikoni me siguri",
+      "ctaTitle": "Gati të nisni aplikimin?",
+      "ctaBody": "Na tregoni ku doni të shkoni. VIZA do t'ju udhëheqë nëpër kërkesat dhe hapat e ardhshëm.",
+      "ctaAction": "Nisni një aplikim",
+      "categoryMetaTitle": "Lajme për {category} | VIZA",
+      "categoryMetaDescription": "Lexoni lajmet e VIZA për {category}: çfarë ndryshoi, kë prek dhe çfarë të bëni më pas.",
+      "categoryLede": "Lajme për {category}.",
+      "visaLinkTitle": "Po aplikoni për vizë për {country}?",
+      "visaLinkBody": "Shihni dokumentet, tarifën qeveritare dhe hapat për ata që jetojnë në Singapor.",
+      "visaLinkAction": "Udhëzuesi i vizës për {country}",
+      "guidesTitle": "Udhëzues të lidhur",
+      "guidesBody": "Udhëzues që mbahen të përditësuar për këtë temë."
+    },
+    "home": {
+      "title": "Aplikime për vizë në Singapor: SHBA, Indi, Vietnam | VIZA",
+      "description": "Aplikoni për vizë SHBA (DS-160), vizë elektronike për Indinë, Vietnamin ose Egjiptin, ose vizë Schengen për Francën. Një këshilltar kontrollon çdo formular.",
+      "heroTitle": "Ku do të shkoni më pas?",
+      "heroLede": "Shihni opsionet e vizave për çdo destinacion. Konsulenti juaj i VIZA dhe AI-ja jonë merren me letrat, ju rezervoni udhëtimin."
+    },
+    "apply": {
+      "title": "Nisni një aplikim për vizë | VIZA",
+      "description": "Ngarkoni pasaportën, konfirmoni të dhënat dhe ia kaloni aplikimin për vizë një këshilltari të VIZA. Shërbimi i VIZA është falas.",
+      "saveBadge": "Ruajtur · vazhdoni kur të doni"
+    },
+    "careers": {
+      "title": "Karriera | VIZA",
+      "description": "Punoni për VIZA, shërbimin falas të vizave nga Kelin Studio në Singapor. Shihni ekipet ku punësojmë dhe si të na kontaktoni për një vend pune.",
+      "rightCta": "Shihni vendet e punës"
+    },
+    "contact": {
+      "title": "Kontakt: WhatsApp, WeChat, telefon, email | VIZA",
+      "description": "Kontaktoni ekipin e VIZA me WhatsApp, WeChat, telefon ose email. Katër kanale, katër sporte, dhe përgjigjet një person i vërtetë.",
+      "rightCta": "Na shkruani"
+    },
+    "security": {
+      "title": "Siguria dhe raportimi i përgjegjshëm | VIZA",
+      "description": "Privat, transparent dhe i sigurt që në fillim. Si i mbron VIZA të dhënat e klientëve, programi ynë i raportimit të dobësive dhe mbrojtja ligjore.",
+      "rightCta": "Raportoni një dobësi"
+    },
+    "status": {
+      "title": "Statusi i sistemit | VIZA",
+      "description": "Statusi live i VIZA dhe i portaleve qeveritare të vizave ku dorëzojmë aplikimet.",
+      "navPill": "Të gjitha sistemet funksionojnë"
+    },
+    "visa": {
+      "applyCta": "Aplikoni tani",
+      "applicationProcess": "Procesi i aplikimit",
+      "documents": "Dokumentet",
+      "rejectionReasons": "Arsyet e refuzimit",
+      "entryExit": "Hyrja dhe dalja",
+      "extension": "Zgjatja",
+      "reviews": "Vlerësime",
+      "nearby": "Vende afër",
+      "sources": "Burime zyrtare"
+    },
+    "privacy": {
+      "title": "Politika e privatësisë | VIZA",
+      "description": "Çfarë mbledh VIZA kur aplikoni për vizë, pse, kush i sheh dhe sa kohë i mbajmë, sipas PDPA të Singaporit."
+    },
+    "terms": {
+      "title": "Kushtet e përdorimit | VIZA",
+      "description": "Kushtet për përdorimin e shërbimit të aplikimit për vizë të VIZA, i drejtuar nga Kelin Studio Pte. Ltd. në Singapor. Shërbimi i VIZA është falas."
+    },
+    "product": {
+      "title": "Si ju ndihmon VIZA me aplikimin për vizë | VIZA",
+      "description": "Përgatitja e vizës, kontrolli i dokumenteve dhe statusi i aplikimit në një vend. Shërbimi i VIZA është falas. Shtrirja shfaqet për çdo destinacion."
+    },
+    "events": {
+      "title": "Evente | VIZA",
+      "description": "Klinika për viza, seanca informuese dhe evente me partnerë nga VIZA."
+    },
+    "arrivalCards": {
+      "title": "Kartat e mbërritjes: MDAC, SG Arrival Card, TDAC | VIZA",
+      "description": "Udhëzues falas për kartat e mbërritjes në Malajzi, Singapor, Japoni, Tajlandë, Kore dhe Indonezi: kujt i duhet, kur dorëzohet dhe ndihmë hap pas hapi."
+    },
+    "guides": {
+      "title": "Udhëzues për viza për banorët e Singaporit | VIZA",
+      "description": "Udhëzues të thjeshtë për banorët e Singaporit: vende pa vizë, dokumente Schengen, intervista për SHBA, ETA, viza elektronike dhe refuzime. Falas."
+    },
+    "about": {
+      "title": "Rreth VIZA: ndihmë falas për viza në Singapor | VIZA",
+      "description": "VIZA përgatit, kontrollon dhe dorëzon aplikime për vizë për banorët e Singaporit, me AI dhe konsulentë. Falas; tarifat qeveritare i shkojnë autoritetit."
+    },
+    "visaIndex": {
+      "title": "Destinacionet: kërkesat për vizë sipas vendit | VIZA",
+      "description": "Krahasoni kërkesat për vizë sipas vendit, me dokumentet dhe tarifat për secilin. Ndihma e VIZA është falas.",
+      "heroTitle": "Destinacionet e vizave"
+    },
+    "refunds": {
+      "title": "Politika e rimbursimeve | VIZA",
+      "description": "Shërbimi i VIZA është falas, ndaj nuk ka tarifë shërbimi për t'u rimbursuar. Si funksionojnë tarifat qeveritare dhe ato të ofruesve të tjerë."
+    },
+    "businessInformation": {
+      "title": "Informacion për biznesin | VIZA",
+      "description": "VIZA drejtohet nga Kelin Studio Pte. Ltd., një kompani singaporiane. Adresa e regjistruar, UEN dhe të dhënat e kontaktit."
+    }
+  },
+  "common": {
+    "comingSoon": "Së shpejti",
+    "learnMore": "Mësoni më shumë",
+    "readMore": "Lexoni më shumë",
+    "applyNow": "Aplikoni tani",
+    "talkToHuman": "Flisni me një person",
+    "viewAll": "Shihni të gjitha"
+  },
+  "visa": {
+    "heroTitle": "Viza për {country}",
+    "validity": "Vlefshmëria",
+    "howItWorks": "Si funksionon",
+    "step1": "Na tregoni detajet e udhëtimit dhe ngarkoni pasaportën.",
+    "step2": "E plotësojmë dhe e kontrollojmë aplikimin tuaj sipas rregullave më të fundit.",
+    "step3": "E dorëzojmë në portalin qeveritar dhe ndjekim vendimin.",
+    "step4": "Viza juaj e miratuar vjen me email dhe ne e ndjekim nga fillimi në fund.",
+    "documents": "Çfarë ju duhet",
+    "doc1": "Pasaportë e vlefshme për të paktën 6 muaj.",
+    "doc2": "Një foto e fundit në stil pasaporte.",
+    "doc3": "Datat e udhëtimit dhe akomodimi.",
+    "doc4": "Nëse destinacioni kërkon tarifë vize, një kartë pagese për ta paguar drejtpërdrejt te qeveria.",
+    "nearby": "Destinacione afër",
+    "startApplication": "Nisni aplikimin tuaj",
+    "comingSoonTitle": "{country}: së shpejti",
+    "comingSoonBody": "Po i japim prekjet e fundit {country}. Krijoni një llogari dhe do t'ju njoftojmë sapo të jetë gati.",
+    "browseDestinations": "Shfletoni destinacionet",
+    "notifyMe": "Më njoftoni",
+    "back": "Kthehuni te eksplorimi",
+    "tabOverview": "Përmbledhje",
+    "tabProcess": "Procesi i aplikimit",
+    "tabDocuments": "Dokumentet",
+    "tabRejection": "Arsyet e refuzimit",
+    "tabEntry": "Hyrja dhe dalja",
+    "tabExtension": "Zgjatja",
+    "tabReviews": "Vlerësime",
+    "tabNearby": "Vende afër",
+    "reviewsTitle": "Vlerësime",
+    "nearbyTitle": "Vende afër",
+    "nearbySub": "Po udhëtoni në rajon? Shtoni një vizë tjetër në udhëtim dhe konsulenti juaj i VIZA i trajton së bashku.",
+    "faqTitle": "Pyetje të shpeshta",
+    "editorial": "Kjo faqe ndjek politikën editoriale të VIZA. Mbështetemi te burimet zyrtare qeveritare dhe përditësojmë çdo kërkesë kur ndryshon politika.",
+    "editorialLink": "Lexoni si kontrollojmë",
+    "sourcesTitle": "Burimet",
+    "priceGovt": "Tarifa qeveritare",
+    "priceFree": "Falas",
+    "pillAllInclusive": "Gjithçka e përfshirë",
+    "priceCta": "Nisni aplikimin",
+    "onTime": "Në kohë",
+    "freeService": "Shërbim falas i VIZA",
+    "freeServiceNote": "VIZA nuk merr asgjë për ndihmën e saj",
+    "govFeePaidDirect": "Tarifa qeveritare {fee}, paguhet drejtpërdrejt tek autoriteti që e lëshon.",
+    "govFeeSetByAuthority": "Çdo tarifë qeveritare caktohet nga autoriteti që e lëshon dhe i paguhet drejtpërdrejt atij.",
+    "govFeeSetByAuthorityShort": "Caktohet nga autoriteti",
+    "priceService": "Shërbimi VIZA",
+    "pillPaidToAuthority": "I paguhet autoritetit",
+    "priceTotalToViza": "Ju i paguani VIZA",
+    "breadcrumbVisas": "Destinacionet e vizave",
+    "serviceDescription": "VIZA i ndihmon njerëzit që jetojnë në Singapor të përgatitin, kontrollojnë dhe dorëzojnë aplikime {type} për {country}, me udhëzim nga AI dhe kontroll nga ekspertë.",
+    "offerDescription": "Tarifa e shërbimit VIZA. Tarifat qeveritare të vizës janë të veçanta dhe paguhen drejtpërdrejt tek autoriteti që e lëshon.",
+    "dest": {
+      "tabGlance": "Shkurt",
+      "tabPassports": "Pasaportat",
+      "tabTypes": "Llojet e vizave",
+      "tabResidents": "Banorët",
+      "tabFees": "Tarifat",
+      "tabApply": "Si të aplikoni",
+      "tabChecklist": "Dokumentet",
+      "tabRejection": "Refuzimet",
+      "tabTravel": "Para udhëtimit",
+      "tabRelated": "Të lidhura",
+      "glanceTitle": "Shkurt",
+      "glanceVisa": "Viza e nevojshme",
+      "glanceGovFee": "Tarifa qeveritare",
+      "glanceVizaFee": "Tarifa e VIZA",
+      "glanceProcessing": "Koha e përpunimit",
+      "glanceMaxStay": "Qëndrimi maksimal",
+      "glanceChecked": "Data e kontrollit",
+      "passportsTitle": "A ju duhet vizë?",
+      "typesTitle": "Llojet e vizave",
+      "residentsTitle": "Banorët e Singaporit",
+      "feesTitle": "Tarifat dhe afatet",
+      "applyTitle": "Si të aplikoni",
+      "checklistTitle": "Lista e dokumenteve",
+      "travelTitle": "Para udhëtimit",
+      "colPassport": "Pasaporta",
+      "colEntry": "Hyrja",
+      "colNotes": "Shënime",
+      "colItem": "Zëri",
+      "colAmount": "Shuma",
+      "vizaFeeNote": "Ndihma e VIZA është falas. Paguani vetëm tarifën qeveritare, drejtpërdrejt tek autoriteti.",
+      "reviewedBy": "Kontrolluar nga një konsulent i VIZA më {date}.",
+      "relatedTitle": "Destinacione të lidhura",
+      "relatedSub": "Vende të tjera që njerëzit shtojnë në të njëjtin udhëtim dhe ku të lexoni më shumë.",
+      "startTitle": "Nisni aplikimin",
+      "startBody": "Filloni me pasaportën dhe datat e udhëtimit. Ndihma e VIZA është falas dhe tarifën qeveritare e paguani drejtpërdrejt tek autoriteti.",
+      "startConsultBody": "Tregojini një konsulenti të VIZA ku jetoni, pasaportën dhe datat e udhëtimit. Ndihma e VIZA është falas.",
+      "consultCta": "Flisni me një konsulent"
+    }
+  },
+  "apply": {
+    "stepOf": "Hapi {n} nga 3",
+    "back": "Kthehu",
+    "continue": "Vazhdo",
+    "step1Name": "Ngarkoni pasaportën",
+    "step2Name": "Konfirmoni të dhënat",
+    "step3Name": "Nisni aplikimin",
+    "s1Title": "Ngarkoni pasaportën tuaj",
+    "s1Desc": "I lexojmë të dhënat tuaja automatikisht, pa pasur nevojë të shkruani. Përdorni faqen me të dhënat personale (atë me foton tuaj).",
+    "segUpload": "Ngarkoni skedar",
+    "segCapture": "Bëni një foto",
+    "dzTitle": "Lëshoni këtu foton e pasaportës",
+    "dzSub": "Ose klikoni për të zgjedhur. Skedari juaj enkriptohet dhe nuk ndahet kurrë",
+    "dzBrowse": "Zgjidhni skedarin",
+    "dzUpTo": "Deri në 10 MB",
+    "tip1Title": "Të katër qoshet të dukshme",
+    "tip1Sub": "Përfshini të gjithë faqen me të dhëna, bashkë me zonën MRZ poshtë.",
+    "tip2Title": "Dritë e fortë dhe e njëtrajtshme",
+    "tip2Sub": "Shmangni hijet nga dora ose këllëfi i telefonit.",
+    "tip3Title": "Pa shkëlqim apo reflektime",
+    "tip3Sub": "Anojeni pak nëse vula reflekton dritë.",
+    "errReadFail": "Nuk arritëm ta lexojmë këtë pasaportë: {detail}. Ju lutemi provoni një foto më të qartë të faqes me të dhëna.",
+    "extReading": "Po lexohet dokumenti",
+    "extExtracting": "Po nxirren të dhënat tuaja",
+    "extVerifying": "Po verifikohet vërtetësia",
+    "stReading": "Po lexohet…",
+    "stExtracting": "Po nxirren…",
+    "stVerifying": "Po verifikohet…",
+    "s2Title": "Konfirmoni të dhënat tuaja",
+    "s2Desc": "Këto i morëm drejtpërdrejt nga pasaporta juaj. Prekni çdo fushë për ta ndryshuar.",
+    "successHigh": "Pasaporta u lexua me sukses, me besueshmëri të lartë",
+    "warnLow": "Disa fusha ishin të vështira për t'u lexuar. Ju lutemi kontrolloni çdo vlerë më poshtë.",
+    "warnMed": "Nxorëm shumicën e të dhënave tuaja. Ju lutemi verifikoni fushat e theksuara.",
+    "ppDetails": "Të dhënat e pasaportës",
+    "autoExtracted": "Nxjerrë automatikisht",
+    "fSurname": "Mbiemri",
+    "fGiven": "Emri",
+    "fPassport": "Numri i pasaportës",
+    "fDob": "Data e lindjes",
+    "fNationality": "Shtetësia",
+    "fExpires": "Skadon",
+    "reachTitle": "Si t'ju kontaktojmë?",
+    "reachDesc": "Vizën do t'jua dërgojmë këtu, si dhe njoftime për statusin me SMS në telefon.",
+    "email": "Email",
+    "phone": "Telefoni",
+    "consent": "Konfirmoj që të dhënat më sipër përputhen me pasaportën time dhe autorizoj VIZA të dorëzojë këtë aplikim në emrin tim pranë autoriteteve të imigracionit të {country}.",
+    "s3Title": "Nisni aplikimin tuaj",
+    "s3Desc": "Shërbimi i VIZA është falas. Hyni në portalin VIZA dhe ne kujdesemi për pjesën tjetër.",
+    "headsUp": "Kini parasysh:",
+    "headsUpBody": "nëse qeveria e {country} kërkon tarifë vize, ju ia paguani drejtpërdrejt asaj. VIZA nuk e mbledh dhe nuk e rrit kurrë atë shumë.",
+    "yourApp": "Aplikimi juaj",
+    "guaranteedBy": "Dorëzim i garantuar deri më",
+    "govFee": "Tarifa qeveritare",
+    "expressUpgrade": "Përmirësim ekspres",
+    "total": "Totali",
+    "footEncrypted": "Enkriptuar nga fillimi në fund. VIZA nuk ju merr pagesë për këtë aplikim.",
+    "helpOnline": "Priya është online",
+    "helpTap": "Prekni për të biseduar me konsulentin tuaj të VIZA",
+    "totalAmount": "SGD {amount}",
+    "totalFree": "Falas",
+    "etaStandard": "12 maj 2026, ora 8:00 SGT",
+    "failTitle": "Nuk arritëm ta lexojmë atë dokument",
+    "failNotPassport": "Kjo nuk duket si faqja me të dhëna e një pasaporte. Ju lutemi ngarkoni një foto të faqes me foton dhe të dhënat tuaja personale.",
+    "failUnreadable": "Asnjë nga fushat e kërkuara nuk u lexua. Ju lutemi bëni sërish foton në dritë të mirë, me të gjithë faqen me të dhëna të sheshtë dhe të qartë.",
+    "tryAgain": "Provoni sërish",
+    "warnPartial": "Nuk arritëm t'i lexojmë të gjitha. Ju lutemi plotësoni fushat e theksuara më poshtë.",
+    "warnExpired": "Kjo pasaportë duket e skaduar. Shumica e destinacioneve kërkojnë vlefshmëri të paktën 6 muaj.",
+    "warnMrz": "Zona e lexueshme nga makina (dy rreshtat poshtë) nuk u lexua. Ju lutemi kontrolloni çdo fushë.",
+    "warnBlurry": "Fotoja ishte e paqartë. Ju lutemi kontrolloni me kujdes çdo fushë.",
+    "fieldRequired": "E detyrueshme, ju lutemi plotësojeni",
+    "editField": "Ndryshoni {field}",
+    "emailInvalid": "Shkruani një adresë email të vlefshme. Këtu vijnë njoftimet për vizën dhe lidhja për hyrje.",
+    "phoneInvalid": "Shkruani një numër telefoni të vlefshëm.",
+    "consentRequired": "Ju lutemi konfirmoni deklaratën për të vazhduar.",
+    "continueToStart": "Vazhdo",
+    "startTitle": "Vazhdoni në portalin VIZA",
+    "startSub": "Hyni ose krijoni llogarinë tuaj falas. Aplikimi për këtë destinacion hapet menjëherë.",
+    "vizaService": "Shërbimi VIZA",
+    "govFeeSetByAuthority": "Caktohet nga autoriteti",
+    "govFeeNote": "Çdo tarifë qeveritare për vizën i paguhet drejtpërdrejt autoritetit që e lëshon, jo VIZA-s.",
+    "completeBeforeStart": "Ju lutemi plotësoni elementet e theksuara më sipër para se të vazhdoni."
+  },
+  "explore": {
+    "help": "Ndihmë",
+    "passportLabel": "Pasaporta e {name}",
+    "passportSub": "Kërkesat për vizë në {n} destinacione · Renditja {rank}",
+    "freeLabel": "Pa vizë",
+    "freeNote": "pa letra",
+    "voaLabel": "Vizë elektronike ose VOA",
+    "voaNote": "e rregullojmë ne",
+    "reqLabel": "Kërkohet vizë",
+    "reqNote": "aplikim në ambasadë",
+    "fullMap": "Shihni hartën e plotë të vizave",
+    "grid": "Rrjetë",
+    "map": "Hartë",
+    "mapLegendEvisa": "Viza elektronike dhe viza vizitori",
+    "mapHint": "Kaloni miun mbi një pikë të theksuar për të parë destinacionin",
+    "sectionTitle": "Për pasaportat e {country}",
+    "seeAll": "Shihni të {n}",
+    "footnote": "Shërbimi i VIZA është falas. Çdo tarifë qeveritare për vizën paguhet drejtpërdrejt tek autoriteti që e lëshon dhe ndryshon sipas vendit.",
+    "fastTrack": "Procedurë e shpejtë",
+    "cardType": "Lloji",
+    "cardValid": "Vlefshmëria",
+    "cardFee": "Shërbimi VIZA",
+    "save": "Ruaj",
+    "startApplication": "Nisni aplikimin",
+    "catalogueUnavailable": "Për momentin asnjë destinacion nuk pranon aplikime online. Ju lutemi kontrolloni sërish së shpejti.",
+    "choosePassport": "Zgjidhni pasaportën tuaj",
+    "searchPassport": "Kërkoni vendin e pasaportës…",
+    "visaFree": "{n} pa vizë",
+    "ppFoot": "Përditësuar për maj 2026 · Burimi: IATA Timatic",
+    "noMatch": "Asnjë pasaportë nuk përputhet me “{q}”",
+    "filters": {
+      "delivery": "Marrja e vizës",
+      "type": "Lloji i vizës",
+      "documents": "Dokumentet",
+      "dates": "Datat e udhëtimit"
+    },
+    "filterOpts": {
+      "delivery": [
+        "Në çdo kohë",
+        "Brenda 24 orëve",
+        "Brenda 3 ditëve",
+        "Brenda 1 jave",
+        "Brenda 1 muaji"
+      ],
+      "type": [
+        "Të gjitha llojet",
+        "Turistike",
+        "Biznesi",
+        "Pune",
+        "Studenti",
+        "Nomad dixhital"
+      ],
+      "documents": [
+        "Çdo dokument",
+        "Minimale (vetëm pasaporta)",
+        "Standarde",
+        "Paketë e detajuar"
+      ],
+      "dates": [
+        "Zgjidhni datat",
+        "Këtë javë",
+        "Këtë muaj",
+        "Pas 3 muajsh",
+        "Pas 6 muajsh"
+      ]
+    }
+  },
+  "cities": {
+    "viza-test": "Provë e pagesës live",
+    "indonesia": "Bali · Xhakarta",
+    "egypt": "Kajro · Giza",
+    "australia": "Sidnei · Melburn",
+    "saudi-arabia": "Riad · AlUla",
+    "united-kingdom": "Londër · Edinburg",
+    "vietnam": "Hanoi · Hoi An",
+    "malaysia": "KL · Penang",
+    "japan": "Tokio · Kioto",
+    "united-states": "NYC · LA",
+    "canada": "Toronto · Vankuver",
+    "turkiye": "Stamboll · Kapadoki",
+    "thailand": "Bangkok · Puket",
+    "united-arab-emirates": "Dubai · Abu Dabi",
+    "france": "Paris · Nicë",
+    "italy": "Romë · Firence",
+    "india": "Delhi · Mumbai"
+  },
+  "validity": {
+    "viza-test": "Vetëm demo",
+    "indonesia": "90 ditë",
+    "egypt": "90 ditë",
+    "australia": "1 vit",
+    "saudi-arabia": "365 ditë",
+    "united-kingdom": "6 muaj",
+    "vietnam": "90 ditë",
+    "malaysia": "3 muaj",
+    "japan": "90 ditë",
+    "united-states": "10 vjet",
+    "canada": "10 vjet",
+    "turkiye": "180 ditë",
+    "thailand": "3 muaj",
+    "united-arab-emirates": "60 ditë",
+    "france": "90 ditë",
+    "italy": "90 ditë",
+    "india": "30 ditë"
+  },
+  "passports": {
+    "SG": "Singapori",
+    "JP": "Japonia",
+    "KR": "Koreja e Jugut",
+    "DE": "Gjermania",
+    "FR": "Franca",
+    "GB": "Mbretëria e Bashkuar",
+    "US": "Shtetet e Bashkuara",
+    "AU": "Australia",
+    "CA": "Kanadaja",
+    "AE": "Emiratet e Bashkuara Arabe",
+    "CN": "Kina",
+    "IN": "India",
+    "BR": "Brazili",
+    "PH": "Filipinet",
+    "ID": "Indonezia",
+    "MY": "Malajzia",
+    "TH": "Tajlanda"
+  },
+  "countries": {
+    "viza-test": "VIZA Test",
+    "indonesia": "Indonezia",
+    "egypt": "Egjipti",
+    "australia": "Australia",
+    "saudi-arabia": "Arabia Saudite",
+    "united-kingdom": "Mbretëria e Bashkuar",
+    "vietnam": "Vietnami",
+    "malaysia": "Malajzia",
+    "japan": "Japonia",
+    "united-states": "Shtetet e Bashkuara",
+    "canada": "Kanadaja",
+    "turkiye": "Turqia",
+    "thailand": "Tajlanda",
+    "united-arab-emirates": "Emiratet e Bashkuara Arabe",
+    "france": "Franca",
+    "italy": "Italia",
+    "india": "India",
+    "china": "Kina",
+    "south-korea": "Koreja e Jugut",
+    "schengen": "Schengen"
+  },
+  "visaTypes": {
+    "Test checkout": "Pagesë provë",
+    "e-Visa": "Vizë elektronike",
+    "Standard Visitor": "Vizitor standard",
+    "Visitor 600": "Visitor 600",
+    "Tourist": "Turistike",
+    "B1/B2": "B1/B2",
+    "eTA": "eTA",
+    "Schengen": "Schengen",
+    "eVisa": "Vizë elektronike",
+    "Visitor visa": "Vizë vizitori",
+    "Tourist visa": "Vizë turistike"
+  },
+  "careers": {
+    "hero": {
+      "nowHiring": "Po punësojmë në",
+      "cities": [
+        "Shangai",
+        "Singapor"
+      ],
+      "openRoles": "28 vende pune të hapura",
+      "title": "Na ndihmoni t'i bëjmë kufijtë<br></br>të <em>zhduken</em>, <u>në heshtje,</u><br></br>me shpejtësinë e softuerit.",
+      "lead": "Po i kthejmë muajt e letrave për viza në orë softueri, për miliona njerëz që thjesht duan të hipin në avion. Sillni mjeshtërinë tuaj në një ekip që punon me afate reale.",
+      "ctaRoles": "Shihni të gjitha vendet e hapura",
+      "ctaWhy": "Pse ekzistojmë"
+    },
+    "board": {
+      "ariaLabel": "Tabela e nisjeve me vendet e hapura të punës në VIZA",
+      "head": "Vende të hapura · live",
+      "live": "Në kohë",
+      "cols": {
+        "req": "Nr.",
+        "role": "Roli",
+        "office": "Zyra",
+        "status": "Statusi"
+      },
+      "rows": [
+        {
+          "role": "Staff Engineer",
+          "sub": "Rrjedha e dokumenteve",
+          "status": "Imbarkim"
+        },
+        {
+          "role": "Dizajner produkti",
+          "sub": "Rrjedhat e aplikantëve",
+          "status": "Hapur"
+        },
+        {
+          "role": "Ndërlidhës me ambasadat",
+          "sub": "Partneritete qeveritare",
+          "status": "Thirrja e fundit"
+        },
+        {
+          "role": "Operacionet me klientët",
+          "sub": "Përshkallëzime të nivelit 2",
+          "status": "Hapur"
+        }
+      ],
+      "foot": "+24 role të tjera në inxhinieri, operacione dhe dizajn",
+      "browseAll": "Shihni të gjitha",
+      "chip1Label": "Punësojmë në",
+      "chip1Value": "4 zyra",
+      "chip2Label": "Përgjigja mesatare",
+      "chip2Value": "3.2 ditë deri në telefonatën e parë"
+    },
+    "stats": [
+      {
+        "value": "2.4M",
+        "label": "Viza të lëshuara përmes VIZA vitin e kaluar"
+      },
+      {
+        "label": "Destinacione të mbështetura me përpunim live"
+      },
+      {
+        "label": "Shkalla e miratimit për të gjitha llojet e vizave në 2025"
+      },
+      {
+        "label": "Njerëz në Shangai dhe Singapor"
+      }
+    ],
+    "mission": {
+      "eyebrow": "Historia jonë",
+      "title": "Pjesa më e madhe e botës<br></br>ende udhëton me<br></br><em>letra të printuara.</em>",
+      "kicker1": "E nisëm VIZA në 2021 pasi kaluam shumë javë duke pritur në telefon me ambasadat. Sistemi për lëvizjen e njerëzve përtej kufijve është më i vjetër se interneti, dhe njerëzit e ngecur brenda tij meritojnë më shumë.",
+      "kicker2": "Sot, një ekip prej 340 vetash në katër zyra ndërton softuer, dorëzon dokumente dhe drejton operacione në 194 vende. E bëjmë ne punën e mërzitshme dhe lodhëse, që udhëtimi të ndihet si pjesa tjetër e internetit: disa prekje dhe jeni në rrugë.",
+      "founderName": "Mira Kohli",
+      "founderRole": "Bashkëthemeluese dhe CEO · Singapor",
+      "beliefs": [
+        {
+          "title": "Jemi një kompani operacionesh që ndërton softuer.",
+          "body": "Gjysma e VIZA janë inxhinierë, dizajnerë dhe PM. Gjysma tjetër janë konsulentë, operacione dhe specialistë dokumentesh në vend. Asnjëra gjysmë nuk fiton pa tjetrën."
+        },
+        {
+          "title": "Aplikanti është gjithmonë klienti.",
+          "body": "Ambasadat, partnerët, linjat ajrore: të gjithë kanë rëndësi. Por personi që pret në radhë në 3 të mëngjesit duke rifreskuar një portal është ai për të cilin punojmë dhe me të cilin e masim veten."
+        },
+        {
+          "title": "Shpejtësia shtohet kur je i durueshëm me cilësinë.",
+          "body": "Lëvizim shpejt në dorëzimin e punës dhe ngadalë në vendimet e pakthyeshme. Një vendim i gabuar për vizë mund të prishë një dasmë, një punë, një varrim. E mbajmë këtë standard edhe kur na ngadalëson."
+        },
+        {
+          "title": "Distanca është problem UX, jo kufizim.",
+          "body": "Ekipet tona janë në katër zona kohore. Shkrimi asinkron, pronësia e qartë dhe kultura e mirë e dokumentimit janë mënyra si e shkëmbejmë kohën me besim, dhe si punojmë në mbarë botën pa e lodhur askënd."
+        }
+      ]
+    },
+    "values": {
+      "eyebrow": "Standardet tona",
+      "title": "Pesë gjëra që besojmë, edhe kur kushtojnë.",
+      "lead": "Vlerat shkruhen lehtë dhe zbatohen vështirë. Këto janë pesë që i përdorim vërtet gjatë punësimit, vlerësimeve dhe vendimeve të rralla të vështira.",
+      "cards": [
+        {
+          "title": "Thuaj të vërtetën, sidomos kur na kushton.",
+          "body": "Nëse një vizë nuk do të vijë në kohë, thuajeni sot, jo një ditë para fluturimit. Më mirë humbasim një shitje sesa të japim një gënjeshtër.",
+          "kicker": "Në praktikë → politika të publikuara, auditim i ndryshimeve"
+        },
+        {
+          "title": "Fito shpejtësinë. Mos u ndje thjesht i zënë.",
+          "body": "Festojmë vendimet dhe punën e dorëzuar, jo takimet dhe bisedat. Qëllimi është rezultati drejt misionit, jo lëvizja në kalendarin tuaj.",
+          "kicker": "Në praktikë → rishikim tremujor i rezultateve"
+        },
+        {
+          "title": "Mendo me pasaporta, jo me persona.",
+          "body": "Rregullat e vizave varen nga shtetësia. Një “përdorues” nuk ekziston, ekziston një mbajtës pasaporte filipinase që aplikon për Schengen. Ndërtojmë për njerëz të vërtetë, jo për mesatare.",
+          "kicker": "Në praktikë → specifikim produkti me pasaportën në fillim"
+        },
+        {
+          "title": "Shkruaji gjërat. Sidomos vendimet.",
+          "body": "Katër zyra, katër zona kohore. Nëse një vendim nuk është shkruar, nuk ka ndodhur. Wiki ynë është lexim i detyrueshëm; takimet ditore janë opsionale.",
+          "kicker": "Në praktikë → ADR, memo javore, asinkron në radhë të parë"
+        },
+        {
+          "title": "Qëndro pranë radhës.",
+          "body": "Çdo inxhinier bën një turn në tremujor në sallën e konsulentëve. Nuk mund ta heqësh me dizajn një pengesë që nuk e ke ndier kurrë në 11 të natës të dielën.",
+          "kicker": "Në praktikë → turne me rotacion në radhë"
+        },
+        {
+          "title": "Zgjidh versionin e gjatë.",
+          "body": "Përgjigja tridhjetë sekondëshe zakonisht është e gabuar. Investojmë në dokumentim të thellë, udhëzues pune të fortë dhe shpjegime që qëndrojnë, edhe kur versioni i lehtë do të mjaftonte.",
+          "kicker": "Në praktikë → manual hyrës, udhëzues pune publikë"
+        }
+      ]
+    },
+    "inside": {
+      "eyebrow": "Brenda VIZA",
+      "title": "Si duket vërtet<br></br>puna këtu.",
+      "lead": "Kemi zyra në dy qytete sepse punësojmë afër vendit ku dorëzohen aplikimet. Flasim me zë të lartë për fitoret, në heshtje për politikat, dhe jemi të sinqertë për sa shumë kemi ende për të ndërtuar.",
+      "photos": [
+        {
+          "label": "foto · selia në Singapor, hapësirë e hapur",
+          "mark": "Paya Lebar Square, SG"
+        },
+        {
+          "label": "foto · salla e radhës së konsulentëve",
+          "mark": "Luoshan Rd, Shangai"
+        },
+        {
+          "label": "foto · seancë në tabelë",
+          "mark": "Takim teknik jashtë zyrës, Bali"
+        },
+        {
+          "label": "foto · salla e operacioneve në Shangai",
+          "mark": "Pudong, Shangai"
+        },
+        {
+          "label": "foto · darkë ekipi",
+          "mark": "Takim i përgjithshëm, Lisbonë"
+        },
+        {
+          "label": "foto · vizitë me partnerë nga ambasada",
+          "mark": "Paya Lebar Square, SG"
+        }
+      ],
+      "pull": "“Punësojmë njerëz që kanë një mendim për vizat para se të vijnë. Deri në muajin e dytë, do ta keni më të fortë.”",
+      "pullBy": "Felix Adekunle, VP Engineering",
+      "para1": "VIZA ka autonomi të lartë dhe kontekst të lartë. Do të keni pronësi për gjithçka që bëni, buxhete reale, dhe pritshmërinë që t'ia shpjegoni arsyetimin e punës suaj pjesës tjetër të kompanisë.",
+      "para2": "Nëse doni që t'ju thonë çdo ditë çfarë të bëni, ky nuk është vendi i duhur. Nëse keni pritur që dikush t'ju japë timonin, ja ku është."
+    },
+    "how": {
+      "eyebrow": "Inxhinieria dhe operacionet në VIZA",
+      "title": "Si lëviz vërtet puna.",
+      "lead": "Nëse ndërtoni, dorëzoni ose dizajnoni këtu, kështu duket java juaj. Më pak ceremoni, më shumë punë e dorëzuar. Më pak Slack, më shumë vendime të shkruara.",
+      "cells": [
+        {
+          "title": "Pronësi nga fillimi në fund",
+          "body": "Ju e dizajnoni, e ndërtoni, e lëshoni dhe e mbani në prodhim. Pa radhë dorëzimi, pa plane të shkruara nga njerëz tre nivele larg. Nëse është i juaji, është vërtet i juaji."
+        },
+        {
+          "title": "Publikime çdo ditë, si rregull",
+          "body": "Shumica e ekipeve publikojnë disa herë në ditë. Ciklet e reagimit janë të shkurtra me qëllim, dhe një kthim mbrapsht prej tridhjetë minutash preferohet ndaj një debati tre javor."
+        },
+        {
+          "title": "Probleme reale dhe të ndërlikuara",
+          "body": "Kjo nuk është CRUD. Do të punoni me OCR dokumentesh, planifikim të ndjeshëm ndaj vonesave me 90+ portale qeveritare dhe rrjedha konsumatorësh të përdorura nga miliona."
+        },
+        {
+          "title": "Standardi është i lartë, haptazi",
+          "body": "Bëjmë rishikime dizajni në çift. Komentojmë rresht pas rreshti në PR. Besojmë se shija mësohet, dhe presim që njerëzit të ndihmojnë në mënyrë aktive të gjithë rreth tyre të bëhen më të mirë."
+        },
+        {
+          "title": "Një buxhet real për të mësuar",
+          "body": "$2,000 për person në vit, pa pyetje, për konferenca, libra, kurse, çdo gjë që kthehet në vlerë për punën që bëni këtu."
+        },
+        {
+          "title": "Arkitektura e shkruar nga ju",
+          "body": "RFC-të janë të hapura për të gjithë. Inxhinierë të rinj kanë formësuar infrastrukturën bazë në muajin e tyre të parë. Nëse keni një plan më të fortë, shkruajeni, ne do ta lexojmë."
+        }
+      ]
+    },
+    "roles": {
+      "eyebrow": "Vende të hapura · përditësohen çdo javë",
+      "title": "Bëhuni pjesë e udhëtimit.",
+      "lead": "28 vende pune të hapura në katër zyra. Punësojmë në inxhinieri, dizajn, operacione, konsulencë dhe partneritete. Vendet e reja shfaqen të hënave.",
+      "allDepartments": "Të gjitha departamentet",
+      "deps": {
+        "eng": "Inxhinieri",
+        "design": "Dizajn",
+        "ops": "Operacione",
+        "consult": "Konsulentë",
+        "data": "Të dhëna dhe ML",
+        "gtm": "Marketing dhe GTM"
+      },
+      "showing": "Po shfaqen <strong>{count}</strong> role · të gjitha vendndodhjet · të gjitha ekipet",
+      "anyLocation": "Çdo vendndodhje",
+      "groupCount": "{count} të hapura",
+      "posSub": "{team} · punësojmë për mjeshtëri dhe gjykim, jo për prejardhje",
+      "locationLabel": "Vendndodhja",
+      "typeLabel": "Lloji",
+      "fullTime": "Me kohë të plotë",
+      "viewRole": "Shihni rolin",
+      "locations": {
+        "sg": "Singapor",
+        "sf": "Shangai",
+        "ldn": "Singapor",
+        "dxb": "Shangai"
+      },
+      "jobs": {
+        "backendPayments": "Inxhinier i lartë backend, Platforma",
+        "staffDocPipeline": "Staff Engineer: Rrjedha e dokumenteve",
+        "iosApplicant": "Inxhinier iOS: Aplikacioni i aplikantëve",
+        "platformInfra": "Inxhinier platforme: Infrastrukturë dhe siguri",
+        "frontendConsole": "Inxhinier frontend: Konsola e konsulentëve",
+        "emWeb": "Menaxher inxhinierie: Web",
+        "sre": "Inxhinier i besueshmërisë së sistemeve (SRE)",
+        "androidSenior": "Inxhinier i lartë Android",
+        "leadEmbassy": "Drejtues inxhinierie: Integrimet me ambasadat",
+        "productDesignerApplicant": "Dizajner i lartë produkti: Rrjedha e aplikantit",
+        "brandDesigner": "Dizajner i markës",
+        "designLeadConsultant": "Drejtues dizajni: Mjetet e konsulentëve",
+        "headOpsMe": "Drejtues i operacioneve, Lindja e Mesme",
+        "visaOpsSchengen": "Drejtues i operacioneve të vizave: Schengen",
+        "logistics": "Menaxher logjistike dhe korrierësh",
+        "processDocQa": "Inxhinier procesesh: Kontrolli i cilësisë së dokumenteve",
+        "opsAnalyst": "Analist operacionesh: Rezervimet",
+        "consultSchengen": "Konsulent vizash: Schengen",
+        "consultUs": "Konsulent vizash: SHBA B1/B2",
+        "consultUae": "Konsulent vizash: Leje qëndrimi në EBA",
+        "consultStudent": "Konsulent i lartë: Viza studentësh",
+        "consultApac": "Drejtues konsulentësh: Azi-Paqësor",
+        "consultUk": "Konsulent vizash: Mbretëria e Bashkuar",
+        "dataScientist": "Shkencëtar i lartë i të dhënave: Modelimi i miratimeve",
+        "mlOcr": "Inxhinier ML: OCR dhe AI për dokumente",
+        "perfMarketing": "Menaxher i marketingut të performancës",
+        "contentLead": "Drejtues përmbajtjeje: Tregimi",
+        "lifecycleCrm": "Menaxher i ciklit të klientit dhe CRM"
+      }
+    },
+    "fellowship": {
+      "tag": "▲ VIZA Launchpad · program 12-javor",
+      "title": "Dymbëdhjetë javë. Një ekip produkti.<br></br><em>Një shans për të lëshuar diçka.</em>",
+      "para1": "Launchpad është programi ynë rezident për inxhinierë, PM dhe dizajnerë në fillim të karrierës, njerëz që përndryshe do t'u duheshin edhe dy vjet “përvojë” para se të merrnin një shans të vërtetë.",
+      "para2": "Do të punoni në çift me drejtues me përvojë, do të keni pronësinë e një pjese reale të produktit nga nisja deri në publikim dhe do të largoheni me diçka që do ta përdorin miliona njerëz. Rreth 60% e grupit marrin ofertë për punë me kohë të plotë.",
+      "meta": [
+        {
+          "k": "Kohëzgjatja",
+          "v": "12 javë"
+        },
+        {
+          "k": "Vendndodhja",
+          "v": "Në zyrë, në çdo seli"
+        },
+        {
+          "k": "Pagesa",
+          "v": "Mbi nivelin e tregut"
+        },
+        {
+          "k": "Grupi i ardhshëm",
+          "v": "Shtator 2026"
+        }
+      ],
+      "apply": "Aplikoni për Launchpad",
+      "readCohort": "Lexoni për grupin e 2025",
+      "projects": [
+        {
+          "k": "2024 · Inxhinieri",
+          "title": "Rishkrimi i rrjedhës OCR",
+          "meta1": "Në prodhim",
+          "meta2": "3.2× më shpejt"
+        },
+        {
+          "k": "2025 · Dizajn",
+          "title": "Ridizajnimi i rrjedhës Schengen",
+          "meta1": "14 vende live",
+          "meta2": "↑ 22% konv."
+        },
+        {
+          "k": "2025 · Produkt",
+          "title": "Planifikuesi i takimeve në ambasada",
+          "meta1": "9 ambasada",
+          "meta2": "40k takime/muaj"
+        }
+      ]
+    },
+    "benefits": {
+      "eyebrow": "Ne kujdesemi për ju (vërtet)",
+      "title": "Gjërat e mërzitshme,<br></br>të trajtuara si duhet.",
+      "lead": "Nuk mendojmë se përfitimet janë privilegj. Ato janë baza që i lejon njerëzit të japin më të mirën. Ja çfarë merr çdo punonjës i VIZA, në çdo zyrë, që në ditën e parë.",
+      "items": [
+        {
+          "title": "Shëndet i plotë, i rregulluar.",
+          "body": "Sigurim i plotë mjekësor, dentar dhe për shikimin që në ditën e parë, për ju, partnerin dhe fëmijët. Ne paguajmë primin, pa lojëra me franshizën."
+        },
+        {
+          "title": "Ndërtoni pasuri, jo vetëm pagë.",
+          "body": "Pagë bazë mbi nivelin e tregut në çdo treg ku punësojmë, plus një dhënie bujare aksionesh e lidhur me arritjet, jo vetëm me vitet e punës. E rifreskojmë çdo dy vjet."
+        },
+        {
+          "title": "Mësoni atë që ka vërtet rëndësi.",
+          "body": "Buxhet $2,000/vit për të mësuar, seanca të brendshme mësimore çdo muaj dhe kohë në kalendar, jo vetëm leje, për të ndjekur atë kurs ose atë konferencë."
+        },
+        {
+          "title": "Kënaqni klientët sikur të ishin paratë tuaja.",
+          "body": "Për çdo aplikant ka një buxhet $100 për vullnet të mirë përtej të zakonshmes. Pa miratim, pa përshkallëzim: rregullojeni, pastaj shkruani çfarë ndodhi."
+        },
+        {
+          "title": "Mendja > gjithçka.",
+          "body": "Mbështetje konfidenciale dhe profesionale për shëndetin mendor, pa pengesa nga sigurimi. Plus tre ditë “pa takime” në muaj, për gjithë kompaninë."
+        },
+        {
+          "title": "Përfitime udhëtimi (s'kishim si të mos i kishim).",
+          "body": "Merremi me viza, ndaj ekipi ynë duhet të udhëtojë me shpenzimet tona. Kredi udhëtimi $4k/vit, plus VIZA kujdeset për çdo vizë që mund t'ju duhet, menjëherë, brenda kompanisë."
+        },
+        {
+          "title": "Pushime bujare dhe të vërteta.",
+          "body": "30 ditë pushim me pagesë, plus festat e vendit tuaj, plus një javë pushim me pagesë mes 24 dhjetorit dhe 1 janarit. E ndjekim përdorimin dhe i nxitim njerëzit të marrin më shumë, jo më pak."
+        },
+        {
+          "title": "Pajisje, pa pyetje.",
+          "body": "Zgjidhni laptopin, monitorin dhe karrigen që në ditën e parë. Shtesë për punën nga shtëpia për ambientin tuaj. Ju besojmë se e dini çfarë ju duhet për të bërë punë të mirë."
+        },
+        {
+          "title": "Leje prindërore që funksionon vërtet.",
+          "body": "20 javë për kujdestarin kryesor, 12 për kujdestarin dytësor, plotësisht me pagesë. Plus një rikthim gradual, që të mos jeni me ritëm të plotë që në ditën e parë."
+        }
+      ]
+    },
+    "offices": {
+      "eyebrow": "Ku punojmë",
+      "title": "Dy zyra, një produkt.",
+      "lead": "Punësojmë afër ambasadave, partnerëve dhe tregjeve që shërbejmë. Çdo zyrë ka edhe inxhinierë edhe operacione: nuk i ndajmë ekipet që ndërtojnë nga ata që drejtojnë punën e përditshme.",
+      "cards": [
+        {
+          "photo": "foto · Shangai",
+          "open": "6 të hapura",
+          "name": "Shangai",
+          "addr1": "Lane 1502, Luoshan Road,",
+          "addr2": "Zona Pilot e Tregtisë së Lirë e Kinës (Shangai)",
+          "tz": "GMT+8 · Operacionet në Kinë",
+          "since": "Që nga 2023"
+        },
+        {
+          "photo": "foto · selia në Singapor",
+          "open": "12 të hapura",
+          "name": "Singapor",
+          "addr1": "60 Paya Lebar Road, #06-28, Paya Lebar Square,",
+          "addr2": "Singapor 409051",
+          "tz": "GMT+8 · Selia për Azi-Paqësorin",
+          "since": "Seli · që nga 2021"
+        }
+      ]
+    },
+    "ctaStrip": {
+      "title": "Nuk e shihni rolin tuaj,<br></br>por doni të bashkoheni?",
+      "body": "Nëse keni një prejardhje të pazakontë dhe mendoni se do të na ndihmonit t'i lëvizim më shpejt udhëtarët e botës, duam t'ju dëgjojmë. Kemi punësuar shoferë autobusi, ish-punonjës ambasadash dhe juristë. Nuk kemi një tip të caktuar.",
+      "lead": "Aplikim i përgjithshëm",
+      "cta": "Na dërgoni historinë tuaj",
+      "note": "Përgjigjemi brenda 7 ditëve, edhe kur përgjigjja është jo."
+    },
+    "footer": {
+      "tagline": "VIZA ju ndihmon të planifikoni, të aplikoni dhe të ndiqni vizat lehtësisht në mbarë botën.",
+      "company": "Kompania",
+      "products": "Produktet",
+      "offices": "Zyrat",
+      "careers": "Karriera",
+      "contact": "Kontakt",
+      "security": "Siguria",
+      "privacy": "Privatësia",
+      "terms": "Kushtet",
+      "prodVisaReq": "Kërkesat për vizë",
+      "prodSchengen": "Kontrolli i takimeve Schengen",
+      "prodPhoto": "Krijuesi i fotos për vizë",
+      "prodHelpline": "Linja e urgjencës VIZA",
+      "prodStudent": "Vizë studenti",
+      "officeSg": "Singapor, selia",
+      "officeSf": "Shangai",
+      "copyright": "© VIZA, Të gjitha të drejtat të rezervuara"
+    }
+  },
+  "security": {
+    "hero": {
+      "eyebrow": "Siguria në VIZA · përditësuar së fundi maj 2026",
+      "title": "Privat. Transparent.<br></br><em>I sigurt që në fillim.</em>",
+      "lead": "Klientët në mbarë botën na besojnë miliona dokumente të ndjeshme: pasaporta, pasqyra bankare, foto. Ja saktësisht si i mbledhim, si i ruajmë dhe si e vërtetojmë se po e bëjmë siç duhet.",
+      "ctaPrimary": "Si i mbrojmë të dhënat tuaja",
+      "ctaVdp": "Raportoni një dobësi"
+    },
+    "clearance": {
+      "republicKey": "Republika e",
+      "officeKey": "Zyra lëshuese",
+      "officeVal": "Besueshmëria dhe siguria",
+      "title": "Leje sigurie /<br></br>Të dhënat e klientëve",
+      "grid": {
+        "encryption": {
+          "k": "Enkriptimi",
+          "v": "AES-256 / TLS 1.3"
+        },
+        "region": {
+          "k": "Rajoni",
+          "v": "SG · US · EU"
+        },
+        "audit": {
+          "k": "Shpeshtësia e auditimit",
+          "v": "Çdo tremujor"
+        },
+        "retention": {
+          "k": "Ruajtja",
+          "v": "Maksimumi 90 ditë"
+        }
+      },
+      "referenceKey": "Referenca",
+      "glyph": "MIRATUAR<br></br>VIZA · 26"
+    },
+    "chips": {
+      "transitLabel": "Gjatë transmetimit",
+      "transitVal": "TLS 1.3 nga fillimi në fund",
+      "restLabel": "Në ruajtje",
+      "restVal": "AES-256, e lidhur me rajonin"
+    },
+    "stats": {
+      "docs": {
+        "value": "2.4M",
+        "label": "Dokumente të trajtuara në 2025, zero shkelje të të dhënave të klientëve"
+      },
+      "retention": {
+        "unit": "d",
+        "label": "Ruajtja maksimale e dokumenteve burimore pas lëshimit"
+      },
+      "pentests": {
+        "label": "Teste të jashtme depërtimi, të gjitha raportet të publikuara brenda kompanisë"
+      },
+      "ack": {
+        "unit": "orë",
+        "label": "Koha mesatare për konfirmimin e një dobësie të raportuar"
+      }
+    },
+    "docs": {
+      "eyebrow": "Çfarë mbledhim",
+      "title": "Pesë lloje dokumentesh.<br></br><em>Asgjë më shumë.</em>",
+      "copy1": "Një aplikim për vizë është çështje letrash. Mbledhim vetëm atë që kërkon shprehimisht një ambasadë dhe i anonimizojmë të dhënat kudo që është e mundur. Çdo dokument lidhet me një aplikim të vetëm, enkriptohet sapo merret dhe fshihet sipas një orari fiks.",
+      "copy2": "Nuk i shesim kurrë të dhënat tuaja. Nuk i ndajmë kurrë me palë të treta përveç konsullatës ose partnerit të përfshirë drejtpërdrejt në vizën tuaj.",
+      "cards": {
+        "payment": {
+          "name": "Të dhënat e pagesës",
+          "meta": "nuk mblidhen"
+        },
+        "photos": {
+          "name": "Fotot për vizë",
+          "meta": "përpunohen · maksimumi 90d"
+        },
+        "bank": {
+          "name": "Pasqyrat bankare",
+          "meta": "të maskuara · vetëm pdf"
+        },
+        "pastVisas": {
+          "name": "Vizat e mëparshme",
+          "meta": "vetëm lexim · OCR"
+        },
+        "passport": {
+          "name": "Pasaporta",
+          "meta": "MRZ e nxjerrë"
+        }
+      }
+    },
+    "features": {
+      "eyebrow": "Shtatë kontrolle, gjithmonë aktive",
+      "title": "Si mbeten të dhënat tuaja<br></br>tuajat, nga fillimi në <em>fund.</em>",
+      "intro": "Gjendja bazë e çdo bajti në VIZA është “i enkriptuar, i kufizuar dhe me afat kohor.” Këto janë shtatë kontrollet që e bëjnë këtë realitet: jo synime, por ajo që është vërtet e ndërtuar në platformë sot.",
+      "cells": {
+        "minimise": {
+          "title": "Minimizimi dhe anonimizimi i të dhënave",
+          "body": "Mbledhim vetëm atë që kërkon vërtet një ambasadë ose partner për një aplikim të caktuar, dhe anonimizojmë kudo që pjesa tjetër e platformës e lejon. Fushat që nuk i shihni në formularët tanë janë fusha që nuk i ruajmë.",
+          "why": "<strong>Pse:</strong> një shkelje nuk mund të zbulojë të dhëna që nuk janë mbledhur kurrë."
+        },
+        "payments": {
+          "title": "Pa të dhëna pagese",
+          "body": "Shërbimi i VIZA është falas dhe nuk marrim pagesa, ndaj nuk kërkojmë, nuk shohim dhe nuk ruajmë kurrë numra kartash.",
+          "why": "<strong>Pse:</strong> të dhënat që nuk i mbajmë kurrë nuk mund të vidhen."
+        },
+        "atRest": {
+          "title": "Enkriptim në ruajtje",
+          "body": "Çdo dokument, mesazh dhe fushë metadatash në serverët e VIZA enkriptohet me AES-256 para se të shkruhet në disk. Çelësat ndërrohen automatikisht dhe ruhen në një KMS të mbështetur nga hardueri, që as ekipi ynë i infrastrukturës nuk mund ta lexojë drejtpërdrejt.",
+          "why": "<strong>Pse:</strong> disqet ose kopjet rezervë të vjedhura mbeten të palexueshme pa çelësat."
+        },
+        "inTransit": {
+          "title": "Enkriptim nga fillimi në fund",
+          "body": "I gjithë trafiku mes pajisjes suaj, serverëve tanë dhe konsullatave partnere përdor TLS 1.3 me pinning të rreptë. Ngarkimet e dokumenteve përdorin një kanal të veçantë dhe të nënshkruar, që as kundërshtarët në nivel rrjeti të mos shohin çfarë po dërgoni.",
+          "why": "<strong>Pse:</strong> rrjetet armiqësore, përfshirë Wi-Fi-në e aeroportit, nuk mund ta lexojnë aplikimin tuaj."
+        },
+        "audits": {
+          "title": "Auditime të rregullta sigurie",
+          "body": "Bëjmë një test të jashtëm depërtimi çdo tremujor, një auditim vjetor SOC 2 Type II dhe skanim të vazhdueshëm automatik të dobësive. Çdo gjetje regjistrohet me një afat rregullimi, dhe elementet e vonuara njoftojnë drejtuesin e inxhinierisë.",
+          "why": "<strong>Pse:</strong> kërcënimet ndryshojnë; mbrojtjet tona kontrollohen ndaj tyre me rregull."
+        },
+        "access": {
+          "title": "Kontrolle të sigurta aksesi",
+          "body": "Aksesi i brendshëm në të dhënat e klientëve kufizohet sipas rolit, auditohet për çdo kërkesë dhe jepet me ngritje privilegjesh vetëm kur duhet. Konsulentët shohin vetëm aplikimin ku po punojnë. Çdo lexim regjistrohet për 12 muaj.",
+          "why": "<strong>Pse:</strong> gabimet dhe keqpërdorimet e brendshme mbeten të kufizuara, të gjurmueshme dhe të rishikueshme."
+        },
+        "education": {
+          "title": "Edukimi dhe ndërgjegjësimi i përdoruesve",
+          "body": "Pjesa më e vështirë e sigurisë është ajo që nuk mund ta ndërtojmë për ju. Ju dërgojmë udhëzues të thjeshtë për phishing-un, mashtrimet me fotot e pasaportës dhe SMS-të nga ambasada të rreme sapo nisni një aplikim, dhe i shfaqim sërish brenda produktit sapo diçka duket e dyshimtë. Ju jeni vija e fundit e mbrojtjes; më mirë t'ju pajisim sesa t'ju fajësojmë.",
+          "why": "<strong>Pse:</strong> një aplikant i informuar mirë është kontrolli i sigurisë më i lirë dhe më efektiv që kemi."
+        }
+      }
+    },
+    "vdp": {
+      "tag": "▲ Raportimi i dobësive · i hapur për të gjithë studiuesit",
+      "title": "Gjetët diçka?<br></br><em>Duam ta dimë.</em>",
+      "p1": "Siguria e përdoruesve dhe partnerëve tanë është gjithçka. Nëse mendoni se keni gjetur një dobësi të vërtetë që prek shërbimet e VIZA, do të donim të na e tregonit drejtpërdrejt, dhe do të punojmë me ju me respekt dhe shpejt për ta rregulluar.",
+      "p2": "Dërgoni gjetjet tuaja me email në <strong>security@viza.it.com</strong>. Do ta konfirmojmë marrjen brenda një dite pune, edhe nëse rezulton se është tashmë e njohur ose jashtë fushës.",
+      "meta": {
+        "ack": {
+          "k": "Konfirmohet brenda",
+          "v": "'<' 24 orësh"
+        },
+        "triage": {
+          "k": "Vlerësohet brenda",
+          "v": "3 ditësh pune"
+        },
+        "lang": {
+          "k": "Gjuhët",
+          "v": "EN · ID · AR"
+        },
+        "pgp": {
+          "k": "Çelësi PGP",
+          "v": "0xVIZA · 2026"
+        }
+      },
+      "ctaEmail": "Shkruani në security@viza.it.com",
+      "ctaScope": "Lexoni fushën e programit",
+      "terminal": {
+        "title": "draft-raport · security@viza.it.com",
+        "l1": "# raport dobësie",
+        "typeKey": "lloji:",
+        "typeVal": "anashkalim-autentifikimi",
+        "urlKey": "url:",
+        "reproKey": "riprodhimi:",
+        "reproVal": "[hapat 1-4]",
+        "impactKey": "ndikimi:",
+        "impactVal": "marrje e llogarisë",
+        "pocKey": "poc:",
+        "l7": "# ↳ enkriptuar për 0xVIZA",
+        "send": "dërgo"
+      }
+    },
+    "report": {
+      "eyebrow": "Raportimi i një dobësie",
+      "title": "Çfarë të vendosni në<br></br>raport, dhe <em>çfarë jo.</em>",
+      "intro": "Një raport i mirë na kursen të dyve një javë. Ja formati që vlerësohet më shpejt, plus gjërat që vërtet nuk do të donim t'i merrnim në email.",
+      "include": {
+        "heading": "Ju lutemi përfshini",
+        "sub": "Pesë fusha. Sa më të qarta, aq më shpejt mund ta konfirmojmë dhe rregullojmë.",
+        "items": {
+          "type": "<strong>Lloji i problemit</strong>: p.sh. autentifikim, kontroll aksesi, injektim, IDOR, SSRF.",
+          "steps": "<strong>Hapa të qartë për riprodhim</strong>: të numëruar, me radhë, në një sesion të pastër nëse është e mundur.",
+          "impact": "<strong>Ndikimi i mundshëm në siguri</strong>: çfarë mund të bënte një sulmues me këtë, me fjalë të thjeshta.",
+          "poc": "<strong>Prova e konceptit</strong>: preferohen pamje ekrani ose një video e shkurtër; regjistrat në vend të dytë."
+        }
+      },
+      "dontSend": {
+        "heading": "Ju lutemi mos dërgoni",
+        "sub": "Këto janë të pasigurta, të padobishme, ose të dyja, dhe do të na duhet t'i fshijmë sapo t'i marrim.",
+        "items": {
+          "secrets": "<strong>Fjalëkalime ose tokena autentifikimi</strong>, tuajat apo të kujtdo tjetër. Tregoni vektorin, jo sekretin.",
+          "malware": "<strong>Mostra malware ose regjistra vjedhësish.</strong> Përshkruani çfarë patë; mos i bashkëngjitni.",
+          "scanners": "<strong>Raporte të mëdha skanerësh automatikë</strong> pa një gjetje të zgjedhur me dorë dhe të demonstruar.",
+          "customerData": "<strong>Të dhëna personale ose dokumente klientësh</strong>, edhe nëse ishin baza e gjetjes suaj.",
+          "socialEng": "<strong>Regjistrime të përpjekjeve për inxhinieri sociale</strong> ndaj stafit ose konsulentëve tanë."
+        }
+      }
+    },
+    "scope": {
+      "eyebrow": "Fusha e programit",
+      "title": "Çfarë përfshihet, çfarë jo.",
+      "intro": "Nëse nuk jeni të sigurt nëse një raport hyn në këtë listë, dërgojeni gjithsesi dhe pyetni. Më mirë ta vlerësojmë dhe të vazhdojmë sesa të mbani të fshehur një problem të vërtetë sepse kufiri nuk ishte i qartë.",
+      "fileRef": "/security/scope.md · v6",
+      "in": {
+        "pill": "Brenda fushës",
+        "heading": "Raporte që do t'i vlerësojmë në mënyrë aktive",
+        "items": {
+          "web": "Aplikacionet web dhe API-të e VIZA në <code>*.viza.com</code>, përfshirë portalin e aplikantëve, konsolën e konsulentëve dhe pikat fundore të partnerëve.",
+          "infra": "Infrastruktura dhe shërbimet në pronësi të VIZA: autentifikimi, rrjedha e dokumenteve, planifikimi.",
+          "mobile": "Aplikacionet celulare (iOS, Android) të publikuara nën llogarinë e zhvilluesit VIZA.",
+          "marketing": "Faqet publike të marketingut dhe përmbajtjes nën domene të kontrolluara nga VIZA."
+        }
+      },
+      "out": {
+        "pill": "Jashtë fushës",
+        "heading": "Raporte që nuk mund t'i trajtojmë në këtë program",
+        "items": {
+          "devices": "Probleme që vijnë nga pajisje të komprometuara të përdoruesve, shtesa shfletuesi ose kredenciale të vjedhura.",
+          "phishing": "Sulme inxhinierie sociale ose phishing ndaj punonjësve, partnerëve ose konsulentëve të VIZA.",
+          "thirdParty": "Shërbime ose integrime të palëve të treta që nuk drejtohen drejtpërdrejt nga VIZA (portale konsullatash, faqe korrierësh).",
+          "scanners": "Gjetje skanerësh automatikë pa shfrytëzueshmëri të demonstruar në botën reale.",
+          "headers": "Mungesë e header-ave të sigurisë ose rekomandime të përgjithshme praktikash të mira pa një rrugë shfrytëzimi."
+        }
+      }
+    },
+    "pledge": {
+      "eyebrow": "Raportim i përgjegjshëm",
+      "title": "Marrëveshja që bëjmë<br></br>me njëri-tjetrin.",
+      "intro": "Raportimi funksionon sepse të dyja palët veprojnë me mirëbesim. Ja çfarë ju kërkojmë dhe ja çfarë mund të kërkoni nga ne në këmbim, të shkruara që askush të mos ketë nevojë të hamendësojë.",
+      "researcher": {
+        "kicker": "Çfarë ju kërkojmë",
+        "title": "Angazhimet e <em>studiuesit.</em>",
+        "p": "Duke dërguar një raport, pranoni të veproni me mirëbesim dhe sipas frymës së programit, jo vetëm sipas shkronjës së tij.",
+        "items": {
+          "1": "Veproni me mirëbesim: shmangni shkeljet e privatësisë, shkatërrimin e të dhënave ose ndërprerjen e shërbimit gjatë kërkimit.",
+          "2": "Mos e shfrytëzoni një problem përtej minimumit të nevojshëm për ta konfirmuar dhe mos aksesoni kurrë të dhëna që nuk janë tuajat.",
+          "3": "Mbajini detajet e dobësisë konfidenciale derisa të kemi publikuar një rregullim dhe ta kemi konfirmuar me ju.",
+          "4": "Mos i bëni publike gjetjet pa pëlqimin paraprak me shkrim të ekipit të sigurisë së VIZA."
+        }
+      },
+      "viza": {
+        "kicker": "Çfarë mund të kërkoni nga ne",
+        "title": "Angazhimet e <em>VIZA.</em>",
+        "p": "Në këmbim, nuk i injorojmë raportuesit, nuk debatojmë për rëndësinë për t'i shmangur një rregullimi dhe nuk padisim njerëzit që na ndihmojnë.",
+        "items": {
+          "1": "Do të shqyrtojmë çdo raport të vlefshëm dhe do të përgjigjemi brenda një dite pune, pavarësisht rëndësisë.",
+          "2": "Do të komunikojmë me respekt: pa gjuhë mbrojtëse, pa justifikime të paqarta si “funksionon siç duhet”.",
+          "3": "Do të marrim masat e duhura korrigjuese kur nevojitet dhe do t'ju tregojmë kur rregullimi të jetë publikuar.",
+          "4": "Do t'ju përmendim (me pëlqimin tuaj) në regjistrin tonë të ndryshimeve të sigurisë kur problemi të zgjidhet."
+        }
+      }
+    },
+    "legal": {
+      "eyebrow": "Ligjore dhe shpërblime",
+      "title": "Mbrojtje ligjore, shpërblime<br></br>dhe shkronjat e vogla.",
+      "intro": "Nëse e ndiqni këtë politikë me mirëbesim, kërkimin tuaj e trajtojmë si të autorizuar. Pjesa tjetër e faqes është pjesa e mërzitshme por e rëndësishme, e shtruar qartë, jo e fshehur.",
+      "cards": {
+        "safeHarbour": {
+          "title": "Mbrojtje ligjore",
+          "body": "Nëse e ndiqni këtë politikë me mirëbesim, VIZA nuk do të nisë veprime ligjore ndaj jush për shkelje aksidentale ose të paqëllimshme që lidhen me kërkimin tuaj. Ju sërish duhet të respektoni ligjet dhe rregulloret në fuqi."
+        },
+        "rewards": {
+          "title": "Shpërblime dhe bug bounty",
+          "body": "VIZA aktualisht nuk ka një program publik bug bounty. Ofrojmë sipas gjykimit tonë një shenjë mirënjohjeje për probleme të vlefshme të raportuara me përgjegjësi, të vlerësuara sipas ndikimit, risisë dhe cilësisë së raportit.",
+          "meta": "sipas gjykimit · rast pas rasti"
+        },
+        "updates": {
+          "title": "Përditësimet e programit",
+          "body": "VIZA rezervon të drejtën ta ndryshojë ose ta ndërpresë këtë program në çdo kohë. Nëse nuk jeni të sigurt nëse kërkimi juaj përputhet me politikën, ju lutemi na kontaktoni në security@viza.it.com <em>para</em> se të vazhdoni.",
+          "meta": "rishikuar së fundi · maj 2026"
+        }
+      }
+    },
+    "cta": {
+      "title": "Vutë re diçka të çuditshme?<br></br>Tregojini ekipit tonë të sigurisë.",
+      "body": "Më mirë të dëgjojmë dy herë për një gjetje të vogël sesa të humbasim një herë një të madhe. Raportet shkojnë drejt e te një person i vërtetë në ekipin e sigurisë, pa portal biletash, pa robot vlerësimi.",
+      "lead": "Drejt te siguria",
+      "small": "Përgjigja mesatare: nën 24 orë, çdo ditë të javës."
+    },
+    "footer": {
+      "tagline": "VIZA ju ndihmon të planifikoni, të aplikoni dhe të ndiqni vizat lehtësisht në mbarë botën.",
+      "company": "Kompania",
+      "careers": "Karriera",
+      "contact": "Kontakt",
+      "security": "Siguria",
+      "privacy": "Privatësia",
+      "terms": "Kushtet",
+      "products": "Produktet",
+      "prodVisaReq": "Kërkesat për vizë",
+      "prodSchengen": "Kontrolli i takimeve Schengen",
+      "prodPhoto": "Krijuesi i fotos për vizë",
+      "prodHelpline": "Linja e urgjencës VIZA",
+      "prodStudent": "Vizë studenti",
+      "offices": "Zyrat",
+      "officeSg": "Singapor, selia",
+      "officeSf": "Shangai",
+      "copyright": "© VIZA, Të gjitha të drejtat të rezervuara"
+    }
+  },
+  "status": {
+    "crumbHome": "Transparenca",
+    "crumbHere": "Statusi i sistemit",
+    "hero": {
+      "title": "Statusi i sistemit",
+      "lead": "Disponueshmëri e mbështetur me prova për VIZA dhe portalet qeveritare të vizave me të cilat punojmë. Çdo përqindje, shirit kohor dhe incident më poshtë vjen nga një kontroll sintetik i regjistruar."
+    },
+    "console": {
+      "title": "Besueshmëria e VIZA · Live",
+      "live": "Verifikuar",
+      "unverified": "I paverifikuar",
+      "allOperational": "Të gjitha sistemet funksionojnë",
+      "degraded": "Disa sisteme funksionojnë me vështirësi",
+      "majorOutage": "Një sistem i monitoruar nuk është i disponueshëm",
+      "dataUnavailable": "Të dhënat e monitorimit nuk janë të disponueshme",
+      "lastChecked": "Kontrolli i fundit i regjistruar: {time}",
+      "noChecks": "Ende nuk është regjistruar asnjë kontroll i përfunduar",
+      "kUptime": "Kontrolle të suksesshme në 90 ditë",
+      "kMonitors": "Pika fundore të monitoruara",
+      "kIncidents": "Incident aktiv"
+    },
+    "subnav": {
+      "current": "Statusi aktual",
+      "incidents": "Incidente të kaluara",
+      "subscribe": "Abonohuni",
+      "searchPlaceholder": "Kërkoni vende",
+      "subscribeBtn": "Abonohuni për njoftime"
+    },
+    "platform": {
+      "title": "Platforma VIZA",
+      "realMeta": "Kontrollohet çdo 5 minuta · {count} pikë fundore",
+      "meta": "Kontrollohet çdo 5 minuta",
+      "name": "Platforma e aplikimeve VIZA",
+      "sub": "Shërbimet publike të VIZA"
+    },
+    "uptime": {
+      "ago": "90 ditë më parë",
+      "today": "Sot",
+      "pct": "{pct}% e kontrolleve të suksesshme",
+      "noData": "Asnjë kontroll i regjistruar"
+    },
+    "dayObservation": "{date}: {checks} kontroll(e) të regjistruara",
+    "dayNoData": "{date}: asnjë e dhënë e regjistruar",
+    "dayTitle": "Dita {n}",
+    "statusLabels": {
+      "op": "Funksionon",
+      "deg": "Me vështirësi",
+      "part": "Ndërprerje e pjesshme",
+      "maj": "Jo i disponueshëm",
+      "none": "Nuk ka të dhëna aktuale"
+    },
+    "lastChecked": "Kontrolluar {time}",
+    "monitorStale": "Kontroll që mungon ose i vjetëruar",
+    "monitoringUnavailable": "API-ja e statusit nuk ka prova të freskëta. VIZA nuk do të shfaqë disponueshmëri të ruajtur ose të gjeneruar si gjendjen aktuale të shërbimit.",
+    "noSearchResults": "Asnjë vend i monitoruar nuk përputhet me këtë kërkim.",
+    "noRecordedIncidents": "Asnjë incident nuk është nxjerrë nga kontrollet e regjistruara në 90 ditët e fundit.",
+    "incidentCount": "{count, plural, one {# incident} other {# incidente}}",
+    "incidentRecovered": "Kontrollet e regjistruara tregojnë se ky shërbim u rikuperua.",
+    "noIssues": "Asnjë problem aktiv",
+    "activeIncident": "Incident aktiv",
+    "portalsHead": {
+      "title": "Portalet qeveritare",
+      "lead": "Një kërkesë sintetike e kufizuar kontrollon çdo portal të konfiguruar çdo pesë minuta. Historia gri do të thotë që nuk u regjistrua asnjë vëzhgim; ajo nuk mbushet kurrë me të dhëna të vlerësuara."
+    },
+    "incidentsHead": {
+      "title": "Incidente të kaluara",
+      "lead": "Incidentet hapen dhe mbyllen nga ndryshimet e ruajtura të monitorëve. Kjo është disponueshmëri operacionale, jo statusi i vendimit për vizën personale të një aplikanti."
+    },
+    "tags": {
+      "identified": "Identifikuar",
+      "investigating": "Në hetim",
+      "resolved": "Zgjidhur"
+    },
+    "portals": {
+      "AE": {
+        "name": "Emiratet e Bashkuara Arabe",
+        "sub": "Portalet GDRFA · ICA"
+      },
+      "AM": {
+        "name": "Armenia",
+        "sub": "Portali e-Visa"
+      },
+      "AU": {
+        "name": "Australia",
+        "sub": "ImmiAccount"
+      },
+      "AZ": {
+        "name": "Azerbajxhani",
+        "sub": "ASAN Visa"
+      },
+      "DE": {
+        "name": "Gjermania",
+        "sub": "VIDEX · takime në konsullatë"
+      },
+      "DK": {
+        "name": "Danimarka"
+      },
+      "EG": {
+        "name": "Egjipti",
+        "sub": "Portali e-Visa"
+      },
+      "FI": {
+        "name": "Finlanda",
+        "sub": "EnterFinland"
+      },
+      "FR": {
+        "name": "Franca",
+        "sub": "France-Visas"
+      },
+      "GB": {
+        "name": "Mbretëria e Bashkuar",
+        "sub": "UKVCAS · UK Visas",
+        "bannerText": "Disa lloje aplikimesh po përballen me një ndërprerje.",
+        "bannerLink": "Shihni kronologjinë e incidentit"
+      },
+      "GE": {
+        "name": "Gjeorgjia"
+      },
+      "GR": {
+        "name": "Greqia",
+        "sub": "AEGEAN · konsullor"
+      },
+      "HK": {
+        "name": "Hong Kongu",
+        "sub": "Immigration eVisa"
+      },
+      "ID": {
+        "name": "Indonezia",
+        "sub": "e-Visa Indonesia"
+      },
+      "IN": {
+        "name": "India",
+        "sub": "Indian Visa Online"
+      },
+      "JO": {
+        "name": "Jordania"
+      },
+      "KE": {
+        "name": "Kenia",
+        "sub": "eCitizen / eVisa"
+      },
+      "KH": {
+        "name": "Kamboxhia"
+      },
+      "LK": {
+        "name": "Sri Lanka",
+        "sub": "Portali ETA"
+      },
+      "MA": {
+        "name": "Maroku"
+      },
+      "TH": {
+        "name": "Tajlanda",
+        "sub": "Thailand e-Visa"
+      }
+    },
+    "incidents": {
+      "count": "<strong>{count}</strong> {count, plural, one {vend pati} other {vende patën}} probleme performance",
+      "events": "{count, plural, one {# ngjarje} other {# ngjarje}}",
+      "days": [
+        {
+          "date": "10 maj 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "10 maj, 3:05 e pasdites",
+                  "desc": "Ky incident u zgjidh. Shërbimi është rikthyer në punë normale."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "10 maj, 5:05 e pasdites",
+                  "desc": "Ky incident u zgjidh. Shërbimi është rikthyer në punë normale."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "9 maj 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "9 maj, 10:50 e pasdites",
+                  "desc": "Po hetojmë shkallë të rritura dështimesh."
+                },
+                {
+                  "time": "10 maj, 12:20 e paradites",
+                  "desc": "Rëndësia u rrit nga funksionim i dobësuar në ndërprerje të pjesshme."
+                },
+                {
+                  "time": "10 maj, 2:50 e paradites",
+                  "desc": "Rëndësia u rrit nga ndërprerje e pjesshme në ndërprerje të madhe."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "9 maj, 3:05 e pasdites",
+                  "desc": "Po hetojmë shkallë të rritura dështimesh."
+                },
+                {
+                  "time": "9 maj, 7:20 e pasdites",
+                  "desc": "Rëndësia u rrit nga ndërprerje e pjesshme në ndërprerje të madhe."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "8 maj 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "8 maj, 1:05 e pasdites",
+                  "desc": "Po hetojmë shkallë të rritura dështimesh."
+                },
+                {
+                  "time": "8 maj, 2:05 e pasdites",
+                  "desc": "Ky incident u zgjidh. Shërbimi është rikthyer në punë normale."
+                },
+                {
+                  "time": "8 maj, 2:50 e pasdites",
+                  "desc": "Po hetojmë shkallë të rritura dështimesh."
+                },
+                {
+                  "time": "8 maj, 7:35 e pasdites",
+                  "desc": "Ky incident u zgjidh. Shërbimi është rikthyer në punë normale."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "5 maj 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "5 maj, 1:36 e pasdites",
+                  "desc": "Rëndësia u rrit nga funksionim i dobësuar në ndërprerje të pjesshme."
+                },
+                {
+                  "time": "5 maj, 4:50 e pasdites",
+                  "desc": "Ky incident u zgjidh."
+                },
+                {
+                  "time": "5 maj, 9:20 e pasdites",
+                  "desc": "Po hetojmë shkallë të rritura dështimesh."
+                },
+                {
+                  "time": "5 maj, 10:20 e pasdites",
+                  "desc": "Ky incident u zgjidh."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "5 maj, 2:43 e pasdites",
+                  "desc": "Ky incident u zgjidh."
+                },
+                {
+                  "time": "5 maj, 3:35 e pasdites",
+                  "desc": "Po hetojmë shkallë të rritura dështimesh."
+                },
+                {
+                  "time": "5 maj, 7:35 e pasdites",
+                  "desc": "Rëndësia u rrit nga ndërprerje e pjesshme në ndërprerje të madhe."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "4 maj 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "4 maj, 4:05 e pasdites",
+                  "desc": "Po hetojmë shkallë të rritura dështimesh."
+                },
+                {
+                  "time": "4 maj, 5:05 e pasdites",
+                  "desc": "Ky incident u zgjidh."
+                },
+                {
+                  "time": "4 maj, 7:36 e pasdites",
+                  "desc": "Po hetojmë shkallë të rritura dështimesh."
+                },
+                {
+                  "time": "4 maj, 8:35 e pasdites",
+                  "desc": "Ky incident u zgjidh."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "4 maj, 12:05 e pasdites",
+                  "desc": "Ky incident u zgjidh."
+                },
+                {
+                  "time": "4 maj, 1:50 e pasdites",
+                  "desc": "Po hetojmë shkallë të rritura dështimesh."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2 maj 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "2 maj, 6:35 e pasdites",
+                  "desc": "Po hetojmë shkallë të rritura dështimesh."
+                },
+                {
+                  "time": "2 maj, 7:50 e pasdites",
+                  "desc": "Ky incident u zgjidh."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "2 maj, 9:20 e paradites",
+                  "desc": "Po hetojmë shkallë të rritura dështimesh."
+                },
+                {
+                  "time": "2 maj, 10:20 e paradites",
+                  "desc": "Ky incident u zgjidh."
+                },
+                {
+                  "time": "2 maj, 8:20 e pasdites",
+                  "desc": "Po hetojmë shkallë të rritura dështimesh."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "2 maj, 8:20 e pasdites",
+                  "desc": "Po hetojmë shkallë të rritura dështimesh."
+                },
+                {
+                  "time": "3 maj, 12:05 e paradites",
+                  "desc": "Ky incident u zgjidh."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "1 maj 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "1 maj, 2:05 e pasdites",
+                  "desc": "Po hetojmë shkallë të rritura dështimesh."
+                },
+                {
+                  "time": "1 maj, 3:05 e pasdites",
+                  "desc": "Ky incident u zgjidh."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "30 prill 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "30 pri, 8:20 e paradites",
+                  "desc": "Po hetojmë shkallë të rritura dështimesh."
+                },
+                {
+                  "time": "30 pri, 9:50 e paradites",
+                  "desc": "Ky incident u zgjidh."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 pri, 3:05 e pasdites",
+                  "desc": "Ky incident u zgjidh."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 pri, 4:51 e pasdites",
+                  "desc": "Ky incident u zgjidh."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 pri, 1:20 e pasdites",
+                  "desc": "Po hetojmë shkallë të rritura dështimesh."
+                },
+                {
+                  "time": "30 pri, 2:37 e pasdites",
+                  "desc": "Rëndësia u rrit nga funksionim i dobësuar në ndërprerje të pjesshme."
+                },
+                {
+                  "time": "30 pri, 8:20 e pasdites",
+                  "desc": "Ky incident u zgjidh."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 pri, 6:50 e pasdites",
+                  "desc": "Ky incident u zgjidh."
+                },
+                {
+                  "time": "30 pri, 7:50 e pasdites",
+                  "desc": "Po hetojmë shkallë të rritura dështimesh."
+                },
+                {
+                  "time": "1 maj, 12:20 e paradites",
+                  "desc": "Ky incident u zgjidh."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "subscribe": {
+      "title": "Bëhuni të parët<br></br>që mësoni kur prishet diçka.",
+      "lead": "Zgjidhni vendet që ju interesojnë dhe do t'ju dërgojmë një njoftim të vetëm e të thjeshtë kur portalet e tyre, ose i yni, bien ose rikthehen online.",
+      "emailLabel": "Merrni njoftime për incidentet me email",
+      "button": "Abonohuni",
+      "follow": "Ose ndiqni statusin përmes:",
+      "chipEmail": "Përmbledhje me email",
+      "chipSms": "SMS dhe WhatsApp",
+      "chipRss": "Burim RSS",
+      "chipWebhook": "Webhook për operacionet"
+    },
+    "footer": {
+      "tagline": "VIZA ju ndihmon të planifikoni, të aplikoni dhe të ndiqni vizat lehtësisht në mbarë botën.",
+      "company": "Kompania",
+      "careers": "Karriera",
+      "contact": "Kontakt",
+      "security": "Siguria",
+      "systemStatus": "Statusi i sistemit",
+      "privacy": "Privatësia",
+      "terms": "Kushtet",
+      "products": "Produktet",
+      "prodVisaReq": "Kërkesat për vizë",
+      "prodSchengen": "Kontrolli i takimeve Schengen",
+      "prodPhoto": "Krijuesi i fotos për vizë",
+      "prodHelpline": "Linja e urgjencës VIZA",
+      "copyright": "© VIZA, Të gjitha të drejtat të rezervuara"
+    }
+  },
+  "arrival": {
+    "breadcrumbHome": "Kreu",
+    "breadcrumbHub": "Kartat e mbërritjes",
+    "hubH1": "Udhëzues për kartat e mbërritjes",
+    "hubLead": "Karta e mbërritjes është një formular i shkurtër qeveritar që e plotësoni para se të hyni në një vend. Shumica janë online, falas dhe zgjasin rreth pesë minuta. Këta udhëzues tregojnë kujt i duhet secila, kur dorëzohet dhe si t'u shmangeni faqeve të rreme që marrin pagesë për të.",
+    "hubWhatTitle": "Çfarë është karta e mbërritjes",
+    "hubWhat": [
+      "Karta e mbërritjes është një deklaratë që destinacioni ju kërkon përveç pasaportës dhe vizës, nëse ju duhet. Ajo regjistron kush jeni, si po mbërrini dhe ku do të qëndroni. Shumë vende e kanë zëvendësuar kartën prej letre që shpërndahej në avion me një formular online.",
+      "Nuk është vizë. Viza ju lejon të kërkoni hyrje. Karta e mbërritjes i tregon autoritetit kufitar për udhëtimin tuaj, dhe vizën sërish e keni të nevojshme kur shtetësia juaj e kërkon."
+    ],
+    "hubFreeTitle": "Kartat e mbërritjes janë falas",
+    "hubFree": [
+      "Çdo kartë në këta udhëzues është falas në faqen e vetë qeverisë. Disa faqe interneti e kopjojnë formularin qeveritar dhe marrin pagesë për të. Nuk keni kurrë nevojë t'i paguani ato.",
+      "Filloni gjithmonë nga adresa zyrtare e dhënë në çdo udhëzues. VIZA është shërbim i pavarur dhe jo faqe interneti qeveritare."
+    ],
+    "hubWhenTitle": "Kur ju duhet",
+    "hubWhen": [
+      "Shumica e kartave hapen tre ditë para mbërritjes dhe duhen dorëzuar brenda atij afati. Kontrolloni rregullin e saktë në çdo udhëzues, sepse Visit Japan Web i Japonisë nuk ka afat fiks dhe nuk është i detyrueshëm.",
+      "Banorët, shtetasit dhe pasagjerët në tranzit shpesh përjashtohen ose kanë një formular më të shkurtër. Çdo udhëzues rendit kush përjashtohet, përfshirë përjashtimin e shtetasve të Singaporit për MDAC të Malajzisë."
+    ],
+    "hubGuidesTitle": "Të gjithë udhëzuesit",
+    "hubGuidesSub": "Zgjidhni destinacionin tuaj. Çdo udhëzues ka hapat, gabimet e zakonshme dhe lidhjet zyrtare.",
+    "readGuide": "Lexoni udhëzuesin",
+    "cardWhen": "Kur",
+    "cardsLabel": "Kartë mbërritjeje",
+    "hubVisaTitle": "Ju duhet edhe vizë",
+    "hubVisaBody": "Karta e mbërritjes nuk e zëvendëson vizën. Kontrolloni faqen e destinacionit për të parë nëse pasaporta juaj kërkon vizë.",
+    "hubVisaCta": "Shfletoni faqet e vizave",
+    "glanceTitle": "Shkurt",
+    "stepsTitle": "Si ta plotësoni, hap pas hapi",
+    "mistakesTitle": "Gabime të zakonshme",
+    "feesTitle": "Tarifat dhe faqet e rreme",
+    "faqTitle": "Pyetje",
+    "sourcesTitle": "Burimet",
+    "relatedTitle": "Udhëzues të tjerë për kartat e mbërritjes",
+    "independent": "VIZA është shërbim i pavarur dhe jo faqe interneti qeveritare.",
+    "officialCta": "Hapni faqen zyrtare",
+    "officialLabel": "Faqja zyrtare",
+    "vizaTitle": "Lëreni VIZA ta bëjë për ju",
+    "vizaBody": "Nisni {name} në llogarinë tuaj VIZA. Formulari i VIZA ju udhëheq nëpër të njëjtat pyetje si ai zyrtar dhe i ruan të dhënat tuaja për udhëtimet e ardhshme. Gjithmonë mund të përdorni në vend të tij faqen zyrtare falas.",
+    "vizaFee": "Tarifa e shërbimit VIZA",
+    "vizaFeeFree": "Falas",
+    "vizaCta": "Filloni në VIZA",
+    "noVizaTitle": "Përdorni faqen zyrtare",
+    "noVizaBody": "VIZA ende nuk e plotëson këtë kartë. Përdorni faqen zyrtare më poshtë dhe lexoni fillimisht hapat në këtë udhëzues.",
+    "visaTitle": "Viza për {country}",
+    "visaBody": "Karta e mbërritjes është e ndarë nga viza. Shihni kujt i duhet vizë për {country}, tarifat dhe si të aplikoni.",
+    "visaCta": "Hapni faqen e vizës për {country}",
+    "reviewedTitle": "Kontrolluar më 25 nëntor 2026",
+    "stepLabel": "Hapi",
+    "cards": {
+      "malaysia-mdac": {
+        "summary": "Kartë online falas për vizitorët e huaj. Shtetasit e Singaporit përjashtohen.",
+        "when": "Brenda 3 ditëve para mbërritjes"
+      },
+      "singapore-sg-arrival-card": {
+        "summary": "Karta online e ICA me deklaratë shëndetësore. Dorëzohet në faqen e internetit ose në aplikacionin MyICA.",
+        "when": "Brenda 3 ditëve para mbërritjes"
+      },
+      "japan-visit-japan-web": {
+        "summary": "Kode QR falas për imigracionin dhe doganën. Rekomandohet, por nuk është i detyrueshëm.",
+        "when": "Para fluturimit"
+      },
+      "thailand-tdac": {
+        "summary": "Kartë falas për çdo vizitor të huaj, me ose pa vizë. Zëvendësoi formularin prej letre TM6.",
+        "when": "Brenda 3 ditëve para mbërritjes"
+      },
+      "korea-e-arrival-card": {
+        "summary": "E detyrueshme që nga 1 janari 2026. Kush ka K-ETA të vlefshme përjashtohet.",
+        "when": "Brenda 3 ditëve para mbërritjes"
+      },
+      "indonesia-all-indonesia": {
+        "summary": "Një kartë për imigracionin, doganën dhe shëndetin. Falas dhe nuk është vizë.",
+        "when": "Deri në 3 ditë para mbërritjes"
+      }
+    }
+  },
+  "guides": {
+    "breadcrumbHome": "Kreu",
+    "breadcrumbHub": "Udhëzues",
+    "hubH1": "Udhëzues për viza për njerëzit që jetojnë në Singapor",
+    "hubLead": "Pavarësisht nëse keni pasaportë singaporiane, kineze, indiane apo filipinase, këta udhëzues i përgjigjen së njëjtës pyetje: çfarë më duhet për të hyrë në këtë vend dhe ku aplikoj nga Singapori. Secili përmend burimet e veta dhe datën kur u kontrollua.",
+    "hubGuidesTitle": "Të gjithë udhëzuesit",
+    "hubGuidesSub": "Zgjidhni një temë. Rregullat ndryshojnë, ndaj çdo udhëzues rendit faqet zyrtare që duhen kontrolluar para udhëtimit.",
+    "readGuide": "Lexoni udhëzuesin",
+    "hubMoreTitle": "Më shumë nga VIZA",
+    "hubMoreBody": "Po kërkoni një vend të caktuar, një kartë mbërritjeje apo ndryshimin më të fundit të rregullave?",
+    "hubDestinations": "Faqet e vizave",
+    "hubArrival": "Udhëzues për kartat e mbërritjes",
+    "hubNews": "Lajme për vizat",
+    "glanceTitle": "Përgjigje e shpejtë",
+    "relatedVisaTitle": "Faqet e destinacioneve",
+    "relatedVisaSub": "Tarifat, dokumentet dhe hapat për njerëzit që jetojnë në Singapor.",
+    "relatedArrivalTitle": "Udhëzues për kartat e mbërritjes",
+    "relatedGuidesTitle": "Më shumë udhëzues",
+    "faqTitle": "Pyetje",
+    "sourcesTitle": "Burimet",
+    "reviewedTitle": "Si e kontrolluam",
+    "published": "Publikuar",
+    "updated": "Përditësuar",
+    "independent": "VIZA është shërbim i pavarur dhe jo faqe interneti qeveritare."
+  },
+  "ds": {
+    "header": {
+      "home": "Faqja kryesore e VIZA",
+      "primary": "Kryesore",
+      "language": "Gjuha",
+      "signIn": "Hyni",
+      "openMenu": "Hapni menunë",
+      "closeMenu": "Mbyllni menunë",
+      "nav": {
+        "home": "Kreu",
+        "arrivalCards": "Kartat e mbërritjes",
+        "guides": "Udhëzues",
+        "news": "Lajme",
+        "about": "Rreth nesh",
+        "contact": "Kontakt"
+      }
+    },
+    "footer": {
+      "home": "Faqja kryesore e VIZA",
+      "tagline": "Aplikime për vizë të përgatitura nga AI-ja e VIZA dhe të kontrolluara nga konsulentët tanë. Falas për t'u përdorur.",
+      "explore": "Eksploroni",
+      "follow": "Na ndiqni",
+      "followOn": "Ndiqni VIZA në {platform}",
+      "links": {
+        "arrivalCards": "Kartat e mbërritjes",
+        "guides": "Udhëzues",
+        "news": "Lajme",
+        "about": "Rreth nesh",
+        "contact": "Kontakt",
+        "careers": "Karriera",
+        "security": "Siguria",
+        "status": "Statusi"
+      },
+      "copyright": "© {year} VIZA. Të gjitha të drejtat të rezervuara.",
+      "office": "Zyra e regjistruar: 60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapor 409051",
+      "privacy": "Privatësia",
+      "terms": "Kushtet",
+      "kelin": "Një sipërmarrje e Kelin Studio",
+      "refunds": "Rimbursimet",
+      "business": "Informacion për biznesin"
+    },
+    "form": {
+      "fullName": {
+        "label": "Emri juaj",
+        "placeholder": "Jane Tan"
+      },
+      "email": {
+        "label": "Email"
+      },
+      "phone": {
+        "label": "Telefoni"
+      },
+      "destination": {
+        "label": "Destinacioni",
+        "placeholder": "Japonia, Schengen, Shtetet e Bashkuara"
+      },
+      "message": {
+        "label": "Pyetja juaj",
+        "placeholder": "Ku po shkoni, pasaporta juaj dhe datat e udhëtimit."
+      },
+      "submit": "Dërgoni mesazhin",
+      "sending": "Po dërgohet",
+      "success": "Faleminderit, mesazhi juaj na erdhi. Do t'ju përgjigjemi me email.",
+      "error": "Nuk arritëm ta dërgojmë mesazhin tuaj. Ju lutemi provoni sërish ose shkruani në sales@kelin.studio.",
+      "consent": "Duke dërguar, pranoni <privacy>Politikën e privatësisë</privacy> dhe <terms>Kushtet</terms> tona."
+    },
+    "gallery": {
+      "title": "Destinacionet",
+      "lede": "Zgjidhni një destinacion për të parë vizën që ju duhet, dokumentet dhe tarifën qeveritare.",
+      "view": "Shihni",
+      "passportSummary": "{free} pa vizë · {voa} vizë elektronike ose në mbërritje · {req} kërkojnë vizë",
+      "noResults": "Asnjë destinacion nuk përputhet me kërkimin tuaj.",
+      "sorts": {
+        "featured": "Të veçuara",
+        "open": "Të hapurat së pari",
+        "name": "A deri në Z"
+      }
+    },
+    "dest": {
+      "all": "Të gjitha destinacionet",
+      "onPage": "Në këtë faqe",
+      "applyTitle": "Nisni aplikimin",
+      "facts": "Fakte"
+    },
+    "article": {
+      "toc": "Në këtë faqe",
+      "down": "Shkoni te artikulli",
+      "faqLede": "Përgjigje të shpejta për këtë temë."
+    },
+    "legal": {
+      "updated": "Përditësuar së fundi",
+      "contents": "Përmbajtja"
+    }
+  },
+  "homePage": {
+    "hero": {
+      "browse": "Shfletoni destinacionet",
+      "picks": "Destinacionet"
+    },
+    "types": {
+      "title": "Llojet e vizave",
+      "lede": "Viza turistike, biznesi, pune, studenti dhe afatgjata.",
+      "prev": "Para",
+      "next": "Pas",
+      "items": {
+        "tourist": {
+          "title": "Turistike",
+          "body": "Pushime, vizita familjare dhe qëndrime të shkurtra."
+        },
+        "business": {
+          "title": "Biznesi",
+          "body": "Takime, konferenca dhe vizita në terren."
+        },
+        "work": {
+          "title": "Pune",
+          "body": "Leje pune dhe viza punësimi."
+        },
+        "student": {
+          "title": "Studenti",
+          "body": "Viza studimi për shkolla dhe universitete."
+        },
+        "long": {
+          "title": "Qëndrim i gjatë",
+          "body": "Leje qëndrimi dhe viza të tjera afatgjata."
+        }
+      }
+    },
+    "steps": {
+      "title": "Si funksionon",
+      "cta": "Nisni aplikimin tuaj falas",
+      "side": {
+        "freeValue": "Falas",
+        "freeLabel": "Shërbimi VIZA",
+        "langLabel": "Gjuhët: anglisht dhe kinezisht",
+        "note": "Paguani vetëm tarifën qeveritare.",
+        "noteBody": "Ajo shkon drejtpërdrejt tek autoriteti që e lëshon. VIZA nuk shton asnjë tarifë të vetën."
+      },
+      "items": {
+        "choose": {
+          "title": "Zgjidhni një destinacion",
+          "body": "Shihni vizën që ju duhet, dokumentet që duhen përgatitur dhe tarifën qeveritare para se të filloni.",
+          "chips": "Lloji i vizës|Dokumentet|Tarifa qeveritare"
+        },
+        "passport": {
+          "title": "Ngarkoni pasaportën tuaj",
+          "body": "VIZA i lexon të dhënat tuaja nga faqja me foto, ndaj keni shumë pak për të shkruar.",
+          "chips": "Faqja me foto|Të dhënat plotësohen"
+        },
+        "confirm": {
+          "title": "Konfirmoni të dhënat tuaja",
+          "body": "Kontrolloni çfarë lexoi VIZA, shtoni datat e udhëtimit dhe vazhdoni në llogarinë tuaj falas VIZA.",
+          "chips": "Datat e udhëtimit|Llogari falas"
+        },
+        "file": {
+          "title": "VIZA kontrollon dhe dorëzon",
+          "body": "Një këshilltar kontrollon çdo formular para se të dorëzohet, dhe ju e ndiqni ecurinë në llogarinë tuaj.",
+          "chips": "Kontroll nga këshilltari|Njoftime për ecurinë"
+        }
+      }
+    },
+    "tiers": {
+      "title": "Çmimet",
+      "lede": "Dy mënyra për të aplikuar, të dyja falas.",
+      "cta": "Na kontaktoni",
+      "criteria": "Krahasoni",
+      "guided": "I udhëzuar",
+      "full": "Shërbim i plotë",
+      "rows": {
+        "fee": {
+          "label": "Tarifa e VIZA",
+          "guided": "Falas",
+          "full": "Falas"
+        },
+        "form": {
+          "label": "Formulari i aplikimit",
+          "guided": "Ju përgjigjeni, me AI-në e VIZA si udhërrëfyes",
+          "full": "Një konsulent i përgatit përgjigjet bashkë me ju"
+        },
+        "documents": {
+          "label": "Dokumentet",
+          "guided": "Një listë kontrolli për situatën tuaj",
+          "full": "Një konsulent kontrollon dokumentet tuaja"
+        },
+        "interview": {
+          "label": "Takimi dhe intervista",
+          "guided": "Ju rezervoni dhe merrni pjesë",
+          "full": "Kalojmë bashkë pyetjet e mundshme"
+        },
+        "govFee": {
+          "label": "Tarifa qeveritare",
+          "guided": "I paguhet drejtpërdrejt autoritetit",
+          "full": "I paguhet drejtpërdrejt autoritetit"
+        },
+        "bestFor": {
+          "label": "I përshtatshëm për",
+          "guided": "Aplikime të thjeshta",
+          "full": "Raste të ndërlikuara ose një refuzim i mëparshëm"
+        }
+      }
+    },
+    "why": {
+      "title": "Pse VIZA",
+      "lede": "Hapa të qartë, formularë të kontrolluar dhe njerëz të vërtetë me të cilët flisni.",
+      "items": {
+        "free": {
+          "title": "Shërbim falas",
+          "body": "Ndihma e VIZA nuk kushton asgjë. Paguani vetëm tarifën qeveritare, drejtpërdrejt tek autoriteti."
+        },
+        "checked": {
+          "title": "Formularë të kontrolluar",
+          "body": "Një këshilltar kontrollon çdo formular para se të dorëzohet, kështu gabimet e vogla kapen herët."
+        },
+        "language": {
+          "title": "Anglisht dhe kinezisht",
+          "body": "Flisni me VIZA në anglisht ose kinezisht, në WhatsApp, WeChat ose email."
+        }
+      },
+      "photos": {
+        "arrival": {
+          "title": "Kartat e mbërritjes",
+          "body": "Ndihmë hap pas hapi me kartat falas të mbërritjes për Malajzinë, Singaporin, Japoninë, Tajlandën, Korenë dhe Indonezinë."
+        },
+        "news": {
+          "title": "Lajme",
+          "body": "Ndryshimet e rregullave të vizave dhe skemat e reja të vizave elektronike, të shpjeguara me fjalë të thjeshta."
+        }
+      }
+    },
+    "guides": {
+      "title": "Udhëzues",
+      "cta": "Të gjithë udhëzuesit"
+    },
+    "faq": {
+      "lede": "Përgjigje të shpejta për shërbimin e vizave të VIZA.",
+      "more": "Keni pyetje të tjera?",
+      "items": {
+        "cost": {
+          "q": "A merr VIZA pagesë për shërbimin e saj?",
+          "a": "Jo. Ndihma e VIZA është falas. Nëse një destinacion kërkon tarifë qeveritare për vizën, ju ia paguani drejtpërdrejt asaj qeverie."
+        },
+        "visas": {
+          "q": "Me cilat viza mund t'ju ndihmojë VIZA?",
+          "a": "Viza turistike, biznesi, pune, studenti dhe afatgjata për destinacionet në këtë faqe. Nëse e juaja nuk është në listë, na shkruani dhe një konsulent do t'ju tregojë çfarë është e mundur."
+        },
+        "approval": {
+          "q": "Kush vendos për vizën time?",
+          "a": "Çdo vendim e merr autoriteti që e lëshon. VIZA kontrollon formularin dhe dokumentet tuaja para se të dorëzohen, që aplikimi të jetë i plotë dhe i qëndrueshëm."
+        },
+        "tiers": {
+          "q": "Cili është ndryshimi mes I udhëzuar dhe Shërbim i plotë?",
+          "a": "Me I udhëzuar, AI-ja e VIZA ju udhëheq nëpër formular dhe listën e kontrollit, dhe ju vendosni për çdo përgjigje. Me Shërbim i plotë, një konsulent i përgatit përgjigjet bashkë me ju dhe kontrollon dokumentet tuaja. Të dyja janë falas."
+        },
+        "language": {
+          "q": "Cilat gjuhë mbështetni?",
+          "a": "Anglisht dhe kinezisht, në WhatsApp, WeChat, telefon dhe email."
+        }
+      }
+    },
+    "contactCard": {
+      "title": "Flisni me një konsulent të VIZA",
+      "body": "Përgjigjemi në anglisht ose kinezisht.",
+      "cta": "Na kontaktoni"
+    },
+    "cta": {
+      "title": "Nisni aplikimin tuaj",
+      "point1": "Të dhënat tuaja mbeten private",
+      "point2": "Përgjigjet një person i vërtetë",
+      "formTitle": "Bëni një pyetje",
+      "formBody": "Na tregoni ku po shkoni dhe një konsulent i VIZA do t'ju përgjigjet me email."
+    }
+  },
+  "aboutPage": {
+    "h1": "Rreth VIZA",
+    "intro": {
+      "title": "Çfarë është VIZA",
+      "text": "VIZA përgatit, kontrollon dhe dorëzon aplikime për vizë për njerëzit që jetojnë në Singapor. AI-ja jonë bën punën me letrat dhe konsulentët tanë kontrollojnë çdo formular. Shërbimi është falas."
+    },
+    "facts": {
+      "guides": "Udhëzues për viza",
+      "arrival": "Udhëzues për kartat e mbërritjes",
+      "free": "Falas",
+      "freeLabel": "Shërbimi VIZA"
+    },
+    "tiersTitle": "I udhëzuar ose Shërbim i plotë",
+    "tiersLede": "Zgjidhni sa ndihmë dëshironi. Të dyja janë falas.",
+    "free": {
+      "title": "Shërbim falas",
+      "text": "VIZA nuk merr pagesë për ndihmën e saj. Kur një destinacion ka tarifë qeveritare për vizën, VIZA jua tregon para se të filloni dhe ju e paguani drejtpërdrejt tek autoriteti që e lëshon. Nuk ka përmirësime me pagesë."
+    },
+    "company": {
+      "title": "Të dhënat e kompanisë",
+      "office": "Zyra e regjistruar",
+      "officeValue": "60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapor 409051",
+      "email": "Email",
+      "phone": "Telefon dhe WhatsApp",
+      "languages": "Gjuhët",
+      "languagesValue": "Anglisht dhe kinezisht"
+    }
+  },
+  "contactPage": {
+    "h1": "Kontakt",
+    "lines": {
+      "whatsapp": {
+        "title": "Telefon dhe WhatsApp",
+        "body": "Telefononi ose i shkruani një konsulenti."
+      },
+      "wechat": {
+        "body": "Kërkoni ID-në në WeChat për të na shtuar."
+      },
+      "email": {
+        "title": "Email",
+        "body": "Më i miri për dokumente dhe pyetje më të gjata."
+      },
+      "office": {
+        "top": "Singapori",
+        "title": "Zyra",
+        "body": "60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapor 409051"
+      }
+    },
+    "message": {
+      "title": "Dërgoni një mesazh",
+      "text": "Pyetje për një vizë, një destinacion ose për bashkëpunim me VIZA? Na shkruani dhe një konsulent do t'ju përgjigjet."
+    }
+  },
+  "careersPage": {
+    "title": "Karriera",
+    "lede": "VIZA i ndihmon njerëzit në Singapor të marrin vizën me AI dhe konsulentë, dhe shërbimi është falas. Punësojmë njerëz që e duan punën e kujdesshme dhe të dobishme.",
+    "teamsTitle": "Ekipet",
+    "teams": [
+      {
+        "title": "Inxhinieri",
+        "body": "Ndërtoni kontrollet e dokumenteve, rrjedhën e aplikimit dhe mjetet që përdorin konsulentët tanë."
+      },
+      {
+        "title": "Dizajn",
+        "body": "Bëni që një proces stresues të duket i qartë për personin që aplikon."
+      },
+      {
+        "title": "Operacione",
+        "body": "Mbani çdo aplikim në lëvizje dhe çdo kërkesë të përditësuar."
+      },
+      {
+        "title": "Konsulencë",
+        "body": "Ndihmoni aplikantët në rastet që kërkojnë një person, në anglisht dhe kinezisht."
+      },
+      {
+        "title": "Të dhëna",
+        "body": "Ktheni burimet qeveritare në kontrolle që i kapin problemet herët."
+      },
+      {
+        "title": "Marketing",
+        "body": "Shpjegoni vizat thjesht, në udhëzues dhe faqe që njerëzit mund t'u besojnë."
+      }
+    ],
+    "applyTitle": "Na kontaktoni",
+    "applyBody": "Na tregoni për veten dhe ekipin ku dëshironi të bashkoheni. Lexojmë çdo mesazh.",
+    "applyCta": "Na kontaktoni"
+  },
+  "pageCopy": {
+    "product": {
+      "introTitle": "Si ju ndihmon VIZA me aplikimin për vizë",
+      "introLede": "Shihni shërbimet që ofrojmë për përgatitjen e vizës, kontrollin e dokumenteve dhe ndjekjen e statusit të aplikimit. Shërbimi i VIZA është falas. Përmbajtja e saktë dhe disponueshmëria shfaqen pasi të zgjidhni një destinacion.",
+      "browse": "Shfletoni destinacionet"
+    },
+    "events": {
+      "title": "Ende nuk ka evente",
+      "lede": "Klinikat e ardhshme për viza, seancat informuese dhe eventet me partnerët do të njoftohen këtu.",
+      "contact": "Na kontaktoni"
+    }
+  },
+  "og": {
+    "band": "VIZA është falas. Tarifat qeveritare paguhen veçmas.",
+    "destSubtitle": "Tarifat dhe si të aplikoni"
+  }
+}
