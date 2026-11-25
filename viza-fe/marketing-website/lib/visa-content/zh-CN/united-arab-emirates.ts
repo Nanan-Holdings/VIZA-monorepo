@@ -162,8 +162,10 @@ export const unitedArabEmirates: DestinationContent = {
     related: {
       destinations: ["saudi-arabia", "egypt", "india", "turkiye"],
       guides: [
+        { label: "新加坡护照免签国家", href: "/guides/visa-free-countries-singapore-passport" },
+        { label: "电子签、落地签和使馆签证的区别", href: "/guides/e-visa-vs-visa-on-arrival-vs-embassy-visa" },
         { label: "阿联酋外交部：特定国家居民的落地签", href: "https://www.mofa.gov.ae/en/mediahub/news/2026/6/25/uae-grants-visa-on-arrival" },
-        { label: "VIZA 博客：签证与入境卡指南", href: "/blog" },
+        { label: "VIZA 签证资讯", href: "/blog" },
       ],
     },
   },

@@ -175,8 +175,11 @@ export const indonesia: DestinationContent = {
     related: {
       destinations: ["malaysia", "vietnam", "thailand", "australia"],
       guides: [
+        { label: "Visas for Chinese passport holders in Singapore", href: "/guides/visas-chinese-passport-holders-singapore" },
+        { label: "Visas for Filipino and Indian residents of Singapore", href: "/guides/visas-filipino-indian-residents-singapore" },
+        { label: "e-Visa vs visa on arrival vs embassy visa", href: "/guides/e-visa-vs-visa-on-arrival-vs-embassy-visa" },
         { label: "All Indonesia arrival declaration, Directorate General of Immigration", href: "https://allindonesia.imigrasi.go.id/" },
-        { label: "VIZA blog: visa and arrival card guides", href: "/blog" },
+        { label: "VIZA visa news", href: "/blog" },
       ],
     },
   },

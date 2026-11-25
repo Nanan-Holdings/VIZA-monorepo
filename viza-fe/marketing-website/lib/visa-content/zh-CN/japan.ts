@@ -163,7 +163,13 @@ export const japan: DestinationContent = {
     related: {
       destinations: ["south-korea", "china", "vietnam", "thailand"],
       guides: [
+        { label: "新加坡护照免签国家", href: "/guides/visa-free-countries-singapore-passport" },
+        { label: "新加坡的中国护照持有人办签证", href: "/guides/visas-chinese-passport-holders-singapore" },
+        { label: "新加坡的菲律宾和印度居民办签证", href: "/guides/visas-filipino-indian-residents-singapore" },
+        { label: "签证被拒：原因和重新申请", href: "/guides/visa-refused-reapply" },
+        { label: "各国签证照片要求", href: "/guides/visa-photo-requirements" },
         { label: "Visit Japan Web，日本数码厅的入境和海关网站", href: "https://services.digital.go.jp/en/visit-japan-web/" },
+        { label: "VIZA 签证资讯", href: "/blog" },
       ],
     },
   },

@@ -161,7 +161,12 @@ export const thailand: DestinationContent = {
     related: {
       destinations: ["vietnam", "malaysia", "india", "indonesia"],
       guides: [
+        { label: "新加坡护照免签国家", href: "/guides/visa-free-countries-singapore-passport" },
+        { label: "新加坡的中国护照持有人办签证", href: "/guides/visas-chinese-passport-holders-singapore" },
+        { label: "新加坡的菲律宾和印度居民办签证", href: "/guides/visas-filipino-indian-residents-singapore" },
+        { label: "电子签、落地签和使馆签证的区别", href: "/guides/e-visa-vs-visa-on-arrival-vs-embassy-visa" },
         { label: "泰国数字入境卡，泰国移民局", href: "https://tdac.immigration.go.th/" },
+        { label: "VIZA 签证资讯", href: "/blog" },
       ],
     },
   },

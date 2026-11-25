@@ -488,6 +488,15 @@
   margin: 0 0 14px;
   color: var(--fg-2);
 }
+.viza-blog__destination ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .viza-blog__destination a {
   font-weight: 600;
   color: var(--brand-500);

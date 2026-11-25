@@ -180,8 +180,13 @@ export const schengen: DestinationContent = {
     related: {
       destinations: ["france", "italy", "united-kingdom", "turkiye"],
       guides: [
+        { label: "Visas for Chinese passport holders in Singapore", href: "/guides/visas-chinese-passport-holders-singapore" },
+        { label: "Visas for Filipino and Indian residents of Singapore", href: "/guides/visas-filipino-indian-residents-singapore" },
+        { label: "Schengen visa document checklist from Singapore", href: "/guides/schengen-visa-checklist-singapore" },
+        { label: "Visa refused: why it happens and how to reapply", href: "/guides/visa-refused-reapply" },
+        { label: "Visa photo requirements by country", href: "/guides/visa-photo-requirements" },
         { label: "EU Entry and Exit System, how it works", href: "https://travel-europe.europa.eu/ees/ltr/how-does-the-ees-work" },
-        { label: "VIZA blog: visa and arrival card guides", href: "/blog" },
+        { label: "VIZA visa news", href: "/blog" },
       ],
     },
   },

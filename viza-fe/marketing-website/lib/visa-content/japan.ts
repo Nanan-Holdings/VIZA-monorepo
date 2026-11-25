@@ -182,8 +182,13 @@ export const japan: DestinationContent = {
     related: {
       destinations: ["south-korea", "china", "vietnam", "thailand"],
       guides: [
+        { label: "Visa-free countries for Singapore passport holders", href: "/guides/visa-free-countries-singapore-passport" },
+        { label: "Visas for Chinese passport holders in Singapore", href: "/guides/visas-chinese-passport-holders-singapore" },
+        { label: "Visas for Filipino and Indian residents of Singapore", href: "/guides/visas-filipino-indian-residents-singapore" },
+        { label: "Visa refused: why it happens and how to reapply", href: "/guides/visa-refused-reapply" },
+        { label: "Visa photo requirements by country", href: "/guides/visa-photo-requirements" },
         { label: "Visit Japan Web, the Digital Agency's immigration and customs site", href: "https://services.digital.go.jp/en/visit-japan-web/" },
-        { label: "VIZA blog: visa and arrival card guides", href: "/blog" },
+        { label: "VIZA visa news", href: "/blog" },
       ],
     },
   },

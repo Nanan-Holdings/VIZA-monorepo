@@ -157,7 +157,13 @@ export const southKorea: DestinationContent = {
     related: {
       destinations: ["japan", "china", "vietnam", "thailand"],
       guides: [
+        { label: "新加坡护照免签国家", href: "/guides/visa-free-countries-singapore-passport" },
+        { label: "新加坡的中国护照持有人办签证", href: "/guides/visas-chinese-passport-holders-singapore" },
+        { label: "新加坡的菲律宾和印度居民办签证", href: "/guides/visas-filipino-indian-residents-singapore" },
+        { label: "电子旅行授权和签证的区别", href: "/guides/eta-vs-visa" },
+        { label: "各国签证照片要求", href: "/guides/visa-photo-requirements" },
         { label: "K-ETA 官方申请网站", href: "https://www.k-eta.go.kr/portal/guidance/index.do?locale=en" },
+        { label: "VIZA 签证资讯", href: "/blog" },
       ],
     },
   },

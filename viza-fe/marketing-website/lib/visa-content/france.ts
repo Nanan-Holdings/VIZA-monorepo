@@ -185,8 +185,10 @@ export const france: DestinationContent = {
     related: {
       destinations: ["schengen", "italy", "united-kingdom", "turkiye"],
       guides: [
+        { label: "Schengen visa document checklist from Singapore", href: "/guides/schengen-visa-checklist-singapore" },
         { label: "VIZA Schengen visa hub: rules shared by all Schengen countries", href: "/visa/schengen" },
         { label: "EU Entry and Exit System, how it works", href: "https://travel-europe.europa.eu/ees/ltr/how-does-the-ees-work" },
+        { label: "VIZA visa news", href: "/blog" },
       ],
     },
   },

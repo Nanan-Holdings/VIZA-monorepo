@@ -152,7 +152,11 @@ export const indonesia: DestinationContent = {
     related: {
       destinations: ["malaysia", "vietnam", "thailand", "australia"],
       guides: [
+        { label: "新加坡的中国护照持有人办签证", href: "/guides/visas-chinese-passport-holders-singapore" },
+        { label: "新加坡的菲律宾和印度居民办签证", href: "/guides/visas-filipino-indian-residents-singapore" },
+        { label: "电子签、落地签和使馆签证的区别", href: "/guides/e-visa-vs-visa-on-arrival-vs-embassy-visa" },
         { label: "All Indonesia 入境申报，印尼移民总局", href: "https://allindonesia.imigrasi.go.id/" },
+        { label: "VIZA 签证资讯", href: "/blog" },
       ],
     },
   },

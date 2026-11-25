@@ -155,7 +155,12 @@ export const china: DestinationContent = {
 
     related: {
       destinations: ["japan", "south-korea", "vietnam", "thailand"],
-      guides: [],
+      guides: [
+        { label: "新加坡护照免签国家", href: "/guides/visa-free-countries-singapore-passport" },
+        { label: "新加坡的菲律宾和印度居民办签证", href: "/guides/visas-filipino-indian-residents-singapore" },
+        { label: "各国签证照片要求", href: "/guides/visa-photo-requirements" },
+        { label: "VIZA 签证资讯", href: "/blog" },
+      ],
     },
   },
 

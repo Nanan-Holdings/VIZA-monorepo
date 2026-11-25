@@ -186,8 +186,14 @@ export const unitedKingdom: DestinationContent = {
     related: {
       destinations: ["france", "schengen", "united-states", "canada"],
       guides: [
+        { label: "Visa-free countries for Singapore passport holders", href: "/guides/visa-free-countries-singapore-passport" },
+        { label: "Visas for Chinese passport holders in Singapore", href: "/guides/visas-chinese-passport-holders-singapore" },
+        { label: "Visas for Filipino and Indian residents of Singapore", href: "/guides/visas-filipino-indian-residents-singapore" },
+        { label: "ETA vs visa: UK, Australia, Korea and Canada", href: "/guides/eta-vs-visa" },
+        { label: "Visa refused: why it happens and how to reapply", href: "/guides/visa-refused-reapply" },
+        { label: "Visa photo requirements by country", href: "/guides/visa-photo-requirements" },
         { label: "GOV.UK: guide to supporting documents for visitors", href: "https://www.gov.uk/government/publications/visitor-visa-guide-to-supporting-documents/guide-to-supporting-documents-visiting-the-uk" },
-        { label: "VIZA blog: visa and arrival card guides", href: "/blog" },
+        { label: "VIZA visa news", href: "/blog" },
       ],
     },
   },

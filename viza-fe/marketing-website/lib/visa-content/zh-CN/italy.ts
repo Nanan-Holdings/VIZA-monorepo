@@ -172,9 +172,10 @@ export const italy: DestinationContent = {
     related: {
       destinations: ["schengen", "france", "united-kingdom", "turkiye"],
       guides: [
+        { label: "新加坡申根签证材料清单", href: "/guides/schengen-visa-checklist-singapore" },
         { label: "新加坡办理申根签证：选哪个国家申请的总览指南", href: "/visa/schengen" },
         { label: "Il Visto per l'Italia，意大利外交部签证门户", href: "https://vistoperitalia.esteri.it" },
-        { label: "VIZA 博客：签证与入境卡指南", href: "/blog" },
+        { label: "VIZA 签证资讯", href: "/blog" },
       ],
     },
   },

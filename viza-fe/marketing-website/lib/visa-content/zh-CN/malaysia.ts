@@ -152,7 +152,9 @@ export const malaysia: DestinationContent = {
     related: {
       destinations: ["thailand", "indonesia", "vietnam", "india"],
       guides: [
+        { label: "新加坡的中国护照持有人办签证", href: "/guides/visas-chinese-passport-holders-singapore" },
         { label: "马来西亚数字入境卡，移民局", href: "https://imigresen-online.imi.gov.my/mdac/main" },
+        { label: "VIZA 签证资讯", href: "/blog" },
       ],
     },
   },

@@ -179,8 +179,9 @@ export const egypt: DestinationContent = {
     related: {
       destinations: ["saudi-arabia", "turkiye", "united-arab-emirates", "italy"],
       guides: [
+        { label: "e-Visa vs visa on arrival vs embassy visa", href: "/guides/e-visa-vs-visa-on-arrival-vs-embassy-visa" },
         { label: "Egypt e-Visa portal", href: "https://visa2egypt.gov.eg/eVisa/Home" },
-        { label: "VIZA blog: visa and arrival card guides", href: "/blog" },
+        { label: "VIZA visa news", href: "/blog" },
       ],
     },
   },

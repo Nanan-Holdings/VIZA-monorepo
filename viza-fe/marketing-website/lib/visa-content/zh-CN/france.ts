@@ -163,8 +163,10 @@ export const france: DestinationContent = {
     related: {
       destinations: ["schengen", "italy", "united-kingdom", "turkiye"],
       guides: [
+        { label: "新加坡申根签证材料清单", href: "/guides/schengen-visa-checklist-singapore" },
         { label: "VIZA 申根签证总览：所有申根国家共用的规则", href: "/visa/schengen" },
         { label: "欧盟出入境系统的运作方式", href: "https://travel-europe.europa.eu/ees/ltr/how-does-the-ees-work" },
+        { label: "VIZA 签证资讯", href: "/blog" },
       ],
     },
   },

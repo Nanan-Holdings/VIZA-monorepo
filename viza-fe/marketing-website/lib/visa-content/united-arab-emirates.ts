@@ -185,8 +185,10 @@ export const unitedArabEmirates: DestinationContent = {
     related: {
       destinations: ["saudi-arabia", "egypt", "india", "turkiye"],
       guides: [
+        { label: "Visa-free countries for Singapore passport holders", href: "/guides/visa-free-countries-singapore-passport" },
+        { label: "e-Visa vs visa on arrival vs embassy visa", href: "/guides/e-visa-vs-visa-on-arrival-vs-embassy-visa" },
         { label: "UAE Ministry of Foreign Affairs, visa on arrival for residents of selected countries", href: "https://www.mofa.gov.ae/en/mediahub/news/2026/6/25/uae-grants-visa-on-arrival" },
-        { label: "VIZA blog: visa and arrival card guides", href: "/blog" },
+        { label: "VIZA visa news", href: "/blog" },
       ],
     },
   },

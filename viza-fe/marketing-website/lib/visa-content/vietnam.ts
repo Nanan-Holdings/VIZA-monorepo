@@ -170,8 +170,13 @@ export const vietnam: DestinationContent = {
     related: {
       destinations: ["thailand", "malaysia", "indonesia", "japan"],
       guides: [
+        { label: "Visa-free countries for Singapore passport holders", href: "/guides/visa-free-countries-singapore-passport" },
+        { label: "Visas for Chinese passport holders in Singapore", href: "/guides/visas-chinese-passport-holders-singapore" },
+        { label: "Visas for Filipino and Indian residents of Singapore", href: "/guides/visas-filipino-indian-residents-singapore" },
+        { label: "e-Visa vs visa on arrival vs embassy visa", href: "/guides/e-visa-vs-visa-on-arrival-vs-embassy-visa" },
+        { label: "Visa photo requirements by country", href: "/guides/visa-photo-requirements" },
         { label: "Vietnam pre-arrival form, Immigration Department", href: "https://prearrival.immigration.gov.vn/" },
-        { label: "VIZA blog: visa and arrival card guides", href: "/blog" },
+        { label: "VIZA visa news", href: "/blog" },
       ],
     },
   },

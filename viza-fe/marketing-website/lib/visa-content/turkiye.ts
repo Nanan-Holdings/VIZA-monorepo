@@ -183,8 +183,10 @@ export const turkiye: DestinationContent = {
     related: {
       destinations: ["egypt", "italy", "saudi-arabia", "united-arab-emirates"],
       guides: [
+        { label: "Visas for Filipino and Indian residents of Singapore", href: "/guides/visas-filipino-indian-residents-singapore" },
+        { label: "e-Visa vs visa on arrival vs embassy visa", href: "/guides/e-visa-vs-visa-on-arrival-vs-embassy-visa" },
         { label: "Türkiye e-Visa portal", href: "https://www.evisa.gov.tr/en/" },
-        { label: "VIZA blog: visa and arrival card guides", href: "/blog" },
+        { label: "VIZA visa news", href: "/blog" },
       ],
     },
   },

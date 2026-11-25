@@ -174,8 +174,13 @@ export const southKorea: DestinationContent = {
     related: {
       destinations: ["japan", "china", "vietnam", "thailand"],
       guides: [
+        { label: "Visa-free countries for Singapore passport holders", href: "/guides/visa-free-countries-singapore-passport" },
+        { label: "Visas for Chinese passport holders in Singapore", href: "/guides/visas-chinese-passport-holders-singapore" },
+        { label: "Visas for Filipino and Indian residents of Singapore", href: "/guides/visas-filipino-indian-residents-singapore" },
+        { label: "ETA vs visa: UK, Australia, Korea and Canada", href: "/guides/eta-vs-visa" },
+        { label: "Visa photo requirements by country", href: "/guides/visa-photo-requirements" },
         { label: "K-ETA, the official application site", href: "https://www.k-eta.go.kr/portal/guidance/index.do?locale=en" },
-        { label: "VIZA blog: visa and arrival card guides", href: "/blog" },
+        { label: "VIZA visa news", href: "/blog" },
       ],
     },
   },

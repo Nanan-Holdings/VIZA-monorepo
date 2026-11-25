@@ -193,9 +193,10 @@ export const italy: DestinationContent = {
     related: {
       destinations: ["schengen", "france", "united-kingdom", "turkiye"],
       guides: [
+        { label: "Schengen visa document checklist from Singapore", href: "/guides/schengen-visa-checklist-singapore" },
         { label: "Schengen visa from Singapore, the hub guide to choosing a country", href: "/visa/schengen" },
         { label: "Il Visto per l'Italia, the Italian Ministry of Foreign Affairs visa portal", href: "https://vistoperitalia.esteri.it" },
-        { label: "VIZA blog: visa and arrival card guides", href: "/blog" },
+        { label: "VIZA visa news", href: "/blog" },
       ],
     },
   },

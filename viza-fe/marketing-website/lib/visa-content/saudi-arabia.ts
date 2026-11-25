@@ -175,8 +175,9 @@ export const saudiArabia: DestinationContent = {
     related: {
       destinations: ["united-arab-emirates", "egypt", "turkiye", "india"],
       guides: [
+        { label: "e-Visa vs visa on arrival vs embassy visa", href: "/guides/e-visa-vs-visa-on-arrival-vs-embassy-visa" },
         { label: "Saudi eVisa portal, apply and check eligibility", href: "https://visa.visitsaudi.com" },
-        { label: "VIZA blog: visa and arrival card guides", href: "/blog" },
+        { label: "VIZA visa news", href: "/blog" },
       ],
     },
   },

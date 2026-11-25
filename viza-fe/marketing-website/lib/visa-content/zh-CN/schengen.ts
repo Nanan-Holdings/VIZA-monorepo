@@ -163,7 +163,13 @@ export const schengen: DestinationContent = {
     related: {
       destinations: ["france", "italy", "united-kingdom", "turkiye"],
       guides: [
+        { label: "新加坡的中国护照持有人办签证", href: "/guides/visas-chinese-passport-holders-singapore" },
+        { label: "新加坡的菲律宾和印度居民办签证", href: "/guides/visas-filipino-indian-residents-singapore" },
+        { label: "新加坡申根签证材料清单", href: "/guides/schengen-visa-checklist-singapore" },
+        { label: "签证被拒：原因和重新申请", href: "/guides/visa-refused-reapply" },
+        { label: "各国签证照片要求", href: "/guides/visa-photo-requirements" },
         { label: "欧盟出入境系统的运作方式", href: "https://travel-europe.europa.eu/ees/ltr/how-does-the-ees-work" },
+        { label: "VIZA 签证资讯", href: "/blog" },
       ],
     },
   },
