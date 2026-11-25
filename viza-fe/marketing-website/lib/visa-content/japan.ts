@@ -125,25 +125,18 @@ export const japan: VisaContent = {
   ],
 
   reviews: {
-    score: "4.6",
-    outOf: "/ 5",
-    sub: "Trusted by travellers worldwide · 14,203 reviews",
-    platforms: [
-      { rating: "4.7", name: "Trustpilot" },
-      { rating: "4.6", name: "App Store" },
-    ],
     items: [
       {
         initials: "MH",
         name: "Maya Hassan",
-        source: "Trustpilot · 5 days ago",
+        source: "Trustpilot",
         title: "Japan visa on first attempt",
         body: "The checklist was crystal-clear and my consultant caught a photo that didn't meet the 45mm spec. Approved in 4 working days.",
       },
       {
         initials: "RT",
         name: "Ricardo Torres",
-        source: "App Store · 2 weeks ago",
+        source: "App Store",
         title: "Stress-free itinerary prep",
         body: "I had no idea I needed a day-by-day itinerary. VIZA provided a template and reviewed mine before submission. Smooth process.",
       },
@@ -196,8 +189,8 @@ export const japan: VisaContent = {
   ],
 
   price: {
-    etaLabel: "Apply now, get it by",
-    etaValue: "17 Jun 2026, 02:00 PM",
+    etaLabel: "Processing time",
+    etaValue: "Set by the issuing authority",
     title: "Temporary Visitor visa · up to 90 days",
     saving: "Faster than going direct",
     sub: "VIZA's help is free: document review and application preparation. Any visa fee is paid directly to the authorities.",

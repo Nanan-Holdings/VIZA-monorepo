@@ -1,5 +1,7 @@
 "use client";
 
+import { Link } from "@/navigation";
+
 import { useState, type ReactNode } from "react";
 import { CircleFlag } from "react-circle-flags";
 import { useTranslations } from "next-intl";
@@ -195,7 +197,7 @@ type OfficeCopy = {
   since: string;
 };
 
-export default function CareersPage() {
+export default function CareersClient() {
   const t = useTranslations("careers");
 
   const richTags = {
@@ -562,7 +564,7 @@ export default function CareersPage() {
                   </span>
                 </h3>
                 {group.roles.map((role) => (
-                  <a className="role-row" href="/apply" key={role.id}>
+                  <Link className="role-row" href="/apply" key={role.id}>
                     <div className="title-block">
                       <div className="pos">{t(`roles.jobs.${role.id}`)}</div>
                       <div className="pos-sub">
@@ -632,7 +634,7 @@ export default function CareersPage() {
                         <polyline points="9 18 15 12 9 6" />
                       </svg>
                     </span>
-                  </a>
+                  </Link>
                 ))}
               </div>
             ))}

@@ -121,25 +121,18 @@ export const vietnam: VisaContent = {
   ],
 
   reviews: {
-    score: "4.6",
-    outOf: "/ 5",
-    sub: "评分最高的签证平台 · 12,841 条评价",
-    platforms: [
-      { rating: "4.6", name: "Trustpilot" },
-      { rating: "4.7", name: "App Store" },
-    ],
     items: [
       {
         initials: "JT",
         name: "江婷",
-        source: "Trustpilot · 5天前",
+        source: "Trustpilot",
         title: "飞机起飞前电子签证已到手",
         body: "出发前三天才申请，顾问赶在截止时间前搞定了。全程沟通清晰，PDF 格式完全符合入境要求。",
       },
       {
         initials: "AN",
         name: "安宁",
-        source: "应用商店 · 2周前",
+        source: "应用商店",
         title: "照片问题轻松解决",
         body: "我上传的照片不符合规格，顾问立刻帮我处理好了。没有任何延误，签证按时批准。",
       },
@@ -200,8 +193,8 @@ export const vietnam: VisaContent = {
   ],
 
   price: {
-    etaLabel: "立即申请，预计到达时间",
-    etaValue: "2026年7月6日 11:00",
+    etaLabel: "办理时间",
+    etaValue: "以签发机关为准",
     title: "电子签证（EV）· 最长 90 天",
     saving: "比自行申请快 2 天",
     sub: "VIZA 免费提供材料审核、表格填写与进度追踪，政府费用由您直接在官方门户缴纳。",

@@ -1,5 +1,7 @@
 "use client";
 
+import { Link } from "@/navigation";
+
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { CircleFlag } from "react-circle-flags";
 import { useTranslations } from "next-intl";
@@ -17,7 +19,7 @@ type PassportCode = (typeof PASSPORT_CODES)[number];
 type Tab = "explore" | "events" | "blog";
 
 type Props = {
-  /** "explore" or "events" — adds .active to that tab. Omit for none. */
+  /** "explore" or "events", adds .active to that tab. Omit for none. */
   activeTab?: Tab;
 };
 
@@ -90,9 +92,9 @@ export default function SiteNav({ activeTab: initialTab }: Props) {
     <nav className="site-nav">
       <div className="nav-inner">
         <div className="nav-left">
-          <a className="nav-logo" href="/" aria-label="VIZA home">
+          <Link className="nav-logo" href="/" aria-label="VIZA home">
             <img src="/assets/viza-logo-black.svg" alt="VIZA" />
-          </a>
+          </Link>
           <button
             className={`passport-pill${ppOpen ? " open" : ""}`}
             id="siteNavPassportPill"
@@ -175,7 +177,7 @@ export default function SiteNav({ activeTab: initialTab }: Props) {
 
         <div className="nav-tabs" id="siteNavTabs" ref={tabsRef}>
           <span className="pill-indicator" id="siteNavPill" style={{ left: pill.left, width: pill.width }} />
-          <a
+          <Link
             ref={exploreRef}
             className={`nav-tab${activeTab === "explore" ? " active" : ""}`}
             data-tab="explore"
@@ -183,8 +185,8 @@ export default function SiteNav({ activeTab: initialTab }: Props) {
             onClick={() => setActiveTab("explore")}
           >
             {t("nav.explore")}
-          </a>
-          <a
+          </Link>
+          <Link
             ref={eventsRef}
             className={`nav-tab${activeTab === "events" ? " active" : ""}`}
             data-tab="events"
@@ -192,8 +194,8 @@ export default function SiteNav({ activeTab: initialTab }: Props) {
             onClick={() => setActiveTab("events")}
           >
             {t("nav.events")}
-          </a>
-          <a
+          </Link>
+          <Link
             ref={blogRef}
             className={`nav-tab${activeTab === "blog" ? " active" : ""}`}
             data-tab="blog"
@@ -201,7 +203,7 @@ export default function SiteNav({ activeTab: initialTab }: Props) {
             onClick={() => setActiveTab("blog")}
           >
             {t("nav.blog")}
-          </a>
+          </Link>
         </div>
 
         <div className="nav-right">

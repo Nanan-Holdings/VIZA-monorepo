@@ -134,25 +134,18 @@ export const vietnam: VisaContent = {
   ],
 
   reviews: {
-    score: "4.6",
-    outOf: "/ 5",
-    sub: "Highest rated visa platform · 12,841 reviews",
-    platforms: [
-      { rating: "4.6", name: "Trustpilot" },
-      { rating: "4.7", name: "App Store" },
-    ],
     items: [
       {
         initials: "JT",
         name: "Jamie T.",
-        source: "Trustpilot · 5 days ago",
+        source: "Trustpilot",
         title: "e-Visa in my inbox before my flight",
         body: "Applied three days before travelling — the consultant got it through in time. Clear communication throughout and the PDF was exactly what immigration wanted.",
       },
       {
         initials: "AN",
         name: "Aisha N.",
-        source: "App Store · 2 weeks ago",
+        source: "App Store",
         title: "Photo issue fixed without any hassle",
         body: "I uploaded a photo that didn't meet the spec and the consultant sorted it immediately. No delays, visa approved on schedule.",
       },
@@ -213,8 +206,8 @@ export const vietnam: VisaContent = {
   ],
 
   price: {
-    etaLabel: "Apply now, get it by",
-    etaValue: "6 Jul 2026, 11:00 AM",
+    etaLabel: "Processing time",
+    etaValue: "Set by the issuing authority",
     title: "e-Visa (EV) · up to 90 days",
     saving: "2 days faster than filing direct",
     sub: "VIZA's help is free: document review, form filling, and tracking. The government fee is paid directly on the official portal.",

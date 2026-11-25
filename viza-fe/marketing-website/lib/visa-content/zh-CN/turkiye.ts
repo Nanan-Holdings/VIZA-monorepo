@@ -142,25 +142,18 @@ export const turkiye: VisaContent = {
   ],
 
   reviews: {
-    score: "4.6",
-    outOf: "/ 5",
-    sub: "深受数千名旅客信赖 · 9,204 条评价",
-    platforms: [
-      { rating: "4.7", name: "Trustpilot" },
-      { rating: "4.5", name: "App Store" },
-    ],
     items: [
       {
         initials: "LX",
         name: "林晓燕",
-        source: "Trustpilot · 2天前",
+        source: "Trustpilot",
         title: "一夜之间搞定伊斯坦布尔行程",
         body: "傍晚提交申请，第二天早上电子签证 PDF 就到了。顾问还主动发现我的照片背景略有偏差并帮我修正，无需我额外操作。",
       },
       {
         initials: "WH",
         name: "王浩然",
-        source: "App Store · 5天前",
+        source: "App Store",
         title: "简单省心，毫无压力",
         body: "以前都自己申请土耳其电子签证，这次用 VIZA 顺畅太多了。实时状态更新加上专属顾问答疑，物超所值。",
       },
@@ -231,8 +224,8 @@ export const turkiye: VisaContent = {
   ],
 
   price: {
-    etaLabel: "立即申请，预计到达时间",
-    etaValue: "2026年6月12日 上午9:32",
+    etaLabel: "办理时间",
+    etaValue: "以签发机关为准",
     title: "电子签证 · 土耳其",
     saving: "数分钟内签发",
     sub: "VIZA 免费提供材料审核、表格填写与进度追踪，政府签证费（如有）由您直接在 evisa.gov.tr 缴纳。",

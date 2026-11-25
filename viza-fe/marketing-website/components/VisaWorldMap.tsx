@@ -1,6 +1,7 @@
 "use client";
 import { useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
+import { Link } from "@/navigation";
 import { visaHref } from "@/lib/countries";
 import WORLD from "@/lib/world-dots.json";
 
@@ -8,7 +9,7 @@ import WORLD from "@/lib/world-dots.json";
  * Dotted world map for the explore page's Map view (MKT explore toggle).
  *
  * The dot grid is precomputed by scripts/generate-world-map.mjs (dotted-map is a
- * devDependency only) and committed as lib/world-dots.json — the client just renders
+ * devDependency only) and committed as lib/world-dots.json, the client just renders
  * plain SVG circles. Launched destinations get a colorized dot (tag colors match the
  * card badges: fast → success green, evisa → brand navy); hovering / focusing one
  * floats the country's card next to the pin, clicking navigates to /visa/<slug>.
@@ -73,7 +74,7 @@ export default function VisaWorldMap({ countries, renderCard }: Props) {
 
       {/* Focusable hit targets over each colorized dot (hover/focus previews, click/Enter navigates). */}
       {markers.map((m) => (
-        <a
+        <Link
           key={m.slug}
           className="wmap-hit"
           href={visaHref(m.slug)}

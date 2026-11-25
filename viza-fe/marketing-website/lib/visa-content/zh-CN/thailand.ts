@@ -132,25 +132,18 @@ export const thailand: VisaContent = {
   ],
 
   reviews: {
-    score: "4.6",
-    outOf: "/ 5",
-    sub: "深受数千名旅客信赖 · 10,517 条评价",
-    platforms: [
-      { rating: "4.7", name: "Trustpilot" },
-      { rating: "4.6", name: "App Store" },
-    ],
     items: [
       {
         initials: "ZY",
         name: "张雨婷",
-        source: "Trustpilot · 4天前",
+        source: "Trustpilot",
         title: "清迈之旅，3天搞定签证",
         body: "泰国电子签证流程以前总让我很头疼。VIZA 负责了领事馆材料上传，还帮我确认了银行流水格式，签证 PDF 在出发前就早早发到手了。",
       },
       {
         initials: "CJ",
         name: "陈建国",
-        source: "App Store · 1周前",
+        source: "App Store",
         title: "顾问及时发现材料问题",
         body: "我的照片背景不符合规格，顾问主动处理并重新提交，全程无需我操心。这种服务态度实属难得。",
       },
@@ -236,8 +229,8 @@ export const thailand: VisaContent = {
   ],
 
   price: {
-    etaLabel: "立即申请，预计到达时间",
-    etaValue: "2026年7月17日 下午3:00",
+    etaLabel: "办理时间",
+    etaValue: "以签发机关为准",
     title: "电子签证（TR）· 60天停留",
     saving: "比直接申请更快",
     sub: "VIZA 免费提供材料审核、TDAC 代填与进度追踪，50新元政府费由您直接向泰国政府缴纳。",

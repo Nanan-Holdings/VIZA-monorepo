@@ -120,25 +120,18 @@ export const australia: VisaContent = {
   ],
 
   reviews: {
-    score: "4.6",
-    outOf: "/ 5",
-    sub: "评分最高的签证平台 · 12,841 条评价",
-    platforms: [
-      { rating: "4.6", name: "Trustpilot" },
-      { rating: "4.7", name: "App Store" },
-    ],
     items: [
       {
         initials: "LX",
         name: "刘雪",
-        source: "Trustpilot · 1周前",
+        source: "Trustpilot",
         title: "5 天内获得签证批准",
         body: "流程顺畅得难以置信。顾问帮我把所有材料都准备好了，我几乎只需要上传护照就行。",
       },
       {
         initials: "ZW",
         name: "赵伟",
-        source: "应用商店 · 3周前",
+        source: "应用商店",
         title: "顾问帮我保住了申请",
         body: "我最初提供的银行对账单材料不够充分。顾问详细指导我需要补充哪些内容，最终一次性获批。",
       },
@@ -196,8 +189,8 @@ export const australia: VisaContent = {
   ],
 
   price: {
-    etaLabel: "立即申请，预计到签时间",
-    etaValue: "2026年6月21日 14:15",
+    etaLabel: "办理时间",
+    etaValue: "以签发机关为准",
     title: "访客签证 600 类 · 旅游流 · 最长 12 个月有效期",
     saving: "一次递交，一次获批",
     sub: "VIZA 免费提供材料准备、表格填写与进度追踪，签证费由您直接向内政部支付。",

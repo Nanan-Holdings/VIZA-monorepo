@@ -118,25 +118,18 @@ export const unitedKingdom: VisaContent = {
   ],
 
   reviews: {
-    score: "4.6",
-    outOf: "/ 5",
-    sub: "评分最高的签证平台 · 12,841 条评价",
-    platforms: [
-      { rating: "4.6", name: "Trustpilot" },
-      { rating: "4.7", name: "App Store" },
-    ],
     items: [
       {
         initials: "WL",
         name: "王丽华",
-        source: "Trustpilot · 2周前",
+        source: "Trustpilot",
         title: "签证比预期更快通过",
         body: "顾问发现我的银行流水少了一页，在提交前就帮我补齐了。签证在正常时限内顺利通过，整个过程没有任何压力。",
       },
       {
         initials: "RN",
         name: "任宁",
-        source: "应用商店 · 1个月前",
+        source: "应用商店",
         title: "UKVI 所需材料一目了然",
         body: "之前自己申请时被财力证明要求搞得一头雾水。VIZA 详细告诉我该上传什么，一次就通过了。",
       },
@@ -188,8 +181,8 @@ export const unitedKingdom: VisaContent = {
   ],
 
   price: {
-    etaLabel: "立即申请，目标出签时间",
-    etaValue: "2026年7月3日 14:00",
+    etaLabel: "办理时间",
+    etaValue: "以签发机关为准",
     title: "标准访客签证 · 最长 6 个月",
     saving: "顾问全程协助 · 减少延误",
     sub: "VIZA 免费提供材料审核、表格填写及生物采集预约，UKVI 申请费由您直接向 UKVI 缴纳。",

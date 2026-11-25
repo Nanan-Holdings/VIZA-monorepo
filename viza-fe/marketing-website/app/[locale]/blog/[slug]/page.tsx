@@ -6,6 +6,9 @@ import SiteNav from "@/components/SiteNav";
 import MarketingBlogArticle from "@/components/MarketingBlogArticle";
 import type { Locale } from "@/i18n";
 import { getMarketingBlogFeed, getMarketingBlogPost } from "@/lib/marketing-blog";
+import { clip, clipTitle, pageMetadata } from "@/lib/seo/metadata";
+import { SITE_URL } from "@/lib/seo/site";
+import { destinationForPost } from "@/lib/blog-destination";
 import { blogUrl, articleJsonLd, breadcrumbJsonLd, jsonLd } from "@/lib/blog-structured-data";
 
 export const revalidate = 300;
@@ -21,22 +24,18 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
   if (result.status !== "ok") return { robots: { index: false, follow: false } };
 
   const { post } = result;
-  return {
-    title: post.seoTitle || post.title,
-    description: post.seoDescription || post.excerpt,
-    alternates: {
-      canonical: locale === "en" ? `/blog/${post.slug}` : `/${locale}/blog/${post.slug}`,
-    },
-    openGraph: {
-      type: "article",
-      title: post.seoTitle || post.title,
-      description: post.seoDescription || post.excerpt,
-      publishedTime: post.publishedAt,
-      modifiedTime: post.updatedAt,
-      authors: [post.authorName],
-      images: post.coverImageUrl ? [{ url: post.coverImageUrl }] : undefined,
-    },
-  };
+  const cover = post.coverImageUrl ? new URL(post.coverImageUrl, SITE_URL).toString() : null;
+  return pageMetadata({
+    title: clipTitle(post.seoTitle || post.title),
+    description: clip(post.seoDescription || post.excerpt, 155),
+    path: `/blog/${post.slug}`,
+    locale,
+    ogKey: "blog",
+    hreflang: "none",
+    ogType: "article",
+    article: { publishedTime: post.publishedAt, modifiedTime: post.updatedAt, authors: [post.authorName] },
+    image: cover ? { url: cover, alt: post.title } : undefined,
+  });
 }
 
 export default async function BlogPostPage({ params }: BlogPostPageProps) {
@@ -56,6 +55,10 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
       .sort((a, b) => Number(b.category === result.post.category) - Number(a.category === result.post.category))
       .slice(0, 3)
     : [];
+
+  const destination = result.status === "ok" ? destinationForPost(result.post) : null;
+  const tc = await getTranslations({ locale, namespace: "countries" });
+  const destinationName = destination ? (tc.has(destination.slug) ? tc(destination.slug) : destination.name) : "";
 
   return (
     <>
@@ -90,6 +93,12 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
             ctaTitle={t("ctaTitle")}
             ctaBody={t("ctaBody")}
             ctaAction={t("ctaAction")}
+            visaLink={destination ? {
+              slug: destination.slug,
+              title: t("visaLinkTitle", { country: destinationName }),
+              body: t("visaLinkBody"),
+              action: t("visaLinkAction", { country: destinationName }),
+            } : undefined}
           />
         )}
       </main>

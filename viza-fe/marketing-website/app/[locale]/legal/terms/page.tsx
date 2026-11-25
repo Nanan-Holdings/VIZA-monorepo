@@ -1,3 +1,6 @@
+import { Link } from "@/navigation";
+import type { Metadata } from "next";
+import { staticPageMetadata } from "@/lib/seo/page-meta";
 import type { ReactNode } from "react";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import SiteNav from "@/components/SiteNav";
@@ -23,6 +26,10 @@ const TOC_IDS = [
 ] as const;
 
 type LabeledItem = { label: string; text: string };
+
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  return staticPageMetadata(params, "terms", "/legal/terms");
+}
 
 export default async function TermsPage({
   params,
@@ -68,7 +75,7 @@ export default async function TermsPage({
             <h2>{t("sections.agreement.title")}</h2>
             <p>
               {t.rich("sections.agreement.p1", {
-                privacy: (chunks) => <a href="/legal/privacy">{chunks}</a>,
+                privacy: (chunks) => <Link href="/legal/privacy">{chunks}</Link>,
               })}
             </p>
             <p>{t("sections.agreement.p2")}</p>

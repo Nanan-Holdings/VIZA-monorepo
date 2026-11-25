@@ -1,4 +1,6 @@
 "use client";
+
+import { Link } from "@/navigation";
 import "./apply.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -34,7 +36,7 @@ type ExtractStage = "idle" | "reading" | "extracting" | "verifying" | "done";
 
 /**
  * The six identity fields the visitor must confirm before starting. Every
- * one is required — extraction may leave any of them empty (partial read),
+ * one is required, extraction may leave any of them empty (partial read),
  * in which case the field opens in edit mode and blocks step 2 → 3.
  */
 type PassportField =
@@ -120,7 +122,7 @@ const COUNTRY_MAP: Record<string, { a2: string; name: string }> = {
 };
 
 function formatDateDisplay(iso: string): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   const [y, m, d] = iso.split("-");
   if (!y || !m || !d) return iso;
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -131,7 +133,7 @@ function formatDateDisplay(iso: string): string {
 
 function CountryDisplay({ alpha3 }: { alpha3: string }) {
   const entry = COUNTRY_MAP[alpha3?.toUpperCase()];
-  if (!entry) return <>{alpha3 || "—"}</>;
+  if (!entry) return <>{alpha3 || "-"}</>;
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
       <CircleFlag countryCode={entry.a2} height={16} />
@@ -193,7 +195,7 @@ function ReviewField({
               onBlur={onDone}
               aria-label={label}
             >
-              <option value="">—</option>
+              <option value="">-</option>
               {options?.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
@@ -222,7 +224,7 @@ function ReviewField({
   );
 }
 
-export default function ApplyPage() {
+export default function ApplyClient() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { countryBySlug } = useCatalogue();
 
@@ -259,7 +261,7 @@ export default function ApplyPage() {
   const [scanFailure, setScanFailure] = useState<ScanFailure | null>(null);
   const [scanFailureDetail, setScanFailureDetail] = useState<string | null>(null);
 
-  // Editable copy of the extraction — the review card writes here, so the
+  // Editable copy of the extraction, the review card writes here, so the
   // visitor can correct misreads and fill anything the scan missed.
   const [fields, setFields] = useState<Record<PassportField, string>>(EMPTY_FIELDS);
   const [editing, setEditing] = useState<Partial<Record<PassportField, boolean>>>({});
@@ -309,7 +311,7 @@ export default function ApplyPage() {
     form.append("file", file);
 
     try {
-      // "Reading" is the small UX delay before the upload completes — keep it
+      // "Reading" is the small UX delay before the upload completes, keep it
       // honest by tying it to the in-flight POST rather than a fixed timer.
       setExtractStage("extracting");
       const res = await fetch("/api/passport-scan/extract", {
@@ -347,7 +349,7 @@ export default function ApplyPage() {
       };
       const missing = REQUIRED_PASSPORT_FIELDS.filter((f) => !nextFields[f].trim());
 
-      // Nothing usable came back — treat as a failed scan, not a partial one.
+      // Nothing usable came back, treat as a failed scan, not a partial one.
       if (missing.length === REQUIRED_PASSPORT_FIELDS.length) {
         setScanFailure("unreadable");
         setExtractStage("idle");
@@ -383,7 +385,7 @@ export default function ApplyPage() {
       try {
         sessionStorage.setItem("viza.passport.extracted", JSON.stringify(data));
       } catch {
-        // sessionStorage may be blocked (private mode, etc.) — non-fatal.
+        // sessionStorage may be blocked (private mode, etc.), non-fatal.
       }
 
       setTimeout(() => goStep(2), 400);
@@ -526,7 +528,7 @@ export default function ApplyPage() {
           JSON.stringify({ email: email.trim(), phone: `${dialCode} ${phone.trim()}` }),
         );
       } catch {
-        // sessionStorage may be blocked — non-fatal.
+        // sessionStorage may be blocked, non-fatal.
       }
     }
     goStep((step + 1) as Step);
@@ -556,15 +558,15 @@ export default function ApplyPage() {
     type?: "text" | "date" | "select";
     display: React.ReactNode;
   }[] = [
-    { f: "surname", label: tA("fSurname"), display: fields.surname || "—" },
-    { f: "givenNames", label: tA("fGiven"), display: fields.givenNames || "—" },
-    { f: "passportNumber", label: tA("fPassport"), display: fields.passportNumber || "—" },
+    { f: "surname", label: tA("fSurname"), display: fields.surname || "-" },
+    { f: "givenNames", label: tA("fGiven"), display: fields.givenNames || "-" },
+    { f: "passportNumber", label: tA("fPassport"), display: fields.passportNumber || "-" },
     { f: "dob", label: tA("fDob"), type: "date", display: formatDateDisplay(fields.dob) },
     {
       f: "nationality",
       label: tA("fNationality"),
       type: "select",
-      display: fields.nationality ? <CountryDisplay alpha3={fields.nationality} /> : "—",
+      display: fields.nationality ? <CountryDisplay alpha3={fields.nationality} /> : "-",
     },
     { f: "expiryDate", label: tA("fExpires"), type: "date", display: formatDateDisplay(fields.expiryDate) },
   ];
@@ -613,7 +615,7 @@ export default function ApplyPage() {
           <section className={`step step-pane${step === 1 ? " active" : ""}`} data-pane="1">
             <header className="step-head">
               <div className="step-eyebrow">{tA("stepOf", { n: 1 })}</div>
-              <h1>{tA("s1Title")}</h1>
+              {step === 1 ? <h1>{tA("s1Title")}</h1> : <h2 className="step-title">{tA("s1Title")}</h2>}
               <p>{tA("s1Desc")}</p>
             </header>
 
@@ -638,7 +640,7 @@ export default function ApplyPage() {
               </button>
             </div>
 
-            {/* Hidden file input — clicked via dropzone. In "Take photo"
+            {/* Hidden file input, clicked via dropzone. In "Take photo"
                 mode the capture hint opens the camera directly on mobile. */}
             <input
               ref={fileInputRef}
@@ -764,7 +766,7 @@ export default function ApplyPage() {
           <section className={`step step-pane${step === 2 ? " active" : ""}`} data-pane="2">
             <header className="step-head">
               <div className="step-eyebrow">{tA("stepOf", { n: 2 })}</div>
-              <h1>{tA("s2Title")}</h1>
+              {step === 2 ? <h1>{tA("s2Title")}</h1> : <h2 className="step-title">{tA("s2Title")}</h2>}
               <p>{tA("s2Desc")}</p>
             </header>
 
@@ -922,7 +924,7 @@ export default function ApplyPage() {
           <section className={`step step-pane${step === 3 ? " active" : ""}`} data-pane="3">
             <header className="step-head">
               <div className="step-eyebrow">{tA("stepOf", { n: 3 })}</div>
-              <h1>{tA("s3Title")}</h1>
+              {step === 3 ? <h1>{tA("s3Title")}</h1> : <h2 className="step-title">{tA("s3Title")}</h2>}
               <p>{tA("s3Desc")}</p>
             </header>
 
@@ -977,14 +979,14 @@ export default function ApplyPage() {
 
       </div>
 
-      <a className="help-bubble" id="helpBubble" href="/contact">
+      <Link className="help-bubble" id="helpBubble" href="/contact">
         <img src="https://i.pravatar.cc/64?img=47" alt=""/>
         <div>
           <div className="ht">{tA("helpOnline")}</div>
           <div className="hs">{tA("helpTap")}</div>
         </div>
         <span className="pulse"></span>
-      </a>
+      </Link>
 
       <div className="actions">
         <div className="actions-inner">

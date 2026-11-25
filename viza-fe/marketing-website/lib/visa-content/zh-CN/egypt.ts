@@ -120,25 +120,18 @@ export const egypt: VisaContent = {
   ],
 
   reviews: {
-    score: "4.6",
-    outOf: "/ 5",
-    sub: "评分最高的签证平台 · 12,841 条评价",
-    platforms: [
-      { rating: "4.6", name: "Trustpilot" },
-      { rating: "4.7", name: "App Store" },
-    ],
     items: [
       {
         initials: "WF",
         name: "王芳",
-        source: "Trustpilot · 5天前",
+        source: "Trustpilot",
         title: "不到两天拿到埃及电子签证",
         body: "整个流程非常顺畅——上传材料，第二天早上就收到了批准通知。简单得超出预期。",
       },
       {
         initials: "CJ",
         name: "陈杰",
-        source: "应用商店 · 2周前",
+        source: "应用商店",
         title: "顾问发现了照片问题",
         body: "我的护照照片背景略带颜色，顾问立刻发现并帮我修正后再提交。这种细节自己很难注意到。",
       },
@@ -187,8 +180,8 @@ export const egypt: VisaContent = {
   ],
 
   price: {
-    etaLabel: "立即申请，预计到签时间",
-    etaValue: "2026年7月12日 14:15",
+    etaLabel: "办理时间",
+    etaValue: "以签发机关为准",
     title: "旅游电子签证 · 30 天停留",
     saving: "比使馆途径快 5 天以上",
     sub: "VIZA 免费提供材料审核、表格填写与进度追踪，政府费用由您直接在官方平台缴纳。",

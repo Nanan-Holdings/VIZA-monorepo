@@ -143,25 +143,18 @@ export const thailand: VisaContent = {
   ],
 
   reviews: {
-    score: "4.6",
-    outOf: "/ 5",
-    sub: "Trusted by thousands of travellers · 10,517 reviews",
-    platforms: [
-      { rating: "4.7", name: "Trustpilot" },
-      { rating: "4.6", name: "App Store" },
-    ],
     items: [
       {
         initials: "RL",
         name: "Rachel Lee",
-        source: "Trustpilot · 4 days ago",
+        source: "Trustpilot",
         title: "Chiang Mai trip sorted in 3 days",
         body: "The eVisa process for Thailand used to stress me out. VIZA handled the consulate upload, checked my bank statement format, and sent me the visa PDF well ahead of departure.",
       },
       {
         initials: "DW",
         name: "David Wong",
-        source: "App Store · 1 week ago",
+        source: "App Store",
         title: "Consultant caught a document issue",
         body: "My photo didn't meet the exact background spec — the consultant re-processed it and resubmitted without me having to do anything. That level of care is rare.",
       },
@@ -247,8 +240,8 @@ export const thailand: VisaContent = {
   ],
 
   price: {
-    etaLabel: "Apply now, get it by",
-    etaValue: "17 Jul 2026, 03:00 PM",
+    etaLabel: "Processing time",
+    etaValue: "Set by the issuing authority",
     title: "eVisa (TR) · 60-day stay",
     saving: "Faster than applying direct",
     sub: "VIZA's help is free: document review, TDAC filing, and tracking. The SGD 50 government fee is paid directly to the Thai government.",

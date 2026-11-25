@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { setRequestLocale } from "next-intl/server";
+import { staticPageMetadata } from "@/lib/seo/page-meta";
 import ExplorePage from "./ExplorePage";
 
 // The explore UI is a client component, so the homepage metadata lives in this
@@ -10,21 +11,7 @@ export async function generateMetadata({
 }: {
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
-  const { locale } = await params;
-  const t = await getTranslations({ locale, namespace: "pages.home" });
-  const title = t("title");
-  const description = t("description");
-  return {
-    // The title already carries the brand, so skip the root "%s · VIZA" template.
-    title: { absolute: title },
-    description,
-    openGraph: {
-      type: "website",
-      siteName: "VIZA",
-      title,
-      description,
-    },
-  };
+  return staticPageMetadata(params, "home", "/");
 }
 
 export default async function HomePage({

@@ -119,25 +119,18 @@ export const malaysia: VisaContent = {
   ],
 
   reviews: {
-    score: "4.6",
-    outOf: "/ 5",
-    sub: "评分最高的签证平台 · 12,841 条评价",
-    platforms: [
-      { rating: "4.6", name: "Trustpilot" },
-      { rating: "4.7", name: "App Store" },
-    ],
     items: [
       {
         initials: "DM",
         name: "丁敏",
-        source: "Trustpilot · 1周前",
+        source: "Trustpilot",
         title: "不到 2 天顺利批准，全程无忧",
         body: "顾问仔细检查了所有材料，提交前发现我的照片背景不太符合要求，及时帮我调整了。批准函在出行前很早就送到了。",
       },
       {
         initials: "CW",
         name: "陈伟",
-        source: "应用商店 · 3周前",
+        source: "应用商店",
         title: "省去了所有烦恼",
         body: "我不太清楚马来西亚需要哪些材料。VIZA 给了我一份清晰的清单，审核了我的上传文件，电子签证比预期更快到手。",
       },
@@ -185,8 +178,8 @@ export const malaysia: VisaContent = {
   ],
 
   price: {
-    etaLabel: "立即申请，预计到达时间",
-    etaValue: "2026年8月17日 10:00",
+    etaLabel: "办理时间",
+    etaValue: "以签发机关为准",
     title: "旅游 eVISA（SEV）· 停留 30 天",
     saving: "比自行申请快 1 天",
     sub: "VIZA 免费提供材料审核、表格填写与进度追踪，政府费用由您直接在官方系统缴纳。",

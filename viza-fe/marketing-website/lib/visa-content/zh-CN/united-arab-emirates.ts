@@ -148,25 +148,18 @@ export const unitedArabEmirates: VisaContent = {
   ],
 
   reviews: {
-    score: "4.7",
-    outOf: "/ 5",
-    sub: "深受数千名旅客信赖 · 8,932 条评价",
-    platforms: [
-      { rating: "4.7", name: "Trustpilot" },
-      { rating: "4.8", name: "App Store" },
-    ],
     items: [
       {
         initials: "MQ",
         name: "孟庆华",
-        source: "Trustpilot · 3天前",
+        source: "Trustpilot",
         title: "不到3天拿到迪拜签证",
         body: "第一次申请阿联酋签证，对照片规格有些担心。顾问在提交前发现背景颜色问题并帮我处理好了，全程毫无压力。",
       },
       {
         initials: "SL",
         name: "苏丽萍",
-        source: "App Store · 6天前",
+        source: "App Store",
         title: "实时状态更新让我安心不少",
         body: "全程实时看着申请走完每个环节，签证签发的瞬间就知道了——不用反复刷邮件。以后申请签证只用这个。",
       },
@@ -237,8 +230,8 @@ export const unitedArabEmirates: VisaContent = {
   ],
 
   price: {
-    etaLabel: "立即申请，预计到达时间",
-    etaValue: "2026年6月18日 中午12:00",
+    etaLabel: "办理时间",
+    etaValue: "以签发机关为准",
     title: "旅游签证 · 停留30天或60天",
     saving: "比直接申请更快",
     sub: "VIZA 免费提供材料审核、表格填写与进度追踪，政府签证费由您直接向 GDRFA 支付。",

@@ -1,5 +1,7 @@
 "use client";
 
+import { Link } from "@/navigation";
+
 import { useState, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { CircleFlag } from "react-circle-flags";
@@ -12,7 +14,7 @@ import { trackEvent } from "@/lib/analytics";
 /**
  * Decorative QR-lookalike. Pseudo-random but deterministic per seed, with
  * finder/alignment/timing patterns so it LOOKS like a real 33x33 QR code.
- * Pure function — same seed always yields the exact same module grid.
+ * Pure function, same seed always yields the exact same module grid.
  */
 const QR_SIZE = 33;
 
@@ -148,12 +150,12 @@ const DIAL_CODES = ["🇸🇬 +65", "🇺🇸 +1", "🇬🇧 +44", "🇦🇪 +97
 
 const DESKS = [
   { id: "cn", phone: "+66 18930437448", email: "sales@kelin.studio", address: "Lane 1502, Luoshan Road, China (Shanghai) Pilot Free Trade Zone", closed: false },
-  { id: "sg", phone: "+65 84106368", email: "sales@kelin.studio", address: "225 Pasir Panjang Rd, Singapore", closed: false },
+  { id: "sg", phone: "+65 84106368", email: "sales@kelin.studio", address: "227 Pasir Panjang Rd, Singapore 117341", closed: false },
 ] as const;
 
 const FAQ_IDS = ["q1", "q2", "q3", "q4", "q5", "q6"] as const;
 
-export default function ContactPage() {
+export default function ContactClient() {
   const t = useTranslations("contact");
   const locale = useLocale();
   const [formStatus, setFormStatus] = useState<
@@ -224,7 +226,7 @@ export default function ContactPage() {
         <div className="hero-inner">
           <div className="hero-top">
             <div className="hero-crumb">
-              <a href="/">VIZA</a>
+              <Link href="/">VIZA</Link>
               <span className="sep">/</span>
               <span>{t("hero.crumb")}</span>
             </div>
@@ -462,7 +464,7 @@ export default function ContactPage() {
               </div>
             </div>
 
-            {/* Honeypot — hidden from humans, filled by naive bots. */}
+            {/* Honeypot, hidden from humans, filled by naive bots. */}
             <input
               type="text"
               name="website"

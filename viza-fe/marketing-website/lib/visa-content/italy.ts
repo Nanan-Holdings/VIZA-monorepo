@@ -147,25 +147,18 @@ export const italy: VisaContent = {
   ],
 
   reviews: {
-    score: "4.6",
-    outOf: "/ 5",
-    sub: "Highest rated visa platform · 12,841 reviews",
-    platforms: [
-      { rating: "4.7", name: "Trustpilot" },
-      { rating: "4.6", name: "App Store" },
-    ],
     items: [
       {
         initials: "AN",
         name: "Amira Nair",
-        source: "Trustpilot · 4 days ago",
+        source: "Trustpilot",
         title: "Italy trip sorted without the paperwork stress",
         body: "I had no idea about the insurance requirement until VIZA flagged it. They sorted the checklist in one go and the visa came back with no issues.",
       },
       {
         initials: "WL",
         name: "Wei Lin",
-        source: "App Store · 10 days ago",
+        source: "App Store",
         title: "Appointment reminders made it easy",
         body: "Got a clear reminder for the biometrics appointment and step-by-step instructions on what to bring. Collected my passport three days later.",
       },
@@ -228,8 +221,8 @@ export const italy: VisaContent = {
   ],
 
   price: {
-    etaLabel: "Apply now, target collection by",
-    etaValue: "29 Jun 2026, 03:00 PM",
+    etaLabel: "Processing time",
+    etaValue: "Set by the issuing authority",
     title: "Schengen Visa (Type C) · up to 90 days",
     saving: "Full dossier review included",
     sub: "VIZA's help is free: document review, form preparation, and appointment support.",

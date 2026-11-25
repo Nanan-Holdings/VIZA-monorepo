@@ -127,25 +127,18 @@ export const saudiArabia: VisaContent = {
   ],
 
   reviews: {
-    score: "4.6",
-    outOf: "/ 5",
-    sub: "评分最高的签证平台 · 12,841 条评价",
-    platforms: [
-      { rating: "4.6", name: "Trustpilot" },
-      { rating: "4.7", name: "App Store" },
-    ],
     items: [
       {
         initials: "SY",
         name: "孙艳",
-        source: "Trustpilot · 4天前",
+        source: "Trustpilot",
         title: "一夜之间获批沙特电子签证",
         body: "傍晚提交申请，第二天早上就收到了批准通知。整个流程透明顺畅——所有状态更新都能在 VIZA 应用中实时查看。",
       },
       {
         initials: "HB",
         name: "黄博",
-        source: "应用商店 · 2周前",
+        source: "应用商店",
         title: "顾问让申请毫无压力",
         body: "我不清楚需要哪些材料。顾问一步一步引导我，并帮我完成了整个提交流程。",
       },
@@ -205,8 +198,8 @@ export const saudiArabia: VisaContent = {
   ],
 
   price: {
-    etaLabel: "立即申请，预计到签时间",
-    etaValue: "2026年6月14日 14:15",
+    etaLabel: "办理时间",
+    etaValue: "以签发机关为准",
     title: "旅游电子签证 · 1 年多次入境 · 每次停留 90 天",
     saving: "快 1 天",
     sub: "VIZA 免费提供材料审核、表格填写与进度追踪，政府费用（含强制保险）由您直接缴纳。",

@@ -148,25 +148,18 @@ export const turkiye: VisaContent = {
   ],
 
   reviews: {
-    score: "4.6",
-    outOf: "/ 5",
-    sub: "Trusted by thousands of travellers · 9,204 reviews",
-    platforms: [
-      { rating: "4.7", name: "Trustpilot" },
-      { rating: "4.5", name: "App Store" },
-    ],
     items: [
       {
         initials: "MA",
         name: "Meera Anand",
-        source: "Trustpilot · 2 days ago",
+        source: "Trustpilot",
         title: "Istanbul trip sorted overnight",
         body: "Applied in the evening, had the e-Visa PDF by morning. The consultant even pointed out my photo background was slightly off and fixed it without me asking.",
       },
       {
         initials: "JT",
         name: "James Tan",
-        source: "App Store · 5 days ago",
+        source: "App Store",
         title: "Simple and stress-free",
         body: "I'd always done Turkish e-Visas myself but this was so much smoother. Real-time status updates and a consultant to answer my questions — worth every cent.",
       },
@@ -237,8 +230,8 @@ export const turkiye: VisaContent = {
   ],
 
   price: {
-    etaLabel: "Apply now, get it by",
-    etaValue: "12 Jun 2026, 09:32 AM",
+    etaLabel: "Processing time",
+    etaValue: "Set by the issuing authority",
     title: "e-Visa · Türkiye",
     saving: "Issued in minutes",
     sub: "VIZA's help is free: document review, form filling, and tracking. Any government fee is paid directly on evisa.gov.tr.",

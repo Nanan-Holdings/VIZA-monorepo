@@ -131,25 +131,18 @@ export const egypt: VisaContent = {
   ],
 
   reviews: {
-    score: "4.6",
-    outOf: "/ 5",
-    sub: "Highest rated visa platform · 12,841 reviews",
-    platforms: [
-      { rating: "4.6", name: "Trustpilot" },
-      { rating: "4.7", name: "App Store" },
-    ],
     items: [
       {
         initials: "RA",
         name: "Rania Al-Hassan",
-        source: "Trustpilot · 5 days ago",
+        source: "Trustpilot",
         title: "Egypt e-Visa in under 2 days",
         body: "The whole process was seamless — uploaded my documents, got my approval the next morning. Couldn't have been simpler.",
       },
       {
         initials: "MT",
         name: "Marcus Tan",
-        source: "App Store · 2 weeks ago",
+        source: "App Store",
         title: "Consultant caught a photo issue",
         body: "My passport photo had a slightly coloured background. The consultant flagged it immediately and helped me fix it before submission.",
       },
@@ -198,8 +191,8 @@ export const egypt: VisaContent = {
   ],
 
   price: {
-    etaLabel: "Apply now, get it by",
-    etaValue: "12 Jul 2026, 02:15 PM",
+    etaLabel: "Processing time",
+    etaValue: "Set by the issuing authority",
     title: "Tourist e-Visa · 30-day stay",
     saving: "5+ days faster than embassy",
     sub: "VIZA's help is free: document review, form filling, and tracking. The government fee is paid directly on the official portal.",

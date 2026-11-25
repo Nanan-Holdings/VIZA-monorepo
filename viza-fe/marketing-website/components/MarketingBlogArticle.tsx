@@ -20,6 +20,8 @@ interface MarketingBlogArticleProps {
   ctaTitle: string;
   ctaBody: string;
   ctaAction: string;
+  /** Contextual link to the matching /visa/<slug> page, when the post is about one destination. */
+  visaLink?: { slug: string; title: string; body: string; action: string };
 }
 
 function formatDate(value: string, locale: Locale): string {
@@ -296,6 +298,7 @@ export default function MarketingBlogArticle({
   ctaTitle,
   ctaBody,
   ctaAction,
+  visaLink,
 }: MarketingBlogArticleProps) {
   return (
     <>
@@ -331,6 +334,13 @@ export default function MarketingBlogArticle({
               </div>
             ) : null}
             <MarkdownBody markdown={post.bodyMarkdown} />
+            {visaLink ? (
+              <aside className="viza-blog__destination">
+                <h2>{visaLink.title}</h2>
+                <p>{visaLink.body}</p>
+                <Link href={`/visa/${visaLink.slug}`} locale={locale}>{visaLink.action} <span aria-hidden="true">→</span></Link>
+              </aside>
+            ) : null}
           </article>
         </div>
       </section>

@@ -11,6 +11,10 @@ pages, and portal checkout links.
 
 ## Analytics And SEO
 
+- SEO plumbing: `lib/seo/metadata.ts` (page metadata helper), `lib/seo/titles.ts` (destination titles and descriptions),
+  `lib/locales.ts` (locale registry), `app/sitemap.ts` and `app/robots.ts`. `scripts/og.mjs` renders the link previews,
+  `scripts/check-copy.mjs` runs before every build, `scripts/verify.mjs` fetches every sitemap URL as Googlebot and WhatsApp.
+
 - `app/[locale]/blog/**` renders published portal articles. `lib/marketing-blog.ts` reads the portal's public API; category and article JSON-LD live in `lib/blog-structured-data.ts` and `lib/blog-taxonomy.ts`.
 - Public blog layout styles live in `app/blog.css` and are scoped to the blog
   routes by `app/[locale]/blog/layout.tsx`. The shared featured story, topic

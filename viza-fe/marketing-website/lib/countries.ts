@@ -32,7 +32,7 @@ export interface CountryMeta {
 
 /**
  * Hero/card image. Local assets under public/assets/heroes/ (downloaded once via
- * scripts/fetch-hero-images.mjs) — no runtime Unsplash hotlinking, which was
+ * scripts/fetch-hero-images.mjs), no runtime Unsplash hotlinking, which was
  * breaking/rate-limited in production.
  */
 const HERO = (slug: string, ext = "jpg") => `/assets/heroes/${slug}.${ext}`;
@@ -59,4 +59,35 @@ export const COUNTRIES: CountryMeta[] = [
 /** Slug for a country card CTA; unlaunched/unknown still route to the (coming-soon) page, never a 404. */
 export function visaHref(slug: string): string {
   return `/visa/${slug}`;
+}
+
+/**
+ * Real geographic neighbours, nearest first, for the "Nearby countries" block.
+ * A destination missing here falls back to the first launched destinations.
+ */
+export const NEIGHBOURS: Record<string, string[]> = {
+  indonesia: ["malaysia", "vietnam", "thailand", "australia"],
+  malaysia: ["thailand", "indonesia", "vietnam", "india"],
+  vietnam: ["thailand", "malaysia", "indonesia", "japan"],
+  thailand: ["vietnam", "malaysia", "india", "indonesia"],
+  japan: ["vietnam", "thailand", "malaysia", "indonesia"],
+  india: ["thailand", "malaysia", "united-arab-emirates", "saudi-arabia"],
+  australia: ["indonesia", "malaysia", "vietnam", "thailand"],
+  "united-arab-emirates": ["saudi-arabia", "egypt", "india", "turkiye"],
+  "saudi-arabia": ["united-arab-emirates", "egypt", "turkiye", "india"],
+  egypt: ["saudi-arabia", "turkiye", "united-arab-emirates", "italy"],
+  turkiye: ["egypt", "italy", "saudi-arabia", "united-arab-emirates"],
+  france: ["italy", "united-kingdom", "turkiye", "egypt"],
+  italy: ["france", "united-kingdom", "turkiye", "egypt"],
+  "united-kingdom": ["france", "italy", "united-states", "canada"],
+  "united-states": ["canada", "united-kingdom", "japan", "australia"],
+  canada: ["united-states", "united-kingdom", "france", "japan"],
+};
+
+/** Up to `limit` launched neighbours of `slug`, in NEIGHBOURS order. */
+export function nearbyCountries<T extends { slug: string }>(slug: string, launched: T[], limit = 4): T[] {
+  const bySlug = new Map(launched.map((c) => [c.slug, c]));
+  const picked = (NEIGHBOURS[slug] ?? []).map((s) => bySlug.get(s)).filter((c): c is T => Boolean(c));
+  if (picked.length) return picked.slice(0, limit);
+  return launched.filter((c) => c.slug !== slug).slice(0, limit);
 }

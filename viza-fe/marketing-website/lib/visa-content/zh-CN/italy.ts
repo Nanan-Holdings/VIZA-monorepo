@@ -145,25 +145,18 @@ export const italy: VisaContent = {
   ],
 
   reviews: {
-    score: "4.6",
-    outOf: "/ 5",
-    sub: "评分最高的签证平台 · 12,841条评价",
-    platforms: [
-      { rating: "4.7", name: "Trustpilot" },
-      { rating: "4.6", name: "App Store" },
-    ],
     items: [
       {
         initials: "AN",
         name: "苏慕仪",
-        source: "Trustpilot · 4天前",
+        source: "Trustpilot",
         title: "意大利之行，材料烦恼全搞定",
         body: "之前完全不知道有保险金额要求，VIZA 一下子就帮我找出来了。清单一次理清，签证顺利通过。",
       },
       {
         initials: "WL",
         name: "林威",
-        source: "App Store · 10天前",
+        source: "App Store",
         title: "预约提醒让整个流程轻松很多",
         body: "采集生物特征前收到了清晰的提醒和需要携带的材料清单，三天后就去领了护照。",
       },
@@ -226,8 +219,8 @@ export const italy: VisaContent = {
   ],
 
   price: {
-    etaLabel: "立即申请，预计领取时间",
-    etaValue: "2026年6月29日 下午3:00",
+    etaLabel: "办理时间",
+    etaValue: "以签发机关为准",
     title: "申根签证（C类）· 最长90天",
     saving: "含完整材料审核服务",
     sub: "VIZA 免费提供材料审核、表格填写及预约支持。",

@@ -144,25 +144,18 @@ export const australia: VisaContent = {
   ],
 
   reviews: {
-    score: "4.6",
-    outOf: "/ 5",
-    sub: "Highest rated visa platform · 12,841 reviews",
-    platforms: [
-      { rating: "4.6", name: "Trustpilot" },
-      { rating: "4.7", name: "App Store" },
-    ],
     items: [
       {
         initials: "JW",
         name: "Jessica Wong",
-        source: "Trustpilot · 1 week ago",
+        source: "Trustpilot",
         title: "Grant came through in 5 days",
         body: "Incredibly smooth process. The consultant built the whole document package for me and I barely had to do anything beyond uploading my passport.",
       },
       {
         initials: "DA",
         name: "Daniel Ang",
-        source: "App Store · 3 weeks ago",
+        source: "App Store",
         title: "Consultant saved my application",
         body: "The bank statements I originally sent weren't going to be enough. The consultant guided me on what to include and we got the grant first time.",
       },
@@ -220,8 +213,8 @@ export const australia: VisaContent = {
   ],
 
   price: {
-    etaLabel: "Apply now, get it by",
-    etaValue: "21 Jun 2026, 02:15 PM",
+    etaLabel: "Processing time",
+    etaValue: "Set by the issuing authority",
     title: "Visitor 600 · Tourist stream · up to 12-month validity",
     saving: "Decision-ready first time",
     sub: "VIZA's help is free: document preparation, form filling, and tracking. The visa charge is paid directly to Home Affairs.",

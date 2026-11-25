@@ -42,8 +42,8 @@
   },
   "pages": {
     "blog": {
-      "metaTitle": "Visa guides and travel updates — VIZA",
-      "metaDescription": "Clear, practical guidance on visas, application preparation, and international travel from VIZA.",
+      "metaTitle": "Visa Guides and Travel Updates | VIZA",
+      "metaDescription": "Clear, practical guides on visas, application preparation and international travel from the VIZA team. Updated as rules change.",
       "eyebrow": "VIZA journal",
       "title": "Visa guidance, without the fine-print fog.",
       "lede": "Practical explanations, official-policy updates, and preparation tips from the team that handles visa applications every day.",
@@ -68,39 +68,42 @@
       "ctaTitle": "Ready to start your application?",
       "ctaBody": "Tell us where you want to go. VIZA will guide you through the requirements and next steps.",
       "ctaAction": "Start an application",
-      "categoryMetaTitle": "{category} guides — VIZA",
-      "categoryMetaDescription": "Read VIZA guides and updates about {category}.",
-      "categoryLede": "Guides and updates about {category}."
+      "categoryMetaTitle": "{category} Guides | VIZA",
+      "categoryMetaDescription": "Read VIZA guides and updates about {category}: what changed, who it affects and what to do next.",
+      "categoryLede": "Guides and updates about {category}.",
+      "visaLinkTitle": "Applying for a {country} visa?",
+      "visaLinkBody": "See the documents, government fee and steps for people living in Singapore.",
+      "visaLinkAction": "{country} visa guide"
     },
     "home": {
       "title": "Visa Applications in Singapore: US, India, Vietnam | VIZA",
       "description": "Apply for a US visa (DS-160), India, Vietnam or Egypt e-visa, or a France Schengen visa. An advisor checks every form before it is lodged.",
       "heroTitle": "Where to next?",
-      "heroLede": "Browse visa options for any destination. Your VIZA consultant and our AI handle the paperwork — you book the trip."
+      "heroLede": "Browse visa options for any destination. Your VIZA consultant and our AI handle the paperwork, you book the trip."
     },
     "apply": {
-      "title": "Apply — VIZA",
-      "description": "Upload your passport. We auto-extract details. Confirm, check out, and your visa is delivered to your inbox.",
+      "title": "Start a Visa Application | VIZA",
+      "description": "Upload your passport, confirm your details and hand your visa application to a VIZA advisor. VIZA's service is free.",
       "saveBadge": "Saved · resume any time"
     },
     "careers": {
-      "title": "Careers at VIZA",
-      "description": "Help us make borders disappear, one application at a time. Engineering, design, operations, and consulting roles in Shanghai and Singapore.",
+      "title": "Careers in Singapore and Shanghai | VIZA",
+      "description": "Help us make borders disappear, one application at a time. Engineering, design, operations and consulting roles in Shanghai and Singapore.",
       "rightCta": "See roles"
     },
     "contact": {
-      "title": "Contact VIZA",
-      "description": "WhatsApp, WeChat, Phone, Email. Four channels, four desks, a real human within 5 minutes.",
+      "title": "Contact Us: WhatsApp, WeChat, Phone, Email | VIZA",
+      "description": "Reach the VIZA team by WhatsApp, WeChat, phone or email. Four channels, four desks, and a real person replies.",
       "rightCta": "Write to us"
     },
     "security": {
-      "title": "Security at VIZA",
-      "description": "Private. Transparent. Secure by default. How we protect customer data, our vulnerability disclosure program, and safe harbour.",
+      "title": "Security and Responsible Disclosure | VIZA",
+      "description": "Private, transparent and secure by default. How VIZA protects customer data, our vulnerability disclosure program and safe harbour.",
       "rightCta": "Report a vulnerability"
     },
     "status": {
-      "title": "System status — VIZA",
-      "description": "Real-time status of VIZA and the government visa portals we file against.",
+      "title": "System Status | VIZA",
+      "description": "Live status of VIZA and the government visa portals we file against.",
       "navPill": "All systems operational"
     },
     "visa": {
@@ -114,6 +117,22 @@
       "nearby": "Nearby countries",
       "faq": "FAQ",
       "sources": "Official sources"
+    },
+    "privacy": {
+      "title": "Privacy Policy | VIZA",
+      "description": "What VIZA collects when you apply for a visa, why we need it, who sees it and how long we keep it. Plain language."
+    },
+    "terms": {
+      "title": "Terms of Service | VIZA",
+      "description": "The agreement between you and VIZA when you use our visa application service. VIZA's service is free."
+    },
+    "product": {
+      "title": "How VIZA Supports Your Visa Application | VIZA",
+      "description": "Visa preparation, document review and application status in one place. VIZA's service is free. Scope and availability are shown for each destination."
+    },
+    "events": {
+      "title": "Events | VIZA",
+      "description": "Visa clinics, information sessions and partner events from VIZA."
     }
   },
   "common": {
@@ -131,7 +150,7 @@
     "step1": "Tell us your trip details and upload your passport.",
     "step2": "We complete and check your application against the latest rules.",
     "step3": "We submit to the government portal and track the decision.",
-    "step4": "Your approved visa arrives by email — we monitor it end to end.",
+    "step4": "Your approved visa arrives by email, and we monitor it end to end.",
     "documents": "What you'll need",
     "doc1": "A passport valid for at least 6 months.",
     "doc2": "A recent passport-style photo.",
@@ -139,7 +158,7 @@
     "doc4": "If the destination charges a visa fee, a payment card to pay it directly to the government.",
     "nearby": "Nearby destinations",
     "startApplication": "Start your application",
-    "comingSoonTitle": "{country} — coming soon",
+    "comingSoonTitle": "{country}: coming soon",
     "comingSoonBody": "We're putting the finishing touches on {country}. Create an account and we'll let you know the moment it's live.",
     "browseDestinations": "Browse destinations",
     "notifyMe": "Notify me",
@@ -155,7 +174,7 @@
     "tabFaq": "FAQ",
     "reviewsTitle": "Reviews",
     "nearbyTitle": "Nearby countries",
-    "nearbySub": "Travelling the region? Add another visa to your trip — your VIZA consultant batches them.",
+    "nearbySub": "Travelling the region? Add another visa to your trip, and your VIZA consultant batches them.",
     "faqTitle": "Frequently asked questions",
     "editorial": "This page follows VIZA’s editorial policy. We rely on official government sources and update each requirement when policy changes.",
     "editorialLink": "Read how we review",
@@ -172,7 +191,10 @@
     "govFeeSetByAuthorityShort": "Set by the authority",
     "priceService": "VIZA service",
     "pillPaidToAuthority": "Paid to the authority",
-    "priceTotalToViza": "You pay VIZA"
+    "priceTotalToViza": "You pay VIZA",
+    "breadcrumbVisas": "Visa destinations",
+    "serviceDescription": "VIZA helps people living in Singapore prepare, review and submit {country} {type} applications with AI guidance and expert human review.",
+    "offerDescription": "VIZA service fee. Government visa fees are separate and paid directly to the issuing authority."
   },
   "apply": {
     "stepOf": "Step {n} of 3",
@@ -799,7 +821,7 @@
           "photo": "photo · singapore HQ",
           "open": "12 open",
           "name": "Singapore",
-          "addr1": "225 Pasir Panjang Rd,",
+          "addr1": "227 Pasir Panjang Rd,",
           "addr2": "Singapore",
           "tz": "GMT+8 · Asia-Pacific HQ",
           "since": "HQ · since 2021"
@@ -1268,7 +1290,7 @@
         "intro": "Privacy questions, requests, complaints — same address.",
         "email": "<strong>Email:</strong> <a>privacy@viza.it.com</a>",
         "dpo": "<strong>Data Protection Officer:</strong> <a>dpo@viza.it.com</a>",
-        "address": "<strong>Mailing address:</strong> 225 Pasir Panjang Rd, Singapore",
+        "address": "<strong>Mailing address:</strong> 227 Pasir Panjang Rd, Singapore",
         "pdpc": "<strong>Singapore PDPC:</strong> <a>pdpc.gov.sg</a>"
       }
     },
@@ -1438,7 +1460,7 @@
         "title": "Contact",
         "legal": "<strong>Legal questions:</strong> <a>legal@viza.it.com</a>",
         "privacy": "<strong>Privacy / data requests:</strong> <a>privacy@viza.it.com</a>",
-        "address": "<strong>Mailing address:</strong> 225 Pasir Panjang Rd, Singapore",
+        "address": "<strong>Mailing address:</strong> 227 Pasir Panjang Rd, Singapore",
         "uen": "<strong>UEN:</strong> 202312345A"
       }
     },

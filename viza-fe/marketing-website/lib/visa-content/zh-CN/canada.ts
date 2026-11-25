@@ -111,25 +111,18 @@ export const canada: VisaContent = {
   ],
 
   reviews: {
-    score: "4.6",
-    outOf: "/ 5",
-    sub: "全球旅行者的信赖之选 · 15,712条评价",
-    platforms: [
-      { rating: "4.7", name: "Trustpilot" },
-      { rating: "4.6", name: "App Store" },
-    ],
     items: [
       {
         initials: "SL",
         name: "孙丽华",
-        source: "Trustpilot · 4天前",
+        source: "Trustpilot",
         title: "不到5分钟就获批了",
         body: "VIZA顾问刚提交完申请，我还没喝完一杯咖啡，批准邮件就到了。整个过程顺畅无比。",
       },
       {
         initials: "MZ",
         name: "马志远",
-        source: "App Store · 2周前",
+        source: "App Store",
         title: "帮我发现了护照号码录入错误",
         body: "审核步骤发现我把护照号码中的两个数字写反了。要是到了机场才发现，那才真的麻烦。",
       },
@@ -181,8 +174,8 @@ export const canada: VisaContent = {
   ],
 
   price: {
-    etaLabel: "立即申请，预计送达",
-    etaValue: "2026年9月25日 下午3:15",
+    etaLabel: "办理时间",
+    etaValue: "以签发机关为准",
     title: "访客签证（TRV）· 多次入境",
     saving: "代办生物识别预约",
     sub: "VIZA免费提供材料审核、IRCC门户递交及生物识别预约，政府费用由您直接向IRCC缴纳。",

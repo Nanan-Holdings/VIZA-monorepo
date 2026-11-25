@@ -98,25 +98,18 @@ export const indonesia: VisaContent = {
   ],
 
   reviews: {
-    score: "4.5",
-    outOf: "/ 5",
-    sub: "新加坡评分最高的签证平台 · 12,841 条评价",
-    platforms: [
-      { rating: "4.6", name: "Trustpilot" },
-      { rating: "4.7", name: "App Store" },
-    ],
     items: [
       {
         initials: "LM",
         name: "李明",
-        source: "Trustpilot · 3天前",
+        source: "Trustpilot",
         title: "不到一天拿到巴厘岛电子落地签",
         body: "晚上 11 点提交申请，第二天早上起来签证 PDF 已经到邮箱了。应用内的状态更新让整个过程透明清晰，完全放心。",
       },
       {
         initials: "ZH",
         name: "张慧",
-        source: "应用商店 · 1周前",
+        source: "应用商店",
         title: "顾问帮我避免了照片被拒",
         body: "顾问发现我的照片背景不符合要求，帮我重新上传了一张。如果自己直接提交，根本不会注意到这个问题。",
       },
@@ -160,8 +153,8 @@ export const indonesia: VisaContent = {
   ],
 
   price: {
-    etaLabel: "立即申请，预计到签时间",
-    etaValue: "2026年5月9日 15:03",
+    etaLabel: "办理时间",
+    etaValue: "以签发机关为准",
     title: "电子落地签 · 30 天停留",
     saving: "快 21 小时",
     sub: "VIZA 免费提供材料审核、表格填写与进度追踪，政府费用由您直接向移民局支付。",

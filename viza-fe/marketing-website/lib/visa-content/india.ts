@@ -151,25 +151,18 @@ export const india: VisaContent = {
   ],
 
   reviews: {
-    score: "4.6",
-    outOf: "/ 5",
-    sub: "Highest rated visa platform · 12,841 reviews",
-    platforms: [
-      { rating: "4.7", name: "Trustpilot" },
-      { rating: "4.6", name: "App Store" },
-    ],
     items: [
       {
         initials: "DK",
         name: "David Kwan",
-        source: "Trustpilot · 6 days ago",
+        source: "Trustpilot",
         title: "India e-Visa in 3 days, done right",
         body: "The government portal is confusing on its own. VIZA handled the photo formatting and submitted everything — ETA arrived in under 72 hours.",
       },
       {
         initials: "SR",
         name: "Siti Rahman",
-        source: "App Store · 1 week ago",
+        source: "App Store",
         title: "Photo issue caught before it was a problem",
         body: "My photo had the wrong background and the consultant flagged it immediately. Resubmitted the same day, visa came through without a hitch.",
       },
@@ -226,8 +219,8 @@ export const india: VisaContent = {
   ],
 
   price: {
-    etaLabel: "Apply now, get it by",
-    etaValue: "23 Jun 2026, 03:00 PM",
+    etaLabel: "Processing time",
+    etaValue: "Set by the issuing authority",
     title: "e-Tourist Visa · 30-day stay",
     saving: "Fully online — no consulate visit",
     sub: "VIZA's help is free: document review, photo check, and status tracking. The government fee is paid directly on the official portal.",

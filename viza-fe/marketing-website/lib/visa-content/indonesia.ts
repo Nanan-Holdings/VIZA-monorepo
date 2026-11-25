@@ -103,25 +103,18 @@ export const indonesia: VisaContent = {
   ],
 
   reviews: {
-    score: "4.5",
-    outOf: "/ 5",
-    sub: "Highest rated visa platform in Singapore · 12,841 reviews",
-    platforms: [
-      { rating: "4.6", name: "Trustpilot" },
-      { rating: "4.7", name: "App Store" },
-    ],
     items: [
       {
         initials: "PL",
         name: "Priya Lim",
-        source: "Trustpilot · 3 days ago",
+        source: "Trustpilot",
         title: "Bali e-VOA in under a day",
         body: "Submitted at 11pm, woke up to my visa PDF the next morning. The status updates inside the app made the whole thing feel transparent.",
       },
       {
         initials: "SK",
         name: "Samuel Koh",
-        source: "App Store · 1 week ago",
+        source: "App Store",
         title: "Saved me from a refused photo",
         body: "The consultant flagged that my photo background was off and re-uploaded one for me. Wouldn’t have caught that if I filed direct.",
       },
@@ -165,8 +158,8 @@ export const indonesia: VisaContent = {
   ],
 
   price: {
-    etaLabel: "Apply now, get it by",
-    etaValue: "9 May 2026, 03:03 PM",
+    etaLabel: "Processing time",
+    etaValue: "Set by the issuing authority",
     title: "e-VOA · 30-day stay",
     saving: "21 hrs faster",
     sub: "VIZA’s help is free: document review, form filling, and tracking. The government fee is paid directly to Immigration.",
