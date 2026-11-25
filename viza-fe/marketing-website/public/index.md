@@ -80,7 +80,7 @@ Simplified Chinese versions of every page sit under `/zh-CN/`, for example
 
 ## Reference
 
-- Offices in Singapore (225 Pasir Panjang Road) and Shanghai, China.
+- Offices in Singapore (60 Paya Lebar Road, #06-28 Paya Lebar Square) and Shanghai, China.
 - Applications are completed in the portal at <https://app.viza.it.com>.
 - VIZA is a service, not a developer platform. There is no public API, SDK or
   MCP server today, so an agent evaluating it should judge it on the pages

@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { trackEvent } from "@/lib/analytics";
 import type { CountryMeta } from "@/lib/countries";
 import type { FaqItem } from "@/lib/visa-content/types";
+import { LOCALE_HTML_LANG, buildLocalePath, isLocale } from "@/lib/locales";
+import { SITE_URL } from "@/lib/seo/site";
 
 interface Props {
   country: CountryMeta;
@@ -20,10 +23,12 @@ export default function VisaStructuredData({
   localType,
   faq = [],
 }: Props) {
-  const base = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://viza.it.com").replace(/\/$/, "");
-  const localePrefix = locale === "en" ? "" : `/${locale}`;
-  const url = `${base}${localePrefix}/visa/${country.slug}`;
+  const t = useTranslations("visa");
+  const base = SITE_URL;
+  const home = `${base}${buildLocalePath(locale, "/")}`;
+  const url = `${base}${buildLocalePath(locale, `/visa/${country.slug}`)}`;
   const serviceId = `${url}#service`;
+  const inLanguage = isLocale(locale) ? LOCALE_HTML_LANG[locale] : "en";
 
   useEffect(() => {
     trackEvent("visa_page_view", {
@@ -37,34 +42,42 @@ export default function VisaStructuredData({
     "@context": "https://schema.org",
     "@type": "Service",
     "@id": serviceId,
-    name: `${localName} ${localType} application service`,
+    name: `${localName} ${localType}`,
     serviceType: "Visa application service",
     provider: { "@id": `${base}/#organization` },
-    areaServed: localName,
+    areaServed: { "@type": "Country", name: localName },
+    inLanguage,
     url,
     image: `${base}${country.image}`,
-    description: `VIZA helps travelers prepare, review, and submit ${localName} ${localType} applications with AI guidance and expert human oversight.`,
+    description: t("serviceDescription", { country: localName, type: localType }),
     offers: {
       "@type": "Offer",
+      price: "0",
+      priceCurrency: "SGD",
       availability: "https://schema.org/InStock",
       url,
+      description: t("offerDescription"),
     },
   };
 
+  // The middle crumb is the /visa destinations index.
+  const index = `${base}${buildLocalePath(locale, "/visa")}`;
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "VIZA", item: base },
-      { "@type": "ListItem", position: 2, name: "Visa services", item: `${base}${localePrefix}` },
+      { "@type": "ListItem", position: 1, name: "VIZA", item: home },
+      { "@type": "ListItem", position: 2, name: t("breadcrumbVisas"), item: index },
       { "@type": "ListItem", position: 3, name: localName, item: url },
     ],
   };
 
+  // Same questions and answers as the visible FAQ section (VisaCountryRich renders content.faq).
   const faqJsonLd = faq.length
     ? {
         "@context": "https://schema.org",
         "@type": "FAQPage",
+        inLanguage,
         mainEntity: faq.map((item) => ({
           "@type": "Question",
           name: item.q,

@@ -1,7 +1,7 @@
 /**
  * Precomputes the dotted world map for the explore page's Map view (lib/world-dots.json).
  *
- * Uses https://github.com/NTag/dotted-map (devDependency) at build-script time only —
+ * Uses https://github.com/NTag/dotted-map (devDependency) at build-script time only -
  * the heavy countries GeoJSON never ships to the client; the component renders the
  * committed JSON as plain SVG circles.
  *

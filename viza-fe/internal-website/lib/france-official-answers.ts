@@ -121,8 +121,15 @@ export function validateFranceOfficialAnswers(
     if (!text("host_postcode")) problems.push({ field: "host_postcode", labelZh: "邀请人地址邮编", reason: "missing" });
   } else if (accommodationType === "hotel" || accommodationType === "rented") {
     checkFields(ACCOMMODATION_FIELDS);
-    if (!text("accommodation_postcode")) {
-      problems.push({ field: "accommodation_postcode", labelZh: "住宿地址邮编", reason: "missing" });
+    // France-Visas requires the establishment's postcode, phone and e-mail
+    // (VIZA also uses the phone and e-mail for the reception contact).
+    const required: Array<[string, string]> = [
+      ["accommodation_postcode", "住宿地址邮编"],
+      ["accommodation_phone", "住宿电话"],
+      ["accommodation_email", "住宿电子邮箱"],
+    ];
+    for (const [field, labelZh] of required) {
+      if (!text(field)) problems.push({ field, labelZh, reason: "missing" });
     }
   }
   return problems;

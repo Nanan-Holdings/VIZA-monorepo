@@ -83,7 +83,8 @@ export interface FinalizeResult {
   /** FRA-format reference assigned by France-Visas after finalize. */
   applicationReference: string;
   /** Local path to the downloaded CERFA PDF. */
-  pdfPath: string;
+  /** Null when the finalised application's PDF could not be saved. */
+  pdfPath: string | null;
 }
 
 export interface FinalizeOptions {
@@ -150,7 +151,7 @@ export async function finalizeAndDownloadPdf(
 
   // 1. Locate the just-created application's row + its in-progress PDF
   //    link + the FRA reference assigned during step 6.
-  const target = await pickInProgressPdfTarget(page, options.draftReference);
+  const target = await retryAfterNavigation(page, () => pickInProgressPdfTarget(page, options.draftReference));
   if (!target) {
     throw new NavigationError(
       `Could not locate "Read pdf application in progress" link for our draft on accueil`,
@@ -185,9 +186,11 @@ export async function finalizeAndDownloadPdf(
 
   const fileName = `cerfa_${applicationReference}.pdf`;
   const pdfPath = path.join(outputDir, fileName);
-  await download.saveAs(pdfPath);
+  // The application is finalised by now: a PDF that cannot be saved must not
+  // turn the run into a failure (a retry would file a second application).
+  const saved = await saveDownload(page, download, pdfPath);
 
-  return { applicationReference, pdfPath };
+  return { applicationReference, pdfPath: saved };
 }
 
 export interface ContinueConfirmedApplicationResult {
@@ -563,8 +566,71 @@ async function downloadFinalApplicationPdf(
       details: { cause: err instanceof Error ? err.message : String(err) },
     });
   }
-  await download.saveAs(targetPath);
-  return targetPath;
+  const saved = await saveDownload(page, download, targetPath);
+  if (!saved) {
+    throw new NavigationError("Final France-Visas PDF could not be saved", { url: page.url() });
+  }
+  return saved;
+}
+
+/**
+ * Run a page read that can race the dashboard's own navigation ("Execution
+ * context was destroyed"): wait for the page to settle and try again.
+ */
+export async function retryAfterNavigation<T>(page: Page, read: () => Promise<T>, attempts = 4): Promise<T> {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await read();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (attempt >= attempts || !/context was destroyed|because of a navigation/i.test(message)) {
+        throw err;
+      }
+      await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
+      await page.waitForTimeout(1_000 * attempt);
+    }
+  }
+}
+
+/**
+ * Save a browser download to `targetPath`. With the remote (Browserbase)
+ * browser Playwright's saveAs/stream can point at a file that only exists on
+ * the remote machine, so fall back to fetching the download URL with the
+ * page's own session. Returns the saved path, or null if nothing worked.
+ */
+async function saveDownload(page: Page, download: Download, targetPath: string): Promise<string | null> {
+  try {
+    await download.saveAs(targetPath);
+    return targetPath;
+  } catch {
+    // Remote browser: try the stream, then a fetch with the session cookies.
+  }
+  try {
+    const stream = await download.createReadStream();
+    await new Promise<void>((resolve, reject) => {
+      const out = fs.createWriteStream(targetPath);
+      stream.on("error", reject);
+      out.on("error", reject);
+      out.on("finish", () => resolve());
+      stream.pipe(out);
+    });
+    if (fs.statSync(targetPath).size > 0) return targetPath;
+  } catch {
+    // fall through
+  }
+  try {
+    const url = download.url();
+    if (url && /^https?:/i.test(url)) {
+      const response = await page.context().request.get(url, { timeout: 60_000 });
+      if (response.ok()) {
+        fs.writeFileSync(targetPath, await response.body());
+        return targetPath;
+      }
+    }
+  } catch {
+    // fall through
+  }
+  return null;
 }
 
 async function readTextAround(page: Page, patterns: RegExp[]): Promise<string | null> {

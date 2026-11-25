@@ -35,6 +35,9 @@ const HEROES = {
   france: "photo-1431274172761-fca41d930114",
   italy: "photo-1531572753322-ad063cecc140",
   india: "photo-1524492412937-b28074a5d7da",
+  china: "photo-1508804185872-d7badad00f7d",
+  "south-korea": "photo-1517154421773-0529f29ea451",
+  schengen: "photo-1467269204594-9661b134dd2b",
 };
 
 const unsplashUrl = (id) =>
@@ -70,14 +73,14 @@ async function main() {
       await writeFile(resolve(OUT_DIR, `${slug}.jpg`), buf);
       results.push(`✓ ${slug} (${(buf.length / 1024).toFixed(0)} KB)`);
     } catch (err) {
-      results.push(`✗ ${slug} — ${err.message}`);
+      results.push(`✗ ${slug}, ${err.message}`);
     }
   }
 
   console.log(results.join("\n"));
   const failed = results.filter((r) => r.startsWith("✗"));
   if (failed.length) {
-    console.error(`\n${failed.length} image(s) failed — replace the dead Unsplash id in HEROES.`);
+    console.error(`\n${failed.length} image(s) failed, replace the dead Unsplash id in HEROES.`);
     process.exit(1);
   }
 }

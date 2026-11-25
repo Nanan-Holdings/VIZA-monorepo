@@ -1,0 +1,76 @@
+/*
+  Motion from the Framer reference (appear/home.json, about.json, contact.json and the page CSS):
+  - appear: opacity 0 to 1 and y 24 (sections) or 32 (hero copy) to 0, spring stiffness 200 damping 44,
+    hero items delayed 0.1 to 0.7s. Approximated with a 0.9s ease-out curve; cards stagger by --d.
+  - hero photo: scale 1.1 to 1, spring damping 64 (about 1.4s).
+  - header: slides down from y -32 after 0.3s, then hides on scroll down and returns on scroll up.
+  - hovers: 0.3s, ease (0.44, 0, 0.56, 1); card photos scale to 1.04 over 0.6s.
+  Content is hidden only when scripts run (html.ds-js, set before paint by MotionScript), so nothing is lost
+  without JavaScript, and prefers-reduced-motion switches every effect off.
+*/
+.ds-js [data-reveal] {
+  opacity: 0.001;
+  transform: translateY(var(--reveal-y, var(--ds-appear-y)));
+  transition: opacity var(--ds-dur-appear) var(--ds-ease-spring) var(--d, 0s),
+    transform var(--ds-dur-appear) var(--ds-ease-spring) var(--d, 0s);
+}
+.ds-js [data-reveal="hero"] {
+  --reveal-y: 32px;
+}
+.ds-js [data-reveal="pop"] {
+  transform: translateY(12px) scale(0.92);
+}
+.ds-js [data-reveal][data-inview="true"] {
+  opacity: 1;
+  transform: none;
+}
+
+@keyframes ds-photo-in {
+  from {
+    transform: scale(1.1);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes ds-header-in {
+  from {
+    opacity: 0;
+    transform: translateY(-32px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.ds-js .ds-hero-photo img {
+  animation: ds-photo-in 1.4s var(--ds-ease-spring) both;
+}
+.ds-js .ds-header-row {
+  animation: ds-header-in var(--ds-dur-appear) var(--ds-ease-spring) 0.3s both;
+}
+
+/* Hover: photos inside linked cards zoom a little */
+a:hover .ds-photo img,
+.ds-hover-zoom:hover .ds-photo img {
+  transform: scale(1.04);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-js [data-reveal] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .ds-js .ds-hero-photo img,
+  .ds-js .ds-header-row {
+    animation: none;
+  }
+  a:hover .ds-photo img,
+  .ds-hover-zoom:hover .ds-photo img {
+    transform: none;
+  }
+  html {
+    scroll-behavior: auto;
+  }
+}

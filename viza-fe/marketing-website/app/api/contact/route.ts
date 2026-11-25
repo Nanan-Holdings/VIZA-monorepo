@@ -4,7 +4,7 @@ import { portalUrl } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 
 /**
- * Contact-form submit — thin server-side proxy to the portal's
+ * Contact-form submit, thin server-side proxy to the portal's
  * `/api/contact`, which validates and emails the enquiry to ops.
  * Mirrors the passport-scan proxy pattern: the marketing site keeps
  * zero backend/auth dependencies and never talks to Resend directly.

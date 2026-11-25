@@ -283,6 +283,41 @@ export async function fillStep5(page: Page, a: FvStep5Answers): Promise<void> {
     if (a.hostPersonEmail) await setJsfTextInput(page, "formStep5:visas-input-applicant-hostPerson-email", a.hostPersonEmail);
   }
 
+  // Host organisation subsection (hotel / rental) and its contact person.
+  // Field names captured from the live step 5 (2026-11-21).
+  if (a.cbxHasHostOrganization) {
+    if (a.hostOrgCountry) {
+      await selectPrimeFacesOption(page, "widget_formStep5_visas_selected_hostOrganization_country", a.hostOrgCountry);
+    }
+    if (a.hostOrgContactCountry) {
+      await selectPrimeFacesOption(
+        page,
+        "widget_formStep5_visas_selected_hostOrganization_addressContact_country",
+        a.hostOrgContactCountry,
+      );
+    }
+    await waitForJsfIdle(page);
+    const org = "formStep5:visas-input-application-hostOrganization";
+    const texts: Array<[string, string | undefined]> = [
+      [`${org}-orgname`, a.hostOrgName],
+      [`${org}-address-street`, a.hostOrgStreet],
+      [`${org}-address-zipcode`, a.hostOrgZipcode],
+      [`${org}-address-place`, a.hostOrgPlace],
+      [`${org}-address-phoneNumber`, a.hostOrgPhone],
+      [`${org}-address-email`, a.hostOrgEmail],
+      [`${org}-contactSurname`, a.hostOrgContactSurname],
+      [`${org}-contactFirstNames`, a.hostOrgContactFirstnames],
+      [`${org}-addressContact-address`, a.hostOrgContactAddress],
+      [`${org}-addressContact-zipcode`, a.hostOrgContactZipcode],
+      [`${org}-addressContact-place`, a.hostOrgContactPlace],
+      [`${org}-addressContact-phoneNumber`, a.hostOrgContactPhone],
+      [`${org}-addressContact-email`, a.hostOrgContactEmail],
+    ];
+    for (const [name, value] of texts) {
+      if (value) await setJsfTextInput(page, name, value);
+    }
+  }
+
   // Auto-funding methods (multi-select checkbox group)
   if (a.cbxHasAutoFunding && a.autoFundings && a.autoFundings.length > 0) {
     await setJsfCheckboxGroup(page, "formStep5:autoFundings", a.autoFundings);

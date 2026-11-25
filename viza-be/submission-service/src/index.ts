@@ -303,8 +303,11 @@ import { releaseBrowserbaseCloudSession } from "./browserbase-session.js";
 import {
   openOfficialApplicantHandoff,
   runOfficialHandoffWatchTick,
+  type LeasedOfficialHandoff,
+  type OfficialReceiptEvidence,
 } from "./official-handoff/index.js";
 import { indonesiaHandoffInspector } from "./indonesia/handoff.js";
+import { vietnamHandoffInspector } from "./vietnam/handoff.js";
 import {
   hasCountryRunnerWork,
   hasIndonesiaWorkerWork,
@@ -4182,6 +4185,16 @@ async function processFvItem(
                   ? "france_visas_manual_gate"
                   : nonRetryableResult ? resultErrorCode : "france_visas_prefill_failed",
                 error_message: errorMsg,
+                // submission_queue has no France payload column: keep the
+                // captured hotel-block field list (names, types, labels and
+                // limits — no answers) where it can be read to map step 5.
+                ...(resultErrorCode === "france_host_organization_capture"
+                  ? {
+                      official_error_message: JSON.stringify(
+                        (result.error as { hostOrganizationFields?: unknown }).hostOrganizationFields ?? [],
+                      ).slice(0, 8_000),
+                    }
+                  : {}),
               }
             : {}),
           fv_result_payload: result as unknown as Record<string, unknown>,
@@ -4579,6 +4592,16 @@ function buildVnQueuePayload(
       errorCode: result.errorCode,
       checkpoint: result.checkpoint,
       url: result.url,
+    };
+  }
+  if (result.status === "awaiting_applicant_official_submit") {
+    // Never include applicantHandoff: its live-view URL is a bearer link.
+    return {
+      ...base,
+      checkpoint: result.checkpoint,
+      handoffReadyAt: result.applicantHandoff.readyAt,
+      fieldsFilled: result.fieldsFilled,
+      fieldsSkipped: result.fieldsSkipped,
     };
   }
   return {
@@ -5468,6 +5491,10 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
       item.id,
       {
         heartbeat_at: heartbeatAt,
+        // The applicant handoff RPC requires a live lease held by this worker.
+        ...(item.locked_by === SUBMISSION_QUEUE_WORKER_ID
+          ? { locked_until: new Date(Date.now() + SUBMISSION_QUEUE_LEASE_SECONDS * 1_000).toISOString() }
+          : {}),
         updated_at: heartbeatAt,
       },
       {
@@ -5589,11 +5616,51 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
               return managedPaymentCard ? managedCardToOneTimeCard(managedPaymentCard) : null;
             }
           : undefined,
+        // Product policy: live runs stop before the official review CAPTCHA
+        // (the official submit) and hand the session to the applicant.
+        applicantHandoff: liveAssisted,
         onProgress: async (stage) => {
+          if (liveAssisted) await throwIfApplicantCancelRequested(item.id);
           await persistVietnamProgressStage(item.id, stage, currentVnProgressStage);
         },
       },
     );
+
+    if (result.status === "awaiting_applicant_official_submit") {
+      const handoff = result.applicantHandoff;
+      let opened: Awaited<ReturnType<typeof openOfficialApplicantHandoff>> = null;
+      try {
+        await throwIfApplicantCancelRequested(item.id);
+        // The live-view URL is a bearer link: it goes only to the handoff row.
+        opened = await openOfficialApplicantHandoff(supabase, {
+          queueId: item.id,
+          workerId: SUBMISSION_QUEUE_WORKER_ID,
+          applicationId: item.application_id,
+          applicantId: profile.id,
+          session: handoff,
+          stoppedResult: {
+            country: "GENERIC",
+            targetCountry: "VN",
+            mode: "live_assisted",
+            provider: "vietnam_evisa_live",
+            officialPortalUrl: process.env.VN_OFFICIAL_BASE_URL ?? "https://evisa.gov.vn/",
+            checkpoint: result.checkpoint,
+            handoffReadyAt: handoff.readyAt,
+          },
+        });
+      } finally {
+        // Any failure to register the handoff must not leak the kept-alive session.
+        if (!opened) await releaseBrowserbaseCloudSession(handoff.sessionId);
+      }
+      if (!opened) {
+        throw new Error("Vietnam applicant handoff could not be opened; queue lease was lost or the application changed.");
+      }
+      console.log(
+        `[vn] Run ${runId} handed the official session to the applicant at ${result.checkpoint} ` +
+        `application=${redactIdentifier(item.application_id)} fields=${result.fieldsFilled}`,
+      );
+      return;
+    }
 
     if (result.status === "submitted_pending_pay" || result.status === "submitted_paid") {
       const paid = result.status === "submitted_paid";
@@ -5851,6 +5918,39 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
     }
     console.error(`[vn] Run ${runId} failed at ${result.failedStep}: ${errorMsg}`);
   } catch (err) {
+    if (err instanceof ApplicantCancelledError) {
+      const now = new Date().toISOString();
+      await supabase
+        .from("submission_queue")
+        .update({
+          status: "vn_live_assisted_cancelled",
+          current_stage: "cancelled_by_applicant",
+          cancel_requested_at: null,
+          locked_by: null,
+          locked_until: null,
+          heartbeat_at: now,
+          updated_at: now,
+        })
+        .eq("id", item.id)
+        .eq("locked_by", SUBMISSION_QUEUE_WORKER_ID);
+      const { data: current } = await supabase
+        .from("applications")
+        .select("submission_result")
+        .eq("id", item.application_id)
+        .maybeSingle();
+      const previous = (current as { submission_result?: Record<string, unknown> | null } | null)?.submission_result ?? {};
+      await supabase
+        .from("applications")
+        .update({
+          submission_result: { ...previous, cancelledByApplicant: true, cancelledAt: now },
+          submission_result_status: "cancelled",
+          submission_result_updated_at: now,
+          updated_at: now,
+        })
+        .eq("id", item.application_id);
+      console.log(`[vn] Run ${runId} cancelled by applicant application=${redactIdentifier(item.application_id)}`);
+      return;
+    }
     if (managedPaymentCard) {
       await managedPaymentHooks?.finalizePaymentCard?.(managedPaymentCard, "review_required").catch(() => undefined);
       managedPaymentCard = null;
@@ -8358,7 +8458,7 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       portalProbeHeadless,
       userPaymentHandoff,
       onStage: async (stage, snapshot) => {
-        await throwIfIndonesiaCancelRequested(item.id);
+        await throwIfApplicantCancelRequested(item.id);
         await markIndonesiaQueueStage(item.id, stage, provider, snapshot.url);
       },
     });
@@ -8369,7 +8469,7 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       // the applicant-visible result and releases this queue lease.
       const handoff = result.applicantHandoff;
       try {
-        await throwIfIndonesiaCancelRequested(item.id);
+        await throwIfApplicantCancelRequested(item.id);
       } catch (error) {
         await releaseBrowserbaseCloudSession(handoff.sessionId);
         throw error;
@@ -8549,7 +8649,7 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       `[indonesia] ${provider} prepared managed alias for application=${redactIdentifier(item.application_id)}; action=${result.actionType ?? result.status}`,
     );
   } catch (err) {
-    if (err instanceof IndonesiaApplicantCancelledError) {
+    if (err instanceof ApplicantCancelledError) {
       const cancelledStatus = isB1 ? "id_b1_evoa_live_assisted_cancelled" : "id_c1_live_assisted_cancelled";
       const now = new Date().toISOString();
       await supabase
@@ -8668,13 +8768,15 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
 }
 
 /** Thrown when the applicant cancelled a run in progress (migration 0209). */
-class IndonesiaApplicantCancelledError extends Error {
+class ApplicantCancelledError extends Error {
   constructor() {
-    super("The applicant cancelled this Indonesia submission.");
+    super("The applicant cancelled this official submission.");
+    // Runners match on the name to propagate it instead of reporting a portal failure.
+    this.name = "ApplicantCancelledError";
   }
 }
 
-async function throwIfIndonesiaCancelRequested(queueId: string): Promise<void> {
+async function throwIfApplicantCancelRequested(queueId: string): Promise<void> {
   const { data, error } = await supabase
     .from("submission_queue")
     .select("cancel_requested_at")
@@ -8682,11 +8784,11 @@ async function throwIfIndonesiaCancelRequested(queueId: string): Promise<void> {
     .maybeSingle();
   if (error) {
     // Never block a run on this read; the open RPC refuses cancelled rows.
-    console.error(`[indonesia] Cancel check failed: ${error.message}`);
+    console.error(`[official-handoff] Cancel check failed: ${error.message}`);
     return;
   }
   if ((data as { cancel_requested_at?: string | null } | null)?.cancel_requested_at) {
-    throw new IndonesiaApplicantCancelledError();
+    throw new ApplicantCancelledError();
   }
 }
 
@@ -9116,6 +9218,42 @@ let usAppointmentDispatcher: USAppointmentDispatcher | null = null;
 const OFFICIAL_HANDOFF_WATCH_INTERVAL_MS = 60_000;
 let officialHandoffWatchInFlight = false;
 
+function officialHandoffSubmittedResult(
+  handoff: LeasedOfficialHandoff,
+  receipt: OfficialReceiptEvidence,
+): Record<string, unknown> {
+  const applicantSubmit = {
+    submittedBy: "applicant_on_official_portal",
+    officialReceipt: receipt,
+    // Lets the applicant reopen the same session to pay until it closes.
+    handoffId: handoff.takeover_id,
+    handoffExpiresAt: handoff.expires_at,
+  };
+  if (handoff.provider === "vietnam_evisa_live") {
+    return {
+      country: "VN",
+      status: "submitted_pending_email",
+      mode: "live_assisted",
+      provider: "vietnam_evisa_live",
+      portalUrl: receipt.portalUrl,
+      checkpoint: receipt.officialState === "official_fee_paid" ? "official_fee_paid" : "registration_code_visible",
+      registrationCode: receipt.reference,
+      submittedAtIso: receipt.capturedAt,
+      noticeText: "Your e-visa PDF will be emailed within ~3 working days.",
+      paymentStatus: receipt.officialState === "official_fee_paid" ? "paid" : "manual_required",
+      ...applicantSubmit,
+    };
+  }
+  return {
+    country: "ID",
+    status: "submitted",
+    reference: receipt.reference,
+    portalUrl: receipt.portalUrl,
+    provider: handoff.provider,
+    ...applicantSubmit,
+  };
+}
+
 async function watchOfficialApplicantHandoffs(): Promise<void> {
   if (officialHandoffWatchInFlight || shutdownRequested) return;
   officialHandoffWatchInFlight = true;
@@ -9126,19 +9264,16 @@ async function watchOfficialApplicantHandoffs(): Promise<void> {
       inspectors: {
         indonesia_c1_live: indonesiaHandoffInspector,
         indonesia_b1_evoa_live: indonesiaHandoffInspector,
+        vietnam_evisa_live: vietnamHandoffInspector,
       },
-      submittedResult: (handoff, receipt) => ({
-        country: "ID",
-        status: "submitted",
-        reference: receipt.reference,
-        portalUrl: receipt.portalUrl,
-        submittedBy: "applicant_on_official_portal",
-        provider: handoff.provider,
-        officialReceipt: receipt,
-        // Lets the applicant reopen the same session to pay until it closes.
-        handoffId: handoff.takeover_id,
-        handoffExpiresAt: handoff.expires_at,
-      }),
+      submittedResult: officialHandoffSubmittedResult,
+      onSubmitted: async (handoff) => {
+        if (handoff.provider === "vietnam_evisa_live") {
+          // Same follow-up as a VIZA-captured registration code: daily official
+          // status checks and e-Visa PDF delivery. The code is in submission_result.
+          await activateVietnamTracking(handoff.application_id);
+        }
+      },
       log: (message) => console.log(message),
     });
     if (examined > 0) idleExitController?.noteActivity();
@@ -9632,7 +9767,7 @@ async function main(): Promise<void> {
   ) {
     await poll();
   }
-  if (INDONESIA_QUEUE_ENABLED) {
+  if (INDONESIA_QUEUE_ENABLED || VN_CLOUD_QUEUE_ENABLED) {
     void watchOfficialApplicantHandoffs();
     setInterval(() => void watchOfficialApplicantHandoffs(), OFFICIAL_HANDOFF_WATCH_INTERVAL_MS).unref();
   }

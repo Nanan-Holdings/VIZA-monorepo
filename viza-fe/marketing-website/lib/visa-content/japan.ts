@@ -1,210 +1,247 @@
-import type { VisaContent } from "./types";
+import type { DestinationContent } from "./types";
 
 /**
- * Japan Short-Term Stay (Temporary Visitor) visa for tourism — single-entry,
- * also issuable online as the JAPAN eVISA (evisa.mofa.go.jp). Singapore
- * passport holders are visa-exempt (90 days on arrival); the paid visa route
- * applies to visa-required foreign residents of Singapore (e.g. PRC nationals)
- * via eVISA or VFS Global Singapore under the Embassy of Japan.
+ * Japan Temporary Visitor (tourist) visa for people living in Singapore (embassy visa, framed "from Singapore").
+ * Singapore passports are visa exempt for 90 days. The paid visa route is for visa-required nationals who live
+ * in Singapore, through the Embassy of Japan (via the Japan Visa Application Centre) or the JAPAN eVISA.
  *
- * Last fact-checked: 2026-07-05 against mofa.go.jp, evisa.mofa.go.jp,
- * sg.emb-japan.go.jp, visa.vfsglobal.com and services.digital.go.jp.
- *
- * Items needing ops confirmation:
- *   - Post-1-Jul-2026 fee table (single JPY 15,000 / multiple JPY 30,000) was
- *     verified via consulate pages + industry advisories, not read directly on
- *     MOFA (geo-blocked). Confirm the exact new SGD amounts VFS Singapore
- *     charges — its one-pager still showed the old S$26/S$53 on 5 Jul 2026.
- *   - No official confirmation yet that the JPY 15,000 rate applies
- *     identically to eVISA card payments (expected — same visa).
- *   - Nationality-specific reciprocal fee reductions after the revision
- *     unconfirmed for PRC nationals.
- *   - Embassy-of-Japan-in-Singapore "Sightseeing" checklist for Chinese
- *     nationals not read directly; document list below is the standard
- *     MOFA/VFS set — check against the live checklist PDF.
- *   - SGD conversions use ≈ JPY 100 = SGD 0.87 (mid-2026); refresh before
- *     publishing.
+ * Checked 25 Nov 2026. MOFA, the Embassy of Japan in Singapore and VFS blocked automated fetching on the day
+ * (HTTP 403), so the fee, eVISA, processing and departure tax facts were read through search summaries that quote
+ * the official pages. Re-open these before a publish:
+ *   - https://www.sg.emb-japan.go.jp/itpr_en/visa_fees.html (S$132 / S$263 "Others", S$7 India, S$22 handling fee)
+ *   - https://www.mofa.go.jp/j_info/visit/visa/visaonline.html (eVISA eligibility, Singapore residents)
+ *   - https://www.sg.emb-japan.go.jp/itpr_en/visa_processingtime.html
+ * Not confirmed on an official page this session (kept general or left out):
+ *   - Singapore passport 90 days visa free (stable rule, MOFA exemption page not re-read)
+ *   - which passports are visa exempt or not, beyond Singapore and the Embassy's own fee table
+ *   - visa validity (3 months to enter) and stay lengths (15, 30 or 90 days)
+ *   - photo size, schedule of stay form, per-pass checklists (EP, S Pass, DP, PR)
+ *   - JESTA fee and start date (planned during FY2028, nothing final)
+ *   - the operator and address of the Japan Visa Application Centre (JVAC)
+ *   - eVISA payment method (Embassy page and MOFA FAQ disagree)
  */
-export const japan: VisaContent = {
+export const japan: DestinationContent = {
   slug: "japan",
 
-  heroTitle: "Japan Tourist Visa",
-  lede: "Japan's single-entry Temporary Visitor visa grants up to 90 days for tourism, with a 3-month window to enter after issue. Available online as the JAPAN eVISA — prepared, filed, and tracked end-to-end by your VIZA consultant. Singapore passport holders skip it entirely: 90 days visa-free.",
+  heroTitle: "Japan visa from Singapore",
+  lede: "A Japan visa from Singapore depends on your passport, not on where you live. Singapore passports enter Japan visa free for up to 90 days. If you live in Singapore on a Chinese, Indian, Indonesian, Philippine or Vietnamese passport, you need a Japan tourist visa, and you can apply through the Embassy of Japan in Singapore or online with the JAPAN eVISA. Fees went up on 1 July 2026, so the numbers below are the new ones.",
   heroImage: "/assets/heroes/japan.jpg",
   meta: [
-    { k: "Type", v: "Temporary Visitor" },
-    { k: "Length of stay", v: "Up to 90 days" },
-    { k: "Validity", v: "3 months to enter" },
-    { k: "Entry", v: "Single" },
+    { k: "Singapore passport", v: "Visa free, 90 days" },
+    { k: "Single entry fee", v: "JPY 15,000 from 1 Jul 2026" },
+    { k: "Apply via", v: "Embassy or eVISA" },
+    { k: "Checked", v: "25 Nov 2026" },
   ],
   tags: [
-    { icon: "bolt", label: "Fast track" },
     { icon: "shield", label: "Free VIZA service" },
-    { icon: "doc", label: "Expert document review" },
+    { icon: "doc", label: "Document check" },
+    { icon: "bolt", label: "Embassy and eVISA" },
   ],
 
-  overviewTitle: "Japan, at a glance",
-  overviewSub:
-    "The Temporary Visitor visa covers tourism, family visits, and short business trips. Singapore citizens enter visa-free for 90 days; visa-required nationals residing in Singapore apply via the JAPAN eVISA or VFS Global.",
-  glance: [
-    { icon: "globe", k: "Capital", v: "Tokyo", sub: "UTC +9 (JST)" },
-    { icon: "clock", k: "Best time to visit", v: "Mar – May · Oct – Nov", sub: "Cherry blossom & autumn foliage" },
-    { icon: "currency", k: "Currency", v: "Japanese Yen (JPY)", sub: "SGD 1 ≈ JPY 115" },
-    { icon: "pin", k: "Top destinations", v: "Tokyo · Kyoto · Osaka", sub: "Plus Hiroshima, Nara, Hokkaido" },
-  ],
+  page: {
+    framing: "singapore",
 
-  processTitle: "How the Japan visa process works",
-  processSub:
-    "Submit your documents once. Your VIZA consultant prepares the full MOFA package, files it through the JAPAN eVISA portal or VFS Global Singapore, and tracks every stage. Allow a minimum of 10 business days — Japan accepts no expedite requests.",
-  steps: [
-    {
-      title: "Apply on VIZA",
-      body: "Upload your passport, photo, Singapore residence pass, flight booking, and bank statement. Apply within 3 months of your travel date — we set the timeline from your departure.",
+    glance: {
+      needVisa: "Not for Singapore passports. Yes for Chinese, Indian, Indonesian, Philippine and Vietnamese passports",
+      govFee: "JPY 15,000 single entry (S$132 at the Embassy), JPY 30,000 multiple (S$263)",
+      processing: "At least 5 working days at the Embassy, 1 week or more through the centre. Allow 2 months",
+      maxStay: "Up to 90 days, single entry",
+      checked: "25 November 2026",
     },
-    {
-      title: "Documents verified & submitted",
-      body: "Your consultant builds the MOFA application form and day-by-day Schedule of Stay (Taizai Yoteihyo), cross-checks every field against the Embassy of Japan in Singapore checklist, then files via the eVISA portal or VFS Global.",
-    },
-    {
-      title: "Visa processed by the embassy",
-      body: "MOFA's standard is 5 working days from a complete application, but the Embassy in Singapore advises allowing at least 10 business days. We track each consular stage and flag any document requests immediately.",
-      statusRows: [
-        { label: "Application lodged with the Embassy of Japan", ts: "12 Jun, 9:00 AM", onTime: true },
-        { label: "Documents accepted — under consular review", ts: "12 Jun, 11:30 AM", onTime: true },
-        { label: "Awaiting consular decision", ts: "In progress" },
+
+    passports: {
+      intro: "Where you live does not decide the rule. The passport does. Singapore PR and pass holders follow the rules for the passport they hold, and the Embassy only accepts visa applications from long-term residents of Singapore.",
+      rows: [
+        { passport: "Singapore", status: "Visa free, up to 90 days", note: "No fee and no form today. Japan plans an electronic travel authorisation called JESTA during fiscal year 2028, with no fee or date confirmed." },
+        { passport: "China (PRC)", status: "Visa required", note: "Chinese passport holders living in Singapore apply at the Embassy of Japan through the visa centre, or online with the eVISA if eligible." },
+        { passport: "Malaysia", status: "Visa free, up to 90 days", note: "Check the Ministry of Foreign Affairs exemption list before you book." },
+        { passport: "India", status: "Visa required", note: "The Embassy lists a lower fee of S$7 for Indian nationals, and it did not rise on 1 July 2026." },
+        { passport: "Indonesia", status: "Visa required", note: "Apply at the Embassy through the centre, or with the eVISA. The Embassy has a separate checklist for Singapore residents with Indonesian, Philippine and Vietnamese passports." },
+        { passport: "Philippines", status: "Visa required", note: "The same Embassy checklist applies. Allow extra time for the bank statements." },
+        { passport: "Vietnam", status: "Visa required", note: "The same Embassy checklist applies as for Indonesia and the Philippines." },
+        { passport: "Other passports", status: "Check the exemption list", note: "The Ministry of Foreign Affairs keeps the list of visa exempt countries. If yours is not on it, you need a visa." },
       ],
     },
-    {
-      title: "Get your visa on 17 Jun, 2:00 PM",
-      body: "eVISA applicants receive a Visa Issuance Notice by email — show it on your phone screen at check-in (printouts aren't accepted). Paper applicants get their passport back with the visa sticker via VFS.",
-      delivered: true,
+
+    visaTypes: {
+      intro: "Japan issues visas by purpose. Most Singapore residents travelling for a holiday need the Temporary Visitor visa.",
+      items: [
+        { title: "Temporary Visitor, tourism", body: "For holidays, family visits and short trips. It is normally single entry and lasts up to 90 days. This is the visa most applicants ask for." },
+        { title: "JAPAN eVISA", body: "The same tourist visa, applied for online. It is single entry for short tourism stays, open to people who live in Singapore and are not visa exempt, on an ordinary passport. You receive a Visa Issuance Notice by email, and the Embassy may ask you to come for an interview." },
+        { title: "Multiple entry", body: "The multiple-entry visa costs JPY 30,000, double the single-entry fee. It is for applicants who meet the Embassy's criteria, and the Embassy publishes a separate multiple-entry checklist for some passports." },
+        { title: "Business and other short stays", body: "Meetings and short business visits fall under the same Temporary Visitor class but need an invitation or company letter. Study, work and long stays need a different visa and a Certificate of Eligibility from Japan." },
+      ],
     },
-  ],
 
-  docsTitle: "Required documents",
-  docsSub:
-    "Your VIZA consultant reviews every document before submission. Re-uploads are unlimited and free.",
-  documents: [
-    { name: "Passport bio page", sub: "Valid for your whole stay · 2 blank pages · no 6-month rule" },
-    { name: "Visa application form", sub: "Official MOFA form — completed and prepared by your consultant" },
-    { name: "Recent photograph", sub: "45 × 35 mm · white background · last 6 months · no glasses" },
-    { name: "Proof of Singapore residence", sub: "PR, Work Pass, Student Pass, Dependant's Pass, or LTVP" },
-    { name: "Flight itinerary", sub: "Confirmed or reserved round-trip booking" },
-    { name: "Schedule of stay (Taizai Yoteihyo)", sub: "Day-by-day plan with hotel names & contacts, MOFA format" },
-    { name: "Proof of funds", sub: "Recent bank statement covering the full trip" },
-  ],
+    residents: {
+      intro: "The Embassy of Japan accepts visa applications from long-term residents of Singapore. Tourists visiting Singapore are asked to apply in their home country or country of residence. Your pass shows that you live here.",
+      rows: [
+        { pass: "Employment Pass", body: "Bring your EP card and a recent employment letter. Add your bank statements, and keep the pass valid for the whole trip. This is the most common route for Chinese and Indian passport holders working in Singapore." },
+        { pass: "S Pass", body: "Bring your S Pass card and employment proof. The checklist is the same as for the EP, and the Embassy looks at the pass to confirm that you live in Singapore." },
+        { pass: "Dependant's Pass", body: "Bring the Dependant's Pass and the main holder's pass copy. You show funds either from your own account or with a letter of support from the main holder, with their bank statements." },
+        { pass: "Permanent Resident", body: "Bring your PR card or re-entry permit and proof of address. You apply with the passport of your own country, not as a Singapore citizen, and the visa free rule does not apply to you." },
+        { pass: "Singapore citizen", body: "No visa. Carry a passport valid for the whole stay, and complete Visit Japan Web before you arrive to speed up immigration and customs." },
+        { pass: "Student's Pass", body: "Bring your Student's Pass and a school letter. Proof of funds can come from a parent with a support letter." },
+      ],
+    },
 
-  rejectionTitle: "Why Japan visa applications get rejected",
-  rejectionSub:
-    "MOFA never discloses the specific ground for refusal — and a refused applicant is barred from reapplying for the same purpose for 6 months. VIZA flags these blockers before you submit.",
-  rejectionReasons: [
-    { title: "Insufficient proof of funds", body: "Bank statements that don't credibly cover the trip, or unexplained large deposits shortly before applying." },
-    { title: "Incomplete or inconsistent documents", body: "A missing Schedule of Stay, or dates that don't match between your itinerary, bookings, and application form — the leading cause of refusal." },
-    { title: "Doubt over purpose of visit", body: "Weak ties to your country of residence or a suspected intention to work or overstay in Japan." },
-    { title: "Prior immigration violations", body: "A previous overstay or deportation from Japan, a criminal record, or other landing-denial grounds under Article 5 of the Immigration Control Act." },
-    { title: "Applying at the wrong mission", body: "Foreign nationals without a valid Singapore PR or long-term pass cannot apply through the Embassy of Japan in Singapore or VFS Singapore." },
-  ],
+    fees: {
+      intro: "Japan raised its visa fees on 1 July 2026 for the first time in decades. The new fee applies to applications accepted on or after that date. VIZA's help is free. The government fee goes to the Embassy or through the eVISA.",
+      rows: [
+        { item: "Single entry visa", amount: "JPY 15,000 (S$132)", note: "S$132 is the Embassy's price for most passports. It was S$27 before 1 July 2026." },
+        { item: "Double or multiple entry visa", amount: "JPY 30,000 (S$263)", note: "It was S$53 before 1 July 2026." },
+        { item: "Indian nationals", amount: "S$7", note: "The Embassy lists S$7 for both single and multiple entry." },
+        { item: "Centre handling fee", amount: "S$22", note: "Charged by the Embassy's centre when you submit through it." },
+        { item: "JAPAN eVISA", amount: "JPY 15,000 equivalent", note: "Single entry, tourism only. Check the Embassy page for how payment works, because the Embassy and the Ministry describe it differently." },
+        { item: "Departure tax", amount: "JPY 3,000", note: "Collected in your air ticket since 1 July 2026. Children under 2 and some transit passengers are exempt." },
+      ],
+      processing: "The Embassy says it takes at least 5 working days if the documents have no issues, and that applications through the centre take 1 week or longer. Referral cases can take up to 2 months, and the Embassy advises applying at least 2 months ahead because of eVISA volume. For the eVISA, the Visa Issuance Notice arrives by email 2 to 3 working days after payment. Embassy submissions pay in cash when they collect the visa.",
+    },
 
-  entryTitle: "Entry & exit regulations",
-  entrySub:
-    "All visitors give fingerprints and a facial photo at immigration. Pre-register on Visit Japan Web (vjw.digital.go.jp) for QR-code immigration and customs — optional but strongly recommended, with single-QR joint kiosks now at Haneda, Narita, and Kansai. Carry proof of onward travel and funds.",
-  entryExit: [
-    { icon: "refresh", k: "Entry", v: "Single", sub: "Multiple-entry only for qualifying applicants" },
-    { icon: "clock", k: "Enter within", v: "3 months", sub: "From the visa issue date" },
-    { icon: "doc", k: "Visit Japan Web", v: "Optional QR", sub: "Pre-registers immigration + customs" },
-    { icon: "currency", k: "Departure tax", v: "JPY 3,000", sub: "≈ SGD 26 · collected in your ticket" },
-  ],
-
-  extensionTitle: "Visa extension & overstays",
-  extensionSub:
-    "Temporary Visitor stays are extended only in exceptional, unavoidable circumstances such as illness — routine tourist extensions are refused. Overstaying is a criminal offence in Japan, not a fine-per-day matter.",
-  extension: [
-    { icon: "extend", k: "Extension", v: "Exceptional only", sub: "JPY 6,000 in person / JPY 5,500 online, if approved" },
-    { icon: "alert", k: "Overstay penalty", v: "Up to JPY 3,000,000", sub: "≈ SGD 26,000 fine or up to 3 years' imprisonment" },
-    { icon: "ban", k: "Re-entry ban", v: "1 – 10 years", sub: "1 yr if you self-report · 5 yrs deported · 10 yrs repeat" },
-  ],
-
-  reviews: {
-    score: "4.6",
-    outOf: "/ 5",
-    sub: "Trusted by travellers worldwide · 14,203 reviews",
-    platforms: [
-      { rating: "4.7", name: "Trustpilot" },
-      { rating: "4.6", name: "App Store" },
-    ],
-    items: [
-      {
-        initials: "MH",
-        name: "Maya Hassan",
-        source: "Trustpilot · 5 days ago",
-        title: "Japan visa on first attempt",
-        body: "The checklist was crystal-clear and my consultant caught a photo that didn't meet the 45mm spec. Approved in 4 working days.",
+    apply: {
+      intro: "Choose the route first, then prepare the file. Both routes need the same documents and the same care with the bank statements.",
+      guided: {
+        title: "Guided",
+        body: "VIZA's AI walks you through the form and the checklist for your pass type, and you submit to the Embassy centre or the eVISA site yourself. It suits people who like to keep control of each step.",
       },
-      {
-        initials: "RT",
-        name: "Ricardo Torres",
-        source: "App Store · 2 weeks ago",
-        title: "Stress-free itinerary prep",
-        body: "I had no idea I needed a day-by-day itinerary. VIZA provided a template and reviewed mine before submission. Smooth process.",
+      fullService: {
+        title: "Full-service",
+        body: "A VIZA consultant prepares your forms, checks the bank statements and itinerary, and prepares the file for submission, so you do not guess at what the Embassy wants.",
       },
-    ],
+      steps: [
+        { title: "Start on VIZA", body: "Upload your passport, pass and trip dates. We confirm whether you need a visa and which route fits your passport." },
+        { title: "Prepare the file", body: "We check the form, the itinerary and the bank statements against the Embassy checklist for Singapore residents." },
+        { title: "Submit", body: "Submit to the Embassy through the centre or online through the eVISA. Pay the government fee yourself, and keep the receipt." },
+        { title: "Collect or download", body: "eVISA applicants get a Visa Issuance Notice by email. Show it on your phone at check-in. Paper applicants collect the passport with the visa." },
+      ],
+    },
+
+    checklist: {
+      intro: "The Embassy publishes checklists by passport and purpose. The list below is the common core. Always compare it with the latest checklist before you submit.",
+      groups: [
+        {
+          applicant: "Everyone",
+          items: [
+            "Passport valid for your whole stay",
+            "Completed visa application form",
+            "Recent photo, 4.5 cm by 3.5 cm, white background",
+            "Flight booking and a day-by-day itinerary with hotels",
+            "Bank statements for the latest 2 months with transaction history",
+          ],
+        },
+        {
+          applicant: "Employment Pass and S Pass",
+          items: [
+            "Pass card, copy of both sides",
+            "Recent employment letter",
+            "Personal bank statements in your own name",
+          ],
+        },
+        {
+          applicant: "Dependant's Pass",
+          items: [
+            "Dependant's Pass card and the main holder's pass copy",
+            "Marriage or birth certificate showing your link to the main holder",
+            "Bank statements, yours or the main holder's with a support letter",
+          ],
+        },
+        {
+          applicant: "Permanent Resident",
+          items: [
+            "PR card or re-entry permit, copy",
+            "Proof of residence in Singapore, such as a recent bill",
+            "Personal bank statements and employment letter",
+          ],
+        },
+        {
+          applicant: "Student",
+          items: [
+            "Student's Pass and a school letter",
+            "Support letter from a parent with their bank statements",
+          ],
+        },
+      ],
+    },
+
+    travel: {
+      intro: "Having the visa is half of it. Japan runs most entry steps online, and a few costs changed in 2026.",
+      items: [
+        { title: "Visit Japan Web", body: "Visit Japan Web lets you complete immigration, customs and tax-free steps online and show a QR code on arrival. It is optional, but it shortens queues at the major airports.", href: "/arrival-cards/japan-visit-japan-web", linkLabel: "Read the Visit Japan Web guide" },
+        { title: "Entry rules", body: "Immigration takes a facial photo and fingerprints from foreign visitors. Carry your return ticket and proof of funds. An eVISA holder shows the Visa Issuance Notice on a phone, because printouts are not accepted." },
+        { title: "Departure tax", body: "The international tourist tax rose to JPY 3,000 per departure on 1 July 2026. It is collected in your ticket, so you do not pay it at the airport." },
+        { title: "JESTA", body: "Japan plans a travel authorisation for visa-exempt visitors during fiscal year 2028, which would include Singapore passports. No date or fee is final, so you need nothing extra today." },
+        { title: "Overstaying", body: "Leave within the days you were granted. Japan takes overstays seriously, and they can lead to a ban on re-entry." },
+      ],
+    },
+
+    reviewed: {
+      date: "25 November 2026",
+      note: "Checked against the Ministry of Foreign Affairs of Japan and the Embassy of Japan in Singapore. Fees and rules change, so look at the links under Sources before you pay.",
+    },
+
+    related: {
+      destinations: ["south-korea", "china", "vietnam", "thailand"],
+      guides: [
+        { label: "Visa-free countries for Singapore passport holders", href: "/guides/visa-free-countries-singapore-passport" },
+        { label: "Visas for Chinese passport holders in Singapore", href: "/guides/visas-chinese-passport-holders-singapore" },
+        { label: "Visas for Filipino and Indian residents of Singapore", href: "/guides/visas-filipino-indian-residents-singapore" },
+        { label: "Visa refused: why it happens and how to reapply", href: "/guides/visa-refused-reapply" },
+        { label: "Visa photo requirements by country", href: "/guides/visa-photo-requirements" },
+        { label: "Visit Japan Web, the Digital Agency's immigration and customs site", href: "https://services.digital.go.jp/en/visit-japan-web/" },
+        { label: "VIZA visa news", href: "/blog" },
+      ],
+    },
   },
 
-  faqSub:
-    "Can't find your answer? Ask the AI assistant below or message your VIZA consultant directly.",
+  rejectionTitle: "Common rejection reasons",
+  rejectionSub: "Japan does not publish the reason for a refusal, and a refused applicant should wait before applying again for the same purpose. These are the points a consultant checks first.",
+  rejectionReasons: [
+    { title: "Funds that do not fit the trip", body: "Bank statements that look thin for the length of stay, or large unexplained deposits just before you apply, raise questions." },
+    { title: "Itinerary and bookings do not agree", body: "Dates in the form, the itinerary and the flights must match. A missing or vague itinerary is a common reason for a return." },
+    { title: "Weak ties to your home", body: "A short stay in Singapore, no employment letter or no clear plan to return makes the purpose of the trip harder to believe." },
+    { title: "Wrong office", body: "The Embassy accepts applications from long-term residents of Singapore. A visitor on a short stay is asked to apply at home." },
+    { title: "Earlier immigration problems", body: "An earlier overstay, deportation or refusal in Japan needs an explanation, and some cases are referred, which adds weeks." },
+  ],
+
+  faqSub: "Can't find your answer? Ask the AI assistant below or message a VIZA consultant.",
   faq: [
-    {
-      category: "General information",
-      q: "What is the Japan Temporary Visitor visa?",
-      a: "It's Japan's short-term stay visa for tourism, family visits, and short business trips — single-entry, granted for 15, 30, or 90 days, and valid 3 months from issue to enter Japan. Eligible applicants can obtain it fully online as the JAPAN eVISA at evisa.mofa.go.jp; VIZA handles either route end-to-end.",
-    },
-    {
-      category: "General information",
-      q: "Do Singapore passport holders need a visa for Japan?",
-      a: "No. Singapore citizens enter visa-free as Temporary Visitors for up to 90 days — no fee, no pre-registration. From FY2028 Singaporeans will need JESTA electronic travel authorization before boarding; until then, just a valid passport (Visit Japan Web QR optional).",
-    },
-    {
-      category: "General information",
-      q: "I hold a Chinese passport and live in Singapore — how do I apply?",
-      a: "PRC ordinary-passport holders always need a visa. As a Singapore PR or long-term pass holder (EP, SP, Student, DP, LTVP), you apply via the JAPAN eVISA or on paper through VFS Global Singapore — VIZA manages the whole file. If you reside in mainland China instead, applications go through Japan-accredited travel agencies.",
-    },
-    {
-      category: "Application process",
-      q: "How much does the Japan visa cost?",
-      a: "For applications lodged from 1 July 2026, the government fee is JPY 15,000 (≈ SGD 130) single-entry or JPY 30,000 (≈ SGD 260) multiple-entry — Japan's first fee revision since 1978. VFS Global Singapore adds a SGD 22 service fee for paper filings. The government fee is payable only if the visa is issued, and you pay it directly. VIZA charges nothing for its help.",
-    },
-    {
-      category: "Application process",
-      q: "How long does a Japan visa take to process?",
-      a: "MOFA's official standard is 5 working days from the day after a complete application is received, but the Embassy of Japan in Singapore advises allowing a minimum of 10 business days — and Japan accepts no expedite requests. Apply within 3 months of your travel date; VIZA files a complete package to avoid the back-and-forth that stretches complex cases past a month.",
-    },
-    {
-      category: "Rejections & reapplications",
-      q: "What happens if my application is refused?",
-      a: "MOFA does not disclose refusal reasons, and a new application for the same purpose isn't accepted for 6 months from the refusal date. VIZA charges nothing for its help; your consultant analyses your file for the likely weak points and prepares a stronger reapplication the moment the 6-month bar lifts.",
-    },
+    { category: "Do I need a visa", q: "Do Singaporeans need a visa for Japan?", a: "No. Singapore passport holders enter Japan visa free for up to 90 days as temporary visitors, with no fee. Japan plans an electronic travel authorisation called JESTA during fiscal year 2028, but no date or fee is final." },
+    { category: "Do I need a visa", q: "Do Chinese passport holders living in Singapore need a Japan visa?", a: "Yes. A Chinese passport holder who lives in Singapore applies at the Embassy of Japan through the visa centre, or online with the JAPAN eVISA if eligible. You show your Singapore pass and your bank statements." },
+    { category: "Do I need a visa", q: "Do Indians in Singapore need a Japan visa?", a: "Yes. The Embassy lists a fee of S$7 for Indian nationals, and it did not change on 1 July 2026. You apply through the Embassy with the same checklist as other residents." },
+    { category: "Do I need a visa", q: "Do Singapore PR holders need a Japan visa?", a: "It depends on your passport. A PR with a passport that is visa exempt for Japan, such as Malaysian, does not need one, and a PR with a Chinese, Indian, Indonesian, Philippine or Vietnamese passport does." },
+    { category: "Applying in Singapore", q: "How do I apply for a Japan visa in Singapore?", a: "Prepare the form, photo, bookings, itinerary and bank statements. Submit them at the Embassy's visa centre, or apply online with the eVISA. Check the Embassy checklist for your passport first." },
+    { category: "Applying in Singapore", q: "What is the JAPAN eVISA?", a: "It is the online version of the single-entry tourist visa. It is open to people who live in Singapore, are not visa exempt and hold an ordinary passport. You receive a Visa Issuance Notice by email and show it on your phone at check-in." },
+    { category: "Applying in Singapore", q: "Can a tourist visiting Singapore apply here?", a: "Usually not. The Embassy says only long-term residents of Singapore are eligible, and visitors apply in their home country or country of residence." },
+    { category: "Applying in Singapore", q: "Where do I submit my Japan visa application in Singapore?", a: "Through the Japan Visa Application Centre named on the Embassy's visa page, or online through the eVISA. Check the Embassy page for the current address and hours." },
+    { category: "Fees and time", q: "How much is a Japan visa from Singapore?", a: "Since 1 July 2026 the fee is JPY 15,000 for single entry, S$132 at the Embassy for most passports, and JPY 30,000 for multiple entry, S$263. Indian nationals pay S$7. The centre adds a S$22 handling fee." },
+    { category: "Fees and time", q: "How long does a Japan visa take?", a: "The Embassy says at least 5 working days when the file has no issues, and 1 week or longer through the centre. Referral cases can take up to 2 months, so apply at least 2 months before you fly." },
+    { category: "Fees and time", q: "Is there a Japan departure tax?", a: "Yes. The international tourist tax is JPY 3,000 per departure since 1 July 2026, collected in your ticket." },
+    { category: "Rejections", q: "What happens if my Japan visa is refused?", a: "Japan does not give reasons. Wait before you apply again for the same purpose, and have a consultant review the file for the likely weak points first." },
+    { category: "Before you travel", q: "Do I need Visit Japan Web?", a: "It is optional but useful. You register your trip and show a QR code for immigration, customs and tax-free steps." },
+    { category: "Before you travel", q: "How much does VIZA charge?", a: "Nothing. VIZA's help is free. You pay the government fee yourself, to the Embassy or through the eVISA." },
   ],
 
   sources: [
-    { label: "JAPAN eVISA portal (MOFA)", url: "https://www.evisa.mofa.go.jp/", display: "evisa.mofa.go.jp" },
-    { label: "MOFA — JAPAN eVISA system", url: "https://www.mofa.go.jp/j_info/visit/visa/visaonline.html", display: "mofa.go.jp" },
-    { label: "MOFA — Exemption of Visa (Short-Term Stay)", url: "https://www.mofa.go.jp/j_info/visit/visa/short/novisa.html", display: "mofa.go.jp" },
-    { label: "MOFA — Visa fees", url: "https://www.mofa.go.jp/j_info/visit/visa/procedure/pagewe_000001_00391.html", display: "mofa.go.jp" },
-    { label: "Embassy of Japan in Singapore — Visa to Japan", url: "https://www.sg.emb-japan.go.jp/itpr_en/visit.html", display: "sg.emb-japan.go.jp" },
-    { label: "VFS Global — Japan visas, Singapore", url: "https://visa.vfsglobal.com/sgp/en/jpn/", display: "visa.vfsglobal.com" },
-    { label: "Visit Japan Web (Digital Agency)", url: "https://services.digital.go.jp/en/visit-japan-web/", display: "services.digital.go.jp" },
+    { label: "Embassy of Japan in Singapore, visa to Japan", url: "https://www.sg.emb-japan.go.jp/itpr_en/visit.html", display: "sg.emb-japan.go.jp" },
+    { label: "Embassy of Japan in Singapore, visa fees", url: "https://www.sg.emb-japan.go.jp/itpr_en/visa_fees.html", display: "sg.emb-japan.go.jp" },
+    { label: "Embassy of Japan in Singapore, processing time", url: "https://www.sg.emb-japan.go.jp/itpr_en/visa_processingtime.html", display: "sg.emb-japan.go.jp" },
+    { label: "Ministry of Foreign Affairs, JAPAN eVISA", url: "https://www.mofa.go.jp/j_info/visit/visa/visaonline.html", display: "mofa.go.jp" },
+    { label: "Ministry of Foreign Affairs, visa fees", url: "https://www.mofa.go.jp/j_info/visit/visa/procedure/fee.html", display: "mofa.go.jp" },
+    { label: "Ministry of Foreign Affairs, exemption of visa", url: "https://www.mofa.go.jp/j_info/visit/visa/short/novisa.html", display: "mofa.go.jp" },
+    { label: "JAPAN eVISA portal", url: "https://www.evisa.mofa.go.jp/", display: "evisa.mofa.go.jp" },
+    { label: "Japan Tourism Agency, international tourist tax", url: "https://www.mlit.go.jp/kankocho/content/001996466.pdf", display: "mlit.go.jp" },
+    { label: "Digital Agency, Visit Japan Web", url: "https://services.digital.go.jp/en/visit-japan-web/", display: "services.digital.go.jp" },
   ],
 
   price: {
-    etaLabel: "Apply now, get it by",
-    etaValue: "17 Jun 2026, 02:00 PM",
+    etaLabel: "Processing time",
+    etaValue: "At least 5 working days",
     title: "Temporary Visitor visa · up to 90 days",
-    saving: "Faster than going direct",
-    sub: "VIZA's help is free: document review and application preparation. Any visa fee is paid directly to the authorities.",
+    sub: "VIZA's help is free: form preparation and document review. The visa fee is paid to the Embassy or through the eVISA.",
     foot: "VIZA's service is free. Any Japan visa fee is paid directly to the issuing authority.",
   },
 
-  aiPlaceholder: "Ask anything about Japan visas — eVISA eligibility, fees, Singapore exemption…",
+  aiPlaceholder: "Ask anything about a Japan visa from Singapore: eVISA, fees, documents…",
 };
 
 export default japan;

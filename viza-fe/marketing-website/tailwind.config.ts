@@ -9,7 +9,9 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["var(--font-geist-sans)", "system-ui", "-apple-system", "sans-serif"],
+        sans: ['"Inter Display"', "var(--font-geist-sans)", "system-ui", "-apple-system", "sans-serif"],
+        body: ['"Inter Display"', "var(--font-geist-sans)", "system-ui", "sans-serif"],
+        display: ["var(--font-switzer)", "system-ui", "sans-serif"],
         geist: ["var(--font-geist-sans)", "system-ui", "sans-serif"],
         heading: ["var(--font-switzer)", "system-ui", "sans-serif"],
         switzer: ["var(--font-switzer)", "system-ui", "sans-serif"],
@@ -29,6 +31,15 @@ const config: Config = {
           DEFAULT: "#03346E",
         },
         shell: "var(--shell-bg)",
+        // Design system tokens (design-system/tokens.css), from the Framer reference.
+        canvas: "var(--ds-canvas)",
+        surface: "var(--ds-surface)",
+        "surface-muted": "var(--ds-surface-muted)",
+        ink: "var(--ds-ink)",
+        "ink-muted": "var(--ds-ink-muted)",
+        "ink-faint": "var(--ds-ink-faint)",
+        line: "var(--ds-line)",
+        accent: { DEFAULT: "var(--ds-accent)", hover: "var(--ds-accent-hover)", soft: "var(--ds-accent-soft)" },
         page: "var(--page-bg)",
         card: "var(--card-bg)",
         "surface-subtle": "var(--surface-subtle)",
@@ -59,6 +70,12 @@ const config: Config = {
         xl: "var(--radius-xl)",
         "2xl": "var(--radius-2xl)",
         pill: "var(--radius-pill)",
+        frame: "var(--ds-r-frame)",
+        band: "var(--ds-r-band)",
+        card: "var(--ds-r-card)",
+        "card-sm": "var(--ds-r-card-sm)",
+        media: "var(--ds-r-media)",
+        input: "var(--ds-r-input)",
       },
       boxShadow: {
         xs: "var(--shadow-xs)",
@@ -67,9 +84,24 @@ const config: Config = {
       },
       maxWidth: {
         page: "1280px",
+        ds: "var(--ds-max)",
+      },
+      spacing: {
+        gutter: "var(--ds-gutter)",
+        section: "var(--ds-section-y)",
+      },
+      fontSize: {
+        "ds-hero": ["var(--ds-fs-hero)", { lineHeight: "1.12", letterSpacing: "-0.04em" }],
+        "ds-h2": ["var(--ds-fs-h2)", { lineHeight: "1.12", letterSpacing: "-0.04em" }],
+        "ds-statement": ["var(--ds-fs-statement)", { lineHeight: "1.12", letterSpacing: "-0.04em" }],
+        "ds-title": ["var(--ds-fs-title)", { lineHeight: "1.25", letterSpacing: "-0.04em" }],
+        "ds-body": ["var(--ds-fs-body)", { lineHeight: "1.32", letterSpacing: "-0.02em" }],
+        "ds-small": ["var(--ds-fs-small)", { lineHeight: "1.24", letterSpacing: "-0.02em" }],
       },
       transitionTimingFunction: {
         standard: "var(--ease-standard)",
+        spring: "var(--ds-ease-spring)",
+        hover: "var(--ds-ease-hover)",
       },
       transitionDuration: {
         fast: "var(--dur-fast)",

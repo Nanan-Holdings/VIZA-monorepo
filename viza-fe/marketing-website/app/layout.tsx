@@ -1,9 +1,20 @@
 import "./globals.css";
+import "../design-system/fonts.css";
+import "../design-system/tokens.css";
+import "../design-system/base.css";
+import "../design-system/motion.css";
+import "../design-system/chrome.css";
+import "../design-system/sections.css";
+import "../design-system/article.css";
 import type { Metadata } from "next";
 import Script from "next/script";
 import { getLocale } from "next-intl/server";
 import { switzer, geist } from "./fonts";
+import MotionScript from "@/design-system/motion/MotionScript";
+import Reveal from "@/design-system/motion/Reveal";
 import { PostHogAnalytics } from "@/components/PostHogAnalytics";
+import { LOCALE_HTML_LANG, isLocale, localeDir } from "@/lib/locales";
+import { ADDRESS, SAME_AS } from "@/lib/seo/site";
 
 const gtmId = process.env.NEXT_PUBLIC_GTM_ID?.trim();
 /* GA4 property 546131559 ("VIZA", in the Kelin Studio Analytics account).
@@ -31,7 +42,7 @@ const posthogToken =
   process.env.NEXT_PUBLIC_POSTHOG_TOKEN?.trim() || "phc_ykbi7hXZrmcm9kDYvsKMf3RgQ4yXPVAxC46WdBp5KiF5";
 
 // Checkout completes on the portal origin, so GA4 has to be told these two
-// hosts are one session — otherwise the purchase is attributed to a referral
+// hosts are one session, otherwise the purchase is attributed to a referral
 // from viza.it.com instead of to the campaign that actually paid for the visit.
 // Keep this list identical to the portal's `lib/analytics.ts`.
 const analyticsLinkerDomains = (
@@ -46,9 +57,11 @@ const portalHostname = (() => { try { return new URL(portalUrl).hostname; } catc
 
 const organizationJsonLd = {
   "@context": "https://schema.org",
-  "@type": "Organization",
+  "@type": ["Organization", "TravelAgency"],
   "@id": `${siteUrl}/#organization`,
   name: "VIZA",
+  legalName: "Kelin Studio Pte. Ltd.",
+  parentOrganization: { "@type": "Organization", name: "Kelin Studio", url: "https://kelin.studio" },
   url: siteUrl,
   /* Without a description an agent reading the graph knows the entity is
      called VIZA and nothing about what it does, which is the difference
@@ -56,6 +69,8 @@ const organizationJsonLd = {
   description:
     "VIZA is an AI-powered visa agency. It plans, files and tracks tourist, business, work, student and long-term visa applications, with human consultants reviewing every submission.",
   logo: `${siteUrl}/assets/viza-logo-black.svg`,
+  address: { "@type": "PostalAddress", ...ADDRESS },
+  sameAs: SAME_AS,
   contactPoint: [
     {
       "@type": "ContactPoint",
@@ -73,25 +88,17 @@ const websiteJsonLd = {
   "@id": `${siteUrl}/#website`,
   name: "VIZA",
   url: siteUrl,
+  inLanguage: ["en", "zh-CN"],
   publisher: { "@id": `${siteUrl}/#organization` },
 };
 
+// Every page sets its own finished title, description, canonical, hreflang and
+// social card through lib/seo/metadata.ts, so there is no title template here.
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: {
-    default: "VIZA — AI-powered visa applications",
-    template: "%s · VIZA",
-  },
+  title: "VIZA | AI-powered visa applications",
   description:
     "VIZA is an AI-powered visa agency. Apply for tourist, business, work, student, and long-term visas with expert human oversight.",
-  openGraph: {
-    type: "website",
-    url: siteUrl,
-    siteName: "VIZA",
-    title: "VIZA — AI-powered visa applications",
-    description:
-      "Apply for tourist, business, work, student, and long-term visas with AI guidance and expert human oversight.",
-  },
 };
 
 export default async function RootLayout({
@@ -101,8 +108,15 @@ export default async function RootLayout({
 }) {
   const locale = await getLocale();
   return (
-    <html lang={locale === "zh-CN" ? "zh-CN" : "en"} suppressHydrationWarning>
+    <html
+      lang={isLocale(locale) ? LOCALE_HTML_LANG[locale] : "en"}
+      dir={localeDir(locale)}
+      suppressHydrationWarning
+    >
       <head>
+        <MotionScript />
+        <link rel="preload" href="/fonts/inter-display/InterDisplay-Regular-latin.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
+        <link rel="preload" href="/fonts/inter-display/InterDisplay-Medium-latin.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
         <Script id="redact-beta-url" strategy="beforeInteractive">
           {`
             (function () {
@@ -237,6 +251,7 @@ export default async function RootLayout({
         ) : null}
         <PostHogAnalytics token={posthogToken} />
         {children}
+        <Reveal />
       </body>
     </html>
   );

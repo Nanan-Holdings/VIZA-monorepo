@@ -1,9 +1,11 @@
 "use client";
 
+import { Link } from "@/navigation";
+
 import { useLocale, useTranslations } from "next-intl";
 import SiteNav from "@/components/SiteNav";
 import SiteFooter from "@/components/SiteFooter";
-import { visaHref, type CountryMeta } from "@/lib/countries";
+import { nearbyCountries, visaHref, type CountryMeta } from "@/lib/countries";
 import { displayGovernmentFeeSgd } from "@/lib/pricing";
 import { useCatalogue, type CatalogueCountry } from "@/components/CatalogueProvider";
 import "./visa-template.css";
@@ -24,9 +26,9 @@ export default function VisaCountryTemplate({ country }: { country: CountryMeta 
   const tt = useTranslations("visaTypes");
   const locale = useLocale();
   const { launchedCountries } = useCatalogue();
-  const applyHref = `${locale === "en" ? "" : `/${locale}`}/apply?country=${encodeURIComponent(country.slug)}`;
+  const applyHref = `/apply?country=${encodeURIComponent(country.slug)}`;
   const govFee = displayGovernmentFeeSgd(country.pricing);
-  const nearby = launchedCountries.filter((c) => c.slug !== country.slug).slice(0, 4);
+  const nearby = nearbyCountries(country.slug, launchedCountries);
   // Localized name/type with English data as the fallback.
   const localName = tc.has(country.slug) ? tc(country.slug) : country.name;
   const localType = tt.has(country.type) ? tt(country.type) : country.type;
@@ -83,10 +85,10 @@ export default function VisaCountryTemplate({ country }: { country: CountryMeta 
               <h2>{t("nearby")}</h2>
               <div className="vt-nearby">
                 {nearby.map((c) => (
-                  <a key={c.slug} href={visaHref(c.slug)}>
+                  <Link key={c.slug} href={visaHref(c.slug)}>
                     <img src={`${FLAG_CDN}/${c.flagCode}.svg`} alt={c.name} />
                     <span>{tc.has(c.slug) ? tc(c.slug) : c.name}</span>
-                  </a>
+                  </Link>
                 ))}
               </div>
             </section>
@@ -102,9 +104,9 @@ export default function VisaCountryTemplate({ country }: { country: CountryMeta 
                 {govFee ? t("govFeePaidDirect", { fee: govFee }) : t("govFeeSetByAuthority")}
               </p>
               <div className="vt-cta">
-                <a className="vt-btn" href={applyHref}>
+                <Link className="vt-btn" href={applyHref}>
                   {t("startApplication")}
-                </a>
+                </Link>
               </div>
             </div>
           </aside>

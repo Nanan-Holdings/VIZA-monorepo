@@ -1,234 +1,254 @@
-import type { VisaContent } from "./types";
+import type { DestinationContent } from "./types";
 
 /**
- * Australia Visitor Visa (subclass 600) — Tourist stream, plus ETA (subclass
- * 601) guidance for eligible passports (incl. Singapore).
+ * Australia Visitor visa (subclass 600) and ETA (subclass 601) for people living in Singapore (embassy visa,
+ * framed "from Singapore"). Singapore and Malaysian passports are ETA eligible and apply in the Australian ETA
+ * app. Chinese, Indian, Indonesian, Philippine and Vietnamese passports apply for the subclass 600 Tourist stream
+ * online in ImmiAccount.
  *
- * Last fact-checked: 2026-07-05 against immi.homeaffairs.gov.au, abf.gov.au,
- * singapore.highcommission.gov.au, china.embassy.gov.au and
- * minister.agriculture.gov.au.
- *
- * Confirmed:
- *  - Fees from 1 July 2026: subclass 600 Tourist stream AUD 250 offshore /
- *    AUD 630 onshore; Frequent Traveller stream AUD 1,845. ETA (601): no visa
- *    charge, AUD 20 app service fee. Fee is locked at lodgement date.
- *  - Stay per entry: 3, 6 or 12 months as granted (3 months most common for
- *    tourism); travel validity typically up to 12 months from grant.
- *  - Entries: single or multiple at the Department's discretion
- *    (multiple-entry over 12 months is common). ETA (601): multiple, 12
- *    months, up to 3 months per visit, app-only application.
- *  - No daily overstay fine in Australia. Overstaying 28+ days triggers a
- *    3-year re-entry exclusion (PIC 4014); overstayers are unlawful
- *    non-citizens liable to detention/removal with costs recoverable as a
- *    Commonwealth debt. Leaving voluntarily within 28 days generally avoids
- *    the ban.
- *  - No "extension": a fresh onshore subclass 600 is lodged via ImmiAccount
- *    before expiry (blocked by condition 8503 unless waived).
- *  - Processing (early-2026 snapshot): tourist stream ~50% in 11 days, 90% in
- *    28-45 days; ETA usually minutes to 12 hours.
- *
- * Items needing ops confirmation:
- *  1. Exact 1 July 2026 fee figures (AUD 250 / 630 / 1,845) verified via
- *     secondary migration-law sources only — confirm on the official visa
- *     pricing estimator before publishing.
- *  2. Processing-time percentiles change monthly; refresh from the Home
- *     Affairs global processing times tool.
- *  3. 45 x 35 mm photo spec is the long-standing Form 1419 standard — not
- *     re-verified on the current form.
- *  4. China checklist source is a DIBP-era embassy PDF — confirm current AVAC
- *     checklist wording (esp. "financial evidence only for first visit").
- *  5. Home Affairs has no formal 6-month passport-validity rule, but airlines
- *     may apply their own — we advise 6 months as best practice.
- *  6. Frequent Traveller 12-months-in-any-24 cumulative-stay cap taken from
- *     secondary sources — verify on the official stream page.
+ * Checked 25 Nov 2026. immi.homeaffairs.gov.au returned HTTP 403 to the fetcher, so facts were read through
+ * search summaries of the Home Affairs pages and migration law sites, plus the 5 Jul 2026 check kept in the
+ * older version of this file. Re-open these before a publish:
+ *   - https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/visitor-600
+ *   - https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/electronic-travel-authority-601
+ *   - https://immi.homeaffairs.gov.au/visas/getting-a-visa/fees-and-charges/current-visa-pricing
+ * Not confirmed on an official page this session (kept general or left out):
+ *   - Subclass 600 Tourist stream charge of AUD 250 offshore and AUD 630 onshore from 1 Jul 2026, and the
+ *     Frequent Traveller stream at AUD 1,845 (law firm and news summaries agree, the pricing page was not read)
+ *   - ETA service fee of AUD 20 (a government embassy page was named in search summaries, not read in full)
+ *   - the ETA eligible passport list, so Singapore and Malaysia rest on search summaries and the 5 Jul check
+ *   - processing time figures (two trackers gave different percentiles, so none is quoted)
+ *   - the photo size (45 x 35 mm is the long-standing Form 1419 size)
+ *   - China checklist items (national ID, hukou, Form 54) from an embassy PDF that was not re-read
+ *   - health examination and biometrics rules, so the copy only says Home Affairs may ask
  */
-export const australia: VisaContent = {
+export const australia: DestinationContent = {
   slug: "australia",
 
-  heroTitle: "Australia Visitor Visa",
-  lede: "The Visitor visa (subclass 600, Tourist stream) grants stays of 3, 6 or 12 months per entry, with travel typically allowed for 12 months from grant. Singapore passport holders qualify for the faster ETA (subclass 601). Either way, your VIZA consultant prepares, lodges, and tracks the application end-to-end.",
+  heroTitle: "Australia visa from Singapore",
+  lede: "An Australia visa from Singapore depends on your passport, and no passport travels to Australia without some form of approval. Singapore and Malaysian passports apply for an ETA in the Australian ETA app. If you live in Singapore on a Chinese, Indian, Indonesian, Philippine or Vietnamese passport, you apply for the Visitor visa, subclass 600, which is the Australia tourist visa. This page covers the Australia visa application: the ETA, the fees from 1 July 2026, documents by pass type and the usual reasons for refusal.",
   heroImage: "/assets/heroes/australia.jpg",
   meta: [
-    { k: "Type", v: "Visitor 600 / ETA 601" },
-    { k: "Length of stay", v: "3 / 6 / 12 months per entry" },
-    { k: "Validity", v: "Up to 12 months" },
-    { k: "Entry", v: "Multiple (typical)" },
+    { k: "Singapore passport", v: "ETA, app only" },
+    { k: "Tourist visa fee", v: "AUD 250 from outside Australia" },
+    { k: "Apply", v: "ImmiAccount or ETA app" },
+    { k: "Checked", v: "25 Nov 2026" },
   ],
   tags: [
-    { icon: "bolt", label: "Expert-prepared application" },
     { icon: "shield", label: "Free VIZA service" },
-    { icon: "doc", label: "Full document review" },
+    { icon: "doc", label: "Document check" },
+    { icon: "bolt", label: "ETA and visa" },
   ],
 
-  overviewTitle: "Australia, at a glance",
-  overviewSub:
-    "The Visitor visa (subclass 600) is Australia's primary tourism and family-visit pathway. Singapore and other eligible passports can instead use the app-only ETA (subclass 601) — multiple entries over 12 months, up to 3 months per visit.",
-  glance: [
-    { icon: "globe", k: "Capital", v: "Canberra", sub: "UTC +10 / +11 (AEST / AEDT)" },
-    { icon: "clock", k: "Best time to visit", v: "Sep – Nov / Mar – May", sub: "Spring & autumn · 18 – 26°C" },
-    { icon: "currency", k: "Currency", v: "Australian Dollar", sub: "SGD 1 ≈ AUD 1.10 (approx.)" },
-    { icon: "pin", k: "Top destinations", v: "Sydney · Melbourne · Great Barrier Reef", sub: "Plus Gold Coast, Perth, Uluru" },
-  ],
+  page: {
+    framing: "singapore",
 
-  processTitle: "How the Australia Visitor Visa process works",
-  processSub:
-    "Submit once. We lodge via ImmiAccount, handle every step with the Department of Home Affairs, and notify you the moment your visa is granted. Home Affairs decides ~50% of tourist-stream cases in about 11 days and 90% within 28 – 45 days — lodge 1 – 2 months before travel.",
-  steps: [
-    {
-      title: "Apply on VIZA",
-      body: "Upload your passport, a 45 × 35 mm photo, proof of funds, and supporting documents. Your consultant tailors the package to your profile — and tells you exactly what a genuine-visitor assessment looks for.",
+    glance: {
+      needVisa: "Yes, for every passport. Singapore and Malaysian passports use the ETA. Chinese, Indian, Indonesian, Philippine and Vietnamese passports apply for the Visitor visa",
+      govFee: "Tourist stream AUD 250 from outside Australia. ETA has no visa charge and about AUD 20 in app fees",
+      processing: "ETA often within minutes to hours. The Visitor visa is set by Home Affairs, so apply 1 to 2 months ahead",
+      maxStay: "ETA up to 3 months per visit. Visitor visa 3, 6 or 12 months as granted",
+      checked: "25 November 2026",
     },
-    {
-      title: "Your documents are verified",
-      body: "Your VIZA consultant reviews every field and supporting document against Department of Home Affairs requirements, then lodges the application online via ImmiAccount.",
-    },
-    {
-      title: "Your visa gets processed",
-      body: "We monitor your ImmiAccount status daily and respond fast if the case officer requests more information — the single biggest cause of blown timelines. Don't book flights yet: Home Affairs advises waiting for the grant.",
-      statusRows: [
-        { label: "Application lodged via ImmiAccount", ts: "10 Jun, 10:00 AM", onTime: true },
-        { label: "Health and character checks initiated", ts: "10 Jun, 2:30 PM", onTime: true },
-        { label: "Awaiting officer decision", ts: "In progress" },
+
+    passports: {
+      intro: "The passport decides the route. Singapore PR and pass holders follow the rules for the passport they hold. Home Affairs keeps the list of passports that can use the ETA, and every other passport applies for a Visitor visa.",
+      rows: [
+        { passport: "Singapore", status: "ETA, app only", note: "Apply in the Australian ETA app with your passport and a photo. It allows visits of up to 3 months each and is valid for 12 months. Stays over 3 months need a Visitor visa." },
+        { passport: "China (PRC)", status: "Visitor visa required", note: "Chinese passports cannot use the ETA. Chinese passport holders living in Singapore apply for the Visitor visa, subclass 600, in ImmiAccount." },
+        { passport: "Malaysia", status: "ETA, app only", note: "Malaysia is on the ETA list, so Malaysians living in Singapore apply in the ETA app." },
+        { passport: "India", status: "Visitor visa required", note: "Apply for the Visitor visa online. Bring proof of your job, your pass and your savings." },
+        { passport: "Indonesia", status: "Visitor visa required", note: "Apply for the Visitor visa online in ImmiAccount." },
+        { passport: "Philippines", status: "Visitor visa required", note: "Apply for the Visitor visa online. Allow extra time to prepare your bank statements." },
+        { passport: "Vietnam", status: "Visitor visa required", note: "Apply for the Visitor visa online in ImmiAccount." },
+        { passport: "Other passports", status: "Check Home Affairs", note: "Some European passports use the eVisitor visa, and some Asian and North American passports use the ETA. Home Affairs has a tool for your passport." },
       ],
     },
-    {
-      title: "Get your visa grant on 21 Jun, 02:15 PM",
-      body: "Your visa grant notice arrives by email and in your VIZA app. The visa is electronically linked to your passport — no label required.",
-      delivered: true,
+
+    visaTypes: {
+      intro: "Australia has several ways to visit. Most people in Singapore travelling for a holiday or to see family use the ETA or the Visitor visa.",
+      items: [
+        { title: "ETA, subclass 601", body: "For eligible passports. You apply in the Australian ETA app, there is no visa charge and the app adds a service fee of about AUD 20. It allows multiple visits over 12 months, up to 3 months each." },
+        { title: "Visitor visa, subclass 600, Tourist stream", body: "The Australia tourist visa. It covers holidays and family visits. Home Affairs grants a stay of 3, 6 or 12 months and decides single or multiple entry. 3 months is the most common for tourism." },
+        { title: "Frequent Traveller stream", body: "A longer visa for people who travel to Australia often. It costs AUD 1,845 and is granted for up to 10 years, with each stay of up to 3 months." },
+        { title: "Work, study and other visas", body: "Working, studying or living in Australia needs a different visa. A visitor visa does not allow work, and study is limited." },
+      ],
     },
-  ],
 
-  docsTitle: "Required documents",
-  docsSub:
-    "Your VIZA consultant double-checks each document before submission. Re-uploads are unlimited and free.",
-  documents: [
-    { name: "Passport bio page", sub: "Colour scan · valid for your whole stay (we advise 6+ months)" },
-    { name: "Passport photograph", sub: "One recent colour photo · 45 × 35 mm · plain background" },
-    { name: "Proof of funds", sub: "Bank statements (3 – 6 months), payslips, or tax records" },
-    { name: "Employment or study evidence", sub: "Employer letter with approved leave · business licence · enrolment proof" },
-    { name: "Travel intent evidence", sub: "Itinerary + ties to home — do not buy flights before the grant" },
-    { name: "Invitation documents", sub: "Visiting family/friends: inviter's details, passport/visa copy, support letter" },
-    { name: "Documents for minors (under 18)", sub: "Birth certificate naming both parents · Form 1229 consent if one parent stays behind" },
-    { name: "PRC applicants", sub: "National ID (both sides), hukou, Form 54 in English and Chinese" },
-  ],
+    residents: {
+      intro: "You apply online and, for the Visitor visa, upload your documents in ImmiAccount. Your pass shows that you live in Singapore, which helps the officer see your ties and your plan to return.",
+      rows: [
+        { pass: "Employment Pass", body: "Bring your EP card, an employment letter with your role, salary and approved leave, and 3 to 6 months of bank statements. This is the most common route for Chinese and Indian passport holders working in Singapore." },
+        { pass: "S Pass", body: "Bring your S Pass card, the employment letter and bank statements. The checklist matches the Employment Pass." },
+        { pass: "Dependant's Pass", body: "Bring your Dependant's Pass and a copy of the main holder's pass. Add the marriage or birth certificate and the main holder's bank statements with a support letter." },
+        { pass: "Permanent Resident", body: "Bring your PR card or re-entry permit and proof of your work or business in Singapore. You apply with the passport of your own country, and the Singapore ETA rule does not apply to you." },
+        { pass: "Singapore citizen", body: "Apply for an ETA in the app before you fly. Keep the approval linked to your passport and use the passport gates where they are available." },
+        { pass: "Student's Pass", body: "Bring your Student's Pass and a school letter with your term dates. A parent can support the trip with a letter and their bank statements." },
+      ],
+    },
 
-  rejectionTitle: "Why Australia Visitor Visas get refused",
-  rejectionSub:
-    "The Department of Home Affairs may refuse an application for any of the following. VIZA flags these before you submit.",
-  rejectionReasons: [
-    { title: "Not a genuine visitor", body: "Weak ties to home — no stable job, family, or assets — a vague travel purpose, or immigration history suggesting intent to stay. The most common subclass 600 refusal ground." },
-    { title: "Insufficient funds", body: "Statements that don't show a steady savings or income history, or large unexplained recent deposits, fail to prove you can support yourself for the whole stay." },
-    { title: "Incomplete or poor-quality documents", body: "A missing employment letter, illegible scans, or missing PRC identity documents (ID card, hukou, Form 54) cause delays and refusals." },
-    { title: "False or misleading information", body: "Any fraudulent document or inconsistency can trigger refusal under PIC 4020 — plus a 3-year ban on further applications." },
-    { title: "Previous visa non-compliance", body: "Prior overstays, breaches of visa conditions, or an unresolved re-entry exclusion (PIC 4013/4014) lead to refusal." },
-    { title: "Health or character concerns", body: "Failing health requirements (relevant for older applicants and long stays) or character grounds such as a criminal record under s501." },
-  ],
+    fees: {
+      intro: "Home Affairs sets the visa charge and you pay it to Home Affairs. VIZA's help is free. The charge is set on the day you lodge, so a later rise does not change an application you have already lodged.",
+      rows: [
+        { item: "Visitor visa, Tourist stream, outside Australia", amount: "AUD 250", note: "From 1 July 2026. It was AUD 200 before." },
+        { item: "Visitor visa, Tourist stream, inside Australia", amount: "AUD 630", note: "From 1 July 2026. It was AUD 500 before." },
+        { item: "Frequent Traveller stream", amount: "AUD 1,845", note: "From 1 July 2026. It was AUD 1,480 before." },
+        { item: "ETA, subclass 601", amount: "No visa charge", note: "The ETA app adds a service fee of about AUD 20, which is not refundable." },
+      ],
+      processing: "Home Affairs publishes processing times for the Visitor visa and updates them each month, so check the page before you lodge. Apply 1 to 2 months before you travel and wait for the grant before you book flights. An ETA is often decided within minutes to hours and can take longer.",
+    },
 
-  entryTitle: "Entry & exit regulations",
-  entrySub:
-    "Your visa is electronically linked to your passport — nothing is issued on arrival, so hold your ETA or subclass 600 before boarding. Every arrival completes an Incoming Passenger Card (a digital Australia Travel Declaration is rolling out on select Qantas routes), and biosecurity rules are strictly enforced.",
-  entryExit: [
-    { icon: "refresh", k: "Entry", v: "Multiple (typical)", sub: "Travel freely within the grant's validity" },
-    { icon: "doc", k: "Arrival card", v: "Incoming Passenger Card", sub: "Paper IPC · digital ATD pilot on select Qantas flights to BNE/SYD/MEL" },
-    { icon: "bolt", k: "SmartGate", v: "All ePassports", sub: "Singapore and PRC ePassports both eligible" },
-    { icon: "alert", k: "Biosecurity", v: "Declare food, plant & animal goods", sub: "Heavy on-the-spot fines for false declarations" },
-  ],
-
-  extensionTitle: "Visa extension & overstays",
-  extensionSub:
-    "Australian visitor visas can't be extended — instead, you lodge a fresh onshore subclass 600 via ImmiAccount before your current visa expires (AUD 630, unless condition 8503 'No Further Stay' applies). A bridging visa keeps you lawful while it's decided. There is no daily overstay fine: overstaying 28+ days triggers a 3-year re-entry ban, and overstayers face detention and removal at their own cost.",
-  extension: [
-    { icon: "extend", k: "Staying longer", v: "New onshore 600", sub: "AUD 630 · lodge 2 – 3 weeks before expiry · blocked by condition 8503" },
-    { icon: "ban", k: "Overstay 28+ days", v: "3-year re-entry ban", sub: "PIC 4014 · leave within 28 days to avoid it" },
-    { icon: "alert", k: "Overstay fine", v: "None — but removal costs billed", sub: "Unlawful status · detention risk · debt to the Australian Government" },
-  ],
-
-  reviews: {
-    score: "4.6",
-    outOf: "/ 5",
-    sub: "Highest rated visa platform · 12,841 reviews",
-    platforms: [
-      { rating: "4.6", name: "Trustpilot" },
-      { rating: "4.7", name: "App Store" },
-    ],
-    items: [
-      {
-        initials: "JW",
-        name: "Jessica Wong",
-        source: "Trustpilot · 1 week ago",
-        title: "Grant came through in 5 days",
-        body: "Incredibly smooth process. The consultant built the whole document package for me and I barely had to do anything beyond uploading my passport.",
+    apply: {
+      intro: "Choose the route first. Singapore and Malaysian passports use the ETA app. Every other passport uses the online Visitor visa form in ImmiAccount.",
+      guided: {
+        title: "Guided",
+        body: "VIZA's AI walks you through the form and the document list for your pass type. You lodge in ImmiAccount or the ETA app yourself and keep control of every answer.",
       },
-      {
-        initials: "DA",
-        name: "Daniel Ang",
-        source: "App Store · 3 weeks ago",
-        title: "Consultant saved my application",
-        body: "The bank statements I originally sent weren't going to be enough. The consultant guided me on what to include and we got the grant first time.",
+      fullService: {
+        title: "Full-service",
+        body: "A VIZA consultant prepares your answers, checks that your bank statements, employment letter and itinerary agree and prepares the file for lodging.",
       },
-    ],
+      steps: [
+        { title: "Check your route", body: "We confirm whether your passport can use the ETA or needs the Visitor visa, and how long you plan to stay." },
+        { title: "Prepare the file", body: "Gather your passport, photo, bank statements, employment letter and a simple plan for the trip." },
+        { title: "Lodge online", body: "Lodge the Visitor visa in ImmiAccount, or apply for the ETA in the Australian ETA app. Pay the charge yourself." },
+        { title: "Wait for the grant", body: "Home Affairs emails the decision. The visa is linked to your passport, so nothing is stuck in it. Do not book non-refundable flights before the grant." },
+      ],
+    },
+
+    checklist: {
+      intro: "Home Affairs asks for a core set and may ask for more. The list below is the common core. Always compare it with the latest form before you lodge.",
+      groups: [
+        {
+          applicant: "Everyone",
+          items: [
+            "Passport valid for your whole stay, and ideally 6 months more",
+            "Recent colour photo",
+            "Bank statements for the last 3 to 6 months",
+            "Employment letter with approved leave, or business registration",
+            "A simple itinerary and your ties to Singapore",
+          ],
+        },
+        {
+          applicant: "Employment Pass and S Pass",
+          items: [
+            "Pass card, copy of both sides",
+            "Employment letter with role, salary and approved leave",
+            "Payslips and personal bank statements",
+          ],
+        },
+        {
+          applicant: "Dependant's Pass",
+          items: [
+            "Dependant's Pass card and the main holder's pass copy",
+            "Marriage or birth certificate showing the link",
+            "Main holder's bank statements and a support letter",
+          ],
+        },
+        {
+          applicant: "Permanent Resident",
+          items: [
+            "PR card or re-entry permit",
+            "Proof of work or business in Singapore",
+            "Personal bank statements",
+          ],
+        },
+        {
+          applicant: "Student",
+          items: [
+            "Student's Pass and a school letter with term dates",
+            "Parent's support letter with their bank statements",
+            "Birth certificate and consent form for a child travelling without both parents",
+          ],
+        },
+        {
+          applicant: "Chinese passport holders",
+          items: [
+            "National ID, both sides",
+            "Household register (hukou) page, if asked",
+            "Application form that the Home Affairs checklist lists for Chinese applicants",
+          ],
+        },
+      ],
+    },
+
+    travel: {
+      intro: "The ETA or visa lets you travel. Border Force decides at the airport whether you can enter.",
+      items: [
+        { title: "Visa is linked to your passport", body: "Nothing is stamped on arrival. Hold your ETA or Visitor visa before you board, and use the same passport as in the application." },
+        { title: "Incoming Passenger Card", body: "Every arrival completes an Incoming Passenger Card. It asks about biosecurity, so read the questions carefully." },
+        { title: "Biosecurity", body: "Declare food, plant and animal goods. Fines for a false declaration are heavy, and the officers check bags." },
+        { title: "SmartGate", body: "Singapore and Chinese e-passports can use SmartGate at major airports." },
+        { title: "Staying longer or overstaying", body: "A visitor visa cannot be extended. You lodge a new application before it ends. An overstay of 28 days or more can lead to a 3 year ban on coming back." },
+      ],
+    },
+
+    reviewed: {
+      date: "25 November 2026",
+      note: "Checked against the Australian Department of Home Affairs and the Australian High Commission. Fees and rules change, so look at the links under Sources before you pay.",
+    },
+
+    related: {
+      destinations: ["indonesia", "malaysia", "vietnam", "thailand"],
+      guides: [
+        { label: "Visas for Chinese passport holders in Singapore", href: "/guides/visas-chinese-passport-holders-singapore" },
+        { label: "Visas for Filipino and Indian residents of Singapore", href: "/guides/visas-filipino-indian-residents-singapore" },
+        { label: "ETA vs visa: UK, Australia, Korea and Canada", href: "/guides/eta-vs-visa" },
+        { label: "Visa refused: why it happens and how to reapply", href: "/guides/visa-refused-reapply" },
+        { label: "Visa photo requirements by country", href: "/guides/visa-photo-requirements" },
+        { label: "Home Affairs: visa processing times", href: "https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-processing-times/global-visa-processing-times" },
+        { label: "VIZA visa news", href: "/blog" },
+      ],
+    },
   },
 
-  faqSub: "Can't find an answer? Ask the AI assistant at the bottom of this page.",
+  rejectionTitle: "Common rejection reasons",
+  rejectionSub: "Home Affairs decides each visitor application on its own file. These are the points a consultant checks first.",
+  rejectionReasons: [
+    { title: "Not clear you will go home", body: "The officer needs to believe you are a genuine visitor. Weak ties, such as a short pass, no employment letter or a vague purpose, are the most common problem." },
+    { title: "Funds that are unexplained", body: "Statements that do not show steady savings or income, or large deposits just before you apply, raise questions about who pays for the trip." },
+    { title: "Incomplete or unclear documents", body: "A missing employment letter, scans that are hard to read or missing identity papers cause delays and refusals." },
+    { title: "Wrong information", body: "A false or misleading statement can lead to refusal and a ban on applying again. Answer every question honestly." },
+    { title: "Earlier visa problems", body: "An earlier overstay or breach of a visa condition needs a clear explanation." },
+    { title: "Health or character concerns", body: "Health requirements and character grounds, such as a criminal record, can lead to refusal." },
+  ],
+
+  faqSub: "Can't find your answer? Ask the AI assistant below or message a VIZA consultant.",
   faq: [
-    {
-      category: "General information",
-      q: "What is the Australia Visitor visa (subclass 600)?",
-      a: "The subclass 600 Visitor visa (Tourist stream) is Australia's standard tourism and family-visit visa. The Department of Home Affairs sets your stay at 3, 6, or 12 months per entry — 3 months is most common for tourism — with travel typically allowed for 12 months from grant, and single or multiple entries at the officer's discretion.",
-    },
-    {
-      category: "General information",
-      q: "Do Singapore passport holders need a visa for Australia?",
-      a: "Yes — Singapore is not visa-free, but qualifies for the ETA (subclass 601): multiple entries over 12 months, up to 3 months per visit, approved usually within minutes to 12 hours. It's app-only (the official Australian ETA app, AUD 20 service fee, NFC passport scan and live photo required) — VIZA walks you through it end-to-end. For stays over 3 months, or after an ETA refusal, we lodge a subclass 600 instead.",
-    },
-    {
-      category: "General information",
-      q: "What about Chinese (PRC) passport holders?",
-      a: "PRC passports are not ETA-eligible, so the subclass 600 via ImmiAccount is the route — including for PRC applicants residing in Singapore. Expect extra checklist items: both sides of your national ID, hukou, and Form 54 in English and Chinese. Frequent travellers can opt for the Frequent Traveller stream — a 10-year multiple-entry visa (3 months per stay), AUD 1,845 from 1 July 2026.",
-    },
-    {
-      category: "Application process",
-      q: "How much does the visa cost?",
-      a: "From 1 July 2026, the subclass 600 Tourist stream government charge is AUD 250 (≈ SGD 220) applying from outside Australia, or AUD 630 (≈ SGD 555) onshore. The ETA (601) has no visa charge — just a AUD 20 (≈ SGD 18) app service fee. The fee is locked at the rate on your lodgement date and is paid directly to Home Affairs. VIZA charges nothing for its help.",
-    },
-    {
-      category: "Application process",
-      q: "How long does processing take?",
-      a: "ETAs are usually approved within minutes to 12 hours. For the subclass 600 Tourist stream, Home Affairs decides about half of applications in 11 days and 90% within 28 – 45 days (early-2026 figures). Lodge 1 – 2 months before travel, and hold off booking flights until the grant — that's official Home Affairs advice.",
-    },
-    {
-      category: "Application process",
-      q: "Can I apply for family members in one application?",
-      a: "Yes. Each traveller requires their own application, but your VIZA consultant coordinates them so they are lodged together and reviewed on the same timeline. Children under 18 need extra documents — a birth certificate naming both parents and Form 1229 consent if a parent isn't travelling.",
-    },
-    {
-      category: "Rejections & reapplications",
-      q: "What if my application is refused?",
-      a: "The Department of Home Affairs keeps the visa charge you paid it on refusal. VIZA charges nothing for its help. Your consultant will review the refusal reasons with you — most commonly the genuine-visitor requirement — and advise on strengthening a future application.",
-    },
+    { category: "Do I need a visa", q: "Do Singaporeans need a visa for Australia?", a: "Singapore passport holders need an ETA, which you apply for in the Australian ETA app. It allows visits of up to 3 months each over 12 months. Longer stays need a Visitor visa." },
+    { category: "Do I need a visa", q: "What is the Australia visa ETA?", a: "The ETA, subclass 601, is an app-only travel authority for eligible passports. There is no visa charge and the app adds a service fee of about AUD 20. It is linked to your passport." },
+    { category: "Do I need a visa", q: "Do Chinese passport holders living in Singapore need an Australia tourist visa?", a: "Yes. Chinese passports cannot use the ETA, so you apply for the Visitor visa, subclass 600, online in ImmiAccount." },
+    { category: "Do I need a visa", q: "Do Indians, Indonesians, Filipinos and Vietnamese in Singapore need a visa?", a: "Yes. Each applies for the Visitor visa online, with proof of work, savings and ties to Singapore." },
+    { category: "Applying in Singapore", q: "How do I make an Australia visa application from Singapore?", a: "Check your passport route. Singapore and Malaysian passports use the ETA app. Other passports lodge the Visitor visa in ImmiAccount and upload their documents." },
+    { category: "Applying in Singapore", q: "Where do I apply, and do I need to go anywhere?", a: "Everything is online. You lodge in ImmiAccount or the ETA app from Singapore. Home Affairs tells you if it needs health checks or biometrics." },
+    { category: "Applying in Singapore", q: "How long can I stay on the tourist visa?", a: "Home Affairs grants 3, 6 or 12 months per entry and decides single or multiple entry. 3 months is the most common for tourism." },
+    { category: "Fees and time", q: "How much is the Australia tourist visa?", a: "From 1 July 2026 the Tourist stream charge is AUD 250 from outside Australia. The Frequent Traveller stream is AUD 1,845. The ETA has no visa charge and about AUD 20 in app fees." },
+    { category: "Fees and time", q: "How long does the Australia visa take?", a: "An ETA is often decided within minutes to hours. For the Visitor visa, Home Affairs publishes processing times that change each month, so apply 1 to 2 months before you travel." },
+    { category: "Fees and time", q: "Can I extend my Australia visitor visa?", a: "No. You lodge a new application before your current visa ends. The charge inside Australia is AUD 630 and some visas carry a no further stay condition." },
+    { category: "Rejections", q: "What happens if my Australia visa is refused?", a: "Home Affairs keeps the charge and sends the reasons. The most common one is that the officer was not sure you are a genuine visitor. Review it with a consultant before you apply again." },
+    { category: "Before you travel", q: "Do I need an arrival card for Australia?", a: "Yes. Every arrival completes an Incoming Passenger Card with biosecurity questions. A digital version is being tested on some routes." },
+    { category: "Before you travel", q: "How much does VIZA charge?", a: "Nothing. VIZA's help is free. You pay the Home Affairs charge directly." },
   ],
 
   sources: [
-    { label: "Dept of Home Affairs — Visitor visa (subclass 600), Tourist stream", url: "https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/visitor-600/tourist-stream-overseas", display: "immi.homeaffairs.gov.au" },
-    { label: "Dept of Home Affairs — Electronic Travel Authority (subclass 601)", url: "https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/electronic-travel-authority-601", display: "immi.homeaffairs.gov.au" },
-    { label: "Dept of Home Affairs — Current visa pricing", url: "https://immi.homeaffairs.gov.au/visas/getting-a-visa/fees-and-charges/current-visa-pricing", display: "immi.homeaffairs.gov.au" },
-    { label: "Dept of Home Affairs — Global visa processing times", url: "https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-processing-times/global-visa-processing-times", display: "immi.homeaffairs.gov.au" },
-    { label: "ImmiAccount — Australian online visa lodgement", url: "https://online.immi.gov.au/lusc/login", display: "online.immi.gov.au" },
-    { label: "Australian Border Force — Incoming Passenger Card", url: "https://www.abf.gov.au/entering-and-leaving-australia/crossing-the-border/at-the-border/incoming-passenger-card-(ipc)", display: "abf.gov.au" },
-    { label: "Australian High Commission Singapore — Visas and Migration", url: "https://singapore.highcommission.gov.au/sing/Visas_and_Migration.html", display: "singapore.highcommission.gov.au" },
-    { label: "Australian Embassy China — Visitor visa (600) Tourist stream checklist", url: "https://china.embassy.gov.au/files/bjng/Visitor%20Visa%20-%20Tourist%20Stream%20(Subclass%20600).pdf", display: "china.embassy.gov.au" },
+    { label: "Home Affairs, Visitor visa (subclass 600)", url: "https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/visitor-600", display: "immi.homeaffairs.gov.au" },
+    { label: "Home Affairs, Electronic Travel Authority (subclass 601)", url: "https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/electronic-travel-authority-601", display: "immi.homeaffairs.gov.au" },
+    { label: "Home Affairs, current visa pricing", url: "https://immi.homeaffairs.gov.au/visas/getting-a-visa/fees-and-charges/current-visa-pricing", display: "immi.homeaffairs.gov.au" },
+    { label: "Home Affairs, global visa processing times", url: "https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-processing-times/global-visa-processing-times", display: "immi.homeaffairs.gov.au" },
+    { label: "ImmiAccount", url: "https://online.immi.gov.au/lusc/login", display: "online.immi.gov.au" },
+    { label: "Australian Border Force, Incoming Passenger Card", url: "https://www.abf.gov.au/entering-and-leaving-australia/crossing-the-border/at-the-border/incoming-passenger-card-(ipc)", display: "abf.gov.au" },
+    { label: "Australian High Commission Singapore, visas and migration", url: "https://singapore.highcommission.gov.au/sing/Visas_and_Migration.html", display: "singapore.highcommission.gov.au" },
   ],
 
   price: {
-    etaLabel: "Apply now, get it by",
-    etaValue: "21 Jun 2026, 02:15 PM",
-    title: "Visitor 600 · Tourist stream · up to 12-month validity",
-    saving: "Decision-ready first time",
-    sub: "VIZA's help is free: document preparation, form filling, and tracking. The visa charge is paid directly to Home Affairs.",
-    foot: "VIZA's service is free. Any government visa charge is paid directly to the Department of Home Affairs.",
+    etaLabel: "Processing time",
+    etaValue: "Set by Home Affairs",
+    title: "Visitor visa or ETA",
+    sub: "VIZA's help is free: form preparation and document review. The visa charge is paid to Home Affairs.",
+    foot: "VIZA's service is free. Any Australia visa charge is paid directly to the Department of Home Affairs.",
   },
 
-  aiPlaceholder: "Ask anything about Australia visas — fees, processing, documents…",
+  aiPlaceholder: "Ask anything about an Australia visa from Singapore: ETA, fees, documents…",
 };
 
 export default australia;

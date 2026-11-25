@@ -1,174 +1,210 @@
-import type { VisaContent } from "../types";
+import type { DestinationContent } from "../types";
 
-/**
- * 印度尼西亚（巴厘岛）电子落地签证（e-VOA）— 简体中文版本。
- * zh-CN 翻译，签证具体信息（费用、有效期、材料清单、拒签原因）
- * 在发布前须由运营/法务人员对照官方来源进行核实。
- */
-export const indonesia: VisaContent = {
+/** 印尼落地签（电子落地签 e-VOA）简体中文版。事实核对日期、来源与未能确认的事项见 ../indonesia.ts。 */
+export const indonesia: DestinationContent = {
   slug: "indonesia",
 
-  heroTitle: "印度尼西亚（巴厘岛）电子落地签",
-  heroTitleSuffix: "适用于新加坡护照持有人",
-  lede: "单次入境电子落地签证，自签发之日起 90 天内有效，每次可停留 30 天。由您的 VIZA 顾问全程提交并追踪进度。",
+  heroTitle: "印尼签证办理：印尼落地签（e-VOA）申请条件与流程",
+  lede: "印尼落地签是可停留 30 天的签证，出发前可以在线申请，也就是电子落地签（e-VOA），并且可以延期一次，再停 30 天。按印尼移民总局目前的信息，费用是 50 万印尼盾，印尼已宣布要调高费用，但还没有生效日期。新加坡护照免签入境印尼，最长 30 天，所以想延期的话，e-VOA 更合适。中国和印度护照办落地签或 e-VOA。所有访客入境前还要免费填写 All Indonesia 入境申报。",
   heroImage: "/assets/heroes/indonesia.jpg",
   meta: [
-    { k: "签证类型", v: "电子落地签（e-VOA）" },
-    { k: "可停留时长", v: "30 天" },
-    { k: "有效期", v: "90 天" },
-    { k: "入境次数", v: "单次" },
+    { k: "类型", v: "电子落地签（B1）" },
+    { k: "停留", v: "30 天，可延期一次" },
+    { k: "费用", v: "50 万印尼盾（已宣布调高）" },
+    { k: "核对日期", v: "2026 年 11 月 25 日" },
   ],
   tags: [
-    { icon: "bolt", label: "快速通道 · 24 小时内出签" },
     { icon: "shield", label: "VIZA 服务免费" },
-    { icon: "doc", label: "所需材料极少" },
+    { icon: "doc", label: "材料核对" },
+    { icon: "bolt", label: "在线申请" },
   ],
 
-  overviewTitle: "印度尼西亚，一览",
-  overviewSub:
-    "电子落地签允许新加坡护照持有人入境印度尼西亚，用于旅游、探亲、商务会议或就医。",
-  glance: [
-    { icon: "globe", k: "首都", v: "雅加达", sub: "UTC +7（印度尼西亚西部时间）" },
-    { icon: "clock", k: "最佳出行时间", v: "4 月 – 10 月", sub: "旱季 · 27 – 32°C" },
-    { icon: "currency", k: "货币", v: "印度尼西亚盾", sub: "1 新元 ≈ 12,250 印尼盾" },
-    { icon: "pin", k: "热门目的地", v: "巴厘岛 · 雅加达 · 龙目岛", sub: "另有日惹、婆罗摩火山、努沙佩尼达" },
-  ],
+  page: {
+    framing: "global",
 
-  processTitle: "电子落地签办理流程",
-  processSub:
-    "提交一次即可。我们全程与印度尼西亚移民局对接，签证一旦准备就绪即刻通知您。",
-  steps: [
-    {
-      title: "在 VIZA 提交申请",
-      body: "上传护照、近期照片及出行日期。VIZA 的协助完全免费。需缴纳政府费用时，申请会暂停，由您直接向印度尼西亚移民局支付。",
+    glance: {
+      needVisa: "新加坡、马来西亚、菲律宾、越南护照旅游停留不超过 30 天不需要。中国和印度护照办落地签或 e-VOA",
+      govFee: "按目前信息，落地签或 e-VOA 为 50 万印尼盾。印尼在 2026 年 8 月宣布 e-VOA 75 万、柜台办理 100 万印尼盾，尚无生效日期",
+      processing: "以政府网站为准。请在出发前申请，并预留刷卡付款和收邮件的时间",
+      maxStay: "30 天，可延期一次，再 30 天。免签入境为 30 天，不能延期",
+      checked: "2026 年 11 月 25 日",
     },
-    {
-      title: "材料审核",
-      body: "您的 VIZA 顾问逐项核查所有填写内容，确认无误后直接向印度尼西亚移民局提交申请。",
-    },
-    {
-      title: "签证处理中",
-      body: "我们追踪移民局内部每个处理环节，以便在影响您行程之前提前发现任何延误。",
-      statusRows: [
-        { label: "申请已发送至移民局主管", ts: "5月8日 05:45", onTime: true },
-        { label: "已转交内部审查部门", ts: "5月8日 08:12", onTime: true },
-        { label: "等待最终批准", ts: "处理中" },
+
+    passports: {
+      intro: "印尼看护照，不看您住在哪里。下表是各本护照通常的办理途径。最终以网站的签证查询页和移民总局的落地签国家名单为准。",
+      rows: [
+        { passport: "新加坡", status: "免签，最长 30 天", note: "不收费，也不能延期。新加坡护照也可以办 e-VOA，可延期一次 30 天。" },
+        { passport: "中国（PRC）", status: "落地签或 e-VOA", note: "中国护照一直走落地签途径。申请前请先对照国家名单确认您的护照。" },
+        { passport: "马来西亚", status: "免签，最长 30 天", note: "东盟护照旅游在免签名单上。" },
+        { passport: "印度", status: "落地签或 e-VOA", note: "印度护照可以办 B1 落地签和 e-VOA。" },
+        { passport: "印度尼西亚", status: "无需签证", note: "印尼公民用本国护照入境，同样要填 All Indonesia 申报。" },
+        { passport: "菲律宾", status: "免签，最长 30 天", note: "东盟护照旅游在免签名单上。" },
+        { passport: "越南", status: "免签，最长 30 天", note: "东盟护照旅游在免签名单上。" },
+        { passport: "其他护照", status: "请对照国家名单", note: "约 90 个国家可以办落地签或 e-VOA。您的国家不在名单上，出发前要申请访问签证。" },
       ],
     },
-    {
-      title: "5月9日 15:03 获取您的电子落地签",
-      body: "PDF 签证文件将发送至您的邮箱及 VIZA 应用。打印或保存至手机钱包，在入境通道出示即可。",
-      delivered: true,
+
+    visaTypes: {
+      intro: "印尼有几种短期停留的途径，大多数游客用前三种之一。",
+      items: [
+        { title: "免签入境", body: "东盟护照的旅游访问，最长 30 天。不收费，不能延期，也不能转成其他居留许可。" },
+        { title: "电子落地签 e-VOA（B1）", body: "出发前在线申请的落地签。一份申请最多可以包含五个人，刷卡付费，停留 30 天，可延期一次 30 天。" },
+        { title: "机场落地签（B1）", body: "同一种签证，在移民柜台购买。印尼计划让这条途径的费用比 e-VOA 更高，所以在线申请更划算。" },
+        { title: "访问签证（C1）与长期停留", body: "要停留更久或办商务，请通过网站的签证查询页申请访问签证或其他类别。B1 不允许销售商品或服务，也不能领取印尼公司的报酬。" },
+      ],
     },
-  ],
 
-  docsTitle: "所需材料",
-  docsSub:
-    "您的 VIZA 顾问在提交前会逐一核查每份材料。重新上传次数不限，且免费。",
-  documents: [
-    { name: "护照个人信息页", sub: "有效期 6 个月以上 · 清晰扫描件" },
-    { name: "近期照片", sub: "纯色背景 · 6 个月内拍摄" },
-    { name: "回程机票", sub: "须在 30 天内离境" },
-    { name: "酒店或住宿证明", sub: "预订确认函 · 任意平台均可" },
-  ],
+    residents: {
+      intro: "住在新加坡，不会改变印尼的要求，护照说了算。请让准证在整个行程期间保持有效，这样您才能回新加坡。",
+      rows: [
+        { pass: "工作准证（EP）", body: "按您护照那一行办。中国或印度护照持有人办落地签或 e-VOA，EP 只关系到回新加坡。" },
+        { pass: "S 准证", body: "与 EP 相同。e-VOA 表格要的是护照和个人资料，不要准证。" },
+        { pass: "家属准证（DP）", body: "每位家人用自己的护照申请，网站上一份申请最多可含五个人。家属准证请保持在回程日期之后仍然有效。" },
+        { pass: "永久居民（PR）", body: "PR 持有的是另一个国家的护照，所以按那一行办。有一份指南提到，新加坡 PR 去巴淡、宾坦和卡里蒙短途旅行有特别豁免，使用前请先查清条件。" },
+        { pass: "新加坡公民", body: "30 天内无需签证。可能要延期的话，用 e-VOA。请带上有 6 个月有效期的护照、回程机票和 All Indonesia 二维码。" },
+        { pass: "学生准证", body: "按护照那一行办，并确认护照有 6 个月有效期。" },
+      ],
+    },
 
-  rejectionTitle: "电子落地签被拒的常见原因",
-  rejectionSub:
-    "印度尼西亚移民局可能以下列任一原因拒绝申请。VIZA 会在您提交前提前标记这些风险。",
-  rejectionReasons: [
-    { title: "护照已过期", body: "使用已过期或入境时距到期不足 6 个月的护照申请将被拒绝。" },
-    { title: "有犯罪记录", body: "根据印度尼西亚法律，有定罪记录或未结案件可能导致旅游签证申请被拒。" },
-    { title: "此前有违规记录", body: "过去 5 年内曾超期逗留或违反印度尼西亚签证规定。" },
-  ],
+    fees: {
+      intro: "免签入境不收费。落地签和 e-VOA 在网站上刷卡支付。VIZA 的协助免费。",
+      rows: [
+        { item: "e-VOA 或落地签（B1）", amount: "50 万印尼盾", note: "这是移民总局目前信息里的数字。付款当天请再查一下网站。" },
+        { item: "已宣布的调价", amount: "e-VOA 75 万，柜台办理 100 万印尼盾", note: "2026 年 8 月 12 日宣布，被描述为提议，尚无生效日期。" },
+        { item: "e-VOA 延期", amount: "以网站为准", note: "可延期一次 30 天，在网站上申请，并在次日的工作日到移民局拍照。" },
+        { item: "免签入境", amount: "免费", note: "东盟护照，最长 30 天，不能延期。" },
+        { item: "巴厘岛旅游税", amount: "15 万印尼盾（据报道）", note: "由巴厘省政府对外国游客另行征收。出发前请查巴厘省政府的页面。" },
+      ],
+      processing: "本指南读到的网站页面没有写明固定的办理时间，所以请在出发前申请，并保留邮件。使用 Mastercard、Visa 或 JCB 付款，护照需要有 6 个月有效期。e-VOA 就是落地签，抵达印尼移民柜台时，连同护照一起出示。",
+    },
 
-  entryTitle: "入境与离境规定",
-  entrySub:
-    "请携带电子落地签 PDF、有效的回程机票及住宿证明。该签证允许单次入境，自抵达之日起可停留 30 天。",
-  entryExit: [
-    { icon: "refresh", k: "入境次数", v: "单次", sub: "再次入境需重新申请签证" },
-    { icon: "clock", k: "激活期限", v: "90 天", sub: "自签发日期起计算" },
-  ],
-
-  extensionTitle: "签证延期与超期逗留",
-  extensionSub:
-    "电子落地签可在印度尼西亚境内任一移民局办理一次延期，额外延长 30 天。超期逗留将产生每日罚款，并可能影响未来签证申请。",
-  extension: [
-    { icon: "extend", k: "可延期", v: "+30 天", sub: "一次，须在境内办理" },
-    { icon: "alert", k: "超期罚款", v: "每天 1,000,000 印尼盾", sub: "约每天 82 新元" },
-  ],
-
-  reviews: {
-    score: "4.5",
-    outOf: "/ 5",
-    sub: "新加坡评分最高的签证平台 · 12,841 条评价",
-    platforms: [
-      { rating: "4.6", name: "Trustpilot" },
-      { rating: "4.7", name: "App Store" },
-    ],
-    items: [
-      {
-        initials: "LM",
-        name: "李明",
-        source: "Trustpilot · 3天前",
-        title: "不到一天拿到巴厘岛电子落地签",
-        body: "晚上 11 点提交申请，第二天早上起来签证 PDF 已经到邮箱了。应用内的状态更新让整个过程透明清晰，完全放心。",
+    apply: {
+      intro: "按您需要多少协助来选。网站是政府的，费用交给政府，不交给 VIZA。",
+      guided: {
+        title: "自助指引",
+        body: "VIZA 的 AI 带您填写 e-VOA 表格，检查护照和照片，由您自己在网站上递交并付款。",
       },
-      {
-        initials: "ZH",
-        name: "张慧",
-        source: "应用商店 · 1周前",
-        title: "顾问帮我避免了照片被拒",
-        body: "顾问发现我的照片背景不符合要求，帮我重新上传了一张。如果自己直接提交，根本不会注意到这个问题。",
+      fullService: {
+        title: "全程代办",
+        body: "VIZA 顾问替您和同行的人准备表格，检查文件并整理好申请，在付款前先拦下常见的护照和日期错误。",
       },
-    ],
+      steps: [
+        { title: "在 VIZA 开始", body: "告诉我们护照、出行日期和同行的人。我们先确认您可以免签，还是想办 e-VOA。" },
+        { title: "准备文件", body: "扫描护照资料页，再附一张近期照片。递交前我们先检查。" },
+        { title: "申请并付款", body: "在印尼移民局电子签证网站递交并刷卡付费，费用交给政府。" },
+        { title: "申报入境", body: "抵达前三天内，免费填写 All Indonesia 申报，把二维码和 e-VOA 放在一起。" },
+      ],
+    },
+
+    checklist: {
+      intro: "网站要的材料不多。下面是所有人通用的，后面按申请人类型补充几点。",
+      groups: [
+        {
+          applicant: "所有人",
+          items: [
+            "护照至少有 6 个月有效期",
+            "护照资料页扫描件和近期照片",
+            "电子邮箱，以及用于付款的 Mastercard、Visa 或 JCB 卡",
+            "回程或后续机票和第一个落脚地址，入境时备查",
+            "抵达前三天内填好的 All Indonesia 二维码",
+          ],
+        },
+        {
+          applicant: "新加坡公民与居民",
+          items: [
+            "新加坡准证或身份证在回程时仍然有效",
+            "申请时用您持有国家的护照，而不是准证",
+          ],
+        },
+        {
+          applicant: "家庭与团体",
+          items: [
+            "一份申请最多可含五个人，并填每个人的护照资料",
+            "儿童各用自己的护照",
+          ],
+        },
+        {
+          applicant: "中国和印度护照持有人",
+          items: [
+            "确认您的护照在落地签国家名单上",
+            "出发前先申请 e-VOA，避开柜台更高的费用",
+          ],
+        },
+      ],
+    },
+
+    travel: {
+      intro: "签证只是一部分。印尼要求每位访客填入境申报，也有几条规定容易让人踩坑。",
+      items: [
+        { title: "All Indonesia 入境申报", body: "所有旅客在抵达前三天内，到 allindonesia.imigrasi.go.id 提交入境卡。涵盖移民、海关和健康，免费，填好后得到二维码。它不是签证。", href: "/arrival-cards/indonesia-all-indonesia", linkLabel: "阅读 All Indonesia 指南" },
+        { title: "e-VOA 延期", body: "e-VOA 可以在网站上延期一次 30 天，合计 60 天。免签入境不能延期，所以可能多留的话，请选 e-VOA。" },
+        { title: "工作与商务", body: "B1 不允许销售商品或服务，也不能领取印尼公司的报酬。要工作，请到网站查对应的签证。" },
+        { title: "巴厘岛旅游税", body: "外国游客去巴厘岛要另付旅游税，据报道是 15 万印尼盾。这不属于签证费用。" },
+        { title: "保险", body: "旅行保险不是入境要求，但办一份覆盖医疗和机票取消的保险是明智的。" },
+      ],
+    },
+
+    reviewed: {
+      date: "2026 年 11 月 25 日",
+      note: "已对照印尼移民局电子签证网站和已宣布调价的新闻。费用可能很快变动，付款前请先看页面底部的来源链接。",
+    },
+
+    related: {
+      destinations: ["malaysia", "vietnam", "thailand", "australia"],
+      guides: [
+        { label: "新加坡的中国护照持有人办签证", href: "/guides/visas-chinese-passport-holders-singapore" },
+        { label: "新加坡的菲律宾和印度居民办签证", href: "/guides/visas-filipino-indian-residents-singapore" },
+        { label: "电子签、落地签和使馆签证的区别", href: "/guides/e-visa-vs-visa-on-arrival-vs-embassy-visa" },
+        { label: "All Indonesia 入境申报，印尼移民总局", href: "https://allindonesia.imigrasi.go.id/" },
+        { label: "VIZA 签证资讯", href: "/blog" },
+      ],
+    },
   },
 
-  faqSub:
-    "找不到答案？可使用本页底部的 AI 助手提问，或直接联系您的 VIZA 顾问。",
+  rejectionTitle: "常见拒签原因",
+  rejectionSub: "印尼不公布 e-VOA 被拒的原因。以下是递交前顾问最先检查的几点。",
+  rejectionReasons: [
+    { title: "护照有效期", body: "护照至少要有 6 个月有效期。快到期的护照请先换新。" },
+    { title: "护照不在名单上", body: "落地签和 e-VOA 只面向移民总局名单上的国家。您的国家不在名单上，请申请访问签证。" },
+    { title: "信息与护照不符", body: "姓名、护照号码和出生日期，必须与护照完全一致。" },
+    { title: "照片或扫描件不清楚", body: "护照扫描件模糊、裁切，或照片不清楚，是常见的被退回原因。" },
+    { title: "事由不对", body: "B1 用于旅游、探亲、短期商务会议等。工作和长期居留要办其他签证。" },
+    { title: "想停的时间超出规定", body: "免签停留不能延期。可能想停超过 30 天的话，出发前就办 e-VOA。" },
+  ],
+
+  faqSub: "没找到答案？问下方的 AI 助手，或联系 VIZA 顾问。",
   faq: [
-    {
-      category: "基本信息",
-      q: "印度尼西亚电子落地签是什么？",
-      a: "电子落地签是由印度尼西亚移民局在行程开始前签发的 30 天单次入境旅游签证，取代了以往需要在机场办理的纸质落地签——您抵达时签证已在系统中登记。",
-    },
-    {
-      category: "基本信息",
-      q: "电子落地签可以用于商务活动吗？",
-      a: "可以——电子落地签覆盖旅游、探亲、过境及短期商务会议。若需从事有偿工作或长期出差，则需申请相应的工作签证。",
-    },
-    {
-      category: "申请流程",
-      q: "VIZA 处理电子落地签需要多长时间？",
-      a: "大多数电子落地签在 24 小时内出签。直接通过移民局申请通常需要 2 至 3 天。最终审理时间由移民局决定，VIZA 会全程追踪，及早提示延误。",
-    },
-    {
-      category: "申请流程",
-      q: "可以在一个申请中为全家人办理签证吗？",
-      a: "可以。在申请中添加每位出行人员——顾问会统一提交，确保所有人在同一时间线上获得批准。",
-    },
-    {
-      category: "拒签与重新申请",
-      q: "电子落地签被拒了怎么办？",
-      a: "印度尼西亚移民局将保留政府费用。VIZA 的协助完全免费，顾问会帮助您了解拒签原因，并在符合条件后协助重新申请。",
-    },
+    { category: "需要签证吗", q: "新加坡人去印尼需要签证吗？", a: "旅游停留不超过 30 天不需要。新加坡护照免签入境，但不能延期。e-VOA 可以延期一次 30 天。" },
+    { category: "需要签证吗", q: "印尼落地签是什么？", a: "是 B1 落地签，可停留 30 天，出发前可以在线申请 e-VOA，也可以到机场办理。可以延期一次，再 30 天。" },
+    { category: "需要签证吗", q: "住在新加坡的中国或印度护照持有人去印尼需要签证吗？", a: "办落地签或 e-VOA。印度在名单上，中国护照持有人申请前请先对照移民总局的国家名单。" },
+    { category: "需要签证吗", q: "新加坡 PR 和准证持有人去印尼需要签证吗？", a: "要看护照。印尼看护照，所以按您所持护照那一行办。EP、S 准证、家属准证或 PR 身份不会改变这一点。" },
+    { category: "申请", q: "怎么申请印尼 e-VOA？", a: "打开印尼移民局电子签证网站，填表、上传护照和照片，用 Mastercard、Visa 或 JCB 付费。一份申请最多可含五个人。" },
+    { category: "申请", q: "e-VOA 要办多久？", a: "本指南读到的网站页面没有写明固定时间，请在出发前申请，并保留邮件。" },
+    { category: "申请", q: "印尼 e-VOA 可以停留多久？", a: "30 天，可在网站上延期一次 30 天，合计 60 天。之后必须离境。" },
+    { category: "费用", q: "印尼落地签多少钱？", a: "按目前信息是 50 万印尼盾。2026 年 8 月印尼宣布 e-VOA 75 万、柜台办理 100 万印尼盾，尚无生效日期，付款当天请查一下网站。" },
+    { category: "费用", q: "去巴厘岛要付旅游税吗？", a: "外国游客去巴厘岛要另付旅游税，据报道是 15 万印尼盾，由巴厘省政府规定，不属于签证费用。" },
+    { category: "入境卡", q: "All Indonesia 入境卡是什么？", a: "是免费的在线入境申报，涵盖移民、海关和健康。请在抵达前三天内提交，并出示二维码。" },
+    { category: "出行前", q: "e-VOA 可以用来在印尼工作吗？", a: "不可以。B1 不允许销售商品或服务，也不能领取印尼个人或公司的报酬。工作要办其他签证。" },
+    { category: "出行前", q: "VIZA 收费吗？", a: "不收费。VIZA 的协助免费，政府费用在政府网站上支付。" },
   ],
 
   sources: [
-    { label: "印度尼西亚官方电子签证申请平台", url: "https://evisa.imigrasi.go.id/", display: "evisa.imigrasi.go.id" },
-    { label: "印度尼西亚移民总局", url: "https://www.imigrasi.go.id/", display: "imigrasi.go.id" },
-    { label: "印度尼西亚外交部", url: "https://kemlu.go.id/", display: "kemlu.go.id" },
+    { label: "印尼移民局电子签证网站", url: "https://evisa.imigrasi.go.id/web/home", display: "evisa.imigrasi.go.id" },
+    { label: "印尼移民局，签证查询", url: "https://evisa.imigrasi.go.id/web/visa-selection", display: "evisa.imigrasi.go.id" },
+    { label: "印尼移民总局，落地签国家名单", url: "https://www.imigrasi.go.id/wna/daftar-negara-voa-bvk-calling-visa", display: "imigrasi.go.id" },
+    { label: "All Indonesia 入境申报", url: "https://allindonesia.imigrasi.go.id/", display: "allindonesia.imigrasi.go.id" },
+    { label: "印尼之声，已宣布的落地签费用调整", url: "https://rri.co.id/en/national/2646854/indonesia-implements-tiered-visa-fees-for-efficient-arrivals", display: "rri.co.id" },
   ],
 
   price: {
-    etaLabel: "立即申请，预计到签时间",
-    etaValue: "2026年5月9日 15:03",
-    title: "电子落地签 · 30 天停留",
-    saving: "快 21 小时",
-    sub: "VIZA 免费提供材料审核、表格填写与进度追踪，政府费用由您直接向移民局支付。",
-    foot: "VIZA 服务免费。电子落地签政府费由您直接向印度尼西亚移民局支付。",
+    etaLabel: "办理时间",
+    etaValue: "以政府网站为准",
+    title: "电子落地签 · 30 天",
+    sub: "VIZA 的协助免费：表格准备和材料核对。签证费在政府网站上支付。",
+    foot: "VIZA 的服务免费。印尼签证费用直接支付给印尼移民局。",
   },
 
-  aiPlaceholder: "有关印度尼西亚签证的任何问题，欢迎提问——费用、处理时间、所需材料……",
+  aiPlaceholder: "问问印尼落地签：e-VOA、费用、All Indonesia…",
 };
 
 export default indonesia;

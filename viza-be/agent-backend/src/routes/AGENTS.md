@@ -38,11 +38,10 @@ and internal admin flows.
   `submission-result.routes.uk-legacy.test.ts`: regressions for owner/product
   checks, application binding, decryption/error sanitization, no-store
   responses, and retirement of the legacy UK GET.
-- `france-visas-account.routes.ts`: owner-bearer POST that links the France-Visas
-  login an applicant registered themselves. Both values are encrypted with the
-  shared submission cipher into `fv_accounts` (service-role only), one row per
-  user (`provider = 'france_visas'`); the password is never returned or logged.
-  The worker signs in with it; it never creates France-Visas accounts.
+- `france-visas-account.routes.ts`: owner-bearer `POST /:id/france-visas-account/reveal`
+  that decrypts the per-application France-Visas login the worker registered
+  (`fv_accounts.official_account_*_encrypted`, newest row for the application)
+  for the signed-in owner only. No-store; values are never logged or cached.
 - `jp-vjw-credentials.ts`: application-scoped Visit Japan Web vault-key and
   strict legacy-alias compatibility policy. Plaintext credentials must never
   enter logs, GET responses, or `submission_result`.

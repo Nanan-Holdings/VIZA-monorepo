@@ -28,6 +28,7 @@ import { signInWithPassword, type FvSignInInput, type FvSessionHandles } from ".
 import {
   continueConfirmedApplication,
   finalizeAndDownloadPdf,
+  retryAfterNavigation,
   startNewApplication,
 } from "./accueil";
 import { fillStep1, fillStep2, fillStep3, fillStep4, fillStep5 } from "./fill-steps";
@@ -246,23 +247,6 @@ export async function fillFranceVisasApplication(
     // ── Step 5 — Your contacts ───────────────────────────────────────────
     logRun(runId, "filling step5");
     await fillStep5(session.page, answers.step5);
-    if (answers.step5.cbxHasHostOrganization) {
-      // Hotel/rental stays go in the host-organisation block, whose fields are
-      // not mapped yet. Record them from the live page and stop before
-      // advancing, rather than entering anything invented.
-      const hostOrganizationFields = await captureHostOrganizationFields(session.page);
-      logRun(runId, `host-organisation block captured (${hostOrganizationFields.length} controls)`);
-      return {
-        status: "failed",
-        runId,
-        failedStep: "step5",
-        validationMessages: ["France-Visas host-organisation (hotel) fields are not mapped yet"],
-        diagnostics: null,
-        error: { code: "france_host_organization_capture", hostOrganizationFields },
-        stepTimings: closeTimings(),
-        url: redactOfficialUrl(session.page.url()),
-      };
-    }
     logRun(runId, "advancing step5 to step6");
     await advanceStep(session.page, "step5", "step6", stepTimeoutMs);
     stepsCompleted.push("step5");
@@ -287,7 +271,8 @@ export async function fillFranceVisasApplication(
       })()`,
       { timeout: Math.min(stepTimeoutMs, 30_000) },
     ).catch(() => undefined);
-    const draftReference = await captureLatestApplicationReference(session.page);
+    const dashboard = session.page;
+    const draftReference = await retryAfterNavigation(dashboard, () => captureLatestApplicationReference(dashboard));
     logRun(runId, `dashboard reached; draftReference=${draftReference ? "<captured>" : "(none)"}`);
 
     // ── Finalize + download PDF (optional but on by default) ────────────
@@ -307,12 +292,21 @@ export async function fillFranceVisasApplication(
       logRun(runId, `finalize complete; applicationReference=${applicationReference ? "<captured>" : "(none)"} pdf=${pdfPath ? "<saved>" : "(none)"}`);
     }
 
-    const postConfirmationContinue = options.continueAfterConfirmation && applicationReference
-      ? await continueConfirmedApplication(session.page, {
-          applicationReference,
-          timeoutMs: stepTimeoutMs,
-        })
-      : undefined;
+    // The application is finalised and has its reference by now. A failure in
+    // the follow-up confirmation clicks must not throw that away: a failed run
+    // is retried, and every retry files a new France-Visas application.
+    let postConfirmationContinue: Awaited<ReturnType<typeof continueConfirmedApplication>> | undefined;
+    if (options.continueAfterConfirmation && applicationReference) {
+      const confirmedPage = session.page;
+      const reference = applicationReference;
+      try {
+        postConfirmationContinue = await retryAfterNavigation(confirmedPage, () =>
+          continueConfirmedApplication(confirmedPage, { applicationReference: reference, timeoutMs: stepTimeoutMs }),
+        );
+      } catch (err) {
+        logRun(runId, `post-confirmation steps failed after finalize (kept reference): ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
     if (postConfirmationContinue) {
       logRun(
         runId,
@@ -648,7 +642,7 @@ async function captureHostOrganizationFields(page: Page): Promise<Array<{
         return {
           name: control.name || id,
           type: control.type,
-          label: label.replace(/s+/g, " ").trim(),
+          label: label.replace(/\s+/g, " ").trim(),
           required: control.required || control.getAttribute("aria-required") === "true",
           maxLength: "maxLength" in control && control.maxLength > 0 ? control.maxLength : null,
         };

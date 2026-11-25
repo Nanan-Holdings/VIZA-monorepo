@@ -1,0 +1,43 @@
+/*
+  Home hero contrast and phone controls. Additive to sections.css.
+  - A dark gradient scrim sits behind the copy on the left so the lede reads over a bright photo.
+  - On phones the glass button gets a stronger fill and border so it does not vanish into the photo.
+*/
+.ds-hero-photo::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.58) 0%, rgba(0, 0, 0, 0.38) 38%, rgba(0, 0, 0, 0) 72%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.18) 0%, rgba(0, 0, 0, 0) 40%);
+}
+.ds-hero-lede {
+  color: rgba(255, 255, 255, 0.94);
+  text-shadow: 0 1px 14px rgba(0, 0, 0, 0.3);
+}
+.ds-hero-h1 {
+  text-shadow: 0 1px 18px rgba(0, 0, 0, 0.25);
+}
+
+@media (max-width: 1199.98px) {
+  .ds-hero-photo::before {
+    background:
+      linear-gradient(90deg, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.34) 55%, rgba(0, 0, 0, 0.1) 100%),
+      linear-gradient(180deg, rgba(0, 0, 0, 0.2) 0%, rgba(0, 0, 0, 0) 40%);
+  }
+}
+@media (max-width: 809.98px) {
+  /* Copy spans the full width on a phone, so the scrim runs top to bottom as well. */
+  .ds-hero-photo::before {
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.5) 0%, rgba(0, 0, 0, 0.42) 55%, rgba(0, 0, 0, 0.3) 100%);
+  }
+  .ds-hero-actions .ds-btn--glass {
+    --btn-bg: rgba(0, 0, 0, 0.42);
+    --btn-bg-hover: rgba(0, 0, 0, 0.56);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  }
+}

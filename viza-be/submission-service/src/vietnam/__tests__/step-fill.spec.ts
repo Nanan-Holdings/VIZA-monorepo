@@ -6,7 +6,13 @@ import {
   buildAntSelectMatchTexts,
   buildAntSelectSearchTerms,
   buildAntSelectOptionRegex,
+  fillVietnamFieldWithTimeoutRetry,
+  getVietnamFieldActionTimeoutMs,
   getVietnamSelectFieldTimeoutMs,
+  isVietnamFieldActionTimeout,
+  VietnamFieldDeadlineError,
+  getVietnamFieldDeadlineMs,
+  withVietnamFieldDeadline,
   isAcceptableAntSelectMatch,
   rankAntSelectCandidates,
   resolveStepPlan,
@@ -23,6 +29,8 @@ import {
 } from "../field-mappings.js";
 import {
   fillVietnamApplication,
+  getVietnamRunStallTimeoutMs,
+  isVietnamSlowSessionValidationError,
   toPortalDateForField,
   validateVietnamPortalValidityRange,
 } from "../run.js";
@@ -295,4 +303,85 @@ test("vn.step-fill: every official country code maps both ways and matches the f
     return [row.slice(0, separatorIndex), row.slice(separatorIndex + 1)];
   });
   assert.deepEqual(migrationEntries, officialEntries);
+});
+
+
+test("required Vietnam field actions get a slow-session timeout bound", () => {
+  assert.equal(getVietnamFieldActionTimeoutMs(undefined), 20_000);
+  assert.equal(getVietnamFieldActionTimeoutMs("not-a-number"), 20_000);
+  assert.equal(getVietnamFieldActionTimeoutMs("500"), 2_000);
+  assert.equal(getVietnamFieldActionTimeoutMs("30000"), 30_000);
+  assert.equal(getVietnamFieldActionTimeoutMs("999999"), 60_000);
+});
+
+test("only Playwright action timeouts count as slow-session timeouts", () => {
+  const timeout = new Error("locator.pressSequentially: Timeout 5000ms exceeded.");
+  timeout.name = "TimeoutError";
+  assert.equal(isVietnamFieldActionTimeout(timeout), true);
+  assert.equal(isVietnamFieldActionTimeout(new Error("locator.click: Timeout 20000ms exceeded.")), true);
+  assert.equal(isVietnamFieldActionTimeout(new Error("Ant date value not confirmed for basic_x")), false);
+  assert.equal(isVietnamFieldActionTimeout("Timeout 5000ms exceeded"), false);
+});
+
+test("a timed-out field fill is retried once; rejections are not retried", async () => {
+  const page = { waitForTimeout: async () => undefined } as unknown as Parameters<typeof fillVietnamFieldWithTimeoutRetry>[0];
+
+  let calls = 0;
+  await fillVietnamFieldWithTimeoutRetry(page, "date_of_birth", async () => {
+    calls += 1;
+    if (calls === 1) throw new Error("locator.pressSequentially: Timeout 20000ms exceeded.");
+  });
+  assert.equal(calls, 2);
+
+  let rejected = 0;
+  await assert.rejects(
+    fillVietnamFieldWithTimeoutRetry(page, "date_of_birth", async () => {
+      rejected += 1;
+      throw new Error("Ant date value not confirmed for basic_ttcnNgayThangNamSinhStr");
+    }),
+    /not confirmed/,
+  );
+  assert.equal(rejected, 1);
+
+  let exhausted = 0;
+  await assert.rejects(
+    fillVietnamFieldWithTimeoutRetry(page, "address", async () => {
+      exhausted += 1;
+      throw new Error("locator.press: Timeout 20000ms exceeded.");
+    }),
+    /Timeout/,
+  );
+  assert.equal(exhausted, 2);
+});
+
+test("a field step that never settles fails at its deadline instead of hanging", async () => {
+  assert.equal(getVietnamFieldDeadlineMs(undefined), 150_000);
+  assert.equal(getVietnamFieldDeadlineMs("1000"), 30_000);
+  assert.equal(getVietnamFieldDeadlineMs("999999"), 300_000);
+
+  await assert.rejects(
+    withVietnamFieldDeadline("portrait_photo", () => new Promise<void>(() => undefined), 20),
+    (error: unknown) => error instanceof VietnamFieldDeadlineError && /portrait_photo/.test(error.message),
+  );
+  assert.equal(await withVietnamFieldDeadline("surname", async () => "ok", 1_000), "ok");
+  assert.equal(isVietnamFieldActionTimeout(new VietnamFieldDeadlineError("x", 1)), false);
+});
+
+test("a run with no progress is stopped by the stall watchdog after a bounded time", () => {
+  assert.equal(getVietnamRunStallTimeoutMs(undefined), 600_000);
+  assert.equal(getVietnamRunStallTimeoutMs("0"), 0);
+  assert.equal(getVietnamRunStallTimeoutMs("1000"), 60_000);
+  assert.equal(getVietnamRunStallTimeoutMs("99999999"), 1_800_000);
+});
+
+test("slow-session field failures are retryable; portal rejections are not", () => {
+  assert.equal(isVietnamSlowSessionValidationError({
+    message: "Official Vietnam e-Visa portal rejected this value: locator.pressSequentially: Timeout 5000ms exceeded.",
+  }), true);
+  assert.equal(isVietnamSlowSessionValidationError({
+    message: "Official Vietnam e-Visa portal rejected this value: Vietnam field portrait_photo did not finish within 150s; the remote browser looks unresponsive",
+  }), true);
+  assert.equal(isVietnamSlowSessionValidationError({
+    message: "Official Vietnam e-Visa portal rejected this value: Ant date value not confirmed for basic_x",
+  }), false);
 });

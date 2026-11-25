@@ -257,6 +257,10 @@ export interface VnSubmissionResult {
     screenshotUrl?: string;
   };
   paymentStatus?: "not_required" | "manual_required" | "blocked" | "paid";
+  /** Set by settle_official_applicant_handoff (0211) when the applicant submitted on the official site. */
+  submittedBy?: "applicant_on_official_portal";
+  handoffId?: string;
+  handoffExpiresAt?: string;
 }
 
 export interface SgArrivalCardSubmissionResult {

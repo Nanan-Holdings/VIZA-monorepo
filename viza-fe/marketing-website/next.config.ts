@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 import path from "path";
 import { fileURLToPath } from "url";
 import createNextIntlPlugin from "next-intl/plugin";
+import { REDIRECTS } from "./lib/seo/redirects";
 
 const withNextIntl = createNextIntlPlugin("./i18n.ts");
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
@@ -60,6 +61,9 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   images: {
     remotePatterns: [{ protocol: "https", hostname: "images.unsplash.com" }],
+  },
+  async redirects() {
+    return REDIRECTS;
   },
   async headers() {
     return [{ source: "/:path*", headers: SECURITY_HEADERS }];

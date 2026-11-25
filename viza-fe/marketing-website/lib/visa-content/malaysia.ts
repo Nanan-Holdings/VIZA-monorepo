@@ -1,215 +1,226 @@
-import type { VisaContent } from "./types";
+import type { DestinationContent } from "./types";
 
 /**
- * Malaysia eVISA — Single Entry Visa (SEV), Tourism.
+ * Malaysia visa application (eVISA) and the Malaysia Digital Arrival Card (MDAC), framed globally, with a section
+ * for Singapore residents.
  *
- * Last fact-checked: 2026-07-05 against official sources:
- *   - malaysiavisa.imi.gov.my (official eVISA portal, MyVISA)
- *   - imi.gov.my (Immigration Department of Malaysia — visa fees, visa
- *     requirement by country, overstay offences s.15(4), Short-Term Social
- *     Visit Pass extension rules)
- *   - kln.gov.my (official eVISA FAQ; High Commission of Malaysia in
- *     Singapore — Entry and Visa Procedure, June 2024)
- *   - imigresen-online.imi.gov.my/mdac (MDAC arrival card portal)
- *   - my.china-embassy.gov.cn (China–Malaysia mutual visa exemption FAQ)
- * Key confirmed facts:
- *   - Single entry, 30-day stay, NO extension allowed; eVISA valid 3 months
- *     from issue. Official processing: 48 hours, working days only.
- *   - Overstay: Immigration Act 1959/63 s.15(4) — fine up to RM 10,000 or
- *     imprisonment up to 5 years, or both; compound settlement RM 3,000.
- *   - The eVISA applies only to the ~30 visa-required nationalities.
- *     Singapore citizens are visa-free (30 days) and MDAC-exempt; PRC
- *     nationals are visa-free 30 days/entry (mutual exemption treaty in
- *     force 17 Jul 2025; 90 days per 180-day cap) but must submit MDAC.
- *   - MDAC mandatory since 1 Jan 2024, free, within 3 days before arrival.
- * Items needing ops confirmation:
- *   1. All-in online eVisa fee: base visa fee RM 20–50 by nationality is
- *      official; the ~RM 105 online processing fee on top is third-party
- *      reported only (portal is login-gated) — confirm displayed total.
- *   2. Applying from Singapore: 2021 official FAQ says the portal blocks
- *      Malaysia/Singapore/Israel; the High Commission's June 2024 PDF says
- *      worldwide except Malaysia/Israel/North Korea. Confirm current rule.
- *   3. Overstay re-entry ban lengths (1–5 years) are from secondary
- *      sources (Fragomen), not imi.gov.my.
- *   4. VOA fee of RM 200 (PRC/India arriving from Singapore) is from
- *      secondary sources; official PDF lists conditions but not the fee.
- *   5. Reported 17 Feb 2026 tightening of PRC 90-in-180 enforcement is
- *      unconfirmed on official pages.
+ * Checked 25 Nov 2026. Read on the day:
+ *   - https://www.imi.gov.my/index.php/en/main-services/visa/visa-requirement-by-country/ (Singapore no visa; Indonesia,
+ *     Philippines, Vietnam as ASEAN nationals no visa under one month; India visa exempt until 31 Dec 2026; eVISA at
+ *     malaysiavisa.imi.gov.my; links to eNTRI for India and China; the page does not list China)
+ *   - https://imigresen-online.imi.gov.my/mdac/main (MDAC landing page; the eligibility infographics were not readable)
+ * Not confirmed on an official page this session (kept general or flagged in the copy):
+ *   - the eVISA fee (secondary sites say RM 20 to 50 plus about RM 105 processing; the copy says "set by the portal")
+ *   - the eVISA processing time (the July 2026 check had 48 hours on working days; sources say 2 to 5 working days)
+ *   - the eVISA stay and validity (single entry, 30 days, 3 months from issue, no extension, from the July 2026 check)
+ *   - China: 30 days per visit and 90 days in any 180 under the mutual exemption in force 17 Jul 2025 (secondary sources,
+ *     the IMI requirements page does not list China); the copy says check the High Commission or IMI before you go
+ *   - India exemption is 30 days until 31 Dec 2026 and its renewal is unconfirmed, so the page tells readers to check for 2027 trips
+ *   - MDAC exemption for Singapore citizens and the 3 days before arrival window (July 2026 check; infographics not readable)
+ *   - whether the portal accepts applications lodged from Singapore (the July check had conflicting notes)
+ *   - the number of days ASEAN passports get (the IMI page says under one month)
+ * Titles: the shared default title is "Malaysia e-Visa: Requirements and How to Apply | VIZA". "Malaysia visa application" could be added by an override in lib/seo/titles.ts.
  */
-export const malaysia: VisaContent = {
+export const malaysia: DestinationContent = {
   slug: "malaysia",
 
-  heroTitle: "Malaysia eVISA",
-  lede: "The Malaysia eVISA (Single Entry Visa) is a tourist e-visa for the ~30 visa-required nationalities: one entry, a 30-day stay with no extension, valid 3 months from issue. Singapore and China passport holders travel visa-free — VIZA handles whichever path applies to you.",
+  heroTitle: "Malaysia visa application: do you need a visa, eVISA and MDAC",
+  lede: "A Malaysia visa application depends on your passport. Singapore passports need no visa, and neither do ASEAN passports for a stay under one month. Chinese passports are visa exempt under a mutual agreement, and Indian passports are exempt until 31 December 2026, so check the date if you travel in 2027. Passports that do need a visa apply online for the Malaysia eVISA on the Immigration Department's portal. Every visitor except Singapore citizens fills in the free Malaysia Digital Arrival Card (MDAC) within three days before arrival. This page also covers Singapore residents on EP, S Pass, Dependant's Pass and PR.",
   heroImage: "/assets/heroes/malaysia.jpg",
   meta: [
-    { k: "Type", v: "eVISA (SEV · Tourist)" },
-    { k: "Length of stay", v: "30 days" },
-    { k: "Validity", v: "3 months" },
-    { k: "Entry", v: "Single" },
+    { k: "Singapore passport", v: "No visa needed" },
+    { k: "eVISA", v: "Single entry, 30 days" },
+    { k: "Arrival card", v: "MDAC, free" },
+    { k: "Checked", v: "25 Nov 2026" },
   ],
   tags: [
-    { icon: "bolt", label: "Official processing · 48 hrs" },
     { icon: "shield", label: "Free VIZA service" },
-    { icon: "doc", label: "Document pre-check" },
+    { icon: "doc", label: "MDAC and document check" },
+    { icon: "bolt", label: "eVISA online" },
   ],
 
-  overviewTitle: "Malaysia, at a glance",
-  overviewSub:
-    "The eVISA covers tourism and family visits for up to 30 days per entry. It is issued online by the Immigration Department of Malaysia (Jabatan Imigresen Malaysia) through the official MyVISA portal — the only official application channel since the appointed-agent route in Singapore ended on 31 May 2024.",
-  glance: [
-    { icon: "globe", k: "Capital", v: "Kuala Lumpur", sub: "UTC +8 (Malaysia Standard Time)" },
-    { icon: "clock", k: "Best time to visit", v: "Mar – Oct", sub: "West coast dry season · east coast Nov – Feb" },
-    { icon: "currency", k: "Currency", v: "Malaysian Ringgit (MYR)", sub: "SGD 1 ≈ RM 3.30" },
-    { icon: "pin", k: "Top destinations", v: "Kuala Lumpur · Penang · Langkawi", sub: "Plus Sabah, Sarawak, and the Cameron Highlands" },
-  ],
+  page: {
+    framing: "global",
 
-  processTitle: "How the Malaysia eVISA process works",
-  processSub:
-    "Submit once. We file directly on the official eVISA portal (malaysiavisa.imi.gov.my), track every stage, and remind you of the MDAC arrival card before you fly.",
-  steps: [
-    {
-      title: "Apply on VIZA",
-      body: "Upload your passport bio page, a 35 × 50 mm studio photo, your confirmed return ticket, and accommodation proof. Immigration advises applying at least 2 weeks before departure — we make sure you're inside that window.",
+    glance: {
+      needVisa: "Not for Singapore passports, ASEAN passports under one month, Chinese passports or Indian passports until 31 December 2026. Other passports use the eVISA",
+      govFee: "Set by the government portal and shown before you pay. Visa exempt travellers pay no visa fee",
+      processing: "Set by the government portal. Immigration's published eVISA time is short, so allow several working days",
+      maxStay: "30 days per entry on the eVISA. Exempt stays depend on your passport",
+      checked: "25 November 2026",
     },
-    {
-      title: "Your documents are verified",
-      body: "Your VIZA consultant checks every field against your passport — any mismatch invalidates the eVisa and the fee is non-refundable — then submits via the official portal. No third-party or agent sites are ever used.",
-    },
-    {
-      title: "Your eVISA gets processed",
-      body: "Malaysian Immigration's official processing time is 48 hours, counted in working days only — weekends and public holidays in Malaysia and your country don't count. We monitor the queue and flag any delay early.",
-      statusRows: [
-        { label: "Application submitted on the official eVISA portal", ts: "15 Aug, 8:30 AM", onTime: true },
-        { label: "Application under Immigration review", ts: "15 Aug, 2:00 PM", onTime: true },
-        { label: "Awaiting final approval", ts: "In progress" },
+
+    passports: {
+      intro: "Malaysia decides by passport, not by where you live. The table skips Malaysian passports and adds Thailand, since Thai passports are on the same ASEAN list. The Immigration Department's visa requirement page is the final word.",
+      rows: [
+        { passport: "Singapore", status: "No visa needed", note: "Singapore passports need no visa for any purpose or length of stay, according to the Immigration Department's list. Singapore citizens are also exempt from the MDAC." },
+        { passport: "China (PRC)", status: "Visa exempt under a mutual agreement", note: "Reported as up to 30 days per visit under the China and Malaysia mutual visa exemption, and a cap of 90 days in any 180. Check the High Commission or the Immigration Department before you go. The MDAC is required." },
+        { passport: "India", status: "Visa exempt until 31 December 2026", note: "The Immigration Department lists Indian citizens as exempt until that date, reported as 30 days for tourism, business, social visits and transit. Check for renewal before travelling in 2027. The MDAC is required." },
+        { passport: "Indonesia", status: "No visa under one month", note: "ASEAN nationals need no visa for a stay under one month. A longer stay needs a visa." },
+        { passport: "Philippines", status: "No visa under one month", note: "ASEAN nationals need no visa for a stay under one month. A longer stay needs a visa." },
+        { passport: "Vietnam", status: "No visa under one month", note: "ASEAN nationals need no visa for a stay under one month. A longer stay needs a visa." },
+        { passport: "Thailand", status: "No visa under one month", note: "ASEAN nationals need no visa for a stay under one month. A longer stay needs a visa." },
+        { passport: "Other passports", status: "Check the requirement list", note: "Some nationalities need a visa and apply for the eVISA online. The Immigration Department lists each country, so look for yours before you book." },
       ],
     },
-    {
-      title: "Get your eVISA on 17 Aug, 10:00 AM",
-      body: "Your eVISA arrives in your inbox and the VIZA app — print it or keep the digital copy. We then remind you to submit the free MDAC arrival card within 3 days before you fly.",
-      delivered: true,
+
+    visaTypes: {
+      intro: "Most visitors from Singapore need no visa at all. For those who do, Malaysia has a few routes.",
+      items: [
+        { title: "Visa exempt entry", body: "For Singapore, ASEAN, Chinese and Indian passports on the terms in the table. No application, but the MDAC is needed for most passports." },
+        { title: "Tourist eVISA (single entry)", body: "Applied for online on the Immigration Department's eVISA portal. In the July 2026 check it was single entry, a stay of 30 days that cannot be extended, valid for three months from issue." },
+        { title: "Visa with reference or approval letter", body: "Some nationalities need a visa with reference, or receive a visa approval letter. The Immigration Department's page describes these for the countries that need them." },
+        { title: "eNTRI and other schemes", body: "The Immigration Department links separate eNTRI pages for Indian and Chinese citizens. Check them if your trip falls outside the exemption." },
+      ],
     },
-  ],
 
-  docsTitle: "Required documents",
-  docsSub:
-    "Your VIZA consultant double-checks each document against the official spec before submission. Re-uploads are unlimited and free.",
-  documents: [
-    { name: "Passport bio page", sub: "Valid 6+ months from your arrival date in Malaysia · at least 3 blank pages · clear scan" },
-    { name: "Studio passport photo", sub: "35 × 50 mm · pure white background, no shadows · taken within 6 months · no edits or borders — scanned or retouched photos are auto-rejected" },
-    { name: "Confirmed return or onward ticket", sub: "Flight, train, or bus booking · travelling by private vehicle? A written note of vehicle details is accepted" },
-    { name: "Proof of accommodation", sub: "Paid hotel booking — or, if staying with a host: cover letter with the address, the host's Malaysian ID, and their Malaysian contact number" },
-    { name: "Birth certificate (children under 12)", sub: "Compulsory upload for every child below 12 years old" },
-    { name: "Cover letter (if applicable)", sub: "Short English PDF to the Immigration Officer explaining any missing document or special circumstances" },
-  ],
+    residents: {
+      intro: "Living in Singapore does not change what Malaysia asks. The passport decides, and your pass only matters for returning to Singapore, so keep it valid past your return date.",
+      rows: [
+        { pass: "Employment Pass", body: "Follow your passport's row. A Chinese or Indian passport holder is exempt on the terms above, and an EP holder with another passport checks the requirement list. Complete the MDAC." },
+        { pass: "S Pass", body: "The same as the EP. The eVISA form asks for your passport, and the portal does not ask for your pass." },
+        { pass: "Dependant's Pass", body: "Each family member follows their own passport's row, and children need their own MDAC. Keep the pass valid past your return date." },
+        { pass: "Permanent Resident", body: "A PR holds a passport from another country, so follow that row. A Singapore PR needs to complete the MDAC, because the exemption is for Singapore citizens." },
+        { pass: "Singapore citizen", body: "No visa and no MDAC. Carry your passport with enough validity." },
+        { pass: "Student's Pass", body: "Follow your passport's row, and complete the MDAC if it applies to you." },
+      ],
+    },
 
-  rejectionTitle: "Why Malaysia eVISA applications get rejected",
-  rejectionSub:
-    "Malaysian Immigration decides each application on individual merit and can refuse without stating a reason. VIZA screens for every known blocker before you submit.",
-  rejectionReasons: [
-    { title: "Data mismatch with your passport", body: "Any difference between the application and your travel document invalidates the eVisa. Corrections after payment require a fresh, paid application — fees are non-refundable." },
-    { title: "Non-compliant photo", body: "Photos that are edited, bordered, not studio-taken, the wrong size (not 35 × 50 mm), shadowed, or older than 6 months are automatically rejected by the system." },
-    { title: "Insufficient passport validity", body: "Less than 6 months' validity from your arrival date, or fewer than 3 blank pages." },
-    { title: "Missing supporting documents", body: "No confirmed return or onward ticket, no paid accommodation or host ID and contact, or a missing birth certificate for a child under 12." },
-    { title: "Applying from an ineligible location", body: "The portal blocks applications lodged from within Malaysia, and tourists cannot apply while travelling in a third country on a tourist visa." },
-    { title: "Unofficial third-party websites", body: "Immigration appoints no agents — applications made through fake or lookalike sites are at your own risk. VIZA files only on the official portal." },
-  ],
+    fees: {
+      intro: "Visa exempt travellers pay no visa fee, and the MDAC is free. The eVISA fee is shown on the government portal, and VIZA's help is free.",
+      rows: [
+        { item: "Tourist eVISA", amount: "Set by the government portal", note: "The fee depends on your nationality and is shown before you pay. Third-party sites quote different amounts, so rely on the portal." },
+        { item: "Visa exempt entry", amount: "No fee", note: "Singapore, ASEAN, Chinese and Indian passports on the terms in the table." },
+        { item: "MDAC arrival card", amount: "Free", note: "Use only the Immigration Department's site, and avoid websites that charge for it." },
+        { item: "Overstay", amount: "Fine or prison", note: "Under the Immigration Act an overstay can bring a fine up to RM 10,000 or imprisonment, so leave on time." },
+      ],
+      processing: "The Immigration Department publishes a short eVISA time on working days, and other sources give 2 to 5 working days, so allow at least a week. The eVISA is single entry, valid three months from issue, with a 30-day stay that cannot be extended. Visa exempt travellers have nothing to wait for. Plan the MDAC for the three days before you arrive.",
+    },
 
-  entryTitle: "Entry & exit regulations",
-  entrySub:
-    "Everyone (except Singapore citizens) must submit the free MDAC digital arrival card within 3 days before arrival. At the checkpoint, officers may ask for your passport, eVISA printout or digital copy, boarding pass, return ticket, accommodation proof, and sufficient funds. An eVisa does not guarantee entry — the final decision rests with the border officer.",
-  entryExit: [
-    { icon: "refresh", k: "Entry", v: "Single", sub: "Re-entry requires a new eVISA application" },
-    { icon: "clock", k: "Stay period", v: "30 days", sub: "Counted from arrival date · no extension" },
-    { icon: "doc", k: "MDAC arrival card", v: "Within 3 days before arrival", sub: "Free · imigresen-online.imi.gov.my/mdac · mandatory since 1 Jan 2024" },
-    { icon: "plane", k: "Autogates", v: "Eligible nationalities", sub: "No passport stamp — track your permitted stay yourself" },
-  ],
-
-  extensionTitle: "Visa extension & overstays",
-  extensionSub:
-    "The official eVISA FAQ is unambiguous: the 30-day stay comes with no extensions allowed, and Malaysian missions abroad cannot extend visas. Only in extreme circumstances — serious illness or accident, or war in your home country — can a Short-Term Social Visit Pass extension be requested in person at an Immigration office using Form IMM.55, at the officer's discretion.",
-  extension: [
-    { icon: "extend", k: "Extension", v: "Not allowed", sub: "Extreme circumstances only · Form IMM.55, in person, discretionary" },
-    { icon: "alert", k: "Overstay penalty", v: "Fine up to RM 10,000", sub: "≈ SGD 3,000 — or imprisonment up to 5 years, or both; compound settlement RM 3,000 ≈ SGD 900 (Immigration Act 1959/63, s.15(4))" },
-  ],
-
-  reviews: {
-    score: "4.6",
-    outOf: "/ 5",
-    sub: "Highest rated visa platform · 12,841 reviews",
-    platforms: [
-      { rating: "4.6", name: "Trustpilot" },
-      { rating: "4.7", name: "App Store" },
-    ],
-    items: [
-      {
-        initials: "DM",
-        name: "Divya M.",
-        source: "Trustpilot · 1 week ago",
-        title: "Seamless — approved in under 2 days",
-        body: "The consultant checked everything and flagged that my photo background wasn't quite right before submission. Got the approval letter well ahead of my trip.",
+    apply: {
+      intro: "Most people need no visa, only the MDAC. If you need the eVISA, choose how much help you want. The fee goes to the Immigration Department, not to VIZA.",
+      guided: {
+        title: "Guided",
+        body: "VIZA's AI walks you through the eVISA form and the MDAC, checks your files against the portal's rules, and you submit on the government site yourself.",
       },
-      {
-        initials: "CW",
-        name: "Calvin W.",
-        source: "App Store · 3 weeks ago",
-        title: "Took the stress out of it",
-        body: "I wasn't sure which documents Malaysia needed. VIZA gave me a clear list, reviewed my uploads, and the e-Visa came through faster than expected.",
+      fullService: {
+        title: "Full-service",
+        body: "A VIZA consultant fills the forms, checks the files and prepares the application, so the common mistakes are caught before you submit.",
       },
-    ],
+      steps: [
+        { title: "Start on VIZA", body: "Tell us your passport, pass and trip dates. We confirm whether you are exempt or need the eVISA." },
+        { title: "Prepare the files", body: "We check the passport scan, photo and travel details for the eVISA." },
+        { title: "Submit", body: "Submit on the Immigration Department's eVISA portal and pay the fee it shows. If the portal does not accept an application lodged from Singapore, contact the Malaysian High Commission." },
+        { title: "Fill in the MDAC", body: "Within three days before you arrive, complete the free Malaysia Digital Arrival Card and keep the confirmation." },
+      ],
+    },
+
+    checklist: {
+      intro: "Exempt travellers need little. The eVISA asks for a few more files. These apply to everyone, with a few points by applicant type.",
+      groups: [
+        {
+          applicant: "Everyone",
+          items: [
+            "Passport with enough validity for your stay",
+            "Return or onward ticket",
+            "Address for your first night in Malaysia",
+            "MDAC confirmation, if it applies to your passport",
+          ],
+        },
+        {
+          applicant: "eVISA applicants",
+          items: [
+            "Passport bio page scan",
+            "Recent photo in the portal's format",
+            "Travel details and dates",
+            "Card to pay the fee the portal shows",
+          ],
+        },
+        {
+          applicant: "Singapore citizens and residents",
+          items: [
+            "Your Singapore pass or NRIC kept valid for your return",
+            "Passport from the country you hold, not your pass, for any application",
+          ],
+        },
+        {
+          applicant: "Chinese and Indian passport holders",
+          items: [
+            "The MDAC before you arrive",
+            "For India, a check that the exemption is still in force on your travel date",
+          ],
+        },
+      ],
+    },
+
+    travel: {
+      intro: "Entry rules are easy for most Singapore travellers, and the arrival card is the one step many people miss.",
+      items: [
+        { title: "Malaysia Digital Arrival Card (MDAC)", body: "Foreign visitors complete the MDAC online, free, within three days before arrival, at the Immigration Department's site. Singapore citizens are exempt. Use only the official site, since the card is not a visa and does not grant entry by itself.", href: "/arrival-cards/malaysia-mdac", linkLabel: "Read the MDAC guide" },
+        { title: "Money limits", body: "Declare cash or bearer instruments worth more than US$10,000 to customs, and do not carry more than US$10,000 in ringgit without permission from Bank Negara Malaysia." },
+        { title: "Overstaying", body: "An overstay can bring a fine or imprisonment under the Immigration Act. Leave before the days you were given run out." },
+        { title: "Visa free is not work", body: "Visa exempt entry is for tourism, business, social visits and transit. Work and study need a visa." },
+        { title: "Insurance", body: "Travel insurance is not an entry requirement, but a policy covering medical care and cancelled flights is sensible." },
+      ],
+    },
+
+    reviewed: {
+      date: "25 November 2026",
+      note: "Checked against the Malaysian Immigration Department's visa requirement page and its MDAC site. The Indian exemption runs to 31 December 2026, so look at the links under Sources before you travel.",
+    },
+
+    related: {
+      destinations: ["thailand", "indonesia", "vietnam", "india"],
+      guides: [
+        { label: "Visas for Chinese passport holders in Singapore", href: "/guides/visas-chinese-passport-holders-singapore" },
+        { label: "Malaysia Digital Arrival Card, Immigration Department", href: "https://imigresen-online.imi.gov.my/mdac/main" },
+        { label: "VIZA visa news", href: "/blog" },
+      ],
+    },
   },
 
-  faqSub:
-    "Can't find an answer? Ask the AI assistant at the bottom of this page or message your VIZA consultant.",
+  rejectionTitle: "Common rejection reasons",
+  rejectionSub: "The Immigration Department decides each eVISA, and fees are not refunded on refusal. These are the points a consultant checks before you submit.",
+  rejectionReasons: [
+    { title: "Applying when you are exempt", body: "A Singapore, ASEAN, Chinese or Indian passport holder on a short tourist stay usually needs no eVISA. Check the requirement list first." },
+    { title: "Photo or scan that does not meet the rules", body: "A blurred or cropped passport scan or a photo outside the portal's format is a common reason for a return." },
+    { title: "Details that do not match the passport", body: "Name, passport number and date of birth must match the passport exactly." },
+    { title: "Passport validity", body: "The passport needs enough validity for the stay. A passport close to expiry should be renewed first." },
+    { title: "Wrong purpose", body: "The tourist eVISA is for tourism and short visits. Work and study need a different visa." },
+    { title: "Travelling on a date outside an exemption", body: "The Indian exemption runs to 31 December 2026. A trip in 2027 needs a fresh check of the rule." },
+  ],
+
+  faqSub: "Can't find your answer? Ask the AI assistant below or message a VIZA consultant.",
   faq: [
-    {
-      category: "General information",
-      q: "What is the Malaysia eVISA?",
-      a: "The eVISA (Single Entry Visa) is an electronic tourist visa issued by the Immigration Department of Malaysia via the official MyVISA portal. It grants one entry with a 30-day stay and is valid 3 months from the date of issue. It applies only to the roughly 30 nationalities that need a visa to visit Malaysia — most visitors, including Singaporeans, don't need one.",
-    },
-    {
-      category: "General information",
-      q: "Do Singapore or China passport holders need this visa?",
-      a: "No. Singapore citizens enter visa-free with a 30-day pass on arrival, need no eVisa, and are the only nationality exempt from the MDAC arrival card. Chinese (PRC) passport holders are visa-free for 30 days per entry under the China–Malaysia mutual exemption treaty (in force since 17 July 2025, capped at 90 days per 180-day period), but must still submit the MDAC within 3 days before arrival. VIZA checks your exact requirement and handles the MDAC and entry paperwork end-to-end either way.",
-    },
-    {
-      category: "Application process",
-      q: "How long does Malaysian Immigration take to process an eVISA?",
-      a: "The official processing time is 48 hours — counted in working days only, so weekends and public holidays in Malaysia and your home country don't count. Immigration advises applying at least 2 weeks before departure. VIZA files immediately and monitors the queue.",
-    },
-    {
-      category: "Application process",
-      q: "How much does the Malaysia eVISA cost?",
-      a: "The government visa fee is set by nationality — RM 20 to RM 50 (≈ SGD 6–15; China RM 30). The online portal adds a processing fee, widely reported at around RM 105 (≈ SGD 32). You pay these directly on the official portal. VIZA's help, including document review, is free.",
-    },
-    {
-      category: "Rejections & reapplications",
-      q: "What happens if my Malaysia eVISA is refused?",
-      a: "Government fees are non-refundable on refusal, and even fixing a typo after payment requires a fresh, paid application. VIZA charges nothing for its help, and your consultant reviews the refusal, corrects the issue, and manages the reapplication.",
-    },
+    { category: "Do I need a visa", q: "Do Singaporeans need a visa for Malaysia?", a: "No. Singapore passports need no visa for any purpose or length of stay, according to the Immigration Department's list. Singapore citizens are also exempt from the MDAC." },
+    { category: "Do I need a visa", q: "Do Chinese passport holders need a Malaysia visa?", a: "Chinese passports are visa exempt under the mutual agreement, reported as up to 30 days per visit. Check the High Commission or the Immigration Department before you go, and complete the MDAC." },
+    { category: "Do I need a visa", q: "Do Indians in Singapore need a Malaysia visa?", a: "The Immigration Department lists Indian citizens as exempt until 31 December 2026. Check whether the rule has been renewed before a trip in 2027, and complete the MDAC." },
+    { category: "Do I need a visa", q: "Do Singapore PR and pass holders need a Malaysia visa?", a: "It depends on your passport. Malaysia looks at the passport, so follow the row for the passport you hold. A PR must also complete the MDAC." },
+    { category: "Applying", q: "How does a Malaysia visa application work?", a: "If your passport needs a visa, you apply online on the Immigration Department's eVISA portal and pay the fee it shows. VIZA can check the form and the files first, for free." },
+    { category: "Applying", q: "How long does the Malaysia eVISA take?", a: "The Immigration Department publishes a short time on working days, and other sources say 2 to 5 working days. Allow at least a week." },
+    { category: "Applying", q: "Can I extend my Malaysia eVISA?", a: "In the July 2026 check the eVISA was single entry with a 30-day stay that cannot be extended, valid three months from issue." },
+    { category: "Fees", q: "How much is a Malaysia visa?", a: "The eVISA fee is set by the government portal and depends on your nationality, so rely on the amount it shows. Visa exempt entry has no fee." },
+    { category: "Arrival card", q: "What is the MDAC?", a: "The Malaysia Digital Arrival Card is a free online arrival form for foreign visitors, completed within three days before arrival. It is not a visa." },
+    { category: "Arrival card", q: "Do I need an MDAC from Singapore?", a: "Singapore citizens are exempt. Singapore PR and pass holders with another passport complete it." },
+    { category: "Before you travel", q: "What happens if I overstay in Malaysia?", a: "An overstay can bring a fine up to RM 10,000 or imprisonment under the Immigration Act, so leave before your days run out." },
+    { category: "Before you travel", q: "How much does VIZA charge?", a: "Nothing. VIZA's help is free. You pay any government fee on the portal." },
   ],
 
   sources: [
-    { label: "Official Malaysia eVISA portal (MyVISA)", url: "https://malaysiavisa.imi.gov.my/", display: "malaysiavisa.imi.gov.my" },
-    { label: "Official eVISA FAQ — validity, processing, documents, photo spec", url: "https://www.kln.gov.my/documents/1620528/0/FAQ+eVisa+Malaysia/0cae1cfc-576a-459f-a839-bbeae935bed1?version=1.0", display: "kln.gov.my" },
-    { label: "High Commission of Malaysia in Singapore — Entry and Visa Procedure", url: "https://www.kln.gov.my/documents/34253/9682852/ENTRY+AND+VISA+PROCEDURE+TO+MALAYSIA.pdf/25d8fce1-b1b2-419e-aa23-366ef06afcaf", display: "kln.gov.my" },
-    { label: "Immigration Department of Malaysia — Visa fees by country", url: "https://www.imi.gov.my/index.php/en/main-services/visa/visa-fees/", display: "imi.gov.my" },
-    { label: "Immigration Department of Malaysia — Overstay offences (Immigration Act s.15(4))", url: "https://www.imi.gov.my/index.php/en/main-services/entry-requirement-into-malaysia-en/frequently-committed-offences/", display: "imi.gov.my" },
-    { label: "MDAC — Malaysia Digital Arrival Card (official portal)", url: "https://imigresen-online.imi.gov.my/mdac/main", display: "imigresen-online.imi.gov.my" },
-    { label: "Chinese Embassy in Malaysia — mutual visa exemption FAQ", url: "https://my.china-embassy.gov.cn/eng/fwzc/lsyw/qz/202508/t20250801_11681401.htm", display: "my.china-embassy.gov.cn" },
+    { label: "Immigration Department of Malaysia, visa requirement by country", url: "https://www.imi.gov.my/index.php/en/main-services/visa/visa-requirement-by-country/", display: "imi.gov.my" },
+    { label: "Malaysia eVISA portal", url: "https://malaysiavisa.imi.gov.my/", display: "malaysiavisa.imi.gov.my" },
+    { label: "Malaysia Digital Arrival Card", url: "https://imigresen-online.imi.gov.my/mdac/main", display: "imigresen-online.imi.gov.my" },
   ],
 
   price: {
-    etaLabel: "Apply now, get it by",
-    etaValue: "17 Aug 2026, 10:00 AM",
-    title: "Tourist eVISA (SEV) · 30-day stay",
-    saving: "1 day faster than filing direct",
-    sub: "VIZA's help is free: document review, form filling, and tracking. The government fee is paid directly on the official portal.",
-    foot: "VIZA's service is free. The eVISA fee is paid directly to the Immigration Department of Malaysia.",
+    etaLabel: "Processing time",
+    etaValue: "Set by the portal",
+    title: "Tourist eVISA · 30 days",
+    sub: "VIZA's help is free: form preparation and document review. The visa fee is paid on the government portal.",
+    foot: "VIZA's service is free. Any Malaysia visa fee is paid directly to the Immigration Department.",
   },
 
-  aiPlaceholder: "Ask anything about Malaysia eVISAs — eligibility, documents, processing time…",
+  aiPlaceholder: "Ask anything about a Malaysia visa application: eVISA, MDAC, who is exempt…",
 };
 
 export default malaysia;

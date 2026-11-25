@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import SiteFooter from "@/components/SiteFooter";
-import SiteNav from "@/components/SiteNav";
-import MarketingBlogFeed, { MarketingBlogFeature, MarketingBlogTopics } from "@/components/MarketingBlogFeed";
-import MarketingBlogCta from "@/components/MarketingBlogCta";
+import SiteHeader from "@/design-system/sections/SiteHeader";
+import SiteFooter from "@/design-system/sections/SiteFooter";
+import PageHead from "@/design-system/sections/PageHead";
+import FilterTabs from "@/design-system/sections/FilterTabs";
+import ArticleCards from "@/design-system/sections/ArticleCards";
+import EndCta from "@/design-system/sections/EndCta";
 import { locales, type Locale } from "@/i18n";
 import { getMarketingBlogFeed } from "@/lib/marketing-blog";
 import { blogCategories } from "@/lib/blog-taxonomy";
+import { pageMetadata } from "@/lib/seo/metadata";
 import { blogUrl, breadcrumbJsonLd, jsonLd } from "@/lib/blog-structured-data";
 
 export const revalidate = 300;
@@ -17,12 +20,22 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
-  const t = await getTranslations({ locale, namespace: "pages.blog" });
-  return {
+  const [t, result] = await Promise.all([
+    getTranslations({ locale, namespace: "pages.blog" }),
+    getMarketingBlogFeed(locale as Locale),
+  ]);
+  // A locale with no published posts stays out of the index until it has some. A failed feed
+  // fetch is not "empty": it must not noindex the page for the length of the cache.
+  const empty = result.status === "ok" && result.feed.posts.length === 0;
+  return pageMetadata({
     title: t("metaTitle"),
     description: t("metaDescription"),
-    alternates: { canonical: locale === "en" ? "/blog" : `/${locale}/blog` },
-  };
+    path: "/blog",
+    locale,
+    ogKey: "blog",
+    hreflang: "none",
+    noindex: empty,
+  });
 }
 
 export default async function BlogPage({ params }: { params: Promise<{ locale: string }> }) {
@@ -34,7 +47,7 @@ export default async function BlogPage({ params }: { params: Promise<{ locale: s
     getMarketingBlogFeed(locale),
   ]);
   const categories = result.status === "ok" ? blogCategories(result.feed.posts) : [];
-  const [featuredPost, ...otherPosts] = result.status === "ok" ? result.feed.posts : [];
+  const posts = result.status === "ok" ? result.feed.posts : [];
 
   return (
     <>
@@ -54,65 +67,41 @@ export default async function BlogPage({ params }: { params: Promise<{ locale: s
           })),
         },
       })} /> : null}
-      <SiteNav activeTab="blog" />
-      <main className="viza-blog">
-        <header className="viza-blog__hero">
-          <div className="viza-blog__container">
-            <span className="viza-blog__overline">{t("eyebrow")}</span>
-            <h1>{t("title")}</h1>
-            <p className="viza-blog__hero-description">{t("lede")}</p>
-          </div>
-        </header>
-
-        {featuredPost ? (
-          <section className="viza-blog__band viza-blog__band--feature" aria-label={t("featuredLabel")}>
-            <div className="viza-blog__container">
-              <MarketingBlogFeature
-                post={featuredPost}
-                locale={locale}
-                featuredLabel={t("featuredLabel")}
-                readArticleLabel={t("readArticle")}
-              />
+      <SiteHeader active="news" />
+      <main className="ds-main">
+        <PageHead title={t("title")} lede={t("lede")} />
+        <section className="ds-container ds-section" style={{ paddingTop: 0 }}>
+          <FilterTabs
+            label={t("categoriesLabel")}
+            tabs={categories.length ? [
+              { label: t("allPosts"), href: "/blog", current: true },
+              ...categories.map((c) => ({ label: c.name, href: `/blog/category/${c.slug}`, count: c.count })),
+            ] : []}
+          />
+          <div style={{ height: 48 }} />
+          {result.status === "unavailable" ? (
+            <div className="ds-empty">
+              <h2 className="ds-statement">{t("unavailableTitle")}</h2>
+              <p className="ds-body">{t("unavailableBody")}</p>
             </div>
-          </section>
-        ) : null}
-
-        <section className="viza-blog__band">
-          <div className="viza-blog__container">
-            <div className="viza-blog__section-head">
-              <h2>{t("articlesTitle")}</h2>
-              <p>{t("articlesDescription")}</p>
+          ) : posts.length === 0 ? (
+            <div className="ds-empty">
+              <h2 className="ds-statement">{t("emptyTitle")}</h2>
+              <p className="ds-body">{t("emptyBody")}</p>
             </div>
-            <MarketingBlogTopics
-              categories={categories}
-              locale={locale}
-              categoriesLabel={t("categoriesLabel")}
-              allPostsLabel={t("allPosts")}
+          ) : (
+            <ArticleCards
+              items={posts.map((post) => ({
+                href: `/blog/${post.slug}`,
+                image: post.coverImageUrl,
+                meta: post.category || post.authorName,
+                title: post.title,
+                body: post.excerpt,
+              }))}
             />
-            {result.status === "unavailable" ? (
-              <div className="viza-blog__empty">
-                <h2>{t("unavailableTitle")}</h2>
-                <p>{t("unavailableBody")}</p>
-              </div>
-            ) : result.feed.posts.length === 0 ? (
-              <div className="viza-blog__empty">
-                <h2>{t("emptyTitle")}</h2>
-                <p>{t("emptyBody")}</p>
-              </div>
-            ) : otherPosts.length === 0 ? (
-              <p className="viza-blog__empty">{t("noMorePosts")}</p>
-            ) : (
-              <MarketingBlogFeed posts={otherPosts} locale={locale} readArticleLabel={t("readArticle")} />
-            )}
-          </div>
+          )}
         </section>
-        <MarketingBlogCta
-          locale={locale}
-          eyebrow={t("ctaEyebrow")}
-          title={t("ctaTitle")}
-          body={t("ctaBody")}
-          action={t("ctaAction")}
-        />
+        <EndCta title={t("ctaTitle")} body={t("ctaBody")} action={t("ctaAction")} href="/apply" />
       </main>
       <SiteFooter />
     </>

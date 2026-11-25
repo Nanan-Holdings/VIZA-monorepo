@@ -94,25 +94,18 @@ export const vizaTest: VisaContent = {
   ],
 
   reviews: {
-    score: "4.5",
-    outOf: "/ 5",
-    sub: "新加坡评分最高的签证平台 · 12,841 条评价",
-    platforms: [
-      { rating: "4.6", name: "Trustpilot" },
-      { rating: "4.7", name: "App Store" },
-    ],
     items: [
       {
         initials: "PL",
         name: "Priya Lim",
-        source: "Trustpilot · 3 天前",
+        source: "Trustpilot",
         title: "先试了演示，随后就正式下单",
         body: "午休时跑了一遍测试流程，想看看到底怎么回事。当晚就申请了巴厘岛电子落地签。",
       },
       {
         initials: "SK",
         name: "Samuel Koh",
-        source: "App Store · 1 周前",
+        source: "App Store",
         title: "了解进度追踪的好方式",
         body: "实时状态时间线打动了我 — 每一步都看得到，不用反复刷新政府网站碰运气。",
       },

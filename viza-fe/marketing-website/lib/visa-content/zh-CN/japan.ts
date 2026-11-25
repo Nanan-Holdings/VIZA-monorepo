@@ -1,199 +1,228 @@
-// zh-CN 简体中文翻译 — 日本签证内容
-// 事实核查日期：2026-07-05，依据 mofa.go.jp、evisa.mofa.go.jp、sg.emb-japan.go.jp、
-// visa.vfsglobal.com 及 services.digital.go.jp 官方信息。
-// 待运营确认事项：
-//   - 2026年7月1日起的新签证费（单次 JPY 15,000 / 多次 JPY 30,000）经领馆页面及
-//     行业通告核实，未能直接读取 MOFA 页面（地域屏蔽）；请确认 VFS 新加坡实际收取的
-//     新加坡元金额（其一页纸指南在 2026-07-05 仍显示旧价 S$26/S$53）。
-//   - JPY 15,000 新费率是否同样适用于 eVISA 在线刷卡付款，尚待官方确认（预期一致）。
-//   - 费率调整后各国互惠减免（含中国国籍）尚未确认。
-//   - 日本驻新加坡大使馆针对中国公民的"观光"材料清单未能直接读取，下列材料为
-//     MOFA/VFS 标准清单，发布前请对照最新清单 PDF。
-//   - 新元换算按 JPY 100 ≈ SGD 0.87（2026年年中汇率），发布前请更新。
-// 英文原文见 ../japan.ts
+import type { DestinationContent } from "../types";
 
-import type { VisaContent } from "../types";
-
-export const japan: VisaContent = {
+/** 日本签证（新加坡办理）简体中文版。事实核对日期、来源与未能确认的事项见 ../japan.ts。 */
+export const japan: DestinationContent = {
   slug: "japan",
 
-  heroTitle: "日本旅游签证",
-  lede: "日本短期停留（Temporary Visitor）单次签证，最长可停留90天，签发后3个月内须入境，可通过日本电子签（JAPAN eVISA）在线办理——由您的VIZA顾问全程准备、递交并跟踪。持新加坡护照者无需签证，可免签停留90天。",
+  heroTitle: "新加坡办理日本签证",
+  lede: "在新加坡办理日本签证，看的是您持哪本护照，而不是住在哪里。新加坡护照免签入境日本，最长停留 90 天。如果您住在新加坡，持中国、印度、印尼、菲律宾或越南护照，就需要办日本旅游签证，可以通过日本驻新加坡大使馆办理，也可以在线办理 JAPAN eVISA。日本签证费已在 2026 年 7 月 1 日上调，下面写的是新费用。",
   heroImage: "/assets/heroes/japan.jpg",
   meta: [
-    { k: "签证类型", v: "短期停留" },
-    { k: "停留时长", v: "最长90天" },
-    { k: "有效期", v: "3个月内入境" },
-    { k: "入境次数", v: "单次" },
+    { k: "新加坡护照", v: "免签，90 天" },
+    { k: "单次入境费用", v: "15,000 日元（2026 年 7 月 1 日起）" },
+    { k: "办理途径", v: "使馆或 eVISA" },
+    { k: "核对日期", v: "2026 年 11 月 25 日" },
   ],
   tags: [
-    { icon: "bolt", label: "快速通道" },
     { icon: "shield", label: "VIZA 服务免费" },
-    { icon: "doc", label: "专家文件审核" },
+    { icon: "doc", label: "材料核对" },
+    { icon: "bolt", label: "使馆与 eVISA" },
   ],
 
-  overviewTitle: "日本，一览无余",
-  overviewSub:
-    "短期停留签证适用于旅游观光、探亲访友及短期商务出行。新加坡公民可免签入境90天；居住在新加坡的需签证国籍人士（如中国公民）可通过 JAPAN eVISA 或 VFS Global 申请。",
-  glance: [
-    { icon: "globe", k: "首都", v: "东京", sub: "UTC +9（日本标准时间）" },
-    { icon: "clock", k: "最佳旅行时间", v: "3月–5月 · 10月–11月", sub: "赏樱花与秋叶" },
-    { icon: "currency", k: "货币", v: "日元（JPY）", sub: "SGD 1 ≈ JPY 115" },
-    { icon: "pin", k: "热门目的地", v: "东京 · 京都 · 大阪", sub: "以及广岛、奈良、北海道" },
-  ],
+  page: {
+    framing: "singapore",
 
-  processTitle: "日本签证申请流程",
-  processSub:
-    "一次性提交材料，VIZA顾问按外务省（MOFA）要求备齐全套材料，通过 JAPAN eVISA 门户或 VFS Global 新加坡递交并全程跟踪。请预留至少10个工作日——日本不受理任何加急申请。",
-  steps: [
-    {
-      title: "在VIZA提交申请",
-      body: "上传护照、证件照、新加坡居留准证、机票预订单及银行流水。须在出行日期前3个月内递交，我们将按您的出发日期倒排时间计划。",
+    glance: {
+      needVisa: "新加坡护照不需要。中国、印度、印尼、菲律宾、越南护照需要",
+      govFee: "单次入境 15,000 日元（使馆收 132 新元），多次入境 30,000 日元（263 新元）",
+      processing: "使馆至少 5 个工作日，经签证中心办理通常 1 周以上，建议预留 2 个月",
+      maxStay: "最长 90 天，单次入境",
+      checked: "2026 年 11 月 25 日",
     },
-    {
-      title: "材料审核与递交",
-      body: "您的顾问代填 MOFA 官方申请表并编制逐日《滞在预定表》（Taizai Yoteihyo），逐项核对日本驻新加坡大使馆的清单要求，然后通过 eVISA 门户或 VFS Global 递交。",
-    },
-    {
-      title: "使馆审核签证",
-      body: "MOFA 官方标准为完整材料受理后5个工作日办结，但日本驻新加坡大使馆建议预留至少10个工作日。我们全程跟踪各领事审核环节，如有补件要求即时通知您。",
-      statusRows: [
-        { label: "申请已递交至日本大使馆", ts: "6月12日 上午9:00", onTime: true },
-        { label: "材料已受理 — 领事审核中", ts: "6月12日 上午11:30", onTime: true },
-        { label: "等待领事馆最终审批", ts: "处理中" },
+
+    passports: {
+      intro: "住在哪里并不决定规则，护照才决定。新加坡 PR 和准证持有人，按各自所持护照的规则办。日本驻新加坡大使馆也只受理长期居留者的签证申请。",
+      rows: [
+        { passport: "新加坡", status: "免签，最长 90 天", note: "目前不收费，也不用填表。日本计划在 2028 财年推出名为 JESTA 的电子旅行授权，费用和日期都还没有确定。" },
+        { passport: "中国（PRC）", status: "需要签证", note: "住在新加坡的中国护照持有人，通过签证中心向日本驻新加坡大使馆申请；符合条件的也可以在线办理 eVISA。" },
+        { passport: "马来西亚", status: "免签，最长 90 天", note: "订票前请先对照日本外务省的免签名单。" },
+        { passport: "印度", status: "需要签证", note: "使馆对印度籍申请人列出的费用是 7 新元，2026 年 7 月 1 日没有上调。" },
+        { passport: "印度尼西亚", status: "需要签证", note: "经签证中心向使馆申请，或办理 eVISA。使馆针对住在新加坡、持印尼、菲律宾和越南护照的人，有一份单独的清单。" },
+        { passport: "菲律宾", status: "需要签证", note: "适用同一份使馆清单。银行流水请多留些时间准备。" },
+        { passport: "越南", status: "需要签证", note: "与印尼、菲律宾适用同一份使馆清单。" },
+        { passport: "其他护照", status: "请对照免签名单", note: "日本外务省公布免签国家的名单。您的国家不在名单上，就需要签证。" },
       ],
     },
-    {
-      title: "6月17日下午2:00 签证送达",
-      body: "eVISA 申请人将收到电子邮件发放的《签证发给通知（Visa Issuance Notice）》——值机时在手机屏幕上出示即可（不接受打印件）；纸质申请人则通过 VFS 领回贴有签证的护照。",
-      delivered: true,
+
+    visaTypes: {
+      intro: "日本按事由发签证。住在新加坡、为度假出行的人，大多办“短期滞在”旅游签证。",
+      items: [
+        { title: "短期滞在，旅游", body: "用于度假、探亲和短途旅行。一般为单次入境，最长停留 90 天，是申请人问得最多的一种。" },
+        { title: "JAPAN eVISA", body: "就是线上办理的旅游签证，单次入境，用于短期旅游，面向住在新加坡、不属于免签范围、持普通护照的人。签发后您会收到电邮的签证签发通知，使馆也可能请您去面谈。" },
+        { title: "多次入境", body: "多次入境签证费用是 30,000 日元，是单次的两倍。适用于符合使馆条件的申请人，使馆对部分护照另有多次入境清单。" },
+        { title: "商务及其他短期停留", body: "开会、短期商务访问同属短期滞在，但需要邀请函或公司信。留学、工作和长期居留要办其他签证，并需要日本方面的在留资格认定证明书。" },
+      ],
     },
-  ],
 
-  docsTitle: "所需申请材料",
-  docsSub:
-    "VIZA顾问在递交前审核每一份材料。补传文件次数不限，完全免费。",
-  documents: [
-    { name: "护照个人信息页", sub: "有效期须覆盖全程停留 · 至少2页空白页 · 无6个月有效期要求" },
-    { name: "签证申请表", sub: "MOFA 官方表格——由您的顾问代为填写准备" },
-    { name: "近期证件照", sub: "45×35毫米 · 纯白色背景 · 6个月内拍摄 · 不可戴眼镜" },
-    { name: "新加坡居留证明", sub: "PR、工作准证、学生准证、家属准证或长期探访准证" },
-    { name: "机票行程单", sub: "已确认或已预订的往返机票" },
-    { name: "滞在预定表（逐日行程）", sub: "按 MOFA 格式列明每日安排及酒店名称、地址、电话" },
-    { name: "资金证明", sub: "可覆盖全程费用的近期银行流水" },
-  ],
+    residents: {
+      intro: "日本驻新加坡大使馆受理长期居留者的签证申请。来新加坡旅游的访客，会被请回本国或居住国申请。您的准证说明您住在这里。",
+      rows: [
+        { pass: "工作准证（EP）", body: "带上 EP 卡和近期在职证明，再加银行流水，准证有效期要覆盖整个行程。这是在新加坡工作的中国和印度护照持有人最常走的路。" },
+        { pass: "S 准证", body: "带上 S 准证卡和在职证明。清单与 EP 相同，使馆通过准证确认您住在新加坡。" },
+        { pass: "家属准证（DP）", body: "带上家属准证和主准证持有人的准证复印件。资金可以用您本人的账户，或由主准证持有人出具支持信并附其银行流水。" },
+        { pass: "永久居民（PR）", body: "带上 PR 卡或再入境许可，以及住址证明。您以本国护照申请，而不是按新加坡公民办理，免签规则不适用于您。" },
+        { pass: "新加坡公民", body: "无需签证。护照有效期要覆盖整个停留期，抵达前先在 Visit Japan Web 完成登记，可以加快入境和海关。" },
+        { pass: "学生准证", body: "带上学生准证和学校证明信。资金证明可以由父母出具支持信并附流水。" },
+      ],
+    },
 
-  rejectionTitle: "日本签证常见被拒原因",
-  rejectionSub:
-    "外务省从不公开具体拒签理由，且被拒后6个月内不受理同一目的的新申请。VIZA会在您递交前提前排查以下风险点。",
-  rejectionReasons: [
-    { title: "资金证明不足", body: "银行流水不足以覆盖旅行开销，或申请前不久出现无法解释的大额入账。" },
-    { title: "材料不完整或前后矛盾", body: "缺少滞在预定表，或行程、预订与申请表之间日期不一致——这是最常见的拒签原因。" },
-    { title: "访问目的存疑", body: "与居住国联系薄弱，或被怀疑有赴日工作或超期居留的意图。" },
-    { title: "曾有移民违规记录", body: "曾在日本超期居留或被遣返、有犯罪记录，或存在《出入国管理法》第5条规定的其他拒绝入境事由。" },
-    { title: "递交至错误的使领馆", body: "未持有新加坡PR或长期准证的外国人，不能通过日本驻新加坡大使馆或VFS新加坡申请。" },
-  ],
+    fees: {
+      intro: "日本在 2026 年 7 月 1 日上调了签证费，是多年来的首次调整。新费用适用于当日或之后受理的申请。VIZA 的协助免费，政府费用支付给使馆，或通过 eVISA 支付。",
+      rows: [
+        { item: "单次入境签证", amount: "15,000 日元（132 新元）", note: "132 新元是使馆对多数护照的收费，2026 年 7 月 1 日之前是 27 新元。" },
+        { item: "两次或多次入境签证", amount: "30,000 日元（263 新元）", note: "2026 年 7 月 1 日之前是 53 新元。" },
+        { item: "印度籍申请人", amount: "7 新元", note: "使馆对单次和多次入境都列为 7 新元。" },
+        { item: "签证中心手续费", amount: "22 新元", note: "通过使馆指定的签证中心递交时收取。" },
+        { item: "JAPAN eVISA", amount: "相当于 15,000 日元", note: "单次入境，仅限旅游。付款方式请看使馆页面，因为使馆和外务省的说法不一致。" },
+        { item: "出境税", amount: "3,000 日元", note: "自 2026 年 7 月 1 日起含在机票里收取。2 岁以下儿童和部分过境旅客免收。" },
+      ],
+      processing: "使馆表示，材料没有问题的话至少需要 5 个工作日，通过签证中心递交一般需要 1 周或更久。被转交审查的个案最长可达 2 个月，使馆因此建议至少提前 2 个月申请。eVISA 在付款后 2 到 3 个工作日内以电邮发送签证签发通知。直接向使馆递交的申请，取签证时以现金支付。",
+    },
 
-  entryTitle: "入境与离境规定",
-  entrySub:
-    "所有外国旅客入境时均须采集指纹及面部照片。建议提前在 Visit Japan Web（vjw.digital.go.jp）登记入境与海关信息并生成二维码——非强制但强烈推荐，羽田、成田、关西机场已启用一码通行的联合查验闸机。请随身备妥回程机票及资金证明。",
-  entryExit: [
-    { icon: "refresh", k: "入境次数", v: "单次", sub: "多次签证仅限符合条件的申请人" },
-    { icon: "clock", k: "入境期限", v: "3个月内", sub: "自签证签发日期起计算" },
-    { icon: "doc", k: "Visit Japan Web", v: "二维码（可选）", sub: "预先登记入境与海关信息" },
-    { icon: "currency", k: "离境税", v: "JPY 3,000", sub: "≈ SGD 26 · 已含在机票票价内" },
-  ],
-
-  extensionTitle: "签证延期与超期居留",
-  extensionSub:
-    "短期停留原则上仅在患病等迫不得已的特殊情况下才获准延期，常规旅游延期几乎不被批准。在日本，超期居留属刑事犯罪，而非按日罚款。",
-  extension: [
-    { icon: "extend", k: "延期", v: "仅限特殊情况", sub: "获批后缴费：柜台 JPY 6,000 / 在线 JPY 5,500" },
-    { icon: "alert", k: "超期处罚", v: "最高 JPY 3,000,000", sub: "≈ SGD 26,000 罚金，或最高3年监禁" },
-    { icon: "ban", k: "禁止再入境", v: "1–10年", sub: "主动申报离境1年 · 被遣返5年 · 再犯10年" },
-  ],
-
-  reviews: {
-    score: "4.6",
-    outOf: "/ 5",
-    sub: "全球旅行者的信赖之选 · 14,203条评价",
-    platforms: [
-      { rating: "4.7", name: "Trustpilot" },
-      { rating: "4.6", name: "App Store" },
-    ],
-    items: [
-      {
-        initials: "LX",
-        name: "李晓梅",
-        source: "Trustpilot · 5天前",
-        title: "一次通过，顺利拿到日本签证",
-        body: "材料清单非常清楚，顾问还发现我的证件照尺寸不符合45毫米规格。最终4个工作日就获批了。",
+    apply: {
+      intro: "先选办理途径，再准备材料。两种途径需要的材料相同，银行流水都要特别用心。",
+      guided: {
+        title: "自助指引",
+        body: "VIZA 的 AI 按您的准证类型带您填表并过清单，由您自己向使馆签证中心或 eVISA 网站递交。适合想自己掌控每一步的人。",
       },
-      {
-        initials: "ZW",
-        name: "张伟杰",
-        source: "App Store · 2周前",
-        title: "行程准备毫无压力",
-        body: "我完全不知道需要提供详细的每日行程，VIZA提供了模板并在递交前帮我审核了一遍，整个过程非常顺畅。",
+      fullService: {
+        title: "全程代办",
+        body: "VIZA 顾问替您准备表格、核对银行流水和行程，并整理好递交的材料，让您不用猜使馆想要什么。",
       },
-    ],
+      steps: [
+        { title: "在 VIZA 开始", body: "上传护照、准证和出行日期。我们先确认您是否需要签证，以及哪条途径适合您的护照。" },
+        { title: "准备材料", body: "我们对照使馆给新加坡居民的清单，检查表格、行程和银行流水。" },
+        { title: "递交", body: "通过签证中心向使馆递交，或在线办理 eVISA。政府费用由您自己支付，请保留收据。" },
+        { title: "取签证或下载", body: "eVISA 申请人会收到电邮的签证签发通知，登机时在手机上出示。纸质申请人凭取件通知领回贴有签证的护照。" },
+      ],
+    },
+
+    checklist: {
+      intro: "使馆按护照和事由分别公布清单。下面是通用的核心材料，递交前请务必对照最新的使馆清单。",
+      groups: [
+        {
+          applicant: "所有人",
+          items: [
+            "护照，有效期覆盖整个停留期",
+            "填好的签证申请表",
+            "近期照片，4.5 厘米乘 3.5 厘米，白色背景",
+            "机票订单和逐日行程，写明酒店",
+            "最近 2 个月的银行流水，含交易明细",
+          ],
+        },
+        {
+          applicant: "工作准证与 S 准证",
+          items: [
+            "准证卡正反面复印件",
+            "近期在职证明",
+            "本人名下的银行流水",
+          ],
+        },
+        {
+          applicant: "家属准证",
+          items: [
+            "家属准证卡和主准证持有人的准证复印件",
+            "证明您与主准证持有人关系的结婚证或出生证明",
+            "本人的银行流水，或主准证持有人的流水加支持信",
+          ],
+        },
+        {
+          applicant: "永久居民",
+          items: [
+            "PR 卡或再入境许可复印件",
+            "在新加坡居住的证明，例如近期账单",
+            "本人的银行流水和在职证明",
+          ],
+        },
+        {
+          applicant: "学生",
+          items: [
+            "学生准证和学校证明信",
+            "父母出具的支持信及其银行流水",
+          ],
+        },
+      ],
+    },
+
+    travel: {
+      intro: "拿到签证只是一半。日本的入境手续大多在线上完成，2026 年也有几项费用调整。",
+      items: [
+        { title: "Visit Japan Web", body: "在 Visit Japan Web 上可以在线完成入境、海关和免税手续，抵达时出示二维码。这是可选的，但在主要机场能缩短排队时间。", href: "/arrival-cards/japan-visit-japan-web", linkLabel: "阅读 Visit Japan Web 指南" },
+        { title: "入境规则", body: "入境时会为外国访客拍摄面部照片并录指纹。请随身带回程机票和资金证明。eVISA 持有人在手机上出示签证签发通知，因为不接受打印件。" },
+        { title: "出境税", body: "国际观光旅客税自 2026 年 7 月 1 日起上调为每次出境 3,000 日元，含在机票里收取，不用在机场另付。" },
+        { title: "JESTA", body: "日本计划在 2028 财年对免签访客推出电子旅行授权，新加坡护照也在其中。日期和费用都未确定，所以现在不需要额外办理。" },
+        { title: "逾期滞留", body: "请在获准的天数内离境。日本对逾期滞留处理严格，可能被禁止再入境。" },
+      ],
+    },
+
+    reviewed: {
+      date: "2026 年 11 月 25 日",
+      note: "已对照日本外务省和日本驻新加坡大使馆的页面。费用和规则会变，付款前请先看页面底部的来源链接。",
+    },
+
+    related: {
+      destinations: ["south-korea", "china", "vietnam", "thailand"],
+      guides: [
+        { label: "新加坡护照免签国家", href: "/guides/visa-free-countries-singapore-passport" },
+        { label: "新加坡的中国护照持有人办签证", href: "/guides/visas-chinese-passport-holders-singapore" },
+        { label: "新加坡的菲律宾和印度居民办签证", href: "/guides/visas-filipino-indian-residents-singapore" },
+        { label: "签证被拒：原因和重新申请", href: "/guides/visa-refused-reapply" },
+        { label: "各国签证照片要求", href: "/guides/visa-photo-requirements" },
+        { label: "Visit Japan Web，日本数码厅的入境和海关网站", href: "https://services.digital.go.jp/en/visit-japan-web/" },
+        { label: "VIZA 签证资讯", href: "/blog" },
+      ],
+    },
   },
 
-  faqSub:
-    "没有找到您需要的答案？请使用下方AI助手提问，或直接联系您的VIZA顾问。",
+  rejectionTitle: "常见拒签原因",
+  rejectionSub: "日本不公布拒签原因，被拒后再以同一事由申请，需要等一段时间。以下是顾问最先检查的几点。",
+  rejectionReasons: [
+    { title: "资金与行程不匹配", body: "银行流水相对停留天数显得偏少，或在申请前突然有大额来历不明的存款，都会引起疑问。" },
+    { title: "行程和订单对不上", body: "表格、行程和机票上的日期必须一致。缺行程或行程含糊，是常见的被退件原因。" },
+    { title: "与居住地的联系薄弱", body: "在新加坡停留时间短、没有在职证明，或没有明确的回程计划，会让出行目的更难让人信服。" },
+    { title: "递交的地方不对", body: "使馆受理的是长期居留新加坡的人的申请，短期访客会被请回本国申请。" },
+    { title: "过去的入境问题", body: "曾在日本逾期滞留、被遣返或被拒签，需要解释，部分个案会被转交审查，多花几周。" },
+  ],
+
+  faqSub: "没找到答案？问下方的 AI 助手，或联系 VIZA 顾问。",
   faq: [
-    {
-      category: "基本信息",
-      q: "日本短期停留签证是什么？",
-      a: "即日本面向旅游观光、探亲访友及短期商务的短期停留签证（Temporary Visitor），单次入境，可获准停留15、30或90天，签发后3个月内须入境。符合条件的申请人可通过 JAPAN eVISA（evisa.mofa.go.jp）全程在线办理，两种方式均由VIZA全程代办。",
-    },
-    {
-      category: "基本信息",
-      q: "持新加坡护照去日本需要签证吗？",
-      a: "不需要。新加坡公民可免签以短期停留身份入境日本，最长90天，无任何费用，目前也无需预先登记。自2028财年起，新加坡公民登机前将需先获得 JESTA 电子旅行许可；在此之前只需有效护照即可（Visit Japan Web 二维码可选）。",
-    },
-    {
-      category: "基本信息",
-      q: "我持中国护照、居住在新加坡，应如何申请？",
-      a: "中国普通护照持有人赴日一律需要签证。持新加坡PR或长期准证（EP、SP、学生准证、家属准证、LTVP）者，可通过 JAPAN eVISA 在线申请，或经 VFS Global 新加坡递交纸质申请——VIZA全程代办。若常住中国大陆，则须通过日本指定的旅行社办理。",
-    },
-    {
-      category: "申请流程",
-      q: "日本签证费用是多少？",
-      a: "2026年7月1日起递交的申请，政府签证费为单次 JPY 15,000（约 SGD 130）、多次 JPY 30,000（约 SGD 260）——这是日本自1978年以来首次调整签证费。纸质申请另收 VFS Global 新加坡服务费 SGD 22。签证费仅在获签时收取，由您直接支付；VIZA 不收取任何费用。",
-    },
-    {
-      category: "申请流程",
-      q: "日本签证需要多长时间处理？",
-      a: "MOFA 官方标准为完整材料受理次日起5个工作日，但日本驻新加坡大使馆建议至少预留10个工作日，且日本不受理任何加急。请在出行日期前3个月内递交；VIZA一次性提交完整材料，避免复杂个案因反复补件拖至一个月以上。",
-    },
-    {
-      category: "拒签与重新申请",
-      q: "申请被拒后怎么办？",
-      a: "外务省不公开拒签理由，且拒签之日起6个月内不受理同一目的的新申请。VIZA的协助完全免费，顾问会分析材料中可能的薄弱环节，并在6个月限制期满后第一时间协助您递交更有力的新申请。",
-    },
+    { category: "需要签证吗", q: "新加坡人去日本需要签证吗？", a: "不需要。新加坡护照免签入境日本，最长停留 90 天，不收费。日本计划在 2028 财年推出名为 JESTA 的电子旅行授权，但日期和费用都还没有确定。" },
+    { category: "需要签证吗", q: "住在新加坡的中国护照持有人去日本需要签证吗？", a: "需要。住在新加坡的中国护照持有人，通过签证中心向日本驻新加坡大使馆申请；符合条件的也可以在线办理 JAPAN eVISA。需要出示新加坡准证和银行流水。" },
+    { category: "需要签证吗", q: "住在新加坡的印度人去日本需要签证吗？", a: "需要。使馆对印度籍申请人列出的费用是 7 新元，2026 年 7 月 1 日没有变。经使馆办理，清单与其他居民相同。" },
+    { category: "需要签证吗", q: "新加坡 PR 去日本需要签证吗？", a: "要看护照。持日本免签护照的 PR，比如马来西亚护照，不需要；持中国、印度、印尼、菲律宾或越南护照的 PR 需要。" },
+    { category: "在新加坡办理", q: "在新加坡怎么办日本签证？", a: "准备表格、照片、订单、行程和银行流水，通过使馆的签证中心递交，或在线办理 eVISA。递交前先对照使馆给您护照的清单。" },
+    { category: "在新加坡办理", q: "JAPAN eVISA 是什么？", a: "是线上办理的单次入境旅游签证，面向住在新加坡、不属于免签范围、持普通护照的人。签发后您会收到电邮的签证签发通知，登机时在手机上出示。" },
+    { category: "在新加坡办理", q: "来新加坡旅游的人可以在这里办吗？", a: "一般不可以。使馆说明只有长期居留新加坡的人才符合资格，访客需要回本国或居住国办理。" },
+    { category: "在新加坡办理", q: "在新加坡到哪里递交日本签证申请？", a: "通过日本使馆签证页面上写明的签证申请中心，或在线办理 eVISA。具体地址和营业时间请看使馆页面。" },
+    { category: "费用与时间", q: "从新加坡办日本签证要多少钱？", a: "自 2026 年 7 月 1 日起，单次入境 15,000 日元，使馆对多数护照收 132 新元；多次入境 30,000 日元，263 新元。印度籍申请人收 7 新元，签证中心另收 22 新元手续费。" },
+    { category: "费用与时间", q: "日本签证要办多久？", a: "使馆表示材料没有问题至少需要 5 个工作日，通过签证中心一般 1 周或更久。被转交审查的个案最长可达 2 个月，所以请至少提前 2 个月申请。" },
+    { category: "费用与时间", q: "日本有出境税吗？", a: "有。自 2026 年 7 月 1 日起，国际观光旅客税是每次出境 3,000 日元，含在机票里收取。" },
+    { category: "拒签", q: "日本签证被拒了怎么办？", a: "日本不说明原因。以同一事由再次申请前请先等一段时间，并让顾问先帮您检查材料里可能的薄弱点。" },
+    { category: "出行前", q: "需要用 Visit Japan Web 吗？", a: "不是必须，但很有用。您登记行程后，用二维码办理入境、海关和免税手续。" },
+    { category: "出行前", q: "VIZA 收费吗？", a: "不收费。VIZA 的协助免费，政府费用由您自己支付给使馆或通过 eVISA 支付。" },
   ],
 
   sources: [
-    { label: "JAPAN eVISA 官方门户（外务省）", url: "https://www.evisa.mofa.go.jp/", display: "evisa.mofa.go.jp" },
-    { label: "日本外务省 — JAPAN eVISA 系统", url: "https://www.mofa.go.jp/j_info/visit/visa/visaonline.html", display: "mofa.go.jp" },
-    { label: "日本外务省 — 短期停留免签国家名单", url: "https://www.mofa.go.jp/j_info/visit/visa/short/novisa.html", display: "mofa.go.jp" },
-    { label: "日本外务省 — 签证费用", url: "https://www.mofa.go.jp/j_info/visit/visa/procedure/pagewe_000001_00391.html", display: "mofa.go.jp" },
-    { label: "日本驻新加坡大使馆 — 赴日签证", url: "https://www.sg.emb-japan.go.jp/itpr_en/visit.html", display: "sg.emb-japan.go.jp" },
-    { label: "VFS Global — 日本签证（新加坡）", url: "https://visa.vfsglobal.com/sgp/en/jpn/", display: "visa.vfsglobal.com" },
-    { label: "Visit Japan Web（日本数字厅）", url: "https://services.digital.go.jp/en/visit-japan-web/", display: "services.digital.go.jp" },
+    { label: "日本驻新加坡大使馆，赴日签证", url: "https://www.sg.emb-japan.go.jp/itpr_en/visit.html", display: "sg.emb-japan.go.jp" },
+    { label: "日本驻新加坡大使馆，签证费用", url: "https://www.sg.emb-japan.go.jp/itpr_en/visa_fees.html", display: "sg.emb-japan.go.jp" },
+    { label: "日本驻新加坡大使馆，办理时间", url: "https://www.sg.emb-japan.go.jp/itpr_en/visa_processingtime.html", display: "sg.emb-japan.go.jp" },
+    { label: "日本外务省，JAPAN eVISA", url: "https://www.mofa.go.jp/j_info/visit/visa/visaonline.html", display: "mofa.go.jp" },
+    { label: "日本外务省，签证费用", url: "https://www.mofa.go.jp/j_info/visit/visa/procedure/fee.html", display: "mofa.go.jp" },
+    { label: "日本外务省，免签说明", url: "https://www.mofa.go.jp/j_info/visit/visa/short/novisa.html", display: "mofa.go.jp" },
+    { label: "JAPAN eVISA 网站", url: "https://www.evisa.mofa.go.jp/", display: "evisa.mofa.go.jp" },
+    { label: "日本观光厅，国际观光旅客税", url: "https://www.mlit.go.jp/kankocho/content/001996466.pdf", display: "mlit.go.jp" },
+    { label: "日本数码厅，Visit Japan Web", url: "https://services.digital.go.jp/en/visit-japan-web/", display: "services.digital.go.jp" },
   ],
 
   price: {
-    etaLabel: "立即申请，预计送达",
-    etaValue: "2026年6月17日 下午2:00",
-    title: "短期停留签证 · 最长90天",
-    saving: "比直接申请更高效",
-    sub: "VIZA免费提供材料审核与申请准备，签证费（如有）由您直接向签发机关支付。",
-    foot: "VIZA服务免费。日本签证费（如有）由您直接向签发机关支付。",
+    etaLabel: "办理时间",
+    etaValue: "至少 5 个工作日",
+    title: "短期滞在签证 · 最长 90 天",
+    sub: "VIZA 的协助免费：表格准备和材料核对。签证费支付给使馆或通过 eVISA 支付。",
+    foot: "VIZA 的服务免费。日本签证费用直接支付给签发机关。",
   },
 
-  aiPlaceholder: "请随时提问关于日本签证的任何问题——eVISA资格、费用、新加坡免签政策……",
+  aiPlaceholder: "问问新加坡办理日本签证：eVISA、费用、材料…",
 };
 
 export default japan;

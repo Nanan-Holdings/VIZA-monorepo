@@ -14,7 +14,9 @@ Public marketing site for VIZA. Next.js 16 App Router. Deploys to `viza.com`.
 2. **Brand tokens, never raw hex.** Use `bg-brand-500`, `text-fg-1`, `border-border-hairline`, etc. Tokens come from `tailwind.config.ts` and `app/globals.css :root`. If a value isn't tokenised, add it to the token layer first.
 3. **Cross-app links via `portalUrl()`.** Don't hardcode `app.viza.com`. Use the helper in `lib/utils.ts` so envs swap cleanly between dev/preview/prod.
 4. **Static-by-default.** Pages should be Server Components and statically renderable. Add `"use client"` only when interactivity is required (e.g. form submit handler).
-5. **i18n routing already wired.** Pages live under `app/[locale]/...`. Locales: `en` (default, no prefix) and `zh-CN`. Add strings to `messages/en.json` and `messages/zh-CN.json`; never inline copy that should be translated.
+5. **i18n routing already wired.** Pages live under `app/[locale]/...`. English is unprefixed (`/visa/japan`), every other locale is prefixed (`/zh-CN/visa/japan`). `lib/locales.ts` holds the full 60-locale list (same as GrooveSheet); only the codes in `ENABLED_LOCALES` are routable, in the sitemap, in hreflang and in the language switcher (today `en` and `zh-CN`). To launch a language: add `messages/<code>.json` (and its `lib/visa-content/<code>` files, then `npm run og`) and add the code to `ENABLED_LOCALES`. Missing message keys fall back to English (`i18n.ts`). Add strings to the messages files; never inline copy that should be translated.
+6. **No forced language.** `proxy.ts` never redirects by browser language or cookie on deep links, so crawlers get each URL in its own language. The only redirects are the `viza_locale` choice cookie on `/` and the first-visit country rule in `vercel.json` (CN, HK, MO, TW to `/zh-CN`, never for crawlers).
+7. **SEO on every page.** Return `pageMetadata()` from `lib/seo/metadata.ts` (title and description, canonical, hreflang plus x-default, Open Graph and Twitter large card). Link previews are static JPEGs in `public/og/<locale>/<key>.jpg`, made by `npm run og`. `npm run build` runs `scripts/check-copy.mjs`; after a deploy run `npm run verify -- <base-url>`.
 
 ## Visa destination pages
 
@@ -40,6 +42,19 @@ is no bespoke per-country page. The pieces:
   published snapshot has one, the government fee via `lib/pricing.ts`, always
   labelled as paid directly to the issuing authority. Never show a VIZA fee,
   "all-inclusive" totals, paid upgrades, or refund promises.
+
+### Destination page template (Phase B)
+
+New and rewritten pages use `DestinationContent` (`lib/visa-content/types.ts`): the shared core fields
+(hero, rejection reasons, FAQ, sources, price card) plus a `page` block. Section order, rendered by
+`components/VisaDestinationMain.tsx`: at a glance, passport table, visa types, Singapore residents by pass
+type, fees and timing, how to apply (Guided or Full-service), document checklist by applicant type, rejection
+reasons, before you travel, reviewed line with date, FAQ (10 to 15, also the FAQPage JSON-LD), related
+destinations and guides, start application. Headings and chrome come from `visa.dest` in the messages files.
+Per country a page needs `lib/visa-content/<slug>.ts` and `zh-CN/<slug>.ts`, an entry in both registries,
+a `lib/countries.ts` row, a hero image, and (if the default pattern is wrong) a `lib/seo/titles.ts` override.
+`consultOnly: true` publishes a page that has no portal pricing row: its CTA is "Talk to a consultant" to
+`/contact` and `launched` stays false. Run `npm run og` after adding a slug.
 
 ### Adding a new visa destination
 

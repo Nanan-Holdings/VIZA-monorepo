@@ -1,14 +1,14 @@
-import { permanentRedirect } from "next/navigation";
+import type { Metadata } from "next";
+import { setRequestLocale } from "next-intl/server";
+import LegalDocument from "@/design-system/sections/LegalDocument";
+import { staticPageMetadata } from "@/lib/seo/page-meta";
 
-/**
- * VIZA's service is free (payments were retired on 2026-09-15), so there is
- * no refund policy to publish. Old links land on the terms, which explain fees.
- */
-export default async function RefundsPage({
-  params,
-}: {
-  params: Promise<{ locale: string }>;
-}) {
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  return staticPageMetadata(params, "refunds", "/refunds");
+}
+
+export default async function RefundsPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
-  permanentRedirect(`${locale === "en" ? "" : `/${locale}`}/legal/terms#fees`);
+  setRequestLocale(locale);
+  return <LegalDocument slug="refunds" locale={locale} />;
 }

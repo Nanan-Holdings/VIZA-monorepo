@@ -8,13 +8,15 @@
     "visas": "Visas",
     "explore": "Explore",
     "events": "Events",
-    "blog": "Guides",
+    "blog": "News",
     "careers": "Careers",
     "contact": "Contact",
     "signIn": "Sign in",
     "getStarted": "Get started",
     "yourPassport": "Your passport",
-    "searchPlaceholder": "Search a country or visa…"
+    "searchPlaceholder": "Search a country or visa…",
+    "arrivalCards": "Arrival cards",
+    "guides": "Guides"
   },
   "footer": {
     "followUs": "Follow us:",
@@ -38,69 +40,77 @@
     "prodSchengen": "Schengen Appointment Checker",
     "prodPhoto": "Visa Photo Creator",
     "prodHelpline": "VIZA Emergency Helpline",
-    "prodStudent": "Student Visa"
+    "prodStudent": "Student Visa",
+    "arrivalCards": "Arrival cards",
+    "guides": "Guides",
+    "news": "News"
   },
   "pages": {
     "blog": {
-      "metaTitle": "Visa guides and travel updates — VIZA",
-      "metaDescription": "Clear, practical guidance on visas, application preparation, and international travel from VIZA.",
-      "eyebrow": "VIZA journal",
-      "title": "Visa guidance, without the fine-print fog.",
-      "lede": "Practical explanations, official-policy updates, and preparation tips from the team that handles visa applications every day.",
+      "metaTitle": "Visa News and Policy Updates | VIZA",
+      "metaDescription": "Visa news from VIZA: rule changes, new e-visa and ETA schemes, and what they mean for people living in Singapore. Updated when the rules change.",
+      "eyebrow": "VIZA",
+      "title": "Visa news",
+      "lede": "Rule changes and policy updates, explained in plain words. For advice that stays true, read the guides.",
       "readArticle": "Read article",
-      "featuredLabel": "Latest article",
-      "articlesTitle": "Articles & guides",
-      "articlesDescription": "Visa explainers, travel updates, and practical application advice.",
+      "featuredLabel": "Latest news",
+      "articlesTitle": "Latest news",
+      "articlesDescription": "Policy updates and travel rule changes.",
       "allPosts": "All posts",
-      "noMorePosts": "More guides are on the way.",
-      "emptyTitle": "No articles published yet",
-      "emptyBody": "Our first guides are being prepared. Please check back soon.",
-      "unavailableTitle": "The journal is temporarily unavailable",
-      "unavailableBody": "We couldn't load the latest published articles. Please try again shortly.",
-      "backToBlog": "Back to the journal",
+      "noMorePosts": "More news is on the way.",
+      "emptyTitle": "No news published yet",
+      "emptyBody": "Our first updates are being prepared. Please check back soon.",
+      "unavailableTitle": "News is temporarily unavailable",
+      "unavailableBody": "We could not load the latest published news. Please try again shortly.",
+      "backToBlog": "Back to news",
       "by": "By",
       "updated": "Updated",
-      "categoriesLabel": "Article categories",
+      "categoriesLabel": "News topics",
       "topicLabel": "Topic",
-      "relatedTitle": "Keep reading",
-      "relatedDescription": "More guidance from VIZA.",
+      "relatedTitle": "More news",
+      "relatedDescription": "More visa news from VIZA.",
       "ctaEyebrow": "Plan with confidence",
       "ctaTitle": "Ready to start your application?",
       "ctaBody": "Tell us where you want to go. VIZA will guide you through the requirements and next steps.",
       "ctaAction": "Start an application",
-      "categoryMetaTitle": "{category} guides — VIZA",
-      "categoryMetaDescription": "Read VIZA guides and updates about {category}.",
-      "categoryLede": "Guides and updates about {category}."
+      "categoryMetaTitle": "{category} News | VIZA",
+      "categoryMetaDescription": "Read VIZA news about {category}: what changed, who it affects and what to do next.",
+      "categoryLede": "News about {category}.",
+      "visaLinkTitle": "Applying for a {country} visa?",
+      "visaLinkBody": "See the documents, government fee and steps for people living in Singapore.",
+      "visaLinkAction": "{country} visa guide",
+      "guidesTitle": "Related guides",
+      "guidesBody": "Guides that stay up to date on this topic."
     },
     "home": {
       "title": "Visa Applications in Singapore: US, India, Vietnam | VIZA",
       "description": "Apply for a US visa (DS-160), India, Vietnam or Egypt e-visa, or a France Schengen visa. An advisor checks every form before it is lodged.",
       "heroTitle": "Where to next?",
-      "heroLede": "Browse visa options for any destination. Your VIZA consultant and our AI handle the paperwork — you book the trip."
+      "heroLede": "Browse visa options for any destination. Your VIZA consultant and our AI handle the paperwork, you book the trip."
     },
     "apply": {
-      "title": "Apply — VIZA",
-      "description": "Upload your passport. We auto-extract details. Confirm, check out, and your visa is delivered to your inbox.",
+      "title": "Start a Visa Application | VIZA",
+      "description": "Upload your passport, confirm your details and hand your visa application to a VIZA advisor. VIZA's service is free.",
       "saveBadge": "Saved · resume any time"
     },
     "careers": {
-      "title": "Careers at VIZA",
-      "description": "Help us make borders disappear, one application at a time. Engineering, design, operations, and consulting roles in Shanghai and Singapore.",
+      "title": "Careers | VIZA",
+      "description": "Work on VIZA, the free visa service run by Kelin Studio in Singapore. See the teams we hire for and how to get in touch about a role.",
       "rightCta": "See roles"
     },
     "contact": {
-      "title": "Contact VIZA",
-      "description": "WhatsApp, WeChat, Phone, Email. Four channels, four desks, a real human within 5 minutes.",
+      "title": "Contact Us: WhatsApp, WeChat, Phone, Email | VIZA",
+      "description": "Reach the VIZA team by WhatsApp, WeChat, phone or email. Four channels, four desks, and a real person replies.",
       "rightCta": "Write to us"
     },
     "security": {
-      "title": "Security at VIZA",
-      "description": "Private. Transparent. Secure by default. How we protect customer data, our vulnerability disclosure program, and safe harbour.",
+      "title": "Security and Responsible Disclosure | VIZA",
+      "description": "Private, transparent and secure by default. How VIZA protects customer data, our vulnerability disclosure program and safe harbour.",
       "rightCta": "Report a vulnerability"
     },
     "status": {
-      "title": "System status — VIZA",
-      "description": "Real-time status of VIZA and the government visa portals we file against.",
+      "title": "System Status | VIZA",
+      "description": "Live status of VIZA and the government visa portals we file against.",
       "navPill": "All systems operational"
     },
     "visa": {
@@ -114,6 +124,47 @@
       "nearby": "Nearby countries",
       "faq": "FAQ",
       "sources": "Official sources"
+    },
+    "privacy": {
+      "title": "Privacy Policy | VIZA",
+      "description": "What VIZA collects when you apply for a visa, why, who sees it and how long we keep it, under Singapore's PDPA."
+    },
+    "terms": {
+      "title": "Terms & Conditions | VIZA",
+      "description": "The terms for using VIZA's visa application service, operated by Kelin Studio Pte. Ltd. in Singapore. VIZA's service is free."
+    },
+    "product": {
+      "title": "How VIZA Supports Your Visa Application | VIZA",
+      "description": "Visa preparation, document review and application status in one place. VIZA's service is free. Scope and availability are shown for each destination."
+    },
+    "events": {
+      "title": "Events | VIZA",
+      "description": "Visa clinics, information sessions and partner events from VIZA."
+    },
+    "arrivalCards": {
+      "title": "Arrival Card Guides: MDAC, SG Arrival Card, TDAC | VIZA",
+      "description": "Free guides to arrival cards for Malaysia, Singapore, Japan, Thailand, Korea and Indonesia: who needs one, when to submit, and step by step help."
+    },
+    "guides": {
+      "title": "Visa Guides for People Living in Singapore | VIZA",
+      "description": "Plain guides for people living in Singapore: visa-free countries, Schengen documents, US interview, ETA, e-visa and refusals. Free to read, checked often."
+    },
+    "about": {
+      "title": "About VIZA: Free Visa Help in Singapore | VIZA",
+      "description": "VIZA prepares, checks and files visa applications for people in Singapore, with AI and consultants. The service is free; government fees go to the authority."
+    },
+    "visaIndex": {
+      "title": "Visa Destinations: Requirements by Country | VIZA",
+      "description": "Compare visa requirements by country, with the documents and fees for each. VIZA's help is free.",
+      "heroTitle": "Visa destinations"
+    },
+    "refunds": {
+      "title": "Refunds Policy | VIZA",
+      "description": "VIZA's service is free, so there is no service fee to refund. How government fees and other providers' fees work."
+    },
+    "businessInformation": {
+      "title": "Business Information | VIZA",
+      "description": "VIZA is operated by Kelin Studio Pte. Ltd., a Singapore company. Registered address, UEN and contact details."
     }
   },
   "common": {
@@ -131,7 +182,7 @@
     "step1": "Tell us your trip details and upload your passport.",
     "step2": "We complete and check your application against the latest rules.",
     "step3": "We submit to the government portal and track the decision.",
-    "step4": "Your approved visa arrives by email — we monitor it end to end.",
+    "step4": "Your approved visa arrives by email, and we monitor it end to end.",
     "documents": "What you'll need",
     "doc1": "A passport valid for at least 6 months.",
     "doc2": "A recent passport-style photo.",
@@ -139,7 +190,7 @@
     "doc4": "If the destination charges a visa fee, a payment card to pay it directly to the government.",
     "nearby": "Nearby destinations",
     "startApplication": "Start your application",
-    "comingSoonTitle": "{country} — coming soon",
+    "comingSoonTitle": "{country}: coming soon",
     "comingSoonBody": "We're putting the finishing touches on {country}. Create an account and we'll let you know the moment it's live.",
     "browseDestinations": "Browse destinations",
     "notifyMe": "Notify me",
@@ -155,7 +206,7 @@
     "tabFaq": "FAQ",
     "reviewsTitle": "Reviews",
     "nearbyTitle": "Nearby countries",
-    "nearbySub": "Travelling the region? Add another visa to your trip — your VIZA consultant batches them.",
+    "nearbySub": "Travelling the region? Add another visa to your trip, and your VIZA consultant batches them.",
     "faqTitle": "Frequently asked questions",
     "editorial": "This page follows VIZA’s editorial policy. We rely on official government sources and update each requirement when policy changes.",
     "editorialLink": "Read how we review",
@@ -172,7 +223,50 @@
     "govFeeSetByAuthorityShort": "Set by the authority",
     "priceService": "VIZA service",
     "pillPaidToAuthority": "Paid to the authority",
-    "priceTotalToViza": "You pay VIZA"
+    "priceTotalToViza": "You pay VIZA",
+    "breadcrumbVisas": "Visa destinations",
+    "serviceDescription": "VIZA helps people living in Singapore prepare, review and submit {country} {type} applications with AI guidance and expert human review.",
+    "offerDescription": "VIZA service fee. Government visa fees are separate and paid directly to the issuing authority.",
+    "dest": {
+      "tabGlance": "At a glance",
+      "tabPassports": "Passports",
+      "tabTypes": "Visa types",
+      "tabResidents": "Residents",
+      "tabFees": "Fees",
+      "tabApply": "How to apply",
+      "tabChecklist": "Documents",
+      "tabRejection": "Rejections",
+      "tabTravel": "Before you travel",
+      "tabFaq": "FAQ",
+      "tabRelated": "Related",
+      "glanceTitle": "At a glance",
+      "glanceVisa": "Visa needed",
+      "glanceGovFee": "Government fee",
+      "glanceVizaFee": "VIZA fee",
+      "glanceProcessing": "Processing time",
+      "glanceMaxStay": "Maximum stay",
+      "glanceChecked": "Date checked",
+      "passportsTitle": "Do you need a visa?",
+      "typesTitle": "Visa types",
+      "residentsTitle": "Singapore residents",
+      "feesTitle": "Fees and timing",
+      "applyTitle": "How to apply",
+      "checklistTitle": "Document checklist",
+      "travelTitle": "Before you travel",
+      "colPassport": "Passport",
+      "colEntry": "Entry",
+      "colNotes": "Notes",
+      "colItem": "Item",
+      "colAmount": "Amount",
+      "vizaFeeNote": "VIZA's help is free. You pay only the government fee, directly to the authority.",
+      "reviewedBy": "Reviewed by a VIZA consultant on {date}.",
+      "relatedTitle": "Related destinations",
+      "relatedSub": "Other places people add to the same trip, and where to read more.",
+      "startTitle": "Start application",
+      "startBody": "Begin with your passport and travel dates. VIZA's help is free and you pay the government fee directly to the authority.",
+      "startConsultBody": "Tell a VIZA consultant where you live, your passport and your travel dates. VIZA's help is free.",
+      "consultCta": "Talk to a consultant"
+    }
   },
   "apply": {
     "stepOf": "Step {n} of 3",
@@ -269,7 +363,6 @@
     "reqLabel": "Visa required",
     "reqNote": "embassy filing",
     "fullMap": "See full visa map",
-    "resultsCount": "Showing <b>{count}</b> destinations <dot></dot> sorted by <b>{sort}</b>",
     "grid": "Grid",
     "map": "Map",
     "mapLegendEvisa": "e-Visa & visitor visas",
@@ -281,8 +374,6 @@
     "cardType": "Type",
     "cardValid": "Valid",
     "cardFee": "VIZA service",
-    "guaranteedBy": "Guaranteed by",
-    "guarantor": "VIZA",
     "save": "Save",
     "startApplication": "Start application",
     "catalogueUnavailable": "No destinations are open for online applications right now. Please check back soon.",
@@ -326,12 +417,6 @@
         "In 3 months",
         "In 6 months"
       ]
-    },
-    "sorts": {
-      "guaranteed": "Guaranteed delivery",
-      "duration": "Visa duration",
-      "popular": "Popular destinations",
-      "recent": "Recently added"
     }
   },
   "cities": {
@@ -408,7 +493,10 @@
     "united-arab-emirates": "United Arab Emirates",
     "france": "France",
     "italy": "Italy",
-    "india": "India"
+    "india": "India",
+    "china": "China",
+    "south-korea": "South Korea",
+    "schengen": "Schengen"
   },
   "visaTypes": {
     "Test checkout": "Test checkout",
@@ -569,7 +657,7 @@
       "photos": [
         {
           "label": "photo · singapore HQ — open floor",
-          "mark": "Pasir Panjang Rd, SG"
+          "mark": "Paya Lebar Square, SG"
         },
         {
           "label": "photo · consultant queue floor",
@@ -589,7 +677,7 @@
         },
         {
           "label": "photo · embassy partner visit",
-          "mark": "Pasir Panjang Rd, SG"
+          "mark": "Paya Lebar Square, SG"
         }
       ],
       "pull": "“We hire people who have an opinion about visas before they join. By month two, you’ll have a stronger one.”",
@@ -799,8 +887,8 @@
           "photo": "photo · singapore HQ",
           "open": "12 open",
           "name": "Singapore",
-          "addr1": "225 Pasir Panjang Rd,",
-          "addr2": "Singapore",
+          "addr1": "60 Paya Lebar Road, #06-28 Paya Lebar Square,",
+          "addr2": "Singapore 409051",
           "tz": "GMT+8 · Asia-Pacific HQ",
           "since": "HQ · since 2021"
         }
@@ -831,621 +919,6 @@
       "officeSg": "Singapore — HQ",
       "officeSf": "Shanghai",
       "copyright": "© VIZA, All rights reserved"
-    }
-  },
-  "contact": {
-    "hero": {
-      "crumb": "Get in touch",
-      "status": "All four desks online",
-      "statusMeta": "· 24 consultants live now",
-      "headline": "We pick up<br></br>the phone. <em>And</em><br></br><u>we mean it.</u>",
-      "lead": "Tricky Schengen rejection. Visa expiring on Monday. Just a quick question. <strong>Pick a channel below</strong> — phone, WhatsApp, WeChat, or email — and a consultant who handles that exact corridor will be with you in minutes, not days.",
-      "sendBrief": "Send a brief",
-      "seeChannels": "See all channels",
-      "channelsLabel": "Choose your channel",
-      "channelsHint": "Each one staffed by humans on our consultant floor — not a chatbot, not a forwarding inbox."
-    },
-    "channels": {
-      "whatsapp": {
-        "tag": "QR · live chat",
-        "title": "WhatsApp",
-        "sub": "Fastest channel · median 2 min reply",
-        "scan": "Scan to chat",
-        "hours": "24/7 · all hours covered",
-        "action": "Start a chat ↗"
-      },
-      "wechat": {
-        "tag": "QR · 微信",
-        "title": "WeChat",
-        "sub": "For our clients in mainland China & SEA",
-        "scan": "Scan to add",
-        "hours": "Mon–Sun · 9am–11pm SGT",
-        "action": "Open in WeChat ↗"
-      },
-      "phone": {
-        "tag": "Voice · 7 languages",
-        "title": "Phone",
-        "sub": "For urgent visa issues — talk to a consultant",
-        "asiaLabel": "Singapore · primary",
-        "asiaLangs": "English · 普通话 · Bahasa · हिन्दी · Tagalog",
-        "americasLabel": "China · Shanghai",
-        "americasLangs": "普通话 · English",
-        "hours": "24/7 emergency line · always live",
-        "action": "Tap to dial ↗"
-      },
-      "email": {
-        "tag": "Async · written",
-        "title": "Email",
-        "sub": "Best for documents, attachments, long context",
-        "generalLabel": "General enquiries",
-        "generalSub": "Routed to the right desk within an hour.",
-        "pressLabel": "Press & partnerships",
-        "hours": "4 hour SLA on weekdays",
-        "action": "Compose ↗"
-      }
-    },
-    "form": {
-      "eyebrow": "Send us a brief",
-      "title": "The fastest way to a useful reply.",
-      "lede": "Tell us your nationality, where you’re going, and what’s blocking you. The form below routes you to a consultant who handles that exact corridor — not a generalist who’ll forward your email twice.",
-      "cardTitle": "Contact brief",
-      "cardNote": "Fields marked <req>▲</req> are required. We typically respond within 4 working hours.",
-      "formIdLabel": "Form ID",
-      "fullName": "Full name",
-      "fullNamePh": "As it appears on your passport",
-      "email": "Email",
-      "emailPh": "you@example.com",
-      "phone": "Phone (with country code)",
-      "phonePh": "9012 3456",
-      "preferredChannel": "Preferred channel for reply",
-      "channelOptions": [
-        "WhatsApp (fastest)",
-        "Email",
-        "Phone call",
-        "WeChat"
-      ],
-      "passport": "Passport / nationality",
-      "passportOptions": [
-        "Select your passport…",
-        "🇸🇬 Singapore",
-        "🇮🇳 India",
-        "🇨🇳 China",
-        "🇵🇭 Philippines",
-        "🇮🇩 Indonesia",
-        "🇺🇸 United States",
-        "🇬🇧 United Kingdom",
-        "Other / not listed"
-      ],
-      "destination": "Destination",
-      "destinationOptions": [
-        "I’m exploring…",
-        "Schengen / EU",
-        "United States",
-        "United Kingdom",
-        "UAE",
-        "Australia",
-        "Japan",
-        "Other / not listed"
-      ],
-      "reasonLabel": "What’s this about?",
-      "reasons": [
-        "Start a new application",
-        "Status of an existing one",
-        "Urgent / time-sensitive",
-        "Cancel an application",
-        "Partnership",
-        "Press",
-        "Just a question"
-      ],
-      "message": "Tell us what’s going on",
-      "messagePh": "A few lines is fine. If you have a flight date, an application reference (VIZA-XXXX-XXXX), or a screenshot of a portal error, include it.",
-      "consent": "I agree to VIZA processing my message and contact details under the <a>Privacy Policy</a>. We never share your passport details with third parties.",
-      "submit": "Send brief",
-      "sending": "Sending…",
-      "success": "Thanks — your brief is in. We'll reply to your email shortly.",
-      "error": "Couldn't send your brief right now. Please retry, or reach us on WhatsApp / email."
-    },
-    "aside": {
-      "promiseTitle": "Response promise",
-      "promiseBody": "Every brief lands on a real consultant’s desk within minutes — never a shared inbox. Here’s how fast we typically reply, by channel.",
-      "sla": [
-        {
-          "k": "WhatsApp",
-          "v": "~2 min"
-        },
-        {
-          "k": "WeChat",
-          "v": "~5 min"
-        },
-        {
-          "k": "Phone (urgent)",
-          "v": "Live, 24/7"
-        },
-        {
-          "k": "Email / form",
-          "v": "< 4 hrs"
-        }
-      ],
-      "includeTitle": "What to include",
-      "includeBody": "The more of these you share up front, the faster we can give you a timeline.",
-      "includeItems": [
-        "Passport country & expiry",
-        "Destination & intended travel dates",
-        "Purpose (tourism, work, study, family)",
-        "Past refusals, if any",
-        "Application reference (VIZA-XXXX)"
-      ],
-      "dataTitle": "Your data, briefly",
-      "dataBody": "We’re SOC 2 Type II and ISO 27001 certified. Passport scans live in a separate vault, encrypted at rest and in transit, with audit logs on every read.",
-      "dataPills": [
-        "SOC 2 Type II",
-        "ISO 27001",
-        "GDPR"
-      ]
-    },
-    "desks": {
-      "eyebrow": "Regional desks",
-      "title": "The local number<br></br>for the local consulate.",
-      "lede": "Visa rules are nationality- and consulate-specific, so our consultants are too. Each desk speaks the language of the embassies they file with every day.",
-      "directLine": "Direct line",
-      "email": "Email",
-      "address": "Address",
-      "maps": "Open in Maps →",
-      "cn": {
-        "status": "Online · 6 consultants",
-        "title": "Shanghai",
-        "sub": "China operations",
-        "tz": "GMT+8 · 9am–8pm"
-      },
-      "sg": {
-        "status": "Online · 9 consultants",
-        "title": "Singapore — HQ",
-        "sub": "Asia-Pacific operations",
-        "tz": "GMT+8 · 9am–8pm"
-      }
-    },
-    "emergency": {
-      "tag": "▲ Emergency helpline · 24/7",
-      "title": "Stuck at the airport? Visa expiring tomorrow?",
-      "body": "If you’re traveling in the next 48 hours and something has gone wrong, skip the form. Call our emergency desk — it’s staffed around the clock, every day of the year, by senior consultants only.",
-      "hotlineLabel": "Emergency hotline (Asia / global)",
-      "call": "Call emergency desk"
-    },
-    "faq": {
-      "eyebrow": "Before you write",
-      "title": "A few questions we get every day.",
-      "lede": "If your question is in here, you’ll get an answer faster from reading than from waiting for a reply. If not — please do write.",
-      "q1": {
-        "q": "How fast will I actually hear back?",
-        "a": "Median: 2 minutes on WhatsApp, 5 minutes on WeChat, and under 4 hours on email. Phone is always live. If your trip is in the next 48 hours, call the emergency line — it skips the queue."
-      },
-      "q2": {
-        "q": "Does VIZA charge for its service?",
-        "a": "No. VIZA's advice and application service are free. If a destination charges a government visa fee, you pay it directly to that government."
-      },
-      "q3": {
-        "q": "Will my passport be safe?",
-        "a": "Passport scans live in a separate encrypted vault with audit logs on every read. We’re SOC 2 Type II and ISO 27001 certified. We do not share your data with third parties under any circumstances."
-      },
-      "q4": {
-        "q": "Can I add VIZA on WeChat from outside China?",
-        "a": "Yes — scan the QR above from any WeChat app, anywhere. Our SEA and China desks both staff the WeChat channel, so you get a reply in your business hours, not ours."
-      },
-      "q5": {
-        "q": "I had a visa refusal. Can you still help?",
-        "a": "Often, yes. Send us the refusal letter (or as much detail as you have) on the form above and we’ll come back with a corridor-specific refile plan and the realistic odds. Refusals are not the end of the road."
-      },
-      "q6": {
-        "q": "I’m a partner / agent / OTA. Different inbox?",
-        "a": "Yes — please email <a>sales@kelin.studio</a> directly. Partnerships are handled by a dedicated BD team and routed separately from consumer queries."
-      }
-    }
-  },
-  "legalPrivacy": {
-    "eyebrow": "Legal · Privacy",
-    "title": "Privacy policy",
-    "lede": "What we collect when you apply for a visa with VIZA, why we need it, who sees it, and how long we keep it. Plain language. No dark patterns.",
-    "meta": {
-      "effective": "<b>Effective:</b> 1 May 2026",
-      "version": "<b>Version:</b> 4.2",
-      "controller": "<b>Data controller:</b> VIZA Pte. Ltd. (Singapore)"
-    },
-    "tocTitle": "On this page",
-    "toc": [
-      "01 · Scope",
-      "02 · Data we collect",
-      "03 · Why we collect it",
-      "04 · Who we share with",
-      "05 · How long we keep it",
-      "06 · Your rights",
-      "07 · Security",
-      "08 · International transfers",
-      "09 · Cookies & analytics",
-      "10 · Children",
-      "11 · Changes",
-      "12 · Contact us"
-    ],
-    "sections": {
-      "scope": {
-        "num": "§ 01",
-        "title": "Scope",
-        "p1": "This policy applies to everything you do on viza.com, the VIZA client portal, our mobile apps, and any communication with our consultants by email, WhatsApp, WeChat, or phone. It covers visa applicants, dependants on a joint application, and people who simply browse without signing up.",
-        "p2": "<strong>Where we act as a controller:</strong> when you apply for a visa through us, sign up for an account, or contact our team.<strong> Where we act as a processor:</strong> when an enterprise partner enrolls their staff onto VIZA — that partner is the controller, and this policy operates alongside their own."
-      },
-      "dataWeCollect": {
-        "num": "§ 02",
-        "title": "Data we collect",
-        "intro": "The minimum needed to file a visa correctly. Government portals dictate most of the fields; we never ask for more than the form requires.",
-        "directTitle": "From you, directly",
-        "direct": [
-          {
-            "label": "Identity:",
-            "text": "full legal name, date of birth, nationality, place of birth, passport number, expiry, and machine-readable passport image."
-          },
-          {
-            "label": "Contact:",
-            "text": "email, phone number, mailing address."
-          },
-          {
-            "label": "Travel:",
-            "text": "destination, dates, purpose of visit, accommodation, and onward itinerary where required."
-          },
-          {
-            "label": "Supporting documents:",
-            "text": "photographs, employment letters, bank statements, invitation letters — whatever the destination embassy asks for."
-          }
-        ],
-        "autoTitle": "Automatically",
-        "auto": [
-          "Device, browser, IP address, and basic usage events (pages viewed, time on task) for security and product analytics.",
-          "Cookies and similar technologies — see §09."
-        ],
-        "thirdTitle": "From third parties",
-        "third": [
-          "Government visa portals (status updates, decision letters, reference numbers).",
-          "Identity verification partners (when an embassy requires biometric or liveness checks).",
-          "Enterprise partners who enroll you on a corporate plan."
-        ]
-      },
-      "why": {
-        "num": "§ 03",
-        "title": "Why we collect it",
-        "intro": "Each piece of data has a defined lawful basis and a defined purpose.",
-        "items": [
-          {
-            "label": "Contract.",
-            "text": "We need your passport, travel details, and supporting documents to actually file your visa application — that is the service you are buying."
-          },
-          {
-            "label": "Legal obligation.",
-            "text": "Anti-fraud, anti-money-laundering, and government record-keeping rules require us to retain certain data for fixed periods."
-          },
-          {
-            "label": "Legitimate interest.",
-            "text": "Account security, abuse detection, internal analytics aggregated across users, and improving our document checks."
-          },
-          {
-            "label": "Consent.",
-            "text": "Marketing emails, optional add-ons (eSIM, travel insurance), and any data collection beyond what the visa filing requires."
-          }
-        ],
-        "callout": "We never sell personal data, never share it with advertisers, and never use the contents of your application to train any model — ours or a third party’s."
-      },
-      "sharing": {
-        "num": "§ 04",
-        "title": "Who we share with",
-        "intro": "The minimum set of recipients needed to deliver the visa.",
-        "items": [
-          {
-            "label": "The destination government.",
-            "text": "Your application is, by definition, submitted to them. The fields they receive are exactly what their portal requires."
-          },
-          {
-            "label": "Identity verification.",
-            "text": "Where required, we use a regulated KYC provider; their use of the data is restricted to the verification check."
-          },
-          {
-            "label": "Infrastructure.",
-            "text": "Cloud hosting, storage, and email delivery providers operating under written data-processing agreements."
-          },
-          {
-            "label": "Legal.",
-            "text": "Where compelled by law, court order, or to defend a claim."
-          }
-        ],
-        "outro": "A current sub-processor list is maintained on our trust page and we notify enterprise customers in writing before adding any new processor."
-      },
-      "retention": {
-        "num": "§ 05",
-        "title": "How long we keep it",
-        "intro": "Retention is keyed to the purpose, not the calendar.",
-        "items": [
-          {
-            "label": "Active applications",
-            "text": "— kept while the visa is being processed and for 30 days after issuance so you can download decisions."
-          },
-          {
-            "label": "Historical order & payment records",
-            "text": "from before VIZA stopped taking payments are kept 7 years to satisfy tax and finance regulations in Singapore."
-          },
-          {
-            "label": "Account profile",
-            "text": "— kept for as long as your account is open. Closing your account triggers deletion within 60 days, except where law requires longer retention."
-          },
-          {
-            "label": "Marketing data",
-            "text": "— purged within 30 days of unsubscribing."
-          },
-          {
-            "label": "Logs",
-            "text": "— security event logs retained for 12 months."
-          }
-        ]
-      },
-      "rights": {
-        "num": "§ 06",
-        "title": "Your rights",
-        "intro": "Depending on where you live, you have some or all of the following rights. We honor them globally regardless of jurisdiction unless prevented by law.",
-        "items": [
-          {
-            "label": "Access",
-            "text": "— get a copy of the personal data we hold about you."
-          },
-          {
-            "label": "Rectification",
-            "text": "— correct anything inaccurate."
-          },
-          {
-            "label": "Erasure",
-            "text": "— request deletion (subject to retention rules above)."
-          },
-          {
-            "label": "Portability",
-            "text": "— receive your data in a machine-readable format."
-          },
-          {
-            "label": "Restriction & objection",
-            "text": "— limit or stop certain processing."
-          },
-          {
-            "label": "Withdraw consent",
-            "text": "— at any time, where processing is consent-based."
-          },
-          {
-            "label": "Lodge a complaint",
-            "text": "— with the Singapore PDPC, your local supervisory authority, or any data protection regulator with jurisdiction."
-          }
-        ],
-        "requests": "Requests are answered within 30 days. Email <a>privacy@viza.it.com</a> or use the in-portal request form."
-      },
-      "security": {
-        "num": "§ 07",
-        "title": "Security",
-        "body": "All applicant data is encrypted in transit (TLS 1.3) and at rest (AES-256). Production access is gated by hardware security keys with full audit logging. We run quarterly penetration tests and maintain a vulnerability disclosure program; details are on our<a> security page</a>."
-      },
-      "international": {
-        "num": "§ 08",
-        "title": "International transfers",
-        "body": "VIZA stores customer data on infrastructure located in Singapore, the European Union, and the United States. Where data must cross borders — for example, to file a visa with a destination government — we rely on appropriate safeguards: Standard Contractual Clauses, the EU–US Data Privacy Framework, and the destination country’s own visa processing rules. By submitting an application, you understand that the destination government will receive the application under its national laws."
-      },
-      "cookies": {
-        "num": "§ 09",
-        "title": "Cookies and analytics",
-        "intro": "We use four categories of cookies:",
-        "items": [
-          {
-            "label": "Strictly necessary",
-            "text": "— login session, CSRF tokens, language preference. Cannot be disabled."
-          },
-          {
-            "label": "Functional",
-            "text": "— remembers your saved passport, draft applications, currency."
-          },
-          {
-            "label": "Analytics",
-            "text": "— first-party, IP-anonymized event tracking. Disable via the cookie banner."
-          },
-          {
-            "label": "Marketing",
-            "text": "— only set after explicit opt-in."
-          }
-        ],
-        "outro": "We do not use third-party advertising trackers and we do not build cross-site profiles."
-      },
-      "children": {
-        "num": "§ 10",
-        "title": "Children",
-        "body": "VIZA is not directed at children under 13. Where a child’s visa is filed as part of a family application, the data is provided by a parent or legal guardian who is the account holder. We do not market to children and we do not use a child’s data for any purpose beyond the visa filing."
-      },
-      "changes": {
-        "num": "§ 11",
-        "title": "Changes",
-        "body": "When this policy changes materially we email every active account holder at least 14 days before the new version takes effect. The version history is at the bottom of this page and previous versions are available on request."
-      },
-      "contact": {
-        "num": "§ 12",
-        "title": "Contact us",
-        "intro": "Privacy questions, requests, complaints — same address.",
-        "email": "<strong>Email:</strong> <a>privacy@viza.it.com</a>",
-        "dpo": "<strong>Data Protection Officer:</strong> <a>dpo@viza.it.com</a>",
-        "address": "<strong>Mailing address:</strong> 225 Pasir Panjang Rd, Singapore",
-        "pdpc": "<strong>Singapore PDPC:</strong> <a>pdpc.gov.sg</a>"
-      }
-    },
-    "footer": {
-      "copyright": "© VIZA Pte. Ltd. · All rights reserved",
-      "terms": "Terms",
-      "security": "Security"
-    }
-  },
-  "legalTerms": {
-    "eyebrow": "Legal · Terms of service",
-    "title": "Terms of service",
-    "lede": "The agreement between you and VIZA when you use our visa application services. We help prepare and file your application; you provide accurate information. VIZA's service is free. The rest is the detail.",
-    "meta": {
-      "effective": "<b>Effective:</b> 1 May 2026",
-      "version": "<b>Version:</b> 3.1",
-      "law": "<b>Governing law:</b> Singapore"
-    },
-    "tocTitle": "On this page",
-    "toc": [
-      "01 · The agreement",
-      "02 · Your account",
-      "03 · What we do",
-      "04 · What you do",
-      "05 · Fees",
-      "06 · No charges, no refunds",
-      "07 · Government decisions",
-      "08 · Timelines and guarantees",
-      "09 · Prohibited use",
-      "10 · Intellectual property",
-      "11 · Liability",
-      "12 · Suspension & termination",
-      "13 · Disputes",
-      "14 · Changes to terms",
-      "15 · Contact"
-    ],
-    "sections": {
-      "agreement": {
-        "num": "§ 01",
-        "title": "The agreement",
-        "p1": "By creating a VIZA account or using the VIZA portal, you agree to these terms together with our<privacy> privacy policy</privacy>. Together they form the full agreement between you and VIZA Pte. Ltd. (Singapore UEN 202312345A).",
-        "p2": "If you are using VIZA on behalf of a company or another person, you confirm that you are authorised to bind them, and references to \"you\" include them."
-      },
-      "account": {
-        "num": "§ 02",
-        "title": "Your account",
-        "item1": "You must be at least 18 to open an account in your own name.",
-        "item2": "Account credentials are personal and must not be shared.",
-        "item3": "You are responsible for everything done under your account.",
-        "item4": "Notify us immediately at <a>security@viza.it.com</a> if you suspect unauthorised access.",
-        "item5": "We may verify your identity at any point as required by law or to prevent fraud."
-      },
-      "service": {
-        "num": "§ 03",
-        "title": "What we do",
-        "intro": "VIZA provides a managed visa application service. That includes:",
-        "items": [
-          "Reviewing the documents you upload for completeness.",
-          "Auto-extracting data from your passport and forms.",
-          "Filling and submitting the destination government’s visa application on your behalf.",
-          "Tracking the application and notifying you of decisions.",
-          "Providing a human consultant during business hours and an emergency line out of hours."
-        ],
-        "callout": "VIZA is a private agency, not a law firm and not a government authority. We do not offer immigration legal advice. Where a visa decision turns on legal interpretation, we will tell you and recommend appropriate counsel."
-      },
-      "applicant": {
-        "num": "§ 04",
-        "title": "What you do",
-        "items": [
-          {
-            "label": "Provide accurate information.",
-            "text": "Misrepresentation may invalidate your visa and trigger criminal penalties under destination law. We rely on what you give us."
-          },
-          {
-            "label": "Provide authentic documents.",
-            "text": "Forged or doctored documents will be rejected by the embassy and may be reported to authorities."
-          },
-          {
-            "label": "Respond promptly.",
-            "text": "Some visas require additional information or interviews on short notice. Missing a deadline can void the application."
-          },
-          {
-            "label": "Comply with destination law.",
-            "text": "Our service ends when the visa is issued; what happens at the border or during your stay is between you and the destination government."
-          }
-        ]
-      },
-      "fees": {
-        "num": "§ 05",
-        "title": "Fees",
-        "intro": "VIZA does not collect service fees or offer paid subscriptions. Applications do not require payment through VIZA.",
-        "items": [
-          {
-            "label": "VIZA service.",
-            "text": "Free. VIZA does not charge for preparing, reviewing, or tracking your application."
-          },
-          {
-            "label": "Government fee.",
-            "text": "Set by the destination authority under its own rules. Where one applies, you pay it directly to that authority. VIZA does not collect or automatically pay it, and an unpaid official fee may prevent an application from continuing."
-          }
-        ],
-        "outro": "Other service providers (for example appointment centres, couriers, or translators) may charge their own fees under their own terms."
-      },
-      "refunds": {
-        "num": "§ 06",
-        "title": "No charges, no refunds",
-        "body": "Because VIZA does not charge for its service, there is nothing for VIZA to refund. Refunds of government or third-party fees follow the rules of the authority or provider you paid."
-      },
-      "government": {
-        "num": "§ 07",
-        "title": "Government decisions",
-        "body": "VIZA does not, and cannot, guarantee a visa outcome. Approval rests entirely with the destination government. Where a rejection results from a VIZA filing error, we will help you re-file at no cost."
-      },
-      "timelines": {
-        "num": "§ 08",
-        "title": "Timelines and guarantees",
-        "body": "Each visa product shows a Guaranteed Delivery date based on the destination government’s published service-level and our internal processing buffer. It is our delivery commitment, provided you submitted complete information on time. It does not guarantee a positive outcome."
-      },
-      "prohibited": {
-        "num": "§ 09",
-        "title": "Prohibited use",
-        "intro": "You may not use VIZA to:",
-        "items": [
-          "Submit false, misleading, or fraudulent information.",
-          "Apply on behalf of another person without their explicit, recorded consent.",
-          "Circumvent immigration controls, sanctions regimes, or travel bans.",
-          "Reverse-engineer, scrape, or automate access to the portal in a way that disrupts service.",
-          "Resell, sublicense, or wrap our service into a third-party offering without a written commercial agreement."
-        ],
-        "outro": "Breach of this section is grounds for immediate termination and may be reported to authorities."
-      },
-      "ip": {
-        "num": "§ 10",
-        "title": "Intellectual property",
-        "body": "The VIZA platform, brand, designs, and software are owned by VIZA Pte. Ltd. or our licensors. Use of the service does not transfer any rights in our IP to you. Likewise, content you upload remains yours; you grant VIZA a limited licence to process and submit it strictly to deliver your visa."
-      },
-      "liability": {
-        "num": "§ 11",
-        "title": "Liability",
-        "p1": "To the maximum extent permitted by law, VIZA’s aggregate liability for any claim arising out of or in connection with the service is capped at SGD 500. We are not liable for indirect, consequential, incidental, or punitive damages, including lost flights, accommodation, or business opportunity.",
-        "p2": "Nothing in these terms excludes or limits liability for fraud, gross negligence, death or personal injury caused by negligence, or any other liability that cannot lawfully be excluded."
-      },
-      "termination": {
-        "num": "§ 12",
-        "title": "Suspension and termination",
-        "p1": "You may close your account at any time from the portal settings.",
-        "p2": "We may suspend or terminate access if:",
-        "items": [
-          "You breach these terms or any applicable law.",
-          "We reasonably suspect fraud, identity theft, or sanction breach.",
-          "Continued service would expose VIZA to legal or regulatory risk."
-        ],
-        "p3": "On termination, ongoing applications are completed where possible."
-      },
-      "disputes": {
-        "num": "§ 13",
-        "title": "Disputes",
-        "body": "These terms are governed by the laws of Singapore. Any dispute that cannot be resolved through good-faith discussion within 30 days will be referred to the Singapore International Arbitration Centre (SIAC) under its rules in force at the time, with one arbitrator, in English, seated in Singapore. Either party may still seek injunctive relief in court for urgent IP or confidentiality matters."
-      },
-      "changes": {
-        "num": "§ 14",
-        "title": "Changes to terms",
-        "body": "We may update these terms to reflect new features, regulatory changes, or operational improvements. Material changes are announced by email at least 14 days in advance. Continued use of the service after the effective date constitutes acceptance of the updated terms."
-      },
-      "contact": {
-        "num": "§ 15",
-        "title": "Contact",
-        "legal": "<strong>Legal questions:</strong> <a>legal@viza.it.com</a>",
-        "privacy": "<strong>Privacy / data requests:</strong> <a>privacy@viza.it.com</a>",
-        "address": "<strong>Mailing address:</strong> 225 Pasir Panjang Rd, Singapore",
-        "uen": "<strong>UEN:</strong> 202312345A"
-      }
-    },
-    "footer": {
-      "copyright": "© VIZA Pte. Ltd. · All rights reserved",
-      "privacy": "Privacy",
-      "security": "Security"
     }
   },
   "security": {
@@ -1766,7 +1239,7 @@
     "crumbHome": "Transparency",
     "crumbHere": "System Status",
     "hero": {
-      "title": "On time, <em>guaranteed.</em><br></br>Or you’ll be the first to know.",
+      "title": "System status",
       "lead": "Evidence-backed availability for VIZA and the government visa portals we work with. Every percentage, timeline bar, and incident below comes from a recorded synthetic check."
     },
     "console": {
@@ -2241,5 +1714,473 @@
       "prodHelpline": "VIZA Emergency Helpline",
       "copyright": "© VIZA, All rights reserved"
     }
+  },
+  "arrival": {
+    "breadcrumbHome": "Home",
+    "breadcrumbHub": "Arrival cards",
+    "hubH1": "Arrival card guides",
+    "hubLead": "An arrival card is a short government form you fill in before you enter a country. Most are online, free, and take about five minutes. These guides show who needs each one, when to submit it, and how to avoid the fake sites that charge for it.",
+    "hubWhatTitle": "What an arrival card is",
+    "hubWhat": [
+      "An arrival card is a declaration your destination asks for on top of your passport and any visa. It records who you are, how you are arriving and where you will stay. Many countries replaced the paper card handed out on the plane with an online form.",
+      "It is not a visa. A visa lets you apply to enter. An arrival card tells the border authority about your trip, and you still need a visa where your nationality requires one."
+    ],
+    "hubFreeTitle": "Arrival cards are free",
+    "hubFree": [
+      "Every card in these guides is free on the government's own site. Some websites copy the government form and charge a fee for it. You never need to pay one of them.",
+      "Always start from the official address listed in each guide. VIZA is an independent service and not a government website."
+    ],
+    "hubWhenTitle": "When you need one",
+    "hubWhen": [
+      "Most cards open three days before you arrive and need to be submitted inside that window. Check each guide for the exact rule, because Japan's Visit Japan Web has no fixed deadline and is not required.",
+      "Residents, citizens and transit passengers are often exempt or have a shorter form. Each guide lists who is exempt, including the Singapore citizen exemption for Malaysia's MDAC."
+    ],
+    "hubGuidesTitle": "All guides",
+    "hubGuidesSub": "Pick your destination. Each guide has the steps, the common mistakes and the official links.",
+    "readGuide": "Read the guide",
+    "cardWhen": "When",
+    "cardsLabel": "Arrival card",
+    "hubVisaTitle": "Need a visa as well",
+    "hubVisaBody": "An arrival card does not replace a visa. Check the destination page to see whether your passport needs one.",
+    "hubVisaCta": "Browse visa pages",
+    "glanceTitle": "At a glance",
+    "stepsTitle": "How to fill it in, step by step",
+    "mistakesTitle": "Common mistakes",
+    "feesTitle": "Fees and fake sites",
+    "faqTitle": "Questions",
+    "sourcesTitle": "Sources",
+    "relatedTitle": "Other arrival card guides",
+    "independent": "VIZA is an independent service and not a government website.",
+    "officialCta": "Open the official site",
+    "officialLabel": "Official site",
+    "vizaTitle": "Let VIZA do it for you",
+    "vizaBody": "Start the {name} in your VIZA account. VIZA's form walks you through the same questions as the official one and keeps your details for later trips. You can always use the free official site instead.",
+    "vizaFee": "VIZA service fee",
+    "vizaFeeFree": "Free",
+    "vizaCta": "Start on VIZA",
+    "noVizaTitle": "Use the official site",
+    "noVizaBody": "VIZA does not fill in this card yet. Use the official site below, and read the steps in this guide first.",
+    "visaTitle": "Visa for {country}",
+    "visaBody": "The arrival card is separate from the visa. See who needs a visa for {country}, the fees and how to apply.",
+    "visaCta": "Open the {country} visa page",
+    "reviewedTitle": "Checked on 25 November 2026",
+    "stepLabel": "Step",
+    "cards": {
+      "malaysia-mdac": {
+        "summary": "Free online card for foreign visitors. Singapore citizens are exempt.",
+        "when": "Within 3 days before arrival"
+      },
+      "singapore-sg-arrival-card": {
+        "summary": "ICA's online card with a health declaration. Submit on the website or the MyICA app.",
+        "when": "Within 3 days before arrival"
+      },
+      "japan-visit-japan-web": {
+        "summary": "Free QR codes for immigration and customs. Recommended, not required.",
+        "when": "Before you fly"
+      },
+      "thailand-tdac": {
+        "summary": "Free card for every foreign visitor, visa free or not. Replaced the paper TM6.",
+        "when": "Within 3 days before arrival"
+      },
+      "korea-e-arrival-card": {
+        "summary": "Required since 1 January 2026. A valid K-ETA holder is exempt.",
+        "when": "Within 3 days before arrival"
+      },
+      "indonesia-all-indonesia": {
+        "summary": "One card for immigration, customs and health. Free, and not a visa.",
+        "when": "Up to 3 days before arrival"
+      }
+    }
+  },
+  "guides": {
+    "breadcrumbHome": "Home",
+    "breadcrumbHub": "Guides",
+    "hubH1": "Visa guides for people living in Singapore",
+    "hubLead": "Whether you hold a Singapore, Chinese, Indian or Filipino passport, these guides answer the same question: what do I need to enter this country, and where do I apply from Singapore. Each one names its sources and the date it was checked.",
+    "hubGuidesTitle": "All guides",
+    "hubGuidesSub": "Pick a topic. Rules change, so every guide lists the official pages to check before you travel.",
+    "readGuide": "Read the guide",
+    "hubMoreTitle": "More from VIZA",
+    "hubMoreBody": "Looking for a specific country, an arrival card or the latest rule change?",
+    "hubDestinations": "Visa pages",
+    "hubArrival": "Arrival card guides",
+    "hubNews": "Visa news",
+    "glanceTitle": "Quick answer",
+    "relatedVisaTitle": "Destination pages",
+    "relatedVisaSub": "Fees, documents and steps for people living in Singapore.",
+    "relatedArrivalTitle": "Arrival card guides",
+    "relatedGuidesTitle": "More guides",
+    "faqTitle": "Questions",
+    "sourcesTitle": "Sources",
+    "reviewedTitle": "How we checked",
+    "published": "Published",
+    "updated": "Updated",
+    "independent": "VIZA is an independent service and not a government website."
+  },
+  "ds": {
+    "header": {
+      "home": "VIZA home",
+      "primary": "Main",
+      "language": "Language",
+      "signIn": "Sign in",
+      "openMenu": "Open menu",
+      "closeMenu": "Close menu",
+      "nav": {
+        "home": "Home",
+        "destinations": "Destinations",
+        "arrivalCards": "Arrival cards",
+        "guides": "Guides",
+        "news": "News",
+        "about": "About",
+        "contact": "Contact"
+      }
+    },
+    "footer": {
+      "home": "VIZA home",
+      "tagline": "Visa applications prepared by VIZA's AI and checked by our consultants. Free to use.",
+      "explore": "Explore",
+      "follow": "Follow us",
+      "followOn": "Follow VIZA on {platform}",
+      "links": {
+        "destinations": "Destinations",
+        "arrivalCards": "Arrival cards",
+        "guides": "Guides",
+        "news": "News",
+        "about": "About",
+        "contact": "Contact",
+        "careers": "Careers",
+        "security": "Security",
+        "status": "Status"
+      },
+      "copyright": "© {year} VIZA. All rights reserved.",
+      "office": "Registered office: 60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapore 409051",
+      "privacy": "Privacy",
+      "terms": "Terms",
+      "kelin": "A Kelin Studio venture",
+      "refunds": "Refunds",
+      "business": "Business information"
+    },
+    "form": {
+      "fullName": {
+        "label": "Your name",
+        "placeholder": "Jane Tan"
+      },
+      "email": {
+        "label": "Email",
+        "placeholder": "you@example.com"
+      },
+      "phone": {
+        "label": "Phone",
+        "placeholder": "+65 9123 4567"
+      },
+      "destination": {
+        "label": "Destination",
+        "placeholder": "Japan, Schengen, United States"
+      },
+      "message": {
+        "label": "Your question",
+        "placeholder": "Where you are going, your passport and your travel dates."
+      },
+      "submit": "Send message",
+      "sending": "Sending",
+      "success": "Thanks, your message is in. We will reply by email.",
+      "error": "We could not send your message. Please try again, or email sales@kelin.studio.",
+      "consent": "By sending, you agree to our <privacy>Privacy Policy</privacy> and <terms>Terms</terms>."
+    },
+    "gallery": {
+      "title": "Destinations",
+      "lede": "Pick a destination to see the visa you need, the documents and the government fee.",
+      "view": "View",
+      "passportSummary": "{free} visa-free · {voa} e-Visa or on arrival · {req} visa required",
+      "noResults": "No destinations match your search.",
+      "sorts": {
+        "featured": "Featured",
+        "open": "Open now first",
+        "name": "A to Z"
+      }
+    },
+    "dest": {
+      "all": "All destinations",
+      "onPage": "On this page",
+      "applyTitle": "Start application",
+      "facts": "Facts"
+    },
+    "article": {
+      "toc": "On this page",
+      "down": "Jump to the article",
+      "faqLede": "Quick answers on this topic."
+    },
+    "legal": {
+      "updated": "Last updated",
+      "contents": "Contents"
+    }
+  },
+  "homePage": {
+    "hero": {
+      "browse": "Browse destinations",
+      "picks": "Destinations"
+    },
+    "types": {
+      "title": "Visa types",
+      "lede": "Tourist, business, work, student and long-term visas.",
+      "prev": "Previous",
+      "next": "Next",
+      "items": {
+        "tourist": {
+          "title": "Tourist",
+          "body": "Holidays, family visits and short stays."
+        },
+        "business": {
+          "title": "Business",
+          "body": "Meetings, conferences and site visits."
+        },
+        "work": {
+          "title": "Work",
+          "body": "Work permits and employment visas."
+        },
+        "student": {
+          "title": "Student",
+          "body": "Study visas for schools and universities."
+        },
+        "long": {
+          "title": "Long stay",
+          "body": "Residence and other long-term visas."
+        }
+      }
+    },
+    "steps": {
+      "title": "How it works",
+      "cta": "Start your free application",
+      "side": {
+        "freeValue": "Free",
+        "freeLabel": "VIZA service",
+        "langValue": "2",
+        "langLabel": "Languages: English and Chinese",
+        "note": "You pay only the government fee.",
+        "noteBody": "It goes directly to the issuing authority. VIZA adds no fee of its own."
+      },
+      "items": {
+        "choose": {
+          "title": "Choose a destination",
+          "body": "See the visa you need, the documents to prepare and the government fee before you start.",
+          "chips": "Visa type|Documents|Government fee"
+        },
+        "passport": {
+          "title": "Upload your passport",
+          "body": "VIZA reads your details from the photo page, so there is very little to type.",
+          "chips": "Photo page|Details filled in"
+        },
+        "confirm": {
+          "title": "Confirm your details",
+          "body": "Check what VIZA read, add your travel dates and continue in your free VIZA account.",
+          "chips": "Travel dates|Free account"
+        },
+        "file": {
+          "title": "VIZA checks and files",
+          "body": "An advisor checks every form before it is lodged, and you follow its progress in your account.",
+          "chips": "Advisor check|Progress updates"
+        }
+      }
+    },
+    "tiers": {
+      "title": "Pricing",
+      "lede": "Two ways to apply, both free.",
+      "cta": "Contact us",
+      "criteria": "Compare",
+      "guided": "Guided",
+      "full": "Full-service",
+      "rows": {
+        "fee": {
+          "label": "VIZA fee",
+          "guided": "Free",
+          "full": "Free"
+        },
+        "form": {
+          "label": "Application form",
+          "guided": "You answer, with VIZA's AI as your guide",
+          "full": "A consultant prepares the answers with you"
+        },
+        "documents": {
+          "label": "Documents",
+          "guided": "A checklist for your situation",
+          "full": "A consultant checks your documents"
+        },
+        "interview": {
+          "label": "Appointment and interview",
+          "guided": "You book and attend",
+          "full": "We go through likely questions with you"
+        },
+        "govFee": {
+          "label": "Government fee",
+          "guided": "Paid directly to the authority",
+          "full": "Paid directly to the authority"
+        },
+        "bestFor": {
+          "label": "Good for",
+          "guided": "Straightforward applications",
+          "full": "Complex cases or a past refusal"
+        }
+      }
+    },
+    "why": {
+      "title": "Why VIZA",
+      "lede": "Clear steps, checked forms and real people to talk to.",
+      "items": {
+        "free": {
+          "title": "Free service",
+          "body": "VIZA's help costs nothing. You pay only the government fee, directly to the authority."
+        },
+        "checked": {
+          "title": "Checked forms",
+          "body": "An advisor checks every form before it is lodged, so small mistakes are caught early."
+        },
+        "language": {
+          "title": "English and Chinese",
+          "body": "Talk to VIZA in English or Chinese, on WhatsApp, WeChat or email."
+        }
+      },
+      "photos": {
+        "arrival": {
+          "title": "Arrival cards",
+          "body": "Step by step help with the free arrival cards for Malaysia, Singapore, Japan, Thailand, Korea and Indonesia."
+        },
+        "news": {
+          "title": "News",
+          "body": "Visa rule changes and new e-visa schemes, explained in plain words."
+        }
+      }
+    },
+    "guides": {
+      "title": "Guides",
+      "cta": "All guides"
+    },
+    "faq": {
+      "title": "FAQ",
+      "lede": "Quick answers about VIZA's visa service.",
+      "more": "More questions?",
+      "items": {
+        "cost": {
+          "q": "Does VIZA charge for its service?",
+          "a": "No. VIZA's help is free. If a destination charges a government visa fee, you pay it directly to that government."
+        },
+        "visas": {
+          "q": "Which visas can VIZA help with?",
+          "a": "Tourist, business, work, student and long-term visas for the destinations on this page. If yours is not listed, write to us and a consultant will tell you what is possible."
+        },
+        "approval": {
+          "q": "Who decides on my visa?",
+          "a": "The issuing authority makes every decision. VIZA checks your form and documents before they are lodged, so your application is complete and consistent."
+        },
+        "tiers": {
+          "q": "What is the difference between Guided and Full-service?",
+          "a": "With Guided, VIZA's AI walks you through the form and the checklist, and you keep control of every answer. With Full-service, a consultant prepares the answers with you and checks your documents. Both are free."
+        },
+        "language": {
+          "q": "Which languages do you support?",
+          "a": "English and Chinese, on WhatsApp, WeChat, phone and email."
+        }
+      }
+    },
+    "contactCard": {
+      "title": "Talk to a VIZA consultant",
+      "body": "We reply in English or Chinese.",
+      "cta": "Contact us"
+    },
+    "cta": {
+      "title": "Start your application",
+      "point1": "Your details stay private",
+      "point2": "A real person replies",
+      "formTitle": "Ask a question",
+      "formBody": "Tell us where you are going and a VIZA consultant will reply by email."
+    }
+  },
+  "aboutPage": {
+    "h1": "About VIZA",
+    "intro": {
+      "title": "What VIZA is",
+      "text": "VIZA prepares, checks and files visa applications for people living in Singapore. Our AI does the paperwork and our consultants review every form. The service is free."
+    },
+    "facts": {
+      "destinations": "Destinations",
+      "guides": "Visa guides",
+      "arrival": "Arrival card guides",
+      "free": "Free",
+      "freeLabel": "VIZA service"
+    },
+    "tiersTitle": "Guided or Full-service",
+    "tiersLede": "Choose how much help you want. Both are free.",
+    "free": {
+      "title": "Free service",
+      "text": "VIZA does not charge for its help. When a destination has a government visa fee, VIZA shows it before you start and you pay it directly to the issuing authority. There are no paid upgrades."
+    },
+    "company": {
+      "title": "Company details",
+      "office": "Registered office",
+      "officeValue": "60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapore 409051",
+      "email": "Email",
+      "phone": "Phone and WhatsApp",
+      "languages": "Languages",
+      "languagesValue": "English and Chinese"
+    }
+  },
+  "contactPage": {
+    "h1": "Contact",
+    "lines": {
+      "whatsapp": {
+        "title": "Phone and WhatsApp",
+        "body": "Call or message a consultant."
+      },
+      "wechat": {
+        "title": "WeChat",
+        "body": "Search the ID in WeChat to add us."
+      },
+      "email": {
+        "title": "Email",
+        "body": "Best for documents and longer questions."
+      },
+      "office": {
+        "top": "Singapore",
+        "title": "Office",
+        "body": "60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapore 409051"
+      }
+    },
+    "message": {
+      "title": "Send a message",
+      "text": "Questions about a visa, a destination or working with VIZA. Write to us and a consultant will reply."
+    }
+  },
+  "careersPage": {
+    "title": "Careers",
+    "lede": "VIZA helps people in Singapore get their visa with AI and consultants, and the service is free. We hire people who like careful, useful work.",
+    "teamsTitle": "Teams",
+    "teams": [
+      {
+        "title": "Engineering",
+        "body": "Build the document checks, the application flow and the tools our consultants use."
+      },
+      {
+        "title": "Design",
+        "body": "Make a stressful process feel clear for the person applying."
+      },
+      {
+        "title": "Operations",
+        "body": "Keep every application moving and every requirement up to date."
+      },
+      {
+        "title": "Consulting",
+        "body": "Help applicants with the cases that need a person, in English and Chinese."
+      },
+      {
+        "title": "Data",
+        "body": "Turn government sources into checks that catch problems early."
+      },
+      {
+        "title": "Marketing",
+        "body": "Explain visas plainly, in guides and pages people can trust."
+      }
+    ],
+    "applyTitle": "Get in touch",
+    "applyBody": "Tell us about yourself and the team you would like to join. We read every note.",
+    "applyCta": "Contact us"
   }
 }

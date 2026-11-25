@@ -1,237 +1,245 @@
-import type { VisaContent } from "./types";
+import type { DestinationContent } from "./types";
 
 /**
- * France Schengen short-stay visa (Type C).
+ * France Schengen short-stay visa (type C) for people living in Singapore (embassy visa, framed "from
+ * Singapore"). Singapore and Malaysian passports are visa exempt. Chinese, Indian, Indonesian, Philippine and
+ * Vietnamese passports apply on France-Visas and lodge at VFS Global in Singapore. Links to the Schengen hub
+ * at /visa/schengen for the rules shared by all Schengen countries.
  *
- * Application is completed online on the official France-Visas portal
- * (france-visas.gouv.fr), then biometrics + documents are lodged in person at
- * an outsourced centre: VFS Global in Singapore (for non-exempt residents) or
- * TLScontact in mainland China. Singapore passport holders are visa-exempt.
- * The visa is valid across all 29 Schengen states (90 days per 180-day period).
- *
- * Last fact-checked: 2026-07-05 against france-visas.gouv.fr,
- * service-public.gouv.fr, diplomatie.gouv.fr, travel-europe.europa.eu,
- * home-affairs.ec.europa.eu, visa.vfsglobal.com and mfa.gov.sg.
- * — Fee EUR 90 adult / EUR 45 child 6–11 / free under 6 (EU-wide since 11 Jun 2024).
- * — EES biometric entry/exit registration fully operational since 10 Apr 2026.
- * — ETIAS (EUR 20) for visa-exempt nationals expected last quarter of 2026.
- *
- * Items needing ops confirmation before publishing changes:
- * 1. Exact VFS Global Singapore service fee for France (~EUR 34 equivalent per
- *    third-party sources) — verify on visa.vfsglobal.com/sgp/en/fra.
- * 2. France overstay fine amounts are inconsistently reported (EUR 198 vs up to
- *    EUR 3,750 CESEDA); practice centres on removal orders + IRTF entry bans —
- *    we deliberately publish no per-day fine figure.
- * 3. Daily means-of-subsistence thresholds (EUR 65 / 32.50 / 120) are widely
- *    cited but not re-verified on a live official page.
- * 4. Exact ETIAS launch date within Q4 2026 not yet announced by the EU.
- * 5. IRTF ban length (commonly up to 3 years, extendable) not verified against
- *    current CESEDA text.
+ * Checked 25 Nov 2026 against the France-Visas Singapore page (via search summary of the page: residents of
+ * Singapore lodge in Singapore at VFS Global by appointment, new address from 2 Jun 2026, fee of EUR 34 per
+ * application payable in SGD), the Schengen hub page of this site (EU Visa Code, EU travel site, EES, ETIAS),
+ * and the 5 Jul 2026 check kept in the older version of this file. france-visas.gouv.fr and visa.vfsglobal.com
+ * returned HTTP 403 to the fetcher, so re-open these before a publish:
+ *   - https://france-visas.gouv.fr/en/singapour
+ *   - https://visa.vfsglobal.com/sgp/en/fra/
+ *   - https://www.france-visas.gouv.fr/en/visa-de-court-sejour
+ * Not confirmed on an official page this session (kept general or left out):
+ *   - the VFS Global service fee for France in Singapore (the EUR 34 on France-Visas is the "basic application
+ *     fee" per search summary; the copy says VFS lists its own extras)
+ *   - France's daily means of subsistence thresholds (not quoted)
+ *   - the processing time for Singapore (copy uses the EU Visa Code figures of 15 days, up to 45)
+ *   - the ETIAS start date (the EU has announced none) and that it will cover Singapore
+ *   - biometric reuse for 59 months (older version) and the extension fee (older version), so both are left out
+ *   - approval rates (never quoted)
  */
-export const france: VisaContent = {
+export const france: DestinationContent = {
   slug: "france",
 
-  heroTitle: "France Schengen Visa",
-  lede: "The short-stay Type C Schengen visa — up to 90 days in any 180-day period across all 29 Schengen states. Applied for on France-Visas, lodged at VFS Global or TLScontact, and managed end-to-end by your VIZA consultant. Singapore passports skip the visa entirely.",
+  heroTitle: "France visa from Singapore",
+  lede: "A France visa from Singapore depends on your passport. Singapore and Malaysian passports enter France visa free for up to 90 days in any 180. If you live in Singapore on a Chinese, Indian, Indonesian, Philippine or Vietnamese passport, you need a Schengen visa from France, which you apply for on France-Visas and lodge at the visa centre in Singapore. A France visa also covers the other Schengen countries, so read the Schengen visa hub as well if France is not your only stop.",
   heroImage: "/assets/heroes/france.jpg",
   meta: [
-    { k: "Type", v: "Schengen short-stay (Type C)" },
-    { k: "Length of stay", v: "90 days / 180-day period" },
-    { k: "Validity", v: "Trip dates up to 5 years" },
-    { k: "Entry", v: "Single · double · multiple" },
+    { k: "Singapore passport", v: "Visa free, 90 days in 180" },
+    { k: "Visa fee", v: "EUR 90 adult" },
+    { k: "Lodge at", v: "VFS Global Singapore" },
+    { k: "Checked", v: "25 Nov 2026" },
   ],
   tags: [
     { icon: "shield", label: "Free VIZA service" },
-    { icon: "doc", label: "Full dossier review" },
-    { icon: "globe", label: "29-country Schengen access" },
+    { icon: "doc", label: "Document check" },
+    { icon: "plane", label: "Schengen visa" },
   ],
 
-  overviewTitle: "France, at a glance",
-  overviewSub:
-    "A Schengen visa issued by France covers tourism, family visits, and short business trips — and lets you move freely across the entire Schengen Area.",
-  glance: [
-    { icon: "globe", k: "Capital", v: "Paris", sub: "UTC +1 (CET) / +2 (CEST)" },
-    { icon: "clock", k: "Best time to visit", v: "Apr – Jun, Sep – Oct", sub: "Mild weather, fewer crowds" },
-    { icon: "currency", k: "Currency", v: "Euro (EUR)", sub: "SGD 1 ≈ EUR 0.69" },
-    { icon: "pin", k: "Top destinations", v: "Paris · Nice · Lyon", sub: "Plus Bordeaux, Strasbourg, Mont-Saint-Michel" },
-  ],
+  page: {
+    framing: "singapore",
 
-  processTitle: "How the Schengen visa process works",
-  processSub:
-    "Submit once. We complete your France-Visas application, prepare the full dossier, book your biometrics slot, and track the consulate decision until the visa is in your passport.",
-  steps: [
-    {
-      title: "Apply on VIZA",
-      body: "Upload your passport, photos, itinerary, and supporting documents. Your consultant completes the official France-Visas online form and checks every item against the consulate checklist before anything is lodged.",
+    glance: {
+      needVisa: "Not for Singapore or Malaysian passports. Yes for Chinese, Indian, Indonesian, Philippine and Vietnamese passports",
+      govFee: "EUR 90 adult, EUR 45 child 6 to 11, free under 6. Plus a visa centre fee",
+      processing: "15 days, up to 45 in some cases. Apply no earlier than 6 months ahead",
+      maxStay: "90 days in any 180, across all Schengen countries",
+      checked: "25 November 2026",
     },
-    {
-      title: "Your dossier is verified",
-      body: "We cross-check insurance cover (EUR 30,000 minimum), bank statements, bookings, and ties documentation, then confirm your appointment — VFS Global in Singapore or TLScontact in mainland China.",
-    },
-    {
-      title: "Biometrics & consulate review",
-      body: "You attend the appointment in person to give fingerprints and submit the dossier. Standard processing is 15 calendar days under the EU Visa Code, extendable to 45 days in complex cases — we track the queue and flag any information requests.",
-      statusRows: [
-        { label: "Biometrics appointment completed", ts: "12 Jun, 9:00 AM", onTime: true },
-        { label: "Dossier lodged with the consulate", ts: "12 Jun, 11:30 AM", onTime: true },
-        { label: "Awaiting consulate decision", ts: "In progress" },
+
+    passports: {
+      intro: "The passport decides the rule. Singapore PR and pass holders follow the rules for the passport they hold. The EU keeps the list of visa exempt nationalities, and the table shows the ones most common in Singapore.",
+      rows: [
+        { passport: "Singapore", status: "Visa free, 90 days in 180", note: "No visa for tourism or short business. The EU travel authorisation called ETIAS is not in operation yet, and the EU has not announced a start date." },
+        { passport: "China (PRC)", status: "Visa required", note: "Chinese passport holders who live in Singapore lodge their France application in Singapore." },
+        { passport: "Malaysia", status: "Visa free, 90 days in 180", note: "Malaysia is also on the visa exempt list." },
+        { passport: "India", status: "Visa required", note: "Apply for a France visa if France is your main destination. Show your Singapore pass as proof of residence." },
+        { passport: "Indonesia", status: "Visa required", note: "The same process and the same documents as other visa-required passports." },
+        { passport: "Philippines", status: "Visa required", note: "The same process. Residents of Singapore lodge in Singapore." },
+        { passport: "Vietnam", status: "Visa required", note: "The same process. Check the France-Visas checklist for your case." },
+        { passport: "Other passports", status: "Check the EU list", note: "The EU keeps the visa exempt list. If your passport is not on it, you need a visa." },
       ],
     },
-    {
-      title: "Collect your visa on 26 Jun",
-      body: "The visa sticker is affixed to your passport — from your exact trip dates up to a 1 – 5 year multi-entry circulation visa for strong travel histories. We notify you the moment it's ready for collection or courier.",
-      delivered: true,
-    },
-  ],
 
-  docsTitle: "Required documents",
-  docsSub:
-    "French consulates apply the France-Visas checklist strictly. Your VIZA consultant verifies every item before submission — re-uploads are unlimited and free.",
-  documents: [
-    { name: "France-Visas application form", sub: "Completed online · printed with the CERFA receipt/barcode" },
-    { name: "Passport", sub: "Valid 3+ months beyond Schengen departure · issued within 10 years · 2 blank pages" },
-    { name: "Two photos", sub: "ICAO-standard · 35 × 45 mm · colour · light plain background" },
-    { name: "Travel medical insurance", sub: "EUR 30,000 minimum · all Schengen states · full stay" },
-    { name: "Proof of accommodation", sub: "Hotel bookings for the full itinerary, rental, or attestation d'accueil" },
-    { name: "Proof of funds", sub: "3 months of bank statements · ~EUR 65/day with hotel, ~EUR 32.50/day if hosted" },
-    { name: "Return or onward transport", sub: "Round-trip flight reservation out of the Schengen Area" },
-    { name: "Proof of socio-economic ties", sub: "Employment letter with approved leave, business licence, enrolment, or retirement income" },
-  ],
+    visaTypes: {
+      intro: "France issues short-stay visas for visits and long-stay visas for living there. Most people in Singapore travelling for a holiday use the short-stay visa.",
+      items: [
+        { title: "Short-stay visa (type C)", body: "For tourism, family visits and short business trips, for up to 90 days in any 180. It is valid in all Schengen countries. The fee is EUR 90 for adults." },
+        { title: "Single or multiple entry", body: "A first-time applicant usually gets the entries and dates for the trip. Frequent travellers with a clean record can ask for a longer multiple-entry visa." },
+        { title: "Airport transit", body: "For passing through the international area of a French airport without entering France. Some passports need it and some do not." },
+        { title: "Long-stay visa", body: "Study, work and stays over 90 days use a French national visa, with a separate process. Students first complete the Campus France step before lodging." },
+      ],
+    },
 
-  rejectionTitle: "Why Schengen applications get rejected",
-  rejectionSub:
-    "The consulate screens for these issues — the most common refusal grounds across Schengen. VIZA flags them before you submit.",
-  rejectionReasons: [
-    {
-      title: "Purpose of stay not established",
-      body: "The most common refusal code: documents don't convincingly show the purpose and conditions of the stay, or the stated purpose contradicts the paperwork.",
+    residents: {
+      intro: "France-Visas says residents of Singapore lodge their application in Singapore, by appointment. You apply with the passport you hold, and your pass shows that you live here.",
+      rows: [
+        { pass: "Employment Pass", body: "Bring your EP card, an employment letter with your role, salary and approved leave, and 3 months of bank statements. Keep the pass valid for at least 3 months after you return." },
+        { pass: "S Pass", body: "Bring your S Pass card, the employment letter and 3 months of bank statements. The checklist matches the Employment Pass." },
+        { pass: "Dependant's Pass", body: "Bring your Dependant's Pass and a copy of the main holder's pass. Add the marriage or birth certificate and the main holder's bank statements with a support letter if they pay." },
+        { pass: "Permanent Resident", body: "Bring your PR card or re-entry permit and proof of your work or business in Singapore. You apply with the passport of your own country, and the Singapore visa free rule does not apply to you." },
+        { pass: "Singapore citizen", body: "No visa. Carry a passport that is valid for your stay and expect to register in the EU Entry and Exit System at the border." },
+        { pass: "Student's Pass", body: "Bring your Student's Pass and a school letter with your leave dates. A parent can support the trip with a letter and their bank statements." },
+      ],
     },
-    {
-      title: "Insufficient means of subsistence",
-      body: "Bank statements below France's daily reference thresholds (~EUR 65/day with hotel, ~EUR 32.50/day if hosted), or large unexplained deposits.",
-    },
-    {
-      title: "Doubtful intention to leave",
-      body: "Weak home-country ties — no stable job, income, property, or family obligations — leaving the consulate unconvinced you'll depart before the visa expires.",
-    },
-    {
-      title: "Unreliable bookings or documents",
-      body: "Unconfirmed or fake hotel and flight reservations, or falsified supporting documents — which also trigger future bans.",
-    },
-    {
-      title: "Non-compliant travel insurance",
-      body: "Cover under EUR 30,000, not valid across the whole Schengen Area, or not spanning the full travel dates.",
-    },
-    {
-      title: "Prior Schengen record",
-      body: "A previous overstay, a SIS alert, or inconsistencies with earlier applications on file.",
-    },
-  ],
 
-  entryTitle: "Entry & exit regulations",
-  entrySub:
-    "France has no arrival card, paper or digital. Since 10 April 2026 the EU Entry/Exit System (EES) registers you biometrically at the border — facial image plus fingerprints — replacing passport stamps. Carry proof of funds, accommodation, insurance, and your return ticket; border police may ask.",
-  entryExit: [
-    { icon: "refresh", k: "Entry", v: "As granted", sub: "Single, double, or multiple — set by the consulate" },
-    { icon: "clock", k: "90 / 180 rule", v: "Max 90 days", sub: "Per rolling 180-day window across all Schengen states" },
-    { icon: "shield", k: "EES registration", v: "Photo + fingerprints", sub: "First entry since 10 Apr 2026 · children under 12 skip fingerprints" },
-    { icon: "calendar", k: "ETIAS", v: "Not yet required", sub: "Expected Q4 2026 for visa-exempt nationals · EUR 20" },
-  ],
+    fees: {
+      intro: "The EU sets the visa fee and you pay it with your application. The visa centre charges its own fees on top. VIZA's help is free.",
+      rows: [
+        { item: "Adult visa fee", amount: "EUR 90", note: "Set by EU law. It is not refunded if the visa is refused." },
+        { item: "Child 6 to 11", amount: "EUR 45", note: "Children under 6 pay nothing." },
+        { item: "Application fee at the Singapore centre", amount: "EUR 34", note: "The France-Visas Singapore page lists it per application, paid in Singapore dollars. Not refundable." },
+        { item: "Optional visa centre services", amount: "Set by VFS Global", note: "VFS Global lists its own extras on its France page." },
+        { item: "Travel insurance", amount: "Paid to the insurer", note: "Minimum EUR 30,000 of cover, for the whole stay and all Schengen countries." },
+      ],
+      processing: "A decision normally takes 15 days and can take up to 45 in some cases. You apply no earlier than 6 months before you travel and, as a rule, no later than 15 days before. Fingerprints are taken when you lodge. Aim for 6 to 8 weeks ahead in busy months, and book your appointment early.",
+    },
 
-  extensionTitle: "Visa extension & overstays",
-  extensionSub:
-    "A French prefecture can extend a Type C visa only for force majeure, humanitarian reasons, or serious unforeseen events arising after issue — never for tourist convenience, and never beyond 90 days total. EES now logs every overstay automatically, even a single day.",
-  extension: [
-    { icon: "extend", k: "Extension", v: "Exceptional only", sub: "EUR 30 (≈ SGD 44) fee · free for force majeure or humanitarian grounds" },
-    { icon: "alert", k: "Overstay consequences", v: "Removal + entry ban", sub: "Schengen-wide IRTF ban · flagged by EES · damages future visa and ETIAS applications" },
-  ],
-
-  reviews: {
-    score: "4.6",
-    outOf: "/ 5",
-    sub: "Highest rated visa platform · 12,841 reviews",
-    platforms: [
-      { rating: "4.7", name: "Trustpilot" },
-      { rating: "4.6", name: "App Store" },
-    ],
-    items: [
-      {
-        initials: "MC",
-        name: "Marie Chen",
-        source: "Trustpilot · 5 days ago",
-        title: "First Schengen visa — stress-free",
-        body: "The checklist was overwhelming when I tried to do it myself. VIZA's consultant caught two issues with my insurance policy before I submitted. Visa came back clean.",
+    apply: {
+      intro: "Check that France is the right country first. Apply to the country where you spend the most days, and to the one where you first enter if you split the time evenly. For several countries, see the Schengen visa hub.",
+      guided: {
+        title: "Guided",
+        body: "VIZA's AI walks you through the France-Visas form and the checklist for your pass type. You book the appointment and lodge at the visa centre yourself.",
       },
-      {
-        initials: "RT",
-        name: "Rajan Tan",
-        source: "App Store · 2 weeks ago",
-        title: "Appointment reminders were a lifesaver",
-        body: "Got alerts for every step — appointment confirmation, document lodge, and collection. I didn't have to chase the consulate once.",
+      fullService: {
+        title: "Full-service",
+        body: "A VIZA consultant prepares your form, itinerary, insurance and bank statements, so you arrive at the visa centre with a file that matches the France checklist.",
       },
-    ],
+      steps: [
+        { title: "Confirm the country", body: "France must be your main destination or your first entry. If you visit several countries, read the Schengen hub first." },
+        { title: "Complete France-Visas", body: "Fill in the online form on the France-Visas site and print the summary. Prepare the passport, photo, insurance and bookings." },
+        { title: "Book and lodge", body: "Book an appointment at the visa centre in Singapore and attend in person. You give fingerprints and hand in the file." },
+        { title: "Wait and collect", body: "The French embassy decides, and you collect your passport. Do not book non-refundable flights before the decision." },
+      ],
+    },
+
+    checklist: {
+      intro: "The EU sets a core list and France adds its own. The list below is the common core. Always compare it with the France-Visas checklist before you lodge.",
+      groups: [
+        {
+          applicant: "Everyone",
+          items: [
+            "France-Visas form, completed online and signed",
+            "Passport valid at least 3 months after you leave, with 2 blank pages",
+            "Recent photo that meets the Schengen standard",
+            "Flight reservation and accommodation for the whole stay",
+            "Travel insurance of at least EUR 30,000 for all Schengen countries",
+            "Bank statements for the last 3 months",
+          ],
+        },
+        {
+          applicant: "Employment Pass and S Pass",
+          items: [
+            "Pass card, copy of both sides, valid at least 3 months after you return",
+            "Employment letter and leave approval",
+            "Payslips and personal bank statements",
+          ],
+        },
+        {
+          applicant: "Dependant's Pass",
+          items: [
+            "Dependant's Pass card and the main holder's pass copy",
+            "Marriage or birth certificate showing the link",
+            "Main holder's bank statements and a support letter",
+          ],
+        },
+        {
+          applicant: "Permanent Resident",
+          items: [
+            "PR card and a re-entry permit that covers the trip",
+            "Proof of work or business in Singapore",
+            "Personal bank statements",
+          ],
+        },
+        {
+          applicant: "Student",
+          items: [
+            "Student's Pass and a school letter with leave dates",
+            "Parent's support letter with their bank statements",
+          ],
+        },
+      ],
+    },
+
+    travel: {
+      intro: "A few EU systems changed in the last year. They affect how you cross the border, not how you apply.",
+      items: [
+        { title: "Entry and Exit System", body: "The EES has been fully operational at EU external borders since 10 April 2026. First-time visitors have a face photo and sometimes fingerprints taken, and passports are not stamped." },
+        { title: "ETIAS", body: "ETIAS is a travel authorisation for visa exempt visitors. It is not in operation yet, and the EU will announce the start date ahead of time." },
+        { title: "No arrival card", body: "France has no paper or digital arrival card. Border police may ask for your return ticket, funds, insurance and where you stay." },
+        { title: "Insurance", body: "Cover of at least EUR 30,000 for the whole stay and all Schengen countries is a condition of the visa." },
+        { title: "The 90 in 180 rule", body: "Days in all Schengen countries count together. Plan your stay within the dates on the visa." },
+      ],
+    },
+
+    reviewed: {
+      date: "25 November 2026",
+      note: "Checked against France-Visas, the EU Visa Code and the EU travel site. Fees and rules change, so look at the links under Sources before you pay.",
+    },
+
+    related: {
+      destinations: ["schengen", "italy", "united-kingdom", "turkiye"],
+      guides: [
+        { label: "Schengen visa document checklist from Singapore", href: "/guides/schengen-visa-checklist-singapore" },
+        { label: "VIZA Schengen visa hub: rules shared by all Schengen countries", href: "/visa/schengen" },
+        { label: "EU Entry and Exit System, how it works", href: "https://travel-europe.europa.eu/ees/ltr/how-does-the-ees-work" },
+        { label: "VIZA visa news", href: "/blog" },
+      ],
+    },
   },
 
-  faqSub:
-    "Can't find an answer? Ask the AI assistant at the bottom of this page or message your VIZA consultant.",
+  rejectionTitle: "Common rejection reasons",
+  rejectionSub: "The EU Visa Code lists the grounds for refusal. These are the grounds that matter most for a tourist application, and a consultant checks them before you lodge.",
+  rejectionReasons: [
+    { title: "Purpose of the trip is not clear", body: "The embassy needs a clear reason for the visit. An itinerary that does not explain the days is a common weakness." },
+    { title: "Not enough funds", body: "You must show means for the whole stay and for the return. Thin statements or last-minute deposits raise doubt." },
+    { title: "No valid insurance", body: "A policy under EUR 30,000, one that starts late or one that does not cover all Schengen countries is refused." },
+    { title: "Doubt about leaving", body: "Weak ties to Singapore, such as a short pass or no employment letter, can raise doubt that you will return." },
+    { title: "Unreliable bookings or documents", body: "Bookings that cannot be confirmed, or documents the embassy cannot trust, are a ground for refusal and can affect future applications." },
+    { title: "Earlier Schengen record", body: "An earlier overstay or an alert in the Schengen system needs an explanation." },
+  ],
+
+  faqSub: "Can't find your answer? Ask the AI assistant below or message a VIZA consultant.",
   faq: [
-    {
-      category: "General information",
-      q: "Do Singapore passport holders need a visa for France?",
-      a: "No. Singapore passports are visa-exempt for France and the whole Schengen Area — up to 90 days in any 180-day period for tourism, family visits, or business, with no visa and no fee. Since 10 April 2026 you register in EES (photo + fingerprints) at first entry, and from ETIAS launch (expected Q4 2026) you'll need a EUR 20 (≈ SGD 29) travel authorisation valid 3 years. VIZA tracks these changes so your trip never hits a surprise at the border.",
-    },
-    {
-      category: "General information",
-      q: "Do China (PRC) passport holders need a visa?",
-      a: "Yes, always — a Type C Schengen visa, applied for via France-Visas then TLScontact in mainland China, or VFS Global Singapore for PRC nationals legally resident in Singapore. The good news: France approved about 93.9% of Chinese applications in 2024, and repeat travellers with clean visa history are regularly granted 1 – 5 year multi-entry visas. VIZA prepares the ties and income documentation that decides these outcomes.",
-    },
-    {
-      category: "General information",
-      q: "Can I travel to other Schengen countries on a French visa?",
-      a: "Yes. A Type C visa issued by France is valid across all 29 Schengen states for the duration and entries granted. France must be your main destination or first port of entry, and the 90/180 rule counts days in every Schengen country combined.",
-    },
-    {
-      category: "Application process",
-      q: "How much does the visa cost?",
-      a: "The government fee is EUR 90 (≈ SGD 131) per adult, EUR 45 (≈ SGD 66) for children 6 – 11, and free under 6 — EU-wide rates since 11 June 2024, non-refundable even if refused. The application centre (VFS Global or TLScontact) charges a service fee of roughly EUR 30 – 40 on top. You pay both directly; VIZA charges nothing for its help.",
-    },
-    {
-      category: "Application process",
-      q: "How long does processing take, and when should I apply?",
-      a: "The EU Visa Code sets 15 calendar days as standard, extendable to 45 days in complex cases. Applications open 6 months before travel and close 15 days before. From mainland China in peak season, allow 30 – 45 days. We recommend applying 4 – 6 weeks out to cover appointment availability.",
-    },
-    {
-      category: "Application process",
-      q: "Do I have to attend the appointment in person?",
-      a: "Yes. Fingerprints and the paper dossier must be lodged in person — at VFS Global in Singapore (180 Clemenceau Avenue, Haw Par Centre) or a TLScontact centre in mainland China. Biometrics are then reusable for 59 months, so repeat applicants within that window may be able to skip the appointment.",
-    },
-    {
-      category: "Rejections & reapplications",
-      q: "What happens if my visa application is refused?",
-      a: "The consulate issues a refusal notice stating the ground; under French rules, no answer after 2 months also counts as an implicit refusal. The EUR 90 government fee is not refunded. VIZA charges nothing for its help, and your consultant will analyse the refusal ground and rebuild the dossier before reapplying or appealing.",
-    },
+    { category: "Do I need a visa", q: "Do Singaporeans need a visa for France?", a: "No. Singapore passports enter France visa free for up to 90 days in any 180. The EU travel authorisation called ETIAS is not in operation yet, and the EU has not announced a start date." },
+    { category: "Do I need a visa", q: "Do Chinese passport holders living in Singapore need a France visa?", a: "Yes. You apply for a Schengen visa from France, and residents of Singapore lodge the application in Singapore." },
+    { category: "Do I need a visa", q: "Do Malaysians in Singapore need a France visa?", a: "No. Malaysia is on the EU visa exempt list for stays up to 90 days in any 180." },
+    { category: "Do I need a visa", q: "Do Indians, Indonesians, Filipinos and Vietnamese in Singapore need a France visa?", a: "Yes. Each applies for a Schengen visa from France if France is the main destination." },
+    { category: "Applying in Singapore", q: "How do I apply for a France visa in Singapore?", a: "Complete the form on France-Visas, book an appointment at the visa centre in Singapore and attend in person with your documents. Fingerprints are taken at the centre." },
+    { category: "Applying in Singapore", q: "Where is the France visa centre in Singapore?", a: "France-Visas lists VFS Global in Singapore, by appointment only. The centre moved on 2 June 2026, so check the France-Visas page for the current address before you go." },
+    { category: "Applying in Singapore", q: "Can I use a France visa for other countries?", a: "Yes. A French short-stay visa is valid in all Schengen countries, as long as France is your main destination or your first entry. Read the Schengen visa hub for the shared rules." },
+    { category: "Applying in Singapore", q: "When should I apply?", a: "No earlier than 6 months and, as a rule, no later than 15 days before you travel. Aim for 6 to 8 weeks ahead in busy months." },
+    { category: "Fees and time", q: "How much is a France visa from Singapore?", a: "The visa fee is EUR 90 for adults and EUR 45 for children from 6 to 11, free under 6. France-Visas lists an application fee of EUR 34 at the Singapore centre, paid in Singapore dollars." },
+    { category: "Fees and time", q: "How long does a France visa take?", a: "Normally 15 days, and up to 45 days in some cases. Fingerprints are taken when you lodge." },
+    { category: "Documents", q: "Do I need travel insurance?", a: "Yes. Minimum cover is EUR 30,000 for the whole stay and all Schengen countries." },
+    { category: "Rejections", q: "What happens if my France visa is refused?", a: "You receive a notice with the reason. The visa fee is not refunded. Review the reason with a consultant before you apply again." },
+    { category: "Before you travel", q: "How much does VIZA charge?", a: "Nothing. VIZA's help is free. You pay the visa fee and the centre fees directly." },
   ],
 
   sources: [
-    { label: "France-Visas — official French government visa portal", url: "https://www.france-visas.gouv.fr/en/visa-de-court-sejour", display: "france-visas.gouv.fr" },
-    { label: "France-Visas — official visa fee schedule", url: "https://france-visas.gouv.fr/documents/d/france-visas/frais-de-visa-anglais", display: "france-visas.gouv.fr" },
-    { label: "Service-Public.fr — Schengen short-stay visa rules", url: "https://www.service-public.gouv.fr/particuliers/vosdroits/F16146?lang=en", display: "service-public.gouv.fr" },
-    { label: "France Diplomatie — EES entry/exit system", url: "https://www.diplomatie.gouv.fr/en/services-to-foreigners/visiting-france/ees-the-new-european-border-entryexit-system-goes-live-on-10-april-2026", display: "diplomatie.gouv.fr" },
-    { label: "EU — ETIAS official information site", url: "https://travel-europe.europa.eu/etias", display: "travel-europe.europa.eu" },
-    { label: "VFS Global — France visa applications in Singapore", url: "https://visa.vfsglobal.com/sgp/en/fra", display: "visa.vfsglobal.com" },
-    { label: "MFA Singapore — France travel information", url: "https://www.mfa.gov.sg/travelling-overseas/travel-advisories-notices-and-visa-information/france/", display: "mfa.gov.sg" },
+    { label: "France-Visas, short-stay visa", url: "https://www.france-visas.gouv.fr/en/visa-de-court-sejour", display: "france-visas.gouv.fr" },
+    { label: "France-Visas, Singapore submission location", url: "https://france-visas.gouv.fr/en/singapour", display: "france-visas.gouv.fr" },
+    { label: "VFS Global, France visas, Singapore", url: "https://visa.vfsglobal.com/sgp/en/fra/", display: "visa.vfsglobal.com" },
+    { label: "EU home affairs, applying for a Schengen visa", url: "https://home-affairs.ec.europa.eu/policies/schengen/schengen-visas/applying-schengen-visa_en", display: "home-affairs.ec.europa.eu" },
+    { label: "EU Visa Code, Regulation 810/2009", url: "https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=CELEX:02009R0810-20200202", display: "eur-lex.europa.eu" },
+    { label: "EU travel site, ETIAS", url: "https://travel-europe.europa.eu/en/etias", display: "travel-europe.europa.eu" },
+    { label: "EU travel site, Entry and Exit System", url: "https://travel-europe.europa.eu/ees/faq", display: "travel-europe.europa.eu" },
   ],
 
   price: {
-    etaLabel: "Apply now, target collection by",
-    etaValue: "26 Jun 2026, 03:00 PM",
-    title: "Schengen Visa (Type C) · 90-day stay",
-    saving: "Full dossier review included",
-    sub: "VIZA's help is free: document review, France-Visas form preparation, and appointment support.",
-    foot: "VIZA's service is free. The EUR 90 (≈ SGD 131) visa fee is paid directly to the consulate, and the application centre charges its own fee at your appointment.",
+    etaLabel: "Decision",
+    etaValue: "15 days, up to 45",
+    title: "France Schengen short-stay visa · up to 90 days",
+    sub: "VIZA's help is free: form preparation and document review. The visa fee is paid with your application.",
+    foot: "VIZA's service is free. The visa fee and the centre fees are paid directly to the issuing authority and the visa centre.",
   },
 
-  aiPlaceholder: "Ask anything about France Schengen visas — fees, documents, the 90/180 rule…",
+  aiPlaceholder: "Ask anything about a France visa from Singapore: fees, documents, VFS, Schengen…",
 };
 
 export default france;

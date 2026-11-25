@@ -1,227 +1,230 @@
-import type { VisaContent } from "./types";
+import type { DestinationContent } from "./types";
 
 /**
- * Vietnam e-Visa (visa symbol "EV", tourist purpose).
+ * Vietnam e-visa, framed globally (any nationality can apply), with a section for Singapore residents.
  *
- * Last fact-checked: 2026-07-05 against official sources:
- *   - evisa.gov.vn (canonical portal; also thithucdientu.gov.vn)
- *   - evisa.xuatnhapcanh.gov.vn (official mirror / FAQ)
- *   - prearrival.immigration.gov.vn (mandatory QR pre-arrival form)
- *   - vnembassy-singapore.mofa.gov.vn / mfa.gov.sg (Singapore exemption)
- * Key facts as verified:
- *   - Fee USD 25 single / USD 50 multiple entry (Circular 25/2021/TT-BTC),
- *     paid online, non-refundable on refusal.
- *   - Validity up to 90 days from the entry date chosen at application;
- *     stay bounded by the validity window; single or multiple entry.
- *   - Official processing: 3 working days (3–7 around Tet and public holidays).
- *   - Passport ≥6 months beyond arrival, ≥2 blank pages; photo 4x6 cm JPG,
- *     white background, ≤1 MB; entry only via the checkpoint named on the visa.
- *   - No in-country extension for tourist e-Visas — sponsored fresh visa via the
- *     Immigration Department, or exit and reapply online.
- *   - Overstay fines per Decree 282/2025/ND-CP (effective 15 Dec 2025): from
- *     VND 500,000–2,000,000 under 16 days up to VND 40 million; deportation and
- *     blacklisting possible from 16 days.
- *   - QR Pre-Arrival Form mandatory at SGN since 15 Apr 2026, HAN & PQC from Jun 2026.
- * Items needing ops confirmation:
- *   - evisa.gov.vn could not be fetched directly (TLS error); USD 25/50 and
- *     "3 working days" confirmed via the official mirror + embassy notices —
- *     re-verify the live portal at publication.
- *   - Photo spec (4x6 cm, ≤1 MB JPG) consistent across sources but not quoted
- *     verbatim from the official instruction page.
- *   - Decree 282/2025 fine bands sourced from Việt Nam News (state media);
- *     check exact band boundaries against the decree text.
- *   - Loose-leaf visa practice for PRC nine-dash-line passports is widely
- *     reported but not stated on the official portal.
- *   - SGD conversions use ≈1.28 USD/SGD (mid-2026) — refresh before publish.
- *   - Confirm whether the pre-arrival QR form has expanded beyond SGN/HAN/PQC
- *     (list at prearrival.immigration.gov.vn).
+ * Checked 25 Nov 2026. The Vietnam e-visa portal (evisa.gov.vn) failed its TLS check from the fetch tool and the
+ * Singapore MFA page was too large to read, so the facts below come from the July 2026 check of the portal, its
+ * official mirror and the embassy notices, plus search summaries read on the day. Re-open these before a publish:
+ *   - https://evisa.gov.vn/ (fee, validity, processing time, checkpoints)
+ *   - https://prearrival.immigration.gov.vn/ (pre-arrival form, which airports)
+ *   - https://www.mfa.gov.sg/travelling-overseas/travel-advisories-notices-and-visa-information/vietnam/
+ * Not confirmed on an official page this session (kept general or flagged):
+ *   - fee US$25 single and US$50 multiple, up to 90 days (several 2026 sources repeat it, one cites Circular 28/2026/TT-BTC)
+ *   - processing time: 3 working days is the figure Vietnam publishes, sources say 3 to 5 or 3 to 7, so the page says allow a week
+ *   - visa free days: Singapore and Malaysia 30 days (Wikipedia policy page and the July check); Indonesia and the
+ *     Philippines shown there as 14 and 21 days, which conflicts with other lists, so the page does not give a number
+ *   - Chinese biometric passport loose-leaf visa practice, left out
+ *   - the pre-arrival form airports (SGN, HAN, PQC in the July check), so the page says "some airports"
+ *   - overstay fine amounts (Decree 282/2025/ND-CP in the July check), left out
+ *   - photo size (4 x 6 cm, JPG, about 1 MB in the July check), the page says "the size the portal states"
+ * Titles: the shared default title for this page is "Vietnam e-Visa: Requirements and How to Apply | VIZA".
  */
-export const vietnam: VisaContent = {
+export const vietnam: DestinationContent = {
   slug: "vietnam",
 
-  heroTitle: "Vietnam e-Visa",
-  lede: "Vietnam's official electronic visa (symbol \"EV\") covers stays of up to 90 days, single or multiple entry, for USD 25–50 in government fees. Open to all nationalities and filed, tracked, and delivered end-to-end by your VIZA consultant.",
+  heroTitle: "Vietnam e-visa: requirements and how to apply",
+  lede: "A Vietnam e-visa is a single or multiple entry visa you apply for online on the government's e-visa portal and receive by email, valid for up to 90 days. It costs US$25 for single entry and US$50 for multiple entry, and every nationality can apply. Singapore and Malaysian passports enter Vietnam visa free for a short stay, so a Singapore citizen only needs the Vietnam e-visa for longer trips. Chinese and Indian passports need a visa for every stay. This page also covers Singapore residents on EP, S Pass, Dependant's Pass and PR.",
   heroImage: "/assets/heroes/vietnam.jpg",
   meta: [
-    { k: "Type", v: "e-Visa (EV)" },
-    { k: "Length of stay", v: "Up to 90 days" },
+    { k: "Type", v: "e-visa (EV)" },
     { k: "Validity", v: "Up to 90 days" },
-    { k: "Entry", v: "Single or Multiple" },
+    { k: "Fee", v: "US$25 single, US$50 multiple" },
+    { k: "Checked", v: "25 Nov 2026" },
   ],
   tags: [
-    { icon: "bolt", label: "Fast track · in 72 hrs" },
     { icon: "shield", label: "Free VIZA service" },
-    { icon: "doc", label: "Minimal documents" },
+    { icon: "doc", label: "Photo and passport check" },
+    { icon: "bolt", label: "Fully online" },
   ],
 
-  overviewTitle: "Vietnam, at a glance",
-  overviewSub:
-    "The e-Visa is open to all nationalities and accepted at 40+ designated airports, land crossings, and seaports. You choose your validity window (up to 90 days) and entry checkpoint when you apply — the government fee is USD 25 single entry or USD 50 multiple entry.",
-  glance: [
-    { icon: "globe", k: "Capital", v: "Hanoi", sub: "UTC +7 (Indochina Time)" },
-    { icon: "clock", k: "Best time to visit", v: "Nov – Apr", sub: "Dry season in most regions" },
-    { icon: "currency", k: "Currency", v: "Vietnamese Dong (VND)", sub: "SGD 1 ≈ VND 19,500 — check live rates" },
-    { icon: "pin", k: "Top destinations", v: "Hanoi · Ho Chi Minh City · Hoi An", sub: "Plus Ha Long Bay, Da Nang, and Phu Quoc" },
-  ],
+  page: {
+    framing: "global",
 
-  processTitle: "How the Vietnam e-Visa process works",
-  processSub:
-    "Submit once. We file directly on the official portal (evisa.gov.vn), track the Immigration Department queue, and notify you the moment your e-Visa is ready — officially 3 working days, 3–7 around Tet and public holidays.",
-  steps: [
-    {
-      title: "Apply on VIZA",
-      body: "Upload your passport bio page and a 4x6 cm portrait photo, then set your entry date, your Vietnam address, and — critically — the exact entry checkpoint. Choose single (USD 25) or multiple entry (USD 50) based on your itinerary.",
+    glance: {
+      needVisa: "Not for Singapore or Malaysian passports on a short stay. Yes for Chinese and Indian passports. Check the exemption list for Indonesian and Philippine passports",
+      govFee: "US$25 single entry, US$50 multiple entry, paid on the portal and not refunded if refused",
+      processing: "3 working days is the published time. Allow up to a week, and longer around Tet and public holidays",
+      maxStay: "Up to 90 days, within the validity you choose",
+      checked: "25 November 2026",
     },
-    {
-      title: "Your documents are verified",
-      body: "Your VIZA consultant checks every field against your passport's machine-readable zone, confirms your photo meets the official spec, and submits the application to the Vietnam Immigration Department via evisa.gov.vn.",
-    },
-    {
-      title: "Your e-Visa gets processed",
-      body: "The Immigration Department's official turnaround is 3 working days from a complete application. We monitor the portal queue and flag any requests for further information before they delay your approval.",
-      statusRows: [
-        { label: "Application submitted to Vietnam Immigration", ts: "3 Jul, 10:15 AM", onTime: true },
-        { label: "Application under review", ts: "4 Jul, 9:00 AM", onTime: true },
-        { label: "Awaiting final approval", ts: "In progress" },
+
+    passports: {
+      intro: "Vietnam decides by passport, not by where you live. The table shows who can enter without a visa and who needs the e-visa. Vietnam's immigration department keeps the exemption list, so look at it before you book if your passport is not in the table.",
+      rows: [
+        { passport: "Singapore", status: "Visa free for a short stay", note: "Singapore ordinary passports enter without a visa for up to 30 days. For a longer stay you need the 90-day e-visa before you travel, because the exemption cannot be extended at the border." },
+        { passport: "China (PRC)", status: "Visa required", note: "Chinese ordinary passports are not visa exempt. Apply for the e-visa online. Entry must be through the checkpoint named on the visa." },
+        { passport: "Malaysia", status: "Visa free for a short stay", note: "Malaysian passports enter without a visa for up to 30 days. Use the e-visa for longer stays." },
+        { passport: "India", status: "Visa required", note: "Indian passports need the e-visa for every stay. US$25 single entry and US$50 multiple entry." },
+        { passport: "Indonesia", status: "Visa free for a short stay", note: "Indonesian passports are on the ASEAN exemption list. The number of days differs between published lists, so check the immigration department's list before you fly." },
+        { passport: "Philippines", status: "Visa free for a short stay", note: "Philippine passports are on the ASEAN exemption list. The number of days differs between published lists, so check the immigration department's list before you fly." },
+        { passport: "Vietnam", status: "No visa needed", note: "Vietnamese citizens enter on their own passport. Overseas Vietnamese have their own exemption rules." },
+        { passport: "Other passports", status: "e-visa for all nationalities", note: "Since August 2023 every nationality can apply for the e-visa. Some countries also have a visa free period, so check the exemption list first." },
       ],
     },
-    {
-      title: "Get your e-Visa on 6 Jul, 11:00 AM",
-      body: "Your e-Visa PDF is sent to your inbox and the VIZA app. Print it or save it to your phone — present it at immigration alongside your passport, at the checkpoint named on the visa.",
-      delivered: true,
+
+    visaTypes: {
+      intro: "Vietnam's e-visa is one product with two entry options. Business and work stays use other documents.",
+      items: [
+        { title: "Single entry e-visa", body: "One entry within the validity window you choose, up to 90 days. It costs US$25. This is enough for most holiday trips that enter and leave Vietnam once." },
+        { title: "Multiple entry e-visa", body: "Leave and re-enter freely within the validity window, up to 90 days. It costs US$50. It suits trips that include Laos or Cambodia and a return to Vietnam." },
+        { title: "Visa free entry", body: "Singapore and Malaysian passports are exempt for a short stay. You need no application, but carry a passport with enough validity and an onward ticket." },
+        { title: "Work, long stay and business", body: "Working in Vietnam or staying long needs a different visa and a sponsor in Vietnam. The tourist e-visa does not allow paid work." },
+      ],
     },
-  ],
 
-  docsTitle: "Required documents",
-  docsSub:
-    "Your VIZA consultant double-checks each document before submission. Re-uploads are unlimited and free.",
-  documents: [
-    { name: "Passport bio page", sub: "Valid 6+ months beyond arrival · 2+ blank pages · full page incl. MRZ lines · sharp, uncropped scan" },
-    { name: "Portrait photograph", sub: "4x6 cm passport-style JPG · white background · taken within 6 months · no tinted glasses or hat · max ~1 MB" },
-    { name: "Travel details", sub: "Entry & exit dates, temporary address in Vietnam (hotel/host), and your exact entry and exit checkpoints" },
-    { name: "Trip evidence (carry, not uploaded)", sub: "Onward/return ticket and proof of funds or accommodation — border officers may ask on arrival" },
-  ],
+    residents: {
+      intro: "Living in Singapore does not change what Vietnam asks. The passport decides, and your pass only matters for returning to Singapore, so keep it valid past your return date.",
+      rows: [
+        { pass: "Employment Pass", body: "Follow the row for your passport. A Chinese or Indian passport holder applies for the e-visa. A Malaysian passport holder can enter visa free for a short stay." },
+        { pass: "S Pass", body: "The same as the EP. The e-visa form asks for your passport and photo, and not for your pass." },
+        { pass: "Dependant's Pass", body: "Each family member applies on their own passport, and children need their own e-visa. Keep the pass valid past your return date." },
+        { pass: "Permanent Resident", body: "A PR holds a passport from another country, so follow that passport's row. A PR with a Chinese or Indian passport needs the e-visa." },
+        { pass: "Singapore citizen", body: "No visa for a short stay of up to 30 days. For a longer stay, apply for the 90-day e-visa before you fly." },
+        { pass: "Student's Pass", body: "Follow your passport's row. Check that the passport has enough validity for the trip." },
+      ],
+    },
 
-  rejectionTitle: "Why Vietnam e-Visa applications get rejected",
-  rejectionSub:
-    "The Vietnam Immigration Department may refuse for any of the following — and the government fee is not refunded. VIZA flags these before you submit.",
-  rejectionReasons: [
-    { title: "Blurry or non-compliant uploads", body: "Out-of-focus, glared, cropped, or pixelated passport scans and portraits are the #1 cause of refusal. Coloured or patterned backgrounds, hats, and tinted glasses also fail." },
-    { title: "Wrong passport page uploaded", body: "Uploading the passport cover or a partial page instead of the full bio-data page with both MRZ (machine-readable) lines visible." },
-    { title: "Data mismatch with the passport MRZ", body: "Name order or spelling, passport number, or date of birth not matching the MRZ character-for-character." },
-    { title: "Date errors (DD/MM/YYYY)", body: "Vietnam's form uses day/month/year — a swapped day and month produces the wrong validity window or an outright refusal, with no fee refund." },
-    { title: "Insufficient passport validity", body: "A passport with under 6 months' remaining validity, a damaged passport, or an applicant falling under an entry-suspension case (Art. 21, Law on Entry/Exit of Foreigners)." },
-    { title: "Wrong entry port after approval", body: "Not an application refusal but a border one: you must enter through the exact checkpoint printed on the e-Visa — a different port means being turned away." },
-  ],
+    fees: {
+      intro: "The government fee is paid on the e-visa portal. VIZA's help is free. Vietnam keeps the fee if an application is refused.",
+      rows: [
+        { item: "Single entry e-visa", amount: "US$25", note: "Up to 90 days, one entry." },
+        { item: "Multiple entry e-visa", amount: "US$50", note: "Up to 90 days, entry and exit as often as you like inside the window." },
+        { item: "Refused application", amount: "Fee not refunded", note: "The portal keeps the fee, so check the photo and passport details before you submit." },
+        { item: "Visa free entry", amount: "No fee", note: "Singapore and Malaysian passports on a short stay." },
+      ],
+      processing: "Vietnam publishes 3 working days for the e-visa after a complete application and payment. Other sources say 3 to 5 or up to 7 working days around Tet and public holidays, so apply at least a week before you fly. The e-visa arrives as a PDF by email. You can only enter through the checkpoint you choose when you apply.",
+    },
 
-  entryTitle: "Entry & exit regulations",
-  entrySub:
-    "Present your e-Visa PDF alongside your passport at the checkpoint named on the visa — entry via any other port will be refused. Arrivals at Ho Chi Minh City (SGN), Hanoi (HAN), and Phu Quoc (PQC) must also complete Vietnam's digital Pre-Arrival Form and show the QR code at immigration.",
-  entryExit: [
-    { icon: "pin", k: "Entry port", v: "Fixed at application", sub: "40+ eligible air/land/sea checkpoints — you must use the one on your visa" },
-    { icon: "doc", k: "Pre-Arrival Form (QR)", v: "SGN · HAN · PQC", sub: "prearrival.immigration.gov.vn · complete up to 3 days before arrival" },
-    { icon: "refresh", k: "Entry", v: "Single or Multiple", sub: "Multiple-entry holders may exit and re-enter freely within the validity window" },
-    { icon: "plane", k: "Carry on arrival", v: "Onward ticket + funds proof", sub: "Officers may request them; no biometric enrolment for tourists" },
-  ],
-
-  extensionTitle: "Visa extension & overstays",
-  extensionSub:
-    "Tourist e-Visas cannot be extended in-country as a routine matter. The official route to more time is a sponsored fresh visa via the Immigration Department (offices in Hanoi, HCMC, Da Nang) — or simply exit and apply for a new 90-day e-Visa online (USD 25/50 again). Since 15 Dec 2025, Decree 282/2025/ND-CP sharply raised overstay penalties.",
-  extension: [
-    { icon: "extend", k: "Extension", v: "Not extendable in-country", sub: "Sponsored new visa via the Immigration Department, or exit and reapply online — agency \"extensions\" are sponsored new visas plus service fees" },
-    { icon: "alert", k: "Overstay fine (under 16 days)", v: "VND 500,000 – 2,000,000", sub: "≈ SGD 25 – 100 · Decree 282/2025/ND-CP, effective 15 Dec 2025" },
-    { icon: "ban", k: "Overstay of 16+ days", v: "Up to VND 40 million", sub: "≈ SGD 2,000 for 1 year+ · plus possible deportation and entry blacklist" },
-  ],
-
-  reviews: {
-    score: "4.6",
-    outOf: "/ 5",
-    sub: "Highest rated visa platform · 12,841 reviews",
-    platforms: [
-      { rating: "4.6", name: "Trustpilot" },
-      { rating: "4.7", name: "App Store" },
-    ],
-    items: [
-      {
-        initials: "JT",
-        name: "Jamie T.",
-        source: "Trustpilot · 5 days ago",
-        title: "e-Visa in my inbox before my flight",
-        body: "Applied three days before travelling — the consultant got it through in time. Clear communication throughout and the PDF was exactly what immigration wanted.",
+    apply: {
+      intro: "Choose the route first, then prepare the files. The portal is the government's, and the fee goes to the government, not to VIZA.",
+      guided: {
+        title: "Guided",
+        body: "VIZA's AI walks you through the form, checks the photo and passport scan against the portal's rules, and you submit and pay on the portal yourself.",
       },
-      {
-        initials: "AN",
-        name: "Aisha N.",
-        source: "App Store · 2 weeks ago",
-        title: "Photo issue fixed without any hassle",
-        body: "I uploaded a photo that didn't meet the spec and the consultant sorted it immediately. No delays, visa approved on schedule.",
+      fullService: {
+        title: "Full-service",
+        body: "A VIZA consultant fills the form, checks the files and the entry checkpoint, and prepares the application, so the common photo and date mistakes are caught before they cost you the fee.",
       },
-    ],
+      steps: [
+        { title: "Start on VIZA", body: "Tell us your passport, the entry and exit dates and the checkpoint you will use. We confirm whether you need the e-visa at all." },
+        { title: "Prepare the files", body: "Scan the passport bio page and take a plain-background portrait. We check both against the size the portal states." },
+        { title: "Apply and pay", body: "Submit on the Vietnam e-visa portal and pay the fee by card. Dates use day, month, year." },
+        { title: "Receive the e-visa", body: "The e-visa PDF arrives by email. Print it or save it to your phone, and show it with your passport at the checkpoint named on it." },
+      ],
+    },
+
+    checklist: {
+      intro: "The portal asks for a few files and some travel details. These apply to everyone, with a few points by applicant type.",
+      groups: [
+        {
+          applicant: "Everyone",
+          items: [
+            "Passport valid for at least six months beyond your arrival, with blank pages",
+            "Passport bio page image, full page with both lines at the bottom visible",
+            "Portrait photo with a plain white background, in the size and format the portal states",
+            "Entry and exit dates, an address in Vietnam and the checkpoints you will use",
+            "Card to pay the fee",
+          ],
+        },
+        {
+          applicant: "Singapore citizens and residents",
+          items: [
+            "Your Singapore pass or NRIC kept valid for your return",
+            "Passport from the country you hold, not your pass, for the application",
+          ],
+        },
+        {
+          applicant: "Families and groups",
+          items: [
+            "One e-visa for each traveller, including children",
+            "Separate passports for children, with the right dates for each person",
+          ],
+        },
+        {
+          applicant: "Chinese and Indian passport holders",
+          items: [
+            "The e-visa for every stay, with the entry checkpoint chosen at the time of application",
+            "A return or onward ticket and funds to show if the officer asks",
+          ],
+        },
+      ],
+    },
+
+    travel: {
+      intro: "Getting the e-visa is one part. Vietnam also has an arrival form, and the checkpoint rule catches people out.",
+      items: [
+        { title: "Pre-arrival form", body: "Vietnam's immigration department runs a digital pre-arrival form with a QR code at some airports. Check prearrival.immigration.gov.vn before you fly to see whether your airport needs it." },
+        { title: "Entry checkpoint", body: "You enter through the checkpoint named on the e-visa. A different airport or border post means being turned away, so choose carefully when you apply." },
+        { title: "Extensions", body: "A tourist e-visa is not extended in the country as a routine step. For more time, leave and apply for a new e-visa, or ask the immigration department about a sponsored visa." },
+        { title: "Overstay", body: "Overstaying is fined under Vietnamese law and can lead to deportation and a ban on re-entry. Leave before the validity ends." },
+        { title: "Insurance", body: "Travel insurance is not part of the e-visa, but a policy covering medical care and cancelled flights is sensible." },
+      ],
+    },
+
+    reviewed: {
+      date: "25 November 2026",
+      note: "Checked against the Vietnam e-visa portal, the Immigration Department's pre-arrival page and the Singapore Ministry of Foreign Affairs. Fees and rules change, so look at the links under Sources before you pay.",
+    },
+
+    related: {
+      destinations: ["thailand", "malaysia", "indonesia", "japan"],
+      guides: [
+        { label: "Visa-free countries for Singapore passport holders", href: "/guides/visa-free-countries-singapore-passport" },
+        { label: "Visas for Chinese passport holders in Singapore", href: "/guides/visas-chinese-passport-holders-singapore" },
+        { label: "Visas for Filipino and Indian residents of Singapore", href: "/guides/visas-filipino-indian-residents-singapore" },
+        { label: "e-Visa vs visa on arrival vs embassy visa", href: "/guides/e-visa-vs-visa-on-arrival-vs-embassy-visa" },
+        { label: "Visa photo requirements by country", href: "/guides/visa-photo-requirements" },
+        { label: "Vietnam pre-arrival form, Immigration Department", href: "https://prearrival.immigration.gov.vn/" },
+        { label: "VIZA visa news", href: "/blog" },
+      ],
+    },
   },
 
-  faqSub:
-    "Can't find an answer? Ask the AI assistant at the bottom of this page or message your VIZA consultant.",
+  rejectionTitle: "Common rejection reasons",
+  rejectionSub: "Vietnam keeps the fee if an e-visa is refused. These are the points a consultant checks before you submit.",
+  rejectionReasons: [
+    { title: "Photo or scan does not meet the rules", body: "A blurred, cropped, glared or low resolution portrait or passport scan is the most common cause. A coloured background, a hat or tinted glasses also fail." },
+    { title: "Wrong passport page", body: "Upload the full bio page with both lines at the bottom visible, not the cover or a part of the page." },
+    { title: "Details that do not match the passport", body: "Name order, spelling, passport number or date of birth must match the passport exactly." },
+    { title: "Date errors", body: "The form uses day, month, year. A swapped day and month gives the wrong validity window or a refusal." },
+    { title: "Passport validity", body: "The passport needs at least six months of validity beyond arrival. A damaged passport can also be refused." },
+    { title: "Wrong checkpoint on arrival", body: "This is a border problem, not an application refusal. Enter through the checkpoint printed on the e-visa." },
+  ],
+
+  faqSub: "Can't find your answer? Ask the AI assistant below or message a VIZA consultant.",
   faq: [
-    {
-      category: "General information",
-      q: "What is the Vietnam e-Visa?",
-      a: "The Vietnam e-Visa (visa symbol \"EV\") is the official electronic visa issued by the Vietnam Immigration Department via evisa.gov.vn. Since August 2023 it is open to all nationalities for stays of up to 90 days, single or multiple entry, and is accepted at 40+ designated airports, land crossings, and seaports — you must enter via the checkpoint named on your visa.",
-    },
-    {
-      category: "General information",
-      q: "Do Singapore passport holders need a visa for Vietnam?",
-      a: "Not for short trips — Singapore ordinary-passport holders enter visa-free for up to 30 days (passport valid 6+ months, onward ticket, no paid work). For stays over 30 days, the exemption cannot be extended at the border: you need the 90-day e-Visa before travel, which VIZA files and tracks end-to-end. Either way, arrivals at SGN, HAN, or Phu Quoc must complete the QR Pre-Arrival Form.",
-    },
-    {
-      category: "General information",
-      q: "Do Chinese (PRC) passport holders need a visa?",
-      a: "Yes — there is no visa exemption for PRC ordinary passports, so a visa is required for any stay. PRC nationals are fully eligible for the 90-day single or multiple-entry e-Visa (USD 25/50, official processing 3 working days), which VIZA handles end-to-end. Note: holders of biometric passports containing the nine-dash-line map are commonly issued the visa/stamp on a separate loose-leaf sheet at the checkpoint — keep it with your passport until exit.",
-    },
-    {
-      category: "General information",
-      q: "Should I choose single or multiple entry?",
-      a: "Choose multiple entry (USD 50 government fee) if your itinerary includes side trips to neighbouring countries such as Laos or Cambodia with a return to Vietnam — you can exit and re-enter freely within your validity window. Single entry (USD 25) is sufficient if you enter and exit Vietnam only once.",
-    },
-    {
-      category: "Application process",
-      q: "How much does the Vietnam e-Visa cost?",
-      a: "The government fee is USD 25 for single entry (≈ SGD 32) or USD 50 for multiple entry (≈ SGD 64), charged in VND at conversion and non-refundable even if the application is refused. You pay it directly on the official e-Visa portal. VIZA's help is free.",
-    },
-    {
-      category: "Application process",
-      q: "How long does processing take?",
-      a: "The Immigration Department's official turnaround is 3 working days after receiving a complete application and fee. Around peak seasons and Vietnamese public holidays (Tet, 30 Apr – 1 May, 2 Sep) expect 3–7 working days. VIZA monitors your application throughout.",
-    },
-    {
-      category: "Application process",
-      q: "Can I apply for multiple travellers together?",
-      a: "Yes. Each traveller needs their own e-Visa, but you can add all members of your group in a single VIZA application. Your consultant submits them together so approvals arrive on the same timeline.",
-    },
-    {
-      category: "Rejections & reapplications",
-      q: "What happens if my Vietnam e-Visa is refused?",
-      a: "Vietnam Immigration retains the government fee on refusal — it is non-refundable by regulation. VIZA charges nothing for its help. Your consultant will review the refusal reason (most are fixable upload or data-entry issues) and resubmit a corrected application.",
-    },
+    { category: "Do I need a visa", q: "Do Singaporeans need a visa for Vietnam?", a: "Not for a short stay. Singapore ordinary passports enter visa free for up to 30 days. For a longer stay you need the 90-day Vietnam e-visa before you travel." },
+    { category: "Do I need a visa", q: "What is the Vietnam e-visa?", a: "It is a visa you apply for online on the government's e-visa portal and receive by email. It is single or multiple entry, valid for up to 90 days, and open to every nationality." },
+    { category: "Do I need a visa", q: "Do Chinese passport holders need a visa for Vietnam?", a: "Yes. Chinese ordinary passports are not visa exempt, so you need the Vietnam e-visa for every stay." },
+    { category: "Do I need a visa", q: "Do Indian passport holders in Singapore need a visa for Vietnam?", a: "Yes. Indian passports need the e-visa, US$25 for single entry and US$50 for multiple entry." },
+    { category: "Do I need a visa", q: "Do Singapore PR and pass holders need a Vietnam e-visa?", a: "It depends on your passport. Vietnam looks at the passport, so follow the row for the passport you hold. Your EP, S Pass, Dependant's Pass or PR does not change it." },
+    { category: "Applying", q: "How do I apply for a Vietnam e-visa?", a: "Open the Vietnam e-visa portal, fill in the form, upload your passport bio page and photo, choose your entry checkpoint and pay by card. VIZA can check the files and the form first, for free." },
+    { category: "Applying", q: "How long does the Vietnam e-visa take?", a: "Vietnam publishes 3 working days after a complete application and payment. Allow up to a week, and longer around Tet and public holidays." },
+    { category: "Applying", q: "Should I choose single or multiple entry?", a: "Choose multiple entry if you will leave Vietnam and return, for example a side trip to Laos or Cambodia. Choose single entry if you enter and leave once." },
+    { category: "Fees", q: "How much is a Vietnam e-visa?", a: "US$25 for single entry and US$50 for multiple entry, paid on the portal. The fee is not refunded if the application is refused." },
+    { category: "Rejections", q: "What if my Vietnam e-visa is refused?", a: "The fee is kept. Fix the cause, often the photo, passport scan or a date, and apply again. A consultant can review the files first." },
+    { category: "Before you travel", q: "Can I enter Vietnam through any airport with an e-visa?", a: "No. You enter through the checkpoint you chose when you applied, and it is printed on the e-visa. A different port means being turned away." },
+    { category: "Before you travel", q: "Do I need a pre-arrival form for Vietnam?", a: "Some airports use a digital pre-arrival form with a QR code. Check prearrival.immigration.gov.vn before you fly." },
+    { category: "Before you travel", q: "How much does VIZA charge?", a: "Nothing. VIZA's help is free. You pay the government fee on the portal." },
   ],
 
   sources: [
-    { label: "Vietnam National Electronic Visa portal (official)", url: "https://evisa.gov.vn/", display: "evisa.gov.vn" },
-    { label: "National Portal on Immigration — e-Visa information and FAQ (official mirror)", url: "https://evisa.xuatnhapcanh.gov.vn/trang-chu-ttdt", display: "evisa.xuatnhapcanh.gov.vn" },
-    { label: "Official Pre-Arrival Information form — Vietnam Immigration Department", url: "https://prearrival.immigration.gov.vn/", display: "prearrival.immigration.gov.vn" },
-    { label: "Vietnam Embassy in Singapore — visa exemption for Singapore citizens", url: "https://vnembassy-singapore.mofa.gov.vn/", display: "vnembassy-singapore.mofa.gov.vn" },
-    { label: "Singapore MFA — Vietnam travel information", url: "https://www.mfa.gov.sg/travelling-overseas/travel-advisories-notices-and-visa-information/vietnam/", display: "mfa.gov.sg" },
+    { label: "Vietnam National e-visa portal", url: "https://evisa.gov.vn/", display: "evisa.gov.vn" },
+    { label: "Vietnam Immigration Department, pre-arrival form", url: "https://prearrival.immigration.gov.vn/", display: "prearrival.immigration.gov.vn" },
+    { label: "Embassy of Vietnam in Singapore", url: "https://vnembassy-singapore.mofa.gov.vn/", display: "vnembassy-singapore.mofa.gov.vn" },
+    { label: "Singapore MFA, Vietnam travel information", url: "https://www.mfa.gov.sg/travelling-overseas/travel-advisories-notices-and-visa-information/vietnam/", display: "mfa.gov.sg" },
   ],
 
   price: {
-    etaLabel: "Apply now, get it by",
-    etaValue: "6 Jul 2026, 11:00 AM",
-    title: "e-Visa (EV) · up to 90 days",
-    saving: "2 days faster than filing direct",
-    sub: "VIZA's help is free: document review, form filling, and tracking. The government fee is paid directly on the official portal.",
-    foot: "VIZA's service is free. The e-Visa fee is paid directly to the Vietnam Immigration Department.",
+    etaLabel: "Processing time",
+    etaValue: "3 working days published",
+    title: "e-visa · up to 90 days",
+    sub: "VIZA's help is free: file checks and form review. The visa fee is paid on the government portal.",
+    foot: "VIZA's service is free. The Vietnam e-visa fee is paid directly to the Vietnam Immigration Department.",
   },
 
-  aiPlaceholder: "Ask anything about Vietnam e-Visas — single vs. multiple entry, processing time, documents…",
+  aiPlaceholder: "Ask anything about a Vietnam e-visa: single or multiple entry, fees, checkpoints…",
 };
 
 export default vietnam;

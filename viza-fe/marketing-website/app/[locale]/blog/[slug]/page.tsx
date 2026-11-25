@@ -1,11 +1,15 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
-import SiteFooter from "@/components/SiteFooter";
-import SiteNav from "@/components/SiteNav";
+import SiteHeader from "@/design-system/sections/SiteHeader";
+import SiteFooter from "@/design-system/sections/SiteFooter";
 import MarketingBlogArticle from "@/components/MarketingBlogArticle";
 import type { Locale } from "@/i18n";
 import { getMarketingBlogFeed, getMarketingBlogPost } from "@/lib/marketing-blog";
+import { clip, clipTitle, pageMetadata } from "@/lib/seo/metadata";
+import { SITE_URL } from "@/lib/seo/site";
+import { destinationForPost } from "@/lib/blog-destination";
+import { guidesForPost } from "@/lib/guides";
 import { blogUrl, articleJsonLd, breadcrumbJsonLd, jsonLd } from "@/lib/blog-structured-data";
 
 export const revalidate = 300;
@@ -21,30 +25,28 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
   if (result.status !== "ok") return { robots: { index: false, follow: false } };
 
   const { post } = result;
-  return {
-    title: post.seoTitle || post.title,
-    description: post.seoDescription || post.excerpt,
-    alternates: {
-      canonical: locale === "en" ? `/blog/${post.slug}` : `/${locale}/blog/${post.slug}`,
-    },
-    openGraph: {
-      type: "article",
-      title: post.seoTitle || post.title,
-      description: post.seoDescription || post.excerpt,
-      publishedTime: post.publishedAt,
-      modifiedTime: post.updatedAt,
-      authors: [post.authorName],
-      images: post.coverImageUrl ? [{ url: post.coverImageUrl }] : undefined,
-    },
-  };
+  const cover = post.coverImageUrl ? new URL(post.coverImageUrl, SITE_URL).toString() : null;
+  return pageMetadata({
+    title: clipTitle(post.seoTitle || post.title),
+    description: clip(post.seoDescription || post.excerpt, 155),
+    path: `/blog/${post.slug}`,
+    locale,
+    ogKey: "blog",
+    hreflang: "none",
+    ogType: "article",
+    article: { publishedTime: post.publishedAt, modifiedTime: post.updatedAt, authors: [post.authorName] },
+    image: cover ? { url: cover, alt: post.title } : undefined,
+  });
 }
 
 export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const { locale: localeParam, slug } = await params;
   const locale = localeParam as Locale;
   setRequestLocale(locale);
-  const [t, result, feedResult] = await Promise.all([
+  const [t, ta, tg, result, feedResult] = await Promise.all([
     getTranslations({ locale, namespace: "pages.blog" }),
+    getTranslations({ locale, namespace: "ds.article" }),
+    getTranslations({ locale, namespace: "guides" }),
     getMarketingBlogPost(slug, locale),
     getMarketingBlogFeed(locale),
   ]);
@@ -57,9 +59,15 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
       .slice(0, 3)
     : [];
 
+  const destination = result.status === "ok" ? destinationForPost(result.post) : null;
+  const tc = await getTranslations({ locale, namespace: "countries" });
+  const destinationName = destination ? (tc.has(destination.slug) ? tc(destination.slug) : destination.name) : "";
+
+  const guides = result.status === "ok" ? guidesForPost(result.post, destination?.slug ?? null) : [];
+
   return (
     <>
-      <SiteNav activeTab="blog" />
+      <SiteHeader active="news" />
       {result.status === "ok" ? (
         <>
           <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(articleJsonLd(result.post, locale))} />
@@ -69,11 +77,11 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
           ]))} />
         </>
       ) : null}
-      <main className="viza-blog">
+      <main className="ds-main">
         {result.status === "unavailable" ? (
-          <section className="container-narrow py-20 text-center">
-            <h1 className="text-3xl">{t("unavailableTitle")}</h1>
-            <p className="mt-4 text-fg-2">{t("unavailableBody")}</p>
+          <section className="ds-container ds-section">
+            <h1 className="ds-h2">{t("unavailableTitle")}</h1>
+            <p className="ds-body" style={{ marginTop: 16 }}>{t("unavailableBody")}</p>
           </section>
         ) : (
           <MarketingBlogArticle
@@ -84,12 +92,24 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
             updatedLabel={t("updated")}
             readArticleLabel={t("readArticle")}
             relatedTitle={t("relatedTitle")}
-            relatedDescription={t("relatedDescription")}
             relatedPosts={relatedPosts}
-            ctaEyebrow={t("ctaEyebrow")}
+            tocTitle={ta("toc")}
+            downLabel={ta("down")}
+            homeLabel={tg("breadcrumbHome")}
             ctaTitle={t("ctaTitle")}
             ctaBody={t("ctaBody")}
             ctaAction={t("ctaAction")}
+            visaLink={destination ? {
+              slug: destination.slug,
+              title: t("visaLinkTitle", { country: destinationName }),
+              body: t("visaLinkBody"),
+              action: t("visaLinkAction", { country: destinationName }),
+            } : undefined}
+            guideLinks={guides.length ? {
+              title: t("guidesTitle"),
+              body: t("guidesBody"),
+              items: guides.map((g) => ({ slug: g.slug, label: locale === "zh-CN" ? g.name.zh : g.name.en })),
+            } : undefined}
           />
         )}
       </main>

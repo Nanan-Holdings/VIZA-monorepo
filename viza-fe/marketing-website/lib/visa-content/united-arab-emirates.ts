@@ -1,249 +1,242 @@
-import type { VisaContent } from "./types";
+import type { DestinationContent } from "./types";
 
 /**
- * United Arab Emirates tourist visa content.
- * Last fact-checked: 2026-07-05 against u.ae, gdrfad.gov.ae, icp.gov.ae,
- * smartservices.icp.gov.ae, ae.china-embassy.gov.cn, mofa.gov.ae.
+ * United Arab Emirates tourist visa and visa on arrival (framed globally, with a section for Singapore
+ * residents; search terms "dubai visa singapore" and "uae visa"). The UAE issues tourist visas through a sponsor
+ * (airline, hotel or licensed agent) on the GDRFA Dubai or ICP systems, and many passports enter without one.
+ * Checkout behaviour is unchanged (it comes from lib/countries.ts).
  *
- * Key facts baked in:
- *   - UAE tourist visas are sponsor-filed (airline, licensed agent, or UAE
- *     hotel) via GDRFA Dubai or federal ICP — embassies do NOT issue them.
- *   - GDRFA fees: 30-day AED 252 + 5% VAT + AED 20 dirhams (≈ SGD 100);
- *     60-day AED 352 + VAT (≈ SGD 130). Processing: 48 hours (GDRFA stated).
- *   - Singapore & PRC passports need NO visa: free entry on arrival, 90 days
- *     within any 180-day period (SG since Sep 2024; PRC per Apr 2025 embassy
- *     confirmation under the 2018 mutual-exemption agreement).
- *   - Extension: up to 120 days total, fully online via ICP since Dec 2025
- *     (AED 100 + AED 500 ≈ SGD 210, ~2 days). Overstay: AED 50/day unified
- *     rate since Feb 2026, no grace period, fines block future approvals.
- *
- * Items needing ops confirmation:
- *   - u.ae visa-on-arrival country-list pages 404 as of 2026-07-05; Singapore's
- *     90-day placement rests on Emirates airline + Fragomen, not a live gov page.
- *   - Entry-validity window of the pre-arranged visa (~60 days from issue is the
- *     commonly cited figure) is not stated on the GDRFA service page.
- *   - Whether the old 10-day grace on the 30-day VOA survives the Feb 2026 fine
- *     unification, and whether the 90/180 arrival stay is single- or multi-entry.
- *   - Third-party sources cite ~AED 1,130 all-in for an ICP extension vs AED 600
- *     official line items; exit-permit fee (AED 250–300) for 30+ day overstays is
- *     secondary-source only.
- *   - SGD conversions use 1 AED ≈ 0.35 SGD (AED pegged at USD 3.6725) — verify at
- *     publication.
+ * Checked 25 Nov 2026. The UAE MOFA news item of 25 Jun 2026 was read directly. The Singapore MFA travel page
+ * was too large to fetch and was read through a search summary (page dated 1 Mar 2026). u.ae returned a 404 and
+ * the UAE embassy Singapore visa page returned a 404. Re-open these before a publish:
+ *   - https://www.mfa.gov.sg/travelling-overseas/travel-advisories-notices-and-visa-information/united-arab-emirates/
+ *   - https://www.mofa.gov.ae/en/mediahub/news/2026/6/25/uae-grants-visa-on-arrival
+ *   - https://u.ae/en/information-and-services/visa-and-emirates-id/tourist-visa (404 on the day)
+ * Confirmed on an official page: visa on arrival for Indonesian, Vietnamese, Philippine (and Thai, Kenyan, South
+ * African) ordinary passports with a valid residence permit from the US, an EU state, the UK, Singapore, Japan,
+ * South Korea, Australia, New Zealand or Canada: 14 days AED 100 (extendable once) or 60 days AED 250 (not
+ * extendable), overstay AED 50 per day (MOFA, 25 Jun 2026). Indian passports with a Singapore residence permit
+ * since 13 Feb 2025 (UAE embassy New Delhi).
+ * Not confirmed on an official page this session (kept general, hedged or left out):
+ *   - Singapore stay length: the Singapore MFA says 90 days in any 180, older UAE embassy pages say 30 days
+ *   - China (30 days) and Malaysia visa exemption and stay length
+ *   - Tourist visa fees from GDRFA or ICP (earlier figures are not used), the visa's entry window, extension rules
+ *   - Passport validity of 6 months (reported for Indian passports), and the single-name passport rule (MFA SG)
+ *   - Whether the Singapore MFA advisory dated 1 Mar 2026 on the Middle East is still in force
  */
-export const unitedArabEmirates: VisaContent = {
+export const unitedArabEmirates: DestinationContent = {
   slug: "united-arab-emirates",
 
-  heroTitle: "United Arab Emirates Tourist Visa",
-  lede: "A sponsor-filed UAE tourist visa granting a 30- or 60-day stay, processed by GDRFA Dubai in 48 hours. Singapore and Chinese passport holders skip it entirely — 90 days visa-free on arrival. VIZA confirms which applies to you and handles the rest.",
+  heroTitle: "UAE visa: Dubai and Abu Dhabi entry rules",
+  lede: "A UAE visa depends on your passport. Singapore passports enter the UAE without a visa, and most Dubai visa from Singapore questions come down to the other passports. If you live in Singapore on an Indian, Indonesian, Philippine or Vietnamese passport, you can qualify for a visa on arrival with your Singapore residence permit. Other travellers get a 30 or 60 day tourist visa through an airline, a hotel or a licensed agent. This guide covers the UAE visa for any traveller, with a section for people who live in Singapore.",
   heroImage: "/assets/heroes/united-arab-emirates.jpg",
   meta: [
-    { k: "Type", v: "Tourist visa (sponsor-filed)" },
-    { k: "Length of stay", v: "30 or 60 days" },
-    { k: "Validity", v: "~60 days to enter" },
-    { k: "Entry", v: "Single or Multiple" },
+    { k: "Singapore passport", v: "Visa free" },
+    { k: "Visa on arrival", v: "14 or 60 days, AED 100 or 250" },
+    { k: "Tourist visa", v: "Sponsor-filed" },
+    { k: "Checked", v: "25 Nov 2026" },
   ],
   tags: [
-    { icon: "bolt", label: "48-hr government processing" },
     { icon: "shield", label: "Free VIZA service" },
-    { icon: "doc", label: "Minimal documents" },
+    { icon: "doc", label: "Document check" },
+    { icon: "plane", label: "Dubai and Abu Dhabi" },
   ],
 
-  overviewTitle: "United Arab Emirates, at a glance",
-  overviewSub:
-    "Futuristic skylines, golden deserts, luxury shopping, and year-round sunshine. Singapore and Chinese passports enter visa-free for 90 days; most other nationalities need this sponsor-arranged tourist visa.",
-  glance: [
-    { icon: "globe", k: "Capital", v: "Abu Dhabi", sub: "UTC +4 (GST, no DST)" },
-    { icon: "clock", k: "Best time to visit", v: "Oct – Apr", sub: "Cooler temperatures, outdoor-friendly" },
-    { icon: "currency", k: "Currency", v: "UAE Dirham (AED)", sub: "Pegged to the USD · SGD 1 ≈ AED 2.85" },
-    { icon: "pin", k: "Top destinations", v: "Dubai · Abu Dhabi · Sharjah", sub: "Plus Ras Al Khaimah, Fujairah" },
-  ],
+  page: {
+    framing: "global",
 
-  processTitle: "How the UAE tourist visa process works",
-  processSub:
-    "UAE embassies don't issue tourist visas — applications go through a licensed sponsor to GDRFA Dubai or the federal ICP. VIZA files through its licensed channel and tracks every stage.",
-  steps: [
-    {
-      title: "Apply on VIZA",
-      body: "Upload your passport, one white-background photo, travel dates, and onward ticket. VIZA's help is free. When the government fee is due, your application pauses so you can pay it directly to GDRFA.",
+    glance: {
+      needVisa: "Not for Singapore passports. Residents on Indian, Indonesian, Philippine or Vietnamese passports can get a visa on arrival",
+      govFee: "Visa on arrival AED 100 for 14 days or AED 250 for 60 days. Tourist visa fees are set by the issuing authority",
+      processing: "A tourist visa is issued through the sponsor, often within about 2 working days. Visa on arrival is on the spot",
+      maxStay: "Singapore passports: up to 90 days in any 180. Visa on arrival: 14 or 60 days",
+      checked: "25 November 2026",
     },
-    {
-      title: "Eligibility check & document verification",
-      body: "Your VIZA consultant first confirms you actually need a visa — Singapore and Chinese passports don't — then verifies your MRZ scan, photo, insurance, and onward ticket before filing through our licensed sponsor channel to GDRFA Dubai.",
-    },
-    {
-      title: "Your visa gets processed",
-      body: "GDRFA Dubai's stated processing time is 48 hours. We monitor each stage and flag any delays so you always know where things stand.",
-      statusRows: [
-        { label: "Application filed with GDRFA Dubai", ts: "15 Jun, 10:00 AM", onTime: true },
-        { label: "Identity and travel document verified", ts: "15 Jun, 1:30 PM", onTime: true },
-        { label: "Awaiting final visa issuance", ts: "In progress" },
+
+    passports: {
+      intro: "The UAE decides by passport, and it keeps adding categories. The table shows the passports most common in Singapore and the route that applies to each. Where we could not confirm the stay length on an official page, the table says so.",
+      rows: [
+        { passport: "Singapore", status: "Visa free", note: "The Singapore Ministry of Foreign Affairs says up to 90 days within any 180. Older UAE embassy pages say 30 days, so read the MFA page before you fly." },
+        { passport: "China (PRC)", status: "Visa free, reported 30 days", note: "Chinese passports are reported as visa exempt under a 2018 agreement. We could not confirm the stay length on an official page." },
+        { passport: "Malaysia", status: "Visa free, check the stay", note: "Malaysian passports are reported as visa exempt on arrival. Confirm the stay length with the UAE authorities." },
+        { passport: "India", status: "Visa on arrival with a permit", note: "Indian ordinary passports with a valid Singapore residence permit can get a visa on arrival, a rule that started on 13 February 2025. US, UK and EU visas or permits also qualify." },
+        { passport: "Indonesia", status: "Visa on arrival with a permit", note: "Since June 2026, ordinary passports with a valid Singapore residence permit get a 14 day or 60 day visa on arrival." },
+        { passport: "Philippines", status: "Visa on arrival with a permit", note: "The same June 2026 rule, with a valid Singapore residence permit and an ordinary passport." },
+        { passport: "Vietnam", status: "Visa on arrival with a permit", note: "The same June 2026 rule, with a valid Singapore residence permit and an ordinary passport." },
+        { passport: "Other passports", status: "Check with the UAE authorities", note: "Many passports are visa exempt or get a visa on arrival, and others need a tourist visa through a sponsor. Ask the airline or the issuing authority." },
       ],
     },
-    {
-      title: "Get your visa on 18 Jun, 12:00 PM",
-      body: "The visa PDF arrives in your inbox and your VIZA app. Print it or save it — UAE immigration scans it on arrival, then captures your biometrics at the border.",
-      delivered: true,
-    },
-  ],
 
-  docsTitle: "Required documents",
-  docsSub:
-    "Your VIZA consultant double-checks each document before submission. Re-uploads are unlimited and free.",
-  documents: [
-    { name: "Passport bio page", sub: "Valid 6+ months · clear scan with readable MRZ" },
-    { name: "One colour photograph", sub: "White background · recent" },
-    { name: "Onward or return ticket", sub: "GDRFA condition — showing your journey out of the UAE" },
-    { name: "Health insurance", sub: "Valid in the UAE for your stay — a stated visa condition" },
-    { name: "National ID card", sub: "Only for Iraq, Pakistan, Iran, and Afghanistan nationals" },
-  ],
+    visaTypes: {
+      intro: "The UAE has several ways in. Which one you use depends on your passport and your residence.",
+      items: [
+        { title: "Visa free entry", body: "Singapore passports, and a long list of others, enter on arrival with no visa and no fee. The stay is set by the passport." },
+        { title: "Visa on arrival for residents", body: "Ordinary passports from Indonesia, Vietnam, the Philippines, Thailand, Kenya and South Africa, with a valid residence permit from Singapore and several other countries, get 14 days (AED 100, extendable once) or 60 days (AED 250, no extension). Indian passports with a Singapore permit qualify under a separate rule." },
+        { title: "Tourist visa through a sponsor", body: "An airline, a hotel or a licensed agent applies for you on the Dubai (GDRFA) or federal (ICP) system. A 30 or 60 day stay is common. Embassies do not issue it." },
+        { title: "Transit and long stay", body: "Transit visas, work, residence and Golden Visa applications are separate processes. The tourist visa does not allow work." },
+      ],
+    },
 
-  rejectionTitle: "Why UAE tourist visas get rejected",
-  rejectionSub:
-    "The GDRFA/ICP systems check these automatically. VIZA reviews your application before submission to catch issues first.",
-  rejectionReasons: [
-    {
-      title: "Passport validity under 6 months",
-      body: "GDRFA rejects applications outright when the passport has less than 6 months remaining. The same 6-month rule applies to visa-free entry.",
+    residents: {
+      intro: "For people in Singapore, the pass matters most for Indian, Indonesian, Philippine and Vietnamese passports, because the visa on arrival needs a valid Singapore residence permit. A Singapore passport needs no visa at all.",
+      rows: [
+        { pass: "Employment Pass", body: "An EP holder with an Indian, Indonesian, Philippine or Vietnamese passport can get a visa on arrival with the EP as the residence permit. Keep the pass valid, carry the card and travel on an ordinary passport." },
+        { pass: "S Pass", body: "The same as the Employment Pass. The S Pass is a Singapore residence permit, and the permit must be valid when you land." },
+        { pass: "Dependant's Pass", body: "Accompanying family members are covered by the June 2026 rule for the six nationalities. Each person carries their own passport and a valid Dependant's Pass." },
+        { pass: "Permanent Resident", body: "Carry your re-entry permit and NRIC with the passport of your own country. A PR with an eligible passport is covered as a Singapore resident." },
+        { pass: "Singapore citizen", body: "No visa. Carry a passport valid for your trip, and note that the Singapore Ministry of Foreign Affairs says passports with only a single name are not allowed entry to the UAE." },
+        { pass: "Student's Pass", body: "A Student's Pass is a Singapore residence permit. Ask the airline whether it accepts it for the visa on arrival, and carry a school letter." },
+      ],
     },
-    {
-      title: "Blurry photo or unreadable passport scan",
-      body: "A low-resolution photo, wrong background, or obscured MRZ zone prevents identity verification and triggers automatic rejection.",
-    },
-    {
-      title: "Previous overstay or unpaid fines",
-      body: "Overstay records and outstanding fines stay on the ICP/GDRFA systems permanently. New applications are refused until fines are cleared — compliance history is now linked to future approvals.",
-    },
-    {
-      title: "An old visa still open in the system",
-      body: "An active prior entry permit or uncancelled residence visa blocks a new tourist visa until it's cancelled or expires.",
-    },
-    {
-      title: "Data mismatch",
-      body: "Name, passport number, or date-of-birth inconsistencies between the application and passport — or travel dates that don't match the visa requested.",
-    },
-    {
-      title: "Nationality-specific document gaps",
-      body: "Missing home-country ID card for Iraq, Pakistan, Iran, or Afghanistan nationals, or missing financial documents where required.",
-    },
-  ],
 
-  entryTitle: "Entry & exit regulations",
-  entrySub:
-    "No arrival card is needed — the UAE has no equivalent of Thailand's TDAC or Malaysia's MDAC. Biometrics (face and iris) are captured at immigration, and airlines can ask for your onward ticket at check-in — it's a formal visa condition.",
-  entryExit: [
-    { icon: "refresh", k: "Entry", v: "Single or Multiple", sub: "Chosen at application — both exist for 30- and 60-day visas" },
-    { icon: "clock", k: "Activate within", v: "~60 days", sub: "From the issue date — enter before the window closes" },
-    { icon: "plane", k: "Arrival card", v: "Not required", sub: "Biometrics captured at the border instead" },
-  ],
+    fees: {
+      intro: "A visa-free entry costs nothing. The visa on arrival has fixed fees. A sponsor-filed tourist visa has a fee set by the issuing authority and the sponsor. VIZA's help is free.",
+      rows: [
+        { item: "Visa free entry", amount: "No fee", note: "Singapore passports, and the other exempt passports." },
+        { item: "Visa on arrival, 14 days", amount: "AED 100", note: "For the six eligible nationalities with a valid permit. It can be extended once inside the UAE." },
+        { item: "Visa on arrival, 60 days", amount: "AED 250", note: "A single stay that cannot be extended." },
+        { item: "Tourist visa, sponsor-filed", amount: "Set by the issuing authority", note: "The airline, hotel or agent quotes the total. Check what it includes." },
+        { item: "Overstay", amount: "AED 50 per day", note: "Charged for every day beyond the permitted stay." },
+      ],
+      processing: "Visa on arrival is issued at the airport. A tourist visa filed by a sponsor is commonly approved within about two working days, but no fixed time is published. Apply at least a week before you fly and do not book non-refundable flights before the visa arrives.",
+    },
 
-  extensionTitle: "Visa extension & overstays",
-  extensionSub:
-    "Since December 2025, 30- and 60-day visit visas extend fully online through ICP Smart Services — no more exiting and re-entering. Extensions run up to 120 days total and must be filed before expiry; fines start the day after.",
-  extension: [
-    { icon: "extend", k: "Extension", v: "Up to 120 days", sub: "Once or multiple times · fully online via ICP · ~2 days" },
-    { icon: "currency", k: "Extension fee", v: "AED 600", sub: "AED 100 application + AED 500 extension ≈ SGD 210" },
-    { icon: "alert", k: "Overstay fine", v: "AED 50 / day", sub: "≈ SGD 17.50 per day · unified rate, no grace period" },
-  ],
-
-  reviews: {
-    score: "4.7",
-    outOf: "/ 5",
-    sub: "Trusted by thousands of travellers · 8,932 reviews",
-    platforms: [
-      { rating: "4.7", name: "Trustpilot" },
-      { rating: "4.8", name: "App Store" },
-    ],
-    items: [
-      {
-        initials: "NS",
-        name: "Nadia Shah",
-        source: "Trustpilot · 3 days ago",
-        title: "Dubai visa in under 3 days",
-        body: "First time applying for a UAE visa and I was nervous about the photo spec. The consultant flagged the background colour before submission and sorted it. No stress at all.",
+    apply: {
+      intro: "The UAE does not have one public application site for every traveller, so the first job is to pick the right route. Choose how much help you want.",
+      guided: {
+        title: "Guided",
+        body: "VIZA's AI confirms which route applies to your passport and residence, then walks you through the documents. You complete the step with your airline or sponsor yourself.",
       },
-      {
-        initials: "BL",
-        name: "Bernard Lim",
-        source: "App Store · 6 days ago",
-        title: "Status updates made all the difference",
-        body: "Watched my application move through each stage in real time. Knew exactly when the visa was issued — no refreshing emails. Would not apply any other way.",
+      fullService: {
+        title: "Full-service",
+        body: "A VIZA consultant checks your passport, permit and dates, and prepares the file for the sponsor, so the visa or the arrival check goes through the first time.",
       },
-    ],
+      steps: [
+        { title: "Start on VIZA", body: "Upload your passport, Singapore pass and trip dates. We confirm whether you need a visa, a visa on arrival or nothing." },
+        { title: "Prepare the file", body: "We check the passport validity, the residence permit and the return ticket against the route." },
+        { title: "Apply through the route", body: "Use the sponsor route for a tourist visa, or carry the permit for the visa on arrival. Pay the government fee shown." },
+        { title: "Travel", body: "Carry your passport, pass, ticket and hotel booking, with a printed copy of any visa." },
+      ],
+    },
+
+    checklist: {
+      intro: "The documents depend on the route. The list below is the common core, and the airline or sponsor can ask for more.",
+      groups: [
+        {
+          applicant: "Everyone",
+          items: [
+            "Passport valid for at least 6 months, which airlines commonly ask for",
+            "Return or onward ticket",
+            "Hotel booking or the address where you stay",
+            "A passport that has more than a single name",
+          ],
+        },
+        {
+          applicant: "Tourist visa through a sponsor",
+          items: [
+            "Colour passport copy and a recent photo",
+            "Sponsor details, from the airline, hotel or agent",
+            "Payment for the fee the sponsor quotes",
+          ],
+        },
+        {
+          applicant: "Employment Pass and S Pass",
+          items: [
+            "Valid pass card, with the pass valid through your return",
+            "Ordinary passport of the eligible nationality",
+            "Employer letter, if the airline asks",
+          ],
+        },
+        {
+          applicant: "Dependant's Pass",
+          items: [
+            "Dependant's Pass card and the main holder's pass copy",
+            "Each person's own passport",
+            "Marriage or birth certificate, if the airline asks",
+          ],
+        },
+        {
+          applicant: "Permanent Resident and student",
+          items: [
+            "Valid re-entry permit and NRIC, or Student's Pass and school letter",
+            "The passport of your own country",
+            "Proof of funds, if asked",
+          ],
+        },
+      ],
+    },
+
+    travel: {
+      intro: "The UAE is easy to enter once the paperwork is right. A few rules catch visitors out.",
+      items: [
+        { title: "Check the advisory", body: "The Singapore Ministry of Foreign Affairs advised in March 2026 that Singaporeans defer travel to the region. Read the current advisory before you book." },
+        { title: "Single-name passports", body: "The Singapore Ministry says passports with only a single name are not allowed entry. Check the name on your passport page." },
+        { title: "Know your stay length", body: "Your allowed days depend on the passport and the route. Count them, because overstays cost AED 50 per day." },
+        { title: "Carry the proof", body: "Carry your pass, ticket, hotel booking and any visa copy, because the airline checks them at check-in." },
+        { title: "Local laws", body: "Dress and behaviour rules are stricter than in Singapore, and rules on alcohol and public conduct differ by emirate." },
+      ],
+    },
+
+    reviewed: {
+      date: "25 November 2026",
+      note: "Checked against the UAE Ministry of Foreign Affairs and the Singapore Ministry of Foreign Affairs. Some UAE pages were not available to our checks, so look at the links under Sources before you travel.",
+    },
+
+    related: {
+      destinations: ["saudi-arabia", "egypt", "india", "turkiye"],
+      guides: [
+        { label: "Visa-free countries for Singapore passport holders", href: "/guides/visa-free-countries-singapore-passport" },
+        { label: "e-Visa vs visa on arrival vs embassy visa", href: "/guides/e-visa-vs-visa-on-arrival-vs-embassy-visa" },
+        { label: "UAE Ministry of Foreign Affairs, visa on arrival for residents of selected countries", href: "https://www.mofa.gov.ae/en/mediahub/news/2026/6/25/uae-grants-visa-on-arrival" },
+        { label: "VIZA visa news", href: "/blog" },
+      ],
+    },
   },
 
-  faqSub:
-    "Can't find an answer? Ask the AI assistant at the bottom of this page or message your VIZA consultant.",
+  rejectionTitle: "Common rejection reasons",
+  rejectionSub: "The UAE does not always explain a refusal. These are the points a consultant checks first.",
+  rejectionReasons: [
+    { title: "Residence permit not valid", body: "The visa on arrival needs a valid permit from an eligible country. An expired permit or a Social Visit Pass does not count." },
+    { title: "Wrong passport type", body: "The June 2026 rule covers ordinary passports. A diplomatic or special passport follows different rules." },
+    { title: "Passport validity too short", body: "Airlines commonly ask for at least 6 months, and short validity is refused at check-in." },
+    { title: "Single-name passport", body: "A passport with only a single name is not allowed entry, according to the Singapore Ministry of Foreign Affairs." },
+    { title: "Earlier overstay or fines", body: "Unpaid fines or an earlier overstay can block a new approval." },
+  ],
+
+  faqSub: "Can't find your answer? Ask the AI assistant below or message a VIZA consultant.",
   faq: [
-    {
-      category: "General information",
-      q: "What is the UAE tourist visa and who issues it?",
-      a: "A 30- or 60-day tourist visa issued by GDRFA Dubai or the federal ICP. Unusually, you can't apply direct or at an embassy — applications must be filed by a licensed sponsor such as an airline, a UAE hotel, or a licensed travel agent. VIZA files through its licensed channel, so for you it works like any online visa.",
-    },
-    {
-      category: "General information",
-      q: "Do Singapore or Chinese passport holders need this visa?",
-      a: "No. Singapore passports get free visa on arrival for 90 days within any 180-day period (since September 2024). Chinese ordinary passports are visa-free for the same 90-in-180 stay under the 2018 China–UAE mutual exemption. Both need 6+ months' passport validity. VIZA confirms your eligibility for free.",
-    },
-    {
-      category: "General information",
-      q: "Can I travel to all seven emirates on one visa?",
-      a: "Yes. A UAE tourist visa is valid across all seven emirates — Dubai, Abu Dhabi, Sharjah, Ajman, Ras Al Khaimah, Fujairah, and Umm Al Quwain. There are no inter-emirate border checks.",
-    },
-    {
-      category: "Application process",
-      q: "How quickly will I receive my UAE tourist visa?",
-      a: "GDRFA Dubai's stated processing time is 48 hours once filed. Through VIZA, most visas are delivered within 2 – 3 business days end-to-end.",
-    },
-    {
-      category: "Application process",
-      q: "How much is the government fee?",
-      a: "For the 30-day visa, GDRFA charges AED 252 + 5% VAT + AED 20 in knowledge/innovation dirhams (≈ SGD 100). The 60-day visa is AED 352 + VAT (≈ SGD 130). A 5-year multi-entry tourist visa also exists at AED 713.50 in fees plus a refundable AED 3,000 guarantee deposit, with a USD 4,000 bank-balance requirement. These fees are paid directly to GDRFA; VIZA charges nothing for its help.",
-    },
-    {
-      category: "Rejections & reapplications",
-      q: "What happens if my UAE tourist visa is refused?",
-      a: "The UAE government keeps its fee; VIZA charges nothing for its help. Your consultant reviews the refusal — the most common causes are unpaid fines from a previous stay or an old visa still open in the system — and helps you clear the blocker and reapply.",
-    },
+    { category: "Do I need a visa", q: "Do Singaporeans need a visa for Dubai or the UAE?", a: "No. Singapore passport holders enter the UAE without a visa. The Singapore Ministry of Foreign Affairs says the stay is up to 90 days within any 180, though older UAE embassy pages say 30 days, so check before you fly." },
+    { category: "Do I need a visa", q: "Do Indian passport holders in Singapore need a UAE visa?", a: "They can get a visa on arrival if they hold a valid Singapore residence permit, under a rule that started on 13 February 2025. US, UK and EU visas or permits also qualify." },
+    { category: "Do I need a visa", q: "Can Indonesian, Philippine and Vietnamese passport holders in Singapore get a UAE visa on arrival?", a: "Yes. Since June 2026, ordinary passports from these countries with a valid Singapore residence permit can get a 14 day visa (AED 100, extendable once) or a 60 day visa (AED 250) on arrival." },
+    { category: "Do I need a visa", q: "Do Chinese and Malaysian passport holders in Singapore need a UAE visa?", a: "Both are reported as visa exempt on arrival. We could not confirm the stay length on an official page, so check with the UAE authorities or your airline." },
+    { category: "Applying", q: "How do I get a UAE tourist visa from Singapore?", a: "If you need one, an airline, a hotel or a licensed agent applies for you on the Dubai or federal system. Embassies do not issue UAE tourist visas." },
+    { category: "Applying", q: "Does my Employment Pass or PR change the UAE rule?", a: "For Singapore, Malaysian and Chinese passports, no. For Indian, Indonesian, Philippine and Vietnamese passports, yes, because the visa on arrival needs a valid Singapore residence permit." },
+    { category: "Applying", q: "Is there a UAE e-visa?", a: "The UAE issues a visa electronically through a sponsor on its Dubai and federal systems, with no open public portal. Many travellers need no visa at all." },
+    { category: "Fees and time", q: "How much is the UAE visa on arrival?", a: "AED 100 for 14 days, which can be extended once, and AED 250 for 60 days, which cannot." },
+    { category: "Fees and time", q: "How long does a UAE tourist visa take?", a: "A sponsor-filed visa is commonly approved within about two working days, though no fixed time is published. Apply at least a week ahead." },
+    { category: "Fees and time", q: "What is the UAE overstay fine?", a: "AED 50 per day beyond the permitted stay, according to the UAE Ministry of Foreign Affairs." },
+    { category: "Rejections", q: "What if my UAE visa or entry is refused?", a: "A consultant can check the permit, passport and documents for the likely cause. Fix it before you apply again, and do not travel on a refused visa." },
+    { category: "Before you travel", q: "Is it safe to travel to the UAE now?", a: "Read the Singapore Ministry of Foreign Affairs advisory for the UAE. It advised deferring travel to the region in March 2026, and the current status is on the MFA page." },
+    { category: "Before you travel", q: "How much does VIZA charge?", a: "Nothing. VIZA's help is free. You pay any government or sponsor fee directly." },
   ],
 
   sources: [
-    {
-      label: "UAE Official Government Portal — Tourist visa",
-      url: "https://u.ae/en/information-and-services/visa-and-emirates-id/tourist-visa",
-      display: "u.ae",
-    },
-    {
-      label: "GDRFA Dubai — Issuance of a single-entry tourist visa",
-      url: "https://www.gdrfad.gov.ae/en/services/f9e586fe-0642-11ec-0320-0050569629e8",
-      display: "gdrfad.gov.ae",
-    },
-    {
-      label: "ICP — Visa extension service",
-      url: "https://icp.gov.ae/en/services-details/?serviceid=64afe3c1035448005bd52e62",
-      display: "icp.gov.ae",
-    },
-    {
-      label: "ICP Smart Services portal",
-      url: "https://smartservices.icp.gov.ae",
-      display: "smartservices.icp.gov.ae",
-    },
-    {
-      label: "Chinese Embassy in the UAE — Entry & exit requirements",
-      url: "https://ae.china-embassy.gov.cn/chn//faxz/crjyq/",
-      display: "ae.china-embassy.gov.cn",
-    },
+    { label: "UAE Ministry of Foreign Affairs, visa on arrival for residents of six countries", url: "https://www.mofa.gov.ae/en/mediahub/news/2026/6/25/uae-grants-visa-on-arrival", display: "mofa.gov.ae" },
+    { label: "UAE Embassy New Delhi, expanded visa on arrival for Indian nationals", url: "https://www.mofa.gov.ae/en/Missions/New-Delhi/Media-hub/News/19-2-2025-new-delhi", display: "mofa.gov.ae" },
+    { label: "Singapore Ministry of Foreign Affairs, UAE travel page", url: "https://www.mfa.gov.sg/travelling-overseas/travel-advisories-notices-and-visa-information/united-arab-emirates/", display: "mfa.gov.sg" },
+    { label: "UAE Government portal, tourist visa", url: "https://u.ae/en/information-and-services/visa-and-emirates-id/tourist-visa", display: "u.ae" },
+    { label: "ICP, Federal Authority for Identity, Citizenship, Customs and Port Security", url: "https://icp.gov.ae/en/", display: "icp.gov.ae" },
   ],
 
   price: {
-    etaLabel: "Apply now, get it by",
-    etaValue: "18 Jun 2026, 12:00 PM",
-    title: "Tourist visa · 30 or 60-day stay",
-    saving: "Faster than applying direct",
-    sub: "VIZA's help is free: document review, form filling, and tracking. The government fee is paid directly to GDRFA.",
-    foot: "VIZA's service is free. The UAE visa fee is paid directly to GDRFA Dubai.",
+    etaLabel: "Processing time",
+    etaValue: "On arrival or about 2 days",
+    title: "UAE tourist visa · visa on arrival",
+    sub: "VIZA's help is free: route check and document review. Government and sponsor fees are paid directly.",
+    foot: "VIZA's service is free. Any UAE visa fee is paid directly to the authority or sponsor.",
   },
 
-  aiPlaceholder: "Ask anything about UAE visas — visa-free entry, fees, extensions…",
+  aiPlaceholder: "Ask anything about a UAE visa: Dubai from Singapore, visa on arrival, fees…",
 };
 
 export default unitedArabEmirates;

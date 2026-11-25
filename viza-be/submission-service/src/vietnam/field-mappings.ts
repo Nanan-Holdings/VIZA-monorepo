@@ -54,7 +54,10 @@ const YES_NO_LABELS = { yes: "Yes", no: "No", true: "Yes", false: "No" };
 // while older portal builds rendered `Male` / `Female`. The select matcher
 // treats the compact value as a prefix-equivalent match, so using `M` / `F`
 // works on both versions and avoids an expensive failed-search path.
-const SEX_LABELS = { male: "M", m: "M", female: "F", f: "F" };
+// The official Ant select shows "Male" / "Female" (its option values are M/F).
+// Use the visible text: a one-letter target cannot be ranked against it, and
+// the keyboard fallback then picked the wrong row (2026-11-22 Male -> Female).
+const SEX_LABELS = { male: "Male", m: "Male", "男": "Male", female: "Female", f: "Female", "女": "Female" };
 const COUNTRY_NAME_BY_NORMALIZED = Object.fromEntries(
   Object.values(VN_COUNTRY_NAME_BY_ALPHA3).map((name) => [normalizeCountryLookupKey(name), name]),
 );

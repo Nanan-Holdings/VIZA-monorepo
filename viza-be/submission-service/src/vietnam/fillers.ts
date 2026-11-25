@@ -15,7 +15,16 @@ import {
   getVnCountrySearchTextForOptionText,
 } from "./field-mappings.js";
 
+// Best-effort/optional interactions (wrapped in .catch) keep a short bound so a
+// missing optional control does not slow a run down.
 const SHORT_TIMEOUT = 5_000;
+// Required field interactions (type, press, click, read-back). This is only an
+// upper bound: on a normal session these actions finish in milliseconds. A slow
+// remote Browserbase/VN-proxy session can need several seconds per keystroke
+// batch; on 2026-11-21 a 5s bound left the date of birth half-typed and failed
+// the whole run. Override with VN_FIELD_ACTION_TIMEOUT_MS (2s-60s).
+const DEFAULT_FIELD_ACTION_TIMEOUT_MS = 20_000;
+const ACTION_TIMEOUT = getVietnamFieldActionTimeoutMs();
 const SETTLE_MS = 200;
 const MIN_SELECT_MATCH_SCORE = 88;
 const DEFAULT_SELECT_FIELD_TIMEOUT_MS = 45_000;
@@ -104,8 +113,8 @@ async function settle(page: Page): Promise<void> {
 export async function fillText(page: Page, domId: string, value: string): Promise<void> {
   const sel = `#${cssEscape(domId)}`;
   const input = page.locator(sel).first();
-  await input.fill(value, { timeout: SHORT_TIMEOUT });
-  await input.press("Tab", { timeout: SHORT_TIMEOUT });
+  await input.fill(value, { timeout: ACTION_TIMEOUT });
+  await input.press("Tab", { timeout: ACTION_TIMEOUT });
   await settle(page);
 }
 
@@ -529,6 +538,90 @@ export async function commitVietnamOfficialExpenseSelectModel(
   return result.matched > 0 && result.matched === result.stable;
 }
 
+/** True for a Playwright action timeout (slow remote session), not a portal rejection. */
+export function isVietnamFieldActionTimeout(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  return error.name === "TimeoutError" || /Timeout \d+ms exceeded/.test(error.message);
+}
+
+/**
+ * Run one required field fill, retrying once when Playwright times out on a
+ * slow remote session. Every filler clears/overwrites the control before
+ * typing, so a retry cannot leave duplicated text. Portal rejections and
+ * ownership/cancellation errors are not retried.
+ */
+export async function fillVietnamFieldWithTimeoutRetry(
+  page: Page,
+  fieldName: string,
+  fill: () => Promise<void>,
+  maxAttempts = 2,
+): Promise<void> {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      await fill();
+      if (attempt > 1) console.log(`[vn] field ${fieldName} filled on retry ${attempt}`);
+      return;
+    } catch (error) {
+      if (attempt >= maxAttempts || !isVietnamFieldActionTimeout(error)) throw error;
+      console.warn(`[vn] field ${fieldName} timed out on a slow session; retrying (${attempt + 1}/${maxAttempts})`);
+      await page.waitForTimeout(500);
+    }
+  }
+}
+
+/**
+ * Hard upper bound for one field attempt (upload, select, date, text...).
+ * Some steps (for example the in-browser photo compression `page.evaluate`)
+ * have no Playwright timeout. If the remote browser connection silently dies,
+ * as it did on 2026-11-21 after a network drop, the run would otherwise hang
+ * for its whole lease while holding a Browserbase session. Override with
+ * VN_FIELD_DEADLINE_MS (30s-300s).
+ */
+export function getVietnamFieldDeadlineMs(
+  rawValue: string | undefined = process.env.VN_FIELD_DEADLINE_MS,
+): number {
+  if (!rawValue) return 150_000;
+  const parsed = Number.parseInt(rawValue, 10);
+  if (!Number.isFinite(parsed)) return 150_000;
+  return Math.max(30_000, Math.min(parsed, 300_000));
+}
+
+export class VietnamFieldDeadlineError extends Error {
+  constructor(fieldName: string, deadlineMs: number) {
+    super(
+      `Vietnam field ${fieldName} did not finish within ${Math.round(deadlineMs / 1000)}s; ` +
+      "the remote browser looks unresponsive",
+    );
+    this.name = "VietnamFieldDeadlineError";
+  }
+}
+
+/** Reject with VietnamFieldDeadlineError if one field attempt never settles. */
+export async function withVietnamFieldDeadline<T>(
+  fieldName: string,
+  work: () => Promise<T>,
+  deadlineMs: number = getVietnamFieldDeadlineMs(),
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new VietnamFieldDeadlineError(fieldName, deadlineMs)), deadlineMs);
+  });
+  try {
+    return await Promise.race([work(), deadline]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+export function getVietnamFieldActionTimeoutMs(
+  rawValue: string | undefined = process.env.VN_FIELD_ACTION_TIMEOUT_MS,
+): number {
+  if (!rawValue) return DEFAULT_FIELD_ACTION_TIMEOUT_MS;
+  const parsed = Number.parseInt(rawValue, 10);
+  if (!Number.isFinite(parsed)) return DEFAULT_FIELD_ACTION_TIMEOUT_MS;
+  return Math.max(2_000, Math.min(parsed, 60_000));
+}
+
 export function getVietnamSelectFieldTimeoutMs(
   rawValue: string | undefined = process.env.VN_SELECT_FIELD_TIMEOUT_MS,
 ): number {
@@ -557,7 +650,7 @@ async function pickKnownCountryByIndex(
   await input.evaluate((element) => {
     element.closest<HTMLElement>(".ant-select")?.scrollIntoView({ block: "center", inline: "center" });
   });
-  await selector.click({ timeout: SHORT_TIMEOUT, force: true });
+  await selector.click({ timeout: ACTION_TIMEOUT, force: true });
   await page.waitForTimeout(150);
   await input.fill("", { timeout: SHORT_TIMEOUT }).catch(() => undefined);
   await openFullSelectListForIndexedScroll(page, domId);
@@ -596,7 +689,7 @@ async function pickSelectWithPlaywright(
     cell?.scrollIntoView({ block: "center", inline: "center" });
   });
   await page.waitForTimeout(150);
-  await selector.click({ timeout: SHORT_TIMEOUT, force: true });
+  await selector.click({ timeout: ACTION_TIMEOUT, force: true });
   await page.waitForTimeout(250);
   await input.click({ timeout: SHORT_TIMEOUT, force: true }).catch(() => undefined);
   await input.fill("", { timeout: SHORT_TIMEOUT }).catch(() => undefined);
@@ -664,7 +757,7 @@ async function pickSelectWithPlaywright(
       .filter({ hasText: exactPattern })
       .first();
     if ((await exactOption.count()) > 0) {
-      await exactOption.click({ timeout: SHORT_TIMEOUT, force: true });
+      await exactOption.click({ timeout: ACTION_TIMEOUT, force: true });
     } else {
       const indexed = optionIndex === null
         ? { ok: false, candidates: [] }
@@ -726,12 +819,21 @@ async function pickSelectWithKeyboardAliases(
     for (const candidate of ownedCandidates) {
       if (!seen.includes(candidate)) seen.push(candidate);
     }
-    await input.press("ArrowDown", { timeout: SHORT_TIMEOUT }).catch(() => undefined);
-    await page.waitForTimeout(150);
-    await input.press("Enter", { timeout: SHORT_TIMEOUT }).catch(() => undefined);
-    await page.waitForTimeout(600);
-    if (await selectDisplayMatches(page, domId, matchTexts)) {
-      return { ok: true, candidates: seen };
+    // Click the visible option that actually matches; a blind ArrowDown+Enter
+    // picks whatever row is next (e.g. "Female" after searching "M").
+    const visibleCandidates = await readVisibleSelectCandidates(page);
+    const best = pickVietnamSelectOption(visibleCandidates, matchTexts);
+    if (best) {
+      await page
+        .locator(".ant-select-dropdown:visible .ant-select-item-option")
+        .filter({ hasText: new RegExp(`^\\s*${escapeRegExp(best)}\\s*$`) })
+        .first()
+        .click({ timeout: SHORT_TIMEOUT })
+        .catch(() => undefined);
+      await page.waitForTimeout(600);
+      if (await selectDisplayMatches(page, domId, matchTexts)) {
+        return { ok: true, candidates: seen };
+      }
     }
     await input.press("Escape", { timeout: SHORT_TIMEOUT }).catch(() => undefined);
   }
@@ -740,6 +842,22 @@ async function pickSelectWithKeyboardAliases(
     reason: Date.now() >= deadline ? "select_field_timeout" : "keyboard_selection_not_confirmed",
     candidates: seen,
   };
+}
+
+/** Best visible option for any of the expected texts, or null if none is a confident match. */
+export function pickVietnamSelectOption(candidates: string[], matchTexts: string[]): string | null {
+  let best: { text: string; score: number } | null = null;
+  for (const matchText of matchTexts) {
+    const top = rankAntSelectCandidates(candidates, matchText)[0];
+    if (top && isAcceptableAntSelectMatch(top.score) && (!best || top.score > best.score)) {
+      best = { text: top.text, score: top.score };
+    }
+  }
+  return best?.text ?? null;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 async function readOwnedSelectCandidates(page: Page, domId: string): Promise<string[]> {
@@ -973,10 +1091,15 @@ async function selectDisplayMatches(page: Page, domId: string, matchTexts: strin
       ]
         .filter(Boolean)
         .join(" ");
+      // Whole-word match only: "female" must not satisfy an expected "male".
+      const textTokens = normalize(text).split(" ").filter(Boolean);
       return expectedTexts.some((expected) => {
         const normalizedExpected = normalize(expected);
-        return normalize(text) === normalizedExpected ||
-          (normalizedExpected.length > 1 && normalize(text).includes(normalizedExpected));
+        if (!normalizedExpected) return false;
+        if (normalize(text) === normalizedExpected) return true;
+        const expectedTokens = normalizedExpected.split(" ").filter(Boolean);
+        return normalizedExpected.length > 1 &&
+          expectedTokens.every((token) => textTokens.includes(token));
       });
     },
     { domId, matchTexts },
@@ -1045,7 +1168,7 @@ export async function pickRadio(page: Page, domId: string, optionText: string): 
   if ((await option.count()) === 0) {
     throw new Error(`Ant radio option not found for ${domId}: ${optionText}`);
   }
-  await option.click({ timeout: SHORT_TIMEOUT });
+  await option.click({ timeout: ACTION_TIMEOUT });
   const input = option.locator("input[type='radio']").first();
   if ((await input.count()) > 0) {
     await input.evaluate((element) => {
@@ -1097,7 +1220,7 @@ export async function fillDate(page: Page, domId: string, ddmmyyyy: string): Pro
   const input = (await visibleInput.count().catch(() => 0)) > 0
     ? visibleInput
     : page.locator(sel).first();
-  const initialValue = (await input.inputValue({ timeout: SHORT_TIMEOUT })).trim();
+  const initialValue = (await input.inputValue({ timeout: ACTION_TIMEOUT })).trim();
   if (initialValue === ddmmyyyy) {
     return;
   }
@@ -1109,7 +1232,7 @@ export async function fillDate(page: Page, domId: string, ddmmyyyy: string): Pro
         throw new Error(`Ant date option and official Vue date model not found for ${domId}`);
       }
       await page.waitForTimeout(1_200);
-      const directlyCommitted = (await input.inputValue({ timeout: SHORT_TIMEOUT })).trim();
+      const directlyCommitted = (await input.inputValue({ timeout: ACTION_TIMEOUT })).trim();
       if (directlyCommitted !== ddmmyyyy) {
         throw new Error(`Ant date value not confirmed for ${domId}`);
       }
@@ -1120,25 +1243,25 @@ export async function fillDate(page: Page, domId: string, ddmmyyyy: string): Pro
     // synthetic input/blur bridge: the live detail page can replay the old
     // child ref during that second blur and undo a valid user-equivalent pick.
     await page.waitForTimeout(1_200);
-    const committed = (await input.inputValue({ timeout: SHORT_TIMEOUT })).trim();
+    const committed = (await input.inputValue({ timeout: ACTION_TIMEOUT })).trim();
     if (committed !== ddmmyyyy) {
       throw new Error(`Ant date value not confirmed for ${domId}`);
     }
     return;
   }
-  await input.click({ timeout: SHORT_TIMEOUT });
-  await input.press(process.platform === "darwin" ? "Meta+A" : "Control+A", { timeout: SHORT_TIMEOUT });
-  await input.press("Backspace", { timeout: SHORT_TIMEOUT });
-  await input.pressSequentially(ddmmyyyy, { delay: 35, timeout: SHORT_TIMEOUT });
+  await input.click({ timeout: ACTION_TIMEOUT });
+  await input.press(process.platform === "darwin" ? "Meta+A" : "Control+A", { timeout: ACTION_TIMEOUT });
+  await input.press("Backspace", { timeout: ACTION_TIMEOUT });
+  await input.pressSequentially(ddmmyyyy, { delay: 35, timeout: ACTION_TIMEOUT });
   // Ant Design Vue tracks keyboard events before it parses and commits a date.
   // A single Playwright `fill()` event can leave the rendered text changed while
   // Vue retains the previous model value, which then reappears on blur.
   await page.waitForTimeout(200);
-  await input.press("Enter", { timeout: SHORT_TIMEOUT });
+  await input.press("Enter", { timeout: ACTION_TIMEOUT });
   await input.press("Tab", { timeout: SHORT_TIMEOUT }).catch(() => undefined);
   await page.waitForTimeout(900);
 
-  let current = (await input.inputValue({ timeout: SHORT_TIMEOUT })).trim();
+  let current = (await input.inputValue({ timeout: ACTION_TIMEOUT })).trim();
   if (current === ddmmyyyy) {
     await page.waitForTimeout(600);
     return;
@@ -1152,7 +1275,7 @@ export async function fillDate(page: Page, domId: string, ddmmyyyy: string): Pro
     }
   }
   await page.waitForTimeout(900);
-  current = (await input.inputValue({ timeout: SHORT_TIMEOUT })).trim();
+  current = (await input.inputValue({ timeout: ACTION_TIMEOUT })).trim();
   if (current !== ddmmyyyy) {
     throw new Error(`Ant date value not confirmed for ${domId}`);
   }
@@ -1376,7 +1499,7 @@ async function selectVietnamAntPickerDate(
   if (!match) return false;
   const targetIso = `${match[3]}-${match[2]}-${match[1]}`;
   const targetMonth = Number(match[3]) * 12 + Number(match[2]) - 1;
-  await input.click({ timeout: SHORT_TIMEOUT, force: true });
+  await input.click({ timeout: ACTION_TIMEOUT, force: true });
   const dropdown = page.locator(".ant-picker-dropdown:visible").last();
   if (!(await dropdown.isVisible({ timeout: 2_000 }).catch(() => false))) {
     console.warn("[vn] Ant date calendar did not become visible");
@@ -1388,7 +1511,7 @@ async function selectVietnamAntPickerDate(
       .locator(`td[title="${targetIso}"]:not(.ant-picker-cell-disabled)`)
       .first();
     if (await targetCell.isVisible({ timeout: 250 }).catch(() => false)) {
-      await targetCell.locator(".ant-picker-cell-inner").click({ timeout: SHORT_TIMEOUT });
+      await targetCell.locator(".ant-picker-cell-inner").click({ timeout: ACTION_TIMEOUT });
       await dropdown.waitFor({ state: "hidden", timeout: SHORT_TIMEOUT }).catch(() => undefined);
       console.log(`[vn] Ant date calendar selected target month=${match[2]}/${match[3]}`);
       return true;
@@ -1417,7 +1540,7 @@ async function selectVietnamAntPickerDate(
       console.warn(`[vn] Ant date calendar ${direction} navigation control missing`);
       return false;
     }
-    await button.click({ timeout: SHORT_TIMEOUT });
+    await button.click({ timeout: ACTION_TIMEOUT });
     await page.waitForTimeout(180);
   }
   console.warn(`[vn] Ant date calendar navigation exhausted target month=${match[2]}/${match[3]}`);
@@ -1433,7 +1556,7 @@ export async function tickCheckbox(page: Page, domId: string, rawValue: string):
   const sel = `#${cssEscape(domId)}`;
   const input = page.locator(sel).first();
   if (shouldCheck) {
-    await input.check({ force: true, timeout: SHORT_TIMEOUT });
+    await input.check({ force: true, timeout: ACTION_TIMEOUT });
   } else {
     await input.uncheck({ force: true, timeout: SHORT_TIMEOUT }).catch(() => undefined);
   }

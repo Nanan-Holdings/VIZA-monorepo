@@ -1,28 +1,31 @@
 import createMiddleware from "next-intl/middleware";
-import type { NextRequest } from "next/server";
-import { locales, defaultLocale } from "./i18n";
+import { NextResponse, type NextRequest } from "next/server";
+import { routing } from "./navigation";
+import { LOCALE_COOKIE, ENABLED_LOCALES, DEFAULT_LOCALE } from "./lib/locales";
 
-const intlMiddleware = createMiddleware({
-  locales: [...locales],
-  defaultLocale,
-  localePrefix: "as-needed",
-  // localeDetection stays true (default) so the NEXT_LOCALE cookie persists an
-  // explicit language choice across the site's plain-anchor navigation.
-});
+const intlMiddleware = createMiddleware(routing);
 
+const PREFIXED = ENABLED_LOCALES.filter((l) => l !== DEFAULT_LOCALE);
+
+/**
+ * Locale routing only. No locale is ever forced: /visa/japan is English and
+ * /zh-CN/visa/japan is Chinese for every visitor, Googlebot included.
+ *
+ * The one redirect here: a returning visitor who explicitly picked a language
+ * (viza_locale cookie) lands on that language's home page when they open "/".
+ * Deep links are never second-guessed. First-visit country redirects for
+ * Chinese-speaking regions live in vercel.json and skip crawlers.
+ */
 export default function proxy(request: NextRequest) {
-  const pathname = request.nextUrl.pathname;
-  // The unprefixed article and category URLs are English canonical URLs.
-  // Keep them reachable even when a visitor's site preference is Chinese.
-  if (pathname === "/en" || pathname.startsWith("/en/") || pathname.startsWith("/blog/")) {
-    request.cookies.set("NEXT_LOCALE", "en");
-    return intlMiddleware(request);
-  }
-  // Force Chinese for first-time visitors (no stored preference), overriding the
-  // accept-language header. Once the user has a cookie (incl. an explicit switch
-  // to English), it is honored normally.
-  if (!request.cookies.has("NEXT_LOCALE")) {
-    request.cookies.set("NEXT_LOCALE", "zh-CN");
+  const { pathname } = request.nextUrl;
+  if (pathname === "/") {
+    const chosen = request.cookies.get(LOCALE_COOKIE)?.value;
+    const prefixed = PREFIXED.find((l) => l === chosen);
+    if (prefixed) {
+      const url = request.nextUrl.clone();
+      url.pathname = `/${prefixed}`;
+      return NextResponse.redirect(url);
+    }
   }
   return intlMiddleware(request);
 }

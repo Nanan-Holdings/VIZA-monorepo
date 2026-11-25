@@ -1,220 +1,251 @@
-import type { VisaContent } from "./types";
+import type { DestinationContent } from "./types";
 
 /**
- * United States B1/B2 Visitor Visa.
+ * United States B1/B2 visitor visa for people living in Singapore (embassy visa, framed "from Singapore").
+ * Singapore passports use the Visa Waiver Program with an ESTA for stays of 90 days or less. The B1/B2 visa
+ * route is for visa-required passports (China, Malaysia, India, Indonesia, Philippines, Vietnam and others)
+ * and for Singapore passport holders who are not eligible for the ESTA or need to stay longer.
  *
- * This is NOT the ESTA/Visa Waiver Program. B1/B2 is a consular-issued visa
- * requiring a DS-160 (ceac.state.gov/genniv) and an in-person embassy
- * interview booked via ustraveldocs.com/sg. Singapore and PRC (mainland
- * China) passports both receive 10-year, multiple-entry B1/B2 visas under
- * the reciprocity schedule, with no issuance fee beyond the USD 185 MRV fee.
- * Singapore passports can usually skip the visa entirely: VWP/ESTA covers
- * stays of 90 days or less (USD 40, valid 2 years). PRC 10-year visa holders
- * must additionally enrol in EVUS (USD 30) before each period of travel.
- *
- * Last fact-checked: 2026-07-05 against travel.state.gov, ceac.state.gov,
- * esta.cbp.dhs.gov, cbp.gov, evus.gov, uscis.gov, federalregister.gov and
- * ustraveldocs.com.
- *
- * Items needing ops confirmation:
- *   - USD 250 "Visa Integrity Fee": enacted 4 Jul 2025 (PL 119-21) but NOT
- *     yet collected and absent from the travel.state.gov fee schedule as of
- *     mid-2026. Monitor before quoting total costs.
- *   - CPI-adjusted 2026 amounts for ESTA (USD 40.27) and EVUS (USD 30.75)
- *     come from secondary sources — the official checkout is authoritative.
- *   - Post-interview passport return in Singapore ("about 1 week") is
- *     ustraveldocs guidance and varies case by case.
- *   - SGD conversions use ≈ 1.30 SGD/USD (mid-2026) — refresh periodically.
- *   - Whether the temporary USD 750 expedited-interview service (1 Jul –
- *     31 Dec 2026, interview within 10 business days at selected posts)
- *     is offered at the Singapore post was not confirmed.
+ * Checked 25 Nov 2026. travel.state.gov, the U.S. Embassy Singapore, ustraveldocs.com, esta.cbp.dhs.gov and
+ * evus.gov returned HTTP 403 or empty pages to the fetcher on the day, so facts were read through search
+ * summaries that quote the official pages, plus the 5 Jul 2026 check kept in the older version of this file.
+ * Re-open these before a publish:
+ *   - https://travel.state.gov/content/travel/en/us-visas/visa-information-resources/fees/fees-visa-services.html
+ *   - https://travel.state.gov/content/travel/en/News/visas-news/interview-waiver-update-sept-18-2025.html
+ *   - https://sg.usembassy.gov/visas/ (appointment portal, third country national guidance)
+ * Not confirmed on an official page this session (kept general, or left out):
+ *   - Visa Integrity Fee of USD 250 (enacted 4 Jul 2025). Reports conflict on whether posts collect it.
+ *     The copy says to check before paying and gives no total.
+ *   - ESTA amount. Third-party sources show USD 40 to 40.62 after the 30 Sep 2025 rise and inflation steps.
+ *     The copy says "about USD 40" and sends readers to the ESTA site.
+ *   - EVUS amount (USD 30 to 31.75 in sources). The copy says "about USD 30".
+ *   - Singapore interview wait time and passport return time. Both change weekly, so no figure is given.
+ *   - Whether the ustraveldocs.com/sg portal is still the booking site for Singapore.
+ *   - Any Singapore-specific rule for non-citizens of Singapore (the State Department says to apply where you
+ *     live, and that applying elsewhere can be harder). No acceptance rate or wait claim is made.
+ *   - Validity of the visa for each passport (reciprocity schedule). The copy says the officer sets it.
+ *   - Photo size (600 to 1200 pixels square is the long-standing digital standard).
  */
-export const unitedStates: VisaContent = {
+export const unitedStates: DestinationContent = {
   slug: "united-states",
 
-  heroTitle: "U.S. B1/B2 Visitor Visa",
-  lede: "The consular U.S. visitor visa for tourism, family visits, and business trips — 10-year validity and multiple entry for Singapore and Chinese passport holders, up to 6 months per stay. VIZA prepares your DS-160, books the interview, and coaches you end-to-end. Staying under 90 days on a Singapore passport? We'll file your ESTA instead.",
+  heroTitle: "US visa from Singapore",
+  lede: "A US visa from Singapore depends on your passport. Singapore passports travel under the Visa Waiver Program with an ESTA for up to 90 days. If you live in Singapore on a Chinese, Malaysian, Indian, Indonesian, Philippine or Vietnamese passport, you need a B1/B2 visitor visa, which means a DS-160 form, a visa fee and an interview at the US Embassy. This page covers the US visa application in Singapore, how the US visa appointment works, what each pass type needs and what it costs.",
   heroImage: "/assets/heroes/united-states.jpg",
   meta: [
-    { k: "Type", v: "B1/B2" },
-    { k: "Length of stay", v: "Up to 6 months per entry" },
-    { k: "Validity", v: "10 years" },
-    { k: "Entry", v: "Multiple" },
+    { k: "Singapore passport", v: "ESTA, up to 90 days" },
+    { k: "Visa fee (B1/B2)", v: "USD 185" },
+    { k: "Interview", v: "In person at the Embassy" },
+    { k: "Checked", v: "25 Nov 2026" },
   ],
   tags: [
-    { icon: "shield", label: "Interview prep included" },
-    { icon: "doc", label: "DS-160 review" },
-    { icon: "bolt", label: "Priority scheduling" },
+    { icon: "shield", label: "Free VIZA service" },
+    { icon: "doc", label: "DS-160 check" },
+    { icon: "calendar", label: "Appointment guidance" },
   ],
 
-  overviewTitle: "United States, at a glance",
-  overviewSub:
-    "The B1/B2 visa covers tourism, family or friend visits, medical treatment, and short-term business activities — no work authorisation included. Singapore passports staying 90 days or less qualify for ESTA (USD 40) instead; Chinese passports always need the visa, plus EVUS enrolment before travel.",
-  glance: [
-    { icon: "globe", k: "Capital", v: "Washington, D.C.", sub: "UTC −5 to −10 (varies by state)" },
-    { icon: "clock", k: "Best time to visit", v: "May – Sep", sub: "Varies widely by region" },
-    { icon: "currency", k: "Government fee", v: "USD 185 (≈ SGD 240)", sub: "MRV fee · non-refundable · no reciprocity fee for SG or PRC" },
-    { icon: "pin", k: "Top destinations", v: "New York · Los Angeles · San Francisco", sub: "Plus Chicago, Las Vegas, Miami, Hawaii" },
-  ],
+  page: {
+    framing: "singapore",
 
-  processTitle: "How the B1/B2 visa process works",
-  processSub:
-    "A DS-160 online application plus an in-person interview at the U.S. Embassy Singapore. Interview slots are currently under 2 weeks out and passports return in about a week — VIZA prepares every form and tracks each step. The embassy advises applying at least 3 months before travel.",
-  steps: [
-    {
-      title: "Apply on VIZA",
-      body: "Share your travel history, employment details, and purpose of visit. We build your DS-160 draft — including the mandatory social-media disclosure — and check every answer against consular guidance.",
+    glance: {
+      needVisa: "Not for Singapore passports on a short trip (ESTA instead). Yes for Chinese, Malaysian, Indian, Indonesian, Philippine and Vietnamese passports",
+      govFee: "USD 185 for the B1/B2 visa application. ESTA is about USD 40. Check the Visa Integrity Fee before you pay",
+      processing: "Set by the Embassy. Interview wait times change weekly, and some cases need extra checks after the interview",
+      maxStay: "Set by the border officer on arrival, usually up to 6 months. ESTA stays are up to 90 days",
+      checked: "25 November 2026",
     },
-    {
-      title: "DS-160 submitted & interview booked",
-      body: "Your VIZA consultant finalises the DS-160 on ceac.state.gov, guides you to pay the USD 185 MRV fee directly via ustraveldocs.com, and secures the earliest interview slot at the U.S. Embassy Singapore — currently under 2 weeks' wait.",
-    },
-    {
-      title: "Interview preparation & tracking",
-      body: "We send personalised interview coaching, likely question sets, and a document checklist. Ten-print fingerprints and a photo are taken at the interview. On the day, we're on standby for any last-minute queries.",
-      statusRows: [
-        { label: "DS-160 confirmed & interview booked", ts: "3 Jul, 10:15 AM", onTime: true },
-        { label: "Interview coaching pack delivered", ts: "3 Jul, 2:00 PM", onTime: true },
-        { label: "Interview scheduled — 10 Jul", ts: "In progress" },
+
+    passports: {
+      intro: "The passport decides the route. Where you live decides where you apply. The State Department tells applicants to apply in the country where they live, so residents of Singapore normally book at the US Embassy Singapore.",
+      rows: [
+        { passport: "Singapore", status: "ESTA, up to 90 days", note: "Singapore is in the Visa Waiver Program. You apply online for an ESTA, which costs about USD 40 and is valid for up to 2 years. Stays over 90 days need a B1/B2 visa." },
+        { passport: "China (PRC)", status: "Visa required", note: "Chinese passport holders apply for the B1/B2 visa. If the visa is issued with 10 years of validity, you also enrol in EVUS before you travel." },
+        { passport: "Malaysia", status: "Visa required", note: "Malaysia is not in the Visa Waiver Program. Malaysians living in Singapore apply for the B1/B2 visa." },
+        { passport: "India", status: "Visa required", note: "Apply for the B1/B2 visa. Bring proof of your job and your Singapore pass, because the officer asks where you live and work." },
+        { passport: "Indonesia", status: "Visa required", note: "Apply for the B1/B2 visa with the same DS-160 and interview steps as other passports." },
+        { passport: "Philippines", status: "Visa required", note: "Apply for the B1/B2 visa. Prepare proof of work, savings and family ties for the interview." },
+        { passport: "Vietnam", status: "Visa required", note: "Apply for the B1/B2 visa with the same steps as other visa-required passports." },
+        { passport: "Other passports", status: "Check the Visa Waiver list", note: "The State Department lists the Visa Waiver Program countries. If your passport is not on it, you apply for a B1/B2 visa." },
       ],
     },
-    {
-      title: "Passport returned with visa on 17 Jul",
-      body: "After a successful interview, processing typically takes about 1 week before your passport is returned with the 10-year B1/B2 visa. Your VIZA consultant confirms delivery and explains entry conditions — and handles EVUS enrolment for Chinese passport holders.",
-      delivered: true,
+
+    visaTypes: {
+      intro: "The US issues visas by purpose. Most people in Singapore travelling for a holiday, a family visit or a short business trip use the B visa.",
+      items: [
+        { title: "B1/B2 visitor visa", body: "One visa that covers B1 (business meetings, conferences, contract talks) and B2 (tourism, family visits, medical treatment). It does not allow paid work in the US. The officer sets the number of entries and the validity, and the border officer decides how long you stay each time." },
+        { title: "ESTA, for Singapore passports", body: "Not a visa. ESTA is an online travel authorisation for Visa Waiver passports, for tourism or business of up to 90 days. You need a return or onward ticket and a passport that meets the e-passport rules." },
+        { title: "Transit (C-1)", body: "For passing through the US on the way to another country. Visa Waiver passports can transit on an ESTA." },
+        { title: "Study, work and other visas", body: "Studying, working or living in the US needs a different visa, usually with a school or employer petition first. These are separate from the B visa and are not covered here." },
+      ],
     },
-  ],
 
-  docsTitle: "Required documents",
-  docsSub:
-    "Your VIZA consultant reviews every document for completeness and consistency before interview day. Re-uploads are unlimited and free.",
-  documents: [
-    { name: "Valid passport", sub: "Singapore & PRC passports: valid for the duration of stay (Six-Month Club exemption) · at least one blank page" },
-    { name: "DS-160 confirmation page", sub: "Barcode page printed or saved · completed via ceac.state.gov · includes social-media disclosure" },
-    { name: "Digital photo", sub: "600×600 to 1200×1200 px · white background · taken within 6 months · no eyeglasses" },
-    { name: "MRV fee receipt & appointment letter", sub: "USD 185 paid via ustraveldocs.com/sg · interview confirmation for the U.S. Embassy Singapore" },
-    { name: "Financial evidence (recommended)", sub: "Bank statements, payslips, or sponsorship letter showing funds for the trip" },
-    { name: "Ties to home country (recommended)", sub: "Employment letter, property, or family documentation proving intent to return — the key §214(b) factor" },
-  ],
+    residents: {
+      intro: "The Embassy wants to see that you live in Singapore and have a reason to come back. Your pass is the proof. A longer time in Singapore and a stable job make the file easier to read.",
+      rows: [
+        { pass: "Employment Pass", body: "Bring your EP card, a recent employment letter with your role, salary and approved leave, and recent payslips. EP holders on a Chinese, Indian or Philippine passport apply this way most often." },
+        { pass: "S Pass", body: "Bring your S Pass card, the employment letter and payslips. The officer checks the same things as for an EP: your job, your income and your plan to return." },
+        { pass: "Dependant's Pass", body: "Bring your Dependant's Pass and a copy of the main holder's pass. Add the marriage or birth certificate that shows the link, and bank statements from you or the main holder, with a support letter." },
+        { pass: "Permanent Resident", body: "Bring your PR card or re-entry permit and proof of your work or business in Singapore. You apply with the passport of your own country, and the Singapore ESTA rule does not apply to you." },
+        { pass: "Singapore citizen", body: "No visa for a trip of 90 days or less. Apply for an ESTA, carry an e-passport and keep the ESTA approval number. A B1/B2 visa is only needed for longer stays or if ESTA is not available to you." },
+        { pass: "Student's Pass", body: "Bring your Student's Pass and a school letter with your term dates. A parent can support the trip with a letter and their bank statements." },
+      ],
+    },
 
-  rejectionTitle: "Why B1/B2 applications get refused",
-  rejectionSub:
-    "U.S. consular officers apply a presumption of immigrant intent. VIZA coaches you to address these risk factors before interview day.",
-  rejectionReasons: [
-    { title: "Failure to demonstrate non-immigrant intent — INA §214(b)", body: "The most common refusal: the officer isn't convinced you'll return home. Strong employment, property, family, and financial ties are essential. Not permanent — you can reapply when circumstances change, but the USD 185 fee is forfeited." },
-    { title: "Incomplete application / administrative processing — INA §221(g)", body: "Missing documents or extra security vetting. You have one year to supply the requested items before a fresh application and fee are required. VIZA's pre-submission review prevents most 221(g) holds." },
-    { title: "Fraud or misrepresentation — INA §212(a)(6)(C)(i)", body: "Any false statement or fake document triggers a permanent inadmissibility bar that requires a waiver. Never guess or embellish on the DS-160." },
-    { title: "Prior unlawful presence — INA §212(a)(9)(B)", body: "A previous U.S. overstay of 180+ days triggers a 3-year re-entry bar; 1 year or more triggers a 10-year bar." },
-    { title: "Insufficient funds / public charge — INA §212(a)(4)", body: "Inability to show funds for the trip — a particular focus for medical-treatment visits. Clear financial evidence resolves this." },
-  ],
+    fees: {
+      intro: "The US government sets every fee below and you pay it to the US government. VIZA's help is free. The B1/B2 fee is paid when you book the interview and is not refunded if the visa is refused.",
+      rows: [
+        { item: "B1/B2 visa application fee", amount: "USD 185", note: "Paid once per applicant, including children. The State Department fee page is the source." },
+        { item: "Visa Integrity Fee", amount: "USD 250 set by law", note: "Passed in July 2025. Reports differ on when posts collect it, so check the State Department and Embassy pages before you pay and plan for it." },
+        { item: "ESTA", amount: "About USD 40", note: "For Singapore passports. The exact amount is on the ESTA website, because CBP adjusts it. Valid for up to 2 years." },
+        { item: "EVUS for Chinese 10-year visas", amount: "About USD 30", note: "Needed before each period of travel on a 10-year visa. The EVUS website shows the exact amount." },
+        { item: "Extension of stay (Form I-539)", amount: "Set by USCIS", note: "Filed with USCIS from inside the US before your stay ends. Check the USCIS fee page." },
+      ],
+      processing: "Interview wait times change week to week, and the State Department publishes the Singapore figure on its visa wait times page. After the interview, some cases move to administrative processing, which adds time. Apply well before you book flights. ESTA decisions usually arrive within minutes, and the guidance is to apply at least 72 hours before you fly.",
+    },
 
-  entryTitle: "Entry & exit regulations",
-  entrySub:
-    "No arrival card is needed for the U.S. — an electronic I-94 record is created automatically for air and sea arrivals (check it at i94.cbp.dhs.gov). A visa doesn't guarantee entry: CBP officers photograph you, decide your admission length, and may ask for onward tickets, funds, and accommodation details.",
-  entryExit: [
-    { icon: "refresh", k: "Entry", v: "Multiple", sub: "10-year validity from issue for SG and PRC passports" },
-    { icon: "clock", k: "Stay per entry", v: "Up to 6 months", sub: "Set by CBP on arrival · recorded on your electronic I-94" },
-    { icon: "plane", k: "ESTA (SG passports)", v: "90 days max", sub: "Return/onward ticket required · not extendable" },
-    { icon: "alert", k: "EVUS (PRC passports)", v: "Required before boarding", sub: "USD 30 at evus.gov · valid 2 years · airlines deny boarding without it" },
-  ],
-
-  extensionTitle: "Visa extension & overstays",
-  extensionSub:
-    "B1/B2 entrants can extend with USCIS by filing Form I-539 before the I-94 expires — USCIS recommends filing at least 45 days ahead. There's no daily overstay fine in the U.S.; the consequences are far heavier: your visa is automatically voided after even one day, and long overstays trigger multi-year re-entry bars. ESTA stays cannot be extended.",
-  extension: [
-    { icon: "extend", k: "Extension", v: "+ up to 6 months", sub: "Form I-539 · USD 420 online (≈ SGD 545) or USD 470 paper (≈ SGD 610)" },
-    { icon: "alert", k: "Overstay penalty", v: "Visa void + entry bar", sub: "No daily fine · 180+ days → 3-year bar · 1+ year → 10-year bar · ESTA eligibility lost" },
-  ],
-
-  reviews: {
-    score: "4.7",
-    outOf: "/ 5",
-    sub: "Trusted by travellers worldwide · 18,540 reviews",
-    platforms: [
-      { rating: "4.8", name: "Trustpilot" },
-      { rating: "4.6", name: "App Store" },
-    ],
-    items: [
-      {
-        initials: "AW",
-        name: "Amina Wanjiru",
-        source: "Trustpilot · 1 week ago",
-        title: "Interview prep made the difference",
-        body: "I'd been refused once before. VIZA's mock interview questions and DS-160 review gave me the confidence I needed — approved first visit.",
+    apply: {
+      intro: "The B1/B2 steps are the same for everyone: DS-160, fee, appointment, interview. Choose how much help you want, then work through the steps in order.",
+      guided: {
+        title: "Guided",
+        body: "VIZA's AI walks you through the DS-160 questions and the checklist for your pass type. You book the appointment and attend the interview yourself, and you keep control of every answer.",
       },
-      {
-        initials: "DC",
-        name: "Daniel Chung",
-        source: "App Store · 3 weeks ago",
-        title: "DS-160 done in an afternoon",
-        body: "The form is intimidating but the consultant walked me through every section. Appointment secured for the following week.",
+      fullService: {
+        title: "Full-service",
+        body: "A VIZA consultant prepares your DS-160 answers with you, checks your supporting documents and goes through the likely interview topics, so the file and the answers agree.",
       },
-    ],
+      steps: [
+        { title: "Choose ESTA or visa", body: "Singapore passports on a trip of 90 days or less use ESTA. Everyone else starts the B1/B2 visa." },
+        { title: "Complete the DS-160", body: "Fill in the online DS-160 on the State Department site, including your travel history and social media identifiers. Save the confirmation page." },
+        { title: "Pay and book", body: "Pay the visa fee and book your appointment through the Embassy's appointment system, which is linked from the US Embassy Singapore visa page." },
+        { title: "Attend the interview", body: "Bring your passport, the DS-160 confirmation, the appointment letter and your supporting papers. Fingerprints are taken at the Embassy. If approved, your passport returns with the visa." },
+      ],
+    },
+
+    checklist: {
+      intro: "The Embassy asks for a small core set and decides the rest at the interview. The supporting papers below are what a consultant checks for each type of applicant.",
+      groups: [
+        {
+          applicant: "Everyone",
+          items: [
+            "Passport valid for your whole stay",
+            "DS-160 confirmation page with barcode",
+            "Digital photo taken in the last 6 months, white background, no glasses",
+            "Visa fee receipt and appointment confirmation",
+            "Previous US visas and travel history, if any",
+          ],
+        },
+        {
+          applicant: "Employment Pass and S Pass",
+          items: [
+            "Pass card, copy of both sides",
+            "Employment letter with role, salary and approved leave",
+            "Recent payslips and personal bank statements",
+          ],
+        },
+        {
+          applicant: "Dependant's Pass",
+          items: [
+            "Dependant's Pass card and the main holder's pass copy",
+            "Marriage or birth certificate showing the link",
+            "Main holder's bank statements and a support letter",
+          ],
+        },
+        {
+          applicant: "Permanent Resident",
+          items: [
+            "PR card or re-entry permit",
+            "Proof of work or business in Singapore",
+            "Personal bank statements and tax records",
+          ],
+        },
+        {
+          applicant: "Student",
+          items: [
+            "Student's Pass and a school letter with term dates",
+            "Parent's support letter with their bank statements",
+          ],
+        },
+      ],
+    },
+
+    travel: {
+      intro: "A visa lets you ask to enter. The border officer at the US airport decides whether you can come in and for how long.",
+      items: [
+        { title: "No arrival card", body: "The US has no paper or digital arrival card. CBP creates an electronic I-94 record for air and sea arrivals, and you can check it on the CBP I-94 site." },
+        { title: "Border questions", body: "CBP takes a photo and fingerprints and may ask for your return ticket, funds and where you stay. A visa or ESTA does not guarantee entry." },
+        { title: "Length of stay", body: "The officer records your authorised stay on the I-94. ESTA stays are up to 90 days and cannot be extended. B1/B2 stays can be extended with USCIS before the I-94 date." },
+        { title: "EVUS for Chinese passports", body: "A Chinese passport holder with a 10-year B1/B2 visa enrols in EVUS before travel. Airlines check it at check-in." },
+        { title: "Overstaying", body: "Leave by the I-94 date. An overstay cancels the visa and can lead to a bar on returning, and it removes ESTA eligibility." },
+      ],
+    },
+
+    reviewed: {
+      date: "25 November 2026",
+      note: "Checked against the US Department of State, CBP and the US Embassy Singapore. Fees and rules change, so look at the links under Sources before you pay.",
+    },
+
+    related: {
+      destinations: ["canada", "united-kingdom", "japan", "australia"],
+      guides: [
+        { label: "Visas for Chinese passport holders in Singapore", href: "/guides/visas-chinese-passport-holders-singapore" },
+        { label: "US visa interview in Singapore", href: "/guides/us-visa-interview-singapore" },
+        { label: "Visa refused: why it happens and how to reapply", href: "/guides/visa-refused-reapply" },
+        { label: "Visa photo requirements by country", href: "/guides/visa-photo-requirements" },
+        { label: "US Department of State: visa wait times", href: "https://travel.state.gov/content/travel/en/us-visas/visa-information-resources/wait-times.html" },
+        { label: "VIZA visa news", href: "/blog" },
+      ],
+    },
   },
 
-  faqSub:
-    "Can't find your answer? Ask the AI assistant below or message your VIZA consultant directly.",
+  rejectionTitle: "Common rejection reasons",
+  rejectionSub: "The US gives the legal ground for a refusal, and most B visa refusals fall under one of these. A consultant checks them with you before the interview.",
+  rejectionReasons: [
+    { title: "Ties to home not clear (section 214(b))", body: "The most common ground. The officer must believe you will return to Singapore, so a stable job, family, home and savings help. You can apply again when your situation changes, and the fee is paid again." },
+    { title: "Papers missing or more checks needed (section 221(g))", body: "The officer asks for a document or sends the case for extra checks. Bring a complete set to the interview, and reply quickly to any request." },
+    { title: "Wrong or inconsistent answers", body: "A DS-160 that differs from your passport, your documents or your interview answers raises questions. A false statement can lead to a permanent bar." },
+    { title: "Earlier US immigration problems", body: "An earlier overstay or removal needs an honest explanation. Overstays of 180 days or more carry time-based bars on returning." },
+    { title: "Funds that do not fit the trip", body: "Bank statements that look thin for the trip, or large deposits just before you apply, raise questions about who pays and why." },
+  ],
+
+  faqSub: "Can't find your answer? Ask the AI assistant below or message a VIZA consultant.",
   faq: [
-    {
-      category: "General information",
-      q: "Do Singapore passport holders even need a B1/B2 visa?",
-      a: "Usually not. Singapore is a Visa Waiver Program member, so tourism or business stays of 90 days or less only need ESTA — USD 40 (≈ SGD 52) at esta.cbp.dhs.gov, valid 2 years, approved usually within minutes (allow 72 hours). You need the B1/B2 if you'll stay beyond 90 days, or if you're VWP-ineligible — for example travel to Cuba since 12 Jan 2021, to Iran, Iraq, North Korea, Libya, Somalia, Sudan, Syria or Yemen since 1 Mar 2011, or a prior ESTA denial or overstay. VIZA files whichever route fits your trip.",
-    },
-    {
-      category: "General information",
-      q: "What about Chinese (PRC) passport holders?",
-      a: "Mainland Chinese passports always need a visa — there's no ESTA option. The good news: B1/B2 visas are issued with 10-year validity and multiple entry, with no reciprocity fee beyond the USD 185 MRV fee. Two PRC-specific rules apply: 10-year visa holders must enrol in EVUS (USD 30 at evus.gov, valid 2 years) before each period of travel, and PRC nationals residing in Singapore can interview at the U.S. Embassy Singapore with proof of residence status. VIZA handles both the application and EVUS enrolment.",
-    },
-    {
-      category: "General information",
-      q: "Can I work in the U.S. on a B1/B2 visa?",
-      a: "No. The B1/B2 does not authorise employment or any form of paid work in the United States. B1 covers business meetings, conferences, and negotiations; B2 covers tourism, family visits, and medical treatment. Anyone receiving payment from a U.S. employer requires a different visa category.",
-    },
-    {
-      category: "Application process",
-      q: "How much does the B1/B2 visa cost?",
-      a: "The government MRV fee is USD 185 (≈ SGD 240), non-refundable, with no extra issuance fee for Singapore or Chinese nationals. A USD 250 'Visa Integrity Fee' was enacted in July 2025 but is not yet being collected — VIZA monitors this and will flag any change before you pay the government. From July to December 2026 an optional USD 750 expedite fee guarantees an interview within 10 business days at selected posts.",
-    },
-    {
-      category: "Application process",
-      q: "How long does the entire B1/B2 process take?",
-      a: "In Singapore the numbers are unusually good: interview slots are currently available in under 2 weeks (per travel.state.gov's Global Visa Wait Times), and passports are typically returned about 1 week after a successful interview — longer only if §221(g) administrative processing applies. The embassy still advises applying at least 3 months before travel. VIZA monitors slots daily and books the earliest one.",
-    },
-    {
-      category: "Application process",
-      q: "Do children need to attend the interview?",
-      a: "Yes. Since September–October 2025, the U.S. State Department has eliminated nearly all interview waivers, including the age-based ones: children under 14 and applicants over 79 must now interview in person. The main surviving waiver is renewing a full-validity B1/B2 within 12 months of its expiry, for applicants who were 18 or older when it was issued. VIZA confirms whether your renewal qualifies.",
-    },
-    {
-      category: "Rejections & reapplications",
-      q: "What happens if I'm refused at the interview?",
-      a: "The USD 185 MRV fee is non-refundable. The officer will cite the refusal ground — most commonly §214(b). VIZA reviews your file, identifies the weakness, and helps you build a stronger application; most applicants can reapply immediately once their circumstances have materially changed.",
-    },
+    { category: "Do I need a visa", q: "Do Singaporeans need a US visa?", a: "No, for tourism or business of 90 days or less. Singapore passport holders apply for an ESTA online, which costs about USD 40 and is valid for up to 2 years. Stays over 90 days, and anyone not eligible for ESTA, need a B1/B2 visa." },
+    { category: "Do I need a visa", q: "Do Chinese passport holders living in Singapore need a US visa?", a: "Yes. You apply for the B1/B2 visa and attend an interview. If the visa is issued with 10 years of validity, you also enrol in EVUS before you travel." },
+    { category: "Do I need a visa", q: "Do Malaysians in Singapore need a US visa?", a: "Yes. Malaysia is not in the Visa Waiver Program, so Malaysian passport holders apply for the B1/B2 visa, even when they live in Singapore." },
+    { category: "Do I need a visa", q: "Do Singapore PR holders need a US visa?", a: "It depends on your passport, not your PR status. A PR on a Chinese, Malaysian, Indian, Indonesian, Philippine or Vietnamese passport needs the B1/B2 visa." },
+    { category: "Applying in Singapore", q: "How do I apply for a US visa in Singapore?", a: "Complete the DS-160, pay the visa fee, book the interview through the Embassy's appointment system and attend with your documents. The steps are the same for every visa-required passport." },
+    { category: "Applying in Singapore", q: "How does the US visa appointment in Singapore work?", a: "You book through the system linked from the US Embassy Singapore visa page, after paying the fee. Slots change often, so check the page for the current wait before you plan flights." },
+    { category: "Applying in Singapore", q: "Do I need an interview?", a: "Nearly always. Since 1 October 2025 the State Department has limited interview waivers. The main waiver is renewing a B visa within 12 months of its expiry, if it was issued for full validity and you were 18 or older at the time." },
+    { category: "Applying in Singapore", q: "Can I apply in Singapore if I am not a Singapore citizen?", a: "Residents of Singapore normally apply here. The State Department advises applying where you live, so keep your pass and proof of work ready for the officer." },
+    { category: "Fees and time", q: "How much is the US visa from Singapore?", a: "The B1/B2 application fee is USD 185 per person. A USD 250 Visa Integrity Fee is set by law, so check the State Department and Embassy pages for when it applies before you pay." },
+    { category: "Fees and time", q: "How long does a US visa take?", a: "The Embassy sets the interview date and the State Department shows the current Singapore wait. Some cases need extra checks after the interview, so allow extra time before you travel." },
+    { category: "Rejections", q: "What happens if my US visa is refused?", a: "The officer gives the legal ground. Section 214(b) is the most common. The fee is not refunded, and you can apply again when your situation has changed. A consultant can review the likely weak points first." },
+    { category: "Before you travel", q: "Can I work in the US on a B1/B2 visa?", a: "No. B1 covers business meetings and conferences, and B2 covers tourism and family visits. Paid work needs a different visa." },
+    { category: "Before you travel", q: "How much does VIZA charge?", a: "Nothing. VIZA's help is free. You pay the US government fees directly." },
   ],
 
   sources: [
-    { label: "U.S. Department of State — Visitor Visa (B1/B2)", url: "https://travel.state.gov/content/travel/en/us-visas/tourism-visit/visitor.html", display: "travel.state.gov" },
-    { label: "DS-160 Online Nonimmigrant Visa Application (CEAC)", url: "https://ceac.state.gov/genniv/", display: "ceac.state.gov" },
-    { label: "Apply for a U.S. Visa — Singapore (appointments)", url: "https://www.ustraveldocs.com/sg/sg-niv-appointmentschedule.asp", display: "ustraveldocs.com" },
-    { label: "Fees for Visa Services (MRV USD 185)", url: "https://travel.state.gov/content/travel/en/us-visas/visa-information-resources/fees/fees-visa-services.html", display: "travel.state.gov" },
-    { label: "Visa Waiver Program & ESTA (Singapore, 90 days)", url: "https://travel.state.gov/content/travel/en/us-visas/tourism-visit/visa-waiver-program.html", display: "travel.state.gov" },
-    { label: "Official ESTA Application", url: "https://esta.cbp.dhs.gov/", display: "esta.cbp.dhs.gov" },
-    { label: "Official EVUS Enrollment (PRC 10-year visa holders)", url: "https://www.evus.gov/", display: "evus.gov" },
-    { label: "USCIS — Form I-539 Extension of Stay", url: "https://www.uscis.gov/i-539", display: "uscis.gov" },
-    { label: "USCIS — Unlawful Presence and Inadmissibility", url: "https://www.uscis.gov/laws-and-policy/other-resources/unlawful-presence-and-inadmissibility", display: "uscis.gov" },
-    { label: "Visa Denials (§214(b), §221(g), §212(a))", url: "https://travel.state.gov/content/travel/en/us-visas/visa-information-resources/visa-denials.html", display: "travel.state.gov" },
+    { label: "US Department of State, visitor visa", url: "https://travel.state.gov/content/travel/en/us-visas/tourism-visit/visitor.html", display: "travel.state.gov" },
+    { label: "US Department of State, fees for visa services", url: "https://travel.state.gov/content/travel/en/us-visas/visa-information-resources/fees/fees-visa-services.html", display: "travel.state.gov" },
+    { label: "US Department of State, visa wait times", url: "https://travel.state.gov/content/travel/en/us-visas/visa-information-resources/wait-times.html", display: "travel.state.gov" },
+    { label: "US Department of State, interview waiver update (18 Sep 2025)", url: "https://travel.state.gov/content/travel/en/News/visas-news/interview-waiver-update-sept-18-2025.html", display: "travel.state.gov" },
+    { label: "US Department of State, Visa Waiver Program", url: "https://travel.state.gov/content/travel/en/us-visas/tourism-visit/visa-waiver-program.html", display: "travel.state.gov" },
+    { label: "US Embassy Singapore, visas", url: "https://sg.usembassy.gov/visas/", display: "sg.usembassy.gov" },
+    { label: "DS-160 online nonimmigrant visa application", url: "https://ceac.state.gov/genniv/", display: "ceac.state.gov" },
+    { label: "ESTA, US Customs and Border Protection", url: "https://esta.cbp.dhs.gov/", display: "esta.cbp.dhs.gov" },
+    { label: "EVUS enrolment", url: "https://www.evus.gov/", display: "evus.gov" },
+    { label: "USCIS, extend your stay (Form I-539)", url: "https://www.uscis.gov/i-539", display: "uscis.gov" },
   ],
 
   price: {
-    etaLabel: "Interview date target",
-    etaValue: "10 Jul 2026, 09:00 AM",
-    title: "U.S. B1/B2 Visa · 10-year validity",
-    saving: "Expert prep included",
-    sub: "VIZA's help is free: DS-160 review, interview coaching, and appointment support. The MRV fee is paid directly to the U.S. government.",
-    foot: "VIZA's service is free. The USD 185 MRV fee is paid directly to the U.S. government via ustraveldocs.com.",
+    etaLabel: "Interview wait",
+    etaValue: "Set by the Embassy",
+    title: "B1/B2 visitor visa · interview at the Embassy",
+    sub: "VIZA's help is free: DS-160 check, document review and interview guidance. The visa fee is paid to the US government.",
+    foot: "VIZA's service is free. Any US visa fee is paid directly to the US government.",
   },
 
-  aiPlaceholder: "Ask anything about the U.S. B1/B2 visa — DS-160, ESTA, interviews, processing times…",
+  aiPlaceholder: "Ask anything about a US visa from Singapore: ESTA, DS-160, interview, fees…",
 };
 
 export default unitedStates;

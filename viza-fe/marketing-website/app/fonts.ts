@@ -1,7 +1,7 @@
 import localFont from "next/font/local";
 import { GeistSans } from "geist/font/sans";
 
-// Switzer — headings (h1-h6, .font-heading)
+// Switzer, headings (h1-h6, .font-heading)
 export const switzer = localFont({
   src: [
     {
@@ -18,5 +18,5 @@ export const switzer = localFont({
   fallback: ["system-ui", "sans-serif"],
 });
 
-// Geist Sans — body / UI
+// Geist Sans, body / UI
 export const geist = GeistSans;

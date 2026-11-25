@@ -224,7 +224,34 @@ export function toFvCountryCode(code: string | null | undefined, field: string):
   }
   const nameMapped = COUNTRY_NAME_TO_A3[code.trim().toLowerCase()];
   if (nameMapped) return nameMapped;
+  const displayMapped = countryNameIndex().get(countryNameKey(code));
+  if (displayMapped) return displayMapped;
   throw new NormalizationError(field, `unrecognized country code "${code}"`);
+}
+
+function countryNameKey(name: string): string {
+  return name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^a-z一-鿿]/g, "");
+}
+
+let countryNames: Map<string, string> | null = null;
+
+/**
+ * English and Chinese country names → alpha-3, for every country France-Visas
+ * accepts (A2_TO_A3). The form stores countries by name ("Singapore",
+ * "新加坡"), so names are matched through Node's built-in region names.
+ */
+function countryNameIndex(): Map<string, string> {
+  if (countryNames) return countryNames;
+  const index = new Map<string, string>();
+  const displays = ["en", "zh-Hans"].map((locale) => new Intl.DisplayNames([locale], { type: "region" }));
+  for (const [a2, a3] of Object.entries(A2_TO_A3)) {
+    for (const display of displays) {
+      const name = display.of(a2);
+      if (name && name !== a2) index.set(countryNameKey(name), a3);
+    }
+  }
+  countryNames = index;
+  return index;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -311,6 +338,60 @@ const OCCUPATION_MAP: Record<string, string> = {
 /** "Software Engineer" → "software_engineer", so free text matches the map keys. */
 function occupationKey(v: string): string {
   return v.toLowerCase().trim().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+}
+
+/** France-Visas business-segment code for education (NACE section P, "Teaching"). */
+export const EDUCATION_SEGMENT = "P";
+
+/**
+ * Contact person for a hotel or rental stay: the establishment's reception.
+ * France-Visas requires both a last name and first name(s) for the contact.
+ */
+export const HOTEL_RECEPTION_CONTACT = "RECEPTION";
+export const HOTEL_RECEPTION_CONTACT_FIRST_NAME = "HOTEL";
+
+/**
+ * Free text for France-Visas' host-organisation block, which rejects accented
+ * and punctuation characters ("non-permitted characters"): accents are folded
+ * (é → e), separators other than space, apostrophe and hyphen become spaces.
+ */
+export function toFvPlainText(value: string | null | undefined): string | undefined {
+  if (!value?.trim()) return undefined;
+  return value
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/[^A-Za-z0-9' -]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * France-Visas wants telephone numbers in "international extended" form —
+ * access code, country code, local number, digits only (0033212456789).
+ * "+33 1 23 45 67 89" becomes "0033123456789"; separators are dropped.
+ */
+export function toFvPhone(phone: string | null | undefined): string | undefined {
+  if (!phone?.trim()) return undefined;
+  const compact = phone.trim().replace(/[\s.\-()/]/g, "");
+  return compact.startsWith("+") ? `00${compact.slice(1)}` : compact;
+}
+
+/** The applicant's own means of support (self_means_* answers) → France-Visas codes. */
+const SELF_MEANS_TO_FV: ReadonlyArray<[string, FvAutoFunding]> = [
+  ["self_means_cash", "ARG"],
+  ["self_means_travellers_cheques", "CHQ"],
+  ["self_means_credit_card", "CCR"],
+  ["self_means_prepaid_accommodation", "HPP"],
+  ["self_means_prepaid_transport", "TPP"],
+  ["self_means_other", "AUT"],
+];
+
+export function toFvAutoFundings(a: AnswerMap): FvAutoFunding[] {
+  const chosen = SELF_MEANS_TO_FV
+    .filter(([field]) => (a[field] ?? "").trim().toLowerCase() === "yes")
+    .map(([, code]) => code);
+  // Only fall back to the earlier default when the applicant answered nothing.
+  return chosen.length > 0 ? chosen : ["CCR", "ARG"];
 }
 
 export function toFvOccupation(v: string | null | undefined): string {
@@ -451,7 +532,9 @@ export function normalizeFvAnswers(input: NormalizeInput): FvApplicationAnswers 
     occupationOtherSpecify: occupation === "65005" && rawOccupation
       ? rawOccupation.trim().toUpperCase()
       : undefined,
-    businessSegment: fvOverrides.businessSegment,
+    // France-Visas also asks students for the establishment's sector: an
+    // educational establishment is in Teaching/Education (NACE section P).
+    businessSegment: fvOverrides.businessSegment ?? (isStudent ? EDUCATION_SEGMENT : undefined),
     // France-Visas' employer section is the educational establishment for
     // students, so it is filled from the school answers.
     employerName: (isStudent ? a.school_name : a.employer_name) ?? undefined,
@@ -509,11 +592,16 @@ export function normalizeFvAnswers(input: NormalizeInput): FvApplicationAnswers 
   };
 
   // Accommodation: a private host goes in France-Visas' host-person block from
-  // the applicant's host_* answers. Hotels, rentals and other stays belong in
-  // the host-organisation block (mapped once its fields are confirmed on the
-  // live portal); they are never forced into the host-person block.
+  // the applicant's host_* answers. Hotels, rentals and other stays go in the
+  // host-organisation block from the accommodation_* answers, with the
+  // establishment's reception as the contact person.
   const accommodationType = a.accommodation_type?.trim().toLowerCase() ?? "";
   const stayWithPrivateHost = accommodationType === "private_host" || accommodationType === "";
+  const hostOrganization = !stayWithPrivateHost;
+  const orgCountry = hostOrganization && a.accommodation_country
+    ? toFvCountryCode(a.accommodation_country, "accommodation_country")
+    : undefined;
+  const orgPhone = toFvPhone(a.accommodation_phone);
   const step5: FvStep5Answers = {
     cbxHasHostPerson: fvOverrides.step5?.cbxHasHostPerson ?? stayWithPrivateHost,
     cbxHasHostOrganization: fvOverrides.step5?.cbxHasHostOrganization ?? !stayWithPrivateHost,
@@ -527,9 +615,30 @@ export function normalizeFvAnswers(input: NormalizeInput): FvApplicationAnswers 
     hostPersonFirstnames: fvOverrides.step5?.hostPersonFirstnames ?? a.host_given_names ?? undefined,
     hostPersonZipcode: fvOverrides.step5?.hostPersonZipcode ?? a.host_postcode ?? undefined,
     hostPersonPlace: fvOverrides.step5?.hostPersonPlace ?? a.host_city ?? undefined,
-    hostPersonPhone: fvOverrides.step5?.hostPersonPhone ?? a.host_phone ?? undefined,
+    hostPersonPhone: fvOverrides.step5?.hostPersonPhone ?? toFvPhone(a.host_phone),
     hostPersonEmail: fvOverrides.step5?.hostPersonEmail ?? a.host_email ?? undefined,
-    autoFundings: (fvOverrides.step5?.autoFundings as readonly FvAutoFunding[] | undefined)?.slice() ?? ["CCR", "ARG"],
+    ...(hostOrganization
+      ? {
+          hostOrgName: toFvPlainText(a.accommodation_name),
+          hostOrgStreet: toFvPlainText(a.accommodation_address_line_1),
+          hostOrgZipcode: toFvPlainText(a.accommodation_postcode),
+          hostOrgPlace: toFvPlainText(a.accommodation_city),
+          hostOrgCountry: orgCountry,
+          hostOrgPhone: orgPhone,
+          hostOrgEmail: a.accommodation_email?.trim() || undefined,
+          // The hotel's reception is the contact person, at the hotel itself.
+          hostOrgContactSurname: HOTEL_RECEPTION_CONTACT,
+          hostOrgContactFirstnames: HOTEL_RECEPTION_CONTACT_FIRST_NAME,
+          hostOrgContactAddress: toFvPlainText(a.accommodation_address_line_1),
+          hostOrgContactZipcode: toFvPlainText(a.accommodation_postcode),
+          hostOrgContactPlace: toFvPlainText(a.accommodation_city),
+          hostOrgContactCountry: orgCountry,
+          hostOrgContactPhone: orgPhone,
+          hostOrgContactEmail: a.accommodation_email ?? undefined,
+        }
+      : {}),
+    autoFundings: (fvOverrides.step5?.autoFundings as readonly FvAutoFunding[] | undefined)?.slice()
+      ?? toFvAutoFundings(a),
     representativeSurname: fvOverrides.step5?.representativeSurname,
     representativeFirstnames: fvOverrides.step5?.representativeFirstnames,
     representativeStreet: fvOverrides.step5?.representativeStreet,

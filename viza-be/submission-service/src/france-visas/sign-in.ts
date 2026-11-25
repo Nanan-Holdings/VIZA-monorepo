@@ -160,6 +160,8 @@ export async function signInWithPassword(
     acceptDownloads: true,
   });
   const { browser, context, page } = handles;
+  /** Where each sign-in step landed, for the failure message (paths only). */
+  const trace: string[] = [];
 
   try {
     // Hit the application entry; Keycloak will redirect if unauthenticated.
@@ -201,7 +203,8 @@ export async function signInWithPassword(
     // emailed code) recovers it.
     const loginRedirectTimeoutMs = Math.min(timeoutMs, 60_000);
     for (let loginAttempt = 1; loginAttempt <= MAX_LOGIN_ATTEMPTS; loginAttempt += 1) {
-      await submitLoginWithCode(page, input, options, timeoutMs, loginRedirectTimeoutMs);
+      trace.push(`login${loginAttempt}`);
+      await submitLoginWithCode(page, input, options, timeoutMs, loginRedirectTimeoutMs, trace);
       if (/accueil\.xhtml/i.test(page.url())) break;
       const backOnLogin = await page
         .locator(FV_LOGIN_SELECTORS.email)
@@ -272,7 +275,8 @@ export async function signInWithPassword(
     await context.close().catch(() => undefined);
     await browser.close().catch(() => undefined);
     throw new SessionBootstrapError(
-      `France-Visas sign-in failed: ${err instanceof Error ? err.message : String(err)} [${where}]`,
+      `France-Visas sign-in failed: ${err instanceof Error ? err.message : String(err)} [${where}]` +
+        (trace.length ? ` [trace=${trace.join(" > ")}]` : ""),
       {
         url: redactOfficialUrl(page.url()),
         details: {
@@ -306,7 +310,7 @@ async function describeSignInPage(page: Page, title: string): Promise<string> {
     .innerText({ timeout: 1_000 })
     .catch(() => "");
   const parts = [`page=${pathPart}`, `title=${title.trim() || "(none)"}`];
-  const message = feedback.replace(/s+/g, " ").trim().slice(0, 200);
+  const message = feedback.replace(/\s+/g, " ").trim().slice(0, 200);
   if (message) parts.push(`message=${message}`);
   return parts.join("; ");
 }
@@ -352,6 +356,7 @@ async function submitLoginWithCode(
   options: FvSignInOptions,
   timeoutMs: number,
   loginRedirectTimeoutMs: number,
+  trace: string[],
 ): Promise<void> {
   // Fill credentials. Keycloak surfaces the form as plain HTML; no PrimeFaces
   // here, so direct field access works.
@@ -380,6 +385,7 @@ async function submitLoginWithCode(
     reachedAccueil,
     askedForCode.then((outcome) => (outcome === "code" ? outcome : reachedAccueil)),
   ]);
+  trace.push(`${afterLogin}@${pagePath(page)}`);
   if (afterLogin === "code") {
     if (!options.loginCodeProvider) {
       throw new Error("France-Visas asked for the emailed access code, but no inbox is available to read it");
@@ -393,6 +399,7 @@ async function submitLoginWithCode(
       page.waitForURL(/accueil\.xhtml/i, { timeout: loginRedirectTimeoutMs }).catch(() => undefined),
       codeField.press("Enter"),
     ]);
+    trace.push(`code-sent@${pagePath(page)}`);
     // The redirect after the code sometimes fails in the remote browser
     // (Chrome's own error page), although the session is signed in. Open
     // the application home directly instead of waiting on the error page.
@@ -403,6 +410,7 @@ async function submitLoginWithCode(
         .goto(FV_URLS.ACCUEIL, { waitUntil: "domcontentloaded", timeout: loginRedirectTimeoutMs })
         .catch(() => undefined);
       await waitForRenderedPage(page, ENTRY_RENDER_TIMEOUT_MS);
+      trace.push(`home${open}@${pagePath(page)}`);
       // Back on the login form means the session was not signed in: no use
       // reopening the home page, the caller logs in again.
       if (await page.locator(FV_LOGIN_SELECTORS.email).first().isVisible().catch(() => false)) break;
@@ -411,6 +419,16 @@ async function submitLoginWithCode(
 }
 
 const HOME_OPEN_ATTEMPTS = 3;
+
+/** host + path of the current page (no query, which can carry tokens). */
+function pagePath(page: Page): string {
+  try {
+    const url = new URL(page.url());
+    return `${url.host}${url.pathname}`;
+  } catch {
+    return page.url().slice(0, 40);
+  }
+}
 
 /** Chrome's own "page could not be loaded" screen (the connection dropped). */
 function isBrowserErrorPage(page: Page): boolean {

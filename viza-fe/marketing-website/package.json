@@ -4,10 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node --experimental-strip-types scripts/check-copy.mjs && next build",
     "start": "next start",
     "type-check": "tsc --noEmit",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "check:copy": "node --experimental-strip-types scripts/check-copy.mjs",
+    "og": "node --experimental-strip-types scripts/og.mjs",
+    "verify": "node scripts/verify.mjs"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",
@@ -24,6 +27,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
+    "@resvg/resvg-js": "^2.6.2",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
@@ -35,6 +39,8 @@
     "eslint-plugin-react-hooks": "^5.0.0",
     "globals": "^15.0.0",
     "postcss": "^8",
+    "satori": "^0.63.2",
+    "sharp": "^0.35.5",
     "tailwindcss": "^3.4.1",
     "typescript": "5.9.3",
     "typescript-eslint": "^8.0.0"

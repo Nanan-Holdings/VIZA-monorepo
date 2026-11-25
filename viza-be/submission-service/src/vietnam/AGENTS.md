@@ -1,5 +1,57 @@
 # Vietnam Submission Runner Agent Guide
 
+Product policy (2026-11): the applicant submits and pays on the official site.
+This supersedes every instruction below about solving the review CAPTCHA,
+capturing the registration code, or continuing to payment in a live run.
+
+- Live runs (`processVnItem`, `applicantHandoff: true`) fill the form in a
+  keepAlive Browserbase session (`OFFICIAL_HANDOFF_SESSION_TIMEOUT_SECONDS`,
+  VN proxy) and stop as soon as the review action reaches an official
+  checkpoint (`isVietnamApplicantHandoffState`). They must not solve the
+  review CAPTCHA, click Next/Submit/Confirm after it, or open payment. The
+  landing-page CAPTCHA before the form is an access gate and may still be
+  solved.
+- The run returns `awaiting_applicant_official_submit` with `applicantHandoff`;
+  `processVnItem` registers it through `open_official_applicant_handoff`
+  (0209 + 0211, prefix `vn_`). Never put the live-view URL in
+  `submission_result`, queue payloads, or logs. Any run that does not hand off
+  releases its keepAlive session; a handed-off run only disconnects CDP and
+  never closes the context.
+- `vietnam/handoff.ts` watches read-only: an electronic document code
+  (`E` + 6 digits + 8+ characters, or an explicitly labelled registration
+  code) is the submit evidence; payment success text closes the handoff. The
+  portal has no login, so there is no `lost` detection; unsubmitted handoffs
+  expire. On submit the watcher writes a VN `submitted_pending_email` result
+  with `registrationCode` and starts the usual status tracking.
+- Applicant cancellation raises `ApplicantCancelledError` from `onProgress`;
+  `run.ts` rethrows it instead of reporting a portal failure, and the row
+  becomes `vn_live_assisted_cancelled`.
+
+- Slow remote sessions: required field actions in `fillers.ts` use
+  `ACTION_TIMEOUT` (default 20s, `VN_FIELD_ACTION_TIMEOUT_MS`, 2s-60s);
+  best-effort `.catch` actions keep the 5s `SHORT_TIMEOUT`. `run.ts` wraps each
+  non-upload field in `fillVietnamFieldWithTimeoutRetry`, which retries once
+  only on a Playwright timeout, never on a portal rejection or upload. Do not
+  shorten these bounds: on 2026-11-21 a 5s bound half-typed the date of birth
+  on a slow VN-proxy session and failed the run. Tests: `step-fill.spec.ts`.
+- Every field attempt (uploads included) also runs under
+  `withVietnamFieldDeadline` (default 150s, `VN_FIELD_DEADLINE_MS`, 30s-300s).
+  Some steps, such as the in-browser photo compression `page.evaluate`, have no
+  Playwright timeout; after a network drop on 2026-11-21 a dead CDP connection
+  hung a run for 40+ minutes at `portrait_photo`. A deadline error is not
+  retried; the run fails closed and releases its Browserbase session.
+- Progress watchdog (`fillVietnamApplicationOnce`, `VN_RUN_STALL_TIMEOUT_MS`,
+  default 10 min, above the 8-min CAPTCHA budget): the queue heartbeat is a
+  timer and only proves the process is alive, so the attempt itself tracks the
+  last stage/field progress and closes its browser when nothing moves, returning
+  a retryable `vietnam_run_stalled` failure. When every field failure is a
+  slow-session error (`isVietnamSlowSessionValidationError`) the attempt returns
+  retryable `vietnam_slow_session` instead of a terminal `form_validation_failed`,
+  so `isRetryableVietnamResult` retries it in a fresh browser. Retry messages
+  must contain "timeout" (the retry rule matches on it). Real portal rejections
+  stay terminal. Not covered yet: a killed/crashed worker process still leaves
+  its row `vn_live_assisted_processing` until stale maintenance (45 min).
+
 Product policy (2026-09-15): payment execution has been removed.
 `src/payment-removed.ts` defines the unconditional retirement boundary.
 Card-session HTTP routes return 410; issuer and portal payment functions cannot

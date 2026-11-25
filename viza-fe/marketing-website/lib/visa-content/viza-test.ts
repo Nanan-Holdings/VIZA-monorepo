@@ -97,25 +97,18 @@ export const vizaTest: VisaContent = {
   ],
 
   reviews: {
-    score: "4.5",
-    outOf: "/ 5",
-    sub: "Highest rated visa platform in Singapore · 12,841 reviews",
-    platforms: [
-      { rating: "4.6", name: "Trustpilot" },
-      { rating: "4.7", name: "App Store" },
-    ],
     items: [
       {
         initials: "PL",
         name: "Priya Lim",
-        source: "Trustpilot · 3 days ago",
+        source: "Trustpilot",
         title: "Tried the demo, then booked for real",
         body: "Ran the test flow on my lunch break to see what the fuss was about. Applied for my Bali e-VOA the same evening.",
       },
       {
         initials: "SK",
         name: "Samuel Koh",
-        source: "App Store · 1 week ago",
+        source: "App Store",
         title: "Good way to see the tracking",
         body: "The live status timeline sold me — you can see every hop instead of refreshing a government portal and hoping.",
       },

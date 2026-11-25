@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   getVietnamPublicCatalogFallback,
   shouldProxyVietnamPublicRequest,
+  vietnamFallbackCorsHeaders,
 } from "../public-api-proxy.js";
 
 test("vn.public-api-proxy: allows official public reads and the exact upload POST", () => {
@@ -95,4 +96,13 @@ test("vn.public-api-proxy: recovers only the official static eVisa passport cata
     ),
     null,
   );
+});
+
+test("vn.public-api-proxy: fallback responses allow the SPA's credentialed request", () => {
+  assert.deepEqual(vietnamFallbackCorsHeaders("https://evisa.gov.vn"), {
+    "access-control-allow-origin": "https://evisa.gov.vn",
+    "access-control-allow-credentials": "true",
+    vary: "Origin",
+  });
+  assert.equal(vietnamFallbackCorsHeaders(undefined), undefined);
 });

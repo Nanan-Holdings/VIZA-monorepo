@@ -105,3 +105,13 @@ test("the France-Visas access code is read from the authentication email", async
   assert.equal(extractFranceVisasLoginCode("This code will expire within 300 seconds."), null);
   assert.equal(extractFranceVisasLoginCode(null), null);
 });
+
+test("countries stored by English or Chinese name map to France-Visas codes", async () => {
+  const { toFvCountryCode } = await import("../normalize");
+  assert.equal(toFvCountryCode("Singapore", "school_country"), "SGP");
+  assert.equal(toFvCountryCode("新加坡", "school_country"), "SGP");
+  assert.equal(toFvCountryCode("United Kingdom", "employer_country"), "GBR");
+  assert.equal(toFvCountryCode("South Korea", "employer_country"), "KOR");
+  assert.equal(toFvCountryCode("China", "home_address_country"), "CHN");
+  assert.throws(() => toFvCountryCode("Atlantis", "school_country"));
+});

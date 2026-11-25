@@ -58,7 +58,9 @@ ports directly.
   calls `request_official_applicant_handoff_regeneration`; both rely on the RPC
   for expiry, ownership, and the 24-hour cap. `official-handoff/cancel` calls
   `cancel_official_applicant_submission` for the signed-in applicant (never
-  under impersonation). VIZA never submits or pays.
+  under impersonation). VIZA never submits or pays. Supported: Indonesia C1/B1 and Vietnam e-Visa; a
+  Vietnam submitted result keeps status `submitted_pending_email` with
+  `submittedBy: applicant_on_official_portal` and stays claimable for payment.
 - `viza-fe/internal-website/app/api/applications/[id]/taiwan-handoff/route.ts`
   claims the authoritative Taiwan handoff through
   `claim_tw_applicant_handoff` with the exact application, applicant, and
@@ -106,6 +108,16 @@ ports directly.
   `application_documents` references, and never copies CEAC identifiers,
   recovery metadata, or secrets. Both paths return `{ applicationId, href }`;
   copied drafts use HTTP 201 and non-empty owner drafts use HTTP 200.
+  Vietnam e-Visa (`vietnam.ts`) can start again at any time, not only after
+  a submitted result: it refuses while a VIZA run is queued or running,
+  cancels an open official handoff through `cancel_official_applicant_submission`,
+  requires `{ "confirmOfficialDuplicate": true }` once the old attempt reached
+  the official site (registration code / official status), archives the old
+  row with the 0211 `superseded_*` columns before inserting the draft (the
+  one-ongoing-application index would reject it otherwise), copies answers
+  and document references, and restores the old row if any later step fails.
+  Errors carry a `code` (`submission_in_progress`, `official_submission_exists`,
+  `source_changed`, `no_answers`, `cancel_unavailable`, `copy_failed`).
 - `viza-fe/internal-website/app/api/applications/[id]/sgac-new-application/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/submission-status/route.ts`
   returns a retryable `503` response when its database dependency times out so
@@ -136,6 +148,9 @@ ports directly.
   and its `route-handler.ts` expose only a masked, browser-safe France-Visas
   account status projection; the focused regression test must keep passwords
   and official references out of the response.
+  Its `reveal/route.ts` is the only path that returns the login: an explicit
+  owner-session POST (staff impersonation rejected) proxied to agent-backend,
+  which holds the cipher key.
 - `viza-fe/internal-website/app/api/applications/[id]/korea-evidence/route.ts`
   serves private Korea appointment screenshots and PDFs only after application
   ownership checks. Storage paths must stay under the owned application's

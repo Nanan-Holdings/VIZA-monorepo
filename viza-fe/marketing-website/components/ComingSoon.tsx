@@ -1,5 +1,7 @@
 "use client";
 
+import { Link } from "@/navigation";
+
 import { useTranslations } from "next-intl";
 import SiteNav from "@/components/SiteNav";
 import SiteFooter from "@/components/SiteFooter";
@@ -19,7 +21,7 @@ export default function ComingSoon({ name }: { name: string }) {
         <h1>{t("comingSoonTitle", { country: name })}</h1>
         <p>{t("comingSoonBody", { country: name })}</p>
         <div className="vt-soon-cta">
-          <a className="vt-btn" href="/">{t("browseDestinations")}</a>
+          <Link className="vt-btn" href="/">{t("browseDestinations")}</Link>
           <a className="vt-btn secondary" href={portalUrl("/signup")}>{t("notifyMe")}</a>
         </div>
       </main>

@@ -17,7 +17,7 @@ export default function VisaCountryPageClient() {
   const country = countryBySlug(slug);
 
   if (!country) return <ComingSoon name={slug.replace(/-/g, " ")} />;
-  if (!country.launched) return <ComingSoon name={country.name} />;
+  if (!country.launched && !country.consultOnly) return <ComingSoon name={country.name} />;
 
   const content = contentBySlug(slug, locale);
   return content

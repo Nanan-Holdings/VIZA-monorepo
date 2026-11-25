@@ -1,226 +1,247 @@
-import type { VisaContent } from "./types";
+import type { DestinationContent } from "./types";
 
 /**
- * Canada Visitor Visa (TRV) & Electronic Travel Authorization (eTA).
+ * Canada visitor visa (TRV) and eTA for people living in Singapore (embassy visa, framed "from Singapore").
+ * Singapore passports are visa exempt and need an eTA when flying. Chinese, Malaysian, Indian, Indonesian and
+ * Vietnamese passports need a visitor visa. Philippine passports need a visa unless they meet the eTA rule for
+ * some visa-required nationals (a Canadian visitor visa in the last 10 years, or a valid US non-immigrant visa).
  *
- * Which document applies depends on the passport:
- *   - Singapore passports are visa-exempt: eTA (CAD 7) required only when
- *     FLYING to Canada; land/sea entry from the US needs the passport only.
- *   - PRC (mainland China) passports need a Visitor Visa (TRV, V-1 tourist
- *     stream) for any entry mode: CAD 100 + CAD 85 biometrics, applied online
- *     via the IRCC Portal with biometrics at a VFS Global VAC.
- *
- * Last fact-checked: 2026-07-05 against canada.ca and ircc.canada.ca.
- * Key facts verified:
- *   - Fees: eTA CAD 7 · TRV CAD 100 (family max CAD 500) · biometrics CAD 85
- *     (family max CAD 170) · restoration of status CAD 246.25 — IRCC fee list.
- *   - Validity: eTA 5 years or passport expiry; TRV up to 10 years, capped at
- *     passport/biometrics expiry, at officer discretion (no automatic
- *     max-validity issuance since late 2024).
- *   - Stay: up to 6 months per entry by default, set by the CBSA officer;
- *     6 months from entry if no stamp/date is given. Visa expiry is the last
- *     ARRIVAL date, not a leave-by date.
- *   - Extension: Visitor Record, CAD 100, apply ≥30 days before status ends;
- *     maintained status while pending. No daily overstay fine — restoration
- *     within 90 days (CAD 246.25) or exclusion/deportation order.
- *   - Arrival card: none mandatory — ArriveCAN Advance Declaration optional.
- *   - Since 31 Jan 2025 officers can cancel individual eTAs/TRVs (amended IRPR).
- * Items needing ops confirmation:
- *   - Live TRV processing times: "China ~8–14 weeks / Singapore-lodged a few
- *     weeks" comes from secondary trackers of IRCC monthly data (official tool
- *     returned 403 to the fetcher) — re-check IRCC's processing-times tool
- *     before publish.
- *   - SGD conversions use CAD 1 ≈ SGD 0.94 (indicative mid-2026) — verify.
- *   - Whether PRC applicants currently receive 10-year multiple-entry visas is
- *     officer discretion post-Nov-2024 guidance, not a published rule.
- *   - Exclusion-order ban lengths (1 yr / 5 yr misrepresentation) are
- *     case-by-case CBSA enforcement, not automatic.
- *   - lib/pricing.ts CA_TRV govt fee covers CAD 100 only; the CAD 85
- *     biometric fee is not in the computed price card.
- *
- * Official sources:
- *   https://www.canada.ca/en/immigration-refugees-citizenship/services/visit-canada.html
- *   https://ircc.canada.ca/english/information/fees/fees.asp
+ * Checked 25 Nov 2026 against canada.ca pages read on the day: apply for a visitor visa (fees CAD 100 and
+ * CAD 85, documents, online portal, validity up to 10 years), the eTA "citizens from some visa-required
+ * countries" page (Philippines eligible with conditions, Malaysia and Indonesia not), and the eTA apply page
+ * (CAD 7, flying only, most approved within minutes). The IRCC entry requirements tool, the processing times
+ * tool and the VFS Global Singapore pages were not readable, so some points come from the 5 Jul 2026 check
+ * kept in the older version of this file.
+ * Not confirmed on an official page this session (kept general or left out):
+ *   - Singapore listed as visa exempt (the IRCC lists page was not readable; stable rule)
+ *   - eTA validity of 5 years (older version; the page read did not state it)
+ *   - processing times for visas lodged from Singapore (copy sends readers to the IRCC tool, no figure)
+ *   - VFS Global Singapore as the biometrics centre and its service fee and appointment rule
+ *   - how IRCC treats applicants who live in Singapore but hold another passport (the copy says to apply with
+ *     your passport and show your Singapore status, and gives no promise)
+ *   - extension fee of CAD 100 and restoration fee of CAD 246.25 (older version only)
+ *   - rule that a visa's expiry is the last arrival date
  */
-export const canada: VisaContent = {
+export const canada: DestinationContent = {
   slug: "canada",
 
-  heroTitle: "Canada Visitor Visa & eTA",
-  lede: "Singapore passports need only the CAD 7 eTA — approved in minutes. PRC passports need Canada's Visitor Visa (TRV): up to 10 years, multiple entry, 6-month stays. Either way, VIZA files it end-to-end, biometrics included.",
+  heroTitle: "Canada visa from Singapore",
+  lede: "A Canada visa from Singapore depends on your passport. Singapore passports are visa exempt and need only an eTA when flying. If you live in Singapore on a Chinese, Malaysian, Indian, Indonesian or Vietnamese passport, you need a Canada tourist visa, which is a visitor visa applied for online with biometrics. This page covers the Canada visa application from Singapore: who needs a visa, fees, documents by pass type and the usual reasons for refusal.",
   heroImage: "/assets/heroes/canada.jpg",
   meta: [
-    { k: "Type", v: "Visitor visa / eTA" },
-    { k: "Length of stay", v: "Up to 6 months" },
-    { k: "Validity", v: "Up to 10 years" },
-    { k: "Entry", v: "Multiple" },
+    { k: "Singapore passport", v: "eTA when flying, CAD 7" },
+    { k: "Visitor visa fee", v: "CAD 100 plus CAD 85 biometrics" },
+    { k: "Apply", v: "Online, then biometrics" },
+    { k: "Checked", v: "25 Nov 2026" },
   ],
   tags: [
-    { icon: "bolt", label: "eTA approved in minutes" },
     { icon: "shield", label: "Free VIZA service" },
-    { icon: "doc", label: "Biometrics booked for you" },
+    { icon: "doc", label: "Document check" },
+    { icon: "bolt", label: "Visa and eTA" },
   ],
 
-  overviewTitle: "Canada, at a glance",
-  overviewSub:
-    "Canada admits visitors for up to 6 months per entry. Singapore passport holders fly in on a CAD 7 eTA; PRC passport holders apply for the Visitor Visa (TRV) — CAD 100 plus CAD 85 biometrics, valid up to 10 years.",
-  glance: [
-    { icon: "globe", k: "Capital", v: "Ottawa", sub: "UTC −5 (EST)" },
-    { icon: "clock", k: "Best time to visit", v: "Jun – Aug · Dec – Mar", sub: "Summer warmth or ski season" },
-    { icon: "currency", k: "Currency", v: "Canadian Dollar (CAD)", sub: "CAD 1 ≈ SGD 0.94" },
-    { icon: "pin", k: "Top destinations", v: "Toronto · Vancouver · Banff", sub: "Plus Montréal, Niagara Falls, Quebec City" },
-  ],
+  page: {
+    framing: "singapore",
 
-  processTitle: "How the Canada application works",
-  processSub:
-    "Everything is filed online with IRCC — there is no visa on arrival. Singapore passports get an eTA in minutes; TRV applicants add one biometrics visit, and we handle the rest.",
-  steps: [
-    {
-      title: "Apply on VIZA",
-      body: "Upload your passport, photo, and trip details. We complete form IMM 5257 and the IMM 5645 family form, then submit through the official IRCC Portal. Singapore passports skip straight to the CAD 7 eTA — usually approved within minutes.",
+    glance: {
+      needVisa: "Not for Singapore passports (eTA when flying). Yes for Chinese, Malaysian, Indian, Indonesian and Vietnamese passports",
+      govFee: "Visitor visa CAD 100 plus CAD 85 biometrics. eTA CAD 7",
+      processing: "Set by IRCC and shown in its processing times tool. It varies by where your file is handled",
+      maxStay: "Usually up to 6 months per visit, set by the border officer",
+      checked: "25 November 2026",
     },
-    {
-      title: "Give biometrics at VFS Global (TRV only)",
-      body: "We book your fingerprints-and-photo appointment at the nearest VFS Visa Application Centre — available across mainland China and in Singapore. CAD 85, valid 10 years, skipped entirely if your biometrics are still on file.",
-    },
-    {
-      title: "IRCC processes your visa",
-      body: "China-lodged visitor visas currently average 8 – 14 weeks; Singapore-lodged online files clear in a few weeks. We track your IRCC status and answer document requests the same day so nothing stalls.",
-      statusRows: [
-        { label: "Application submitted to IRCC Portal", ts: "6 Jul, 9:40 AM", onTime: true },
-        { label: "Biometrics completed at VFS Global", ts: "18 Jul, 11:05 AM", onTime: true },
-        { label: "Awaiting final decision", ts: "In progress" },
+
+    passports: {
+      intro: "The passport decides the rule. Singapore PR and pass holders follow the rules for the passport they hold. IRCC publishes the lists of visa exempt and visa required countries, and the table shows the ones most common in Singapore.",
+      rows: [
+        { passport: "Singapore", status: "No visa, eTA when flying", note: "Apply for an eTA before you fly. It costs CAD 7 and most applications are approved within minutes. Arriving by land or sea generally needs only a valid passport." },
+        { passport: "China (PRC)", status: "Visitor visa required", note: "Chinese passport holders living in Singapore apply for a visitor visa and give biometrics." },
+        { passport: "Malaysia", status: "Visitor visa required", note: "Malaysia is not on the list of countries whose citizens can use an eTA instead of a visa, so Malaysians apply for a visitor visa." },
+        { passport: "India", status: "Visitor visa required", note: "Apply online for the visitor visa and give biometrics. IRCC publishes processing times by country." },
+        { passport: "Indonesia", status: "Visitor visa required", note: "Indonesia is not on the eTA list for visa-required countries. Apply for a visitor visa." },
+        { passport: "Philippines", status: "Visa, or eTA if you qualify", note: "Philippine passport holders can use an eTA instead of a visa when flying, if they held a Canadian visitor visa in the last 10 years or hold a valid US non-immigrant visa." },
+        { passport: "Vietnam", status: "Visitor visa required", note: "Vietnam is not on the eTA list for visa-required countries. Apply for a visitor visa." },
+        { passport: "Other passports", status: "Check the IRCC tool", note: "IRCC has an entry requirements tool that tells you whether you need a visa or an eTA for your passport." },
       ],
     },
-    {
-      title: "Get your passport back by 25 Sep, 3:15 PM",
-      body: "On approval, your passport goes to the VAC for the visa counterfoil and is couriered back to you. The visa is multiple-entry — its expiry date is the last day you may arrive in Canada, not a leave-by date.",
-      delivered: true,
+
+    visaTypes: {
+      intro: "Canada issues visitor documents by passport and purpose. Most people in Singapore travelling for a holiday, a family visit or a short business trip need one of the first two.",
+      items: [
+        { title: "Visitor visa (TRV)", body: "For tourism, family visits and short business trips. A visa can be valid for up to 10 years or until your passport or biometrics expire, whichever is first, and the officer may set a shorter date. Each visit is usually up to 6 months." },
+        { title: "eTA", body: "An electronic travel authorisation for visa-exempt passports and some visa-required passports, when you fly to or through a Canadian airport. It costs CAD 7 and is linked to your passport." },
+        { title: "Super Visa", body: "For parents or grandparents of a Canadian citizen or permanent resident. It allows stays of up to 5 years at a time, with multiple entries over up to 10 years." },
+        { title: "Study, work and other permits", body: "Studying, working or living in Canada needs a different permit. Business visitors can stay for less than 6 months. Paid work and study are separate applications." },
+      ],
     },
-  ],
 
-  docsTitle: "Required documents",
-  docsSub:
-    "eTA applicants need only a passport, an email address, and a credit or debit card to pay the CAD 7 fee directly to IRCC. TRV applicants need the full set below — your VIZA consultant checks every item before it reaches IRCC.",
-  documents: [
-    { name: "Valid passport", sub: "Valid for your whole stay · visa and stay are capped at passport expiry, so longer validity is better" },
-    { name: "Application form IMM 5257", sub: "Visitor visa application · one per traveller, including children" },
-    { name: "Family information form IMM 5645", sub: "Required for PRC applicants · lists parents, spouse, and children" },
-    { name: "Visa photo", sub: "35 × 45 mm, plain white background · digital JPEG/PNG, 240 KB – 4 MB" },
-    { name: "Proof of funds", sub: "3 – 6 months of bank statements plus payslips or income proof" },
-    { name: "Itinerary or invitation letter", sub: "Flight and hotel bookings, or your host's details and status in Canada" },
-    { name: "Proof of ties to home country", sub: "Employment letter, property, enrolment, family — the top refusal ground" },
-    { name: "Biometrics", sub: "Fingerprints + photo at a VFS centre · CAD 85 · valid 10 years" },
-  ],
+    residents: {
+      intro: "You apply online with the passport you hold, and you give biometrics at a visa application centre in Singapore. Your pass shows that you live here, which helps the officer see your ties and your plan to return.",
+      rows: [
+        { pass: "Employment Pass", body: "Bring your EP card, an employment letter with your role, salary and approved leave, and 6 months of bank statements. This is the most common route for Chinese, Indian and Malaysian passport holders working in Singapore." },
+        { pass: "S Pass", body: "Bring your S Pass card, the employment letter and 6 months of bank statements. The checklist matches the Employment Pass." },
+        { pass: "Dependant's Pass", body: "Bring your Dependant's Pass and a copy of the main holder's pass. Add the marriage or birth certificate and the main holder's bank statements with a support letter." },
+        { pass: "Permanent Resident", body: "Bring your PR card or re-entry permit and proof of your work or business in Singapore. You apply with the passport of your own country, and the Singapore eTA rule does not apply to you." },
+        { pass: "Singapore citizen", body: "No visa. Apply for an eTA before you fly, and keep the passport you used. Entry by land or sea generally needs only a valid passport." },
+        { pass: "Student's Pass", body: "Bring your Student's Pass and a school letter with your term dates. A parent can support the trip with a letter and their bank statements." },
+      ],
+    },
 
-  rejectionTitle: "Why Canada visitor visas get refused",
-  rejectionSub:
-    "IRCC publishes its refusal grounds. The most common by far is IRPR 179(b) — the officer isn't satisfied you'll leave Canada. VIZA screens for every one of these before filing.",
-  rejectionReasons: [
-    { title: "Not satisfied you will leave Canada", body: "The single most common ground (IRPR 179(b)): weak family, employment, property, or financial ties to your home country, or previous overstays elsewhere." },
-    { title: "Insufficient or unexplained funds", body: "Bank statements that don't cover the trip, unexplained large deposits, or no evidence of where your income comes from." },
-    { title: "Vague purpose of visit", body: "No itinerary, inconsistent travel dates, or an invitation letter missing the host's status and address in Canada." },
-    { title: "Incomplete application", body: "Missing forms (IMM 5257 or the family form), blank fields, untranslated documents, or skipped biometrics." },
-    { title: "Misrepresentation", body: "False documents or undisclosed prior refusals (IRPA s.40) — carries a 5-year ban from Canada." },
-    { title: "Inadmissibility", body: "A criminal record — including DUI — prior immigration violations, or medical and security grounds under IRPA." },
-  ],
+    fees: {
+      intro: "IRCC sets every fee below and you pay it to IRCC. VIZA's help is free. Some applicants are exempt from part of the fees, so check the IRCC page for your case.",
+      rows: [
+        { item: "Visitor visa", amount: "CAD 100", note: "Per person. A family of 5 or more pays CAD 500 in total." },
+        { item: "Biometrics", amount: "CAD 85", note: "Per person. A family pays up to CAD 170. First-time applicants pay it when they submit." },
+        { item: "eTA", amount: "CAD 7", note: "Paid online right after you complete the form. Not refundable." },
+        { item: "Visitor record (extension)", amount: "CAD 100", note: "Apply online before your stay ends. Check the IRCC page for the current fee." },
+        { item: "Visa centre service fee", amount: "Set by the centre", note: "The centre in Singapore lists its own service fee when you book." },
+      ],
+      processing: "IRCC publishes processing times in an online tool, and the time depends on where your file is handled. Wait for your biometrics instruction letter, then book your appointment as soon as you can, because that avoids delays. Apply well before you book flights. An eTA is usually approved within minutes, and if IRCC asks for documents it emails you within 72 hours.",
+    },
 
-  entryTitle: "Entry & exit regulations",
-  entrySub:
-    "No arrival card is mandatory — the ArriveCAN Advance Declaration is optional (submit customs up to 72 hours before landing at major airports). Your eTA is checked electronically at airline check-in; the CBSA officer may ask for proof of funds, a return ticket, and accommodation, and sets your authorised stay.",
-  entryExit: [
-    { icon: "refresh", k: "Entry", v: "Multiple", sub: "Visa expiry is your last arrival date, not a leave-by date" },
-    { icon: "clock", k: "Stay per entry", v: "Up to 6 months", sub: "Set by the CBSA officer · 6 months by default if unstamped" },
-    { icon: "plane", k: "Arrival card", v: "Not required", sub: "ArriveCAN declaration optional, up to 72 h before landing" },
-  ],
-
-  extensionTitle: "Stay extension & overstays",
-  extensionSub:
-    "Extend by applying online for a Visitor Record — IRCC recommends filing at least 30 days before your authorised stay ends, and you keep maintained status while it's decided. Canada has no daily overstay fine, but losing status is costly and goes on your record.",
-  extension: [
-    { icon: "extend", k: "Extension", v: "Visitor record · CAD 100", sub: "Apply online ≥ 30 days before your stay ends · ≈ SGD 94" },
-    { icon: "alert", k: "Overstay", v: "Restoration CAD 246.25", sub: "Within 90 days only (≈ SGD 231) · after that, exclusion order and 1-year ban" },
-  ],
-
-  reviews: {
-    score: "4.6",
-    outOf: "/ 5",
-    sub: "Trusted by travellers worldwide · 15,712 reviews",
-    platforms: [
-      { rating: "4.7", name: "Trustpilot" },
-      { rating: "4.6", name: "App Store" },
-    ],
-    items: [
-      {
-        initials: "FO",
-        name: "Fatima Ouedraogo",
-        source: "Trustpilot · 4 days ago",
-        title: "Approved in under 5 minutes",
-        body: "My VIZA consultant submitted the form and I had the approval email before I'd even finished my coffee. Seamless.",
+    apply: {
+      intro: "Choose the route first. Singapore passports use the eTA. Every other passport uses the IRCC online portal and a biometrics appointment.",
+      guided: {
+        title: "Guided",
+        body: "VIZA's AI walks you through the IRCC forms and the document list for your pass type. You submit on the IRCC portal and book the biometrics appointment yourself.",
       },
-      {
-        initials: "JP",
-        name: "James Park",
-        source: "App Store · 2 weeks ago",
-        title: "Caught a passport typo I missed",
-        body: "The review step flagged that I'd transposed two digits in my passport number. Would have been a nightmare at the airport.",
+      fullService: {
+        title: "Full-service",
+        body: "A VIZA consultant prepares your forms, checks that your bank statements, letters and itinerary agree and prepares the file for upload.",
       },
-    ],
+      steps: [
+        { title: "Check your route", body: "We confirm whether your passport needs a visa or an eTA, and whether your biometrics are still valid." },
+        { title: "Prepare the file", body: "Gather your passport scan, photo, forms, itinerary, bank statements and employer letter. You need a scanner or a camera." },
+        { title: "Submit on the IRCC portal", body: "Pay the visa fee and the biometrics fee online. Read the guide for the form before you start." },
+        { title: "Give biometrics and wait", body: "After you get the biometrics letter, book the appointment in Singapore. IRCC decides, and your passport returns with the visa label if approved." },
+      ],
+    },
+
+    checklist: {
+      intro: "IRCC builds a personal checklist in the portal. The list below is the common core. Local visa offices can ask for more.",
+      groups: [
+        {
+          applicant: "Everyone",
+          items: [
+            "Passport valid at least 6 months beyond your planned travel date",
+            "Digital photo that meets the IRCC rules",
+            "Itinerary with flights, accommodation or event registration",
+            "Travel history",
+            "Bank statements for the last 6 months",
+          ],
+        },
+        {
+          applicant: "Employment Pass and S Pass",
+          items: [
+            "Pass card, copy of both sides",
+            "Employer letter with role, salary and approved leave",
+            "Payslips and personal bank statements",
+          ],
+        },
+        {
+          applicant: "Dependant's Pass",
+          items: [
+            "Dependant's Pass card and the main holder's pass copy",
+            "Marriage or birth certificate showing the link",
+            "Main holder's bank statements and a support letter",
+          ],
+        },
+        {
+          applicant: "Permanent Resident",
+          items: [
+            "PR card or re-entry permit",
+            "Proof of work or business in Singapore",
+            "Personal bank statements",
+          ],
+        },
+        {
+          applicant: "Student",
+          items: [
+            "Student's Pass and a school letter with term dates",
+            "Parent's support letter with their bank statements",
+            "Letter authorising a minor to travel, if the child travels alone",
+          ],
+        },
+      ],
+    },
+
+    travel: {
+      intro: "The visa or eTA lets you travel. The border officer decides at the airport whether you can enter and for how long.",
+      items: [
+        { title: "eTA is for flying", body: "An eTA covers arrival by air. You do not need one to arrive by car, bus, train or boat, and you need a valid passport. A visa-required passport needs a visa for every mode of entry." },
+        { title: "Border questions", body: "The officer may ask for your return ticket, funds and where you stay, and sets how long you can stay. A visa or eTA does not guarantee entry." },
+        { title: "Length of stay", body: "Visits are usually up to 6 months. You can extend by applying online for a visitor record, ideally well before your stay ends." },
+        { title: "Passport validity", body: "Your visa or eTA ends when your passport does. A longer passport gives you a longer visa." },
+        { title: "Overstaying", body: "Leave within the time you were given. Losing status goes on your record and makes later visits harder." },
+      ],
+    },
+
+    reviewed: {
+      date: "25 November 2026",
+      note: "Checked against canada.ca and IRCC. Fees and rules change, so look at the links under Sources before you pay.",
+    },
+
+    related: {
+      destinations: ["united-states", "united-kingdom", "france", "japan"],
+      guides: [
+        { label: "Visas for Chinese passport holders in Singapore", href: "/guides/visas-chinese-passport-holders-singapore" },
+        { label: "ETA vs visa: UK, Australia, Korea and Canada", href: "/guides/eta-vs-visa" },
+        { label: "Visa refused: why it happens and how to reapply", href: "/guides/visa-refused-reapply" },
+        { label: "Visa photo requirements by country", href: "/guides/visa-photo-requirements" },
+        { label: "IRCC: entry requirements by country", href: "https://www.canada.ca/en/immigration-refugees-citizenship/services/visit-canada/entry-requirements-country.html" },
+        { label: "VIZA visa news", href: "/blog" },
+      ],
+    },
   },
 
-  faqSub:
-    "Can't find your answer? Ask the AI assistant below or message your VIZA consultant directly.",
+  rejectionTitle: "Common rejection reasons",
+  rejectionSub: "IRCC officers decide each visitor application on its own file. These are the points a consultant checks first.",
+  rejectionReasons: [
+    { title: "Not clear you will leave", body: "The most common ground. Weak ties to Singapore or your home country, such as a short pass or no employment letter, make it harder to show you will go home." },
+    { title: "Funds that are unexplained", body: "Statements that do not cover the trip, or large deposits just before you apply, raise questions about who pays and why." },
+    { title: "Vague purpose of the visit", body: "No itinerary, dates that do not agree or an invitation letter without the host's status and address in Canada make the purpose unclear." },
+    { title: "Incomplete application", body: "Missing forms, blank fields, documents that are not translated or skipped biometrics cause delays and refusals." },
+    { title: "Wrong information", body: "A false statement or an undisclosed earlier refusal can lead to a ban on applying. Answer every question honestly." },
+    { title: "Other grounds", body: "A criminal record, earlier immigration problems or medical or security grounds can also lead to refusal." },
+  ],
+
+  faqSub: "Can't find your answer? Ask the AI assistant below or message a VIZA consultant.",
   faq: [
-    {
-      category: "General information",
-      q: "Do I need a visa or an eTA for Canada?",
-      a: "It depends on your passport. Singapore passports are visa-exempt: you need only the CAD 7 eTA when flying to Canada (arriving by land or sea from the US needs just your passport), and it's valid 5 years with unlimited entries. PRC (mainland China) passports are not eTA-eligible and need a Visitor Visa (TRV) for any entry mode. VIZA files whichever applies to you, end-to-end.",
-    },
-    {
-      category: "General information",
-      q: "How long can I stay, and will I get a 10-year visa?",
-      a: "The default stay is up to 6 months per entry — the CBSA officer sets it on arrival, and if your passport isn't stamped it's 6 months automatically. TRVs can be issued for up to 10 years, capped at your passport and biometrics expiry, but since late 2024 the exact validity is at the officer's discretion rather than automatic.",
-    },
-    {
-      category: "Application process",
-      q: "What does the Canada application cost?",
-      a: "eTA: CAD 7 (≈ SGD 6.60). Visitor visa: CAD 100 per person (≈ SGD 94) with a family maximum of CAD 500, plus biometrics at CAD 85 per person (≈ SGD 80, family maximum CAD 170). Biometrics are valid 10 years, so repeat applicants often skip that fee entirely. All of these fees are paid directly to IRCC, and VIZA charges nothing for its help.",
-    },
-    {
-      category: "Application process",
-      q: "How long does processing take?",
-      a: "eTAs are usually approved within minutes; a small number take several days, so apply before booking flights. Visitor visas vary by country: China-lodged applications currently average 8 – 14 weeks, while Singapore-lodged online files typically clear in a few weeks, plus the biometrics appointment. VIZA books your biometrics slot and monitors IRCC status throughout.",
-    },
-    {
-      category: "Application process",
-      q: "Where do I give biometrics?",
-      a: "TRV applicants give fingerprints and a photo at a VFS Global Visa Application Centre — available across mainland China, and in Singapore for residents applying from there. eTA applicants give no biometrics at all. Once given, biometrics stay valid for 10 years of visitor applications.",
-    },
-    {
-      category: "Rejections & reapplications",
-      q: "What happens if my application is refused?",
-      a: "IRCC keeps any government fee you paid it. VIZA charges nothing for its help, and your consultant reviews the refusal letter — most refusals are IRPR 179(b) (ties to home country) or funds-related — then strengthens exactly those points before reapplying.",
-    },
+    { category: "Do I need a visa", q: "Do Singaporeans need a visa for Canada?", a: "No. Singapore passport holders need only an eTA when flying to Canada, which costs CAD 7 and is usually approved within minutes. Arriving by land or sea generally needs only a valid passport." },
+    { category: "Do I need a visa", q: "Do Chinese passport holders living in Singapore need a Canada visa?", a: "Yes. You apply for a visitor visa online and give biometrics. This is the Canada tourist visa from Singapore for Chinese passport holders." },
+    { category: "Do I need a visa", q: "Do Malaysians in Singapore need a Canada visa?", a: "Yes. Malaysia is not on the list of countries whose citizens can use an eTA instead of a visa, so Malaysians apply for a visitor visa." },
+    { category: "Do I need a visa", q: "Can Filipinos use an eTA for Canada?", a: "Sometimes. A Philippine passport holder can use an eTA when flying if they held a Canadian visitor visa in the last 10 years or hold a valid US non-immigrant visa. Otherwise a visitor visa is needed." },
+    { category: "Applying in Singapore", q: "How do I apply for a Canada visa from Singapore?", a: "Apply online on the IRCC portal, pay the fees, wait for the biometrics letter and book your appointment in Singapore. Upload your documents with the application." },
+    { category: "Applying in Singapore", q: "Where do I give biometrics in Singapore?", a: "At a visa application centre in Singapore. IRCC sends an instruction letter, and you book as soon as you can to avoid delays." },
+    { category: "Applying in Singapore", q: "Do I need an invitation letter?", a: "Only for a visit to family or friends. IRCC lists an invitation letter among its recommended papers, and a family visit also needs proof of your relationship." },
+    { category: "Fees and time", q: "How much is a Canada visitor visa?", a: "The visa costs CAD 100 per person and biometrics cost CAD 85 per person. A family of 5 or more pays CAD 500 for the visa and up to CAD 170 for biometrics." },
+    { category: "Fees and time", q: "How long does a Canada visa take?", a: "IRCC publishes processing times in its online tool, and the time depends on where your file is handled. Check the tool before you plan your trip and wait for a decision before you book flights." },
+    { category: "Fees and time", q: "How long is a Canada visitor visa valid?", a: "Up to 10 years, or until your passport or biometrics expire, whichever is first. The officer may set a shorter date, and each visit is usually up to 6 months." },
+    { category: "Rejections", q: "What happens if my Canada visa is refused?", a: "IRCC sends a letter with the reason. The most common one is that the officer was not sure you would leave. Review it with a consultant before you apply again." },
+    { category: "Before you travel", q: "Do I need an arrival card for Canada?", a: "No arrival card is needed. Be ready to show your return ticket, funds and where you stay at the border." },
+    { category: "Before you travel", q: "How much does VIZA charge?", a: "Nothing. VIZA's help is free. You pay the IRCC fees directly." },
   ],
 
   sources: [
-    { label: "IRCC — Entry requirements by country (who needs an eTA vs a visa)", url: "https://www.canada.ca/en/immigration-refugees-citizenship/services/visit-canada/entry-requirements-country.html", display: "canada.ca" },
-    { label: "IRCC — eTA facts (cost, validity, eligibility)", url: "https://www.canada.ca/en/immigration-refugees-citizenship/services/visit-canada/eta/facts.html", display: "canada.ca" },
-    { label: "IRCC — Visitor visa: about the document", url: "https://www.canada.ca/en/immigration-refugees-citizenship/services/visit-canada/about-visitor-visa.html", display: "canada.ca" },
-    { label: "IRCC — Fee schedule (eTA, TRV, biometrics, restoration)", url: "https://ircc.canada.ca/english/information/fees/fees.asp", display: "ircc.canada.ca" },
-    { label: "IRCC — Extend your stay (visitor record)", url: "https://www.canada.ca/en/immigration-refugees-citizenship/services/visit-canada/extend-stay.html", display: "canada.ca" },
-    { label: "IRCC — Official processing-times tool", url: "https://www.canada.ca/en/immigration-refugees-citizenship/services/application/check-processing-times.html", display: "canada.ca" },
+    { label: "IRCC, apply for a visitor visa", url: "https://www.canada.ca/en/immigration-refugees-citizenship/services/visit-canada/apply-visitor-visa.html", display: "canada.ca" },
+    { label: "IRCC, entry requirements by country", url: "https://www.canada.ca/en/immigration-refugees-citizenship/services/visit-canada/entry-requirements-country.html", display: "canada.ca" },
+    { label: "IRCC, eTA: how to apply", url: "https://www.canada.ca/en/immigration-refugees-citizenship/services/visit-canada/eta/apply.html", display: "canada.ca" },
+    { label: "IRCC, eTA for citizens of some visa-required countries", url: "https://www.canada.ca/en/immigration-refugees-citizenship/services/visit-canada/eta/eligibility/eta-x.html", display: "canada.ca" },
+    { label: "IRCC, check processing times", url: "https://www.canada.ca/en/immigration-refugees-citizenship/services/application/check-processing-times.html", display: "canada.ca" },
+    { label: "IRCC, biometrics", url: "https://www.canada.ca/biometrics", display: "canada.ca" },
+    { label: "IRCC, fee list", url: "https://ircc.canada.ca/english/information/fees/fees.asp", display: "ircc.canada.ca" },
+    { label: "VFS Global, Canada visa in Singapore", url: "https://visa.vfsglobal.com/sgp/en/can/", display: "visa.vfsglobal.com" },
   ],
 
   price: {
-    etaLabel: "Apply now, get it by",
-    etaValue: "25 Sep 2026, 03:15 PM",
-    title: "Visitor visa (TRV) · multi-entry",
-    saving: "Biometrics booked for you",
-    sub: "VIZA's help is free: document review, IRCC Portal filing, and biometrics booking. Government fees are paid directly to IRCC.",
-    foot: "VIZA's service is free. The eTA, visa, and biometrics fees are paid directly to IRCC.",
+    etaLabel: "Processing time",
+    etaValue: "Set by IRCC",
+    title: "Visitor visa · up to 10 years",
+    sub: "VIZA's help is free: form preparation and document review. The visa and biometrics fees are paid to IRCC.",
+    foot: "VIZA's service is free. Any Canada visa fee is paid directly to IRCC.",
   },
 
-  aiPlaceholder: "Ask anything about Canada visas — eTA vs TRV, fees, biometrics, processing…",
+  aiPlaceholder: "Ask anything about a Canada visa from Singapore: eTA, fees, biometrics, documents…",
 };
 
 export default canada;

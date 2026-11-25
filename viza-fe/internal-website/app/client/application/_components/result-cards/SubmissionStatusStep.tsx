@@ -2739,9 +2739,14 @@ export function SubmissionStatusStep({
   }
 
   if (actionWithResult || completedWithResult) {
+    // Once France-Visas has issued a reference the application exists there;
+    // offering a resubmit would file a duplicate official application.
+    const franceReferenceIssued =
+      typeof (effectiveResult as { applicationReference?: unknown } | null)?.applicationReference === "string"
+      && Boolean((effectiveResult as { applicationReference: string }).applicationReference.trim());
     return (
       <div className="space-y-4">
-        {isFranceSubmissionCurrent && (
+        {isFranceSubmissionCurrent && !franceReferenceIssued && (
           <FranceResubmitPanel
             isZh={isZh}
             busy={resubmitting}
