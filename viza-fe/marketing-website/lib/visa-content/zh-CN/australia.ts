@@ -170,8 +170,13 @@ export const australia: DestinationContent = {
     related: {
       destinations: ["indonesia", "malaysia", "vietnam", "thailand"],
       guides: [
+        { label: "新加坡的中国护照持有人办签证", href: "/guides/visas-chinese-passport-holders-singapore" },
+        { label: "新加坡的菲律宾和印度居民办签证", href: "/guides/visas-filipino-indian-residents-singapore" },
+        { label: "电子旅行授权和签证的区别", href: "/guides/eta-vs-visa" },
+        { label: "签证被拒：原因和重新申请", href: "/guides/visa-refused-reapply" },
+        { label: "各国签证照片要求", href: "/guides/visa-photo-requirements" },
         { label: "澳洲内政部：签证处理时间", href: "https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-processing-times/global-visa-processing-times" },
-        { label: "VIZA 博客：签证与入境卡指南", href: "/blog" },
+        { label: "VIZA 签证资讯", href: "/blog" },
       ],
     },
   },

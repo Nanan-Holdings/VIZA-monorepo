@@ -165,8 +165,14 @@ export const unitedKingdom: DestinationContent = {
     related: {
       destinations: ["france", "schengen", "united-states", "canada"],
       guides: [
+        { label: "新加坡护照免签国家", href: "/guides/visa-free-countries-singapore-passport" },
+        { label: "新加坡的中国护照持有人办签证", href: "/guides/visas-chinese-passport-holders-singapore" },
+        { label: "新加坡的菲律宾和印度居民办签证", href: "/guides/visas-filipino-indian-residents-singapore" },
+        { label: "电子旅行授权和签证的区别", href: "/guides/eta-vs-visa" },
+        { label: "签证被拒：原因和重新申请", href: "/guides/visa-refused-reapply" },
+        { label: "各国签证照片要求", href: "/guides/visa-photo-requirements" },
         { label: "英国政府网站：访客证明材料指南", href: "https://www.gov.uk/government/publications/visitor-visa-guide-to-supporting-documents/guide-to-supporting-documents-visiting-the-uk" },
-        { label: "VIZA 博客：签证与入境卡指南", href: "/blog" },
+        { label: "VIZA 签证资讯", href: "/blog" },
       ],
     },
   },

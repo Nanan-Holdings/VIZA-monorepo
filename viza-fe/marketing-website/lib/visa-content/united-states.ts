@@ -187,8 +187,12 @@ export const unitedStates: DestinationContent = {
     related: {
       destinations: ["canada", "united-kingdom", "japan", "australia"],
       guides: [
+        { label: "Visas for Chinese passport holders in Singapore", href: "/guides/visas-chinese-passport-holders-singapore" },
+        { label: "US visa interview in Singapore", href: "/guides/us-visa-interview-singapore" },
+        { label: "Visa refused: why it happens and how to reapply", href: "/guides/visa-refused-reapply" },
+        { label: "Visa photo requirements by country", href: "/guides/visa-photo-requirements" },
         { label: "US Department of State: visa wait times", href: "https://travel.state.gov/content/travel/en/us-visas/visa-information-resources/wait-times.html" },
-        { label: "VIZA blog: visa and arrival card guides", href: "/blog" },
+        { label: "VIZA visa news", href: "/blog" },
       ],
     },
   },

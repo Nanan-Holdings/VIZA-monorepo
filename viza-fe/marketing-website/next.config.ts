@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 import path from "path";
 import { fileURLToPath } from "url";
 import createNextIntlPlugin from "next-intl/plugin";
+import { REDIRECTS } from "./lib/seo/redirects";
 
 const withNextIntl = createNextIntlPlugin("./i18n.ts");
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
@@ -62,11 +63,7 @@ const nextConfig: NextConfig = {
     remotePatterns: [{ protocol: "https", hostname: "images.unsplash.com" }],
   },
   async redirects() {
-    // The SG Arrival Card post (served from the portal CMS) folds into the guide.
-    return [
-      { source: "/blog/sg-arrival-card-myica-app-september-30", destination: "/arrival-cards/singapore-sg-arrival-card", permanent: true },
-      { source: "/zh-CN/blog/sg-arrival-card-myica-app-september-30", destination: "/zh-CN/arrival-cards/singapore-sg-arrival-card", permanent: true },
-    ];
+    return REDIRECTS;
   },
   async headers() {
     return [{ source: "/:path*", headers: SECURITY_HEADERS }];

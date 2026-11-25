@@ -172,8 +172,9 @@ export const malaysia: DestinationContent = {
     related: {
       destinations: ["thailand", "indonesia", "vietnam", "india"],
       guides: [
+        { label: "Visas for Chinese passport holders in Singapore", href: "/guides/visas-chinese-passport-holders-singapore" },
         { label: "Malaysia Digital Arrival Card, Immigration Department", href: "https://imigresen-online.imi.gov.my/mdac/main" },
-        { label: "VIZA blog: visa and arrival card guides", href: "/blog" },
+        { label: "VIZA visa news", href: "/blog" },
       ],
     },
   },

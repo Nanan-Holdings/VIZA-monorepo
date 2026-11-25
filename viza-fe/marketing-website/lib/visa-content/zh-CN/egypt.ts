@@ -162,8 +162,9 @@ export const egypt: DestinationContent = {
     related: {
       destinations: ["saudi-arabia", "turkiye", "united-arab-emirates", "italy"],
       guides: [
+        { label: "电子签、落地签和使馆签证的区别", href: "/guides/e-visa-vs-visa-on-arrival-vs-embassy-visa" },
         { label: "埃及电子签证门户", href: "https://visa2egypt.gov.eg/eVisa/Home" },
-        { label: "VIZA 博客：签证与入境卡指南", href: "/blog" },
+        { label: "VIZA 签证资讯", href: "/blog" },
       ],
     },
   },

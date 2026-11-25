@@ -153,7 +153,10 @@ export const india: DestinationContent = {
     related: {
       destinations: ["thailand", "malaysia", "united-arab-emirates", "saudi-arabia"],
       guides: [
+        { label: "电子签、落地签和使馆签证的区别", href: "/guides/e-visa-vs-visa-on-arrival-vs-embassy-visa" },
+        { label: "各国签证照片要求", href: "/guides/visa-photo-requirements" },
         { label: "印度电子入境卡，Indian Visa Online 网站", href: "https://indianvisaonline.gov.in/earrival/" },
+        { label: "VIZA 签证资讯", href: "/blog" },
       ],
     },
   },

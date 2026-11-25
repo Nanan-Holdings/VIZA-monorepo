@@ -8,7 +8,7 @@ import type { DestinationContent } from "./types";
  *   - https://thailand.prd.go.th/en/content/category/detail/id/48/iid/538547 (effective 15 Sep 2026, 60 countries to 30 days)
  *   - https://image.mfa.go.th/mfa/0/wdW3FTtVMc/2026-05-22/ตารางทบทวนมาตรการ_ver._eng.pdf (MFA country table: 30-day
  *     exemption includes Singapore, Malaysia, Indonesia, Philippines; visa on arrival lists Azerbaijan, Belarus, Serbia,
- *     India; bilateral 30 days for China and Vietnam)
+ *     India moved to the 30-day exemption, Cabinet 14 Jul 2026; bilateral 30 days for China and Vietnam)
  *   - https://singapore.thaiembassy.org/en/page/tourist-visa (SGD 50 single, SGD 250 METV, 3 and 6 months validity,
  *     60 days per entry, apply 21 working days ahead, stay in Singapore while processing, bank statement S$800 or S$8,000)
  * Not confirmed on an official page this session (kept general or flagged in the copy):
@@ -27,7 +27,7 @@ export const thailand: DestinationContent = {
   slug: "thailand",
 
   heroTitle: "Thailand visa: do you need one, and how to apply for the e-visa",
-  lede: "Do Singaporeans need a visa to Thailand? Not for a holiday. From 15 September 2026 Singapore passports enter Thailand visa free for up to 30 days, down from 60, and Malaysian, Indonesian and Philippine passports get the same. Chinese and Vietnamese passports get 30 days under their own agreements, and Indian passports use visa on arrival. For a longer stay you apply for the Thailand e-visa online, and the Royal Thai Embassy in Singapore charges S$50 for a single entry. Every visitor also fills in the free Thailand Digital Arrival Card (TDAC) before arrival.",
+  lede: "Do Singaporeans need a visa to Thailand? Not for a holiday. From 15 September 2026 Singapore passports enter Thailand visa free for up to 30 days, down from 60, and Malaysian, Indonesian and Philippine passports get the same. Chinese and Vietnamese passports get 30 days under their own agreements, and Indian passports are on the 30-day exemption list too. For a longer stay you apply for the Thailand e-visa online, and the Royal Thai Embassy in Singapore charges S$50 for a single entry. Every visitor also fills in the free Thailand Digital Arrival Card (TDAC) before arrival.",
   heroImage: "/assets/heroes/thailand.jpg",
   meta: [
     { k: "Singapore passport", v: "Visa free, 30 days" },
@@ -45,7 +45,7 @@ export const thailand: DestinationContent = {
     framing: "global",
 
     glance: {
-      needVisa: "Not for Singapore, Malaysian, Indonesian, Philippine, Chinese or Vietnamese passports on a tourist stay. Indian passports use visa on arrival",
+      needVisa: "Not for Singapore, Malaysian, Indonesian, Philippine, Indian, Chinese or Vietnamese passports on a tourist stay of up to 30 days",
       govFee: "S$50 for a single entry e-visa and S$250 for a multiple entry (METV) at the Embassy in Singapore. Visa free entry has no fee",
       processing: "The Embassy gives no time. It says to apply at least 21 working days before you travel and to stay in Singapore until it is approved",
       maxStay: "30 days visa free, tourism only. The Embassy lists up to 60 days per entry on a tourist e-visa",
@@ -58,7 +58,7 @@ export const thailand: DestinationContent = {
         { passport: "Singapore", status: "Visa free, up to 30 days", note: "Tourism only, no fee and no visa. For more than 30 days, apply for the tourist e-visa before you go." },
         { passport: "China (PRC)", status: "Visa free, 30 days", note: "Chinese passports are covered by a bilateral agreement for 30 days. Complete the TDAC before you arrive." },
         { passport: "Malaysia", status: "Visa free, up to 30 days", note: "Malaysian passports are on the 30-day list." },
-        { passport: "India", status: "Visa on arrival", note: "India is on the Ministry's visa on arrival list. The fee and the documents are set by Thai immigration, so check before you fly or apply for the e-visa in advance." },
+        { passport: "India", status: "Visa free, up to 30 days", note: "Thailand moved Indian passports to the 30-day exemption list instead of visa on arrival (Thai Cabinet, 14 July 2026; in force from 15 September 2026). For a longer stay, apply for the e-visa in advance." },
         { passport: "Indonesia", status: "Visa free, up to 30 days", note: "Indonesian passports are on the 30-day list." },
         { passport: "Philippines", status: "Visa free, up to 30 days", note: "Philippine passports are on the 30-day list." },
         { passport: "Vietnam", status: "Visa free, 30 days", note: "Vietnamese passports are covered by a bilateral agreement for 30 days." },
@@ -72,7 +72,7 @@ export const thailand: DestinationContent = {
         { title: "Visa free entry", body: "Thirty days for tourism for the countries on the Ministry's 30-day list, which includes Singapore. Eligible visitors can ask immigration for one extension of up to 30 more days, as reported after the change." },
         { title: "Tourist visa (TR), single entry", body: "Applied for online on the Thai e-visa portal. The Embassy in Singapore lists a S$50 fee, three months of validity and up to 60 days per entry." },
         { title: "Multiple entry tourist visa (METV)", body: "S$250 at the Embassy in Singapore, valid for six months, with up to 60 days per entry. It needs six months of bank statements and an employment letter." },
-        { title: "Visa on arrival", body: "A short list of countries, including India, can get a visa on arrival under the new scheme. Fee and conditions are set at the immigration counter." },
+        { title: "Visa on arrival", body: "A short list of countries can get a visa on arrival under the new scheme. India is not on it: Indian passports are visa free for 30 days. Fee and conditions are set at the immigration counter." },
       ],
     },
 
@@ -82,7 +82,7 @@ export const thailand: DestinationContent = {
         { pass: "Employment Pass", body: "Chinese, Vietnamese, Malaysian, Indonesian and Philippine passport holders need no visa for 30 days. For a longer stay, apply for the e-visa and add a copy of your EP (front and back) and its QR code details." },
         { pass: "S Pass", body: "The same as the EP. Show the S Pass copy, and the Embassy asks for three months of bank statements with at least S$800 for a single entry." },
         { pass: "Dependant's Pass", body: "Each family member applies on their own passport. Add the Dependant's Pass copy, and a sponsor letter and proof of relationship if someone else pays." },
-        { pass: "Permanent Resident", body: "Follow the row for your passport, not your PR status. A PR with an Indian passport uses visa on arrival or applies for the e-visa first." },
+        { pass: "Permanent Resident", body: "Follow the row for your passport, not your PR status. A PR with an Indian passport enters visa free for up to 30 days, or applies for the e-visa for a longer stay." },
         { pass: "Singapore citizen", body: "No visa for a holiday of up to 30 days. Carry your passport, a return ticket and your TDAC QR code." },
         { pass: "Student's Pass", body: "Follow your passport's row. For an e-visa, add the Student's Pass copy and a school letter or a parent's sponsor letter." },
       ],
@@ -183,8 +183,12 @@ export const thailand: DestinationContent = {
     related: {
       destinations: ["vietnam", "malaysia", "india", "indonesia"],
       guides: [
+        { label: "Visa-free countries for Singapore passport holders", href: "/guides/visa-free-countries-singapore-passport" },
+        { label: "Visas for Chinese passport holders in Singapore", href: "/guides/visas-chinese-passport-holders-singapore" },
+        { label: "Visas for Filipino and Indian residents of Singapore", href: "/guides/visas-filipino-indian-residents-singapore" },
+        { label: "e-Visa vs visa on arrival vs embassy visa", href: "/guides/e-visa-vs-visa-on-arrival-vs-embassy-visa" },
         { label: "Thailand Digital Arrival Card, Immigration Bureau", href: "https://tdac.immigration.go.th/" },
-        { label: "VIZA blog: visa and arrival card guides", href: "/blog" },
+        { label: "VIZA visa news", href: "/blog" },
       ],
     },
   },
@@ -203,9 +207,9 @@ export const thailand: DestinationContent = {
   faqSub: "Can't find your answer? Ask the AI assistant below or message a VIZA consultant.",
   faq: [
     { category: "Do I need a visa", q: "Do Singaporeans need a visa to Thailand?", a: "No, not for a holiday. From 15 September 2026 Singapore passports enter Thailand visa free for up to 30 days for tourism. For a longer stay, apply for the Thailand tourist e-visa first." },
-    { category: "Do I need a visa", q: "Do I need a Thailand visa from Singapore if I hold a Chinese or Indian passport?", a: "Chinese passports enter visa free for 30 days under a bilateral agreement. Indian passports are on the visa on arrival list. For a longer stay, apply for the e-visa through the Embassy in Singapore." },
+    { category: "Do I need a visa", q: "Do I need a Thailand visa from Singapore if I hold a Chinese or Indian passport?", a: "Chinese passports enter visa free for 30 days under a bilateral agreement, and Indian passports are visa free for 30 days too. For a longer stay, apply for the e-visa through the Embassy in Singapore." },
     { category: "Do I need a visa", q: "Did Thailand cut the visa free stay for Singapore passports?", a: "The 60-day exemption was revoked and replaced by 30 days from 15 September 2026. Singapore stays on the 30-day list." },
-    { category: "Do I need a visa", q: "Do Singapore PR and pass holders need a Thailand visa?", a: "It depends on your passport. Malaysian, Indonesian, Philippine, Chinese and Vietnamese passports have visa free entry for 30 days. Indian passports use visa on arrival." },
+    { category: "Do I need a visa", q: "Do Singapore PR and pass holders need a Thailand visa?", a: "It depends on your passport. Malaysian, Indonesian, Philippine, Indian, Chinese and Vietnamese passports have visa free entry for 30 days." },
     { category: "Thailand e-visa", q: "What is the Thailand e-visa?", a: "It is the tourist visa applied for online on the Thai e-visa portal. The Royal Thai Embassy in Singapore lists S$50 for a single entry and S$250 for a multiple entry." },
     { category: "Thailand e-visa", q: "How do I apply for a Thailand e-visa from Singapore?", a: "Submit the application on the Thai e-visa portal with your passport, photo, flight ticket, accommodation proof, bank statements and pass copy. Stay in Singapore until it is approved." },
     { category: "Thailand e-visa", q: "How long does a Thailand e-visa take?", a: "The Embassy gives no time. It advises applying at least 21 working days before you travel." },

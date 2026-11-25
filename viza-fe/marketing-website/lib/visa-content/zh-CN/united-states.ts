@@ -162,8 +162,12 @@ export const unitedStates: DestinationContent = {
     related: {
       destinations: ["canada", "united-kingdom", "japan", "australia"],
       guides: [
+        { label: "新加坡的中国护照持有人办签证", href: "/guides/visas-chinese-passport-holders-singapore" },
+        { label: "新加坡美国签证面谈", href: "/guides/us-visa-interview-singapore" },
+        { label: "签证被拒：原因和重新申请", href: "/guides/visa-refused-reapply" },
+        { label: "各国签证照片要求", href: "/guides/visa-photo-requirements" },
         { label: "美国国务院：签证等候时间", href: "https://travel.state.gov/content/travel/en/us-visas/visa-information-resources/wait-times.html" },
-        { label: "VIZA 博客：签证与入境卡指南", href: "/blog" },
+        { label: "VIZA 签证资讯", href: "/blog" },
       ],
     },
   },

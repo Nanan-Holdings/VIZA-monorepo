@@ -151,7 +151,13 @@ export const vietnam: DestinationContent = {
     related: {
       destinations: ["thailand", "malaysia", "indonesia", "japan"],
       guides: [
+        { label: "新加坡护照免签国家", href: "/guides/visa-free-countries-singapore-passport" },
+        { label: "新加坡的中国护照持有人办签证", href: "/guides/visas-chinese-passport-holders-singapore" },
+        { label: "新加坡的菲律宾和印度居民办签证", href: "/guides/visas-filipino-indian-residents-singapore" },
+        { label: "电子签、落地签和使馆签证的区别", href: "/guides/e-visa-vs-visa-on-arrival-vs-embassy-visa" },
+        { label: "各国签证照片要求", href: "/guides/visa-photo-requirements" },
         { label: "越南入境前申报表，越南移民局", href: "https://prearrival.immigration.gov.vn/" },
+        { label: "VIZA 签证资讯", href: "/blog" },
       ],
     },
   },

@@ -9,6 +9,7 @@ import { getMarketingBlogFeed, getMarketingBlogPost } from "@/lib/marketing-blog
 import { clip, clipTitle, pageMetadata } from "@/lib/seo/metadata";
 import { SITE_URL } from "@/lib/seo/site";
 import { destinationForPost } from "@/lib/blog-destination";
+import { guidesForPost } from "@/lib/guides";
 import { blogUrl, articleJsonLd, breadcrumbJsonLd, jsonLd } from "@/lib/blog-structured-data";
 
 export const revalidate = 300;
@@ -60,6 +61,8 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const tc = await getTranslations({ locale, namespace: "countries" });
   const destinationName = destination ? (tc.has(destination.slug) ? tc(destination.slug) : destination.name) : "";
 
+  const guides = result.status === "ok" ? guidesForPost(result.post, destination?.slug ?? null) : [];
+
   return (
     <>
       <SiteNav activeTab="blog" />
@@ -98,6 +101,11 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
               title: t("visaLinkTitle", { country: destinationName }),
               body: t("visaLinkBody"),
               action: t("visaLinkAction", { country: destinationName }),
+            } : undefined}
+            guideLinks={guides.length ? {
+              title: t("guidesTitle"),
+              body: t("guidesBody"),
+              items: guides.map((g) => ({ slug: g.slug, label: locale === "zh-CN" ? g.name.zh : g.name.en })),
             } : undefined}
           />
         )}

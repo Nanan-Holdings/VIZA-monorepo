@@ -171,8 +171,10 @@ export const india: DestinationContent = {
     related: {
       destinations: ["thailand", "malaysia", "united-arab-emirates", "saudi-arabia"],
       guides: [
+        { label: "e-Visa vs visa on arrival vs embassy visa", href: "/guides/e-visa-vs-visa-on-arrival-vs-embassy-visa" },
+        { label: "Visa photo requirements by country", href: "/guides/visa-photo-requirements" },
         { label: "India e-Arrival Card, on the Indian Visa Online portal", href: "https://indianvisaonline.gov.in/earrival/" },
-        { label: "VIZA blog: visa and arrival card guides", href: "/blog" },
+        { label: "VIZA visa news", href: "/blog" },
       ],
     },
   },

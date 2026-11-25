@@ -162,8 +162,10 @@ export const turkiye: DestinationContent = {
     related: {
       destinations: ["egypt", "italy", "saudi-arabia", "united-arab-emirates"],
       guides: [
+        { label: "新加坡的菲律宾和印度居民办签证", href: "/guides/visas-filipino-indian-residents-singapore" },
+        { label: "电子签、落地签和使馆签证的区别", href: "/guides/e-visa-vs-visa-on-arrival-vs-embassy-visa" },
         { label: "土耳其电子签证门户", href: "https://www.evisa.gov.tr/en/" },
-        { label: "VIZA 博客：签证与入境卡指南", href: "/blog" },
+        { label: "VIZA 签证资讯", href: "/blog" },
       ],
     },
   },

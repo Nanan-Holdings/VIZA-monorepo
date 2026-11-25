@@ -78,6 +78,8 @@ export default function SiteFooter() {
             <li><Link href="/apply">{t("prodMockInterview")}</Link></li>
             <li><Link href="/">{t("prodVisaReq")}</Link></li>
             <li><Link href="/arrival-cards">{t("arrivalCards")}</Link></li>
+            <li><Link href="/guides">{t("guides")}</Link></li>
+            <li><Link href="/blog">{t("news")}</Link></li>
             <li><Link href="/visa/france">{t("prodSchengen")}</Link></li>
             <li><Link href="/apply">{t("prodPhoto")}</Link></li>
             <li><Link href="/contact">{t("prodHelpline")}</Link></li>

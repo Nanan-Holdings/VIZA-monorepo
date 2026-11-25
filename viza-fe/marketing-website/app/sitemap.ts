@@ -5,7 +5,9 @@ import { getPublishedCatalogue } from "@/lib/public-catalogue";
 import { getMarketingBlogFeed, type MarketingBlogSummary } from "@/lib/marketing-blog";
 import { blogCategories } from "@/lib/blog-taxonomy";
 import { SITE_URL } from "@/lib/seo/site";
-import { GUIDES } from "@/lib/arrival-cards";
+import { GUIDES as ARRIVAL_GUIDES } from "@/lib/arrival-cards";
+import { GUIDES } from "@/lib/guides";
+import { isRedirectedBlogSlug } from "@/lib/seo/redirects";
 
 export const revalidate = 300;
 
@@ -16,7 +18,7 @@ type Entry = MetadataRoute.Sitemap[number];
  * /status, /events and /apply (noindex), /refunds (redirect), and any locale's
  * blog until that locale has published posts.
  */
-const STATIC_ROUTES = ["/", "/product", "/contact", "/arrival-cards", "/careers", "/security", "/legal/privacy", "/legal/terms"];
+const STATIC_ROUTES = ["/", "/product", "/contact", "/arrival-cards", "/guides", "/careers", "/security", "/legal/privacy", "/legal/terms"];
 
 /** One sitemap row per locale in `locales`, each naming every sibling plus x-default. */
 function rows(
@@ -56,8 +58,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   for (const route of STATIC_ROUTES) {
     out.push(...rows(route, ENABLED_LOCALES, { changeFrequency: "monthly", priority: route === "/" ? 1 : 0.6 }));
   }
-  for (const guide of GUIDES) {
+  for (const guide of ARRIVAL_GUIDES) {
     out.push(...rows(`/arrival-cards/${guide.slug}`, ENABLED_LOCALES, { changeFrequency: "monthly", priority: 0.8, lastModified: new Date("2026-11-25") }));
+  }
+  for (const guide of GUIDES) {
+    out.push(...rows(`/guides/${guide.slug}`, ENABLED_LOCALES, { changeFrequency: "monthly", priority: 0.8, lastModified: new Date(guide.modified) }));
   }
   for (const slug of slugs) {
     const stamp = publishedAt.get(slug);
@@ -83,7 +88,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     for (const category of blogCategories(posts)) {
       out.push(...rows(`/blog/category/${category.slug}`, [locale], { changeFrequency: "weekly", priority: 0.5 }));
     }
-    for (const post of posts) {
+    // Slugs that redirect (see lib/seo/redirects.ts) are not listed: the sitemap carries final 200 URLs only.
+    for (const post of posts.filter((p) => !isRedirectedBlogSlug(p.slug))) {
       const siblings = withPosts
         .filter((x) => x.posts.some((p) => p.slug === post.slug))
         .map((x) => x.locale);

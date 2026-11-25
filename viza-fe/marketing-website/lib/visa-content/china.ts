@@ -168,7 +168,12 @@ export const china: DestinationContent = {
 
     related: {
       destinations: ["japan", "south-korea", "vietnam", "thailand"],
-      guides: [{ label: "VIZA blog: visa and arrival card guides", href: "/blog" }],
+      guides: [
+        { label: "Visa-free countries for Singapore passport holders", href: "/guides/visa-free-countries-singapore-passport" },
+        { label: "Visas for Filipino and Indian residents of Singapore", href: "/guides/visas-filipino-indian-residents-singapore" },
+        { label: "Visa photo requirements by country", href: "/guides/visa-photo-requirements" },
+        { label: "VIZA visa news", href: "/blog" },
+      ],
     },
   },
 

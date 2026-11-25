@@ -22,6 +22,8 @@ interface MarketingBlogArticleProps {
   ctaAction: string;
   /** Contextual link to the matching /visa/<slug> page, when the post is about one destination. */
   visaLink?: { slug: string; title: string; body: string; action: string };
+  /** Evergreen guides that match the post's destination or topic. */
+  guideLinks?: { title: string; body: string; items: Array<{ slug: string; label: string }> };
 }
 
 function formatDate(value: string, locale: Locale): string {
@@ -299,6 +301,7 @@ export default function MarketingBlogArticle({
   ctaBody,
   ctaAction,
   visaLink,
+  guideLinks,
 }: MarketingBlogArticleProps) {
   return (
     <>
@@ -339,6 +342,17 @@ export default function MarketingBlogArticle({
                 <h2>{visaLink.title}</h2>
                 <p>{visaLink.body}</p>
                 <Link href={`/visa/${visaLink.slug}`} locale={locale}>{visaLink.action} <span aria-hidden="true">→</span></Link>
+              </aside>
+            ) : null}
+            {guideLinks && guideLinks.items.length > 0 ? (
+              <aside className="viza-blog__destination">
+                <h2>{guideLinks.title}</h2>
+                <p>{guideLinks.body}</p>
+                <ul>
+                  {guideLinks.items.map((g) => (
+                    <li key={g.slug}><Link href={`/guides/${g.slug}`} locale={locale}>{g.label} <span aria-hidden="true">→</span></Link></li>
+                  ))}
+                </ul>
               </aside>
             ) : null}
           </article>

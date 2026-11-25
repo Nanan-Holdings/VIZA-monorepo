@@ -154,8 +154,9 @@ export const saudiArabia: DestinationContent = {
     related: {
       destinations: ["united-arab-emirates", "egypt", "turkiye", "india"],
       guides: [
+        { label: "电子签、落地签和使馆签证的区别", href: "/guides/e-visa-vs-visa-on-arrival-vs-embassy-visa" },
         { label: "沙特电子签证门户：申请与资格查询", href: "https://visa.visitsaudi.com" },
-        { label: "VIZA 博客：签证与入境卡指南", href: "/blog" },
+        { label: "VIZA 签证资讯", href: "/blog" },
       ],
     },
   },
