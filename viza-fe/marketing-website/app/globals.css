@@ -6,7 +6,7 @@
    VIZA Marketing — Design tokens
    Mirrored from /Users/gel/Desktop/VIZA Website/colors_and_type.css
    Primary brand: Deep Navy #03346E.
-   Headings: Switzer. Body: Geist Sans.
+   Headings: Switzer. Body: Inter Display (design-system/tokens.css holds the Framer tokens).
    ============================================================= */
 
 @layer base {
@@ -126,8 +126,9 @@
     /* Map design tokens to Next/font CSS vars on body so --font-switzer / --font-geist-sans
        (set on body via next/font className) are in the same scope. */
     --font-heading: var(--font-switzer), "PingFang SC", "Noto Sans SC", "Hiragino Sans GB", system-ui, -apple-system, sans-serif;
-    --font-sans: var(--font-geist-sans), "PingFang SC", "Noto Sans SC", "Hiragino Sans GB", system-ui, -apple-system, sans-serif;
-    background: var(--page-bg);
+    /* Body face is Inter Display (design-system/fonts.css), the Framer reference's text face. Geist stays as the fallback. */
+    --font-sans: "Inter Display", var(--font-geist-sans), "PingFang SC", "Noto Sans SC", "Hiragino Sans GB", system-ui, -apple-system, sans-serif;
+    background: var(--ds-canvas);
     color: var(--fg-1);
     font-family: var(--font-sans);
     letter-spacing: var(--tracking-body);

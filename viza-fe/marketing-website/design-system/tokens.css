@@ -1,0 +1,141 @@
+/*
+  VIZA design tokens, measured from the Framer reference (effective-set-984023.framer.app).
+  Source of every value: viza-reference/framer/viza/dump/home-{1440,1000,390}.json and the page CSS.
+  See docs/design-system/ANALYSIS.md for the Framer value next to each token.
+
+  Breakpoints follow Framer: desktop >= 1200, tablet 810 to 1199.98, phone <= 809.98.
+*/
+:root {
+  /* Colour. Framer runs a grey ramp with black as its accent; VIZA keeps the ramp and uses navy as the accent. */
+  --ds-canvas: #f7f7f7;
+  --ds-surface: #ffffff;
+  --ds-surface-muted: #f5f5f5;
+  --ds-ink: #000000;
+  --ds-ink-soft: #0a0a0a;
+  --ds-ink-muted: #707070;
+  --ds-ink-faint: #b4b4b4;
+  --ds-line: rgba(171, 171, 171, 0.5);
+  --ds-line-strong: #ababab;
+  --ds-dot-1: #e6e6e6;
+  --ds-dot-2: #868686;
+  --ds-accent: #03346e;
+  --ds-accent-hover: #022b5c;
+  --ds-accent-soft: #eef3fa;
+  --ds-on-accent: #ffffff;
+  --ds-positive: #00b906;
+  --ds-star: #f98b31;
+  --ds-overlay: rgba(0, 0, 0, 0.25);
+  --ds-overlay-deep: linear-gradient(180deg, rgba(0, 0, 0, 0.05) 25%, rgba(0, 0, 0, 0.7) 100%);
+  --ds-glass: rgba(255, 255, 255, 0.2);
+  --ds-error: #b3261e;
+
+  /* Type */
+  --ds-font-cjk: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  --ds-font-display: var(--font-switzer, "Switzer"), "Switzer", var(--ds-font-cjk), system-ui, sans-serif;
+  --ds-font-body: "Inter Display", var(--ds-font-cjk), system-ui, -apple-system, sans-serif;
+
+  --ds-fs-display: 160px; /* contact and about page titles (Framer fit text) */
+  --ds-fs-hero: 64px; /* hero H1, CTA band H2 */
+  --ds-fs-h2: 60px; /* section titles */
+  --ds-fs-statement: 40px; /* statement paragraphs, FAQ title, form card title */
+  --ds-fs-stat: 68px; /* fact tile numbers */
+  --ds-fs-title: 26px; /* card titles */
+  --ds-fs-subtitle: 20px; /* FAQ questions, small card titles */
+  --ds-fs-lead: 22px;
+  --ds-fs-body: 18px;
+  --ds-fs-small: 16px;
+  --ds-fs-caption: 14px;
+  --ds-fs-nav: 18px;
+  --ds-fs-button: 18px;
+
+  --ds-lh-tight: 1.12;
+  --ds-lh-stat: 1;
+  --ds-lh-title: 1.25;
+  --ds-lh-body: 1.32;
+
+  --ds-track-display: -0.04em;
+  --ds-track-stat: -0.06em;
+  --ds-track-title: -0.04em;
+  --ds-track-body: -0.02em;
+  --ds-track-button: -0.03em;
+
+  /* Space */
+  --ds-max: 1296px;
+  --ds-gutter: 72px;
+  --ds-section-y: 80px;
+  --ds-head-gap: 60px;
+  --ds-grid-gap: 16px;
+  --ds-card-pad: 32px;
+  --ds-frame-inset: 14px;
+  --ds-nav-h: 84px;
+
+  /* Radius */
+  --ds-r-frame: 16px; /* hero photo frame */
+  --ds-r-band: 30px; /* closing CTA band */
+  --ds-r-panel: 25px; /* tall side card */
+  --ds-r-card: 20px; /* feature, FAQ, post cards */
+  --ds-r-card-sm: 15px; /* media cards */
+  --ds-r-media: 16px; /* photos inside cards */
+  --ds-r-tile: 14px; /* hero floating card */
+  --ds-r-input: 10px;
+  --ds-r-chip: 6px;
+  --ds-r-pill: 999px;
+
+  /* Shadow */
+  --ds-shadow-float: 0 2px 4px rgba(0, 0, 0, 0.1), 0 1px 0 rgba(0, 0, 0, 0.05);
+  --ds-shadow-pop: 0 2px 4px rgba(0, 0, 0, 0.04), 0 16px 40px -8px rgba(0, 0, 0, 0.14);
+
+  /* Motion. Framer springs (stiffness 200, damping 44) settle in about 0.9s with this curve. */
+  --ds-ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --ds-ease-hover: cubic-bezier(0.44, 0, 0.56, 1);
+  --ds-dur-appear: 0.9s;
+  --ds-dur-hover: 0.3s;
+  --ds-dur-fast: 0.15s;
+  --ds-appear-y: 24px;
+}
+
+@media (max-width: 1199.98px) {
+  :root {
+    --ds-fs-display: 112px;
+    --ds-fs-hero: 48px;
+    --ds-fs-h2: 44px;
+    --ds-fs-statement: 32px;
+    --ds-fs-stat: 48px;
+    --ds-fs-title: 20px;
+    --ds-fs-subtitle: 18px;
+    --ds-fs-lead: 20px;
+    --ds-fs-body: 16px;
+    --ds-fs-small: 15px;
+    --ds-fs-button: 16px;
+    --ds-gutter: 50px;
+    --ds-section-y: 60px;
+    --ds-head-gap: 48px;
+    --ds-card-pad: 28px;
+    --ds-frame-inset: 10px;
+    --ds-nav-h: 80px;
+  }
+}
+
+@media (max-width: 809.98px) {
+  :root {
+    --ds-fs-display: 64px;
+    --ds-fs-hero: 36px;
+    --ds-fs-h2: 30px;
+    --ds-fs-statement: 26px;
+    --ds-fs-stat: 44px;
+    --ds-fs-title: 18px;
+    --ds-fs-subtitle: 17px;
+    --ds-fs-lead: 18px;
+    --ds-fs-body: 15px;
+    --ds-fs-small: 14px;
+    --ds-fs-caption: 13px;
+    --ds-fs-button: 15px;
+    --ds-gutter: 20px;
+    --ds-section-y: 48px;
+    --ds-head-gap: 32px;
+    --ds-grid-gap: 12px;
+    --ds-card-pad: 24px;
+    --ds-frame-inset: 4px;
+    --ds-nav-h: 68px;
+  }
+}
