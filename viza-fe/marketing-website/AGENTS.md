@@ -2,8 +2,11 @@
 
 Scope: applies to `viza-fe/marketing-website`.
 
-Shared footer social links and localized labels live in
-`components/SiteFooter.tsx`; their brand SVGs live in `public/assets/social/`.
+The look comes from the Framer reference, rebuilt as the design system in `design-system/` (tokens, motion,
+section components); `docs/design-system/ANALYSIS.md` maps every Framer value and section to it. Build new
+pages from those components. The shared header and footer are `design-system/sections/SiteHeader.tsx` and
+`SiteFooter.tsx` (`components/SiteNav.tsx` and `components/SiteFooter.tsx` wrap them); footer social links
+follow `SAME_AS` in `lib/seo/site.ts`.
 
 Read `CLAUDE.md` in this folder before making product or UI changes. It is the
 marketing site convention source for auth boundaries, i18n, visa destination

@@ -1,0 +1,154 @@
+/*
+  /status on the design system: loaded after status.css, so these rules win on equal specificity.
+  The monitoring logic and markup are unchanged; the dark hero band becomes a title and a white summary card.
+*/
+.st {
+  min-height: 60vh;
+}
+.st .hero {
+  background: transparent;
+  color: var(--ds-ink);
+  overflow: visible;
+}
+.st .hero::before,
+.st .hero::after {
+  display: none;
+}
+.st .hero-inner {
+  max-width: calc(var(--ds-max) + 2 * var(--ds-gutter));
+  padding: 64px var(--ds-gutter) 40px;
+}
+.st .hero-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  align-items: end;
+}
+.st .hero-grid > :first-child {
+  grid-column: 1 / span 2;
+}
+.st .hero h1 {
+  max-width: none;
+  margin: 0 0 20px;
+  font-family: var(--ds-font-display);
+  font-weight: 500;
+  font-size: var(--ds-fs-h2);
+  line-height: var(--ds-lh-tight);
+  letter-spacing: var(--ds-track-display);
+  color: var(--ds-ink);
+}
+.st .hero p.lead {
+  max-width: 600px;
+  font-size: var(--ds-fs-body);
+  line-height: var(--ds-lh-body);
+  letter-spacing: var(--ds-track-body);
+  color: var(--ds-ink-muted);
+}
+.st .console {
+  padding: 24px;
+  border: 0;
+  border-radius: var(--ds-r-panel);
+  background: var(--ds-surface);
+  backdrop-filter: none;
+  box-shadow: none;
+}
+.st .console-head {
+  color: var(--ds-ink-muted);
+  letter-spacing: 0.04em;
+  text-transform: none;
+  font-size: 13px;
+  border-bottom-color: var(--ds-line);
+}
+.st .console-head .live,
+.st .console-state .ico {
+  color: var(--ds-positive);
+}
+.st .console-head .live::before {
+  background: var(--ds-positive);
+  box-shadow: none;
+}
+.st .console-state .ico {
+  background: #e8f8e9;
+}
+.st .console-state h2 {
+  font-size: 22px;
+  letter-spacing: var(--ds-track-title);
+  color: var(--ds-ink);
+}
+.st .console-state h2 small {
+  color: var(--ds-ink-muted);
+}
+.st .console-numbers {
+  border-top-color: var(--ds-line);
+}
+.st .console-num {
+  padding-inline: 12px;
+  border-left-color: var(--ds-line);
+}
+.st .console-num .v {
+  color: var(--ds-ink);
+}
+.st .console-num .k {
+  color: var(--ds-ink-muted);
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 12px;
+}
+.st .subnav {
+  top: 0;
+  background: rgba(247, 247, 247, 0.92);
+  border-bottom: 1px solid var(--ds-line);
+}
+.st .subnav-inner,
+.st .page {
+  max-width: calc(var(--ds-max) + 2 * var(--ds-gutter));
+  padding-inline: var(--ds-gutter);
+}
+.st .page {
+  padding-bottom: var(--ds-section-y);
+}
+.st .sub-tab.active,
+.st .btn-sub {
+  background: var(--ds-accent);
+}
+.st .panel {
+  border: 0;
+  border-radius: var(--ds-r-card);
+}
+.st .feat {
+  background: var(--ds-surface);
+}
+.st .feat-title .mark {
+  background: var(--ds-accent);
+  box-shadow: none;
+}
+.st .iso {
+  background: var(--ds-accent-soft);
+  border-color: transparent;
+  color: var(--ds-accent);
+}
+.st .search-box input {
+  border-color: transparent;
+  background: var(--ds-surface);
+}
+@media (max-width: 1199.98px) {
+  .st .hero-grid {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+  .st .hero-grid > :first-child {
+    grid-column: auto;
+  }
+}
+@media (max-width: 809.98px) {
+  .st .hero-inner {
+    padding-top: 24px;
+  }
+  .st .console-numbers {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .st .console-num {
+    padding-inline: 0;
+    border-left: 0;
+  }
+}

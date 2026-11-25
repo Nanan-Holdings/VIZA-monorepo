@@ -1,0 +1,84 @@
+/*
+  Utility pages (/product, /events, /careers): a calm title block and a few cards on the Framer canvas.
+  Additive to sections.css.
+*/
+.ds-intro {
+  padding-top: 72px;
+  padding-bottom: 24px;
+}
+.ds-intro-title {
+  max-width: 980px;
+}
+.ds-intro-lede {
+  max-width: 640px;
+  margin-top: 24px;
+}
+.ds-intro-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 32px;
+}
+.ds-intro-body {
+  padding-bottom: var(--ds-section-y);
+}
+.ds-teams {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--ds-grid-gap);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ds-teams li {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 200px;
+  padding: var(--ds-card-pad);
+}
+.ds-teams .ds-icon-btn {
+  pointer-events: none;
+}
+.ds-teams li > .ds-body {
+  margin-top: auto;
+}
+.ds-note-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 40px;
+  border-radius: var(--ds-r-band);
+  background: var(--ds-accent);
+}
+.ds-note-card .ds-statement {
+  color: #fff;
+}
+.ds-note-card .ds-body {
+  max-width: 560px;
+  color: rgba(255, 255, 255, 0.82);
+}
+@media (max-width: 1199.98px) {
+  .ds-intro {
+    padding-top: 40px;
+  }
+  .ds-teams {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 809.98px) {
+  .ds-intro {
+    padding-top: 20px;
+  }
+  .ds-teams {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ds-teams li {
+    min-height: 0;
+  }
+  .ds-note-card {
+    padding: 28px 24px;
+    border-radius: var(--ds-r-card);
+  }
+}

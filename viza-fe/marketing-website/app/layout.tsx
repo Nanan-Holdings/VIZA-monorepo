@@ -1,8 +1,17 @@
 import "./globals.css";
+import "../design-system/fonts.css";
+import "../design-system/tokens.css";
+import "../design-system/base.css";
+import "../design-system/motion.css";
+import "../design-system/chrome.css";
+import "../design-system/sections.css";
+import "../design-system/article.css";
 import type { Metadata } from "next";
 import Script from "next/script";
 import { getLocale } from "next-intl/server";
 import { switzer, geist } from "./fonts";
+import MotionScript from "@/design-system/motion/MotionScript";
+import Reveal from "@/design-system/motion/Reveal";
 import { PostHogAnalytics } from "@/components/PostHogAnalytics";
 import { LOCALE_HTML_LANG, isLocale, localeDir } from "@/lib/locales";
 import { ADDRESS, SAME_AS } from "@/lib/seo/site";
@@ -51,6 +60,8 @@ const organizationJsonLd = {
   "@type": ["Organization", "TravelAgency"],
   "@id": `${siteUrl}/#organization`,
   name: "VIZA",
+  legalName: "Kelin Studio Pte. Ltd.",
+  parentOrganization: { "@type": "Organization", name: "Kelin Studio", url: "https://kelin.studio" },
   url: siteUrl,
   /* Without a description an agent reading the graph knows the entity is
      called VIZA and nothing about what it does, which is the difference
@@ -103,6 +114,9 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        <MotionScript />
+        <link rel="preload" href="/fonts/inter-display/InterDisplay-Regular-latin.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
+        <link rel="preload" href="/fonts/inter-display/InterDisplay-Medium-latin.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
         <Script id="redact-beta-url" strategy="beforeInteractive">
           {`
             (function () {
@@ -237,6 +251,7 @@ export default async function RootLayout({
         ) : null}
         <PostHogAnalytics token={posthogToken} />
         {children}
+        <Reveal />
       </body>
     </html>
   );

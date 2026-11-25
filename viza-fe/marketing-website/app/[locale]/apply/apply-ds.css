@@ -1,0 +1,155 @@
+/*
+  /apply on the design system: loaded after apply.css, so these rules win on equal specificity.
+  The wizard markup and behaviour are unchanged. The steps sit on the Framer canvas in white cards with
+  large corners and no shadow, the step counter becomes pills, and the primary buttons are navy pills.
+*/
+html,
+body {
+  background: var(--ds-canvas);
+}
+.progress-bar {
+  background: transparent;
+  border-bottom: 0;
+  padding-top: 12px;
+}
+.progress-inner {
+  max-width: calc(var(--ds-max) + 2 * var(--ds-gutter));
+  padding: 8px var(--ds-gutter) 0;
+}
+.pstep + .pconn {
+  background: var(--ds-line);
+}
+.pstep .num {
+  border-width: 1px;
+  border-color: var(--ds-line-strong);
+  font-family: var(--ds-font-body);
+}
+.pstep.current .num {
+  box-shadow: none;
+  background: var(--ds-accent);
+  border-color: var(--ds-accent);
+  color: #fff;
+}
+.pstep.done .num {
+  background: var(--ds-accent);
+  border-color: var(--ds-accent);
+}
+.pstep .lab {
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-fs-small);
+  color: var(--ds-ink-muted);
+}
+.pstep.current .lab {
+  color: var(--ds-ink);
+  font-weight: 500;
+}
+.frame {
+  max-width: calc(var(--ds-max) + 2 * var(--ds-gutter));
+  padding: 24px var(--ds-gutter) 200px;
+}
+.step {
+  border: 0;
+  border-radius: var(--ds-r-panel);
+  box-shadow: none;
+  padding: 48px;
+}
+.step-eyebrow {
+  display: none;
+}
+.step-head h1,
+.step-head h2.step-title {
+  font-family: var(--ds-font-display);
+  font-size: var(--ds-fs-statement);
+  line-height: var(--ds-lh-tight);
+  letter-spacing: var(--ds-track-display);
+  color: var(--ds-ink);
+}
+.step-head p {
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-fs-body);
+  line-height: var(--ds-lh-body);
+  letter-spacing: var(--ds-track-body);
+  color: var(--ds-ink-muted);
+}
+.seg {
+  background: var(--ds-surface-muted);
+}
+.seg button.active {
+  color: var(--ds-accent);
+  box-shadow: none;
+}
+.dropzone {
+  border-color: var(--ds-line-strong);
+  border-radius: var(--ds-r-card);
+  background: var(--ds-canvas);
+}
+.dz-browse,
+.btn-next {
+  min-height: 48px;
+  border-radius: var(--ds-r-pill);
+  background: var(--ds-accent);
+  font-family: var(--ds-font-body);
+  letter-spacing: var(--ds-track-button);
+  box-shadow: none;
+}
+.dz-browse:hover,
+.btn-next:hover:not(:disabled) {
+  background: var(--ds-accent-hover);
+  box-shadow: none;
+  transform: none;
+}
+.btn-next:disabled {
+  background: #cfd6e0;
+}
+.btn-back {
+  min-height: 48px;
+  border-radius: var(--ds-r-pill);
+  font-family: var(--ds-font-body);
+}
+.tip,
+.review-card,
+.summary,
+.upgrade,
+.date-pill {
+  border-radius: var(--ds-r-card-sm);
+}
+.field input,
+.field select {
+  border-radius: var(--ds-r-input);
+}
+.actions {
+  background: rgba(247, 247, 247, 0.92);
+  border-top: 1px solid var(--ds-line);
+}
+.actions-inner {
+  max-width: calc(var(--ds-max) + 2 * var(--ds-gutter));
+  padding-inline: var(--ds-gutter);
+}
+@media (max-width: 809.98px) {
+  .progress-bar {
+    padding-top: 4px;
+  }
+  .progress-inner {
+    padding-inline: var(--ds-gutter);
+  }
+  .pstep .lab {
+    display: none;
+  }
+  .pstep.current .lab {
+    display: inline;
+  }
+  .pstep + .pconn {
+    margin: 0 8px;
+    max-width: 32px;
+  }
+  .step {
+    padding: 24px 20px;
+    border-radius: var(--ds-r-card);
+  }
+  .frame {
+    padding-top: 16px;
+  }
+  .actions-inner {
+    padding-inline: var(--ds-gutter);
+  }
+}

@@ -1,6 +1,8 @@
 {
   "en": [
     "home",
+    "visaIndex",
+    "about",
     "product",
     "contact",
     "careers",
@@ -10,6 +12,8 @@
     "events",
     "privacy",
     "terms",
+    "refunds",
+    "businessInformation",
     "blog",
     "arrival-cards",
     "arrival-malaysia-mdac",
@@ -50,6 +54,8 @@
   ],
   "zh-CN": [
     "home",
+    "visaIndex",
+    "about",
     "product",
     "contact",
     "careers",
@@ -59,6 +65,8 @@
     "events",
     "privacy",
     "terms",
+    "refunds",
+    "businessInformation",
     "blog",
     "arrival-cards",
     "arrival-malaysia-mdac",

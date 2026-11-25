@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import SiteFooter from "@/components/SiteFooter";
-import SiteNav from "@/components/SiteNav";
+import SiteHeader from "@/design-system/sections/SiteHeader";
+import SiteFooter from "@/design-system/sections/SiteFooter";
+import ArticleHero from "@/design-system/sections/ArticleHero";
+import ArticleShell from "@/design-system/sections/ArticleShell";
+import ArticleCards from "@/design-system/sections/ArticleCards";
+import Button from "@/design-system/ui/Button";
+import { guideImage } from "@/lib/site-content";
 import GuideText from "@/components/GuideText";
-import { Link } from "@/navigation";
 import { locales } from "@/i18n";
 import { GUIDES, guideBySlug, loadGuide } from "@/lib/guides";
 import { stripLinks } from "@/lib/guides/text";
@@ -90,110 +94,130 @@ export default async function GuidePage({ params }: { params: Promise<{ locale: 
     },
   ];
 
+  const ta = await getTranslations({ locale, namespace: "ds.article" });
+  const used = new Set<string>([guideImage(meta.visa)]);
+  const toc = [
+    ...guide.sections.map((s) => ({ id: s.id, label: s.heading })),
+    { id: "destinations", label: t("relatedVisaTitle") },
+    ...(arrival.length > 0 ? [{ id: "arrival-cards", label: t("relatedArrivalTitle") }] : []),
+    { id: "faq", label: t("faqTitle") },
+    { id: "sources", label: t("sourcesTitle") },
+  ];
+
   return (
     <>
-      <SiteNav activeTab="guides" />
+      <SiteHeader active="guides" />
       {jsonLd.map((d) => (
         <script key={d["@type"]} type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(d) }} />
       ))}
-      <main className="ac">
-        <div className="ac-wrap">
-          <nav className="ac-crumbs" aria-label="Breadcrumb">
-            <ol>
-              <li><Link href="/">{t("breadcrumbHome")}</Link></li>
-              <li><Link href="/guides">{t("breadcrumbHub")}</Link></li>
-              <li aria-current="page">{name}</li>
-            </ol>
-          </nav>
-          <h1>{guide.h1}</h1>
-          <p className="ac-lead"><GuideText text={guide.lead} /></p>
-          <p className="gd-dates">
-            {t("published")} <time dateTime={meta.published}>{formatDate(meta.published, locale)}</time>
-            {meta.modified !== meta.published ? <> · {t("updated")} <time dateTime={meta.modified}>{formatDate(meta.modified, locale)}</time></> : null}
-          </p>
-          <p className="ac-note">{t("independent")}</p>
-
-          <dl className="ac-glance" aria-label={t("glanceTitle")}>
-            {guide.glance.map((g) => (
-              <div key={g.k}>
-                <dt>{g.k}</dt>
-                <dd><GuideText text={g.v} /></dd>
-              </div>
-            ))}
-          </dl>
-
-          {guide.sections.map((s) => (
-            <section key={s.id} id={s.id}>
-              <h2>{s.heading}</h2>
-              {s.body.map((p) => <p key={p}><GuideText text={p} /></p>)}
-              {s.list ? <ul className="ac-list">{s.list.map((li) => <li key={li}><GuideText text={li} /></li>)}</ul> : null}
-              {s.table ? (
-                <div className="gd-table-wrap">
-                  <table className="gd-table">
-                    <thead>
-                      <tr>{s.table.head.map((h) => <th key={h} scope="col">{h}</th>)}</tr>
-                    </thead>
-                    <tbody>
-                      {s.table.rows.map((row) => (
-                        <tr key={row.join("|")}>{row.map((cell, i) => <td key={`${i}-${cell}`}><GuideText text={cell} /></td>)}</tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : null}
+      <main className="ds-main">
+        <ArticleHero
+          title={guide.h1}
+          image={guideImage(meta.visa)}
+          downLabel={ta("down")}
+          crumbs={[{ label: t("breadcrumbHome"), href: "/" }, { label: t("breadcrumbHub"), href: "/guides" }, { label: name }]}
+        />
+        <div className="ds-container">
+          <div className="ds-artmeta">
+            <span>{t("published")}<b><time dateTime={meta.published}>{formatDate(meta.published, locale)}</time></b></span>
+            {meta.modified !== meta.published ? <span>{t("updated")}<b><time dateTime={meta.modified}>{formatDate(meta.modified, locale)}</time></b></span> : null}
+            <span>{zh ? meta.tag.zh : meta.tag.en}</span>
+            <p className="ds-artmeta-lead"><GuideText text={guide.lead} /></p>
+          </div>
+        </div>
+        <ArticleShell toc={toc} tocTitle={ta("toc")}>
+          <div className="ds-prose">
+            <section aria-label={t("glanceTitle")}>
+              <dl className="ds-facts-box">
+                {guide.glance.map((g) => (
+                  <div key={g.k}>
+                    <dt>{g.k}</dt>
+                    <dd><GuideText text={g.v} /></dd>
+                  </div>
+                ))}
+              </dl>
+              <p className="ds-art-note" style={{ marginTop: 16 }}>{t("independent")}</p>
             </section>
-          ))}
 
-          <section id="destinations">
-            <h2>{t("relatedVisaTitle")}</h2>
-            <p>{t("relatedVisaSub")}</p>
-            <div className="ac-related">
-              {visaPages.map((v) => (
-                <Link className="ac-btn ghost" key={v.slug} href={`/visa/${v.slug}`}>{v.name}</Link>
-              ))}
-            </div>
-          </section>
+            {guide.sections.map((s) => (
+              <section key={s.id} id={s.id}>
+                <h2>{s.heading}</h2>
+                {s.body.map((p) => <p key={p}><GuideText text={p} /></p>)}
+                {s.list ? <ul>{s.list.map((li) => <li key={li}><GuideText text={li} /></li>)}</ul> : null}
+                {s.table ? (
+                  <div className="ds-table-wrap">
+                    <table>
+                      <thead>
+                        <tr>{s.table.head.map((h) => <th key={h} scope="col">{h}</th>)}</tr>
+                      </thead>
+                      <tbody>
+                        {s.table.rows.map((row) => (
+                          <tr key={row.join("|")}>{row.map((cell, i) => <td key={`${i}-${cell}`}><GuideText text={cell} /></td>)}</tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : null}
+              </section>
+            ))}
 
-          {arrival.length > 0 ? (
-            <section id="arrival-cards">
-              <h2>{t("relatedArrivalTitle")}</h2>
-              <div className="ac-related">
-                {arrival.map((g) => (
-                  <Link className="ac-btn ghost" key={g.slug} href={`/arrival-cards/${g.slug}`}>{zh ? g.name.zh : g.name.en}</Link>
+            <section id="destinations">
+              <h2>{t("relatedVisaTitle")}</h2>
+              <p>{t("relatedVisaSub")}</p>
+              <ul className="ds-linkrow" style={{ padding: 0 }}>
+                {visaPages.map((v) => (
+                  <li key={v.slug}><Button href={`/visa/${v.slug}`} variant="muted">{v.name}</Button></li>
+                ))}
+              </ul>
+            </section>
+
+            {arrival.length > 0 ? (
+              <section id="arrival-cards">
+                <h2>{t("relatedArrivalTitle")}</h2>
+                <ul className="ds-linkrow" style={{ padding: 0 }}>
+                  {arrival.map((g) => (
+                    <li key={g.slug}><Button href={`/arrival-cards/${g.slug}`} variant="muted">{zh ? g.name.zh : g.name.en}</Button></li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+
+            <section id="faq">
+              <h2>{t("faqTitle")}</h2>
+              <div className="ds-faq-list-simple">
+                {guide.faq.map((f) => (
+                  <details key={f.q}>
+                    <summary>{stripLinks(f.q)}</summary>
+                    <p><GuideText text={f.a} /></p>
+                  </details>
                 ))}
               </div>
             </section>
-          ) : null}
 
-          <section id="faq" className="ac-faq">
-            <h2>{t("faqTitle")}</h2>
-            {guide.faq.map((f) => (
-              <details key={f.q}>
-                <summary>{stripLinks(f.q)}</summary>
-                <p><GuideText text={f.a} /></p>
-              </details>
-            ))}
-          </section>
-
-          <section id="sources">
-            <h2>{t("sourcesTitle")}</h2>
-            <ul className="ac-sources">
-              {guide.sources.map((s) => (
-                <li key={s.url}><a href={s.url} target="_blank" rel="noreferrer">{s.label}</a></li>
-              ))}
-            </ul>
-            <p className="ac-reviewed"><strong>{t("reviewedTitle")}.</strong> {guide.reviewed}</p>
-          </section>
-
-          <section id="more">
-            <h2>{t("relatedGuidesTitle")}</h2>
-            <div className="ac-related">
-              {others.map((g) => (
-                <Link className="ac-btn ghost" key={g.slug} href={`/guides/${g.slug}`}>{zh ? g.name.zh : g.name.en}</Link>
-              ))}
-            </div>
-          </section>
-        </div>
+            <section id="sources">
+              <h2>{t("sourcesTitle")}</h2>
+              <ul className="ds-sources">
+                {guide.sources.map((s) => (
+                  <li key={s.url}><a href={s.url} target="_blank" rel="noreferrer">{s.label}</a></li>
+                ))}
+              </ul>
+              <p className="ds-reviewed"><strong>{t("reviewedTitle")}.</strong> {guide.reviewed}</p>
+            </section>
+          </div>
+        </ArticleShell>
+        <section className="ds-container ds-section ds-section--ruled">
+          <h2 className="ds-h2" style={{ marginBottom: 48 }}>{t("relatedGuidesTitle")}</h2>
+          <ArticleCards
+            items={others.map((g) => ({
+              href: `/guides/${g.slug}`,
+              image: guideImage(g.visa, used),
+              meta: zh ? g.tag.zh : g.tag.en,
+              title: zh ? g.name.zh : g.name.en,
+              body: zh ? g.summary.zh : g.summary.en,
+              more: t("readGuide"),
+            }))}
+          />
+        </section>
       </main>
       <SiteFooter />
     </>

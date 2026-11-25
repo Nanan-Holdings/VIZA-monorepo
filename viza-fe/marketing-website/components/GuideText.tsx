@@ -11,9 +11,11 @@ export default function GuideText({ text }: { text: string }) {
     if (at > last) parts.push(text.slice(last, at));
     const [, label, href] = m;
     if (href.startsWith("/") && !href.startsWith("//")) {
-      parts.push(<Link key={n++} className="ac-link" href={href}>{label}</Link>);
+      parts.push(<Link key={n++} href={href}>{label}</Link>);
     } else if (/^https?:\/\//.test(href)) {
-      parts.push(<a key={n++} className="ac-link" href={href} target="_blank" rel="noreferrer">{label}</a>);
+      parts.push(<a key={n++} href={href} target="_blank" rel="noreferrer">{label}</a>);
+    } else if (/^mailto:/.test(href)) {
+      parts.push(<a key={n++} href={href}>{label}</a>);
     } else {
       parts.push(label);
     }

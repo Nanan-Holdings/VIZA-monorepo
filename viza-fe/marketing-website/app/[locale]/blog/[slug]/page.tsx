@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
-import SiteFooter from "@/components/SiteFooter";
-import SiteNav from "@/components/SiteNav";
+import SiteHeader from "@/design-system/sections/SiteHeader";
+import SiteFooter from "@/design-system/sections/SiteFooter";
 import MarketingBlogArticle from "@/components/MarketingBlogArticle";
 import type { Locale } from "@/i18n";
 import { getMarketingBlogFeed, getMarketingBlogPost } from "@/lib/marketing-blog";
@@ -43,8 +43,10 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const { locale: localeParam, slug } = await params;
   const locale = localeParam as Locale;
   setRequestLocale(locale);
-  const [t, result, feedResult] = await Promise.all([
+  const [t, ta, tg, result, feedResult] = await Promise.all([
     getTranslations({ locale, namespace: "pages.blog" }),
+    getTranslations({ locale, namespace: "ds.article" }),
+    getTranslations({ locale, namespace: "guides" }),
     getMarketingBlogPost(slug, locale),
     getMarketingBlogFeed(locale),
   ]);
@@ -65,7 +67,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
 
   return (
     <>
-      <SiteNav activeTab="blog" />
+      <SiteHeader active="news" />
       {result.status === "ok" ? (
         <>
           <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(articleJsonLd(result.post, locale))} />
@@ -75,11 +77,11 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
           ]))} />
         </>
       ) : null}
-      <main className="viza-blog">
+      <main className="ds-main">
         {result.status === "unavailable" ? (
-          <section className="container-narrow py-20 text-center">
-            <h1 className="text-3xl">{t("unavailableTitle")}</h1>
-            <p className="mt-4 text-fg-2">{t("unavailableBody")}</p>
+          <section className="ds-container ds-section">
+            <h1 className="ds-h2">{t("unavailableTitle")}</h1>
+            <p className="ds-body" style={{ marginTop: 16 }}>{t("unavailableBody")}</p>
           </section>
         ) : (
           <MarketingBlogArticle
@@ -90,9 +92,10 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
             updatedLabel={t("updated")}
             readArticleLabel={t("readArticle")}
             relatedTitle={t("relatedTitle")}
-            relatedDescription={t("relatedDescription")}
             relatedPosts={relatedPosts}
-            ctaEyebrow={t("ctaEyebrow")}
+            tocTitle={ta("toc")}
+            downLabel={ta("down")}
+            homeLabel={tg("breadcrumbHome")}
             ctaTitle={t("ctaTitle")}
             ctaBody={t("ctaBody")}
             ctaAction={t("ctaAction")}

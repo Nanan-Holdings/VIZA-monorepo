@@ -2,6 +2,7 @@
 
 import { Link } from "@/navigation";
 import "./apply.css";
+import "./apply-ds.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { CircleFlag } from "react-circle-flags";
