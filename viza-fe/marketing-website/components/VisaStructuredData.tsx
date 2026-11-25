@@ -60,14 +60,14 @@ export default function VisaStructuredData({
     },
   };
 
-  // There is no /visa index page yet, so the middle crumb points at the home
-  // page, where the destination catalogue lives.
+  // The middle crumb is the /visa destinations index.
+  const index = `${base}${buildLocalePath(locale, "/visa")}`;
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
       { "@type": "ListItem", position: 1, name: "VIZA", item: home },
-      { "@type": "ListItem", position: 2, name: t("breadcrumbVisas"), item: home },
+      { "@type": "ListItem", position: 2, name: t("breadcrumbVisas"), item: index },
       { "@type": "ListItem", position: 3, name: localName, item: url },
     ],
   };

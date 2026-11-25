@@ -13,7 +13,7 @@ export type HeaderTab = "destinations" | "arrivalCards" | "guides" | "news" | "a
 type NavItem = { id: HeaderTab; href: string | { pathname: string; hash: string } };
 
 const NAV: NavItem[] = [
-  { id: "destinations", href: { pathname: "/", hash: "destinations" } },
+  { id: "destinations", href: "/visa" },
   { id: "arrivalCards", href: "/arrival-cards" },
   { id: "guides", href: "/guides" },
   { id: "news", href: "/blog" },

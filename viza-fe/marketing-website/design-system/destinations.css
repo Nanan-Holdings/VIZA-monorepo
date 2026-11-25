@@ -1,0 +1,66 @@
+/*
+  /visa index page: the destination gallery in the Framer /works index layout (very large title, short line and
+  controls beside it, filter pills above a hairline, then the cards). Additive to sections.css.
+*/
+.ds-gallery--page {
+  padding-top: 72px;
+}
+.ds-gallery--page .ds-stack {
+  gap: 40px;
+}
+.ds-gallery--page .ds-head {
+  align-items: end;
+  margin-bottom: 20px;
+}
+.ds-page-title {
+  font-size: clamp(52px, 8.8vw, 128px);
+  letter-spacing: -0.05em;
+  max-width: 7.2em;
+}
+.ds-gallery--page .ds-head-aside {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 20px;
+  padding-bottom: 12px;
+}
+.ds-gallery--page .ds-head-aside .ds-body {
+  max-width: 340px;
+}
+.ds-gallery--page .ds-gallery-tools {
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--ds-line);
+}
+@media (max-width: 1199.98px) {
+  .ds-gallery--page .ds-head {
+    align-items: start;
+  }
+  .ds-gallery--page .ds-head-aside {
+    flex-direction: row;
+    align-items: center;
+    padding-bottom: 0;
+  }
+}
+@media (max-width: 809.98px) {
+  .ds-gallery--page {
+    padding-top: 24px;
+  }
+  .ds-gallery--page .ds-head-aside {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* Phone: the filter pills scroll sideways, with a fade on the right edge to show there is more. */
+@media (max-width: 809.98px) {
+  .ds-gallery-filters {
+    -webkit-mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 36px), transparent 100%);
+    mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 36px), transparent 100%);
+    -webkit-overflow-scrolling: touch;
+    scroll-padding-inline: var(--ds-gutter);
+  }
+  .ds-gallery-filters::after {
+    content: "";
+    flex: 0 0 28px;
+  }
+}

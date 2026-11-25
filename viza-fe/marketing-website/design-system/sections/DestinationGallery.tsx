@@ -11,6 +11,7 @@ import VisaWorldMap from "@/components/VisaWorldMap";
 import Photo from "../ui/Photo";
 import { Bolt, Calendar, Check, ChevronDown, Doc, Globe, Grid, Info, MapIcon, Search, Sort } from "../ui/Icons";
 import { stagger } from "../motion/delay";
+import "../destinations.css";
 
 const FILTER_KEYS = ["delivery", "type", "documents", "dates"] as const;
 type FilterKey = (typeof FILTER_KEYS)[number];
@@ -83,7 +84,7 @@ type Menu = { kind: "filter"; key: FilterKey; left: number; top: number } | { ki
  * The home destination gallery: passport selector, search, filter pills, sort, grid or map view, then the
  * destination cards. Every card link is in the server HTML (cards past the first nine are only hidden).
  */
-export default function DestinationGallery() {
+export default function DestinationGallery({ asPage = false }: { asPage?: boolean }) {
   const t = useTranslations();
   const g = useTranslations("ds.gallery");
   const { countries: catalogue } = useCatalogue();
@@ -167,15 +168,21 @@ export default function DestinationGallery() {
   const visible = countries.filter(matches);
   const soon = t("common.comingSoon");
   const free = t("visa.priceFree");
-  const collapsed = !showAll && !q && countries.length > FIRST;
+  const collapsed = !asPage && !showAll && !q && countries.length > FIRST;
 
   return (
-    <section className="ds-section ds-gallery" id="destinations" aria-labelledby="destinations-title">
+    <section className={`ds-section ds-gallery${asPage ? " ds-gallery--page" : ""}`} id="destinations" aria-labelledby="destinations-title">
       <div className="ds-container ds-stack">
-        <div className="ds-head" data-reveal="">
-          <h2 id="destinations-title" className="ds-h2">
-            {g("title")}
-          </h2>
+        <div className={`ds-head${asPage ? " ds-head--page" : ""}`} data-reveal="">
+          {asPage ? (
+            <h1 id="destinations-title" className="ds-display ds-page-title">
+              {t("pages.visaIndex.heroTitle")}
+            </h1>
+          ) : (
+            <h2 id="destinations-title" className="ds-h2">
+              {g("title")}
+            </h2>
+          )}
           <div className="ds-head-aside">
             <p className="ds-body">{g("lede")}</p>
             <div className="ds-seg" role="group" aria-label={g("view")}>
