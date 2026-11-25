@@ -36,6 +36,8 @@ export function isTranslatable(path, text, skipExact = new Set()) {
   const last = path.split(SEP).pop();
   if (SKIP_KEYS.has(last)) return false;
   if (/(^|\/)reviews\/items\/\d+\/(name|source)$/.test(path)) return false;
+  // Arrays of slugs (for example page/related/destinations/3): the last segment is an index, so check the parent key.
+  if (new RegExp(`(^|${SEP.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})(${[...SKIP_KEYS].join("|")})${SEP.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\d+$`).test(path)) return false;
   const t = text.trim();
   if (!t || skipExact.has(t)) return false;
   if (!/\p{L}/u.test(t)) return false;
