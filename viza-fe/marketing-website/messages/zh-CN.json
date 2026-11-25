@@ -148,6 +148,10 @@
     "guides": {
       "title": "新加坡居民签证攻略：免签、申根、美签、电子签 | VIZA",
       "description": "写给住在新加坡的人：免签国家、申根材料、美国面签、电子旅行授权、电子签和拒签后怎么办。免费阅读，常常更新。"
+    },
+    "about": {
+      "title": "关于 VIZA：新加坡免费签证服务 | VIZA",
+      "description": "VIZA 用 AI 与顾问为在新加坡生活的人准备、核对并递交签证申请。服务免费，政府签证费直接交给签发机关。"
     }
   },
   "common": {
@@ -346,7 +350,6 @@
     "reqLabel": "需要签证",
     "reqNote": "使馆送签",
     "fullMap": "查看完整签证地图",
-    "resultsCount": "共 <b>{count}</b> 个目的地 <dot></dot> 按<b>{sort}</b>排序",
     "grid": "网格",
     "map": "地图",
     "mapLegendEvisa": "电子签证与访客签证",
@@ -358,8 +361,6 @@
     "cardType": "类型",
     "cardValid": "有效期",
     "cardFee": "VIZA 服务",
-    "guaranteedBy": "保证送达",
-    "guarantor": "VIZA",
     "save": "收藏",
     "startApplication": "开始申请",
     "catalogueUnavailable": "目前暂无可在线申请的目的地，请稍后再来查看。",
@@ -403,12 +404,6 @@
         "3 个月内",
         "6 个月内"
       ]
-    },
-    "sorts": {
-      "guaranteed": "保证送达",
-      "duration": "签证时长",
-      "popular": "热门目的地",
-      "recent": "最新添加"
     }
   },
   "cities": {
@@ -911,214 +906,6 @@
       "officeSg": "新加坡 — 总部",
       "officeSf": "上海",
       "copyright": "© VIZA，版权所有"
-    }
-  },
-  "contact": {
-    "hero": {
-      "crumb": "联系我们",
-      "status": "四个服务台全部在线",
-      "statusMeta": "· 24 位顾问实时在线",
-      "headline": "我们随时<br></br>接听来电。<em>而且</em><br></br><u>说到做到。</u>",
-      "lead": "棘手的申根拒签、周一就要到期的签证，或只是一个小问题——<strong>在下方选择一个渠道</strong>：电话、WhatsApp、微信或邮件，熟悉您这条申请通道的顾问将在几分钟内回复您，而不是几天。",
-      "sendBrief": "发送咨询单",
-      "seeChannels": "查看全部渠道",
-      "channelsLabel": "选择您的联系渠道",
-      "channelsHint": "每个渠道都由顾问团队的真人值守——不是聊天机器人，也不是转发邮箱。"
-    },
-    "channels": {
-      "whatsapp": {
-        "tag": "二维码 · 在线聊天",
-        "title": "WhatsApp",
-        "sub": "最快渠道 · 中位回复时间 2 分钟",
-        "scan": "扫码开始聊天",
-        "hours": "24/7 · 全天候在线",
-        "action": "开始聊天 ↗"
-      },
-      "wechat": {
-        "tag": "二维码 · 微信",
-        "title": "微信",
-        "sub": "服务中国大陆及东南亚客户",
-        "scan": "扫码添加",
-        "hours": "周一至周日 · 9:00–23:00（新加坡时间）",
-        "action": "在微信中打开 ↗"
-      },
-      "phone": {
-        "tag": "语音 · 7 种语言",
-        "title": "电话",
-        "sub": "紧急签证问题——直接与顾问通话",
-        "asiaLabel": "新加坡 · 主线",
-        "asiaLangs": "English · 普通话 · Bahasa · हिन्दी · Tagalog",
-        "americasLabel": "中国 · 上海",
-        "americasLangs": "普通话 · English",
-        "hours": "24/7 紧急热线 · 全天有人接听",
-        "action": "点击拨号 ↗"
-      },
-      "email": {
-        "tag": "异步 · 书面沟通",
-        "title": "邮件",
-        "sub": "适合发送文件、附件和详细背景说明",
-        "generalLabel": "一般咨询",
-        "generalSub": "一小时内转交至对应服务台。",
-        "pressLabel": "媒体与合作",
-        "hours": "工作日 4 小时内回复",
-        "action": "写邮件 ↗"
-      }
-    },
-    "form": {
-      "eyebrow": "给我们发一份咨询单",
-      "title": "获得有效回复的最快方式。",
-      "lede": "告诉我们您的国籍、目的地以及卡住您的问题。下方表单会把您直接转给熟悉这条申请通道的顾问——而不是会把您的邮件转发两次的普通客服。",
-      "cardTitle": "咨询单",
-      "cardNote": "标有 <req>▲</req> 的为必填项。我们通常在 4 个工作小时内回复。",
-      "formIdLabel": "表单编号",
-      "fullName": "全名",
-      "fullNamePh": "与护照上的姓名一致",
-      "email": "邮箱",
-      "emailPh": "you@example.com",
-      "phone": "电话（含国家区号）",
-      "phonePh": "9012 3456",
-      "preferredChannel": "希望我们通过哪个渠道回复",
-      "channelOptions": [
-        "WhatsApp（最快）",
-        "邮件",
-        "电话",
-        "微信"
-      ],
-      "passport": "护照 / 国籍",
-      "passportOptions": [
-        "请选择您的护照…",
-        "🇸🇬 新加坡",
-        "🇮🇳 印度",
-        "🇨🇳 中国",
-        "🇵🇭 菲律宾",
-        "🇮🇩 印度尼西亚",
-        "🇺🇸 美国",
-        "🇬🇧 英国",
-        "其他 / 未列出"
-      ],
-      "destination": "目的地",
-      "destinationOptions": [
-        "我还在考虑…",
-        "申根 / 欧盟",
-        "美国",
-        "英国",
-        "阿联酋",
-        "澳大利亚",
-        "日本",
-        "其他 / 未列出"
-      ],
-      "reasonLabel": "想咨询什么？",
-      "reasons": [
-        "开始新申请",
-        "查询已有申请进度",
-        "紧急 / 时间敏感",
-        "取消申请",
-        "商务合作",
-        "媒体",
-        "只是想问个问题"
-      ],
-      "message": "告诉我们发生了什么",
-      "messagePh": "几句话即可。如有航班日期、申请编号（VIZA-XXXX-XXXX）或系统报错截图，请一并附上。",
-      "consent": "我同意 VIZA 根据<a>隐私政策</a>处理我的留言和联系方式。我们绝不会与第三方共享您的护照信息。",
-      "submit": "发送咨询单",
-      "sending": "发送中…",
-      "success": "已收到您的咨询单，我们会尽快回复到您的邮箱。",
-      "error": "暂时无法发送，请重试，或通过 WhatsApp / 邮箱联系我们。"
-    },
-    "aside": {
-      "promiseTitle": "响应承诺",
-      "promiseBody": "每份咨询单都会在几分钟内送达真人顾问的案头——绝不会进入共享收件箱。以下是各渠道的典型回复速度。",
-      "sla": [
-        {
-          "k": "WhatsApp",
-          "v": "约 2 分钟"
-        },
-        {
-          "k": "微信",
-          "v": "约 5 分钟"
-        },
-        {
-          "k": "电话（紧急）",
-          "v": "24/7 实时接听"
-        },
-        {
-          "k": "邮件 / 表单",
-          "v": "4 小时内"
-        }
-      ],
-      "includeTitle": "建议提供的信息",
-      "includeBody": "以下信息提供得越全，我们就能越快给出办理时间表。",
-      "includeItems": [
-        "护照国别及有效期",
-        "目的地及计划出行日期",
-        "出行目的（旅游、工作、留学、探亲）",
-        "过往拒签记录（如有）",
-        "申请编号（VIZA-XXXX）"
-      ],
-      "dataTitle": "关于您的数据",
-      "dataBody": "我们已通过 SOC 2 Type II 和 ISO 27001 认证。护照扫描件存放在独立的加密保险库中，传输与存储全程加密，每次读取均有审计日志。",
-      "dataPills": [
-        "SOC 2 Type II",
-        "ISO 27001",
-        "GDPR"
-      ]
-    },
-    "desks": {
-      "eyebrow": "区域服务台",
-      "title": "本地号码，<br></br>对接本地领事馆。",
-      "lede": "签证规则因国籍和领事馆而异，我们的顾问也是如此。每个服务台都精通他们每天打交道的使领馆所用的语言。",
-      "directLine": "直线电话",
-      "email": "邮箱",
-      "address": "地址",
-      "maps": "在地图中打开 →",
-      "cn": {
-        "status": "在线 · 6 位顾问",
-        "title": "上海",
-        "sub": "中国区运营",
-        "tz": "GMT+8 · 9:00–20:00"
-      },
-      "sg": {
-        "status": "在线 · 9 位顾问",
-        "title": "新加坡 — 总部",
-        "sub": "亚太区运营",
-        "tz": "GMT+8 · 9:00–20:00"
-      }
-    },
-    "emergency": {
-      "tag": "▲ 紧急求助热线 · 24/7",
-      "title": "被困机场？签证明天就要到期？",
-      "body": "如果您将在 48 小时内出行且出了状况，请跳过表单，直接拨打我们的紧急服务台电话——全年无休、全天候由资深顾问值守。",
-      "hotlineLabel": "紧急热线（亚洲 / 全球）",
-      "call": "拨打紧急服务台"
-    },
-    "faq": {
-      "eyebrow": "写信之前",
-      "title": "这些是我们每天都会被问到的问题。",
-      "lede": "如果您的问题在这里，直接阅读会比等待回复更快。如果没有——欢迎来信。",
-      "q1": {
-        "q": "我到底多快能收到回复？",
-        "a": "中位数：WhatsApp 2 分钟，微信 5 分钟，邮件 4 小时以内。电话随时有人接听。如果您的行程在 48 小时内，请拨打紧急热线——可跳过排队。"
-      },
-      "q2": {
-        "q": "VIZA 的服务收费吗？",
-        "a": "不收费。VIZA 的咨询和申请服务均免费。如目的地收取政府签证费，由您直接向该国政府支付。"
-      },
-      "q3": {
-        "q": "我的护照信息安全吗？",
-        "a": "护照扫描件存放在独立的加密保险库中，每次读取都有审计日志。我们已通过 SOC 2 Type II 和 ISO 27001 认证，任何情况下都不会与第三方共享您的数据。"
-      },
-      "q4": {
-        "q": "在中国大陆以外可以添加 VIZA 微信吗？",
-        "a": "可以——在任何地区、任何微信应用中扫描上方二维码即可。我们的东南亚和中国服务台共同值守微信渠道，您会在自己的工作时间内收到回复。"
-      },
-      "q5": {
-        "q": "我曾被拒签，你们还能帮忙吗？",
-        "a": "多数情况下可以。请通过上方表单把拒签信（或您掌握的尽可能多的细节）发给我们，我们会给出针对该申请通道的重新递交方案和务实的成功率评估。拒签并不是终点。"
-      },
-      "q6": {
-        "q": "我是合作伙伴 / 代理 / OTA，有专门的邮箱吗？",
-        "a": "有——请直接发邮件至 <a>sales@kelin.studio</a>。合作事宜由专门的商务拓展团队处理，与消费者咨询分开流转。"
-      }
     }
   },
   "legalPrivacy": {
@@ -2423,5 +2210,319 @@
     "published": "发布于",
     "updated": "更新于",
     "independent": "VIZA 是独立的服务机构，不是政府网站。"
+  },
+  "ds": {
+    "header": {
+      "home": "VIZA 首页",
+      "primary": "主导航",
+      "language": "语言",
+      "signIn": "登录",
+      "openMenu": "打开菜单",
+      "closeMenu": "关闭菜单",
+      "nav": {
+        "home": "首页",
+        "destinations": "目的地",
+        "arrivalCards": "入境卡",
+        "guides": "签证攻略",
+        "news": "签证资讯",
+        "about": "关于我们",
+        "contact": "联系我们"
+      }
+    },
+    "footer": {
+      "home": "VIZA 首页",
+      "tagline": "VIZA 的 AI 帮您准备签证申请，顾问逐份核对。服务免费。",
+      "explore": "导航",
+      "follow": "关注我们",
+      "followOn": "在{platform}关注 VIZA",
+      "links": {
+        "destinations": "目的地",
+        "arrivalCards": "入境卡",
+        "guides": "签证攻略",
+        "news": "签证资讯",
+        "about": "关于我们",
+        "contact": "联系我们",
+        "careers": "加入我们",
+        "security": "安全",
+        "status": "系统状态"
+      },
+      "copyright": "© {year} VIZA 版权所有",
+      "office": "注册地址：新加坡 Paya Lebar Road 60 号 Paya Lebar Square #06-28，邮编 409051",
+      "privacy": "隐私政策",
+      "terms": "服务条款"
+    },
+    "form": {
+      "fullName": {
+        "label": "您的姓名",
+        "placeholder": "张伟"
+      },
+      "email": {
+        "label": "电子邮件",
+        "placeholder": "you@example.com"
+      },
+      "phone": {
+        "label": "电话",
+        "placeholder": "+65 9123 4567"
+      },
+      "destination": {
+        "label": "目的地",
+        "placeholder": "日本、申根、美国"
+      },
+      "message": {
+        "label": "您的问题",
+        "placeholder": "请写下目的地、护照国籍和出行日期。"
+      },
+      "submit": "发送消息",
+      "sending": "发送中",
+      "success": "已收到您的消息，我们会通过邮件回复您。",
+      "error": "消息暂时没有发出，请重试，或发邮件至 sales@kelin.studio。",
+      "consent": "点击发送即表示您同意我们的<privacy>隐私政策</privacy>和<terms>服务条款</terms>。"
+    },
+    "gallery": {
+      "title": "目的地",
+      "lede": "选择目的地，查看所需签证、材料清单和政府签证费。",
+      "view": "视图",
+      "passportSummary": "{free} 个免签 · {voa} 个电子签或落地签 · {req} 个需要签证",
+      "noResults": "没有找到匹配的目的地。",
+      "sorts": {
+        "featured": "推荐",
+        "open": "可申请的优先",
+        "name": "按名称"
+      }
+    }
+  },
+  "homePage": {
+    "hero": {
+      "browse": "浏览目的地",
+      "picks": "目的地"
+    },
+    "types": {
+      "title": "签证类型",
+      "lede": "旅游、商务、工作、留学和长期居留签证。",
+      "prev": "上一个",
+      "next": "下一个",
+      "items": {
+        "tourist": {
+          "title": "旅游签证",
+          "body": "度假、探亲和短期停留。"
+        },
+        "business": {
+          "title": "商务签证",
+          "body": "会议、展会和实地考察。"
+        },
+        "work": {
+          "title": "工作签证",
+          "body": "工作许可和就业签证。"
+        },
+        "student": {
+          "title": "学生签证",
+          "body": "中小学和大学的留学签证。"
+        },
+        "long": {
+          "title": "长期居留",
+          "body": "居留许可和其他长期签证。"
+        }
+      }
+    },
+    "steps": {
+      "title": "申请流程",
+      "cta": "免费开始申请",
+      "side": {
+        "freeValue": "免费",
+        "freeLabel": "VIZA 服务",
+        "langValue": "2",
+        "langLabel": "种语言：中文和英文",
+        "note": "您只需支付政府签证费。",
+        "noteBody": "费用直接交给签发机关，VIZA 不另收任何费用。"
+      },
+      "items": {
+        "choose": {
+          "title": "选择目的地",
+          "body": "开始之前，先看清所需签证、要准备的材料和政府签证费。",
+          "chips": "签证类型|材料清单|政府签证费"
+        },
+        "passport": {
+          "title": "上传护照",
+          "body": "VIZA 从护照资料页读取您的信息，几乎不用手动填写。",
+          "chips": "护照资料页|自动填写"
+        },
+        "confirm": {
+          "title": "确认信息",
+          "body": "核对 VIZA 读取的信息，填写出行日期，然后在免费的 VIZA 账户中继续。",
+          "chips": "出行日期|免费账户"
+        },
+        "file": {
+          "title": "VIZA 核对并递交",
+          "body": "每份表格递交前都由顾问核对，您可以在账户里随时查看进度。",
+          "chips": "顾问核对|进度更新"
+        }
+      }
+    },
+    "tiers": {
+      "title": "服务方案",
+      "lede": "两种申请方式，都免费。",
+      "cta": "联系我们",
+      "criteria": "对比",
+      "guided": "自助指引",
+      "full": "全程代办",
+      "rows": {
+        "fee": {
+          "label": "VIZA 服务费",
+          "guided": "免费",
+          "full": "免费"
+        },
+        "form": {
+          "label": "申请表",
+          "guided": "您自己填写，VIZA 的 AI 逐题指引",
+          "full": "顾问和您一起准备答案"
+        },
+        "documents": {
+          "label": "材料",
+          "guided": "按您的情况列出材料清单",
+          "full": "顾问核对您的材料"
+        },
+        "interview": {
+          "label": "预约与面谈",
+          "guided": "您自己预约并出席",
+          "full": "顾问陪您梳理常见问题"
+        },
+        "govFee": {
+          "label": "政府签证费",
+          "guided": "直接交给签发机关",
+          "full": "直接交给签发机关"
+        },
+        "bestFor": {
+          "label": "适合",
+          "guided": "情况简单的申请",
+          "full": "情况复杂或曾被拒签"
+        }
+      }
+    },
+    "why": {
+      "title": "为什么选 VIZA",
+      "lede": "步骤清楚，表格有人核对，随时有人回复。",
+      "items": {
+        "free": {
+          "title": "服务免费",
+          "body": "VIZA 的帮助不收费。您只需把政府签证费直接交给签发机关。"
+        },
+        "checked": {
+          "title": "表格核对",
+          "body": "每份表格递交前都由顾问核对，小错误能及早发现。"
+        },
+        "language": {
+          "title": "中英文服务",
+          "body": "可以用中文或英文，通过 WhatsApp、微信或邮件联系 VIZA。"
+        }
+      },
+      "photos": {
+        "arrival": {
+          "title": "入境卡",
+          "body": "马来西亚、新加坡、日本、泰国、韩国和印尼的免费入境卡，一步步教您填写。"
+        },
+        "news": {
+          "title": "签证资讯",
+          "body": "签证政策变化和新的电子签，用平实的语言讲清楚。"
+        }
+      }
+    },
+    "guides": {
+      "title": "签证攻略",
+      "cta": "全部攻略"
+    },
+    "faq": {
+      "title": "常见问题",
+      "lede": "关于 VIZA 签证服务的简要解答。",
+      "more": "还有其他问题？",
+      "items": {
+        "cost": {
+          "q": "VIZA 收取服务费吗？",
+          "a": "不收。VIZA 的帮助是免费的。如果目的地收取政府签证费，由您直接支付给该国政府。"
+        },
+        "visas": {
+          "q": "VIZA 可以办理哪些签证？",
+          "a": "本页列出的目的地的旅游、商务、工作、留学和长期居留签证。如果您要去的地方不在列表里，欢迎来信，顾问会告诉您能否办理。"
+        },
+        "approval": {
+          "q": "签证由谁审批？",
+          "a": "所有审批都由签发机关决定。VIZA 会在递交前核对您的表格和材料，让申请完整、前后一致。"
+        },
+        "tiers": {
+          "q": "自助指引和全程代办有什么区别？",
+          "a": "自助指引由 VIZA 的 AI 带您完成表格和材料清单，每个答案都由您掌控。全程代办由顾问和您一起准备答案，并核对您的材料。两种方式都免费。"
+        },
+        "language": {
+          "q": "支持哪些语言？",
+          "a": "中文和英文，可通过 WhatsApp、微信、电话和邮件联系。"
+        }
+      }
+    },
+    "contactCard": {
+      "title": "联系 VIZA 签证顾问",
+      "body": "我们用中文或英文回复。",
+      "cta": "联系我们"
+    },
+    "cta": {
+      "title": "开始申请",
+      "point1": "您的信息严格保密",
+      "point2": "真人顾问回复",
+      "formTitle": "咨询问题",
+      "formBody": "告诉我们您要去哪里，VIZA 顾问会通过邮件回复您。"
+    }
+  },
+  "aboutPage": {
+    "h1": "关于 VIZA",
+    "intro": {
+      "title": "VIZA 是什么",
+      "text": "VIZA 为在新加坡生活的人准备、核对并递交签证申请。AI 处理繁琐的材料，顾问逐份核对表格。服务免费。"
+    },
+    "facts": {
+      "destinations": "目的地",
+      "guides": "签证攻略",
+      "arrival": "入境卡指南",
+      "free": "免费",
+      "freeLabel": "VIZA 服务"
+    },
+    "tiersTitle": "自助指引或全程代办",
+    "tiersLede": "按需要选择帮助的程度，两种方式都免费。",
+    "free": {
+      "title": "免费服务",
+      "text": "VIZA 不收取任何服务费。如果目的地有政府签证费，VIZA 会在开始前列明，由您直接支付给签发机关。没有任何付费升级。"
+    },
+    "company": {
+      "title": "公司信息",
+      "office": "注册地址",
+      "officeValue": "新加坡 Paya Lebar Road 60 号 Paya Lebar Square #06-28，邮编 409051",
+      "email": "电子邮件",
+      "phone": "电话与 WhatsApp",
+      "languages": "服务语言",
+      "languagesValue": "中文和英文"
+    }
+  },
+  "contactPage": {
+    "h1": "联系我们",
+    "lines": {
+      "whatsapp": {
+        "title": "电话与 WhatsApp",
+        "body": "致电或发消息给顾问。"
+      },
+      "wechat": {
+        "title": "微信",
+        "body": "在微信中搜索该号添加我们。"
+      },
+      "email": {
+        "title": "电子邮件",
+        "body": "适合发送材料和较长的问题。"
+      },
+      "office": {
+        "top": "新加坡",
+        "title": "办公地址",
+        "body": "新加坡 Paya Lebar Road 60 号 Paya Lebar Square #06-28，邮编 409051"
+      }
+    },
+    "message": {
+      "title": "发送消息",
+      "text": "签证、目的地或与 VIZA 合作的问题，都可以写信给我们，顾问会尽快回复。"
+    }
   }
 }
