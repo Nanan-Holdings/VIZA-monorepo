@@ -6,10 +6,11 @@ import { useEffect, type CSSProperties, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { CircleFlag } from "react-circle-flags";
 import SiteNav from "@/components/SiteNav";
-import { nearbyCountries, visaHref, type CountryMeta } from "@/lib/countries";
+import { isPublished, nearbyCountries, visaHref, type CountryMeta } from "@/lib/countries";
 import { displayGovernmentFeeSgd, governmentFeeSgd } from "@/lib/pricing";
 import { useCatalogue, type CatalogueCountry } from "@/components/CatalogueProvider";
-import type { IconName, VisaContent } from "@/lib/visa-content/types";
+import { isDestinationContent, type IconName, type VisaContent } from "@/lib/visa-content/types";
+import VisaDestinationMain, { DEST_TABS } from "@/components/VisaDestinationMain";
 import "./visa-rich.css";
 import SiteFooter from "@/components/SiteFooter";
 import VisaStructuredData from "@/components/VisaStructuredData";
@@ -90,7 +91,8 @@ export default function VisaCountryRich({
   const locale = useLocale();
   const t = useTranslations("visa");
   const tc = useTranslations("countries");
-  const { launchedCountries } = useCatalogue();
+  const { launchedCountries, countries } = useCatalogue();
+  const td = useTranslations("visa.dest");
 
   // Section-tab pill + scroll-spy. Layout-driven (not country-specific), kept
   // verbatim from the former bespoke Indonesia page.
@@ -128,7 +130,15 @@ export default function VisaCountryRich({
     };
   }, []);
 
+  const destination = isDestinationContent(content) ? content : null;
+  const legacy = isDestinationContent(content) ? null : content;
+  const consultOnly = Boolean(country.consultOnly);
   const nearby = nearbyCountries(country.slug, launchedCountries);
+  const relatedCountries = destination
+    ? destination.page.related.destinations
+        .map((slug) => countries.find((c) => c.slug === slug))
+        .filter((c): c is NonNullable<typeof c> => Boolean(c && isPublished(c)))
+    : [];
   const govFeeValue = governmentFeeSgd(country.pricing);
   const govFeeLabel = govFeeValue === 0 ? t("priceFree") : displayGovernmentFeeSgd(country.pricing) ?? t("govFeeSetByAuthorityShort");
   const localName = tc.has(country.slug) ? tc(country.slug) : country.name;
@@ -194,26 +204,44 @@ export default function VisaCountryRich({
         {/* Section tabs */}
         <div className="section-tabs-wrap">
           <div className="section-tabs" id="sectionTabs">
-            <button className="section-tab active" data-target="overview">{t("tabOverview")}</button>
-            <button className="section-tab" data-target="process">{t("tabProcess")}</button>
-            <button className="section-tab" data-target="docs">{t("tabDocuments")}</button>
-            <button className="section-tab" data-target="rejection">{t("tabRejection")}</button>
-            <button className="section-tab" data-target="entry">{t("tabEntry")}</button>
-            <button className="section-tab" data-target="extension">{t("tabExtension")}</button>
-            <button className="section-tab" data-target="reviews">{t("tabReviews")}</button>
-            <button className="section-tab" data-target="nearby">{t("tabNearby")}</button>
-            <button className="section-tab" data-target="faq">{t("tabFaq")}</button>
+            {destination
+              ? DEST_TABS.map(([id, key], i) => (
+                  <button className={`section-tab${i === 0 ? " active" : ""}`} data-target={id} key={id}>{td(key)}</button>
+                ))
+              : (
+                <>
+                  <button className="section-tab active" data-target="overview">{t("tabOverview")}</button>
+                  <button className="section-tab" data-target="process">{t("tabProcess")}</button>
+                  <button className="section-tab" data-target="docs">{t("tabDocuments")}</button>
+                  <button className="section-tab" data-target="rejection">{t("tabRejection")}</button>
+                  <button className="section-tab" data-target="entry">{t("tabEntry")}</button>
+                  <button className="section-tab" data-target="extension">{t("tabExtension")}</button>
+                  <button className="section-tab" data-target="reviews">{t("tabReviews")}</button>
+                  <button className="section-tab" data-target="nearby">{t("tabNearby")}</button>
+                  <button className="section-tab" data-target="faq">{t("tabFaq")}</button>
+                </>
+              )}
           </div>
         </div>
 
         {/* Page */}
+        {destination ? (
+          <VisaDestinationMain
+            content={destination}
+            consultOnly={consultOnly}
+            applyHref={applyHref(country.slug)}
+            related={relatedCountries}
+            icons={ICONS}
+            localName={(slug, fallback) => (tc.has(slug) ? tc(slug) : fallback)}
+          />
+        ) : legacy ? (
         <main className="col-main">
           {/* Overview */}
           <section className="block" id="overview">
-            <h2>{content.overviewTitle}</h2>
-            <p className="block-sub">{content.overviewSub}</p>
+            <h2>{legacy.overviewTitle}</h2>
+            <p className="block-sub">{legacy.overviewSub}</p>
             <div className="glance">
-              {content.glance.map((g) => (
+              {legacy.glance.map((g) => (
                 <div className="g" key={g.k}>
                   <div className="ico">{ICONS[g.icon]}</div>
                   <div className="k">{g.k}</div>
@@ -226,10 +254,10 @@ export default function VisaCountryRich({
 
           {/* Process */}
           <section className="block" id="process">
-            <h2>{content.processTitle}</h2>
-            <p className="block-sub">{content.processSub}</p>
+            <h2>{legacy.processTitle}</h2>
+            <p className="block-sub">{legacy.processSub}</p>
             <div className="steps">
-              {content.steps.map((step, i) => (
+              {legacy.steps.map((step, i) => (
                 <div className={`step${step.delivered ? " delivered" : ""}`} key={i}>
                   <div className="num">{i + 1}</div>
                   <div>
@@ -255,10 +283,10 @@ export default function VisaCountryRich({
 
           {/* Documents */}
           <section className="block" id="docs">
-            <h2>{content.docsTitle}</h2>
-            <p className="block-sub">{content.docsSub}</p>
+            <h2>{legacy.docsTitle}</h2>
+            <p className="block-sub">{legacy.docsSub}</p>
             <div className="docs">
-              {content.documents.map((d) => (
+              {legacy.documents.map((d) => (
                 <div className="doc" key={d.name}>
                   <div className="ico">{ICONS.doc}</div>
                   <div>
@@ -273,10 +301,10 @@ export default function VisaCountryRich({
 
           {/* Rejection reasons */}
           <section className="block" id="rejection">
-            <h2>{content.rejectionTitle}</h2>
-            <p className="block-sub">{content.rejectionSub}</p>
+            <h2>{legacy.rejectionTitle}</h2>
+            <p className="block-sub">{legacy.rejectionSub}</p>
             <div className="reasons">
-              {content.rejectionReasons.map((r) => (
+              {legacy.rejectionReasons.map((r) => (
                 <div className="reason" key={r.title}>
                   <div className="ico">{ICONS.alert}</div>
                   <h4>{r.title}</h4>
@@ -288,10 +316,10 @@ export default function VisaCountryRich({
 
           {/* Entry / exit */}
           <section className="block" id="entry">
-            <h2>{content.entryTitle}</h2>
-            <p className="block-sub">{content.entrySub}</p>
+            <h2>{legacy.entryTitle}</h2>
+            <p className="block-sub">{legacy.entrySub}</p>
             <div className="glance">
-              {content.entryExit.map((g) => (
+              {legacy.entryExit.map((g) => (
                 <div className="g" key={g.k}>
                   <div className="ico">{ICONS[g.icon]}</div>
                   <div className="k">{g.k}</div>
@@ -304,10 +332,10 @@ export default function VisaCountryRich({
 
           {/* Extension */}
           <section className="block" id="extension">
-            <h2>{content.extensionTitle}</h2>
-            <p className="block-sub">{content.extensionSub}</p>
+            <h2>{legacy.extensionTitle}</h2>
+            <p className="block-sub">{legacy.extensionSub}</p>
             <div className="glance">
-              {content.extension.map((g) => (
+              {legacy.extension.map((g) => (
                 <div className="g" key={g.k}>
                   <div className="ico">{ICONS[g.icon]}</div>
                   <div className="k">{g.k}</div>
@@ -322,7 +350,7 @@ export default function VisaCountryRich({
           <section className="block" id="reviews">
             <h2>{t("reviewsTitle")}</h2>
             <div className="reviews">
-              {content.reviews.items.map((r) => (
+              {legacy.reviews.items.map((r) => (
                 <div className="review" key={r.name}>
                   <div className="top">
                     <div className="av">{r.initials}</div>
@@ -361,7 +389,7 @@ export default function VisaCountryRich({
           {/* FAQ */}
           <section className="block" id="faq">
             <h2>{t("faqTitle")}</h2>
-            <p className="block-sub">{content.faqSub}</p>
+            <p className="block-sub">{legacy.faqSub}</p>
             <div className="faq">
               {faqGroups.map((group) => (
                 <div key={group.category}>
@@ -391,11 +419,11 @@ export default function VisaCountryRich({
           </section>
 
           {/* Sources */}
-          {content.sources.length > 0 ? (
+          {legacy.sources.length > 0 ? (
             <section className="block" id="sources">
               <h2>{t("sourcesTitle")}</h2>
               <div className="sources">
-                {content.sources.map((s) => (
+                {legacy.sources.map((s) => (
                   <a className="source" href={s.url} target="_blank" rel="noreferrer" key={s.url}>
                     <span className="ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg></span>
                     <span className="lk">{s.label}</span>
@@ -406,6 +434,7 @@ export default function VisaCountryRich({
             </section>
           ) : null}
         </main>
+        ) : null}
 
         <aside className="col-side">
           <div className="price-card">
@@ -438,8 +467,8 @@ export default function VisaCountryRich({
               </div>
             </div>
 
-            <Link href={applyHref(country.slug)} className="price-cta" style={{ textDecoration: "none" }}>
-              {t("priceCta")}
+            <Link href={consultOnly ? "/contact" : applyHref(country.slug)} className="price-cta" style={{ textDecoration: "none" }}>
+              {consultOnly ? td("consultCta") : t("priceCta")}
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
             </Link>
             <div className="price-foot">

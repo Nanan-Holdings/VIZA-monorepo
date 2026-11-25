@@ -43,6 +43,19 @@ is no bespoke per-country page. The pieces:
   labelled as paid directly to the issuing authority. Never show a VIZA fee,
   "all-inclusive" totals, paid upgrades, or refund promises.
 
+### Destination page template (Phase B)
+
+New and rewritten pages use `DestinationContent` (`lib/visa-content/types.ts`): the shared core fields
+(hero, rejection reasons, FAQ, sources, price card) plus a `page` block. Section order, rendered by
+`components/VisaDestinationMain.tsx`: at a glance, passport table, visa types, Singapore residents by pass
+type, fees and timing, how to apply (Guided or Full-service), document checklist by applicant type, rejection
+reasons, before you travel, reviewed line with date, FAQ (10 to 15, also the FAQPage JSON-LD), related
+destinations and guides, start application. Headings and chrome come from `visa.dest` in the messages files.
+Per country a page needs `lib/visa-content/<slug>.ts` and `zh-CN/<slug>.ts`, an entry in both registries,
+a `lib/countries.ts` row, a hero image, and (if the default pattern is wrong) a `lib/seo/titles.ts` override.
+`consultOnly: true` publishes a page that has no portal pricing row: its CTA is "Talk to a consultant" to
+`/contact` and `launched` stays false. Run `npm run og` after adding a slug.
+
 ### Adding a new visa destination
 
 1. Add a `CountryMeta` fallback entry to `lib/countries.ts` with
