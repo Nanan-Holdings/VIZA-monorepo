@@ -1,0 +1,2147 @@
+{
+  "cta": {
+    "startFreeApplication": "Rozpocznij bezpłatny wniosek"
+  },
+  "nav": {
+    "home": "Strona główna",
+    "apply": "Złóż wniosek",
+    "visas": "Wizy",
+    "explore": "Odkrywaj",
+    "events": "Wydarzenia",
+    "blog": "Aktualności",
+    "careers": "Kariera",
+    "contact": "Kontakt",
+    "signIn": "Zaloguj się",
+    "getStarted": "Zacznij",
+    "yourPassport": "Twój paszport",
+    "searchPlaceholder": "Szukaj kraju lub wizy…",
+    "arrivalCards": "Karty przyjazdu",
+    "guides": "Poradniki"
+  },
+  "footer": {
+    "followUs": "Obserwuj nas:",
+    "followOn": "Obserwuj VIZA na {platform}",
+    "product": "Produkty",
+    "company": "Firma",
+    "legal": "Informacje prawne",
+    "offices": "Biura",
+    "askAi": "Zapytaj AI o VIZA",
+    "security": "Bezpieczeństwo",
+    "status": "Status",
+    "privacy": "Prywatność",
+    "terms": "Regulamin",
+    "rights": "Wszelkie prawa zastrzeżone.",
+    "tagline": "VIZA pomaga zaplanować wizy, złożyć wnioski i śledzić ich status w dowolnym zakątku świata.",
+    "careers": "Kariera",
+    "contact": "Kontakt",
+    "copyright": "© VIZA, wszelkie prawa zastrzeżone",
+    "prodMockInterview": "Próbna rozmowa wizowa w USA",
+    "prodVisaReq": "Wymagania wizowe",
+    "prodSchengen": "Sprawdzanie terminów Schengen",
+    "prodPhoto": "Kreator zdjęć wizowych",
+    "prodHelpline": "Awaryjna infolinia VIZA",
+    "prodStudent": "Wiza studencka",
+    "arrivalCards": "Karty przyjazdu",
+    "guides": "Poradniki",
+    "news": "Aktualności"
+  },
+  "pages": {
+    "blog": {
+      "metaTitle": "Aktualności wizowe i zmiany przepisów | VIZA",
+      "metaDescription": "Aktualności wizowe VIZA: zmiany przepisów, nowe systemy e-wiz i ETA oraz to, co oznaczają dla mieszkańców Singapuru. Aktualizowane przy zmianach.",
+      "title": "Aktualności wizowe",
+      "lede": "Zmiany przepisów i aktualizacje zasad, wyjaśnione prostymi słowami. Rady, które się nie starzeją, znajdziesz w poradnikach.",
+      "readArticle": "Czytaj artykuł",
+      "featuredLabel": "Najnowsze wiadomości",
+      "articlesTitle": "Najnowsze wiadomości",
+      "articlesDescription": "Aktualizacje przepisów i zmiany zasad podróżowania.",
+      "allPosts": "Wszystkie wpisy",
+      "noMorePosts": "Kolejne wiadomości już wkrótce.",
+      "emptyTitle": "Nie opublikowano jeszcze żadnych wiadomości",
+      "emptyBody": "Przygotowujemy pierwsze aktualizacje. Zajrzyj tu wkrótce.",
+      "unavailableTitle": "Aktualności są chwilowo niedostępne",
+      "unavailableBody": "Nie udało się wczytać najnowszych wiadomości. Spróbuj ponownie za chwilę.",
+      "backToBlog": "Wróć do aktualności",
+      "by": "Autor:",
+      "updated": "Zaktualizowano",
+      "categoriesLabel": "Tematy wiadomości",
+      "topicLabel": "Temat",
+      "relatedTitle": "Więcej wiadomości",
+      "relatedDescription": "Więcej aktualności wizowych od VIZA.",
+      "ctaEyebrow": "Planuj spokojnie",
+      "ctaTitle": "Chcesz zacząć wniosek?",
+      "ctaBody": "Powiedz, dokąd chcesz jechać. VIZA przeprowadzi Cię przez wymagania i kolejne kroki.",
+      "ctaAction": "Rozpocznij wniosek",
+      "categoryMetaTitle": "Aktualności: {category} | VIZA",
+      "categoryMetaDescription": "Czytaj aktualności VIZA o temacie: {category}. Co się zmieniło, kogo to dotyczy i co zrobić dalej.",
+      "categoryLede": "Aktualności o temacie: {category}.",
+      "visaLinkTitle": "Składasz wniosek o wizę: {country}?",
+      "visaLinkBody": "Zobacz dokumenty, opłatę rządową i kroki dla osób mieszkających w Singapurze.",
+      "visaLinkAction": "Poradnik wizowy: {country}",
+      "guidesTitle": "Powiązane poradniki",
+      "guidesBody": "Poradniki, które na bieżąco omawiają ten temat."
+    },
+    "home": {
+      "title": "Wizy w Singapurze: USA, Indie, Wietnam | VIZA",
+      "description": "Złóż wniosek o wizę do USA (DS-160), e-wizę do Indii, Wietnamu lub Egiptu albo wizę Schengen do Francji. Doradca sprawdza każdy formularz przed złożeniem.",
+      "heroTitle": "Dokąd teraz?",
+      "heroLede": "Przeglądaj opcje wizowe do dowolnego kraju. Konsultant VIZA i nasza AI zajmą się papierami, a Ty zarezerwujesz podróż."
+    },
+    "apply": {
+      "title": "Rozpocznij wniosek wizowy | VIZA",
+      "description": "Prześlij paszport, potwierdź dane i przekaż wniosek wizowy doradcy VIZA. Usługa VIZA jest bezpłatna.",
+      "saveBadge": "Zapisano · wróć w dowolnej chwili"
+    },
+    "careers": {
+      "title": "Kariera | VIZA",
+      "description": "Pracuj przy VIZA, bezpłatnej usłudze wizowej prowadzonej przez Kelin Studio w Singapurze. Zobacz zespoły, w których szukamy ludzi, i jak napisać w sprawie roli.",
+      "rightCta": "Zobacz oferty"
+    },
+    "contact": {
+      "title": "Kontakt: WhatsApp, WeChat, telefon, e-mail | VIZA",
+      "description": "Skontaktuj się z zespołem VIZA przez WhatsApp, WeChat, telefon lub e-mail. Cztery kanały, cztery biurka i odpowiada prawdziwy człowiek.",
+      "rightCta": "Napisz do nas"
+    },
+    "security": {
+      "title": "Bezpieczeństwo i zgłaszanie luk | VIZA",
+      "description": "Prywatność, przejrzystość i bezpieczeństwo domyślnie. Jak VIZA chroni dane klientów, nasz program zgłaszania luk i bezpieczna przystań.",
+      "rightCta": "Zgłoś lukę"
+    },
+    "status": {
+      "title": "Status systemu | VIZA",
+      "description": "Status na żywo VIZA i rządowych portali wizowych, do których składamy wnioski.",
+      "navPill": "Wszystkie systemy działają"
+    },
+    "visa": {
+      "applyCta": "Złóż wniosek",
+      "applicationProcess": "Składanie wniosku",
+      "documents": "Dokumenty",
+      "rejectionReasons": "Powody odmowy",
+      "entryExit": "Wjazd i wyjazd",
+      "extension": "Przedłużenie",
+      "reviews": "Opinie",
+      "nearby": "Pobliskie kraje",
+      "sources": "Oficjalne źródła"
+    },
+    "privacy": {
+      "title": "Polityka prywatności | VIZA",
+      "description": "Co VIZA zbiera przy wniosku wizowym, dlaczego, kto to widzi i jak długo przechowujemy dane, zgodnie z singapurską ustawą PDPA."
+    },
+    "terms": {
+      "title": "Regulamin | VIZA",
+      "description": "Zasady korzystania z usługi wizowej VIZA, prowadzonej przez Kelin Studio Pte. Ltd. w Singapurze. Usługa VIZA jest bezpłatna."
+    },
+    "product": {
+      "title": "Jak VIZA wspiera Twój wniosek wizowy | VIZA",
+      "description": "Przygotowanie wizy, sprawdzanie dokumentów i status wniosku w jednym miejscu. Usługa VIZA jest bezpłatna. Zakres i dostępność podajemy przy każdym kraju."
+    },
+    "events": {
+      "title": "Wydarzenia | VIZA",
+      "description": "Konsultacje wizowe, spotkania informacyjne i wydarzenia partnerów od VIZA."
+    },
+    "arrivalCards": {
+      "title": "Karty przyjazdu: MDAC, SG Arrival Card, TDAC | VIZA",
+      "description": "Bezpłatne poradniki o kartach przyjazdu do Malezji, Singapuru, Japonii, Tajlandii, Korei i Indonezji: kto jej potrzebuje, kiedy złożyć i pomoc krok po kroku."
+    },
+    "guides": {
+      "title": "Poradniki wizowe dla mieszkańców Singapuru | VIZA",
+      "description": "Proste poradniki dla mieszkańców Singapuru: kraje bez wiz, dokumenty Schengen, rozmowa w USA, ETA, e-wiza i odmowy. Darmowe, często sprawdzane."
+    },
+    "about": {
+      "title": "O VIZA: bezpłatna pomoc wizowa w Singapurze | VIZA",
+      "description": "VIZA przygotowuje, sprawdza i składa wnioski wizowe dla osób w Singapurze, z AI i konsultantami. Usługa jest bezpłatna, a opłaty rządowe trafiają do organu."
+    },
+    "visaIndex": {
+      "title": "Wizy według krajów: wymagania | VIZA",
+      "description": "Porównaj wymagania wizowe według kraju, z dokumentami i opłatami. Pomoc VIZA jest bezpłatna.",
+      "heroTitle": "Wizy według krajów"
+    },
+    "refunds": {
+      "title": "Polityka zwrotów | VIZA",
+      "description": "Usługa VIZA jest bezpłatna, więc nie ma opłaty serwisowej do zwrotu. Jak działają opłaty rządowe i opłaty innych podmiotów."
+    },
+    "businessInformation": {
+      "title": "Informacje o firmie | VIZA",
+      "description": "VIZA jest prowadzona przez Kelin Studio Pte. Ltd., singapurską spółkę. Adres siedziby, numer UEN i dane kontaktowe."
+    }
+  },
+  "common": {
+    "comingSoon": "Wkrótce",
+    "learnMore": "Dowiedz się więcej",
+    "readMore": "Czytaj dalej",
+    "applyNow": "Złóż wniosek",
+    "talkToHuman": "Porozmawiaj z człowiekiem",
+    "viewAll": "Zobacz wszystko"
+  },
+  "visa": {
+    "heroTitle": "Wiza: {country}",
+    "validity": "Ważność",
+    "howItWorks": "Jak to działa",
+    "step1": "Podajesz szczegóły podróży i przesyłasz paszport.",
+    "step2": "Uzupełniamy wniosek i sprawdzamy go z najnowszymi przepisami.",
+    "step3": "Składamy go na rządowym portalu i śledzimy decyzję.",
+    "step4": "Zatwierdzona wiza przychodzi e-mailem, a my pilnujemy sprawy do końca.",
+    "documents": "Co będzie potrzebne",
+    "doc1": "Paszport ważny co najmniej 6 miesięcy.",
+    "doc2": "Aktualne zdjęcie paszportowe.",
+    "doc3": "Daty podróży i nocleg.",
+    "doc4": "Jeśli kraj pobiera opłatę wizową, karta płatnicza, aby zapłacić ją bezpośrednio rządowi.",
+    "nearby": "Pobliskie kraje",
+    "startApplication": "Rozpocznij wniosek",
+    "comingSoonTitle": "{country}: wkrótce",
+    "comingSoonBody": "Dopracowujemy ostatnie szczegóły dla kraju: {country}. Załóż konto, a damy znać, gdy tylko ruszy.",
+    "browseDestinations": "Przeglądaj kraje",
+    "notifyMe": "Powiadom mnie",
+    "back": "Wróć do odkrywania",
+    "tabOverview": "Przegląd",
+    "tabProcess": "Składanie wniosku",
+    "tabDocuments": "Dokumenty",
+    "tabRejection": "Powody odmowy",
+    "tabEntry": "Wjazd i wyjazd",
+    "tabExtension": "Przedłużenie",
+    "tabReviews": "Opinie",
+    "tabNearby": "Pobliskie kraje",
+    "reviewsTitle": "Opinie",
+    "nearbyTitle": "Pobliskie kraje",
+    "nearbySub": "Podróżujesz po regionie? Dodaj kolejną wizę do wyjazdu, a konsultant VIZA załatwi je razem.",
+    "faqTitle": "Najczęstsze pytania",
+    "editorial": "Ta strona jest zgodna z polityką redakcyjną VIZA. Opieramy się na oficjalnych źródłach rządowych i aktualizujemy każde wymaganie, gdy zmieniają się przepisy.",
+    "editorialLink": "Zobacz, jak to sprawdzamy",
+    "sourcesTitle": "Źródła",
+    "priceGovt": "Opłata rządowa",
+    "priceFree": "Bezpłatnie",
+    "pillAllInclusive": "Wszystko w cenie",
+    "priceCta": "Rozpocznij wniosek",
+    "onTime": "Na czas",
+    "freeService": "Bezpłatna usługa VIZA",
+    "freeServiceNote": "VIZA nie pobiera opłat za swoją pomoc",
+    "govFeePaidDirect": "Opłata rządowa: {fee}, płatna bezpośrednio organowi wydającemu wizę.",
+    "govFeeSetByAuthority": "Opłatę rządową, jeśli obowiązuje, ustala organ wydający wizę i płacisz ją bezpośrednio jemu.",
+    "govFeeSetByAuthorityShort": "Ustala organ wydający",
+    "priceService": "Usługa VIZA",
+    "pillPaidToAuthority": "Płatne organowi",
+    "priceTotalToViza": "Płacisz VIZA",
+    "breadcrumbVisas": "Wizy według krajów",
+    "serviceDescription": "VIZA pomaga osobom mieszkającym w Singapurze przygotować, sprawdzić i złożyć wnioski ({type}) dla kraju: {country}, ze wsparciem AI i kontrolą ekspertów.",
+    "offerDescription": "Opłata serwisowa VIZA. Opłaty rządowe za wizę są osobne i płatne bezpośrednio organowi wydającemu wizę.",
+    "dest": {
+      "tabGlance": "W skrócie",
+      "tabPassports": "Paszporty",
+      "tabTypes": "Rodzaje wiz",
+      "tabResidents": "Mieszkańcy",
+      "tabFees": "Opłaty",
+      "tabApply": "Jak złożyć wniosek",
+      "tabChecklist": "Dokumenty",
+      "tabRejection": "Odmowy",
+      "tabTravel": "Przed podróżą",
+      "tabRelated": "Powiązane",
+      "glanceTitle": "W skrócie",
+      "glanceVisa": "Wymagana wiza",
+      "glanceGovFee": "Opłata rządowa",
+      "glanceVizaFee": "Opłata VIZA",
+      "glanceProcessing": "Czas rozpatrzenia",
+      "glanceMaxStay": "Maksymalny pobyt",
+      "glanceChecked": "Data sprawdzenia",
+      "passportsTitle": "Czy potrzebujesz wizy?",
+      "typesTitle": "Rodzaje wiz",
+      "residentsTitle": "Mieszkańcy Singapuru",
+      "feesTitle": "Opłaty i terminy",
+      "applyTitle": "Jak złożyć wniosek",
+      "checklistTitle": "Lista dokumentów",
+      "travelTitle": "Przed podróżą",
+      "colPassport": "Paszport",
+      "colEntry": "Wjazd",
+      "colNotes": "Uwagi",
+      "colItem": "Pozycja",
+      "colAmount": "Kwota",
+      "vizaFeeNote": "Pomoc VIZA jest bezpłatna. Płacisz tylko opłatę rządową, bezpośrednio organowi.",
+      "reviewedBy": "Sprawdzone przez konsultanta VIZA: {date}.",
+      "relatedTitle": "Powiązane kraje",
+      "relatedSub": "Inne miejsca, które ludzie dodają do tej samej podróży, i gdzie poczytać więcej.",
+      "startTitle": "Rozpocznij wniosek",
+      "startBody": "Zacznij od paszportu i dat podróży. Pomoc VIZA jest bezpłatna, a opłatę rządową płacisz bezpośrednio organowi.",
+      "startConsultBody": "Powiedz konsultantowi VIZA, gdzie mieszkasz, jaki masz paszport i kiedy podróżujesz. Pomoc VIZA jest bezpłatna.",
+      "consultCta": "Porozmawiaj z konsultantem"
+    }
+  },
+  "apply": {
+    "stepOf": "Krok {n} z 3",
+    "back": "Wstecz",
+    "continue": "Dalej",
+    "step1Name": "Prześlij paszport",
+    "step2Name": "Potwierdź dane",
+    "step3Name": "Rozpocznij wniosek",
+    "s1Title": "Prześlij swój paszport",
+    "s1Desc": "Odczytamy Twoje dane automatycznie, bez przepisywania. Użyj strony z danymi osobowymi (tej ze zdjęciem).",
+    "segUpload": "Prześlij plik",
+    "segCapture": "Zrób zdjęcie",
+    "dzTitle": "Upuść tutaj zdjęcie paszportu",
+    "dzSub": "Albo kliknij, aby wybrać plik. Plik jest szyfrowany i nigdy nie jest udostępniany",
+    "dzBrowse": "Wybierz plik",
+    "dzUpTo": "Do 10 MB",
+    "tip1Title": "Widoczne wszystkie cztery rogi",
+    "tip1Sub": "Obejmij kadrem całą stronę z danymi, razem z dolną strefą MRZ.",
+    "tip2Title": "Jasne, równe światło",
+    "tip2Sub": "Unikaj cieni od dłoni lub etui telefonu.",
+    "tip3Title": "Bez odblasków",
+    "tip3Sub": "Lekko przechyl paszport, jeśli pieczęć się odbija.",
+    "errReadFail": "Nie udało się odczytać tego paszportu: {detail}. Spróbuj przesłać wyraźniejsze zdjęcie strony z danymi.",
+    "extReading": "Odczytywanie dokumentu",
+    "extExtracting": "Wydobywanie Twoich danych",
+    "extVerifying": "Sprawdzanie autentyczności",
+    "stReading": "Odczytywanie…",
+    "stExtracting": "Wydobywanie…",
+    "stVerifying": "Sprawdzanie…",
+    "s2Title": "Potwierdź swoje dane",
+    "s2Desc": "Pobraliśmy je bezpośrednio z Twojego paszportu. Dotknij dowolnego pola, aby je poprawić.",
+    "successHigh": "Dane z paszportu odczytane poprawnie, wysoka pewność",
+    "warnLow": "Niektóre pola trudno było odczytać. Sprawdź dokładnie każdą wartość poniżej.",
+    "warnMed": "Odczytaliśmy większość danych. Sprawdź wyróżnione pola.",
+    "ppDetails": "Dane paszportu",
+    "autoExtracted": "Odczytane automatycznie",
+    "fSurname": "Nazwisko",
+    "fGiven": "Imiona",
+    "fPassport": "Numer paszportu",
+    "fDob": "Data urodzenia",
+    "fNationality": "Obywatelstwo",
+    "fExpires": "Data ważności",
+    "reachTitle": "Jak się z Tobą skontaktować?",
+    "reachDesc": "Wyślemy tu Twoją wizę, a na telefon przyślemy SMS-y o statusie.",
+    "email": "E-mail",
+    "phone": "Telefon",
+    "consent": "Potwierdzam, że powyższe dane zgadzają się z moim paszportem, i upoważniam VIZA do złożenia tego wniosku w moim imieniu do organów imigracyjnych kraju: {country}.",
+    "s3Title": "Rozpocznij wniosek",
+    "s3Desc": "Usługa VIZA jest bezpłatna. Zaloguj się do portalu VIZA, a resztą zajmiemy się my.",
+    "headsUp": "Uwaga:",
+    "headsUpBody": "jeśli rząd kraju {country} pobiera opłatę za wizę, płacisz ją bezpośrednio jemu. VIZA nigdy nie pobiera tej kwoty ani nie dolicza marży.",
+    "yourApp": "Twój wniosek",
+    "guaranteedBy": "Gwarantowana dostawa do",
+    "govFee": "Opłata rządowa",
+    "expressUpgrade": "Wersja ekspresowa",
+    "total": "Razem",
+    "footEncrypted": "Szyfrowanie od końca do końca. VIZA nie pobiera od Ciebie opłaty za ten wniosek.",
+    "helpOnline": "Priya jest online",
+    "helpTap": "Dotknij, aby napisać do konsultanta VIZA",
+    "totalAmount": "SGD {amount}",
+    "totalFree": "Bezpłatnie",
+    "etaStandard": "12 maja 2026, 8:00 SGT",
+    "failTitle": "Nie udało się odczytać tego dokumentu",
+    "failNotPassport": "To nie wygląda na stronę z danymi paszportu. Prześlij zdjęcie strony ze zdjęciem i danymi osobowymi.",
+    "failUnreadable": "Nie udało się odczytać żadnego z wymaganych pól. Zrób zdjęcie ponownie przy dobrym świetle, z całą stroną danych płasko i ostro.",
+    "tryAgain": "Spróbuj ponownie",
+    "warnPartial": "Nie udało się odczytać wszystkiego. Uzupełnij wyróżnione pola poniżej.",
+    "warnExpired": "Ten paszport wygląda na wygasły. Większość krajów wymaga co najmniej 6 miesięcy ważności.",
+    "warnMrz": "Strefa odczytu maszynowego (dwa wiersze na dole) była nieczytelna. Sprawdź dokładnie każde pole.",
+    "warnBlurry": "Zdjęcie było nieostre. Sprawdź dokładnie każde pole.",
+    "fieldRequired": "Wymagane, uzupełnij",
+    "editField": "Edytuj: {field}",
+    "emailInvalid": "Wpisz prawidłowy adres e-mail. Tu trafią aktualizacje wizy i link do logowania.",
+    "phoneInvalid": "Wpisz prawidłowy numer telefonu.",
+    "consentRequired": "Potwierdź oświadczenie, aby kontynuować.",
+    "continueToStart": "Dalej",
+    "startTitle": "Kontynuuj w portalu VIZA",
+    "startSub": "Zaloguj się lub załóż bezpłatne konto. Wniosek dla tego kraju otworzy się od razu.",
+    "vizaService": "Usługa VIZA",
+    "govFeeSetByAuthority": "Ustala organ wydający",
+    "govFeeNote": "Opłatę rządową za wizę, jeśli obowiązuje, płacisz bezpośrednio organowi wydającemu wizę, a nie VIZA.",
+    "completeBeforeStart": "Zanim przejdziesz dalej, uzupełnij wyróżnione pola powyżej."
+  },
+  "explore": {
+    "help": "Pomoc",
+    "passportLabel": "Paszport: {name}",
+    "passportSub": "Wymagania wizowe w {n} krajach · Miejsce w rankingu: {rank}",
+    "freeLabel": "Bez wizy",
+    "freeNote": "bez papierkowej roboty",
+    "voaLabel": "e-Wiza lub wiza na granicy",
+    "voaNote": "zajmujemy się tym",
+    "reqLabel": "Wiza wymagana",
+    "reqNote": "wniosek w ambasadzie",
+    "fullMap": "Zobacz pełną mapę wiz",
+    "grid": "Siatka",
+    "map": "Mapa",
+    "mapLegendEvisa": "e-Wizy i wizy turystyczne",
+    "mapHint": "Najedź na wyróżniony punkt, aby zobaczyć podgląd kraju",
+    "sectionTitle": "Dla paszportu: {country}",
+    "seeAll": "Zobacz wszystkie ({n})",
+    "footnote": "Usługa VIZA jest bezpłatna. Opłatę rządową za wizę, jeśli obowiązuje, płacisz bezpośrednio organowi wydającemu wizę, a jej wysokość zależy od kraju.",
+    "fastTrack": "Szybka ścieżka",
+    "cardType": "Rodzaj",
+    "cardValid": "Ważność",
+    "cardFee": "Usługa VIZA",
+    "save": "Zapisz",
+    "startApplication": "Rozpocznij wniosek",
+    "catalogueUnavailable": "Obecnie żaden kraj nie przyjmuje wniosków online. Zajrzyj tu wkrótce.",
+    "choosePassport": "Wybierz swój paszport",
+    "searchPassport": "Szukaj kraju paszportu…",
+    "visaFree": "Bez wizy: {n}",
+    "ppFoot": "Zaktualizowano na maj 2026 · Źródło: IATA Timatic",
+    "noMatch": "Brak paszportów pasujących do „{q}”",
+    "filters": {
+      "delivery": "Czas wydania wizy",
+      "type": "Rodzaj wizy",
+      "documents": "Dokumenty",
+      "dates": "Daty podróży"
+    },
+    "filterOpts": {
+      "delivery": [
+        "Dowolny",
+        "W ciągu 24 godzin",
+        "W ciągu 3 dni",
+        "W ciągu 1 tygodnia",
+        "W ciągu 1 miesiąca"
+      ],
+      "type": [
+        "Wszystkie rodzaje",
+        "Turystyczna",
+        "Biznesowa",
+        "Do pracy",
+        "Studencka",
+        "Dla cyfrowych nomadów"
+      ],
+      "documents": [
+        "Dowolne dokumenty",
+        "Minimum (tylko paszport)",
+        "Standardowe",
+        "Rozszerzony zestaw"
+      ],
+      "dates": [
+        "Wybierz daty",
+        "W tym tygodniu",
+        "W tym miesiącu",
+        "Za 3 miesiące",
+        "Za 6 miesięcy"
+      ]
+    }
+  },
+  "cities": {
+    "viza-test": "Test płatności na żywo",
+    "indonesia": "Bali · Dżakarta",
+    "egypt": "Kair · Gizeh",
+    "australia": "Sydney · Melbourne",
+    "saudi-arabia": "Rijad · AlUla",
+    "united-kingdom": "Londyn · Edynburg",
+    "vietnam": "Hanoi · Hoi An",
+    "malaysia": "Kuala Lumpur · Penang",
+    "japan": "Tokio · Kioto",
+    "united-states": "Nowy Jork · Los Angeles",
+    "canada": "Toronto · Vancouver",
+    "turkiye": "Stambuł · Kapadocja",
+    "thailand": "Bangkok · Phuket",
+    "united-arab-emirates": "Dubaj · Abu Zabi",
+    "france": "Paryż · Nicea",
+    "italy": "Rzym · Florencja",
+    "india": "Delhi · Mumbaj"
+  },
+  "validity": {
+    "viza-test": "Tylko demo",
+    "indonesia": "90 dni",
+    "egypt": "90 dni",
+    "australia": "1 rok",
+    "saudi-arabia": "365 dni",
+    "united-kingdom": "6 miesięcy",
+    "vietnam": "90 dni",
+    "malaysia": "3 miesiące",
+    "japan": "90 dni",
+    "united-states": "10 lat",
+    "canada": "10 lat",
+    "turkiye": "180 dni",
+    "thailand": "3 miesiące",
+    "united-arab-emirates": "60 dni",
+    "france": "90 dni",
+    "italy": "90 dni",
+    "india": "30 dni"
+  },
+  "passports": {
+    "SG": "Singapur",
+    "JP": "Japonia",
+    "KR": "Korea Południowa",
+    "DE": "Niemcy",
+    "FR": "Francja",
+    "GB": "Wielka Brytania",
+    "US": "Stany Zjednoczone",
+    "AU": "Australia",
+    "CA": "Kanada",
+    "AE": "Zjednoczone Emiraty Arabskie",
+    "CN": "Chiny",
+    "IN": "Indie",
+    "BR": "Brazylia",
+    "PH": "Filipiny",
+    "ID": "Indonezja",
+    "MY": "Malezja",
+    "TH": "Tajlandia"
+  },
+  "countries": {
+    "viza-test": "VIZA Test",
+    "indonesia": "Indonezja",
+    "egypt": "Egipt",
+    "australia": "Australia",
+    "saudi-arabia": "Arabia Saudyjska",
+    "united-kingdom": "Wielka Brytania",
+    "vietnam": "Wietnam",
+    "malaysia": "Malezja",
+    "japan": "Japonia",
+    "united-states": "Stany Zjednoczone",
+    "canada": "Kanada",
+    "turkiye": "Turcja",
+    "thailand": "Tajlandia",
+    "united-arab-emirates": "Zjednoczone Emiraty Arabskie",
+    "france": "Francja",
+    "italy": "Włochy",
+    "india": "Indie",
+    "china": "Chiny",
+    "south-korea": "Korea Południowa",
+    "schengen": "Schengen"
+  },
+  "visaTypes": {
+    "Test checkout": "Test płatności",
+    "e-Visa": "e-Wiza",
+    "Standard Visitor": "Standard Visitor",
+    "Visitor 600": "Visitor 600",
+    "Tourist": "Turystyczna",
+    "B1/B2": "B1/B2",
+    "eTA": "eTA",
+    "Schengen": "Schengen",
+    "eVisa": "e-Wiza",
+    "Visitor visa": "Wiza dla odwiedzających",
+    "Tourist visa": "Wiza turystyczna"
+  },
+  "careers": {
+    "hero": {
+      "nowHiring": "Rekrutujemy w",
+      "cities": [
+        "Szanghaj",
+        "Singapur"
+      ],
+      "openRoles": "28 otwartych ról",
+      "title": "Pomóż nam sprawić, by granice<br></br><em>znikały</em>: <u>po cichu,</u><br></br>w tempie oprogramowania.",
+      "lead": "Zamieniamy miesiące wizowej papierkowej roboty w godziny pracy oprogramowania, dla milionów ludzi, którzy chcą po prostu wsiąść do samolotu. Przynieś swoje rzemiosło do zespołu, który dowozi na prawdziwe terminy.",
+      "ctaRoles": "Zobacz wszystkie otwarte role",
+      "ctaWhy": "Po co istniejemy"
+    },
+    "board": {
+      "ariaLabel": "Tablica odlotów z otwartymi rolami w VIZA",
+      "head": "Otwarte stanowiska · na żywo",
+      "live": "Na czas",
+      "cols": {
+        "req": "Nr",
+        "role": "Rola",
+        "office": "Biuro",
+        "status": "Status"
+      },
+      "rows": [
+        {
+          "role": "Staff Engineer",
+          "sub": "Potok dokumentów",
+          "status": "Wsiadanie"
+        },
+        {
+          "role": "Projektant produktu",
+          "sub": "Ścieżki wnioskodawców",
+          "status": "Otwarte"
+        },
+        {
+          "role": "Łącznik z ambasadami",
+          "sub": "Współpraca z rządami",
+          "status": "Ostatnie wezwanie"
+        },
+        {
+          "role": "Obsługa klienta",
+          "sub": "Eskalacje poziomu 2",
+          "status": "Otwarte"
+        }
+      ],
+      "foot": "+24 kolejne role w inżynierii, operacjach i projektowaniu",
+      "browseAll": "Przeglądaj wszystkie",
+      "chip1Label": "Rekrutujemy w",
+      "chip1Value": "4 biurach",
+      "chip2Label": "Średni czas odpowiedzi",
+      "chip2Value": "3.2 dnia do pierwszej rozmowy"
+    },
+    "stats": [
+      {
+        "value": "2.4M",
+        "label": "Wiz wydanych przez VIZA w zeszłym roku"
+      },
+      {
+        "label": "Obsługiwane kraje z przetwarzaniem na żywo"
+      },
+      {
+        "label": "Odsetek zatwierdzeń dla wszystkich rodzajów wiz w 2025"
+      },
+      {
+        "label": "Osób w Szanghaju i Singapurze"
+      }
+    ],
+    "mission": {
+      "eyebrow": "Nasza historia",
+      "title": "Większość świata<br></br>wciąż podróżuje z<br></br><em>papierowymi dokumentami.</em>",
+      "kicker1": "Założyliśmy VIZA w 2021 roku, po tym jak o jeden tydzień za dużo czekaliśmy na linii z ambasadami. System przemieszczania ludzi przez granice jest starszy niż internet, a ludzie w nim utknięci zasługują na lepsze.",
+      "kicker2": "Dziś zespół 340 osób w czterech biurach tworzy oprogramowanie, składa dokumenty i prowadzi operacje w 194 krajach. Wykonujemy nudną, wyczerpującą pracę, aby podróżowanie przypominało resztę internetu: kilka dotknięć i jesteś w drodze.",
+      "founderName": "Mira Kohli",
+      "founderRole": "Współzałożycielka i CEO · Singapur",
+      "beliefs": [
+        {
+          "title": "Jesteśmy firmą operacyjną, która dostarcza oprogramowanie.",
+          "body": "Połowa VIZA to inżynierowie, projektanci i menedżerowie produktu. Druga połowa to konsultanci, operacje i specjaliści od dokumentów na miejscu. Żadna połowa nie wygra bez drugiej."
+        },
+        {
+          "title": "Klientem jest zawsze wnioskodawca.",
+          "body": "Ambasady, partnerzy, linie lotnicze: wszyscy się liczą. Ale osoba stojąca o 3 w nocy w kolejce i odświeżająca portal to ta, dla której pracujemy i z którą się porównujemy."
+        },
+        {
+          "title": "Tempo rośnie, gdy jesteś cierpliwy wobec jakości.",
+          "body": "Szybko dowozimy, powoli podejmujemy decyzje nieodwracalne. Błędna decyzja wizowa może zniszczyć ślub, pracę, pogrzeb. Trzymamy tę poprzeczkę, nawet gdy nas to spowalnia."
+        },
+        {
+          "title": "Odległość to problem UX, a nie ograniczenie.",
+          "body": "Nasze zespoły siedzą w czterech strefach czasowych. Pisanie asynchroniczne, jasna odpowiedzialność i dobra kultura dokumentacji to sposób, w jaki wymieniamy czas na zaufanie i dowozimy na cały świat, nikogo nie wyczerpując."
+        }
+      ]
+    },
+    "values": {
+      "eyebrow": "Czego od siebie wymagamy",
+      "title": "Pięć rzeczy, w które wierzymy, nawet gdy to kosztuje.",
+      "lead": "Wartości łatwo spisać, trudniej według nich działać. Tych pięć naprawdę stosujemy przy rekrutacji, ocenach i rzadkich trudnych decyzjach.",
+      "cards": [
+        {
+          "title": "Mów prawdę, zwłaszcza gdy nas to kosztuje.",
+          "body": "Jeśli wiza nie zdąży, powiedz to dziś, a nie dzień przed lotem. Wolimy stracić sprzedaż niż dostarczyć kłamstwo.",
+          "kicker": "W praktyce → opublikowane zasady, audyt zmian"
+        },
+        {
+          "title": "Zasłuż na tempo. Nie tylko czuj się zajęty.",
+          "body": "Świętujemy decyzje i dowiezioną pracę, a nie spotkania i wątki. Chodzi o przepustowość względem misji, a nie o ruch w kalendarzu.",
+          "kicker": "W praktyce → kwartalny przegląd przepustowości"
+        },
+        {
+          "title": "Myśl paszportami, nie personami.",
+          "body": "Przepisy wizowe zależą od obywatelstwa. „Użytkownik” nie istnieje, istnieje posiadacz filipińskiego paszportu składający wniosek o Schengen. Budujemy dla prawdziwych ludzi, nie dla średnich.",
+          "kicker": "W praktyce → specyfikacja produktu zaczynająca od paszportu"
+        },
+        {
+          "title": "Zapisuj rzeczy. Zwłaszcza decyzje.",
+          "body": "Cztery biura, cztery strefy czasowe. Jeśli decyzja nie jest zapisana, to jej nie było. Nasza wiki to lektura obowiązkowa, a stand-upy są opcjonalne.",
+          "kicker": "W praktyce → ADR, cotygodniowe notatki, praca asynchroniczna na pierwszym miejscu"
+        },
+        {
+          "title": "Bądź blisko kolejki.",
+          "body": "Każdy inżynier raz na kwartał pracuje zmianę na sali konsultantów. Nie zaprojektujesz z dala tarć, których nigdy nie poczułeś o 11pm w niedzielę.",
+          "kicker": "W praktyce → rotacyjne zmiany przy kolejce"
+        },
+        {
+          "title": "Wybieraj dłuższą wersję.",
+          "body": "Trzydziestosekundowa odpowiedź zwykle jest błędna. Inwestujemy w głęboką dokumentację, solidne instrukcje i wyjaśnienia, które się bronią, nawet gdy wystarczyłaby łatwa wersja.",
+          "kicker": "W praktyce → podręcznik wdrożeniowy, publiczne instrukcje"
+        }
+      ]
+    },
+    "inside": {
+      "eyebrow": "Wewnątrz VIZA",
+      "title": "Jak naprawdę<br></br>wygląda praca tutaj.",
+      "lead": "Mamy biura w dwóch miastach, bo rekrutujemy blisko miejsc, w których składa się wnioski. Głośno mówimy o sukcesach, cicho o polityce i szczerze o tym, ile jeszcze mamy do zbudowania.",
+      "photos": [
+        {
+          "label": "zdjęcie · siedziba w Singapurze, open space",
+          "mark": "Paya Lebar Square, SG"
+        },
+        {
+          "label": "zdjęcie · sala kolejki konsultantów",
+          "mark": "Luoshan Rd, Szanghaj"
+        },
+        {
+          "label": "zdjęcie · sesja przy tablicy",
+          "mark": "Wyjazd techniczny, Bali"
+        },
+        {
+          "label": "zdjęcie · sala operacyjna w Szanghaju",
+          "mark": "Pudong, Szanghaj"
+        },
+        {
+          "label": "zdjęcie · kolacja zespołu",
+          "mark": "Spotkanie całej firmy, Lizbona"
+        },
+        {
+          "label": "zdjęcie · wizyta partnera z ambasady",
+          "mark": "Paya Lebar Square, SG"
+        }
+      ],
+      "pull": "„Zatrudniamy ludzi, którzy mają zdanie o wizach, zanim dołączą. W drugim miesiącu będziesz mieć mocniejsze.”",
+      "pullBy": "Felix Adekunle, VP Engineering",
+      "para1": "VIZA to duża autonomia i duży kontekst. Dostaniesz właściciela do wszystkiego, co robisz, prawdziwe budżety i oczekiwanie, że wyjaśnisz resztcie firmy swoje rozumowanie.",
+      "para2": "Jeśli chcesz, by co dzień mówiono Ci, co robić, to nie jest dobre miejsce. Jeśli czekałeś, aż ktoś odda Ci kierownicę, jest tutaj."
+    },
+    "how": {
+      "eyebrow": "Inżynieria i operacje w VIZA",
+      "title": "Jak naprawdę posuwa się praca.",
+      "lead": "Jeśli tu budujesz, składasz wnioski lub projektujesz, tak wygląda Twój tydzień. Mniej ceremonii, więcej dowiezionej pracy. Mniej Slacka, więcej zapisanych decyzji.",
+      "cells": [
+        {
+          "title": "Odpowiedzialność od początku do końca",
+          "body": "Projektujesz, budujesz, wdrażasz i odpowiadasz za to na produkcji. Bez kolejek przekazań i planów pisanych przez ludzi trzy szczeble dalej. Jeśli to Twoje, to naprawdę Twoje."
+        },
+        {
+          "title": "Wdrożenia codziennie, domyślnie",
+          "body": "Większość zespołów wdraża kilka razy dziennie. Pętle zwrotne są krótkie z założenia, a trzydziestominutowe wycofanie jest lepsze niż trzytygodniowa kłótnia."
+        },
+        {
+          "title": "Prawdziwe, nieuporządkowane problemy",
+          "body": "To nie jest CRUD. Zajmiesz się OCR dokumentów, planowaniem wrażliwym na opóźnienia z ponad 90 portalami rządowymi i ścieżkami używanymi przez miliony ludzi."
+        },
+        {
+          "title": "Poprzeczka jest wysoko, otwarcie",
+          "body": "Pracujemy w parach nad przeglądami projektów. Komentujemy PR-y w linii. Wierzymy, że gustu można się nauczyć, i oczekujemy, że ludzie aktywnie pomagają innym stawać się lepszymi."
+        },
+        {
+          "title": "Prawdziwy budżet na naukę",
+          "body": "$2,000 na osobę rocznie, bez pytań, na konferencje, książki, kursy, wszystko, co wraca do pracy, którą tu wykonujesz."
+        },
+        {
+          "title": "Architektura pisana przez Ciebie",
+          "body": "RFC są otwarte dla każdego. Nowi inżynierowie kształtowali kluczową infrastrukturę już w pierwszym miesiącu. Jeśli masz lepszy plan, opisz go, przeczytamy."
+        }
+      ]
+    },
+    "roles": {
+      "eyebrow": "Otwarte role · aktualizowane co tydzień",
+      "title": "Dołącz do tej podróży.",
+      "lead": "28 otwartych ról w czterech biurach. Rekrutujemy w inżynierii, projektowaniu, operacjach, doradztwie i partnerstwach. Nowe role pojawiają się w poniedziałki.",
+      "allDepartments": "Wszystkie działy",
+      "deps": {
+        "eng": "Inżynieria",
+        "design": "Projektowanie",
+        "ops": "Operacje",
+        "consult": "Konsultanci",
+        "data": "Dane i ML",
+        "gtm": "Marketing i GTM"
+      },
+      "showing": "Pokazano role: <strong>{count}</strong> · wszystkie lokalizacje · wszystkie zespoły",
+      "anyLocation": "Dowolna lokalizacja",
+      "groupCount": "Otwarte: {count}",
+      "posSub": "{team} · zatrudniamy za kunszt i osąd, nie za pochodzenie",
+      "locationLabel": "Lokalizacja",
+      "typeLabel": "Rodzaj",
+      "fullTime": "Pełny etat",
+      "viewRole": "Zobacz rolę",
+      "locations": {
+        "sg": "Singapur",
+        "sf": "Szanghaj",
+        "ldn": "Singapur",
+        "dxb": "Szanghaj"
+      },
+      "jobs": {
+        "backendPayments": "Senior Backend Engineer, Platforma",
+        "staffDocPipeline": "Staff Engineer: potok dokumentów",
+        "iosApplicant": "iOS Engineer: aplikacja dla wnioskodawców",
+        "platformInfra": "Platform Engineer: infrastruktura i bezpieczeństwo",
+        "frontendConsole": "Frontend Engineer: konsola konsultanta",
+        "emWeb": "Engineering Manager: Web",
+        "sre": "Site Reliability Engineer",
+        "androidSenior": "Senior Android Engineer",
+        "leadEmbassy": "Engineering Lead: integracje z ambasadami",
+        "productDesignerApplicant": "Senior Product Designer: ścieżka wnioskodawcy",
+        "brandDesigner": "Projektant marki",
+        "designLeadConsultant": "Design Lead: narzędzia konsultanta",
+        "headOpsMe": "Dyrektor operacyjny, Bliski Wschód",
+        "visaOpsSchengen": "Visa Operations Lead: Schengen",
+        "logistics": "Menedżer logistyki i kurierów",
+        "processDocQa": "Inżynier procesów: kontrola jakości dokumentów",
+        "opsAnalyst": "Analityk operacyjny: rezerwacje",
+        "consultSchengen": "Konsultant wizowy: Schengen",
+        "consultUs": "Konsultant wizowy: USA B1/B2",
+        "consultUae": "Konsultant wizowy: pobyt w ZEA",
+        "consultStudent": "Starszy konsultant: wizy studenckie",
+        "consultApac": "Lider konsultantów: Azja i Pacyfik",
+        "consultUk": "Konsultant wizowy: Wielka Brytania",
+        "dataScientist": "Senior Data Scientist: modelowanie zatwierdzeń",
+        "mlOcr": "ML Engineer: OCR i AI dla dokumentów",
+        "perfMarketing": "Performance Marketing Manager",
+        "contentLead": "Content Lead: storytelling",
+        "lifecycleCrm": "Lifecycle & CRM Manager"
+      }
+    },
+    "fellowship": {
+      "tag": "▲ VIZA Launchpad · program 12-tygodniowy",
+      "title": "Dwanaście tygodni. Jeden zespół produktowy.<br></br><em>Jedna szansa, by coś dowieźć.</em>",
+      "para1": "Launchpad to nasz program rezydencyjny dla początkujących inżynierów, menedżerów produktu i projektantów, czyli ludzi, którzy inaczej potrzebowaliby jeszcze dwóch lat „doświadczenia”, zanim dostaną prawdziwą szansę.",
+      "para2": "Będziesz pracować w parze z doświadczonymi liderami, odpowiadać za prawdziwy obszar produktu od startu do wydania i wyjdziesz z czymś, czego użyją miliony ludzi. Około 60% uczestników dostaje ofertę pracy na pełny etat.",
+      "meta": [
+        {
+          "k": "Czas trwania",
+          "v": "12 tygodni"
+        },
+        {
+          "k": "Lokalizacja",
+          "v": "W biurze, dowolna siedziba"
+        },
+        {
+          "k": "Stypendium",
+          "v": "Powyżej rynkowego"
+        },
+        {
+          "k": "Następna edycja",
+          "v": "wrzesień 2026"
+        }
+      ],
+      "apply": "Aplikuj do Launchpad",
+      "readCohort": "Przeczytaj o edycji 2025",
+      "projects": [
+        {
+          "k": "2024 · Inżynieria",
+          "title": "Przepisanie potoku OCR",
+          "meta1": "Wdrożone na produkcji",
+          "meta2": "3.2× szybciej"
+        },
+        {
+          "k": "2025 · Projektowanie",
+          "title": "Redesign ścieżki Schengen",
+          "meta1": "14 krajów na żywo",
+          "meta2": "↑ 22% konwersji"
+        },
+        {
+          "k": "2025 · Produkt",
+          "title": "Planer terminów w ambasadach",
+          "meta1": "9 ambasad",
+          "meta2": "40k terminów/mies."
+        }
+      ]
+    },
+    "benefits": {
+      "eyebrow": "Mamy Cię (naprawdę)",
+      "title": "Nudne sprawy,<br></br>załatwione porządnie.",
+      "lead": "Nie uważamy świadczeń za dodatek. To podstawa, dzięki której ludzie robią najlepszą robotę. Oto, co dostaje każdy pracownik VIZA, w każdym biurze, od pierwszego dnia.",
+      "items": [
+        {
+          "title": "Kompleksowa opieka zdrowotna, załatwiona.",
+          "body": "Pełna opieka medyczna, dentystyczna i okulistyczna od pierwszego dnia, dla Ciebie, partnera i dzieci. Płacimy składkę, bez gier z franszyzą."
+        },
+        {
+          "title": "Buduj majątek, nie tylko pensję.",
+          "body": "Podstawa powyżej rynku w każdym kraju, w którym rekrutujemy, plus hojny pakiet udziałów powiązany z kamieniami milowymi, a nie tylko stażem. Odświeżamy co dwa lata."
+        },
+        {
+          "title": "Ucz się tego, co naprawdę ważne.",
+          "body": "Budżet na naukę $2,000 rocznie, comiesięczne wewnętrzne warsztaty i czas w kalendarzu, a nie tylko zgoda, by pójść na kurs lub konferencję."
+        },
+        {
+          "title": "Zachwycaj klientów, jakby to były Twoje pieniądze.",
+          "body": "Każdy wnioskodawca dostaje budżet $100 na gest dobrej woli ponad standard. Bez zatwierdzeń i eskalacji: napraw, a potem opisz, co się stało."
+        },
+        {
+          "title": "Umysł ponad wszystko.",
+          "body": "Poufne, profesjonalne wsparcie zdrowia psychicznego, bez przeszkód ubezpieczeniowych. Do tego trzy dni bez spotkań w miesiącu w całej firmie."
+        },
+        {
+          "title": "Podróżne bonusy (musieliśmy).",
+          "body": "Zajmujemy się wizami, więc nasz zespół powinien podróżować na nasz koszt. Budżet podróżny $4k rocznie, a VIZA załatwia każdą potrzebną wizę, od ręki i wewnętrznie."
+        },
+        {
+          "title": "Hojny, prawdziwy urlop.",
+          "body": "30 dni płatnego urlopu, plus święta w Twoim kraju, plus płatny tydzień wolny między 24 grudnia a 1 stycznia. Śledzimy wykorzystanie i zachęcamy, by brać więcej, a nie mniej."
+        },
+        {
+          "title": "Sprzęt, bez pytań.",
+          "body": "Wybierz laptop, monitor i krzesło pierwszego dnia. Dodatek na pracę zdalną na Twoje stanowisko. Ufamy, że wiesz, czego potrzebujesz do dobrej pracy."
+        },
+        {
+          "title": "Urlop rodzicielski, który naprawdę działa.",
+          "body": "20 tygodni dla głównych opiekunów, 12 dla drugiego rodzica, w pełni płatne. Do tego stopniowy powrót, byś pierwszego dnia nie wracał na pełnych obrotach."
+        }
+      ]
+    },
+    "offices": {
+      "eyebrow": "Gdzie pracujemy",
+      "title": "Dwa biura, jeden produkt.",
+      "lead": "Rekrutujemy blisko ambasad, partnerów i rynków, które obsługujemy. W każdym biurze są i inżynierowie, i operacje: nie rozdzielamy zespołów, które budują, od tych, które prowadzą salę.",
+      "cards": [
+        {
+          "photo": "zdjęcie · Szanghaj",
+          "open": "6 otwartych",
+          "name": "Szanghaj",
+          "addr1": "Lane 1502, Luoshan Road,",
+          "addr2": "Pilotażowa Strefa Wolnego Handlu Chiny (Szanghaj)",
+          "tz": "GMT+8 · operacje w Chinach",
+          "since": "Od 2023"
+        },
+        {
+          "photo": "zdjęcie · siedziba w Singapurze",
+          "open": "12 otwartych",
+          "name": "Singapur",
+          "addr1": "Paya Lebar Road 60, #06-28 Paya Lebar Square,",
+          "addr2": "Singapore 409051",
+          "tz": "GMT+8 · siedziba regionu Azji i Pacyfiku",
+          "since": "Siedziba główna · od 2021"
+        }
+      ]
+    },
+    "ctaStrip": {
+      "title": "Nie widzisz swojej roli,<br></br>ale chcesz dołączyć?",
+      "body": "Jeśli masz nietypowe doświadczenie i uważasz, że pomożesz nam szybciej przewozić podróżnych świata, chcemy usłyszeć od Ciebie. Zatrudnialiśmy kierowców autobusów, byłych pracowników ambasad i prawników. Nie mamy typu.",
+      "lead": "Zgłoszenie ogólne",
+      "cta": "Opowiedz nam swoją historię",
+      "note": "Odpowiadamy w ciągu 7 dni, nawet gdy odpowiedź brzmi nie."
+    },
+    "footer": {
+      "tagline": "VIZA pomaga zaplanować wizy, złożyć wnioski i śledzić ich status w dowolnym zakątku świata.",
+      "company": "Firma",
+      "products": "Produkty",
+      "offices": "Biura",
+      "careers": "Kariera",
+      "contact": "Kontakt",
+      "security": "Bezpieczeństwo",
+      "privacy": "Prywatność",
+      "terms": "Regulamin",
+      "prodVisaReq": "Wymagania wizowe",
+      "prodSchengen": "Sprawdzanie terminów Schengen",
+      "prodPhoto": "Kreator zdjęć wizowych",
+      "prodHelpline": "Awaryjna infolinia VIZA",
+      "prodStudent": "Wiza studencka",
+      "officeSg": "Singapur: siedziba główna",
+      "officeSf": "Szanghaj",
+      "copyright": "© VIZA, wszelkie prawa zastrzeżone"
+    }
+  },
+  "security": {
+    "hero": {
+      "eyebrow": "Bezpieczeństwo w VIZA · ostatnia aktualizacja: maj 2026",
+      "title": "Prywatnie. Przejrzyście.<br></br><em>Bezpiecznie domyślnie.</em>",
+      "lead": "Klienci na całym świecie powierzają nam miliony wrażliwych dokumentów: paszporty, wyciągi bankowe, zdjęcia. Oto dokładnie, jak je zbieramy, przechowujemy i dowodzimy, że robimy to dobrze.",
+      "ctaPrimary": "Jak chronimy Twoje dane",
+      "ctaVdp": "Zgłoś lukę"
+    },
+    "clearance": {
+      "republicKey": "Republika",
+      "officeKey": "Biuro wydające",
+      "officeVal": "Zaufanie i bezpieczeństwo",
+      "title": "Poświadczenie bezpieczeństwa /<br></br>Dane klientów",
+      "grid": {
+        "encryption": {
+          "k": "Szyfrowanie",
+          "v": "AES-256 / TLS 1.3"
+        },
+        "region": {
+          "k": "Region",
+          "v": "SG · US · EU"
+        },
+        "audit": {
+          "k": "Częstotliwość audytów",
+          "v": "Co kwartał"
+        },
+        "retention": {
+          "k": "Przechowywanie",
+          "v": "maks. 90 dni"
+        }
+      },
+      "referenceKey": "Numer referencyjny",
+      "glyph": "ZATWIERDZONE<br></br>VIZA · 26"
+    },
+    "chips": {
+      "transitLabel": "W transmisji",
+      "transitVal": "TLS 1.3 od końca do końca",
+      "restLabel": "W spoczynku",
+      "restVal": "AES-256, przypięte do regionu"
+    },
+    "stats": {
+      "docs": {
+        "value": "2.4M",
+        "label": "Dokumentów obsłużonych w 2025, zero naruszeń danych klientów"
+      },
+      "retention": {
+        "unit": "dni",
+        "label": "Maksymalny czas przechowywania dokumentów źródłowych po wydaniu"
+      },
+      "pentests": {
+        "label": "Zewnętrzne testy penetracyjne, wszystkie raporty opublikowane wewnętrznie"
+      },
+      "ack": {
+        "unit": "godz.",
+        "label": "Mediana czasu potwierdzenia zgłoszonej luki"
+      }
+    },
+    "docs": {
+      "eyebrow": "Co zbieramy",
+      "title": "Pięć rodzajów dokumentów.<br></br><em>Nic więcej.</em>",
+      "copy1": "Wniosek wizowy to sprawa papierów. Zbieramy tylko to, o co wyraźnie prosi ambasada, i anonimizujemy, gdzie się da. Każdy dokument jest przypisany do jednego wniosku, szyfrowany po otrzymaniu i usuwany według stałego harmonogramu.",
+      "copy2": "Nigdy nie sprzedajemy Twoich danych. Nigdy nie udostępniamy ich osobom trzecim poza konsulatem lub partnerem bezpośrednio zaangażowanym w Twoją wizę.",
+      "cards": {
+        "payment": {
+          "name": "Dane płatnicze",
+          "meta": "nie zbieramy"
+        },
+        "photos": {
+          "name": "Zdjęcia wizowe",
+          "meta": "przetwarzane · maks. 90 dni"
+        },
+        "bank": {
+          "name": "Wyciągi bankowe",
+          "meta": "zamaskowane · tylko PDF"
+        },
+        "pastVisas": {
+          "name": "Dawne wizy",
+          "meta": "tylko do odczytu · OCR"
+        },
+        "passport": {
+          "name": "Paszport",
+          "meta": "odczytana strefa MRZ"
+        }
+      }
+    },
+    "features": {
+      "eyebrow": "Siedem zabezpieczeń, zawsze włączonych",
+      "title": "Jak Twoje dane pozostają<br></br>Twoje, od końca do <em>końca.</em>",
+      "intro": "Domyślny stan każdego bajtu w VIZA to „zaszyfrowany, ograniczony zakresem i ograniczony w czasie”. Te siedem zabezpieczeń to zapewnia: to nie aspiracje, tylko to, co faktycznie działa w platformie dziś.",
+      "cells": {
+        "minimise": {
+          "title": "Minimalizacja i anonimizacja danych",
+          "body": "Zbieramy tylko to, czego ambasada lub partner faktycznie wymaga przy danym wniosku, i anonimizujemy, gdzie reszta platformy na to pozwala. Pól, których nie widzisz w formularzach, nie przechowujemy.",
+          "why": "<strong>Dlaczego:</strong> wyciek nie ujawni danych, których nigdy nie zebrano."
+        },
+        "payments": {
+          "title": "Brak danych płatniczych",
+          "body": "Usługa VIZA jest bezpłatna i nie przyjmujemy płatności, więc nigdy nie prosimy o numery kart, nie widzimy ich ani nie przechowujemy.",
+          "why": "<strong>Dlaczego:</strong> danych, których nie mamy, nie da się ukraść."
+        },
+        "atRest": {
+          "title": "Szyfrowanie w spoczynku",
+          "body": "Każdy dokument, wiadomość i pole metadanych na serwerach VIZA jest szyfrowane AES-256, zanim trafi na dysk. Klucze są rotowane automatycznie i przechowywane w sprzętowym KMS, którego nie może bezpośrednio odczytać nawet nasz zespół infrastruktury.",
+          "why": "<strong>Dlaczego:</strong> skradzione dyski lub kopie zapasowe pozostają nieczytelne bez kluczy."
+        },
+        "inTransit": {
+          "title": "Szyfrowanie od końca do końca",
+          "body": "Cały ruch między Twoim urządzeniem, naszymi serwerami i konsulatami partnerów używa TLS 1.3 ze ścisłym przypinaniem. Przesyłanie dokumentów odbywa się osobnym, podpisanym kanałem, aby nawet atakujący na poziomie sieci nie widzieli, co wysyłasz.",
+          "why": "<strong>Dlaczego:</strong> wrogie sieci, w tym Wi-Fi na lotnisku, nie odczytają Twojego wniosku."
+        },
+        "audits": {
+          "title": "Regularne audyty bezpieczeństwa",
+          "body": "Co kwartał przeprowadzamy zewnętrzny test penetracyjny, co roku audyt SOC 2 Typ II oraz ciągłe zautomatyzowane skanowanie podatności. Każde ustalenie jest zapisane z terminem naprawy, a zaległe pozycje alarmują lidera inżynierii.",
+          "why": "<strong>Dlaczego:</strong> zagrożenia się zmieniają, a nasze zabezpieczenia są sprawdzane na nie według harmonogramu."
+        },
+        "access": {
+          "title": "Bezpieczna kontrola dostępu",
+          "body": "Wewnętrzny dostęp do danych klientów jest ograniczony rolami, audytowany przy każdym żądaniu i nadawany z podniesieniem uprawnień just-in-time. Konsultanci widzą wyłącznie wniosek, nad którym aktywnie pracują. Każdy odczyt jest zapisywany przez 12 miesięcy.",
+          "why": "<strong>Dlaczego:</strong> błędy i nadużycia wewnętrzne są ograniczone, przypisane do osób i możliwe do sprawdzenia."
+        },
+        "education": {
+          "title": "Edukacja i świadomość użytkowników",
+          "body": "Najtrudniejszej części bezpieczeństwa nie możemy dostarczyć za Ciebie. Wysyłamy proste poradniki o phishingu, oszustwach ze zdjęciami paszportowymi i fałszywych SMS-ach od ambasad, gdy tylko zaczynasz wniosek, i pokazujemy je ponownie w produkcie, gdy coś wygląda podejrzanie. Jesteś ostatnią linią obrony; wolimy Cię wyposażyć niż obwiniać.",
+          "why": "<strong>Dlaczego:</strong> dobrze poinformowany wnioskodawca to najtańsze i najskuteczniejsze zabezpieczenie, jakie mamy."
+        }
+      }
+    },
+    "vdp": {
+      "tag": "▲ Zgłaszanie podatności · otwarte dla wszystkich badaczy",
+      "title": "Znalazłeś coś?<br></br><em>Chcemy o tym usłyszeć.</em>",
+      "p1": "Bezpieczeństwo użytkowników i partnerów jest dla nas najważniejsze. Jeśli uważasz, że znalazłeś prawdziwą lukę dotyczącą usług VIZA, powiedz nam o tym wprost, a my szybko i z szacunkiem pomożemy ją naprawić.",
+      "p2": "Wyślij swoje ustalenia na <strong>security@viza.it.com</strong>. Potwierdzimy odbiór w ciągu jednego dnia roboczego, nawet jeśli okaże się, że to już znane lub poza zakresem.",
+      "meta": {
+        "ack": {
+          "k": "Potwierdzenie w ciągu",
+          "v": "'<' 24 godzin"
+        },
+        "triage": {
+          "k": "Ocena w ciągu",
+          "v": "3 dni roboczych"
+        },
+        "lang": {
+          "k": "Języki",
+          "v": "EN · ID · AR"
+        },
+        "pgp": {
+          "k": "Klucz PGP",
+          "v": "0xVIZA · 2026"
+        }
+      },
+      "ctaEmail": "Napisz na security@viza.it.com",
+      "ctaScope": "Przeczytaj zakres",
+      "terminal": {
+        "title": "szkic-raportu · security@viza.it.com",
+        "l1": "# raport o podatności",
+        "typeKey": "typ:",
+        "typeVal": "authentication-bypass",
+        "urlKey": "url:",
+        "reproKey": "odtworzenie:",
+        "reproVal": "[kroki 1-4]",
+        "impactKey": "skutek:",
+        "impactVal": "przejęcie konta",
+        "pocKey": "poc:",
+        "l7": "# ↳ zaszyfrowane do 0xVIZA",
+        "send": "wyślij"
+      }
+    },
+    "report": {
+      "eyebrow": "Zgłaszanie podatności",
+      "title": "Co umieścić w<br></br>zgłoszeniu i <em>czego nie.</em>",
+      "intro": "Dobre zgłoszenie oszczędza nam obu tydzień. Oto format, który pozwala ocenić sprawę najszybciej, oraz rzeczy, których wolelibyśmy nie dostawać w skrzynce.",
+      "include": {
+        "heading": "Dołącz",
+        "sub": "Pięć pól. Im jaśniejsze, tym szybciej potwierdzimy i naprawimy.",
+        "items": {
+          "type": "<strong>Rodzaj problemu</strong>, np. uwierzytelnianie, kontrola dostępu, wstrzyknięcie, IDOR, SSRF.",
+          "steps": "<strong>Jasne kroki odtworzenia</strong>, numerowane, po kolei, najlepiej w czystej sesji.",
+          "impact": "<strong>Potencjalny wpływ na bezpieczeństwo</strong>: co atakujący mógłby z tym zrobić, prostym językiem.",
+          "poc": "<strong>Dowód koncepcji</strong>: najlepiej zrzuty ekranu lub krótki film z ekranu, w drugiej kolejności logi."
+        }
+      },
+      "dontSend": {
+        "heading": "Nie wysyłaj",
+        "sub": "Są niebezpieczne, nieprzydatne lub jedno i drugie, a po otrzymaniu musimy je usunąć.",
+        "items": {
+          "secrets": "<strong>Haseł ani tokenów uwierzytelniających</strong>, własnych ani cudzych. Pokaż wektor, nie sekret.",
+          "malware": "<strong>Surowych próbek złośliwego oprogramowania ani logów stealerów.</strong> Opisz, co widziałeś, nie dołączaj tego.",
+          "scanners": "<strong>Dużych raportów automatycznych skanerów</strong> bez ręcznie wybranego, wykazanego ustalenia.",
+          "customerData": "<strong>Danych osobowych ani dokumentów klientów</strong>, nawet jeśli były podstawą Twojego odkrycia.",
+          "socialEng": "<strong>Nagrań prób socjotechniki</strong> wobec naszych pracowników lub konsultantów."
+        }
+      }
+    },
+    "scope": {
+      "eyebrow": "Zakres programu",
+      "title": "Co wchodzi, co nie.",
+      "intro": "Jeśli nie masz pewności, czy zgłoszenie mieści się na tej liście, wyślij je mimo to i zapytaj. Wolimy ocenić sprawę i iść dalej, niż żebyś zatrzymał prawdziwy problem przez niejasną granicę.",
+      "fileRef": "/security/scope.md · v6",
+      "in": {
+        "pill": "W zakresie",
+        "heading": "Zgłoszenia, które aktywnie ocenimy",
+        "items": {
+          "web": "Aplikacje internetowe i API VIZA pod adresem <code>*.viza.com</code>, w tym portal wnioskodawcy, konsola konsultanta i punkty końcowe partnerów.",
+          "infra": "Infrastruktura i usługi należące do VIZA: uwierzytelnianie, potok dokumentów, planowanie.",
+          "mobile": "Aplikacje mobilne (iOS, Android) opublikowane na koncie deweloperskim VIZA.",
+          "marketing": "Publiczne strony marketingowe i treściowe w domenach kontrolowanych przez VIZA."
+        }
+      },
+      "out": {
+        "pill": "Poza zakresem",
+        "heading": "Zgłoszenia, których nie możemy rozpatrzyć w tym programie",
+        "items": {
+          "devices": "Problemy wynikające ze skompromitowanych urządzeń użytkowników, rozszerzeń przeglądarki lub skradzionych danych logowania.",
+          "phishing": "Ataki socjotechniczne lub phishingowe wymierzone w pracowników, partnerów lub konsultantów VIZA.",
+          "thirdParty": "Usługi lub integracje osób trzecich, które nie są bezpośrednio prowadzone przez VIZA (portale konsulatów, strony kurierów).",
+          "scanners": "Wyniki automatycznych skanerów bez wykazanej, realnej możliwości wykorzystania.",
+          "headers": "Brakujące nagłówki bezpieczeństwa lub ogólne zalecenia dobrych praktyk bez ścieżki ataku."
+        }
+      }
+    },
+    "pledge": {
+      "eyebrow": "Odpowiedzialne ujawnianie",
+      "title": "Umowa, którą<br></br>zawieramy ze sobą.",
+      "intro": "Ujawnianie działa, gdy obie strony działają w dobrej wierze. Oto, o co prosimy Ciebie, i do czego możesz nas pociągnąć w zamian, spisane tak, by nikt nie musiał zgadywać.",
+      "researcher": {
+        "kicker": "O co prosimy Ciebie",
+        "title": "<em>Zobowiązania</em> badacza.",
+        "p": "Wysyłając zgłoszenie, zgadzasz się działać w dobrej wierze i zgodnie z duchem programu, a nie tylko z jego literą.",
+        "items": {
+          "1": "Działaj w dobrej wierze: unikaj naruszeń prywatności, niszczenia danych i zakłóceń usługi podczas badań.",
+          "2": "Nie wykorzystuj problemu bardziej, niż potrzeba do jego potwierdzenia, i nigdy nie uzyskuj dostępu do danych, które nie są Twoje.",
+          "3": "Zachowaj szczegóły podatności w poufności, dopóki nie wdrożymy poprawki i nie potwierdzimy jej z Tobą.",
+          "4": "Nie ujawniaj publicznie ustaleń bez uprzedniej pisemnej zgody zespołu bezpieczeństwa VIZA."
+        }
+      },
+      "viza": {
+        "kicker": "Do czego możesz nas pociągnąć",
+        "title": "<em>Zobowiązania</em> VIZA.",
+        "p": "W zamian nie ignorujemy zgłaszających, nie spieramy się o wagę, by uniknąć poprawki, i nie pozywamy osób, które nam pomagają.",
+        "items": {
+          "1": "Przejrzymy każde prawidłowe zgłoszenie i odpowiemy w ciągu jednego dnia roboczego, niezależnie od wagi.",
+          "2": "Będziemy komunikować się z szacunkiem, bez defensywnego języka i zbywania hasłem „działa zgodnie z założeniem”.",
+          "3": "Podejmiemy odpowiednie działania naprawcze, gdy będzie to potrzebne, i powiemy Ci, gdy poprawka zostanie wdrożona.",
+          "4": "Wymienimy Cię (za zgodą) w naszym dzienniku zmian bezpieczeństwa po rozwiązaniu problemu."
+        }
+      }
+    },
+    "legal": {
+      "eyebrow": "Prawo i nagrody",
+      "title": "Bezpieczna przystań, nagrody<br></br>i drobny druk.",
+      "intro": "Jeśli stosujesz tę politykę w dobrej wierze, traktujemy Twoje badania jako dozwolone. Reszta strony to nudna, ale ważna część: wyłożona, nie ukryta.",
+      "cards": {
+        "safeHarbour": {
+          "title": "Prawna bezpieczna przystań",
+          "body": "Jeśli stosujesz tę politykę w dobrej wierze, VIZA nie podejmie kroków prawnych wobec Ciebie za przypadkowe lub niezamierzone naruszenia związane z Twoimi badaniami. Nadal obowiązuje Cię przestrzeganie przepisów prawa."
+        },
+        "rewards": {
+          "title": "Nagrody i bug bounty",
+          "body": "VIZA nie prowadzi obecnie publicznego programu bug bounty. Oferujemy uznaniowy dowód uznania za prawidłowe, odpowiedzialnie zgłoszone problemy, oceniany według wpływu, nowości i jakości zgłoszenia.",
+          "meta": "uznaniowo · od przypadku do przypadku"
+        },
+        "updates": {
+          "title": "Zmiany programu",
+          "body": "VIZA zastrzega sobie prawo do zmiany lub zakończenia programu w dowolnym czasie. Jeśli nie masz pewności, czy Twoje badania zgadzają się z polityką, skontaktuj się z nami pod adresem security@viza.it.com <em>zanim</em> przejdziesz dalej.",
+          "meta": "ostatnia zmiana · maj 2026"
+        }
+      }
+    },
+    "cta": {
+      "title": "Widzisz coś podejrzanego?<br></br>Powiedz naszemu zespołowi bezpieczeństwa.",
+      "body": "Wolimy usłyszeć o drobnym znalezisku dwa razy niż przegapić duże raz. Zgłoszenia trafiają prosto do prawdziwego człowieka z zespołu bezpieczeństwa, bez portalu zgłoszeń i bez robota oceniającego.",
+      "lead": "Bezpośrednio do zespołu bezpieczeństwa",
+      "small": "Mediana odpowiedzi: poniżej 24 godzin, każdego dnia tygodnia."
+    },
+    "footer": {
+      "tagline": "VIZA pomaga zaplanować wizy, złożyć wnioski i śledzić ich status w dowolnym zakątku świata.",
+      "company": "Firma",
+      "careers": "Kariera",
+      "contact": "Kontakt",
+      "security": "Bezpieczeństwo",
+      "privacy": "Prywatność",
+      "terms": "Regulamin",
+      "products": "Produkty",
+      "prodVisaReq": "Wymagania wizowe",
+      "prodSchengen": "Sprawdzanie terminów Schengen",
+      "prodPhoto": "Kreator zdjęć wizowych",
+      "prodHelpline": "Awaryjna infolinia VIZA",
+      "prodStudent": "Wiza studencka",
+      "offices": "Biura",
+      "officeSg": "Singapur: siedziba główna",
+      "officeSf": "Szanghaj",
+      "copyright": "© VIZA, wszelkie prawa zastrzeżone"
+    }
+  },
+  "status": {
+    "crumbHome": "Przejrzystość",
+    "crumbHere": "Status systemu",
+    "hero": {
+      "title": "Status systemu",
+      "lead": "Dostępność poparta dowodami dla VIZA i rządowych portali wizowych, z którymi pracujemy. Każdy procent, pasek osi czasu i incydent poniżej pochodzi z zapisanej kontroli syntetycznej."
+    },
+    "console": {
+      "title": "Niezawodność VIZA · na żywo",
+      "live": "Zweryfikowane",
+      "unverified": "Niezweryfikowane",
+      "allOperational": "Wszystkie systemy działają",
+      "degraded": "Niektóre systemy działają gorzej",
+      "majorOutage": "Monitorowany system jest niedostępny",
+      "dataUnavailable": "Dane monitoringu niedostępne",
+      "lastChecked": "Ostatnia zapisana kontrola: {time}",
+      "noChecks": "Nie zapisano jeszcze żadnych zakończonych kontroli",
+      "kUptime": "Kontrole z 90 dni zakończone powodzeniem",
+      "kMonitors": "Monitorowane punkty końcowe",
+      "kIncidents": "Aktywny incydent"
+    },
+    "subnav": {
+      "current": "Aktualny status",
+      "incidents": "Dawne incydenty",
+      "subscribe": "Subskrypcja",
+      "searchPlaceholder": "Szukaj krajów",
+      "subscribeBtn": "Subskrybuj aktualizacje"
+    },
+    "platform": {
+      "title": "Platforma VIZA",
+      "realMeta": "Sprawdzane co 5 minut · punkty końcowe: {count}",
+      "meta": "Sprawdzane co 5 minut",
+      "name": "Platforma wniosków VIZA",
+      "sub": "Publiczne usługi VIZA"
+    },
+    "uptime": {
+      "ago": "90 dni temu",
+      "today": "Dziś",
+      "pct": "{pct}% kontroli zakończonych powodzeniem",
+      "noData": "Brak zapisanych kontroli"
+    },
+    "dayObservation": "{date}: zapisane kontrole: {checks}",
+    "dayNoData": "{date}: brak zapisanych danych",
+    "dayTitle": "Dzień {n}",
+    "statusLabels": {
+      "op": "Działa",
+      "deg": "Pogorszone działanie",
+      "part": "Częściowa awaria",
+      "maj": "Niedostępne",
+      "none": "Brak aktualnych danych"
+    },
+    "lastChecked": "Sprawdzono {time}",
+    "monitorStale": "Brak kontroli lub nieaktualna kontrola",
+    "monitoringUnavailable": "API statusu nie ma świeżych dowodów. VIZA nie pokaże danych z pamięci podręcznej ani wygenerowanej dostępności jako bieżącego stanu usługi.",
+    "noSearchResults": "Żaden monitorowany kraj nie pasuje do tego wyszukiwania.",
+    "noRecordedIncidents": "W ciągu ostatnich 90 dni z zapisanych kontroli nie wyprowadzono żadnych incydentów.",
+    "incidentCount": "{count, plural, one {# incydent} few {# incydenty} many {# incydentów} other {# incydentu}}",
+    "incidentRecovered": "Zapisane kontrole pokazują, że ta usługa wróciła do działania.",
+    "noIssues": "Brak aktywnych problemów",
+    "activeIncident": "Aktywny incydent",
+    "portalsHead": {
+      "title": "Portale rządowe",
+      "lead": "Ograniczone żądanie syntetyczne sprawdza każdy skonfigurowany portal co pięć minut. Szara historia oznacza, że nie zapisano obserwacji. Nigdy nie wypełniamy jej danymi szacunkowymi."
+    },
+    "incidentsHead": {
+      "title": "Dawne incydenty",
+      "lead": "Incydenty otwierają się i zamykają na podstawie zapisanych zmian stanu monitora. To dostępność operacyjna, a nie status osobistej decyzji wizowej wnioskodawcy."
+    },
+    "tags": {
+      "identified": "Zidentyfikowany",
+      "investigating": "W trakcie badania",
+      "resolved": "Rozwiązany"
+    },
+    "portals": {
+      "AE": {
+        "name": "Zjednoczone Emiraty Arabskie",
+        "sub": "Portale GDRFA · ICA"
+      },
+      "AM": {
+        "name": "Armenia",
+        "sub": "Portal e-wiz"
+      },
+      "AU": {
+        "name": "Australia",
+        "sub": "ImmiAccount"
+      },
+      "AZ": {
+        "name": "Azerbejdżan",
+        "sub": "ASAN Visa"
+      },
+      "DE": {
+        "name": "Niemcy",
+        "sub": "VIDEX · terminy w konsulatach"
+      },
+      "DK": {
+        "name": "Dania"
+      },
+      "EG": {
+        "name": "Egipt",
+        "sub": "Portal e-wiz"
+      },
+      "FI": {
+        "name": "Finlandia",
+        "sub": "EnterFinland"
+      },
+      "FR": {
+        "name": "Francja",
+        "sub": "France-Visas"
+      },
+      "GB": {
+        "name": "Wielka Brytania",
+        "sub": "UKVCAS · UK Visas",
+        "bannerText": "Niektóre rodzaje wniosków mają awarię.",
+        "bannerLink": "Zobacz oś czasu incydentu"
+      },
+      "GE": {
+        "name": "Gruzja"
+      },
+      "GR": {
+        "name": "Grecja",
+        "sub": "AEGEAN · konsularne"
+      },
+      "HK": {
+        "name": "Hongkong",
+        "sub": "Immigration eVisa"
+      },
+      "ID": {
+        "name": "Indonezja",
+        "sub": "e-Visa Indonesia"
+      },
+      "IN": {
+        "name": "Indie",
+        "sub": "Indian Visa Online"
+      },
+      "JO": {
+        "name": "Jordania"
+      },
+      "KE": {
+        "name": "Kenia",
+        "sub": "eCitizen / eVisa"
+      },
+      "KH": {
+        "name": "Kambodża"
+      },
+      "LK": {
+        "name": "Sri Lanka",
+        "sub": "Portal ETA"
+      },
+      "MA": {
+        "name": "Maroko"
+      },
+      "TH": {
+        "name": "Tajlandia",
+        "sub": "Thailand e-Visa"
+      }
+    },
+    "incidents": {
+      "count": "<strong>{count}</strong> {count, plural, one {kraj miał} few {kraje miały} many {krajów miało} other {kraju miało}} problemy z wydajnością",
+      "events": "{count, plural, one {# zdarzenie} few {# zdarzenia} many {# zdarzeń} other {# zdarzenia}}",
+      "days": [
+        {
+          "date": "10 maja 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "10 maja, 3:05 PM",
+                  "desc": "Incydent został rozwiązany. Usługa wróciła do normalnego działania."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "10 maja, 5:05 PM",
+                  "desc": "Incydent został rozwiązany. Usługa wróciła do normalnego działania."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "9 maja 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "9 maja, 10:50 PM",
+                  "desc": "Badamy podwyższony odsetek błędów."
+                },
+                {
+                  "time": "10 maja, 12:20 AM",
+                  "desc": "Waga incydentu wzrosła z pogorszenia działania do częściowej awarii."
+                },
+                {
+                  "time": "10 maja, 2:50 AM",
+                  "desc": "Waga incydentu wzrosła z częściowej awarii do poważnej awarii."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "9 maja, 3:05 PM",
+                  "desc": "Badamy podwyższony odsetek błędów."
+                },
+                {
+                  "time": "9 maja, 7:20 PM",
+                  "desc": "Waga incydentu wzrosła z częściowej awarii do poważnej awarii."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "8 maja 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "8 maja, 1:05 PM",
+                  "desc": "Badamy podwyższony odsetek błędów."
+                },
+                {
+                  "time": "8 maja, 2:05 PM",
+                  "desc": "Incydent został rozwiązany. Usługa wróciła do normalnego działania."
+                },
+                {
+                  "time": "8 maja, 2:50 PM",
+                  "desc": "Badamy podwyższony odsetek błędów."
+                },
+                {
+                  "time": "8 maja, 7:35 PM",
+                  "desc": "Incydent został rozwiązany. Usługa wróciła do normalnego działania."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "5 maja 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "5 maja, 1:36 PM",
+                  "desc": "Waga incydentu wzrosła z pogorszenia działania do częściowej awarii."
+                },
+                {
+                  "time": "5 maja, 4:50 PM",
+                  "desc": "Incydent został rozwiązany."
+                },
+                {
+                  "time": "5 maja, 9:20 PM",
+                  "desc": "Badamy podwyższony odsetek błędów."
+                },
+                {
+                  "time": "5 maja, 10:20 PM",
+                  "desc": "Incydent został rozwiązany."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "5 maja, 2:43 PM",
+                  "desc": "Incydent został rozwiązany."
+                },
+                {
+                  "time": "5 maja, 3:35 PM",
+                  "desc": "Badamy podwyższony odsetek błędów."
+                },
+                {
+                  "time": "5 maja, 7:35 PM",
+                  "desc": "Waga incydentu wzrosła z częściowej awarii do poważnej awarii."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "4 maja 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "4 maja, 4:05 PM",
+                  "desc": "Badamy podwyższony odsetek błędów."
+                },
+                {
+                  "time": "4 maja, 5:05 PM",
+                  "desc": "Incydent został rozwiązany."
+                },
+                {
+                  "time": "4 maja, 7:36 PM",
+                  "desc": "Badamy podwyższony odsetek błędów."
+                },
+                {
+                  "time": "4 maja, 8:35 PM",
+                  "desc": "Incydent został rozwiązany."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "4 maja, 12:05 PM",
+                  "desc": "Incydent został rozwiązany."
+                },
+                {
+                  "time": "4 maja, 1:50 PM",
+                  "desc": "Badamy podwyższony odsetek błędów."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2 maja 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "2 maja, 6:35 PM",
+                  "desc": "Badamy podwyższony odsetek błędów."
+                },
+                {
+                  "time": "2 maja, 7:50 PM",
+                  "desc": "Incydent został rozwiązany."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "2 maja, 9:20 AM",
+                  "desc": "Badamy podwyższony odsetek błędów."
+                },
+                {
+                  "time": "2 maja, 10:20 AM",
+                  "desc": "Incydent został rozwiązany."
+                },
+                {
+                  "time": "2 maja, 8:20 PM",
+                  "desc": "Badamy podwyższony odsetek błędów."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "2 maja, 8:20 PM",
+                  "desc": "Badamy podwyższony odsetek błędów."
+                },
+                {
+                  "time": "3 maja, 12:05 AM",
+                  "desc": "Incydent został rozwiązany."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "1 maja 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "1 maja, 2:05 PM",
+                  "desc": "Badamy podwyższony odsetek błędów."
+                },
+                {
+                  "time": "1 maja, 3:05 PM",
+                  "desc": "Incydent został rozwiązany."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "30 kwietnia 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "30 kwietnia, 8:20 AM",
+                  "desc": "Badamy podwyższony odsetek błędów."
+                },
+                {
+                  "time": "30 kwietnia, 9:50 AM",
+                  "desc": "Incydent został rozwiązany."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 kwietnia, 3:05 PM",
+                  "desc": "Incydent został rozwiązany."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 kwietnia, 4:51 PM",
+                  "desc": "Incydent został rozwiązany."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 kwietnia, 1:20 PM",
+                  "desc": "Badamy podwyższony odsetek błędów."
+                },
+                {
+                  "time": "30 kwietnia, 2:37 PM",
+                  "desc": "Waga incydentu wzrosła z pogorszenia działania do częściowej awarii."
+                },
+                {
+                  "time": "30 kwietnia, 8:20 PM",
+                  "desc": "Incydent został rozwiązany."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 kwietnia, 6:50 PM",
+                  "desc": "Incydent został rozwiązany."
+                },
+                {
+                  "time": "30 kwietnia, 7:50 PM",
+                  "desc": "Badamy podwyższony odsetek błędów."
+                },
+                {
+                  "time": "1 maja, 12:20 AM",
+                  "desc": "Incydent został rozwiązany."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "subscribe": {
+      "title": "Dowiedz się pierwszy,<br></br>gdy coś przestanie działać.",
+      "lead": "Wybierz kraje, które Cię interesują, a wyślemy jedną prostą wiadomość, gdy ich portale lub nasze przestaną działać albo wrócą do działania.",
+      "emailLabel": "Otrzymuj aktualizacje o incydentach e-mailem",
+      "button": "Subskrybuj",
+      "follow": "Albo śledź status przez:",
+      "chipEmail": "Podsumowanie e-mail",
+      "chipSms": "SMS i WhatsApp",
+      "chipRss": "Kanał RSS",
+      "chipWebhook": "Webhook dla operacji"
+    },
+    "footer": {
+      "tagline": "VIZA pomaga zaplanować wizy, złożyć wnioski i śledzić ich status w dowolnym zakątku świata.",
+      "company": "Firma",
+      "careers": "Kariera",
+      "contact": "Kontakt",
+      "security": "Bezpieczeństwo",
+      "systemStatus": "Status systemu",
+      "privacy": "Prywatność",
+      "terms": "Regulamin",
+      "products": "Produkty",
+      "prodVisaReq": "Wymagania wizowe",
+      "prodSchengen": "Sprawdzanie terminów Schengen",
+      "prodPhoto": "Kreator zdjęć wizowych",
+      "prodHelpline": "Awaryjna infolinia VIZA",
+      "copyright": "© VIZA, wszelkie prawa zastrzeżone"
+    }
+  },
+  "arrival": {
+    "breadcrumbHome": "Strona główna",
+    "breadcrumbHub": "Karty przyjazdu",
+    "hubH1": "Poradniki o kartach przyjazdu",
+    "hubLead": "Karta przyjazdu to krótki formularz rządowy, który wypełniasz przed wjazdem do kraju. Większość jest online, bezpłatna i zajmuje około pięciu minut. Poradniki pokazują, kto potrzebuje której karty, kiedy ją złożyć i jak ominąć fałszywe strony, które pobierają za nią opłatę.",
+    "hubWhatTitle": "Czym jest karta przyjazdu",
+    "hubWhat": [
+      "Karta przyjazdu to deklaracja, której kraj docelowy wymaga oprócz paszportu i ewentualnej wizy. Zapisuje, kim jesteś, jak przyjeżdżasz i gdzie się zatrzymasz. Wiele krajów zastąpiło papierową kartę rozdawaną w samolocie formularzem online.",
+      "To nie jest wiza. Wiza pozwala ubiegać się o wjazd. Karta przyjazdu informuje służby graniczne o Twojej podróży, a wizę nadal musisz mieć tam, gdzie wymaga jej Twoje obywatelstwo."
+    ],
+    "hubFreeTitle": "Karty przyjazdu są bezpłatne",
+    "hubFree": [
+      "Każda karta z tych poradników jest bezpłatna na oficjalnej stronie rządu. Niektóre witryny kopiują formularz rządowy i pobierają za niego opłatę. Nigdy nie musisz płacić żadnej z nich.",
+      "Zawsze zaczynaj od oficjalnego adresu podanego w poradniku. VIZA jest niezależnym serwisem, a nie stroną rządową."
+    ],
+    "hubWhenTitle": "Kiedy jest potrzebna",
+    "hubWhen": [
+      "Większość kart otwiera się trzy dni przed przylotem i trzeba ją złożyć w tym oknie. Dokładną zasadę znajdziesz w każdym poradniku, bo Visit Japan Web w Japonii nie ma stałego terminu i nie jest obowiązkowy.",
+      "Rezydenci, obywatele i pasażerowie tranzytowi są często zwolnieni lub wypełniają krótszy formularz. Każdy poradnik wymienia, kto jest zwolniony, w tym zwolnienie obywateli Singapuru z MDAC w Malezji."
+    ],
+    "hubGuidesTitle": "Wszystkie poradniki",
+    "hubGuidesSub": "Wybierz kraj. Każdy poradnik zawiera kroki, częste błędy i oficjalne linki.",
+    "readGuide": "Czytaj poradnik",
+    "cardWhen": "Kiedy",
+    "cardsLabel": "Karta przyjazdu",
+    "hubVisaTitle": "Potrzebujesz też wizy",
+    "hubVisaBody": "Karta przyjazdu nie zastępuje wizy. Sprawdź stronę kraju, aby zobaczyć, czy Twój paszport jej wymaga.",
+    "hubVisaCta": "Przeglądaj strony o wizach",
+    "glanceTitle": "W skrócie",
+    "stepsTitle": "Jak ją wypełnić, krok po kroku",
+    "mistakesTitle": "Częste błędy",
+    "feesTitle": "Opłaty i fałszywe strony",
+    "faqTitle": "Pytania",
+    "sourcesTitle": "Źródła",
+    "relatedTitle": "Inne poradniki o kartach przyjazdu",
+    "independent": "VIZA jest niezależnym serwisem, a nie stroną rządową.",
+    "officialCta": "Otwórz oficjalną stronę",
+    "officialLabel": "Oficjalna strona",
+    "vizaTitle": "Pozwól, by VIZA zrobiła to za Ciebie",
+    "vizaBody": "Zacznij wypełniać {name} na koncie VIZA. Formularz VIZA prowadzi Cię przez te same pytania co oficjalny i zapamiętuje Twoje dane na kolejne podróże. Zawsze możesz zamiast tego skorzystać z bezpłatnej oficjalnej strony.",
+    "vizaFee": "Opłata serwisowa VIZA",
+    "vizaFeeFree": "Bezpłatnie",
+    "vizaCta": "Zacznij w VIZA",
+    "noVizaTitle": "Skorzystaj z oficjalnej strony",
+    "noVizaBody": "VIZA nie wypełnia jeszcze tej karty. Skorzystaj z oficjalnej strony poniżej i najpierw przeczytaj kroki w tym poradniku.",
+    "visaTitle": "Wiza: {country}",
+    "visaBody": "Karta przyjazdu jest osobna od wizy. Sprawdź, kto potrzebuje wizy do kraju: {country}, jakie są opłaty i jak złożyć wniosek.",
+    "visaCta": "Otwórz stronę wizy: {country}",
+    "reviewedTitle": "Sprawdzono 25 listopada 2026",
+    "stepLabel": "Krok",
+    "cards": {
+      "malaysia-mdac": {
+        "summary": "Bezpłatna karta online dla zagranicznych gości. Obywatele Singapuru są zwolnieni.",
+        "when": "W ciągu 3 dni przed przylotem"
+      },
+      "singapore-sg-arrival-card": {
+        "summary": "Karta online urzędu ICA z deklaracją zdrowia. Złóż ją na stronie lub w aplikacji MyICA.",
+        "when": "W ciągu 3 dni przed przylotem"
+      },
+      "japan-visit-japan-web": {
+        "summary": "Bezpłatne kody QR do odprawy imigracyjnej i celnej. Zalecane, nieobowiązkowe.",
+        "when": "Przed lotem"
+      },
+      "thailand-tdac": {
+        "summary": "Bezpłatna karta dla każdego zagranicznego gościa, z wizą lub bez. Zastąpiła papierowy formularz TM6.",
+        "when": "W ciągu 3 dni przed przylotem"
+      },
+      "korea-e-arrival-card": {
+        "summary": "Wymagana od 1 stycznia 2026. Posiadacz ważnego K-ETA jest zwolniony.",
+        "when": "W ciągu 3 dni przed przylotem"
+      },
+      "indonesia-all-indonesia": {
+        "summary": "Jedna karta do odprawy imigracyjnej, celnej i zdrowotnej. Bezpłatna i nie jest wizą.",
+        "when": "Do 3 dni przed przylotem"
+      }
+    }
+  },
+  "guides": {
+    "breadcrumbHome": "Strona główna",
+    "breadcrumbHub": "Poradniki",
+    "hubH1": "Poradniki wizowe dla osób mieszkających w Singapurze",
+    "hubLead": "Niezależnie od tego, czy masz paszport singapurski, chiński, indyjski czy filipiński, te poradniki odpowiadają na to samo pytanie: czego potrzebuję, by wjechać do tego kraju, i gdzie składam wniosek z Singapuru. Każdy podaje źródła i datę sprawdzenia.",
+    "hubGuidesTitle": "Wszystkie poradniki",
+    "hubGuidesSub": "Wybierz temat. Przepisy się zmieniają, więc każdy poradnik wymienia oficjalne strony do sprawdzenia przed podróżą.",
+    "readGuide": "Czytaj poradnik",
+    "hubMoreTitle": "Więcej od VIZA",
+    "hubMoreBody": "Szukasz konkretnego kraju, karty przyjazdu lub najnowszej zmiany przepisów?",
+    "hubDestinations": "Strony o wizach",
+    "hubArrival": "Poradniki o kartach przyjazdu",
+    "hubNews": "Aktualności wizowe",
+    "glanceTitle": "Krótka odpowiedź",
+    "relatedVisaTitle": "Strony krajów",
+    "relatedVisaSub": "Opłaty, dokumenty i kroki dla osób mieszkających w Singapurze.",
+    "relatedArrivalTitle": "Poradniki o kartach przyjazdu",
+    "relatedGuidesTitle": "Więcej poradników",
+    "faqTitle": "Pytania",
+    "sourcesTitle": "Źródła",
+    "reviewedTitle": "Jak to sprawdziliśmy",
+    "published": "Opublikowano",
+    "updated": "Zaktualizowano",
+    "independent": "VIZA jest niezależnym serwisem, a nie stroną rządową."
+  },
+  "ds": {
+    "header": {
+      "home": "Strona główna VIZA",
+      "primary": "Główne",
+      "language": "Język",
+      "signIn": "Zaloguj się",
+      "openMenu": "Otwórz menu",
+      "closeMenu": "Zamknij menu",
+      "nav": {
+        "home": "Strona główna",
+        "arrivalCards": "Karty przyjazdu",
+        "guides": "Poradniki",
+        "news": "Aktualności",
+        "about": "O nas",
+        "contact": "Kontakt"
+      }
+    },
+    "footer": {
+      "home": "Strona główna VIZA",
+      "tagline": "Wnioski wizowe przygotowuje sztuczna inteligencja VIZA, a sprawdzają nasi konsultanci. Korzystasz za darmo.",
+      "explore": "Odkrywaj",
+      "follow": "Obserwuj nas",
+      "followOn": "Obserwuj VIZA na {platform}",
+      "links": {
+        "arrivalCards": "Karty przyjazdu",
+        "guides": "Poradniki",
+        "news": "Aktualności",
+        "about": "O nas",
+        "contact": "Kontakt",
+        "careers": "Kariera",
+        "security": "Bezpieczeństwo",
+        "status": "Status"
+      },
+      "copyright": "© {year} VIZA. Wszelkie prawa zastrzeżone.",
+      "office": "Siedziba: 60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapore 409051",
+      "privacy": "Prywatność",
+      "terms": "Regulamin",
+      "kelin": "Przedsięwzięcie Kelin Studio",
+      "refunds": "Zwroty",
+      "business": "Informacje o firmie"
+    },
+    "form": {
+      "fullName": {
+        "label": "Twoje imię i nazwisko",
+        "placeholder": "Jane Tan"
+      },
+      "email": {
+        "label": "E-mail"
+      },
+      "phone": {
+        "label": "Telefon"
+      },
+      "destination": {
+        "label": "Kraj docelowy",
+        "placeholder": "Japonia, Schengen, Stany Zjednoczone"
+      },
+      "message": {
+        "label": "Twoje pytanie",
+        "placeholder": "Dokąd jedziesz, jaki masz paszport i kiedy podróżujesz."
+      },
+      "submit": "Wyślij wiadomość",
+      "sending": "Wysyłanie",
+      "success": "Dziękujemy, wiadomość dotarła. Odpowiemy e-mailem.",
+      "error": "Nie udało się wysłać wiadomości. Spróbuj ponownie lub napisz na sales@kelin.studio.",
+      "consent": "Wysyłając, akceptujesz naszą <privacy>Politykę prywatności</privacy> i <terms>Regulamin</terms>."
+    },
+    "gallery": {
+      "title": "Kraje",
+      "lede": "Wybierz kraj, aby zobaczyć, jakiej wizy potrzebujesz, jakie dokumenty i jaką opłatę rządową.",
+      "view": "Zobacz",
+      "passportSummary": "Bez wizy: {free} · e-Wiza lub wiza na granicy: {voa} · Wiza wymagana: {req}",
+      "noResults": "Brak krajów pasujących do wyszukiwania.",
+      "sorts": {
+        "featured": "Polecane",
+        "open": "Najpierw dostępne",
+        "name": "A do Z"
+      }
+    },
+    "dest": {
+      "all": "Wszystkie kraje",
+      "onPage": "Na tej stronie",
+      "applyTitle": "Rozpocznij wniosek",
+      "facts": "Fakty"
+    },
+    "article": {
+      "toc": "Na tej stronie",
+      "down": "Przejdź do artykułu",
+      "faqLede": "Krótkie odpowiedzi na ten temat."
+    },
+    "legal": {
+      "updated": "Ostatnia aktualizacja",
+      "contents": "Spis treści"
+    }
+  },
+  "homePage": {
+    "hero": {
+      "browse": "Przeglądaj kraje",
+      "picks": "Kraje"
+    },
+    "types": {
+      "title": "Rodzaje wiz",
+      "lede": "Wizy turystyczne, biznesowe, do pracy, studenckie i długoterminowe.",
+      "prev": "Poprzednie",
+      "next": "Następne",
+      "items": {
+        "tourist": {
+          "title": "Turystyczna",
+          "body": "Wakacje, odwiedziny rodziny i krótkie pobyty."
+        },
+        "business": {
+          "title": "Biznesowa",
+          "body": "Spotkania, konferencje i wizyty w zakładach."
+        },
+        "work": {
+          "title": "Do pracy",
+          "body": "Zezwolenia na pracę i wizy zatrudnieniowe."
+        },
+        "student": {
+          "title": "Studencka",
+          "body": "Wizy na studia w szkołach i na uczelniach."
+        },
+        "long": {
+          "title": "Pobyt długoterminowy",
+          "body": "Pobyt stały i inne wizy długoterminowe."
+        }
+      }
+    },
+    "steps": {
+      "title": "Jak to działa",
+      "cta": "Rozpocznij bezpłatny wniosek",
+      "side": {
+        "freeValue": "Bezpłatnie",
+        "freeLabel": "Usługa VIZA",
+        "langLabel": "Języki: angielski i chiński",
+        "note": "Płacisz tylko opłatę rządową.",
+        "noteBody": "Trafia ona bezpośrednio do organu wydającego wizę. VIZA nie dolicza własnej opłaty."
+      },
+      "items": {
+        "choose": {
+          "title": "Wybierz kraj",
+          "body": "Zobacz, jakiej wizy potrzebujesz, jakie dokumenty przygotować i jaka jest opłata rządowa, zanim zaczniesz.",
+          "chips": "Rodzaj wizy|Dokumenty|Opłata rządowa"
+        },
+        "passport": {
+          "title": "Prześlij paszport",
+          "body": "VIZA odczytuje Twoje dane ze zdjęcia strony z danymi, więc prawie nic nie trzeba wpisywać.",
+          "chips": "Strona ze zdjęciem|Dane uzupełnione"
+        },
+        "confirm": {
+          "title": "Potwierdź dane",
+          "body": "Sprawdź, co odczytała VIZA, dodaj daty podróży i kontynuuj na bezpłatnym koncie VIZA.",
+          "chips": "Daty podróży|Bezpłatne konto"
+        },
+        "file": {
+          "title": "VIZA sprawdza i składa",
+          "body": "Doradca sprawdza każdy formularz przed złożeniem, a Ty śledzisz postęp na swoim koncie.",
+          "chips": "Kontrola doradcy|Aktualizacje postępu"
+        }
+      }
+    },
+    "tiers": {
+      "title": "Cennik",
+      "lede": "Dwa sposoby składania wniosku, oba bezpłatne.",
+      "cta": "Skontaktuj się",
+      "criteria": "Porównaj",
+      "guided": "Z przewodnikiem",
+      "full": "Pełna obsługa",
+      "rows": {
+        "fee": {
+          "label": "Opłata VIZA",
+          "guided": "Bezpłatnie",
+          "full": "Bezpłatnie"
+        },
+        "form": {
+          "label": "Formularz wniosku",
+          "guided": "Odpowiadasz sam, a AI VIZA Cię prowadzi",
+          "full": "Konsultant przygotowuje odpowiedzi razem z Tobą"
+        },
+        "documents": {
+          "label": "Dokumenty",
+          "guided": "Lista kontrolna dopasowana do Twojej sytuacji",
+          "full": "Konsultant sprawdza Twoje dokumenty"
+        },
+        "interview": {
+          "label": "Wizyta i rozmowa",
+          "guided": "Umawiasz się i idziesz sam",
+          "full": "Omawiamy z Tobą prawdopodobne pytania"
+        },
+        "govFee": {
+          "label": "Opłata rządowa",
+          "guided": "Płatna bezpośrednio organowi",
+          "full": "Płatna bezpośrednio organowi"
+        },
+        "bestFor": {
+          "label": "Dobre dla",
+          "guided": "Prostych wniosków",
+          "full": "Złożonych spraw lub wcześniejszej odmowy"
+        }
+      }
+    },
+    "why": {
+      "title": "Dlaczego VIZA",
+      "lede": "Jasne kroki, sprawdzone formularze i prawdziwi ludzie do rozmowy.",
+      "items": {
+        "free": {
+          "title": "Bezpłatna usługa",
+          "body": "Pomoc VIZA nic nie kosztuje. Płacisz tylko opłatę rządową, bezpośrednio organowi."
+        },
+        "checked": {
+          "title": "Sprawdzone formularze",
+          "body": "Doradca sprawdza każdy formularz przed złożeniem, więc drobne błędy wychodzą wcześnie."
+        },
+        "language": {
+          "title": "Angielski i chiński",
+          "body": "Rozmawiaj z VIZA po angielsku lub chińsku, przez WhatsApp, WeChat lub e-mail."
+        }
+      },
+      "photos": {
+        "arrival": {
+          "title": "Karty przyjazdu",
+          "body": "Pomoc krok po kroku przy bezpłatnych kartach przyjazdu do Malezji, Singapuru, Japonii, Tajlandii, Korei i Indonezji."
+        },
+        "news": {
+          "title": "Aktualności",
+          "body": "Zmiany przepisów wizowych i nowe systemy e-wiz, wyjaśnione prostymi słowami."
+        }
+      }
+    },
+    "guides": {
+      "title": "Poradniki",
+      "cta": "Wszystkie poradniki"
+    },
+    "faq": {
+      "lede": "Krótkie odpowiedzi o usłudze wizowej VIZA.",
+      "more": "Masz więcej pytań?",
+      "items": {
+        "cost": {
+          "q": "Czy VIZA pobiera opłatę za swoją usługę?",
+          "a": "Nie. Pomoc VIZA jest bezpłatna. Jeśli dany kraj pobiera opłatę rządową za wizę, płacisz ją bezpośrednio jego rządowi."
+        },
+        "visas": {
+          "q": "Z jakimi wizami może pomóc VIZA?",
+          "a": "Z wizami turystycznymi, biznesowymi, do pracy, studenckimi i długoterminowymi do krajów z tej strony. Jeśli Twojego kraju nie ma na liście, napisz do nas, a konsultant powie, co jest możliwe."
+        },
+        "approval": {
+          "q": "Kto decyduje o mojej wizie?",
+          "a": "Każdą decyzję podejmuje organ wydający wizę. VIZA sprawdza formularz i dokumenty przed złożeniem, aby wniosek był kompletny i spójny."
+        },
+        "tiers": {
+          "q": "Czym różni się wariant Z przewodnikiem od Pełnej obsługi?",
+          "a": "W wariancie Z przewodnikiem AI VIZA prowadzi Cię przez formularz i listę kontrolną, a Ty masz kontrolę nad każdą odpowiedzią. W Pełnej obsłudze konsultant przygotowuje odpowiedzi razem z Tobą i sprawdza dokumenty. Oba warianty są bezpłatne."
+        },
+        "language": {
+          "q": "Jakie języki obsługujecie?",
+          "a": "Angielski i chiński, przez WhatsApp, WeChat, telefon i e-mail."
+        }
+      }
+    },
+    "contactCard": {
+      "title": "Porozmawiaj z konsultantem VIZA",
+      "body": "Odpowiadamy po angielsku lub chińsku.",
+      "cta": "Skontaktuj się"
+    },
+    "cta": {
+      "title": "Rozpocznij wniosek",
+      "point1": "Twoje dane pozostają prywatne",
+      "point2": "Odpowiada prawdziwy człowiek",
+      "formTitle": "Zadaj pytanie",
+      "formBody": "Napisz, dokąd jedziesz, a konsultant VIZA odpowie e-mailem."
+    }
+  },
+  "aboutPage": {
+    "h1": "O VIZA",
+    "intro": {
+      "title": "Czym jest VIZA",
+      "text": "VIZA przygotowuje, sprawdza i składa wnioski wizowe dla osób mieszkających w Singapurze. Nasza sztuczna inteligencja zajmuje się papierkową robotą, a konsultanci przeglądają każdy formularz. Usługa jest bezpłatna."
+    },
+    "facts": {
+      "guides": "Poradniki wizowe",
+      "arrival": "Poradniki o kartach przyjazdu",
+      "free": "Bezpłatnie",
+      "freeLabel": "Usługa VIZA"
+    },
+    "tiersTitle": "Z przewodnikiem lub Pełna obsługa",
+    "tiersLede": "Wybierz, ile pomocy chcesz. Oba warianty są bezpłatne.",
+    "free": {
+      "title": "Bezpłatna usługa",
+      "text": "VIZA nie pobiera opłat za swoją pomoc. Jeśli dla danego kraju obowiązuje opłata rządowa za wizę, VIZA pokaże ją przed rozpoczęciem, a Ty płacisz ją bezpośrednio organowi wydającemu wizę. Nie ma płatnych ulepszeń."
+    },
+    "company": {
+      "title": "Dane firmy",
+      "office": "Siedziba",
+      "officeValue": "60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapur 409051",
+      "email": "E-mail",
+      "phone": "Telefon i WhatsApp",
+      "languages": "Języki",
+      "languagesValue": "angielski i chiński"
+    }
+  },
+  "contactPage": {
+    "h1": "Kontakt",
+    "lines": {
+      "whatsapp": {
+        "title": "Telefon i WhatsApp",
+        "body": "Zadzwoń lub napisz do konsultanta."
+      },
+      "wechat": {
+        "body": "Wyszukaj ID w WeChat, aby nas dodać."
+      },
+      "email": {
+        "title": "E-mail",
+        "body": "Najlepszy na dokumenty i dłuższe pytania."
+      },
+      "office": {
+        "top": "Singapur",
+        "title": "Biuro",
+        "body": "60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapur 409051"
+      }
+    },
+    "message": {
+      "title": "Wyślij wiadomość",
+      "text": "Pytania o wizę, kraj docelowy lub współpracę z VIZA. Napisz do nas, a konsultant odpowie."
+    }
+  },
+  "careersPage": {
+    "title": "Kariera",
+    "lede": "VIZA pomaga mieszkańcom Singapuru uzyskać wizę dzięki sztucznej inteligencji i konsultantom, a usługa jest bezpłatna. Szukamy ludzi, którzy lubią staranną i pożyteczną pracę.",
+    "teamsTitle": "Zespoły",
+    "teams": [
+      {
+        "title": "Inżynieria",
+        "body": "Budujesz sprawdzanie dokumentów, proces składania wniosku i narzędzia naszych konsultantów."
+      },
+      {
+        "title": "Projektowanie",
+        "body": "Sprawiasz, że stresujący proces staje się jasny dla osoby składającej wniosek."
+      },
+      {
+        "title": "Operacje",
+        "body": "Dbasz o to, by każdy wniosek posuwał się naprzód, a wymagania były aktualne."
+      },
+      {
+        "title": "Doradztwo",
+        "body": "Pomagasz wnioskodawcom w sprawach, które wymagają człowieka, po angielsku i chińsku."
+      },
+      {
+        "title": "Dane",
+        "body": "Zamieniasz źródła rządowe w kontrole, które wcześnie wychwytują problemy."
+      },
+      {
+        "title": "Marketing",
+        "body": "Wyjaśniasz wizy prostym językiem, w poradnikach i na stronach, którym można ufać."
+      }
+    ],
+    "applyTitle": "Napisz do nas",
+    "applyBody": "Opowiedz o sobie i o zespole, do którego chcesz dołączyć. Czytamy każdą wiadomość.",
+    "applyCta": "Skontaktuj się"
+  },
+  "pageCopy": {
+    "product": {
+      "introTitle": "Jak VIZA wspiera Twój wniosek wizowy",
+      "introLede": "Poznaj dostępne usługi: przygotowanie wniosku, sprawdzanie dokumentów i śledzenie statusu. Usługa VIZA jest bezpłatna. Dokładny zakres i dostępność zobaczysz po wybraniu kraju.",
+      "browse": "Przeglądaj kraje"
+    },
+    "events": {
+      "title": "Na razie brak wydarzeń",
+      "lede": "Tutaj ogłosimy przyszłe konsultacje wizowe, spotkania informacyjne i wydarzenia partnerów.",
+      "contact": "Napisz do nas"
+    }
+  },
+  "og": {
+    "band": "VIZA jest bezpłatna. Opłaty rządowe są osobno.",
+    "destSubtitle": "Opłaty i jak złożyć wniosek"
+  }
+}

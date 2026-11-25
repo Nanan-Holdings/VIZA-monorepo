@@ -1,0 +1,2147 @@
+{
+  "cta": {
+    "startFreeApplication": "Aloita ilmainen hakemuksesi"
+  },
+  "nav": {
+    "home": "Etusivu",
+    "apply": "Hae",
+    "visas": "Viisumit",
+    "explore": "Tutustu",
+    "events": "Tapahtumat",
+    "blog": "Uutiset",
+    "careers": "Ura",
+    "contact": "Yhteystiedot",
+    "signIn": "Kirjaudu sisään",
+    "getStarted": "Aloita",
+    "yourPassport": "Passisi",
+    "searchPlaceholder": "Hae maata tai viisumia…",
+    "arrivalCards": "Saapumiskortit",
+    "guides": "Oppaat"
+  },
+  "footer": {
+    "followUs": "Seuraa meitä:",
+    "followOn": "Seuraa VIZA-palvelua kanavassa {platform}",
+    "product": "Tuotteet",
+    "company": "Yritys",
+    "legal": "Oikeudelliset tiedot",
+    "offices": "Toimistot",
+    "askAi": "Kysy tekoälyltä VIZA-palvelusta",
+    "security": "Tietoturva",
+    "status": "Tila",
+    "privacy": "Tietosuoja",
+    "terms": "Käyttöehdot",
+    "rights": "Kaikki oikeudet pidätetään.",
+    "tagline": "VIZA auttaa sinua suunnittelemaan, hakemaan ja seuraamaan viisumeja sujuvasti ympäri maailmaa.",
+    "careers": "Ura",
+    "contact": "Yhteystiedot",
+    "copyright": "© VIZA, kaikki oikeudet pidätetään",
+    "prodMockInterview": "Yhdysvaltain harjoitushaastattelu",
+    "prodVisaReq": "Viisumivaatimukset",
+    "prodSchengen": "Schengenin ajanvarausten tarkistin",
+    "prodPhoto": "Viisumikuvien tekijä",
+    "prodHelpline": "VIZA-hätäpuhelin",
+    "prodStudent": "Opiskelijaviisumi",
+    "arrivalCards": "Saapumiskortit",
+    "guides": "Oppaat",
+    "news": "Uutiset"
+  },
+  "pages": {
+    "blog": {
+      "metaTitle": "Viisumiuutiset ja sääntömuutokset | VIZA",
+      "metaDescription": "VIZAn viisumiuutiset: sääntömuutokset, uudet e-viisumi- ja ETA-järjestelmät ja mitä ne tarkoittavat Singaporessa asuville. Päivitetään sääntöjen muuttuessa.",
+      "title": "Viisumiuutiset",
+      "lede": "Sääntömuutokset ja käytäntöpäivitykset selitettynä selkein sanoin. Pysyvää neuvontaa löydät oppaista.",
+      "readArticle": "Lue artikkeli",
+      "featuredLabel": "Uusimmat uutiset",
+      "articlesTitle": "Uusimmat uutiset",
+      "articlesDescription": "Käytäntöpäivitykset ja matkustussääntöjen muutokset.",
+      "allPosts": "Kaikki artikkelit",
+      "noMorePosts": "Lisää uutisia on tulossa.",
+      "emptyTitle": "Uutisia ei ole vielä julkaistu",
+      "emptyBody": "Ensimmäisiä päivityksiämme valmistellaan. Tarkista pian uudelleen.",
+      "unavailableTitle": "Uutiset eivät ole tilapäisesti saatavilla",
+      "unavailableBody": "Uusimpia julkaistuja uutisia ei voitu ladata. Yritä hetken kuluttua uudelleen.",
+      "backToBlog": "Takaisin uutisiin",
+      "by": "Kirjoittaja",
+      "updated": "Päivitetty",
+      "categoriesLabel": "Uutisaiheet",
+      "topicLabel": "Aihe",
+      "relatedTitle": "Lisää uutisia",
+      "relatedDescription": "Lisää viisumiuutisia VIZAlta.",
+      "ctaEyebrow": "Suunnittele varmoin mielin",
+      "ctaTitle": "Valmis aloittamaan hakemuksesi?",
+      "ctaBody": "Kerro, minne haluat matkustaa. VIZA opastaa sinut vaatimusten ja seuraavien vaiheiden läpi.",
+      "ctaAction": "Aloita hakemus",
+      "categoryMetaTitle": "{category}: uutiset | VIZA",
+      "categoryMetaDescription": "Lue VIZAn uutiset aiheesta {category}: mitä muuttui, ketä se koskee ja mitä tehdä seuraavaksi.",
+      "categoryLede": "Uutiset aiheesta {category}.",
+      "visaLinkTitle": "Haetko viisumia kohdemaahan {country}?",
+      "visaLinkBody": "Katso asiakirjat, viranomaismaksu ja vaiheet Singaporessa asuville.",
+      "visaLinkAction": "Viisumiopas: {country}",
+      "guidesTitle": "Aiheeseen liittyvät oppaat",
+      "guidesBody": "Oppaat, jotka pysyvät ajan tasalla tästä aiheesta."
+    },
+    "home": {
+      "title": "Viisumihakemukset Singaporessa: USA, Intia, Vietnam | VIZA",
+      "description": "Hae USA:n viisumi (DS-160), Intian, Vietnamin tai Egyptin e-viisumi tai Ranskan Schengen-viisumi. Asiantuntija tarkistaa jokaisen lomakkeen.",
+      "heroTitle": "Minne seuraavaksi?",
+      "heroLede": "Selaa viisumivaihtoehtoja mihin tahansa kohdemaahan. VIZA-konsulttisi ja tekoälymme hoitavat paperityöt, sinä varaat matkan."
+    },
+    "apply": {
+      "title": "Aloita viisumihakemus | VIZA",
+      "description": "Lataa passisi, vahvista tietosi ja anna viisumihakemuksesi VIZA-asiantuntijalle. VIZAn palvelu on ilmainen.",
+      "saveBadge": "Tallennettu · jatka milloin tahansa"
+    },
+    "careers": {
+      "title": "Ura | VIZA",
+      "description": "Työskentele VIZAssa, Kelin Studion Singaporessa ylläpitämässä ilmaisessa viisumipalvelussa. Katso tiimit, joihin rekrytoimme, ja ota yhteyttä.",
+      "rightCta": "Katso avoimet tehtävät"
+    },
+    "contact": {
+      "title": "Yhteystiedot: WhatsApp, WeChat, puhelin, sähköposti | VIZA",
+      "description": "Tavoita VIZA-tiimi WhatsAppilla, WeChatilla, puhelimella tai sähköpostilla. Neljä kanavaa, neljä palvelupistettä, ja oikea ihminen vastaa.",
+      "rightCta": "Kirjoita meille"
+    },
+    "security": {
+      "title": "Tietoturva ja vastuullinen ilmoittaminen | VIZA",
+      "description": "Yksityinen, läpinäkyvä ja turvallinen oletuksena. Miten VIZA suojaa asiakastietoja, haavoittuvuuksien ilmoitusohjelmamme ja turvasatama.",
+      "rightCta": "Ilmoita haavoittuvuudesta"
+    },
+    "status": {
+      "title": "Järjestelmän tila | VIZA",
+      "description": "Reaaliaikainen tila: VIZA ja viranomaisten viisumiportaalit, joihin jätämme hakemuksia.",
+      "navPill": "Kaikki järjestelmät toimivat"
+    },
+    "visa": {
+      "applyCta": "Hae nyt",
+      "applicationProcess": "Hakuprosessi",
+      "documents": "Asiakirjat",
+      "rejectionReasons": "Hylkäyssyyt",
+      "entryExit": "Maahantulo ja maastalähtö",
+      "extension": "Jatkaminen",
+      "reviews": "Arvostelut",
+      "nearby": "Lähimaat",
+      "sources": "Viralliset lähteet"
+    },
+    "privacy": {
+      "title": "Tietosuojaseloste | VIZA",
+      "description": "Mitä tietoja VIZA kerää viisumihakemuksesta, miksi, kuka niitä näkee ja kuinka kauan niitä säilytetään, Singaporen PDPA-lain mukaan."
+    },
+    "terms": {
+      "title": "Käyttöehdot | VIZA",
+      "description": "Ehdot VIZAn viisumihakemuspalvelun käyttöön. Palvelua ylläpitää Kelin Studio Pte. Ltd. Singaporessa. VIZAn palvelu on ilmainen."
+    },
+    "product": {
+      "title": "Miten VIZA tukee viisumihakemustasi | VIZA",
+      "description": "Viisumin valmistelu, asiakirjojen tarkistus ja hakemuksen tila yhdessä paikassa. VIZAn palvelu on ilmainen. Sisältö ja saatavuus näkyvät kohdemaittain."
+    },
+    "events": {
+      "title": "Tapahtumat | VIZA",
+      "description": "VIZAn viisumiklinikat, infotilaisuudet ja kumppanitapahtumat."
+    },
+    "arrivalCards": {
+      "title": "Saapumiskorttioppaat: MDAC, SG Arrival Card, TDAC | VIZA",
+      "description": "Ilmaiset oppaat saapumiskortteihin: Malesia, Singapore, Japani, Thaimaa, Etelä-Korea ja Indonesia. Kuka tarvitsee, milloin lähettää ja apua vaihe vaiheelta."
+    },
+    "guides": {
+      "title": "Viisumioppaat Singaporessa asuville | VIZA",
+      "description": "Selkeät oppaat Singaporessa asuville: viisumivapaat maat, Schengenin asiakirjat, USA:n haastattelu, ETA, e-viisumi ja hylkäykset. Ilmaisia, päivitetään usein."
+    },
+    "about": {
+      "title": "Tietoa VIZAsta: ilmaista viisumiapua Singaporessa | VIZA",
+      "description": "VIZA valmistelee, tarkistaa ja jättää Singaporessa asuvien viisumihakemukset tekoälyn ja konsulttien avulla. Palvelu on ilmainen, viranomaismaksut erikseen."
+    },
+    "visaIndex": {
+      "title": "Viisumikohteet: vaatimukset maittain | VIZA",
+      "description": "Vertaile viisumivaatimuksia maittain asiakirjoineen ja maksuineen. VIZAn apu on ilmaista.",
+      "heroTitle": "Viisumikohteet"
+    },
+    "refunds": {
+      "title": "Hyvityskäytäntö | VIZA",
+      "description": "VIZAn palvelu on ilmainen, joten palautettavaa palvelumaksua ei ole. Miten viranomaismaksut ja muiden palveluntarjoajien maksut toimivat."
+    },
+    "businessInformation": {
+      "title": "Yritystiedot | VIZA",
+      "description": "VIZAa ylläpitää Kelin Studio Pte. Ltd., singaporelainen yritys. Rekisteröity osoite, UEN ja yhteystiedot."
+    }
+  },
+  "common": {
+    "comingSoon": "Tulossa pian",
+    "learnMore": "Lue lisää",
+    "readMore": "Lue lisää",
+    "applyNow": "Hae nyt",
+    "talkToHuman": "Puhu ihmiselle",
+    "viewAll": "Näytä kaikki"
+  },
+  "visa": {
+    "heroTitle": "Viisumi: {country}",
+    "validity": "Voimassaolo",
+    "howItWorks": "Näin se toimii",
+    "step1": "Kerro matkasi tiedot ja lataa passisi.",
+    "step2": "Täytämme ja tarkistamme hakemuksesi uusimpia sääntöjä vasten.",
+    "step3": "Jätämme sen viranomaisen portaaliin ja seuraamme päätöstä.",
+    "step4": "Hyväksytty viisumisi saapuu sähköpostiin, ja seuraamme sitä alusta loppuun.",
+    "documents": "Mitä tarvitset",
+    "doc1": "Passi, joka on voimassa vähintään 6 kuukautta.",
+    "doc2": "Tuore passikuva.",
+    "doc3": "Matkapäivämääräsi ja majoituksesi.",
+    "doc4": "Jos kohdemaa perii viisumimaksun, maksukortti, jolla maksat sen suoraan viranomaiselle.",
+    "nearby": "Lähikohteet",
+    "startApplication": "Aloita hakemuksesi",
+    "comingSoonTitle": "{country}: tulossa pian",
+    "comingSoonBody": "Viimeistelemme kohdemaata {country}. Luo tili, niin ilmoitamme heti, kun se on avattu.",
+    "browseDestinations": "Selaa kohdemaita",
+    "notifyMe": "Ilmoita minulle",
+    "back": "Takaisin tutustumiseen",
+    "tabOverview": "Yleiskatsaus",
+    "tabProcess": "Hakuprosessi",
+    "tabDocuments": "Asiakirjat",
+    "tabRejection": "Hylkäyssyyt",
+    "tabEntry": "Maahantulo ja maastalähtö",
+    "tabExtension": "Jatkaminen",
+    "tabReviews": "Arvostelut",
+    "tabNearby": "Lähimaat",
+    "reviewsTitle": "Arvostelut",
+    "nearbyTitle": "Lähimaat",
+    "nearbySub": "Matkustatko alueella? Lisää matkallesi toinen viisumi, niin VIZA-konsulttisi käsittelee ne yhdessä.",
+    "faqTitle": "Usein kysytyt kysymykset",
+    "editorial": "Tämä sivu noudattaa VIZAn toimituksellisia periaatteita. Luotamme viranomaisten virallisiin lähteisiin ja päivitämme jokaisen vaatimuksen, kun käytäntö muuttuu.",
+    "editorialLink": "Lue, miten tarkistamme",
+    "sourcesTitle": "Lähteet",
+    "priceGovt": "Viranomaismaksu",
+    "priceFree": "Ilmainen",
+    "pillAllInclusive": "Kaikki mukana",
+    "priceCta": "Aloita hakemus",
+    "onTime": "Ajallaan",
+    "freeService": "Ilmainen VIZA-palvelu",
+    "freeServiceNote": "VIZA ei veloita avustaan",
+    "govFeePaidDirect": "Viranomaismaksu {fee}, maksetaan suoraan myöntävälle viranomaiselle.",
+    "govFeeSetByAuthority": "Myöntävä viranomainen määrittää viranomaismaksun, ja se maksetaan suoraan sille.",
+    "govFeeSetByAuthorityShort": "Viranomainen määrittää",
+    "priceService": "VIZA-palvelu",
+    "pillPaidToAuthority": "Maksetaan viranomaiselle",
+    "priceTotalToViza": "Maksat VIZAlle",
+    "breadcrumbVisas": "Viisumikohteet",
+    "serviceDescription": "VIZA auttaa Singaporessa asuvia valmistelemaan, tarkistamaan ja jättämään hakemuksia (kohde: {country}, tyyppi: {type}) tekoälyn opastuksella ja asiantuntijan tarkistuksella.",
+    "offerDescription": "VIZAn palvelumaksu. Viisumin viranomaismaksut ovat erillisiä ja maksetaan suoraan myöntävälle viranomaiselle.",
+    "dest": {
+      "tabGlance": "Pikakatsaus",
+      "tabPassports": "Passit",
+      "tabTypes": "Viisumityypit",
+      "tabResidents": "Asukkaat",
+      "tabFees": "Maksut",
+      "tabApply": "Hakeminen",
+      "tabChecklist": "Asiakirjat",
+      "tabRejection": "Hylkäykset",
+      "tabTravel": "Ennen matkaa",
+      "tabRelated": "Aiheeseen liittyvää",
+      "glanceTitle": "Pikakatsaus",
+      "glanceVisa": "Viisumi tarvitaan",
+      "glanceGovFee": "Viranomaismaksu",
+      "glanceVizaFee": "VIZA-maksu",
+      "glanceProcessing": "Käsittelyaika",
+      "glanceMaxStay": "Enimmäisoleskelu",
+      "glanceChecked": "Tarkistuspäivä",
+      "passportsTitle": "Tarvitsetko viisumin?",
+      "typesTitle": "Viisumityypit",
+      "residentsTitle": "Singaporessa asuvat",
+      "feesTitle": "Maksut ja aikataulu",
+      "applyTitle": "Hakeminen",
+      "checklistTitle": "Asiakirjojen tarkistuslista",
+      "travelTitle": "Ennen matkaa",
+      "colPassport": "Passi",
+      "colEntry": "Maahantulo",
+      "colNotes": "Huomioita",
+      "colItem": "Kohta",
+      "colAmount": "Summa",
+      "vizaFeeNote": "VIZAn apu on ilmaista. Maksat vain viranomaismaksun suoraan viranomaiselle.",
+      "reviewedBy": "Tarkistanut VIZA-konsultti: {date}.",
+      "relatedTitle": "Aiheeseen liittyvät kohdemaat",
+      "relatedSub": "Muut paikat, jotka ihmiset lisäävät samalle matkalle, ja mistä lukea lisää.",
+      "startTitle": "Aloita hakemus",
+      "startBody": "Aloita passillasi ja matkapäivämäärillä. VIZAn apu on ilmaista ja maksat viranomaismaksun suoraan viranomaiselle.",
+      "startConsultBody": "Kerro VIZA-konsultille, missä asut, passisi ja matkapäivämääräsi. VIZAn apu on ilmaista.",
+      "consultCta": "Puhu konsultille"
+    }
+  },
+  "apply": {
+    "stepOf": "Vaihe {n}/3",
+    "back": "Takaisin",
+    "continue": "Jatka",
+    "step1Name": "Lataa passi",
+    "step2Name": "Vahvista tiedot",
+    "step3Name": "Aloita hakemus",
+    "s1Title": "Lataa passisi",
+    "s1Desc": "Luemme tietosi automaattisesti, joten sinun ei tarvitse kirjoittaa mitään. Käytä tietosivua (sivu, jolla on kuvasi).",
+    "segUpload": "Lataa tiedosto",
+    "segCapture": "Ota kuva",
+    "dzTitle": "Pudota passisi kuva tähän",
+    "dzSub": "Tai selaa napsauttamalla. Tiedostosi salataan eikä sitä koskaan jaeta",
+    "dzBrowse": "Valitse tiedosto",
+    "dzUpTo": "Enintään 10 MB",
+    "tip1Title": "Kaikki neljä kulmaa näkyvissä",
+    "tip1Sub": "Rajaa koko tietosivu, myös alareunan konekielinen osa (MRZ).",
+    "tip2Title": "Kirkas ja tasainen valaistus",
+    "tip2Sub": "Vältä käden tai puhelinkotelon varjoja.",
+    "tip3Title": "Ei kiiltoa tai heijastuksia",
+    "tip3Sub": "Kallista hieman, jos sinetti heijastaa.",
+    "errReadFail": "Passin lukeminen ei onnistunut: {detail}. Ota selkeämpi kuva tietosivusta.",
+    "extReading": "Luetaan asiakirjaa",
+    "extExtracting": "Poimitaan tietojasi",
+    "extVerifying": "Tarkistetaan aitoutta",
+    "stReading": "Luetaan…",
+    "stExtracting": "Poimitaan…",
+    "stVerifying": "Tarkistetaan…",
+    "s2Title": "Vahvista tietosi",
+    "s2Desc": "Poimimme nämä suoraan passistasi. Napauta mitä tahansa kenttää muokataksesi sitä.",
+    "successHigh": "Passin tiedot poimittu onnistuneesti, korkea luotettavuus",
+    "warnLow": "Joitakin kenttiä oli vaikea lukea. Tarkista jokainen arvo alta.",
+    "warnMed": "Poimimme suurimman osan tiedoistasi. Tarkista korostetut kentät.",
+    "ppDetails": "Passin tiedot",
+    "autoExtracted": "Poimittu automaattisesti",
+    "fSurname": "Sukunimi",
+    "fGiven": "Etunimet",
+    "fPassport": "Passin numero",
+    "fDob": "Syntymäaika",
+    "fNationality": "Kansalaisuus",
+    "fExpires": "Voimassa asti",
+    "reachTitle": "Miten tavoitamme sinut?",
+    "reachDesc": "Lähetämme viisumisi tänne sekä tilapäivitykset tekstiviestinä puhelimeesi.",
+    "email": "Sähköposti",
+    "phone": "Puhelin",
+    "consent": "Vahvistan, että yllä olevat tiedot vastaavat passiani, ja valtuutan VIZAn jättämään tämän hakemuksen puolestani kohdemaan ({country}) maahanmuuttoviranomaisille.",
+    "s3Title": "Aloita hakemuksesi",
+    "s3Desc": "VIZAn palvelu on ilmainen. Kirjaudu VIZA-portaaliin, niin hoidamme lopun.",
+    "headsUp": "Huomio:",
+    "headsUpBody": "jos kohdemaa ({country}) perii viisumimaksun, maksat sen suoraan viranomaiselle. VIZA ei koskaan kerää tai korota tätä summaa.",
+    "yourApp": "Hakemuksesi",
+    "guaranteedBy": "Toimitus taatusti viimeistään",
+    "govFee": "Viranomaismaksu",
+    "expressUpgrade": "Pikapäivitys",
+    "total": "Yhteensä",
+    "footEncrypted": "Päästä päähän salattu. VIZA ei veloita sinulta tästä hakemuksesta.",
+    "helpOnline": "Priya on paikalla",
+    "helpTap": "Keskustele VIZA-konsulttisi kanssa napauttamalla",
+    "totalAmount": "SGD {amount}",
+    "totalFree": "Ilmainen",
+    "etaStandard": "12. toukokuuta 2026 klo 8:00 SGT",
+    "failTitle": "Emme voineet lukea asiakirjaa",
+    "failNotPassport": "Tämä ei näytä passin tietosivulta. Lataa kuva sivusta, jolla on kuvasi ja henkilötietosi.",
+    "failUnreadable": "Mitään vaadittua kenttää ei voitu lukea. Ota kuva uudelleen hyvässä valossa niin, että koko tietosivu on tasaisena ja tarkennettuna.",
+    "tryAgain": "Yritä uudelleen",
+    "warnPartial": "Emme voineet lukea kaikkea. Täytä alla korostetut kentät.",
+    "warnExpired": "Passi näyttää olevan vanhentunut. Useimmat kohdemaat vaativat vähintään 6 kuukauden voimassaolon.",
+    "warnMrz": "Konekielinen osa (kaksi riviä alareunassa) oli lukukelvoton. Tarkista jokainen kenttä.",
+    "warnBlurry": "Kuva oli epätarkka. Tarkista jokainen kenttä huolellisesti.",
+    "fieldRequired": "Pakollinen, täytä",
+    "editField": "Muokkaa: {field}",
+    "emailInvalid": "Anna kelvollinen sähköpostiosoite. Viisumipäivitykset ja kirjautumislinkki lähetetään sinne.",
+    "phoneInvalid": "Anna kelvollinen puhelinnumero.",
+    "consentRequired": "Vahvista vakuutus jatkaaksesi.",
+    "continueToStart": "Jatka",
+    "startTitle": "Jatka VIZA-portaalissa",
+    "startSub": "Kirjaudu sisään tai luo ilmainen tilisi. Tämän kohdemaan hakemus avautuu heti.",
+    "vizaService": "VIZA-palvelu",
+    "govFeeSetByAuthority": "Viranomainen määrittää",
+    "govFeeNote": "Mahdollinen viisumin viranomaismaksu maksetaan suoraan myöntävälle viranomaiselle, ei VIZAlle.",
+    "completeBeforeStart": "Täydennä yllä korostetut kohdat ennen jatkamista."
+  },
+  "explore": {
+    "help": "Ohje",
+    "passportLabel": "Passi: {name}",
+    "passportSub": "Viisumivaatimukset {n} kohdemaassa · Sijoitus {rank}",
+    "freeLabel": "Viisumivapaa",
+    "freeNote": "ei paperitöitä",
+    "voaLabel": "E-viisumi tai saapuessa",
+    "voaNote": "hoidamme sen",
+    "reqLabel": "Viisumi vaaditaan",
+    "reqNote": "haku suurlähetystössä",
+    "fullMap": "Näytä koko viisumikartta",
+    "grid": "Ruudukko",
+    "map": "Kartta",
+    "mapLegendEvisa": "E-viisumit ja vierailuviisumit",
+    "mapHint": "Esikatsele kohdemaata viemällä hiiri korostetun pisteen päälle",
+    "sectionTitle": "Passinhaltijoille: {country}",
+    "seeAll": "Näytä kaikki {n}",
+    "footnote": "VIZAn palvelu on ilmainen. Mahdollinen viisumin viranomaismaksu maksetaan suoraan myöntävälle viranomaiselle ja vaihtelee maittain.",
+    "fastTrack": "Pikakaista",
+    "cardType": "Tyyppi",
+    "cardValid": "Voimassa",
+    "cardFee": "VIZA-palvelu",
+    "save": "Tallenna",
+    "startApplication": "Aloita hakemus",
+    "catalogueUnavailable": "Yksikään kohdemaa ei ole tällä hetkellä avoinna verkkohakemuksille. Tarkista pian uudelleen.",
+    "choosePassport": "Valitse passisi",
+    "searchPassport": "Hae passin maata…",
+    "visaFree": "{n} viisumivapaata",
+    "ppFoot": "Päivitetty toukokuulle 2026 · Lähde: IATA Timatic",
+    "noMatch": "Mikään passi ei vastaa hakua ”{q}”",
+    "filters": {
+      "delivery": "Viisumin toimitus",
+      "type": "Viisumityyppi",
+      "documents": "Asiakirjat",
+      "dates": "Matkapäivät"
+    },
+    "filterOpts": {
+      "delivery": [
+        "Milloin tahansa",
+        "24 tunnin sisällä",
+        "3 päivän sisällä",
+        "1 viikon sisällä",
+        "1 kuukauden sisällä"
+      ],
+      "type": [
+        "Kaikki tyypit",
+        "Turisti",
+        "Liikematka",
+        "Työ",
+        "Opiskelu",
+        "Digitaalinen nomadi"
+      ],
+      "documents": [
+        "Mitkä tahansa asiakirjat",
+        "Minimi (vain passi)",
+        "Vakio",
+        "Laaja paketti"
+      ],
+      "dates": [
+        "Valitse päivät",
+        "Tällä viikolla",
+        "Tässä kuussa",
+        "3 kuukauden päästä",
+        "6 kuukauden päästä"
+      ]
+    }
+  },
+  "cities": {
+    "viza-test": "Kassan livetesti",
+    "indonesia": "Bali · Jakarta",
+    "egypt": "Kairo · Gizeh",
+    "australia": "Sydney · Melbourne",
+    "saudi-arabia": "Riad · AlUla",
+    "united-kingdom": "Lontoo · Edinburgh",
+    "vietnam": "Hanoi · Hoi An",
+    "malaysia": "KL · Penang",
+    "japan": "Tokio · Kioto",
+    "united-states": "New York · LA",
+    "canada": "Toronto · Vancouver",
+    "turkiye": "Istanbul · Kappadokia",
+    "thailand": "Bangkok · Phuket",
+    "united-arab-emirates": "Dubai · Abu Dhabi",
+    "france": "Pariisi · Nizza",
+    "italy": "Rooma · Firenze",
+    "india": "Delhi · Mumbai"
+  },
+  "validity": {
+    "viza-test": "Vain demo",
+    "indonesia": "90 päivää",
+    "egypt": "90 päivää",
+    "australia": "1 vuosi",
+    "saudi-arabia": "365 päivää",
+    "united-kingdom": "6 kuukautta",
+    "vietnam": "90 päivää",
+    "malaysia": "3 kuukautta",
+    "japan": "90 päivää",
+    "united-states": "10 vuotta",
+    "canada": "10 vuotta",
+    "turkiye": "180 päivää",
+    "thailand": "3 kuukautta",
+    "united-arab-emirates": "60 päivää",
+    "france": "90 päivää",
+    "italy": "90 päivää",
+    "india": "30 päivää"
+  },
+  "passports": {
+    "SG": "Singapore",
+    "JP": "Japani",
+    "KR": "Etelä-Korea",
+    "DE": "Saksa",
+    "FR": "Ranska",
+    "GB": "Yhdistynyt kuningaskunta",
+    "US": "Yhdysvallat",
+    "AU": "Australia",
+    "CA": "Kanada",
+    "AE": "Yhdistyneet arabiemiirikunnat",
+    "CN": "Kiina",
+    "IN": "Intia",
+    "BR": "Brasilia",
+    "PH": "Filippiinit",
+    "ID": "Indonesia",
+    "MY": "Malesia",
+    "TH": "Thaimaa"
+  },
+  "countries": {
+    "viza-test": "VIZA Test",
+    "indonesia": "Indonesia",
+    "egypt": "Egypti",
+    "australia": "Australia",
+    "saudi-arabia": "Saudi-Arabia",
+    "united-kingdom": "Yhdistynyt kuningaskunta",
+    "vietnam": "Vietnam",
+    "malaysia": "Malesia",
+    "japan": "Japani",
+    "united-states": "Yhdysvallat",
+    "canada": "Kanada",
+    "turkiye": "Turkki",
+    "thailand": "Thaimaa",
+    "united-arab-emirates": "Yhdistyneet arabiemiirikunnat",
+    "france": "Ranska",
+    "italy": "Italia",
+    "india": "Intia",
+    "china": "Kiina",
+    "south-korea": "Etelä-Korea",
+    "schengen": "Schengen"
+  },
+  "visaTypes": {
+    "Test checkout": "Maksutesti",
+    "e-Visa": "e-viisumi",
+    "Standard Visitor": "Standard Visitor",
+    "Visitor 600": "Visitor 600",
+    "Tourist": "Turisti",
+    "B1/B2": "B1/B2",
+    "eTA": "eTA",
+    "Schengen": "Schengen",
+    "eVisa": "e-viisumi",
+    "Visitor visa": "Vierailuviisumi",
+    "Tourist visa": "Turistiviisumi"
+  },
+  "careers": {
+    "hero": {
+      "nowHiring": "Rekrytoimme nyt kaupungeissa",
+      "cities": [
+        "Shanghai",
+        "Singapore"
+      ],
+      "openRoles": "28 avointa tehtävää",
+      "title": "Auta meitä saamaan rajat<br></br><em>katoamaan</em>, <u>hiljaa,</u><br></br>ohjelmiston nopeudella.",
+      "lead": "Muutamme kuukausien viisumipaperityöt tunneiksi ohjelmistoa miljoonille ihmisille, jotka haluavat vain nousta koneeseen. Tuo taitosi tiimiin, joka toimittaa todellisten määräaikojen mukaan.",
+      "ctaRoles": "Katso kaikki avoimet tehtävät",
+      "ctaWhy": "Miksi olemme olemassa"
+    },
+    "board": {
+      "ariaLabel": "Lähtötaulu, jossa luetellaan VIZAn avoimet tehtävät",
+      "head": "Avoimet paikat · livenä",
+      "live": "Aikataulussa",
+      "cols": {
+        "req": "Tunn.",
+        "role": "Tehtävä",
+        "office": "Toimisto",
+        "status": "Tila"
+      },
+      "rows": [
+        {
+          "role": "Staff Engineer",
+          "sub": "Asiakirjaputki",
+          "status": "Koneeseen"
+        },
+        {
+          "role": "Tuotesuunnittelija",
+          "sub": "Hakijan polut",
+          "status": "Avoin"
+        },
+        {
+          "role": "Suurlähetystöyhteyshenkilö",
+          "sub": "Viranomaiskumppanuudet",
+          "status": "Viimeinen kutsu"
+        },
+        {
+          "role": "Asiakaspalvelutoiminta",
+          "sub": "Tason 2 eskaloinnit",
+          "status": "Avoin"
+        }
+      ],
+      "foot": "+24 muuta tehtävää kehityksessä, toiminnassa ja suunnittelussa",
+      "browseAll": "Selaa kaikkia",
+      "chip1Label": "Rekrytointi",
+      "chip1Value": "4 toimistoa",
+      "chip2Label": "Keskim. vastausaika",
+      "chip2Value": "3.2 päivää ensimmäiseen puheluun"
+    },
+    "stats": [
+      {
+        "value": "2.4 milj.",
+        "label": "Viime vuonna VIZAn kautta myönnettyjä viisumeja"
+      },
+      {
+        "label": "Tuettua kohdemaata live-käsittelyllä"
+      },
+      {
+        "label": "Hyväksymisprosentti kaikissa viisumityypeissä vuonna 2025"
+      },
+      {
+        "label": "Ihmisiä Shanghaissa ja Singaporessa"
+      }
+    ],
+    "mission": {
+      "eyebrow": "Tarinamme",
+      "title": "Suurin osa maailmasta<br></br>matkustaa yhä<br></br><em>painettujen paperien kanssa.</em>",
+      "kicker1": "Perustimme VIZAn vuonna 2021 vietettyämme liian monta viikkoa jonossa suurlähetystöjen puhelimissa. Järjestelmä, jolla ihmisiä siirretään rajojen yli, on vanhempi kuin internet, ja siihen jumiin jääneet ansaitsevat parempaa.",
+      "kicker2": "Tänään 340 hengen tiimi neljässä toimistossa toimittaa ohjelmistoja, jättää asiakirjoja ja pyörittää toimintaa 194 maassa. Teemme tylsän, uuvuttavan työn, jotta matkustaminen voi tuntua samalta kuin muu internet: muutama napautus, ja olet liikkeellä.",
+      "founderName": "Mira Kohli",
+      "founderRole": "Perustaja ja toimitusjohtaja · Singapore",
+      "beliefs": [
+        {
+          "title": "Olemme toimintayritys, joka toimittaa ohjelmistoja.",
+          "body": "Puolet VIZAsta on insinöörejä, suunnittelijoita ja tuotepäälliköitä. Toinen puoli on konsultteja, toimintaa ja asiakirja-asiantuntijoita kohdemaissa. Kumpikaan puoli ei voita ilman toista."
+        },
+        {
+          "title": "Hakija on aina asiakas.",
+          "body": "Suurlähetystöt, kumppanit, lentoyhtiöt: kaikki ovat tärkeitä. Mutta ihminen, joka seisoo jonossa kello 3 yöllä ja päivittää portaalia, on se, jonka hyväksi työskentelemme ja jota vastaan mittaamme itseämme."
+        },
+        {
+          "title": "Nopeus kasvaa korkoa, kun olet kärsivällinen laadun suhteen.",
+          "body": "Toimitamme nopeasti, mutta teemme peruuttamattomat päätökset hitaasti. Väärä viisumipäätös voi pilata häät, työpaikan tai hautajaiset. Pidämme tästä tasosta kiinni, vaikka se hidastaisi meitä."
+        },
+        {
+          "title": "Etäisyys on käyttökokemuksen ongelma, ei rajoite.",
+          "body": "Tiimimme istuvat neljällä aikavyöhykkeellä. Asynkroninen kirjoittaminen, selkeä omistajuus ja hyvä dokumentaatiokulttuuri ovat tapamme vaihtaa aikaa luottamukseen ja tapa toimittaa ympäri maailman ketään uuvuttamatta."
+        }
+      ]
+    },
+    "values": {
+      "eyebrow": "Mihin sitoudumme",
+      "title": "Viisi asiaa, joihin uskomme, vaikka se tulisi kalliiksi.",
+      "lead": "Arvot on helppo kirjoittaa ylös ja vaikea toteuttaa. Nämä ovat ne viisi, joita käytämme todella rekrytoinnissa, arvioinneissa ja harvoissa vaikeissa päätöksissä.",
+      "cards": [
+        {
+          "title": "Kerro totuus, varsinkin kun se maksaa meille.",
+          "body": "Jos viisumi ei ehdi ajoissa, sano se tänään, ei päivää ennen lentoa. Menetämme mieluummin kaupan kuin toimitamme valheen.",
+          "kicker": "Käytännössä → julkaistut käytännöt, muutosten auditointi"
+        },
+        {
+          "title": "Ansaitse vauhti. Älä vain tunne olevasi kiireinen.",
+          "body": "Juhlimme päätöksiä ja toimitettua työtä, emme kokouksia ja ketjuja. Pointti on läpimeno tehtävää vasten, ei liike kalenterissasi.",
+          "kicker": "Käytännössä → neljännesvuosittainen läpimenotarkastelu"
+        },
+        {
+          "title": "Ajattele passeissa, älä persoonissa.",
+          "body": "Viisumisäännöt riippuvat kansalaisuudesta. ”Käyttäjää” ei ole olemassa, mutta Schengeniin hakeva Filippiinien passin haltija on. Rakennamme oikeille ihmisille, emme keskiarvoille.",
+          "kicker": "Käytännössä → passi edellä -tuotemäärittely"
+        },
+        {
+          "title": "Kirjoita asiat ylös. Päätökset varsinkin.",
+          "body": "Neljä toimistoa, neljä aikavyöhykettä. Jos päätöstä ei ole kirjoitettu, sitä ei tehty. Wikimme on pakollista luettavaa, päivittäiset palaverit ovat vapaaehtoisia.",
+          "kicker": "Käytännössä → ADR:t, viikkomuistio, asynkroninen ensin"
+        },
+        {
+          "title": "Pysy lähellä jonoa.",
+          "body": "Jokainen insinööri tekee yhden vuoron neljänneksessä konsulttien parissa. Kitkaa, jota et ole koskaan tuntenut sunnuntai-iltana kello 11 illalla, ei voi suunnitella pois.",
+          "kicker": "Käytännössä → kiertävät jonovuorot"
+        },
+        {
+          "title": "Valitse pitkä versio.",
+          "body": "Kolmenkymmenen sekunnin vastaus on yleensä väärä. Panostamme perusteelliseen dokumentaatioon, vankkoihin toimintaohjeisiin ja selityksiin, jotka kestävät, vaikka helppo versio riittäisi.",
+          "kicker": "Käytännössä → perehdytyskäsikirja, julkiset toimintaohjeet"
+        }
+      ]
+    },
+    "inside": {
+      "eyebrow": "Sisällä VIZAssa",
+      "title": "Miltä täällä työskentely<br></br>oikeasti näyttää.",
+      "lead": "Meillä on toimistot kahdessa kaupungissa, koska rekrytoimme lähelle paikkoja, joissa hakemukset jätetään. Olemme äänekkäitä voitoista, hiljaisia politiikasta ja rehellisiä siitä, kuinka paljon meillä on vielä rakennettavaa.",
+      "photos": [
+        {
+          "label": "kuva · Singaporen pääkonttori, avokonttori",
+          "mark": "Paya Lebar Square, SG"
+        },
+        {
+          "label": "kuva · konsulttien jonolattia",
+          "mark": "Luoshan Rd, Shanghai"
+        },
+        {
+          "label": "kuva · tussitaulutyöpaja",
+          "mark": "Teknologiaretki, Bali"
+        },
+        {
+          "label": "kuva · Shanghain toimintakerros",
+          "mark": "Pudong, Shanghai"
+        },
+        {
+          "label": "kuva · tiimin illallinen",
+          "mark": "Koko henkilöstön tapaaminen, Lissabon"
+        },
+        {
+          "label": "kuva · suurlähetystökumppanin vierailu",
+          "mark": "Paya Lebar Square, SG"
+        }
+      ],
+      "pull": "”Palkkaamme ihmisiä, joilla on mielipide viisumeista ennen kuin he liittyvät. Toisena kuukautena sinulla on vahvempi.”",
+      "pullBy": "Felix Adekunle, tekniikan varatoimitusjohtaja",
+      "para1": "VIZA on korkean autonomian ja korkean kontekstin paikka. Saat omistajan kaikelle tekemällesi, todelliset budjetit ja odotuksen, että selität työsi perustelut muulle yritykselle.",
+      "para2": "Jos haluat, että sinulle kerrotaan joka päivä, mitä tehdä, tämä ei ole oikea paikka. Jos olet odottanut, että joku ojentaa sinulle ohjauspyörän, se on tässä."
+    },
+    "how": {
+      "eyebrow": "Kehitys ja toiminta VIZAssa",
+      "title": "Miten työ oikeasti etenee.",
+      "lead": "Jos rakennat, jätät tai suunnittelet täällä, näin viikkosi näyttää. Vähemmän seremonioita, enemmän toimitettua työtä. Vähemmän Slackia, enemmän kirjattuja päätöksiä.",
+      "cells": [
+        {
+          "title": "Kokonaisvaltainen omistajuus",
+          "body": "Suunnittelet sen, rakennat sen, toimitat sen ja omistat sen tuotannossa. Ei luovutusjonoja, ei tiekarttoja, joita kirjoittavat kolmen kerroksen päässä olevat ihmiset. Jos se on sinun, se on oikeasti sinun."
+        },
+        {
+          "title": "Julkaisuja joka päivä oletuksena",
+          "body": "Useimmat tiimit julkaisevat useita kertoja päivässä. Palautesilmukat ovat tarkoituksella tiiviitä, ja kolmenkymmenen minuutin peruutus on parempi kuin kolmen viikon kiistely."
+        },
+        {
+          "title": "Oikeita, sotkuisia ongelmia",
+          "body": "Tämä ei ole pelkkää CRUDia. Työskentelet asiakirjojen OCR:n, viiveherkän ajanvarauksen yli 90 viranomaisportaalia vastaan ja miljoonien käyttämien kuluttajapolkujen parissa."
+        },
+        {
+          "title": "Taso on korkea, avoimesti",
+          "body": "Teemme suunnittelukatselmuksia pareittain. Kommentoimme PR:eja rivikohtaisesti. Uskomme, että makua voi opettaa, ja odotamme ihmisten auttavan aktiivisesti kaikkia ympärillään kehittymään."
+        },
+        {
+          "title": "Todellinen oppimisbudjetti",
+          "body": "$2,000 per henkilö vuodessa, kysymättä mitään, konferensseihin, kirjoihin, kursseihin: mihin tahansa, joka kasvaa korkoa työhön, jota teet täällä."
+        },
+        {
+          "title": "Sinun kirjoittamasi arkkitehtuuri",
+          "body": "RFC:t ovat avoimia kaikille. Uudet insinöörit ovat muokanneet ydininfrastruktuuria ensimmäisen kuukautensa aikana. Jos sinulla on parempi suunnitelma, kirjoita se ylös, me luemme sen."
+        }
+      ]
+    },
+    "roles": {
+      "eyebrow": "Avoimet tehtävät · päivitetään viikoittain",
+      "title": "Ole osa matkaa.",
+      "lead": "28 avointa tehtävää neljässä toimistossa. Rekrytoimme kehitykseen, suunnitteluun, toimintaan, konsultteihin ja kumppanuuksiin. Uudet tehtävät ilmestyvät maanantaisin.",
+      "allDepartments": "Kaikki osastot",
+      "deps": {
+        "eng": "Kehitys",
+        "design": "Suunnittelu",
+        "ops": "Toiminta",
+        "consult": "Konsultit",
+        "data": "Data ja ML",
+        "gtm": "Markkinointi ja GTM"
+      },
+      "showing": "Näytetään <strong>{count}</strong> tehtävää · kaikki sijainnit · kaikki tiimit",
+      "anyLocation": "Mikä tahansa sijainti",
+      "groupCount": "{count} avointa",
+      "posSub": "{team} · rekrytoimme taidon ja harkintakyvyn, ei taustan perusteella",
+      "locationLabel": "Sijainti",
+      "typeLabel": "Tyyppi",
+      "fullTime": "Kokoaikainen",
+      "viewRole": "Näytä tehtävä",
+      "locations": {
+        "sg": "Singapore",
+        "sf": "Shanghai",
+        "ldn": "Singapore",
+        "dxb": "Shanghai"
+      },
+      "jobs": {
+        "backendPayments": "Vanhempi taustajärjestelmäkehittäjä, alusta",
+        "staffDocPipeline": "Staff Engineer: asiakirjaputki",
+        "iosApplicant": "iOS-kehittäjä: hakijasovellus",
+        "platformInfra": "Alustakehittäjä: infrastruktuuri ja tietoturva",
+        "frontendConsole": "Frontend-kehittäjä: konsulttikonsoli",
+        "emWeb": "Kehityspäällikkö: web",
+        "sre": "Site Reliability Engineer",
+        "androidSenior": "Vanhempi Android-kehittäjä",
+        "leadEmbassy": "Kehitysvastaava: suurlähetystöintegraatiot",
+        "productDesignerApplicant": "Vanhempi tuotesuunnittelija: hakijan polku",
+        "brandDesigner": "Brändisuunnittelija",
+        "designLeadConsultant": "Suunnitteluvastaava: konsulttityökalut",
+        "headOpsMe": "Toimintajohtaja, Lähi-itä",
+        "visaOpsSchengen": "Viisumitoiminnan vastaava: Schengen",
+        "logistics": "Logistiikka- ja kuriiripäällikkö",
+        "processDocQa": "Prosessi-insinööri: asiakirjojen laadunvarmistus",
+        "opsAnalyst": "Toiminta-analyytikko: varaukset",
+        "consultSchengen": "Viisumikonsultti: Schengen",
+        "consultUs": "Viisumikonsultti: USA B1/B2",
+        "consultUae": "Viisumikonsultti: Arabiemiirikuntien oleskelulupa",
+        "consultStudent": "Vanhempi konsultti: opiskeluviisumit",
+        "consultApac": "Konsulttivastaava: Aasia ja Tyynenmeren alue",
+        "consultUk": "Viisumikonsultti: Britannia",
+        "dataScientist": "Vanhempi datatieteilijä: hyväksymismallinnus",
+        "mlOcr": "ML-insinööri: OCR ja asiakirja-tekoäly",
+        "perfMarketing": "Tulosmarkkinointipäällikkö",
+        "contentLead": "Sisältövastaava: tarinankerronta",
+        "lifecycleCrm": "Asiakkuuden elinkaari- ja CRM-päällikkö"
+      }
+    },
+    "fellowship": {
+      "tag": "▲ VIZA Launchpad · 12 viikon ohjelma",
+      "title": "Kaksitoista viikkoa. Yksi tuotetiimi.<br></br><em>Yksi mahdollisuus toimittaa jotain.</em>",
+      "para1": "Launchpad on resident-ohjelmamme uransa alussa oleville insinööreille, tuotepäälliköille ja suunnittelijoille, ihmisille, jotka muuten tarvitsisivat vielä kaksi vuotta ”kokemusta” ennen kuin saavat oikean tilaisuuden.",
+      "para2": "Työskentelet yhdessä vanhempien vastaavien kanssa, omistat oikean tuotealueen aloituksesta julkaisuun ja lähdet mukanasi jotain, mitä miljoonat ihmiset käyttävät. Noin 60 % ryhmästä saa kokoaikatarjouksen.",
+      "meta": [
+        {
+          "k": "Kesto",
+          "v": "12 viikkoa"
+        },
+        {
+          "k": "Sijainti",
+          "v": "Toimistolla, missä tahansa pääkonttorissa"
+        },
+        {
+          "k": "Apuraha",
+          "v": "Markkinatason yläpuolella"
+        },
+        {
+          "k": "Seuraava ryhmä",
+          "v": "Syyskuu 2026"
+        }
+      ],
+      "apply": "Hae Launchpadiin",
+      "readCohort": "Lue vuoden 2025 ryhmästä",
+      "projects": [
+        {
+          "k": "2024 · Kehitys",
+          "title": "OCR-putken uudelleenkirjoitus",
+          "meta1": "Tuotantoon",
+          "meta2": "3.2× nopeampi"
+        },
+        {
+          "k": "2025 · Suunnittelu",
+          "title": "Schengen-polun uudelleensuunnittelu",
+          "meta1": "14 maata livenä",
+          "meta2": "↑ 22 % konv."
+        },
+        {
+          "k": "2025 · Tuote",
+          "title": "Suurlähetystöaikojen ajastin",
+          "meta1": "9 suurlähetystöä",
+          "meta2": "40k aikaa/kk"
+        }
+      ]
+    },
+    "benefits": {
+      "eyebrow": "Meillä on sinusta huolehdittu (oikeasti)",
+      "title": "Tylsät asiat<br></br>hoidettu kunnolla.",
+      "lead": "Emme pidä etuja ylimääräisinä. Ne ovat perustaso, jonka avulla ihmiset voivat tehdä parasta työtään. Tässä se, mitä jokainen VIZAn työntekijä saa jokaisessa toimistossa ensimmäisestä päivästä.",
+      "items": [
+        {
+          "title": "Kattava terveydenhuolto, hoidettu.",
+          "body": "Täydet lääkäri-, hammas- ja näönhuoltopalvelut ensimmäisestä päivästä, sinulle, kumppanillesi ja lapsillesi. Maksamme vakuutusmaksun, ei omavastuupelejä."
+        },
+        {
+          "title": "Rakenna varallisuutta, älä vain palkkaa.",
+          "body": "Markkinatason ylittävä peruspalkka jokaisella markkinalla, jolla rekrytoimme, sekä anteliaat osakkeet, jotka on sidottu virstanpylväisiin, ei vain työvuosiin. Päivitämme ne kahden vuoden välein."
+        },
+        {
+          "title": "Opi se, mikä oikeasti merkitsee.",
+          "body": "$2,000/v oppimisbudjetti, kuukausittaiset sisäiset opetustuokiot ja aikaa kalenterissa, ei vain lupa, käydä kurssi tai osallistua konferenssiin."
+        },
+        {
+          "title": "Ilahduta asiakkaita kuin se olisi omaa rahaasi.",
+          "body": "Jokaiselle hakijalle on $100 budjetti hyvän tahdon eleisiin. Ei hyväksyntää, ei eskalointia: korjaa asia ja kirjoita sitten ylös, mitä tapahtui."
+        },
+        {
+          "title": "Mieli > kaikki.",
+          "body": "Luottamuksellista, ammattimaista mielenterveystukea ilman vakuutusrimpuilua. Lisäksi kolme ”ei kokouksia” -päivää kuukaudessa koko yrityksessä."
+        },
+        {
+          "title": "Matkaedut (meidän oli pakko).",
+          "body": "Hoidamme viisumeja, joten tiimimme pitäisi matkustaa talon piikkiin. $4k/v matkaetu, ja VIZA hoitaa jokaisen tarvitsemasi viisumin heti, sisäisesti."
+        },
+        {
+          "title": "Antelias, aito vapaa-aika.",
+          "body": "30 päivää palkallista lomaa, maasi pyhäpäivät sekä palkallinen viikko 24. joulukuuta ja 1. tammikuuta välillä. Seuraamme käyttöä ja kannustamme ihmisiä pitämään lisää, ei vähemmän."
+        },
+        {
+          "title": "Välineet, kysymättä.",
+          "body": "Valitse kannettava, näyttö ja tuoli ensimmäisenä päivänä. Etätyöavustus työpisteeseesi. Luotamme siihen, että tiedät, mitä tarvitset hyvään työhön."
+        },
+        {
+          "title": "Vanhempainvapaa, joka oikeasti toimii.",
+          "body": "20 viikkoa ensisijaiselle huoltajalle, 12 toissijaiselle, täysin palkallisena. Lisäksi vaiheittainen paluu, jotta et ole täydessä vauhdissa jo ensimmäisenä päivänä."
+        }
+      ]
+    },
+    "offices": {
+      "eyebrow": "Missä työskentelemme",
+      "title": "Kaksi toimistoa, yksi tuote.",
+      "lead": "Rekrytoimme lähelle suurlähetystöjä, kumppaneita ja palvelemiamme markkinoita. Jokaisessa toimistossa on sekä insinöörejä että toimintaa: emme erota rakentavia tiimejä niistä, jotka pyörittävät lattiaa.",
+      "cards": [
+        {
+          "photo": "kuva · Shanghai",
+          "open": "6 avointa",
+          "name": "Shanghai",
+          "addr1": "Lane 1502, Luoshan Road,",
+          "addr2": "Kiinan (Shanghain) vapaakauppa-pilottialue",
+          "tz": "GMT+8 · Kiinan toiminnot",
+          "since": "Vuodesta 2023"
+        },
+        {
+          "photo": "kuva · Singaporen pääkonttori",
+          "open": "12 avointa",
+          "name": "Singapore",
+          "addr1": "Paya Lebar Road 60, #06-28 Paya Lebar Square,",
+          "addr2": "Singapore 409051",
+          "tz": "GMT+8 · Aasian ja Tyynenmeren alueen pääkonttori",
+          "since": "Pääkonttori · vuodesta 2021"
+        }
+      ]
+    },
+    "ctaStrip": {
+      "title": "Etkö näe tehtävääsi,<br></br>mutta haluat mukaan?",
+      "body": "Jos sinulla on epätavallinen tausta ja uskot auttavasi meitä viemään maailman matkailijat nopeammin eteenpäin, haluamme kuulla sinusta. Olemme palkanneet bussinkuljettajia, entisiä suurlähetystön työntekijöitä ja juristeja. Meillä ei ole tyyppiä.",
+      "lead": "Yleinen hakemus",
+      "cta": "Lähetä meille tarinasi",
+      "note": "Vastaamme 7 päivän kuluessa, vaikka vastaus olisi ei."
+    },
+    "footer": {
+      "tagline": "VIZA auttaa sinua suunnittelemaan, hakemaan ja seuraamaan viisumeja sujuvasti ympäri maailmaa.",
+      "company": "Yritys",
+      "products": "Tuotteet",
+      "offices": "Toimistot",
+      "careers": "Ura",
+      "contact": "Yhteystiedot",
+      "security": "Tietoturva",
+      "privacy": "Tietosuoja",
+      "terms": "Käyttöehdot",
+      "prodVisaReq": "Viisumivaatimukset",
+      "prodSchengen": "Schengenin ajanvarausten tarkistin",
+      "prodPhoto": "Viisumikuvien tekijä",
+      "prodHelpline": "VIZA-hätäpuhelin",
+      "prodStudent": "Opiskelijaviisumi",
+      "officeSg": "Singapore, pääkonttori",
+      "officeSf": "Shanghai",
+      "copyright": "© VIZA, kaikki oikeudet pidätetään"
+    }
+  },
+  "security": {
+    "hero": {
+      "eyebrow": "Tietoturva VIZAssa · päivitetty viimeksi toukokuussa 2026",
+      "title": "Yksityinen. Läpinäkyvä.<br></br><em>Turvallinen oletuksena.</em>",
+      "lead": "Asiakkaat eri puolilla maailmaa uskovat meille miljoonia arkaluonteisia asiakirjoja: passeja, tiliotteita, valokuvia. Tässä kerrotaan tarkasti, miten keräämme ne, säilytämme ne ja todistamme tekevämme sen oikein.",
+      "ctaPrimary": "Miten suojaamme tietosi",
+      "ctaVdp": "Ilmoita haavoittuvuudesta"
+    },
+    "clearance": {
+      "republicKey": "Tasavalta",
+      "officeKey": "Myöntävä toimisto",
+      "officeVal": "Luottamus ja turvallisuus",
+      "title": "Turvaselvitys /<br></br>Asiakastiedot",
+      "grid": {
+        "encryption": {
+          "k": "Salaus",
+          "v": "AES-256 / TLS 1.3"
+        },
+        "region": {
+          "k": "Alue",
+          "v": "SG · US · EU"
+        },
+        "audit": {
+          "k": "Auditointitiheys",
+          "v": "Neljännesvuosittain"
+        },
+        "retention": {
+          "k": "Säilytys",
+          "v": "Enintään 90 päivää"
+        }
+      },
+      "referenceKey": "Viite",
+      "glyph": "HYVÄKSYTTY<br></br>VIZA · 26"
+    },
+    "chips": {
+      "transitLabel": "Siirrossa",
+      "transitVal": "Päästä päähän TLS 1.3",
+      "restLabel": "Levossa",
+      "restVal": "AES-256, sidottu alueeseen"
+    },
+    "stats": {
+      "docs": {
+        "value": "2.4 milj.",
+        "label": "Käsiteltyjä asiakirjoja vuonna 2025, nolla asiakastietovuotoa"
+      },
+      "retention": {
+        "unit": "pv",
+        "label": "Lähdeasiakirjojen enimmäissäilytysaika myöntämisen jälkeen"
+      },
+      "pentests": {
+        "label": "Ulkoista tunkeutumistestiä, kaikki raportit julkaistu sisäisesti"
+      },
+      "ack": {
+        "unit": "t",
+        "label": "Ilmoitetun haavoittuvuuden vastaanoton mediaaniaika"
+      }
+    },
+    "docs": {
+      "eyebrow": "Mitä keräämme",
+      "title": "Viisi asiakirjatyyppiä.<br></br><em>Ei mitään muuta.</em>",
+      "copy1": "Viisumihakemus on paperityöongelma. Keräämme vain sen, mitä suurlähetystö nimenomaisesti pyytää, ja anonymisoimme aina kun mahdollista. Jokainen asiakirja liitetään yhteen hakemukseen, salataan vastaanotettaessa ja poistetaan kiinteän aikataulun mukaan.",
+      "copy2": "Emme myy tietojasi koskaan. Emme jaa niitä kolmansille osapuolille, lukuun ottamatta viisumiisi suoraan liittyvää konsulaattia tai kumppania.",
+      "cards": {
+        "payment": {
+          "name": "Maksutiedot",
+          "meta": "ei kerätä"
+        },
+        "photos": {
+          "name": "Viisumikuvat",
+          "meta": "käsitelty · enintään 90 pv"
+        },
+        "bank": {
+          "name": "Tiliotteet",
+          "meta": "peitetty · vain pdf"
+        },
+        "pastVisas": {
+          "name": "Aiemmat viisumit",
+          "meta": "vain luku · OCR"
+        },
+        "passport": {
+          "name": "Passi",
+          "meta": "MRZ poimittu"
+        }
+      }
+    },
+    "features": {
+      "eyebrow": "Seitsemän aina päällä olevaa suojausta",
+      "title": "Miten tietosi pysyvät<br></br>sinun, päästä <em>päähän.</em>",
+      "intro": "Jokaisen VIZAn tavun oletustila on ”salattu, rajattu ja aikarajattu”. Nämä seitsemän suojausta takaavat sen, eivät tavoitteina vaan sellaisina kuin ne on nykyään kytketty alustaan.",
+      "cells": {
+        "minimise": {
+          "title": "Tietojen minimointi ja anonymisointi",
+          "body": "Keräämme vain sen, mitä suurlähetystö tai kumppani todella vaatii kyseiseen hakemukseen, ja anonymisoimme loput aina kun alusta sen sallii. Kentät, joita et näe lomakkeissamme, ovat kenttiä, joita emme tallenna.",
+          "why": "<strong>Miksi:</strong> tietomurto ei voi paljastaa tietoa, jota ei koskaan kerätty."
+        },
+        "payments": {
+          "title": "Ei maksutietoja",
+          "body": "VIZAn palvelu on ilmainen emmekä ota maksuja, joten emme koskaan pyydä, näe tai tallenna korttinumeroita.",
+          "why": "<strong>Miksi:</strong> tietoa, jota emme pidä hallussa, ei voi varastaa."
+        },
+        "atRest": {
+          "title": "Salaus levossa",
+          "body": "Jokainen VIZAn palvelimilla oleva asiakirja, viesti ja metatietokenttä salataan AES-256-salauksella ennen kuin se koskettaa levyä. Avaimet kierrätetään automaattisesti ja säilytetään laitteistopohjaisessa KMS:ssä, jota edes infrastruktuuritiimimme ei voi lukea suoraan.",
+          "why": "<strong>Miksi:</strong> varastetut levyt tai varmuuskopiot pysyvät lukukelvottomina ilman avaimia."
+        },
+        "inTransit": {
+          "title": "Päästä päähän -salaus",
+          "body": "Kaikki liikenne laitteesi, palvelimiemme ja kumppanikonsulaattien välillä käyttää TLS 1.3 -protokollaa tiukalla kiinnityksellä. Asiakirjojen lataukset käyttävät erillistä, allekirjoitettua kanavaa, jotta edes verkkotason hyökkääjät eivät näe, mitä lähetät.",
+          "why": "<strong>Miksi:</strong> vihamieliset verkot, lentokentän Wi-Fi mukaan lukien, eivät voi lukea hakemustasi."
+        },
+        "audits": {
+          "title": "Säännölliset tietoturvatarkastukset",
+          "body": "Teemme ulkoisen tunkeutumistestin joka neljännes, vuosittaisen SOC 2 Type II -auditoinnin ja jatkuvaa automaattista haavoittuvuusskannausta. Jokainen havainto kirjataan korjauspäivämäärän kanssa, ja myöhässä olevista asioista hälytetään kehityspäällikölle.",
+          "why": "<strong>Miksi:</strong> uhat muuttuvat, ja puolustustamme tarkistetaan niitä vastaan kellon mukaan."
+        },
+        "access": {
+          "title": "Turvalliset käyttöoikeudet",
+          "body": "Sisäinen pääsy asiakastietoihin on roolikohtainen, auditoidaan pyyntökohtaisesti ja myönnetään juuri oikea-aikaisella oikeuksien korotuksella. Konsultit näkevät vain hakemuksen, jonka parissa he aktiivisesti työskentelevät. Jokainen lukukerta kirjataan 12 kuukaudeksi.",
+          "why": "<strong>Miksi:</strong> sisäiset virheet ja väärinkäytökset rajataan, voidaan yhdistää tekijään ja tarkastaa jälkikäteen."
+        },
+        "education": {
+          "title": "Käyttäjien koulutus ja tietoisuus",
+          "body": "Tietoturvan vaikein osa on se, jota emme voi toimittaa puolestasi. Lähetämme selkokieliset oppaat tietojenkalastelusta, passikuvahuijauksista ja väärennetyistä suurlähetystötekstiviesteistä heti, kun aloitat hakemuksen, ja nostamme ne uudelleen esiin tuotteessa heti, kun jokin vaikuttaa epäilyttävältä. Sinä olet viimeinen puolustuslinja, ja varustamme sinut mieluummin kuin syytämme sinua.",
+          "why": "<strong>Miksi:</strong> hyvin informoitu hakija on halvin ja tehokkain tietoturvakeino, joka meillä on."
+        }
+      }
+    },
+    "vdp": {
+      "tag": "▲ Haavoittuvuuksien ilmoittaminen · avoin kaikille tutkijoille",
+      "title": "Löysitkö jotain?<br></br><em>Haluamme kuulla siitä.</em>",
+      "p1": "Käyttäjiemme ja kumppaneidemme turvallisuus on kaikki kaikessa. Jos uskot löytäneesi aidon haavoittuvuuden, joka vaikuttaa VIZAn palveluihin, kerro siitä meille suoraan, ja teemme kanssasi yhteistyötä kunnioittavasti ja nopeasti sen korjaamiseksi.",
+      "p2": "Lähetä havaintosi sähköpostilla osoitteeseen <strong>security@viza.it.com</strong>. Vahvistamme vastaanoton yhden arkipäivän kuluessa, vaikka se osoittautuisi jo tunnetuksi tai soveltamisalan ulkopuoliseksi.",
+      "meta": {
+        "ack": {
+          "k": "Vastaanotto vahvistettu",
+          "v": "'<' 24 tunnissa"
+        },
+        "triage": {
+          "k": "Luokiteltu",
+          "v": "3 arkipäivässä"
+        },
+        "lang": {
+          "k": "Kielet",
+          "v": "EN · ID · AR"
+        },
+        "pgp": {
+          "k": "PGP-avain",
+          "v": "0xVIZA · 2026"
+        }
+      },
+      "ctaEmail": "Lähetä sähköposti: security@viza.it.com",
+      "ctaScope": "Lue soveltamisala",
+      "terminal": {
+        "title": "draft-report · security@viza.it.com",
+        "l1": "# haavoittuvuusraportti",
+        "typeKey": "tyyppi:",
+        "typeVal": "authentication-bypass",
+        "urlKey": "url:",
+        "reproKey": "toisto:",
+        "reproVal": "[vaiheet 1-4]",
+        "impactKey": "vaikutus:",
+        "impactVal": "tilin kaappaus",
+        "pocKey": "poc:",
+        "l7": "# ↳ salattu avaimelle 0xVIZA",
+        "send": "lähetä"
+      }
+    },
+    "report": {
+      "eyebrow": "Haavoittuvuuden ilmoittaminen",
+      "title": "Mitä raporttiisi kuuluu<br></br>ja <em>mitä ei.</em>",
+      "intro": "Hyvä raportti säästää molemmilta viikon. Tässä muoto, jolla asiat luokitellaan nopeimmin, sekä asiat, joita emme mieluummin saa postilaatikkoomme.",
+      "include": {
+        "heading": "Sisällytä",
+        "sub": "Viisi kenttää. Mitä selkeämmin ne on kirjoitettu, sitä nopeammin voimme vahvistaa ja korjata asian.",
+        "items": {
+          "type": "<strong>Ongelman tyyppi:</strong> esim. todennus, pääsynhallinta, injektio, IDOR, SSRF.",
+          "steps": "<strong>Selkeät toistovaiheet:</strong> numeroituna, järjestyksessä, mahdollisuuksien mukaan puhtaassa istunnossa.",
+          "impact": "<strong>Mahdollinen tietoturvavaikutus:</strong> mitä hyökkääjä voisi tehdä tällä, selkokielellä.",
+          "poc": "<strong>Todiste konseptista:</strong> ensisijaisesti kuvakaappaukset tai lyhyt näyttötallenne, toissijaisesti lokit."
+        }
+      },
+      "dontSend": {
+        "heading": "Älä lähetä",
+        "sub": "Nämä ovat vaarallisia, hyödyttömiä tai molempia, ja joudumme poistamaan ne vastaanotettaessa.",
+        "items": {
+          "secrets": "<strong>Salasanoja tai todennustunnisteita</strong>, omiasi tai kenenkään muun. Näytä hyökkäysreitti, ei salaisuutta.",
+          "malware": "<strong>Raakoja haittaohjelmanäytteitä tai varastajalokeja.</strong> Kuvaile näkemäsi, älä liitä sitä mukaan.",
+          "scanners": "<strong>Suuria automaattisten skannerien raportteja</strong> ilman käsin valittua, osoitettua löydöstä.",
+          "customerData": "<strong>Asiakkaiden henkilötietoja tai asiakirjoja</strong>, vaikka ne olisivat olleet löydöksesi perusta.",
+          "socialEng": "<strong>Tallenteita sosiaalisen manipuloinnin yrityksistä</strong> henkilöstöämme tai konsulttejamme kohtaan."
+        }
+      }
+    },
+    "scope": {
+      "eyebrow": "Ohjelman soveltamisala",
+      "title": "Mikä kuuluu, mikä ei.",
+      "intro": "Jos et ole varma, kuuluuko raportti tähän luetteloon, lähetä se silti ja kysy. Luokittelemme mieluummin ja jatkamme kuin että pidät todellisen ongelman omana tietonasi, koska raja ei ollut ilmeinen.",
+      "fileRef": "/security/scope.md · v6",
+      "in": {
+        "pill": "Soveltamisalan sisällä",
+        "heading": "Raportit, jotka käsittelemme aktiivisesti",
+        "items": {
+          "web": "VIZAn verkkosovellukset ja rajapinnat osoitteessa <code>*.viza.com</code>, mukaan lukien hakijaportaali, konsulttikonsoli ja kumppanien päätepisteet.",
+          "infra": "VIZAn omistama infrastruktuuri ja palvelut: tunnistautuminen, asiakirjaputki, ajanvaraus.",
+          "mobile": "VIZAn kehittäjätilin alla julkaistut mobiilisovellukset (iOS, Android).",
+          "marketing": "Julkiset markkinointi- ja sisältösivustot VIZAn hallitsemilla verkkotunnuksilla."
+        }
+      },
+      "out": {
+        "pill": "Soveltamisalan ulkopuolella",
+        "heading": "Raportit, joita emme voi käsitellä tämän ohjelman puitteissa",
+        "items": {
+          "devices": "Ongelmat, jotka johtuvat vaarantuneista käyttäjälaitteista, selainlaajennuksista tai varastetuista tunnuksista.",
+          "phishing": "Sosiaalinen manipulointi tai tietojenkalastelu, joka kohdistuu VIZAn työntekijöihin, kumppaneihin tai konsultteihin.",
+          "thirdParty": "Kolmannen osapuolen palvelut tai integraatiot, joita VIZA ei suoraan operoi (konsulaattien portaalit, kuriirisivustot).",
+          "scanners": "Automaattisten skannerien havainnot ilman osoitettua, todellisessa maailmassa hyödynnettävissä olevaa haavoittuvuutta.",
+          "headers": "Puuttuvat tietoturvaotsakkeet tai yleiset parhaiden käytäntöjen suositukset ilman hyödyntämispolkua."
+        }
+      }
+    },
+    "pledge": {
+      "eyebrow": "Vastuullinen ilmoittaminen",
+      "title": "Sopimus, jonka teemme<br></br>keskenämme.",
+      "intro": "Ilmoittaminen toimii, koska molemmat osapuolet toimivat vilpittömästi. Tässä on se, mitä pyydämme sinulta, ja tässä se, mihin voit pitää meidät vastineeksi, kirjoitettuna ylös, jotta kenenkään ei tarvitse arvailla.",
+      "researcher": {
+        "kicker": "Mitä pyydämme sinulta",
+        "title": "Tutkijan <em>sitoumukset.</em>",
+        "p": "Lähettämällä raportin sitoudut toimimaan vilpittömästi ja ohjelman hengen mukaisesti, et vain sen kirjaimen.",
+        "items": {
+          "1": "Toimi vilpittömästi: vältä yksityisyyden loukkauksia, tietojen tuhoamista tai palvelun häiritsemistä tutkiessasi.",
+          "2": "Älä hyödynnä ongelmaa enempää kuin sen vahvistamiseen on tarpeen, äläkä koskaan käytä tietoja, jotka eivät ole omiasi.",
+          "3": "Pidä haavoittuvuuden tiedot luottamuksellisina, kunnes olemme toimittaneet korjauksen ja vahvistaneet sen kanssasi.",
+          "4": "Älä julkista havaintoja ilman VIZAn tietoturvatiimin etukäteen antamaa kirjallista suostumusta."
+        }
+      },
+      "viza": {
+        "kicker": "Mihin voit pitää meidät",
+        "title": "VIZAn <em>sitoumukset.</em>",
+        "p": "Vastineeksi emme jätä ilmoittajia vastaamatta, emme kiistä vakavuutta välttääksemme korjausta emmekä haasta oikeuteen ihmisiä, jotka auttavat meitä.",
+        "items": {
+          "1": "Käymme läpi jokaisen pätevän raportin ja vastaamme yhden arkipäivän kuluessa vakavuudesta riippumatta.",
+          "2": "Viestimme kunnioittavasti, ilman puolustelevaa kieltä tai ”toimii tarkoitetusti” -vähättelyä.",
+          "3": "Ryhdymme tarvittaessa asianmukaisiin korjaustoimiin ja kerromme sinulle, kun korjaus on julkaistu.",
+          "4": "Mainitsemme sinut (suostumuksellasi) tietoturvamuutoslokissamme, kun ongelma on ratkaistu."
+        }
+      }
+    },
+    "legal": {
+      "eyebrow": "Oikeudelliset asiat ja palkkiot",
+      "title": "Turvasatama, palkkiot<br></br>ja pienellä präntätty.",
+      "intro": "Jos noudatat tätä käytäntöä vilpittömästi, käsittelemme tutkimustasi valtuutettuna. Loppu sivusta on tylsä mutta tärkeä osa, esitetty avoimesti eikä piilotettuna.",
+      "cards": {
+        "safeHarbour": {
+          "title": "Oikeudellinen turvasatama",
+          "body": "Jos noudatat tätä käytäntöä vilpittömästi, VIZA ei ryhdy oikeustoimiin sinua vastaan tutkimukseesi liittyvistä vahingossa tai tahattomasti tapahtuneista rikkomuksista. Sinulta odotetaan edelleen sovellettavien lakien ja säädösten noudattamista."
+        },
+        "rewards": {
+          "title": "Palkkiot ja bugipalkkio",
+          "body": "VIZA ei tällä hetkellä pidä julkista bugipalkkio-ohjelmaa. Tarjoamme harkinnanvaraisen kiitoslahjan päteville, vastuullisesti ilmoitetuille ongelmille, arvioituna vaikutuksen, uutuuden ja raportin laadun perusteella.",
+          "meta": "harkinnanvarainen · tapauskohtaisesti"
+        },
+        "updates": {
+          "title": "Ohjelman päivitykset",
+          "body": "VIZA pidättää oikeuden muuttaa tai lopettaa tämän ohjelman milloin tahansa. Jos et ole varma, vastaako tutkimuksesi käytäntöä, ota yhteyttä osoitteessa security@viza.it.com <em>ennen</em> kuin jatkat.",
+          "meta": "viimeksi tarkistettu · toukokuu 2026"
+        }
+      }
+    },
+    "cta": {
+      "title": "Näetkö jotain outoa?<br></br>Kerro tietoturvatiimillemme.",
+      "body": "Kuulemme mieluummin pienestä löydöstä kahdesti kuin missaamme ison kerran. Raportit menevät suoraan oikealle ihmiselle tietoturvatiimissä, ei tikettiportaalia, ei luokittelurobottia.",
+      "lead": "Suoraan tietoturvatiimille",
+      "small": "Mediaanivastaus alle 24 tunnissa, joka päivä viikossa."
+    },
+    "footer": {
+      "tagline": "VIZA auttaa sinua suunnittelemaan, hakemaan ja seuraamaan viisumeja sujuvasti ympäri maailmaa.",
+      "company": "Yritys",
+      "careers": "Ura",
+      "contact": "Yhteystiedot",
+      "security": "Tietoturva",
+      "privacy": "Tietosuoja",
+      "terms": "Käyttöehdot",
+      "products": "Tuotteet",
+      "prodVisaReq": "Viisumivaatimukset",
+      "prodSchengen": "Schengenin ajanvarausten tarkistin",
+      "prodPhoto": "Viisumikuvien tekijä",
+      "prodHelpline": "VIZA-hätäpuhelin",
+      "prodStudent": "Opiskelijaviisumi",
+      "offices": "Toimistot",
+      "officeSg": "Singapore, pääkonttori",
+      "officeSf": "Shanghai",
+      "copyright": "© VIZA, kaikki oikeudet pidätetään"
+    }
+  },
+  "status": {
+    "crumbHome": "Läpinäkyvyys",
+    "crumbHere": "Järjestelmän tila",
+    "hero": {
+      "title": "Järjestelmän tila",
+      "lead": "Näyttöön perustuva saatavuus VIZAlle ja viranomaisten viisumiportaaleille, joiden kanssa työskentelemme. Jokainen alla oleva prosenttiluku, aikajanapalkki ja häiriö perustuu tallennettuun synteettiseen tarkistukseen."
+    },
+    "console": {
+      "title": "VIZAn luotettavuus · Livenä",
+      "live": "Vahvistettu",
+      "unverified": "Vahvistamaton",
+      "allOperational": "Kaikki järjestelmät toimivat",
+      "degraded": "Joidenkin järjestelmien toiminta on heikentynyt",
+      "majorOutage": "Seurattu järjestelmä ei ole käytettävissä",
+      "dataUnavailable": "Seurantatietoja ei ole saatavilla",
+      "lastChecked": "Viimeisin tallennettu tarkistus: {time}",
+      "noChecks": "Valmiita tarkistuksia ei ole vielä tallennettu",
+      "kUptime": "90 päivän tarkistuksista läpäisty",
+      "kMonitors": "Seurattavia päätepisteitä",
+      "kIncidents": "Aktiivinen häiriö"
+    },
+    "subnav": {
+      "current": "Nykyinen tila",
+      "incidents": "Aiemmat häiriöt",
+      "subscribe": "Tilaa",
+      "searchPlaceholder": "Hae maita",
+      "subscribeBtn": "Tilaa päivitykset"
+    },
+    "platform": {
+      "title": "VIZA-alusta",
+      "realMeta": "Tarkistetaan 5 minuutin välein · päätepisteitä: {count}",
+      "meta": "Tarkistetaan 5 minuutin välein",
+      "name": "VIZA-hakemusalusta",
+      "sub": "Julkiset VIZA-palvelut"
+    },
+    "uptime": {
+      "ago": "90 päivää sitten",
+      "today": "Tänään",
+      "pct": "{pct} % tarkistuksista läpäisty",
+      "noData": "Ei tallennettuja tarkistuksia"
+    },
+    "dayObservation": "{date}: tallennettuja tarkistuksia {checks}",
+    "dayNoData": "{date}: ei tallennettua dataa",
+    "dayTitle": "Päivä {n}",
+    "statusLabels": {
+      "op": "Toiminnassa",
+      "deg": "Heikentynyt",
+      "part": "Osittainen katkos",
+      "maj": "Ei käytettävissä",
+      "none": "Ei ajantasaista dataa"
+    },
+    "lastChecked": "Tarkistettu {time}",
+    "monitorStale": "Tarkistus puuttuu tai on vanhentunut",
+    "monitoringUnavailable": "Tila-rajapinnalla ei ole tuoretta näyttöä. VIZA ei näytä välimuistissa olevaa tai generoitua saatavuutta palvelun nykyisenä tilana.",
+    "noSearchResults": "Mikään seurattu maa ei vastaa hakua.",
+    "noRecordedIncidents": "Tallennetuista tarkistuksista ei ole johdettu häiriöitä viimeisen 90 päivän aikana.",
+    "incidentCount": "{count, plural, one {# häiriö} other {# häiriötä}}",
+    "incidentRecovered": "Tallennetut tarkistukset osoittavat, että palvelu on toipunut.",
+    "noIssues": "Ei aktiivisia ongelmia",
+    "activeIncident": "Aktiivinen häiriö",
+    "portalsHead": {
+      "title": "Viranomaisten portaalit",
+      "lead": "Rajattu synteettinen pyyntö tarkistaa jokaisen määritetyn portaalin viiden minuutin välein. Harmaa historia tarkoittaa, ettei havaintoa ole tallennettu, eikä sitä koskaan täytetä arvioidulla datalla."
+    },
+    "incidentsHead": {
+      "title": "Aiemmat häiriöt",
+      "lead": "Häiriöt avautuvat ja sulkeutuvat tallennettujen seurantasiirtymien perusteella. Tämä on toiminnallista saatavuutta, ei hakijan henkilökohtaisen viisumipäätöksen tila."
+    },
+    "tags": {
+      "identified": "Tunnistettu",
+      "investigating": "Tutkitaan",
+      "resolved": "Ratkaistu"
+    },
+    "portals": {
+      "AE": {
+        "name": "Yhdistyneet arabiemiirikunnat",
+        "sub": "GDRFA · ICA-portaalit"
+      },
+      "AM": {
+        "name": "Armenia",
+        "sub": "e-viisumiportaali"
+      },
+      "AU": {
+        "name": "Australia",
+        "sub": "ImmiAccount"
+      },
+      "AZ": {
+        "name": "Azerbaidžan",
+        "sub": "ASAN Visa"
+      },
+      "DE": {
+        "name": "Saksa",
+        "sub": "VIDEX · konsulaatin vapaat ajat"
+      },
+      "DK": {
+        "name": "Tanska"
+      },
+      "EG": {
+        "name": "Egypti",
+        "sub": "e-viisumiportaali"
+      },
+      "FI": {
+        "name": "Suomi",
+        "sub": "EnterFinland"
+      },
+      "FR": {
+        "name": "Ranska",
+        "sub": "France-Visas"
+      },
+      "GB": {
+        "name": "Yhdistynyt kuningaskunta",
+        "sub": "UKVCAS · UK Visas",
+        "bannerText": "Joihinkin hakemustyyppeihin kohdistuu katkos.",
+        "bannerLink": "Näytä häiriöiden aikajana"
+      },
+      "GE": {
+        "name": "Georgia"
+      },
+      "GR": {
+        "name": "Kreikka",
+        "sub": "AEGEAN · konsulipalvelut"
+      },
+      "HK": {
+        "name": "Hongkong",
+        "sub": "Immigration eVisa"
+      },
+      "ID": {
+        "name": "Indonesia",
+        "sub": "e-Visa Indonesia"
+      },
+      "IN": {
+        "name": "Intia",
+        "sub": "Indian Visa Online"
+      },
+      "JO": {
+        "name": "Jordania"
+      },
+      "KE": {
+        "name": "Kenia",
+        "sub": "eCitizen / eVisa"
+      },
+      "KH": {
+        "name": "Kambodža"
+      },
+      "LK": {
+        "name": "Sri Lanka",
+        "sub": "ETA-portaali"
+      },
+      "MA": {
+        "name": "Marokko"
+      },
+      "TH": {
+        "name": "Thaimaa",
+        "sub": "Thailand e-Visa"
+      }
+    },
+    "incidents": {
+      "count": "<strong>{count}</strong> {count, plural, one {maa} other {maata}} kärsi suorituskykyongelmista",
+      "events": "{count, plural, one {# tapahtuma} other {# tapahtumaa}}",
+      "days": [
+        {
+          "date": "10. toukokuuta 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "10. toukokuuta, 3:05 PM",
+                  "desc": "Tämä häiriö on ratkaistu. Palvelu on palannut normaaliin toimintaan."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "10. toukokuuta, 5:05 PM",
+                  "desc": "Tämä häiriö on ratkaistu. Palvelu on palannut normaaliin toimintaan."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "9. toukokuuta 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "9. toukokuuta, 10:50 PM",
+                  "desc": "Selvitämme kohonnutta virheprosenttia."
+                },
+                {
+                  "time": "10. toukokuuta, 12:20 AM",
+                  "desc": "Vakavuus nousi heikentyneestä osittaiseksi katkokseksi."
+                },
+                {
+                  "time": "10. toukokuuta, 2:50 AM",
+                  "desc": "Vakavuus nousi osittaisesta katkoksesta laajaksi katkokseksi."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "9. toukokuuta, 3:05 PM",
+                  "desc": "Selvitämme kohonnutta virheprosenttia."
+                },
+                {
+                  "time": "9. toukokuuta, 7:20 PM",
+                  "desc": "Vakavuus nousi osittaisesta katkoksesta laajaksi katkokseksi."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "8. toukokuuta 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "8. toukokuuta, 1:05 PM",
+                  "desc": "Selvitämme kohonnutta virheprosenttia."
+                },
+                {
+                  "time": "8. toukokuuta, 2:05 PM",
+                  "desc": "Tämä häiriö on ratkaistu. Palvelu on palannut normaaliin toimintaan."
+                },
+                {
+                  "time": "8. toukokuuta, 2:50 PM",
+                  "desc": "Selvitämme kohonnutta virheprosenttia."
+                },
+                {
+                  "time": "8. toukokuuta, 7:35 PM",
+                  "desc": "Tämä häiriö on ratkaistu. Palvelu on palannut normaaliin toimintaan."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "5. toukokuuta 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "5. toukokuuta, 1:36 PM",
+                  "desc": "Vakavuus nousi heikentyneestä osittaiseksi katkokseksi."
+                },
+                {
+                  "time": "5. toukokuuta, 4:50 PM",
+                  "desc": "Tämä häiriö on ratkaistu."
+                },
+                {
+                  "time": "5. toukokuuta, 9:20 PM",
+                  "desc": "Selvitämme kohonnutta virheprosenttia."
+                },
+                {
+                  "time": "5. toukokuuta, 10:20 PM",
+                  "desc": "Tämä häiriö on ratkaistu."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "5. toukokuuta, 2:43 PM",
+                  "desc": "Tämä häiriö on ratkaistu."
+                },
+                {
+                  "time": "5. toukokuuta, 3:35 PM",
+                  "desc": "Selvitämme kohonnutta virheprosenttia."
+                },
+                {
+                  "time": "5. toukokuuta, 7:35 PM",
+                  "desc": "Vakavuus nousi osittaisesta katkoksesta laajaksi katkokseksi."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "4. toukokuuta 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "4. toukokuuta, 4:05 PM",
+                  "desc": "Selvitämme kohonnutta virheprosenttia."
+                },
+                {
+                  "time": "4. toukokuuta, 5:05 PM",
+                  "desc": "Tämä häiriö on ratkaistu."
+                },
+                {
+                  "time": "4. toukokuuta, 7:36 PM",
+                  "desc": "Selvitämme kohonnutta virheprosenttia."
+                },
+                {
+                  "time": "4. toukokuuta, 8:35 PM",
+                  "desc": "Tämä häiriö on ratkaistu."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "4. toukokuuta, 12:05 PM",
+                  "desc": "Tämä häiriö on ratkaistu."
+                },
+                {
+                  "time": "4. toukokuuta, 1:50 PM",
+                  "desc": "Selvitämme kohonnutta virheprosenttia."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2. toukokuuta 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "2. toukokuuta, 6:35 PM",
+                  "desc": "Selvitämme kohonnutta virheprosenttia."
+                },
+                {
+                  "time": "2. toukokuuta, 7:50 PM",
+                  "desc": "Tämä häiriö on ratkaistu."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "2. toukokuuta, 9:20 AM",
+                  "desc": "Selvitämme kohonnutta virheprosenttia."
+                },
+                {
+                  "time": "2. toukokuuta, 10:20 AM",
+                  "desc": "Tämä häiriö on ratkaistu."
+                },
+                {
+                  "time": "2. toukokuuta, 8:20 PM",
+                  "desc": "Selvitämme kohonnutta virheprosenttia."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "2. toukokuuta, 8:20 PM",
+                  "desc": "Selvitämme kohonnutta virheprosenttia."
+                },
+                {
+                  "time": "3. toukokuuta, 12:05 AM",
+                  "desc": "Tämä häiriö on ratkaistu."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "1. toukokuuta 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "1. toukokuuta, 2:05 PM",
+                  "desc": "Selvitämme kohonnutta virheprosenttia."
+                },
+                {
+                  "time": "1. toukokuuta, 3:05 PM",
+                  "desc": "Tämä häiriö on ratkaistu."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "30. huhtikuuta 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "30. huhtikuuta, 8:20 AM",
+                  "desc": "Selvitämme kohonnutta virheprosenttia."
+                },
+                {
+                  "time": "30. huhtikuuta, 9:50 AM",
+                  "desc": "Tämä häiriö on ratkaistu."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30. huhtikuuta, 3:05 PM",
+                  "desc": "Tämä häiriö on ratkaistu."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30. huhtikuuta, 4:51 PM",
+                  "desc": "Tämä häiriö on ratkaistu."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30. huhtikuuta, 1:20 PM",
+                  "desc": "Selvitämme kohonnutta virheprosenttia."
+                },
+                {
+                  "time": "30. huhtikuuta, 2:37 PM",
+                  "desc": "Vakavuus nousi heikentyneestä osittaiseksi katkokseksi."
+                },
+                {
+                  "time": "30. huhtikuuta, 8:20 PM",
+                  "desc": "Tämä häiriö on ratkaistu."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30. huhtikuuta, 6:50 PM",
+                  "desc": "Tämä häiriö on ratkaistu."
+                },
+                {
+                  "time": "30. huhtikuuta, 7:50 PM",
+                  "desc": "Selvitämme kohonnutta virheprosenttia."
+                },
+                {
+                  "time": "1. toukokuuta, 12:20 AM",
+                  "desc": "Tämä häiriö on ratkaistu."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "subscribe": {
+      "title": "Ole ensimmäisten joukossa,<br></br>kun jokin menee rikki.",
+      "lead": "Valitse maat, joista olet kiinnostunut, niin lähetämme sinulle yhden selkokielisen päivityksen, kun niiden portaalit tai meidän omamme kaatuvat tai palaavat toimintaan.",
+      "emailLabel": "Saat häiriöpäivitykset sähköpostitse",
+      "button": "Tilaa",
+      "follow": "Tai seuraa tilaa täällä:",
+      "chipEmail": "Sähköpostitiivistelmä",
+      "chipSms": "Tekstiviesti ja WhatsApp",
+      "chipRss": "RSS-syöte",
+      "chipWebhook": "Webhook ylläpitoon"
+    },
+    "footer": {
+      "tagline": "VIZA auttaa sinua suunnittelemaan, hakemaan ja seuraamaan viisumeja sujuvasti ympäri maailmaa.",
+      "company": "Yritys",
+      "careers": "Ura",
+      "contact": "Yhteystiedot",
+      "security": "Tietoturva",
+      "systemStatus": "Järjestelmän tila",
+      "privacy": "Tietosuoja",
+      "terms": "Käyttöehdot",
+      "products": "Tuotteet",
+      "prodVisaReq": "Viisumivaatimukset",
+      "prodSchengen": "Schengenin ajanvarausten tarkistin",
+      "prodPhoto": "Viisumikuvien tekijä",
+      "prodHelpline": "VIZA-hätäpuhelin",
+      "copyright": "© VIZA, kaikki oikeudet pidätetään"
+    }
+  },
+  "arrival": {
+    "breadcrumbHome": "Etusivu",
+    "breadcrumbHub": "Saapumiskortit",
+    "hubH1": "Saapumiskorttioppaat",
+    "hubLead": "Saapumiskortti on lyhyt viranomaislomake, jonka täytät ennen maahantuloa. Useimmat ovat verkossa, ilmaisia ja vievät noin viisi minuuttia. Nämä oppaat kertovat, kuka tarvitsee minkäkin, milloin se lähetetään ja miten vältät väärennetyt sivustot, jotka veloittavat siitä.",
+    "hubWhatTitle": "Mikä saapumiskortti on",
+    "hubWhat": [
+      "Saapumiskortti on ilmoitus, jota kohdemaa pyytää passin ja mahdollisen viisumin lisäksi. Se kirjaa, kuka olet, miten saavut ja missä aiot yöpyä. Monet maat ovat korvanneet koneessa jaetun paperikortin verkkolomakkeella.",
+      "Se ei ole viisumi. Viisumi antaa oikeuden hakea maahantuloa. Saapumiskortti kertoo rajaviranomaiselle matkastasi, ja tarvitset silti viisumin, jos kansalaisuutesi sitä vaatii."
+    ],
+    "hubFreeTitle": "Saapumiskortit ovat ilmaisia",
+    "hubFree": [
+      "Jokainen näissä oppaissa oleva kortti on ilmainen viranomaisen omalla sivustolla. Jotkin sivustot kopioivat viranomaisen lomakkeen ja veloittavat siitä maksun. Sinun ei tarvitse maksaa yhdellekään niistä.",
+      "Aloita aina kunkin oppaan virallisesta osoitteesta. VIZA on itsenäinen palvelu eikä viranomaisen verkkosivusto."
+    ],
+    "hubWhenTitle": "Milloin tarvitset sen",
+    "hubWhen": [
+      "Useimmat kortit aukeavat kolme päivää ennen saapumista ja ne on lähetettävä tuon ajan sisällä. Tarkista tarkka sääntö kustakin oppaasta, sillä Japanin Visit Japan Webillä ei ole kiinteää määräaikaa eikä se ole pakollinen.",
+      "Asukkaat, kansalaiset ja kauttakulkumatkustajat on usein vapautettu tai heillä on lyhyempi lomake. Jokaisessa oppaassa luetellaan vapautetut, mukaan lukien Singaporen kansalaisten vapautus Malesian MDAC-kortista."
+    ],
+    "hubGuidesTitle": "Kaikki oppaat",
+    "hubGuidesSub": "Valitse kohdemaasi. Jokaisessa oppaassa on vaiheet, yleiset virheet ja viralliset linkit.",
+    "readGuide": "Lue opas",
+    "cardWhen": "Milloin",
+    "cardsLabel": "Saapumiskortti",
+    "hubVisaTitle": "Tarvitsetko myös viisumin",
+    "hubVisaBody": "Saapumiskortti ei korvaa viisumia. Tarkista kohdemaan sivulta, tarvitseeko passisi sellaisen.",
+    "hubVisaCta": "Selaa viisumisivuja",
+    "glanceTitle": "Pikakatsaus",
+    "stepsTitle": "Näin täytät sen vaihe vaiheelta",
+    "mistakesTitle": "Yleiset virheet",
+    "feesTitle": "Maksut ja väärennetyt sivustot",
+    "faqTitle": "Kysymykset",
+    "sourcesTitle": "Lähteet",
+    "relatedTitle": "Muut saapumiskorttioppaat",
+    "independent": "VIZA on itsenäinen palvelu eikä viranomaisen verkkosivusto.",
+    "officialCta": "Avaa virallinen sivusto",
+    "officialLabel": "Virallinen sivusto",
+    "vizaTitle": "Anna VIZAn hoitaa se puolestasi",
+    "vizaBody": "Aloita {name} VIZA-tililläsi. VIZAn lomake käy läpi samat kysymykset kuin virallinen ja tallentaa tietosi myöhempiä matkoja varten. Voit aina käyttää myös ilmaista virallista sivustoa.",
+    "vizaFee": "VIZA-palvelumaksu",
+    "vizaFeeFree": "Ilmainen",
+    "vizaCta": "Aloita VIZAssa",
+    "noVizaTitle": "Käytä virallista sivustoa",
+    "noVizaBody": "VIZA ei vielä täytä tätä korttia. Käytä alla olevaa virallista sivustoa ja lue ensin tämän oppaan vaiheet.",
+    "visaTitle": "Viisumi: {country}",
+    "visaBody": "Saapumiskortti on erillinen viisumista. Katso, kuka tarvitsee viisumin kohdemaahan {country}, maksut ja hakuohje.",
+    "visaCta": "Avaa viisumisivu: {country}",
+    "reviewedTitle": "Tarkistettu 25. marraskuuta 2026",
+    "stepLabel": "Vaihe",
+    "cards": {
+      "malaysia-mdac": {
+        "summary": "Ilmainen verkkokortti ulkomaisille vierailijoille. Singaporen kansalaiset on vapautettu.",
+        "when": "3 päivän sisällä ennen saapumista"
+      },
+      "singapore-sg-arrival-card": {
+        "summary": "ICA:n verkkokortti terveysilmoituksella. Lähetä verkkosivustolla tai MyICA-sovelluksessa.",
+        "when": "3 päivän sisällä ennen saapumista"
+      },
+      "japan-visit-japan-web": {
+        "summary": "Ilmaiset QR-koodit maahanmuuttoa ja tullia varten. Suositeltu, ei pakollinen.",
+        "when": "Ennen lentoa"
+      },
+      "thailand-tdac": {
+        "summary": "Ilmainen kortti jokaiselle ulkomaiselle vierailijalle, viisumivapaalle tai ei. Korvasi paperisen TM6-lomakkeen.",
+        "when": "3 päivän sisällä ennen saapumista"
+      },
+      "korea-e-arrival-card": {
+        "summary": "Pakollinen 1. tammikuuta 2026 alkaen. Voimassa olevan K-ETA-luvan haltija on vapautettu.",
+        "when": "3 päivän sisällä ennen saapumista"
+      },
+      "indonesia-all-indonesia": {
+        "summary": "Yksi kortti maahanmuuttoa, tullia ja terveyttä varten. Ilmainen, eikä se ole viisumi.",
+        "when": "Enintään 3 päivää ennen saapumista"
+      }
+    }
+  },
+  "guides": {
+    "breadcrumbHome": "Etusivu",
+    "breadcrumbHub": "Oppaat",
+    "hubH1": "Viisumioppaat Singaporessa asuville",
+    "hubLead": "Olitpa Singaporen, Kiinan, Intian tai Filippiinien passin haltija, nämä oppaat vastaavat samaan kysymykseen: mitä tarvitsen maahantuloon ja mistä haen Singaporesta. Jokaisessa on mainittu lähteet ja tarkistuspäivä.",
+    "hubGuidesTitle": "Kaikki oppaat",
+    "hubGuidesSub": "Valitse aihe. Säännöt muuttuvat, joten jokaisessa oppaassa on lueteltu viralliset sivut, jotka kannattaa tarkistaa ennen matkaa.",
+    "readGuide": "Lue opas",
+    "hubMoreTitle": "Lisää VIZAlta",
+    "hubMoreBody": "Etsitkö tiettyä maata, saapumiskorttia tai uusinta sääntömuutosta?",
+    "hubDestinations": "Viisumisivut",
+    "hubArrival": "Saapumiskorttioppaat",
+    "hubNews": "Viisumiuutiset",
+    "glanceTitle": "Pikavastaus",
+    "relatedVisaTitle": "Kohdemaasivut",
+    "relatedVisaSub": "Maksut, asiakirjat ja vaiheet Singaporessa asuville.",
+    "relatedArrivalTitle": "Saapumiskorttioppaat",
+    "relatedGuidesTitle": "Lisää oppaita",
+    "faqTitle": "Kysymykset",
+    "sourcesTitle": "Lähteet",
+    "reviewedTitle": "Miten tarkistimme",
+    "published": "Julkaistu",
+    "updated": "Päivitetty",
+    "independent": "VIZA on itsenäinen palvelu eikä viranomaisen verkkosivusto."
+  },
+  "ds": {
+    "header": {
+      "home": "VIZA etusivu",
+      "primary": "Päävalikko",
+      "language": "Kieli",
+      "signIn": "Kirjaudu sisään",
+      "openMenu": "Avaa valikko",
+      "closeMenu": "Sulje valikko",
+      "nav": {
+        "home": "Etusivu",
+        "arrivalCards": "Saapumiskortit",
+        "guides": "Oppaat",
+        "news": "Uutiset",
+        "about": "Tietoa meistä",
+        "contact": "Yhteystiedot"
+      }
+    },
+    "footer": {
+      "home": "VIZA etusivu",
+      "tagline": "VIZAn tekoälyn valmistelemat ja konsulttiemme tarkistamat viisumihakemukset. Ilmainen käyttää.",
+      "explore": "Tutustu",
+      "follow": "Seuraa meitä",
+      "followOn": "Seuraa VIZA-palvelua kanavassa {platform}",
+      "links": {
+        "arrivalCards": "Saapumiskortit",
+        "guides": "Oppaat",
+        "news": "Uutiset",
+        "about": "Tietoa meistä",
+        "contact": "Yhteystiedot",
+        "careers": "Ura",
+        "security": "Tietoturva",
+        "status": "Tila"
+      },
+      "copyright": "© {year} VIZA. Kaikki oikeudet pidätetään.",
+      "office": "Rekisteröity toimipaikka: Paya Lebar Road 60, #06-28 Paya Lebar Square, Singapore 409051",
+      "privacy": "Tietosuoja",
+      "terms": "Käyttöehdot",
+      "kelin": "Kelin Studion yritys",
+      "refunds": "Hyvitykset",
+      "business": "Yritystiedot"
+    },
+    "form": {
+      "fullName": {
+        "label": "Nimesi",
+        "placeholder": "Jane Tan"
+      },
+      "email": {
+        "label": "Sähköposti"
+      },
+      "phone": {
+        "label": "Puhelin"
+      },
+      "destination": {
+        "label": "Kohdemaa",
+        "placeholder": "Japani, Schengen, Yhdysvallat"
+      },
+      "message": {
+        "label": "Kysymyksesi",
+        "placeholder": "Minne olet matkalla, passisi ja matkapäivämääräsi."
+      },
+      "submit": "Lähetä viesti",
+      "sending": "Lähetetään",
+      "success": "Kiitos, viestisi on perillä. Vastaamme sähköpostitse.",
+      "error": "Viestin lähetys ei onnistunut. Yritä uudelleen tai lähetä sähköpostia osoitteeseen sales@kelin.studio.",
+      "consent": "Lähettämällä hyväksyt <privacy>tietosuojaselosteemme</privacy> ja <terms>käyttöehtomme</terms>."
+    },
+    "gallery": {
+      "title": "Kohdemaat",
+      "lede": "Valitse kohdemaa nähdäksesi tarvitsemasi viisumin, asiakirjat ja viranomaismaksun.",
+      "view": "Näytä",
+      "passportSummary": "{free} viisumivapaata · {voa} e-viisumi tai saapuessa · {req} viisumi vaaditaan",
+      "noResults": "Mikään kohdemaa ei vastaa hakuasi.",
+      "sorts": {
+        "featured": "Suositellut",
+        "open": "Avoimet ensin",
+        "name": "A-Ö"
+      }
+    },
+    "dest": {
+      "all": "Kaikki kohdemaat",
+      "onPage": "Tällä sivulla",
+      "applyTitle": "Aloita hakemus",
+      "facts": "Tiedot"
+    },
+    "article": {
+      "toc": "Tällä sivulla",
+      "down": "Siirry artikkeliin",
+      "faqLede": "Pikavastauksia aiheesta."
+    },
+    "legal": {
+      "updated": "Päivitetty viimeksi",
+      "contents": "Sisältö"
+    }
+  },
+  "homePage": {
+    "hero": {
+      "browse": "Selaa kohdemaita",
+      "picks": "Kohdemaat"
+    },
+    "types": {
+      "title": "Viisumityypit",
+      "lede": "Turisti-, liike-, työ-, opiskelu- ja pitkäaikaisviisumit.",
+      "prev": "Edellinen",
+      "next": "Seuraava",
+      "items": {
+        "tourist": {
+          "title": "Turisti",
+          "body": "Lomat, perhevierailut ja lyhyet oleskelut."
+        },
+        "business": {
+          "title": "Liikematka",
+          "body": "Kokoukset, konferenssit ja työmaakäynnit."
+        },
+        "work": {
+          "title": "Työ",
+          "body": "Työluvat ja työviisumit."
+        },
+        "student": {
+          "title": "Opiskelu",
+          "body": "Opiskeluviisumit kouluihin ja yliopistoihin."
+        },
+        "long": {
+          "title": "Pitkä oleskelu",
+          "body": "Oleskeluluvat ja muut pitkäaikaiset viisumit."
+        }
+      }
+    },
+    "steps": {
+      "title": "Näin se toimii",
+      "cta": "Aloita ilmainen hakemuksesi",
+      "side": {
+        "freeValue": "Ilmainen",
+        "freeLabel": "VIZA-palvelu",
+        "langLabel": "Kielet: englanti ja kiina",
+        "note": "Maksat vain viranomaismaksun.",
+        "noteBody": "Se menee suoraan myöntävälle viranomaiselle. VIZA ei lisää omaa maksuaan."
+      },
+      "items": {
+        "choose": {
+          "title": "Valitse kohdemaa",
+          "body": "Näet tarvitsemasi viisumin, valmisteltavat asiakirjat ja viranomaismaksun ennen aloitusta.",
+          "chips": "Viisumityyppi|Asiakirjat|Viranomaismaksu"
+        },
+        "passport": {
+          "title": "Lataa passisi",
+          "body": "VIZA lukee tietosi kuvasivulta, joten kirjoitettavaa on hyvin vähän.",
+          "chips": "Kuvasivu|Tiedot täytetty"
+        },
+        "confirm": {
+          "title": "Vahvista tietosi",
+          "body": "Tarkista, mitä VIZA luki, lisää matkapäivämääräsi ja jatka ilmaisella VIZA-tililläsi.",
+          "chips": "Matkapäivät|Ilmainen tili"
+        },
+        "file": {
+          "title": "VIZA tarkistaa ja jättää",
+          "body": "Asiantuntija tarkistaa jokaisen lomakkeen ennen sen jättämistä, ja seuraat etenemistä tililläsi.",
+          "chips": "Asiantuntijan tarkistus|Tilapäivitykset"
+        }
+      }
+    },
+    "tiers": {
+      "title": "Hinnoittelu",
+      "lede": "Kaksi tapaa hakea, molemmat ilmaisia.",
+      "cta": "Ota yhteyttä",
+      "criteria": "Vertaa",
+      "guided": "Opastettu",
+      "full": "Täyspalvelu",
+      "rows": {
+        "fee": {
+          "label": "VIZA-maksu",
+          "guided": "Ilmainen",
+          "full": "Ilmainen"
+        },
+        "form": {
+          "label": "Hakulomake",
+          "guided": "Vastaat itse, VIZAn tekoäly opastaa",
+          "full": "Konsultti valmistelee vastaukset kanssasi"
+        },
+        "documents": {
+          "label": "Asiakirjat",
+          "guided": "Tarkistuslista tilanteesi mukaan",
+          "full": "Konsultti tarkistaa asiakirjasi"
+        },
+        "interview": {
+          "label": "Ajanvaraus ja haastattelu",
+          "guided": "Varaat ja osallistut itse",
+          "full": "Käymme todennäköiset kysymykset läpi kanssasi"
+        },
+        "govFee": {
+          "label": "Viranomaismaksu",
+          "guided": "Maksetaan suoraan viranomaiselle",
+          "full": "Maksetaan suoraan viranomaiselle"
+        },
+        "bestFor": {
+          "label": "Sopii",
+          "guided": "Suoraviivaisiin hakemuksiin",
+          "full": "Monimutkaisiin tapauksiin tai aiempaan hylkäykseen"
+        }
+      }
+    },
+    "why": {
+      "title": "Miksi VIZA",
+      "lede": "Selkeät vaiheet, tarkistetut lomakkeet ja oikeita ihmisiä, joiden kanssa puhua.",
+      "items": {
+        "free": {
+          "title": "Ilmainen palvelu",
+          "body": "VIZAn apu ei maksa mitään. Maksat vain viranomaismaksun suoraan viranomaiselle."
+        },
+        "checked": {
+          "title": "Tarkistetut lomakkeet",
+          "body": "Asiantuntija tarkistaa jokaisen lomakkeen ennen sen jättämistä, joten pienet virheet huomataan ajoissa."
+        },
+        "language": {
+          "title": "Englanti ja kiina",
+          "body": "Puhu VIZAn kanssa englanniksi tai kiinaksi WhatsAppissa, WeChatissa tai sähköpostilla."
+        }
+      },
+      "photos": {
+        "arrival": {
+          "title": "Saapumiskortit",
+          "body": "Vaihe vaiheelta apua ilmaisiin saapumiskortteihin Malesiaan, Singaporeen, Japaniin, Thaimaahan, Etelä-Koreaan ja Indonesiaan."
+        },
+        "news": {
+          "title": "Uutiset",
+          "body": "Viisumisääntöjen muutokset ja uudet e-viisumijärjestelmät selitettynä selkein sanoin."
+        }
+      }
+    },
+    "guides": {
+      "title": "Oppaat",
+      "cta": "Kaikki oppaat"
+    },
+    "faq": {
+      "lede": "Pikavastauksia VIZAn viisumipalvelusta.",
+      "more": "Lisää kysymyksiä?",
+      "items": {
+        "cost": {
+          "q": "Veloittaako VIZA palvelustaan?",
+          "a": "Ei. VIZAn apu on ilmaista. Jos kohdemaa perii viisumin viranomaismaksun, maksat sen suoraan kyseiselle valtiolle."
+        },
+        "visas": {
+          "q": "Minkä viisumien kanssa VIZA voi auttaa?",
+          "a": "Turisti-, liike-, työ-, opiskelu- ja pitkäaikaisviisumit tällä sivulla oleviin kohdemaihin. Jos omasi ei ole listalla, kirjoita meille, niin konsultti kertoo, mikä on mahdollista."
+        },
+        "approval": {
+          "q": "Kuka päättää viisumistani?",
+          "a": "Myöntävä viranomainen tekee jokaisen päätöksen. VIZA tarkistaa lomakkeesi ja asiakirjasi ennen niiden jättämistä, jotta hakemuksesi on täydellinen ja johdonmukainen."
+        },
+        "tiers": {
+          "q": "Mitä eroa on Opastetulla ja Täyspalvelulla?",
+          "a": "Opastetussa VIZAn tekoäly opastaa sinut lomakkeen ja tarkistuslistan läpi, ja sinä hallitset jokaista vastausta. Täyspalvelussa konsultti valmistelee vastaukset kanssasi ja tarkistaa asiakirjasi. Molemmat ovat ilmaisia."
+        },
+        "language": {
+          "q": "Mitä kieliä tuette?",
+          "a": "Englantia ja kiinaa WhatsAppissa, WeChatissa, puhelimessa ja sähköpostissa."
+        }
+      }
+    },
+    "contactCard": {
+      "title": "Puhu VIZA-konsultille",
+      "body": "Vastaamme englanniksi tai kiinaksi.",
+      "cta": "Ota yhteyttä"
+    },
+    "cta": {
+      "title": "Aloita hakemuksesi",
+      "point1": "Tietosi pysyvät yksityisinä",
+      "point2": "Oikea ihminen vastaa",
+      "formTitle": "Esitä kysymys",
+      "formBody": "Kerro, minne olet menossa, niin VIZA-konsultti vastaa sähköpostitse."
+    }
+  },
+  "aboutPage": {
+    "h1": "Tietoa VIZAsta",
+    "intro": {
+      "title": "Mikä VIZA on",
+      "text": "VIZA valmistelee, tarkistaa ja jättää viisumihakemuksia Singaporessa asuville. Tekoälymme hoitaa paperityöt ja konsulttimme tarkistavat jokaisen lomakkeen. Palvelu on ilmainen."
+    },
+    "facts": {
+      "guides": "Viisumioppaat",
+      "arrival": "Saapumiskorttioppaat",
+      "free": "Ilmainen",
+      "freeLabel": "VIZA-palvelu"
+    },
+    "tiersTitle": "Opastettu vai Täyspalvelu",
+    "tiersLede": "Valitse, kuinka paljon apua haluat. Molemmat ovat ilmaisia.",
+    "free": {
+      "title": "Ilmainen palvelu",
+      "text": "VIZA ei veloita avustaan. Jos kohdemaalla on viranomaisen viisumimaksu, VIZA näyttää sen ennen aloitusta ja maksat sen suoraan myöntävälle viranomaiselle. Maksullisia lisäpalveluja ei ole."
+    },
+    "company": {
+      "title": "Yrityksen tiedot",
+      "office": "Rekisteröity toimipaikka",
+      "officeValue": "Paya Lebar Road 60, #06-28 Paya Lebar Square, Singapore 409051",
+      "email": "Sähköposti",
+      "phone": "Puhelin ja WhatsApp",
+      "languages": "Kielet",
+      "languagesValue": "Englanti ja kiina"
+    }
+  },
+  "contactPage": {
+    "h1": "Yhteystiedot",
+    "lines": {
+      "whatsapp": {
+        "title": "Puhelin ja WhatsApp",
+        "body": "Soita tai lähetä viesti konsultille."
+      },
+      "wechat": {
+        "body": "Hae tunnus WeChatista ja lisää meidät."
+      },
+      "email": {
+        "title": "Sähköposti",
+        "body": "Sopii parhaiten asiakirjoille ja pidemmille kysymyksille."
+      },
+      "office": {
+        "top": "Singapore",
+        "title": "Toimisto",
+        "body": "Paya Lebar Road 60, #06-28 Paya Lebar Square, Singapore 409051"
+      }
+    },
+    "message": {
+      "title": "Lähetä viesti",
+      "text": "Kysyttävää viisumista, kohdemaasta tai yhteistyöstä VIZAn kanssa? Kirjoita meille, niin konsultti vastaa."
+    }
+  },
+  "careersPage": {
+    "title": "Ura",
+    "lede": "VIZA auttaa Singaporessa asuvia saamaan viisuminsa tekoälyn ja konsulttien avulla, ja palvelu on ilmainen. Palkkaamme ihmisiä, jotka pitävät huolellisesta ja hyödyllisestä työstä.",
+    "teamsTitle": "Tiimit",
+    "teams": [
+      {
+        "title": "Kehitys",
+        "body": "Rakenna asiakirjatarkistukset, hakuprosessi ja konsulttiemme käyttämät työkalut."
+      },
+      {
+        "title": "Suunnittelu",
+        "body": "Tee stressaavasta prosessista selkeä hakijalle."
+      },
+      {
+        "title": "Toiminta",
+        "body": "Pidä jokainen hakemus liikkeessä ja jokainen vaatimus ajan tasalla."
+      },
+      {
+        "title": "Konsultointi",
+        "body": "Auta hakijoita tapauksissa, jotka tarvitsevat ihmisen, englanniksi ja kiinaksi."
+      },
+      {
+        "title": "Data",
+        "body": "Muuta viranomaislähteet tarkistuksiksi, jotka havaitsevat ongelmat ajoissa."
+      },
+      {
+        "title": "Markkinointi",
+        "body": "Selitä viisumit selkeästi oppailla ja sivuilla, joihin ihmiset voivat luottaa."
+      }
+    ],
+    "applyTitle": "Ota yhteyttä",
+    "applyBody": "Kerro meille itsestäsi ja tiimistä, johon haluaisit liittyä. Luemme jokaisen viestin.",
+    "applyCta": "Ota yhteyttä"
+  },
+  "pageCopy": {
+    "product": {
+      "introTitle": "Miten VIZA tukee viisumihakemustasi",
+      "introLede": "Tutustu viisumin valmisteluun, asiakirjojen tarkistukseen ja hakemuksen tilan seurantaan. VIZAn palvelu on ilmainen. Tarkka sisältö ja saatavuus näkyvät, kun valitset kohdemaan.",
+      "browse": "Selaa kohdemaita"
+    },
+    "events": {
+      "title": "Ei vielä tapahtumia",
+      "lede": "Tulevat viisumiklinikat, infotilaisuudet ja kumppanitapahtumat ilmoitetaan täällä.",
+      "contact": "Ota yhteyttä"
+    }
+  },
+  "og": {
+    "band": "VIZA on ilmainen. Viranomaismaksut ovat erillisiä.",
+    "destSubtitle": "Maksut ja hakuohjeet"
+  }
+}
