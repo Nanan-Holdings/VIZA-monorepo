@@ -45,6 +45,17 @@ const OVERRIDES: Record<string, Partial<Record<"en" | "zh", { title?: string; de
     en: { description: "Schengen visa from Singapore: which country to apply to, the EUR 90 fee, VFS and BLS centres, insurance and documents. VIZA is free." },
     zh: { description: "新加坡办理申根签证：向哪个国家申请、90 欧元签证费、VFS 与 BLS 受理中心、旅行保险和材料。VIZA 的服务免费，欢迎咨询顾问。" },
   },
+  indonesia: { en: { title: "Indonesia Visa on Arrival (e-VOA): How to Apply | VIZA" }, zh: { title: "印尼落地签（e-VOA）：材料、费用与申请 | VIZA" } },
+  thailand: { en: { title: "Thailand Visa from Singapore: Rules and e-Visa | VIZA" } },
+  malaysia: { en: { title: "Malaysia Visa Application: Do You Need One? | VIZA" } },
+  india: { en: { title: "India e-Visa: Requirements and How to Apply | VIZA" } },
+  vietnam: { en: { title: "Vietnam e-Visa: Requirements and How to Apply | VIZA" } },
+  turkiye: { en: { title: "Turkey e-Visa: Requirements and How to Apply | VIZA" }, zh: { title: "土耳其电子签证：材料、费用与申请流程 | VIZA" } },
+  "united-arab-emirates": { en: { title: "UAE Visa: Dubai Entry Rules and How to Apply | VIZA" }, zh: { title: "阿联酋签证（迪拜）：入境规则与申请流程 | VIZA" } },
+  "saudi-arabia": { en: { title: "Saudi Visa: e-Visa Requirements and How to Apply | VIZA" } },
+  "united-states": { en: { title: "US Visa Application in Singapore: Fees and Steps | VIZA" } },
+  "united-kingdom": { en: { title: "UK Visa Application in Singapore: Fees and Steps | VIZA" } },
+  australia: { en: { title: "Australia Visa from Singapore: ETA and Visitor Visa | VIZA" } },
 };
 const lang = (locale: string): "en" | "zh" => (locale.toLowerCase().startsWith("zh") ? "zh" : "en");
 
@@ -55,6 +66,13 @@ function firstThatFits(options: string[]): string {
 export function destinationTitle(country: Pick<CountryMeta, "tag" | "slug">, name: string, locale: string): string {
   const custom = OVERRIDES[country.slug]?.[lang(locale)]?.title;
   if (custom) return custom;
+  if (locale.toLowerCase().startsWith("zh") && isEvisa(country)) {
+    return firstThatFits([
+      `${name}电子签证：材料、费用与申请流程 | VIZA`,
+      `${name}电子签证：材料与申请流程 | VIZA`,
+      `${name}电子签证 | VIZA`,
+    ]);
+  }
   if (locale.toLowerCase().startsWith("zh")) {
     return firstThatFits([
       `新加坡办理${name}签证：材料、费用与流程 | VIZA`,
