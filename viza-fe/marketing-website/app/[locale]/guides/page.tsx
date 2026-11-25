@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import SiteFooter from "@/components/SiteFooter";
-import SiteNav from "@/components/SiteNav";
-import { Link } from "@/navigation";
+import SiteHeader from "@/design-system/sections/SiteHeader";
+import SiteFooter from "@/design-system/sections/SiteFooter";
+import PageHead from "@/design-system/sections/PageHead";
+import ArticleCards from "@/design-system/sections/ArticleCards";
+import Button from "@/design-system/ui/Button";
+import { guideImage } from "@/lib/site-content";
 import { locales } from "@/i18n";
 import { GUIDES } from "@/lib/guides";
 import { LOCALE_HTML_LANG, buildLocalePath, isLocale } from "@/lib/locales";
@@ -51,47 +54,40 @@ export default async function GuidesHub({ params }: { params: Promise<{ locale: 
     },
   ];
 
+  const used = new Set<string>();
+  const items = GUIDES.map((g) => ({
+    href: `/guides/${g.slug}`,
+    image: guideImage(g.visa, used),
+    meta: zh ? g.tag.zh : g.tag.en,
+    title: zh ? g.name.zh : g.name.en,
+    body: zh ? g.summary.zh : g.summary.en,
+    more: t("readGuide"),
+  }));
+
   return (
     <>
-      <SiteNav activeTab="guides" />
+      <SiteHeader active="guides" />
       {jsonLd.map((d) => (
         <script key={d["@type"]} type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(d) }} />
       ))}
-      <main className="ac">
-        <div className="ac-wrap wide">
-          <nav className="ac-crumbs" aria-label="Breadcrumb">
-            <ol>
-              <li><Link href="/">{t("breadcrumbHome")}</Link></li>
-              <li aria-current="page">{t("breadcrumbHub")}</li>
-            </ol>
-          </nav>
-          <h1>{t("hubH1")}</h1>
-          <p className="ac-lead" style={{ maxWidth: 760 }}>{t("hubLead")}</p>
-
-          <h2 id="all">{t("hubGuidesTitle")}</h2>
-          <p>{t("hubGuidesSub")}</p>
-          <div className="ac-hub-grid">
-            {GUIDES.map((g) => (
-              <Link className="ac-hub-card" key={g.slug} href={`/guides/${g.slug}`}>
-                <span className="tag">{zh ? g.tag.zh : g.tag.en}</span>
-                <h3>{zh ? g.name.zh : g.name.en}</h3>
-                <p>{zh ? g.summary.zh : g.summary.en}</p>
-                <span className="go">{t("readGuide")}</span>
-              </Link>
-            ))}
+      <main className="ds-main">
+        <PageHead title={t("hubH1")} lede={t("hubLead")} />
+        <section className="ds-container ds-section" style={{ paddingTop: 0 }} id="all">
+          <h2 className="ds-sr">{t("hubGuidesTitle")}</h2>
+          <ArticleCards items={items} />
+        </section>
+        <section className="ds-container ds-section ds-section--ruled">
+          <div className="ds-head" data-reveal="">
+            <h2 className="ds-statement">{t("hubMoreTitle")}</h2>
+            <div className="ds-head-aside"><p className="ds-body">{t("hubMoreBody")}</p></div>
           </div>
-
-          <aside className="ac-box">
-            <h2>{t("hubMoreTitle")}</h2>
-            <p>{t("hubMoreBody")}</p>
-            <div className="ac-actions">
-              <Link className="ac-btn ghost" href="/">{t("hubDestinations")}</Link>
-              <Link className="ac-btn ghost" href="/arrival-cards">{t("hubArrival")}</Link>
-              <Link className="ac-btn ghost" href="/blog">{t("hubNews")}</Link>
-            </div>
-          </aside>
-          <p className="ac-note" style={{ marginTop: 20 }}>{t("independent")}</p>
-        </div>
+          <ul className="ds-linkrow" style={{ marginTop: 32 }}>
+            <li><Button href="/#destinations" variant="muted">{t("hubDestinations")}</Button></li>
+            <li><Button href="/arrival-cards" variant="muted">{t("hubArrival")}</Button></li>
+            <li><Button href="/blog" variant="muted">{t("hubNews")}</Button></li>
+          </ul>
+          <p className="ds-small" style={{ marginTop: 32, color: "var(--ds-ink-muted)" }}>{t("independent")}</p>
+        </section>
       </main>
       <SiteFooter />
     </>

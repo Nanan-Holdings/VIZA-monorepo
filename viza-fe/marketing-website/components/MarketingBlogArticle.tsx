@@ -3,8 +3,10 @@ import { Link } from "@/navigation";
 import type { Locale } from "@/i18n";
 import type { MarketingBlogPost, MarketingBlogSummary } from "@/lib/marketing-blog";
 import { categorySlug } from "@/lib/blog-taxonomy";
-import MarketingBlogFeed from "@/components/MarketingBlogFeed";
-import MarketingBlogCta from "@/components/MarketingBlogCta";
+import ArticleHero from "@/design-system/sections/ArticleHero";
+import ArticleShell, { type TocItem } from "@/design-system/sections/ArticleShell";
+import ArticleCards from "@/design-system/sections/ArticleCards";
+import EndCta from "@/design-system/sections/EndCta";
 
 interface MarketingBlogArticleProps {
   post: MarketingBlogPost;
@@ -14,9 +16,10 @@ interface MarketingBlogArticleProps {
   updatedLabel: string;
   readArticleLabel: string;
   relatedTitle: string;
-  relatedDescription: string;
   relatedPosts: MarketingBlogSummary[];
-  ctaEyebrow: string;
+  tocTitle: string;
+  downLabel: string;
+  homeLabel: string;
   ctaTitle: string;
   ctaBody: string;
   ctaAction: string;
@@ -93,7 +96,7 @@ function renderInline(value: string, keyPrefix: string): ReactNode[] {
     const image = part.match(/^!\[([^\]]*)\]\(([^\s)]+)\)$/);
     if (image) {
       const src = safeMediaHref(image[2]);
-      return src ? <img key={key} src={src} alt={image[1]} loading="lazy" className="my-5 max-w-full rounded-2xl" /> : <span key={key}>{image[1]}</span>;
+      return src ? <img key={key} src={src} alt={image[1]} loading="lazy" /> : <span key={key}>{image[1]}</span>;
     }
     const link = part.match(/^\[([^\]]+)\]\(([^\s)]+)\)$/);
     if (link) {
@@ -103,17 +106,16 @@ function renderInline(value: string, keyPrefix: string): ReactNode[] {
           key={key}
           href={href}
           rel={href.startsWith("http") ? "noopener noreferrer" : undefined}
-          className="font-medium text-brand-500 underline decoration-brand-200 underline-offset-4 hover:text-brand-600"
         >
           {link[1]}
         </a>
       ) : <span key={key}>{link[1]}</span>;
     }
     if (part.startsWith("`") && part.endsWith("`")) {
-      return <code key={key} className="rounded-lg bg-brand-50 px-1.5 py-0.5 text-sm text-brand-700">{part.slice(1, -1)}</code>;
+      return <code key={key}>{part.slice(1, -1)}</code>;
     }
     if ((part.startsWith("**") && part.endsWith("**")) || (part.startsWith("__") && part.endsWith("__"))) {
-      return <strong key={key} className="font-semibold text-fg-1">{part.slice(2, -2)}</strong>;
+      return <strong key={key}>{part.slice(2, -2)}</strong>;
     }
     if ((part.startsWith("*") && part.endsWith("*")) || (part.startsWith("_") && part.endsWith("_"))) {
       return <em key={key}>{part.slice(1, -1)}</em>;
@@ -126,8 +128,20 @@ function tableCells(line: string): string[] {
   return line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((cell) => cell.trim());
 }
 
-function MarkdownBody({ markdown }: { markdown: string }) {
+const plainText = (value: string) => value.replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/[`*_]/g, "").trim();
+
+function headingId(text: string, used: Set<string>): string {
+  const base = plainText(text).toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "") || "section";
+  let id = base;
+  for (let n = 2; used.has(id); n += 1) id = `${base}-${n}`;
+  used.add(id);
+  return id;
+}
+
+function renderMarkdown(markdown: string): { nodes: ReactNode[]; toc: TocItem[] } {
   const nodes: ReactNode[] = [];
+  const toc: TocItem[] = [];
+  const usedIds = new Set<string>();
   const lines = markdown.replace(/\r\n?/g, "\n").split("\n");
   let paragraph: string[] = [];
   let list: { ordered: boolean; items: string[] } | null = null;
@@ -136,19 +150,16 @@ function MarkdownBody({ markdown }: { markdown: string }) {
   const flushParagraph = () => {
     if (paragraph.length === 0) return;
     const text = paragraph.join(" ").trim();
-    nodes.push(<p key={`p-${nodes.length}`} className="leading-7 text-fg-1">{renderInline(text, `p-${nodes.length}`)}</p>);
+    nodes.push(<p key={`p-${nodes.length}`}>{renderInline(text, `p-${nodes.length}`)}</p>);
     paragraph = [];
   };
   const flushList = () => {
     if (!list) return;
     const ListTag = list.ordered ? "ol" : "ul";
     nodes.push(
-      <ListTag
-        key={`list-${nodes.length}`}
-        className={list.ordered ? "list-decimal space-y-2 pl-6" : "list-disc space-y-2 pl-6"}
-      >
+      <ListTag key={`list-${nodes.length}`}>
         {list.items.map((item, index) => (
-          <li key={`${item}-${index}`} className="pl-1 leading-7 text-fg-1">
+          <li key={`${item}-${index}`}>
             {renderInline(item, `li-${nodes.length}-${index}`)}
           </li>
         ))}
@@ -166,7 +177,7 @@ function MarkdownBody({ markdown }: { markdown: string }) {
     if (line.trim().startsWith("```")) {
       if (code) {
         nodes.push(
-          <pre key={`code-${nodes.length}`} className="overflow-x-auto rounded-2xl bg-brand-900 p-5 text-sm leading-6 text-fg-on-brand">
+          <pre key={`code-${nodes.length}`}>
             <code>{code.join("\n")}</code>
           </pre>,
         );
@@ -190,8 +201,8 @@ function MarkdownBody({ markdown }: { markdown: string }) {
     if (video) {
       flushText();
       nodes.push(
-        <div key={`video-${nodes.length}`} className="relative aspect-video overflow-hidden rounded-2xl bg-brand-900">
-          <iframe src={video} title="Video" loading="lazy" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowFullScreen className="absolute inset-0 h-full w-full border-0" referrerPolicy="strict-origin-when-cross-origin" />
+        <div key={`video-${nodes.length}`} className="ds-video">
+          <iframe src={video} title="Video" loading="lazy" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" />
         </div>,
       );
       continue;
@@ -202,7 +213,7 @@ function MarkdownBody({ markdown }: { markdown: string }) {
       const src = safeMediaHref(image[2]);
       if (src) {
         flushText();
-        nodes.push(<figure key={`image-${nodes.length}`}><img src={src} alt={image[1]} loading="lazy" className="w-full rounded-2xl" />{image[1] ? <figcaption className="mt-2 text-center text-sm text-fg-2">{image[1]}</figcaption> : null}</figure>);
+        nodes.push(<figure key={`image-${nodes.length}`}><img src={src} alt={image[1]} loading="lazy" />{image[1] ? <figcaption>{image[1]}</figcaption> : null}</figure>);
         continue;
       }
     }
@@ -220,10 +231,10 @@ function MarkdownBody({ markdown }: { markdown: string }) {
         }
         lineIndex -= 1;
         nodes.push(
-          <div key={`table-${nodes.length}`} className="overflow-x-auto rounded-2xl border border-border-hairline">
-            <table className="w-full min-w-[36rem] border-collapse text-left text-sm">
-              <thead className="bg-brand-50"><tr>{headers.map((cell, index) => <th key={index} scope="col" className="border-b border-border-hairline px-4 py-3 font-semibold text-fg-1">{renderInline(cell, `th-${nodes.length}-${index}`)}</th>)}</tr></thead>
-              <tbody>{rows.map((row, rowIndex) => <tr key={rowIndex} className="border-b border-border-hairline last:border-b-0">{headers.map((_, cellIndex) => <td key={cellIndex} className="px-4 py-3 align-top text-fg-1">{renderInline(row[cellIndex] ?? "", `td-${nodes.length}-${rowIndex}-${cellIndex}`)}</td>)}</tr>)}</tbody>
+          <div key={`table-${nodes.length}`} className="ds-table-wrap">
+            <table>
+              <thead><tr>{headers.map((cell, index) => <th key={index} scope="col">{renderInline(cell, `th-${nodes.length}-${index}`)}</th>)}</tr></thead>
+              <tbody>{rows.map((row, rowIndex) => <tr key={rowIndex}>{headers.map((_, cellIndex) => <td key={cellIndex}>{renderInline(row[cellIndex] ?? "", `td-${nodes.length}-${rowIndex}-${cellIndex}`)}</td>)}</tr>)}</tbody>
             </table>
           </div>,
         );
@@ -236,15 +247,16 @@ function MarkdownBody({ markdown }: { markdown: string }) {
       flushText();
       const level = heading[1].length;
       const text = heading[2].trim();
-      if (level === 1) nodes.push(<h2 key={`h-${nodes.length}`} className="pt-4 text-3xl">{renderInline(text, `h-${nodes.length}`)}</h2>);
-      if (level === 2) nodes.push(<h2 key={`h-${nodes.length}`} className="pt-4 text-2xl">{renderInline(text, `h-${nodes.length}`)}</h2>);
-      if (level === 3) nodes.push(<h3 key={`h-${nodes.length}`} className="pt-3 text-xl">{renderInline(text, `h-${nodes.length}`)}</h3>);
+      const id = headingId(text, usedIds);
+      if (level <= 2) toc.push({ id, label: plainText(text) });
+      if (level <= 2) nodes.push(<h2 key={`h-${nodes.length}`} id={id}>{renderInline(text, `h-${nodes.length}`)}</h2>);
+      else nodes.push(<h3 key={`h-${nodes.length}`} id={id}>{renderInline(text, `h-${nodes.length}`)}</h3>);
       continue;
     }
 
     if (/^\s*([-*_])(?:\s*\1){2,}\s*$/.test(line)) {
       flushText();
-      nodes.push(<hr key={`hr-${nodes.length}`} className="border-border-hairline" />);
+      nodes.push(<hr key={`hr-${nodes.length}`} />);
       continue;
     }
 
@@ -252,7 +264,7 @@ function MarkdownBody({ markdown }: { markdown: string }) {
     if (quote) {
       flushText();
       nodes.push(
-        <blockquote key={`quote-${nodes.length}`} className="border-l-4 border-brand-300 bg-brand-50 px-5 py-4 leading-7 text-fg-1">
+        <blockquote key={`quote-${nodes.length}`}>
           {renderInline(quote[1], `quote-${nodes.length}`)}
         </blockquote>,
       );
@@ -276,14 +288,14 @@ function MarkdownBody({ markdown }: { markdown: string }) {
 
   if (code) {
     nodes.push(
-      <pre key={`code-${nodes.length}`} className="overflow-x-auto rounded-2xl bg-brand-900 p-5 text-sm leading-6 text-fg-on-brand">
+      <pre key={`code-${nodes.length}`}>
         <code>{code.join("\n")}</code>
       </pre>,
     );
   }
   flushText();
 
-  return <div className="viza-blog__prose">{nodes}</div>;
+  return { nodes, toc };
 }
 
 export default function MarketingBlogArticle({
@@ -294,88 +306,76 @@ export default function MarketingBlogArticle({
   updatedLabel,
   readArticleLabel,
   relatedTitle,
-  relatedDescription,
   relatedPosts,
-  ctaEyebrow,
   ctaTitle,
   ctaBody,
   ctaAction,
+  tocTitle,
+  downLabel,
+  homeLabel,
   visaLink,
   guideLinks,
 }: MarketingBlogArticleProps) {
+  const { nodes, toc } = renderMarkdown(post.bodyMarkdown);
+  const slug = post.category ? categorySlug(post.category) : "";
   return (
     <>
-      <header className="viza-blog__hero viza-blog__hero--article">
-        <div className="viza-blog__container">
-          <span className="viza-blog__overline">
-            <Link href="/blog" locale={locale}>{backLabel}</Link>
-            {post.category && categorySlug(post.category) ? (
-              <> · <Link href={`/blog/category/${categorySlug(post.category)}`} locale={locale}>{post.category}</Link></>
-            ) : null}
-          </span>
-          <h1>{post.title}</h1>
-          <p className="viza-blog__hero-description">{post.excerpt}</p>
-          <div className="viza-blog__byline">
-            <span>{byLabel} {post.authorName}</span>
-            <span aria-hidden="true">·</span>
-            <time dateTime={post.publishedAt}>{formatDate(post.publishedAt, locale)}</time>
-            {post.updatedAt !== post.publishedAt ? (
-              <>
-                <span aria-hidden="true">·</span>
-                <span>{updatedLabel} {formatDate(post.updatedAt, locale)}</span>
-              </>
-            ) : null}
-          </div>
+      <ArticleHero
+        title={post.title}
+        image={post.coverImageUrl}
+        downLabel={downLabel}
+        crumbs={[
+          { label: homeLabel, href: "/" },
+          { label: backLabel, href: "/blog" },
+          ...(post.category && slug ? [{ label: post.category, href: `/blog/category/${slug}` }] : []),
+          { label: post.title },
+        ]}
+      />
+      <div className="ds-container">
+        <div className="ds-artmeta">
+          <span>{byLabel}<b>{post.authorName}</b></span>
+          <time dateTime={post.publishedAt}>{formatDate(post.publishedAt, locale)}</time>
+          {post.updatedAt !== post.publishedAt ? <span>{updatedLabel}<b>{formatDate(post.updatedAt, locale)}</b></span> : null}
+          {post.excerpt ? <p className="ds-artmeta-lead">{post.excerpt}</p> : null}
         </div>
-      </header>
-      <section className="viza-blog__band">
-        <div className="viza-blog__container">
-          <article className="viza-blog__article">
-            {post.coverImageUrl ? (
-              <div className="viza-blog__article-cover">
-                <img src={post.coverImageUrl} alt="" referrerPolicy="no-referrer" />
-              </div>
-            ) : null}
-            <MarkdownBody markdown={post.bodyMarkdown} />
-            {visaLink ? (
-              <aside className="viza-blog__destination">
-                <h2>{visaLink.title}</h2>
-                <p>{visaLink.body}</p>
-                <Link href={`/visa/${visaLink.slug}`} locale={locale}>{visaLink.action} <span aria-hidden="true">→</span></Link>
-              </aside>
-            ) : null}
-            {guideLinks && guideLinks.items.length > 0 ? (
-              <aside className="viza-blog__destination">
-                <h2>{guideLinks.title}</h2>
-                <p>{guideLinks.body}</p>
-                <ul>
-                  {guideLinks.items.map((g) => (
-                    <li key={g.slug}><Link href={`/guides/${g.slug}`} locale={locale}>{g.label} <span aria-hidden="true">→</span></Link></li>
-                  ))}
-                </ul>
-              </aside>
-            ) : null}
-          </article>
-        </div>
-      </section>
+      </div>
+      <ArticleShell toc={toc} tocTitle={tocTitle}>
+        <article className="ds-prose">{nodes}</article>
+        {visaLink ? (
+          <aside className="ds-callout ds-art-aside">
+            <h2>{visaLink.title}</h2>
+            <p>{visaLink.body}</p>
+            <p><Link href={`/visa/${visaLink.slug}`} locale={locale}>{visaLink.action} <span aria-hidden="true">→</span></Link></p>
+          </aside>
+        ) : null}
+        {guideLinks && guideLinks.items.length > 0 ? (
+          <aside className="ds-callout ds-art-aside">
+            <h2>{guideLinks.title}</h2>
+            <p>{guideLinks.body}</p>
+            <ul className="ds-callout-links">
+              {guideLinks.items.map((g) => (
+                <li key={g.slug}><Link href={`/guides/${g.slug}`} locale={locale}>{g.label} <span aria-hidden="true">→</span></Link></li>
+              ))}
+            </ul>
+          </aside>
+        ) : null}
+      </ArticleShell>
       {relatedPosts.length > 0 ? (
-        <section className="viza-blog__band viza-blog__band--soft" aria-label={relatedTitle}>
-          <div className="viza-blog__container">
-            <div className="viza-blog__section-head">
-              <h2>{relatedTitle}</h2>
-              <p>{relatedDescription}</p>
-            </div>
-            <MarketingBlogFeed posts={relatedPosts} locale={locale} readArticleLabel={readArticleLabel} />
-          </div>
+        <section className="ds-container ds-section ds-section--ruled" aria-label={relatedTitle}>
+          <h2 className="ds-h2" style={{ marginBottom: 48 }}>{relatedTitle}</h2>
+          <ArticleCards
+            items={relatedPosts.map((r) => ({
+              href: `/blog/${r.slug}`,
+              image: r.coverImageUrl,
+              meta: r.category || r.authorName,
+              title: r.title,
+              body: r.excerpt,
+              more: readArticleLabel,
+            }))}
+          />
         </section>
       ) : null}
-      <MarketingBlogCta
-        locale={locale}
-        eyebrow={ctaEyebrow}
-        title={ctaTitle}
-        body={ctaBody}
-        action={ctaAction}
-      />
+      <EndCta title={ctaTitle} body={ctaBody} action={ctaAction} href="/apply" />
     </>
   );
 }

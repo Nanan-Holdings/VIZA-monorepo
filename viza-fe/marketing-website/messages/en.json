@@ -127,11 +127,11 @@
     },
     "privacy": {
       "title": "Privacy Policy | VIZA",
-      "description": "What VIZA collects when you apply for a visa, why we need it, who sees it and how long we keep it. Plain language."
+      "description": "What VIZA collects when you apply for a visa, why, who sees it and how long we keep it, under Singapore's PDPA."
     },
     "terms": {
-      "title": "Terms of Service | VIZA",
-      "description": "The agreement between you and VIZA when you use our visa application service. VIZA's service is free."
+      "title": "Terms & Conditions | VIZA",
+      "description": "The terms for using VIZA's visa application service, operated by Kelin Studio Pte. Ltd. in Singapore. VIZA's service is free."
     },
     "product": {
       "title": "How VIZA Supports Your Visa Application | VIZA",
@@ -152,6 +152,19 @@
     "about": {
       "title": "About VIZA: Free Visa Help in Singapore | VIZA",
       "description": "VIZA prepares, checks and files visa applications for people in Singapore, with AI and consultants. The service is free; government fees go to the authority."
+    },
+    "visaIndex": {
+      "title": "Visa Destinations: Requirements by Country | VIZA",
+      "description": "Compare visa requirements by country, with the documents and fees for each. VIZA's help is free.",
+      "heroTitle": "Visa destinations"
+    },
+    "refunds": {
+      "title": "Refunds Policy | VIZA",
+      "description": "VIZA's service is free, so there is no service fee to refund. How government fees and other providers' fees work."
+    },
+    "businessInformation": {
+      "title": "Business Information | VIZA",
+      "description": "VIZA is operated by Kelin Studio Pte. Ltd., a Singapore company. Registered address, UEN and contact details."
     }
   },
   "common": {
@@ -908,413 +921,6 @@
       "copyright": "© VIZA, All rights reserved"
     }
   },
-  "legalPrivacy": {
-    "eyebrow": "Legal · Privacy",
-    "title": "Privacy policy",
-    "lede": "What we collect when you apply for a visa with VIZA, why we need it, who sees it, and how long we keep it. Plain language. No dark patterns.",
-    "meta": {
-      "effective": "<b>Effective:</b> 1 May 2026",
-      "version": "<b>Version:</b> 4.2",
-      "controller": "<b>Data controller:</b> VIZA Pte. Ltd. (Singapore)"
-    },
-    "tocTitle": "On this page",
-    "toc": [
-      "01 · Scope",
-      "02 · Data we collect",
-      "03 · Why we collect it",
-      "04 · Who we share with",
-      "05 · How long we keep it",
-      "06 · Your rights",
-      "07 · Security",
-      "08 · International transfers",
-      "09 · Cookies & analytics",
-      "10 · Children",
-      "11 · Changes",
-      "12 · Contact us"
-    ],
-    "sections": {
-      "scope": {
-        "num": "§ 01",
-        "title": "Scope",
-        "p1": "This policy applies to everything you do on viza.com, the VIZA client portal, our mobile apps, and any communication with our consultants by email, WhatsApp, WeChat, or phone. It covers visa applicants, dependants on a joint application, and people who simply browse without signing up.",
-        "p2": "<strong>Where we act as a controller:</strong> when you apply for a visa through us, sign up for an account, or contact our team.<strong> Where we act as a processor:</strong> when an enterprise partner enrolls their staff onto VIZA — that partner is the controller, and this policy operates alongside their own."
-      },
-      "dataWeCollect": {
-        "num": "§ 02",
-        "title": "Data we collect",
-        "intro": "The minimum needed to file a visa correctly. Government portals dictate most of the fields; we never ask for more than the form requires.",
-        "directTitle": "From you, directly",
-        "direct": [
-          {
-            "label": "Identity:",
-            "text": "full legal name, date of birth, nationality, place of birth, passport number, expiry, and machine-readable passport image."
-          },
-          {
-            "label": "Contact:",
-            "text": "email, phone number, mailing address."
-          },
-          {
-            "label": "Travel:",
-            "text": "destination, dates, purpose of visit, accommodation, and onward itinerary where required."
-          },
-          {
-            "label": "Supporting documents:",
-            "text": "photographs, employment letters, bank statements, invitation letters — whatever the destination embassy asks for."
-          }
-        ],
-        "autoTitle": "Automatically",
-        "auto": [
-          "Device, browser, IP address, and basic usage events (pages viewed, time on task) for security and product analytics.",
-          "Cookies and similar technologies — see §09."
-        ],
-        "thirdTitle": "From third parties",
-        "third": [
-          "Government visa portals (status updates, decision letters, reference numbers).",
-          "Identity verification partners (when an embassy requires biometric or liveness checks).",
-          "Enterprise partners who enroll you on a corporate plan."
-        ]
-      },
-      "why": {
-        "num": "§ 03",
-        "title": "Why we collect it",
-        "intro": "Each piece of data has a defined lawful basis and a defined purpose.",
-        "items": [
-          {
-            "label": "Contract.",
-            "text": "We need your passport, travel details, and supporting documents to actually file your visa application — that is the service you are buying."
-          },
-          {
-            "label": "Legal obligation.",
-            "text": "Anti-fraud, anti-money-laundering, and government record-keeping rules require us to retain certain data for fixed periods."
-          },
-          {
-            "label": "Legitimate interest.",
-            "text": "Account security, abuse detection, internal analytics aggregated across users, and improving our document checks."
-          },
-          {
-            "label": "Consent.",
-            "text": "Marketing emails, optional add-ons (eSIM, travel insurance), and any data collection beyond what the visa filing requires."
-          }
-        ],
-        "callout": "We never sell personal data, never share it with advertisers, and never use the contents of your application to train any model — ours or a third party’s."
-      },
-      "sharing": {
-        "num": "§ 04",
-        "title": "Who we share with",
-        "intro": "The minimum set of recipients needed to deliver the visa.",
-        "items": [
-          {
-            "label": "The destination government.",
-            "text": "Your application is, by definition, submitted to them. The fields they receive are exactly what their portal requires."
-          },
-          {
-            "label": "Identity verification.",
-            "text": "Where required, we use a regulated KYC provider; their use of the data is restricted to the verification check."
-          },
-          {
-            "label": "Infrastructure.",
-            "text": "Cloud hosting, storage, and email delivery providers operating under written data-processing agreements."
-          },
-          {
-            "label": "Legal.",
-            "text": "Where compelled by law, court order, or to defend a claim."
-          }
-        ],
-        "outro": "A current sub-processor list is maintained on our trust page and we notify enterprise customers in writing before adding any new processor."
-      },
-      "retention": {
-        "num": "§ 05",
-        "title": "How long we keep it",
-        "intro": "Retention is keyed to the purpose, not the calendar.",
-        "items": [
-          {
-            "label": "Active applications",
-            "text": "— kept while the visa is being processed and for 30 days after issuance so you can download decisions."
-          },
-          {
-            "label": "Historical order & payment records",
-            "text": "from before VIZA stopped taking payments are kept 7 years to satisfy tax and finance regulations in Singapore."
-          },
-          {
-            "label": "Account profile",
-            "text": "— kept for as long as your account is open. Closing your account triggers deletion within 60 days, except where law requires longer retention."
-          },
-          {
-            "label": "Marketing data",
-            "text": "— purged within 30 days of unsubscribing."
-          },
-          {
-            "label": "Logs",
-            "text": "— security event logs retained for 12 months."
-          }
-        ]
-      },
-      "rights": {
-        "num": "§ 06",
-        "title": "Your rights",
-        "intro": "Depending on where you live, you have some or all of the following rights. We honor them globally regardless of jurisdiction unless prevented by law.",
-        "items": [
-          {
-            "label": "Access",
-            "text": "— get a copy of the personal data we hold about you."
-          },
-          {
-            "label": "Rectification",
-            "text": "— correct anything inaccurate."
-          },
-          {
-            "label": "Erasure",
-            "text": "— request deletion (subject to retention rules above)."
-          },
-          {
-            "label": "Portability",
-            "text": "— receive your data in a machine-readable format."
-          },
-          {
-            "label": "Restriction & objection",
-            "text": "— limit or stop certain processing."
-          },
-          {
-            "label": "Withdraw consent",
-            "text": "— at any time, where processing is consent-based."
-          },
-          {
-            "label": "Lodge a complaint",
-            "text": "— with the Singapore PDPC, your local supervisory authority, or any data protection regulator with jurisdiction."
-          }
-        ],
-        "requests": "Requests are answered within 30 days. Email <a>privacy@viza.it.com</a> or use the in-portal request form."
-      },
-      "security": {
-        "num": "§ 07",
-        "title": "Security",
-        "body": "All applicant data is encrypted in transit (TLS 1.3) and at rest (AES-256). Production access is gated by hardware security keys with full audit logging. We run quarterly penetration tests and maintain a vulnerability disclosure program; details are on our<a> security page</a>."
-      },
-      "international": {
-        "num": "§ 08",
-        "title": "International transfers",
-        "body": "VIZA stores customer data on infrastructure located in Singapore, the European Union, and the United States. Where data must cross borders — for example, to file a visa with a destination government — we rely on appropriate safeguards: Standard Contractual Clauses, the EU–US Data Privacy Framework, and the destination country’s own visa processing rules. By submitting an application, you understand that the destination government will receive the application under its national laws."
-      },
-      "cookies": {
-        "num": "§ 09",
-        "title": "Cookies and analytics",
-        "intro": "We use four categories of cookies:",
-        "items": [
-          {
-            "label": "Strictly necessary",
-            "text": "— login session, CSRF tokens, language preference. Cannot be disabled."
-          },
-          {
-            "label": "Functional",
-            "text": "— remembers your saved passport, draft applications, currency."
-          },
-          {
-            "label": "Analytics",
-            "text": "— first-party, IP-anonymized event tracking. Disable via the cookie banner."
-          },
-          {
-            "label": "Marketing",
-            "text": "— only set after explicit opt-in."
-          }
-        ],
-        "outro": "We do not use third-party advertising trackers and we do not build cross-site profiles."
-      },
-      "children": {
-        "num": "§ 10",
-        "title": "Children",
-        "body": "VIZA is not directed at children under 13. Where a child’s visa is filed as part of a family application, the data is provided by a parent or legal guardian who is the account holder. We do not market to children and we do not use a child’s data for any purpose beyond the visa filing."
-      },
-      "changes": {
-        "num": "§ 11",
-        "title": "Changes",
-        "body": "When this policy changes materially we email every active account holder at least 14 days before the new version takes effect. The version history is at the bottom of this page and previous versions are available on request."
-      },
-      "contact": {
-        "num": "§ 12",
-        "title": "Contact us",
-        "intro": "Privacy questions, requests, complaints — same address.",
-        "email": "<strong>Email:</strong> <a>privacy@viza.it.com</a>",
-        "dpo": "<strong>Data Protection Officer:</strong> <a>dpo@viza.it.com</a>",
-        "address": "<strong>Mailing address:</strong> 60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapore 409051",
-        "pdpc": "<strong>Singapore PDPC:</strong> <a>pdpc.gov.sg</a>"
-      }
-    },
-    "footer": {
-      "copyright": "© VIZA Pte. Ltd. · All rights reserved",
-      "terms": "Terms",
-      "security": "Security"
-    }
-  },
-  "legalTerms": {
-    "eyebrow": "Legal · Terms of service",
-    "title": "Terms of service",
-    "lede": "The agreement between you and VIZA when you use our visa application services. We help prepare and file your application; you provide accurate information. VIZA's service is free. The rest is the detail.",
-    "meta": {
-      "effective": "<b>Effective:</b> 1 May 2026",
-      "version": "<b>Version:</b> 3.1",
-      "law": "<b>Governing law:</b> Singapore"
-    },
-    "tocTitle": "On this page",
-    "toc": [
-      "01 · The agreement",
-      "02 · Your account",
-      "03 · What we do",
-      "04 · What you do",
-      "05 · Fees",
-      "06 · No charges, no refunds",
-      "07 · Government decisions",
-      "08 · Timelines and guarantees",
-      "09 · Prohibited use",
-      "10 · Intellectual property",
-      "11 · Liability",
-      "12 · Suspension & termination",
-      "13 · Disputes",
-      "14 · Changes to terms",
-      "15 · Contact"
-    ],
-    "sections": {
-      "agreement": {
-        "num": "§ 01",
-        "title": "The agreement",
-        "p1": "By creating a VIZA account or using the VIZA portal, you agree to these terms together with our<privacy> privacy policy</privacy>. Together they form the full agreement between you and VIZA Pte. Ltd. (Singapore UEN 202312345A).",
-        "p2": "If you are using VIZA on behalf of a company or another person, you confirm that you are authorised to bind them, and references to \"you\" include them."
-      },
-      "account": {
-        "num": "§ 02",
-        "title": "Your account",
-        "item1": "You must be at least 18 to open an account in your own name.",
-        "item2": "Account credentials are personal and must not be shared.",
-        "item3": "You are responsible for everything done under your account.",
-        "item4": "Notify us immediately at <a>security@viza.it.com</a> if you suspect unauthorised access.",
-        "item5": "We may verify your identity at any point as required by law or to prevent fraud."
-      },
-      "service": {
-        "num": "§ 03",
-        "title": "What we do",
-        "intro": "VIZA provides a managed visa application service. That includes:",
-        "items": [
-          "Reviewing the documents you upload for completeness.",
-          "Auto-extracting data from your passport and forms.",
-          "Filling and submitting the destination government’s visa application on your behalf.",
-          "Tracking the application and notifying you of decisions.",
-          "Providing a human consultant during business hours and an emergency line out of hours."
-        ],
-        "callout": "VIZA is a private agency, not a law firm and not a government authority. We do not offer immigration legal advice. Where a visa decision turns on legal interpretation, we will tell you and recommend appropriate counsel."
-      },
-      "applicant": {
-        "num": "§ 04",
-        "title": "What you do",
-        "items": [
-          {
-            "label": "Provide accurate information.",
-            "text": "Misrepresentation may invalidate your visa and trigger criminal penalties under destination law. We rely on what you give us."
-          },
-          {
-            "label": "Provide authentic documents.",
-            "text": "Forged or doctored documents will be rejected by the embassy and may be reported to authorities."
-          },
-          {
-            "label": "Respond promptly.",
-            "text": "Some visas require additional information or interviews on short notice. Missing a deadline can void the application."
-          },
-          {
-            "label": "Comply with destination law.",
-            "text": "Our service ends when the visa is issued; what happens at the border or during your stay is between you and the destination government."
-          }
-        ]
-      },
-      "fees": {
-        "num": "§ 05",
-        "title": "Fees",
-        "intro": "VIZA does not collect service fees or offer paid subscriptions. Applications do not require payment through VIZA.",
-        "items": [
-          {
-            "label": "VIZA service.",
-            "text": "Free. VIZA does not charge for preparing, reviewing, or tracking your application."
-          },
-          {
-            "label": "Government fee.",
-            "text": "Set by the destination authority under its own rules. Where one applies, you pay it directly to that authority. VIZA does not collect or automatically pay it, and an unpaid official fee may prevent an application from continuing."
-          }
-        ],
-        "outro": "Other service providers (for example appointment centres, couriers, or translators) may charge their own fees under their own terms."
-      },
-      "refunds": {
-        "num": "§ 06",
-        "title": "No charges, no refunds",
-        "body": "Because VIZA does not charge for its service, there is nothing for VIZA to refund. Refunds of government or third-party fees follow the rules of the authority or provider you paid."
-      },
-      "government": {
-        "num": "§ 07",
-        "title": "Government decisions",
-        "body": "VIZA does not, and cannot, guarantee a visa outcome. Approval rests entirely with the destination government. Where a rejection results from a VIZA filing error, we will help you re-file at no cost."
-      },
-      "timelines": {
-        "num": "§ 08",
-        "title": "Timelines and guarantees",
-        "body": "Each visa product shows a Guaranteed Delivery date based on the destination government’s published service-level and our internal processing buffer. It is our delivery commitment, provided you submitted complete information on time. It does not guarantee a positive outcome."
-      },
-      "prohibited": {
-        "num": "§ 09",
-        "title": "Prohibited use",
-        "intro": "You may not use VIZA to:",
-        "items": [
-          "Submit false, misleading, or fraudulent information.",
-          "Apply on behalf of another person without their explicit, recorded consent.",
-          "Circumvent immigration controls, sanctions regimes, or travel bans.",
-          "Reverse-engineer, scrape, or automate access to the portal in a way that disrupts service.",
-          "Resell, sublicense, or wrap our service into a third-party offering without a written commercial agreement."
-        ],
-        "outro": "Breach of this section is grounds for immediate termination and may be reported to authorities."
-      },
-      "ip": {
-        "num": "§ 10",
-        "title": "Intellectual property",
-        "body": "The VIZA platform, brand, designs, and software are owned by VIZA Pte. Ltd. or our licensors. Use of the service does not transfer any rights in our IP to you. Likewise, content you upload remains yours; you grant VIZA a limited licence to process and submit it strictly to deliver your visa."
-      },
-      "liability": {
-        "num": "§ 11",
-        "title": "Liability",
-        "p1": "To the maximum extent permitted by law, VIZA’s aggregate liability for any claim arising out of or in connection with the service is capped at SGD 500. We are not liable for indirect, consequential, incidental, or punitive damages, including lost flights, accommodation, or business opportunity.",
-        "p2": "Nothing in these terms excludes or limits liability for fraud, gross negligence, death or personal injury caused by negligence, or any other liability that cannot lawfully be excluded."
-      },
-      "termination": {
-        "num": "§ 12",
-        "title": "Suspension and termination",
-        "p1": "You may close your account at any time from the portal settings.",
-        "p2": "We may suspend or terminate access if:",
-        "items": [
-          "You breach these terms or any applicable law.",
-          "We reasonably suspect fraud, identity theft, or sanction breach.",
-          "Continued service would expose VIZA to legal or regulatory risk."
-        ],
-        "p3": "On termination, ongoing applications are completed where possible."
-      },
-      "disputes": {
-        "num": "§ 13",
-        "title": "Disputes",
-        "body": "These terms are governed by the laws of Singapore. Any dispute that cannot be resolved through good-faith discussion within 30 days will be referred to the Singapore International Arbitration Centre (SIAC) under its rules in force at the time, with one arbitrator, in English, seated in Singapore. Either party may still seek injunctive relief in court for urgent IP or confidentiality matters."
-      },
-      "changes": {
-        "num": "§ 14",
-        "title": "Changes to terms",
-        "body": "We may update these terms to reflect new features, regulatory changes, or operational improvements. Material changes are announced by email at least 14 days in advance. Continued use of the service after the effective date constitutes acceptance of the updated terms."
-      },
-      "contact": {
-        "num": "§ 15",
-        "title": "Contact",
-        "legal": "<strong>Legal questions:</strong> <a>legal@viza.it.com</a>",
-        "privacy": "<strong>Privacy / data requests:</strong> <a>privacy@viza.it.com</a>",
-        "address": "<strong>Mailing address:</strong> 60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapore 409051",
-        "uen": "<strong>UEN:</strong> 202312345A"
-      }
-    },
-    "footer": {
-      "copyright": "© VIZA Pte. Ltd. · All rights reserved",
-      "privacy": "Privacy",
-      "security": "Security"
-    }
-  },
   "security": {
     "hero": {
       "eyebrow": "Security at VIZA · last updated May 2026",
@@ -1633,7 +1239,7 @@
     "crumbHome": "Transparency",
     "crumbHere": "System Status",
     "hero": {
-      "title": "On time, <em>guaranteed.</em><br></br>Or you’ll be the first to know.",
+      "title": "System status",
       "lead": "Evidence-backed availability for VIZA and the government visa portals we work with. Every percentage, timeline bar, and incident below comes from a recorded synthetic check."
     },
     "console": {
@@ -2249,7 +1855,10 @@
       "copyright": "© {year} VIZA. All rights reserved.",
       "office": "Registered office: 60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapore 409051",
       "privacy": "Privacy",
-      "terms": "Terms"
+      "terms": "Terms",
+      "kelin": "A Kelin Studio venture",
+      "refunds": "Refunds",
+      "business": "Business information"
     },
     "form": {
       "fullName": {
@@ -2289,6 +1898,21 @@
         "open": "Open now first",
         "name": "A to Z"
       }
+    },
+    "dest": {
+      "all": "All destinations",
+      "onPage": "On this page",
+      "applyTitle": "Start application",
+      "facts": "Facts"
+    },
+    "article": {
+      "toc": "On this page",
+      "down": "Jump to the article",
+      "faqLede": "Quick answers on this topic."
+    },
+    "legal": {
+      "updated": "Last updated",
+      "contents": "Contents"
     }
   },
   "homePage": {
@@ -2524,5 +2148,39 @@
       "title": "Send a message",
       "text": "Questions about a visa, a destination or working with VIZA. Write to us and a consultant will reply."
     }
+  },
+  "careersPage": {
+    "title": "Careers",
+    "lede": "VIZA helps people in Singapore get their visa with AI and consultants, and the service is free. We hire people who like careful, useful work.",
+    "teamsTitle": "Teams",
+    "teams": [
+      {
+        "title": "Engineering",
+        "body": "Build the document checks, the application flow and the tools our consultants use."
+      },
+      {
+        "title": "Design",
+        "body": "Make a stressful process feel clear for the person applying."
+      },
+      {
+        "title": "Operations",
+        "body": "Keep every application moving and every requirement up to date."
+      },
+      {
+        "title": "Consulting",
+        "body": "Help applicants with the cases that need a person, in English and Chinese."
+      },
+      {
+        "title": "Data",
+        "body": "Turn government sources into checks that catch problems early."
+      },
+      {
+        "title": "Marketing",
+        "body": "Explain visas plainly, in guides and pages people can trust."
+      }
+    ],
+    "applyTitle": "Get in touch",
+    "applyBody": "Tell us about yourself and the team you would like to join. We read every note.",
+    "applyCta": "Contact us"
   }
 }

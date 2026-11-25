@@ -1,16 +1,17 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
-import SiteFooter from "@/components/SiteFooter";
-import SiteNav from "@/components/SiteNav";
-import MarketingBlogFeed, { MarketingBlogTopics } from "@/components/MarketingBlogFeed";
-import MarketingBlogCta from "@/components/MarketingBlogCta";
+import SiteHeader from "@/design-system/sections/SiteHeader";
+import SiteFooter from "@/design-system/sections/SiteFooter";
+import PageHead from "@/design-system/sections/PageHead";
+import FilterTabs from "@/design-system/sections/FilterTabs";
+import ArticleCards from "@/design-system/sections/ArticleCards";
+import EndCta from "@/design-system/sections/EndCta";
 import type { Locale } from "@/i18n";
 import { getMarketingBlogFeed } from "@/lib/marketing-blog";
 import { blogCategories, categorySlug } from "@/lib/blog-taxonomy";
 import { clip, clipTitle, pageMetadata } from "@/lib/seo/metadata";
 import { blogUrl, breadcrumbJsonLd, jsonLd } from "@/lib/blog-structured-data";
-import { Link } from "@/navigation";
 
 export const revalidate = 300;
 export const dynamicParams = true;
@@ -20,7 +21,8 @@ interface CategoryPageProps {
 }
 
 export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
-  const { locale: localeParam, slug } = await params;
+  const { locale: localeParam, slug: rawSlug } = await params;
+  const slug = decodeURIComponent(rawSlug);
   const locale = localeParam as Locale;
   const [t, result] = await Promise.all([
     getTranslations({ locale, namespace: "pages.blog" }),
@@ -41,7 +43,8 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
 }
 
 export default async function BlogCategoryPage({ params }: CategoryPageProps) {
-  const { locale: localeParam, slug } = await params;
+  const { locale: localeParam, slug: rawSlug } = await params;
+  const slug = decodeURIComponent(rawSlug);
   const locale = localeParam as Locale;
   setRequestLocale(locale);
   const [t, result] = await Promise.all([
@@ -77,42 +80,35 @@ export default async function BlogCategoryPage({ params }: CategoryPageProps) {
           })} />
         </>
       ) : null}
-      <SiteNav activeTab="blog" />
-      <main className="viza-blog">
-        <header className="viza-blog__hero">
-          <div className="viza-blog__container">
-            <span className="viza-blog__overline">
-              <Link href="/blog" locale={locale}>{t("eyebrow")}</Link> · {t("topicLabel")}
-            </span>
-            <h1>{category?.name ?? t("unavailableTitle")}</h1>
-            {category ? <p className="viza-blog__hero-description">{t("categoryLede", { category: category.name })}</p> : null}
-          </div>
-        </header>
-        <section className="viza-blog__band">
-          <div className="viza-blog__container">
-            <MarketingBlogTopics
-              categories={result.status === "ok" ? blogCategories(result.feed.posts) : []}
-              locale={locale}
-              categoriesLabel={t("categoriesLabel")}
-              allPostsLabel={t("allPosts")}
-              currentSlug={slug}
+      <SiteHeader active="news" />
+      <main className="ds-main">
+        <PageHead title={category?.name ?? t("unavailableTitle")} lede={category ? t("categoryLede", { category: category.name }) : undefined} />
+        <section className="ds-container ds-section" style={{ paddingTop: 0 }}>
+          <FilterTabs
+            label={t("categoriesLabel")}
+            tabs={result.status === "ok" ? [
+              { label: t("allPosts"), href: "/blog" },
+              ...blogCategories(result.feed.posts).map((c) => ({ label: c.name, href: `/blog/category/${c.slug}`, count: c.count, current: c.slug === slug })),
+            ] : []}
+          />
+          <div style={{ height: 48 }} />
+          {result.status === "unavailable" ? (
+            <div className="ds-empty"><p className="ds-body">{t("unavailableBody")}</p></div>
+          ) : posts.length > 0 ? (
+            <ArticleCards
+              items={posts.map((post) => ({
+                href: `/blog/${post.slug}`,
+                image: post.coverImageUrl,
+                meta: post.category || post.authorName,
+                title: post.title,
+                body: post.excerpt,
+              }))}
             />
-            {result.status === "unavailable" ? (
-              <p className="viza-blog__empty">{t("unavailableBody")}</p>
-            ) : posts.length > 0 ? (
-              <MarketingBlogFeed posts={posts} locale={locale} readArticleLabel={t("readArticle")} />
-            ) : (
-              <p className="viza-blog__empty">{t("emptyBody")}</p>
-            )}
-          </div>
+          ) : (
+            <div className="ds-empty"><p className="ds-body">{t("emptyBody")}</p></div>
+          )}
         </section>
-        <MarketingBlogCta
-          locale={locale}
-          eyebrow={t("ctaEyebrow")}
-          title={t("ctaTitle")}
-          body={t("ctaBody")}
-          action={t("ctaAction")}
-        />
+        <EndCta title={t("ctaTitle")} body={t("ctaBody")} action={t("ctaAction")} href="/apply" />
       </main>
       <SiteFooter />
     </>

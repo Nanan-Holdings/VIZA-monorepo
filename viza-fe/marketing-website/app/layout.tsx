@@ -5,6 +5,7 @@ import "../design-system/base.css";
 import "../design-system/motion.css";
 import "../design-system/chrome.css";
 import "../design-system/sections.css";
+import "../design-system/article.css";
 import type { Metadata } from "next";
 import Script from "next/script";
 import { getLocale } from "next-intl/server";
@@ -59,6 +60,8 @@ const organizationJsonLd = {
   "@type": ["Organization", "TravelAgency"],
   "@id": `${siteUrl}/#organization`,
   name: "VIZA",
+  legalName: "Kelin Studio Pte. Ltd.",
+  parentOrganization: { "@type": "Organization", name: "Kelin Studio", url: "https://kelin.studio" },
   url: siteUrl,
   /* Without a description an agent reading the graph knows the entity is
      called VIZA and nothing about what it does, which is the difference
