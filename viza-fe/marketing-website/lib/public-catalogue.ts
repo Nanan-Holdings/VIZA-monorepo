@@ -50,7 +50,7 @@ export async function getPublishedCatalogue(): Promise<PublishedCatalogueEntry[]
   try {
     const response = await fetch(portalUrl("/api/public/catalogue"), {
       headers: { Accept: "application/json" },
-      next: { revalidate: 300 },
+      cache: "force-cache", // fully static pages: refreshed on each deploy, never by timed ISR
       signal: AbortSignal.timeout(4_000),
     });
     if (!response.ok) return [];

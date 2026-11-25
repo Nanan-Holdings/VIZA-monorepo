@@ -9,7 +9,7 @@ import { GUIDES as ARRIVAL_GUIDES } from "@/lib/arrival-cards";
 import { GUIDES } from "@/lib/guides";
 import { isRedirectedBlogSlug } from "@/lib/seo/redirects";
 
-export const revalidate = 300;
+export const revalidate = false;
 
 type Entry = MetadataRoute.Sitemap[number];
 

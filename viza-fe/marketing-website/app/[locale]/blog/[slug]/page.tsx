@@ -12,7 +12,12 @@ import { destinationForPost } from "@/lib/blog-destination";
 import { guidesForPost, localizedGuides } from "@/lib/guides";
 import { blogUrl, articleJsonLd, breadcrumbJsonLd, jsonLd } from "@/lib/blog-structured-data";
 
-export const revalidate = 300;
+export const revalidate = false;
+
+/** No pages at build: each post renders once on first request, is cached, and is refreshed only by /api/revalidate. */
+export function generateStaticParams() {
+  return [];
+}
 
 interface BlogPostPageProps {
   params: Promise<{ locale: string; slug: string }>;
