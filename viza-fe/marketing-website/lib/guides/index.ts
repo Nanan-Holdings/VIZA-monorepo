@@ -1,5 +1,6 @@
 import type { GuideContent, GuideMeta } from "./types";
-import { isLocale } from "@/lib/locales";
+import { applyOverlay } from "@/lib/i18n-overlay";
+import { guideOverlay, metaOverlay, pickLocal, usesOverlay } from "@/lib/i18n-content";
 
 /**
  * Registry of evergreen guides. Facts checked on 25 November 2026 against the official pages listed in each
@@ -165,7 +166,23 @@ const ZH: Record<string, Loader> = Object.fromEntries(
   GUIDES.map((g) => [g.slug, () => import(`./zh-CN/${g.slug}`) as Promise<{ default: GuideContent }>]),
 );
 
+/** English, the hand-written zh-CN twin, or English with translations/<locale>/guides/<slug>.json laid over it. */
 export async function loadGuide(slug: string, locale: string): Promise<GuideContent | null> {
-  const loader = (isLocale(locale) && locale === "zh-CN" ? ZH : EN)[slug];
-  return loader ? (await loader()).default : null;
+  const loader = (locale === "zh-CN" ? ZH : EN)[slug];
+  if (!loader) return null;
+  const guide = (await loader()).default;
+  return usesOverlay(locale) ? applyOverlay(guide, await guideOverlay(locale, slug)) : guide;
+}
+
+/** A guide's card fields resolved to plain strings for one locale. */
+export type LocalGuideMeta = Omit<GuideMeta, "name" | "tag" | "summary"> & { name: string; tag: string; summary: string };
+
+export async function localizedGuides(locale: string): Promise<LocalGuideMeta[]> {
+  const ov = usesOverlay(locale) ? await metaOverlay(locale) : null;
+  return GUIDES.map((g) => ({
+    ...g,
+    name: pickLocal(g.name, locale, ov?.[`guides/${g.slug}/name`]),
+    tag: pickLocal(g.tag, locale, ov?.[`guides/${g.slug}/tag`]),
+    summary: pickLocal(g.summary, locale, ov?.[`guides/${g.slug}/summary`]),
+  }));
 }

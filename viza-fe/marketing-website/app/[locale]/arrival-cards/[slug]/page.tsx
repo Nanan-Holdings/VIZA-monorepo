@@ -11,7 +11,7 @@ import { ChevronRight } from "@/design-system/ui/Icons";
 import { guideImage } from "@/lib/site-content";
 import ArrivalJsonLd from "@/components/ArrivalJsonLd";
 import { locales } from "@/i18n";
-import { GUIDES, guideBySlug, loadGuide } from "@/lib/arrival-cards";
+import { GUIDES, guideBySlug, loadGuide, localizedGuides } from "@/lib/arrival-cards";
 import { pageMetadata } from "@/lib/seo/metadata";
 import { portalUrl } from "@/lib/utils";
 import { Link } from "@/navigation";
@@ -42,13 +42,14 @@ export default async function ArrivalGuidePage({ params }: { params: Promise<{ l
   const guide = await loadGuide(slug, locale);
   if (!meta || !guide) notFound();
   const t = await getTranslations({ locale, namespace: "arrival" });
-  const zh = locale === "zh-CN";
-  const name = zh ? meta.name.zh : meta.name.en;
-  const country = zh ? meta.country.zh : meta.country.en;
+  const allGuides = await localizedGuides(locale);
+  const here = allGuides.find((g) => g.slug === slug)!;
+  const name = here.name;
+  const country = here.country;
   const portalHref = meta.portal
     ? portalUrl(`/client/application?country=${encodeURIComponent(meta.portal.country)}&visaType=${encodeURIComponent(meta.portal.visaType)}`)
     : null;
-  const others = GUIDES.filter((g) => g.slug !== slug);
+  const others = allGuides.filter((g) => g.slug !== slug);
   const ta = await getTranslations({ locale, namespace: "ds.article" });
   const photo = guideImage([meta.visaSlug ?? "singapore"]);
   const used = new Set<string>([photo]);
@@ -195,8 +196,8 @@ export default async function ArrivalGuidePage({ params }: { params: Promise<{ l
             items={others.map((g) => ({
               href: `/arrival-cards/${g.slug}`,
               image: guideImage([g.visaSlug ?? "singapore"], used),
-              meta: zh ? g.country.zh : g.country.en,
-              title: zh ? g.name.zh : g.name.en,
+              meta: g.country,
+              title: g.name,
               body: t(`cards.${g.slug}.summary`),
               more: t("readGuide"),
             }))}

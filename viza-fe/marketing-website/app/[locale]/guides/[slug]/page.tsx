@@ -10,9 +10,9 @@ import Button from "@/design-system/ui/Button";
 import { guideImage } from "@/lib/site-content";
 import GuideText from "@/components/GuideText";
 import { locales } from "@/i18n";
-import { GUIDES, guideBySlug, loadGuide } from "@/lib/guides";
+import { GUIDES, guideBySlug, loadGuide, localizedGuides } from "@/lib/guides";
 import { stripLinks } from "@/lib/guides/text";
-import { GUIDES as ARRIVAL_GUIDES } from "@/lib/arrival-cards";
+import { localizedGuides as localizedArrival } from "@/lib/arrival-cards";
 import { COUNTRIES } from "@/lib/countries";
 import { LOCALE_HTML_LANG, buildLocalePath, isLocale } from "@/lib/locales";
 import { ogImagePath, pageMetadata } from "@/lib/seo/metadata";
@@ -52,16 +52,17 @@ export default async function GuidePage({ params }: { params: Promise<{ locale: 
   if (!meta || !guide) notFound();
   const t = await getTranslations({ locale, namespace: "guides" });
   const tc = await getTranslations({ locale, namespace: "countries" });
-  const zh = locale === "zh-CN";
+  const allGuides = await localizedGuides(locale);
+  const here = allGuides.find((g) => g.slug === slug)!;
   const inLanguage = isLocale(locale) ? LOCALE_HTML_LANG[locale] : "en";
   const url = `${SITE_URL}${buildLocalePath(locale, `/guides/${slug}`)}`;
-  const name = zh ? meta.name.zh : meta.name.en;
-  const others = GUIDES.filter((g) => g.slug !== slug);
+  const name = here.name;
+  const others = allGuides.filter((g) => g.slug !== slug);
   const visaPages = meta.visa.map((s) => {
     const c = COUNTRIES.find((x) => x.slug === s);
     return { slug: s, name: tc.has(s) ? tc(s) : (c?.name ?? s) };
   });
-  const arrival = ARRIVAL_GUIDES.filter((g) => meta.arrival.includes(g.slug));
+  const arrival = (await localizedArrival(locale)).filter((g) => meta.arrival.includes(g.slug));
 
   const jsonLd = [
     {
@@ -121,7 +122,7 @@ export default async function GuidePage({ params }: { params: Promise<{ locale: 
           <div className="ds-artmeta">
             <span>{t("published")}<b><time dateTime={meta.published}>{formatDate(meta.published, locale)}</time></b></span>
             {meta.modified !== meta.published ? <span>{t("updated")}<b><time dateTime={meta.modified}>{formatDate(meta.modified, locale)}</time></b></span> : null}
-            <span>{zh ? meta.tag.zh : meta.tag.en}</span>
+            <span>{here.tag}</span>
             <p className="ds-artmeta-lead"><GuideText text={guide.lead} /></p>
           </div>
         </div>
@@ -176,7 +177,7 @@ export default async function GuidePage({ params }: { params: Promise<{ locale: 
                 <h2>{t("relatedArrivalTitle")}</h2>
                 <ul className="ds-linkrow" style={{ padding: 0 }}>
                   {arrival.map((g) => (
-                    <li key={g.slug}><Button href={`/arrival-cards/${g.slug}`} variant="muted">{zh ? g.name.zh : g.name.en}</Button></li>
+                    <li key={g.slug}><Button href={`/arrival-cards/${g.slug}`} variant="muted">{g.name}</Button></li>
                   ))}
                 </ul>
               </section>
@@ -211,9 +212,9 @@ export default async function GuidePage({ params }: { params: Promise<{ locale: 
             items={others.map((g) => ({
               href: `/guides/${g.slug}`,
               image: guideImage(g.visa, used),
-              meta: zh ? g.tag.zh : g.tag.en,
-              title: zh ? g.name.zh : g.name.en,
-              body: zh ? g.summary.zh : g.summary.en,
+              meta: g.tag,
+              title: g.name,
+              body: g.summary,
               more: t("readGuide"),
             }))}
           />

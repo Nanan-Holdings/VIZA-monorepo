@@ -24,7 +24,7 @@ function formatDate(iso: string, locale: string): string {
  * a large plain title, a "last updated" line, a contents column and a readable text column. Server rendered.
  */
 export default async function LegalDocument({ slug, locale }: { slug: LegalSlug; locale: string }) {
-  const doc = getLegal(slug, locale);
+  const doc = await getLegal(slug, locale);
   const t = await getTranslations({ locale, namespace: "ds.legal" });
   const th = await getTranslations({ locale, namespace: "guides" });
   const inLanguage = isLocale(locale) ? LOCALE_HTML_LANG[locale] : "en";
