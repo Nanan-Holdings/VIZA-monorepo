@@ -14,11 +14,11 @@ export const revalidate = 300;
 type Entry = MetadataRoute.Sitemap[number];
 
 /**
- * Final, indexable, 200 URLs only. Left out on purpose: /about (no route),
+ * Final, indexable, 200 URLs only. Left out on purpose:
  * /status, /events and /apply (noindex), /refunds (redirect), and any locale's
  * blog until that locale has published posts.
  */
-const STATIC_ROUTES = ["/", "/product", "/contact", "/arrival-cards", "/guides", "/careers", "/security", "/legal/privacy", "/legal/terms"];
+const STATIC_ROUTES = ["/", "/about", "/product", "/contact", "/arrival-cards", "/guides", "/careers", "/security", "/legal/privacy", "/legal/terms"];
 
 /** One sitemap row per locale in `locales`, each naming every sibling plus x-default. */
 function rows(

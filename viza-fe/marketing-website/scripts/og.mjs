@@ -54,7 +54,7 @@ const clip = (text, max) => {
 const stripBrand = (title) => title.replace(/\s*\|\s*VIZA.*$/, "").trim();
 const firstSentence = (text) => text.split(/(?<=[.。])\s*/)[0];
 
-const PAGES = ["home", "product", "contact", "careers", "security", "status", "apply", "events", "privacy", "terms"];
+const PAGES = ["home", "about", "product", "contact", "careers", "security", "status", "apply", "events", "privacy", "terms"];
 // Phase C: the arrival card hub (messages pages.arrivalCards) and one card per guide in lib/arrival-cards/<locale>/.
 const GUIDE_SLUGS = ["malaysia-mdac", "singapore-sg-arrival-card", "japan-visit-japan-web", "thailand-tdac", "korea-e-arrival-card", "indonesia-all-indonesia"];
 // Phase D: the guides hub (messages pages.guides) and one card per guide in lib/guides/<locale>/.

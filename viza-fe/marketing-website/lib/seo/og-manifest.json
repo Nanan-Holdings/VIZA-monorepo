@@ -1,6 +1,7 @@
 {
   "en": [
     "home",
+    "about",
     "product",
     "contact",
     "careers",
@@ -50,6 +51,7 @@
   ],
   "zh-CN": [
     "home",
+    "about",
     "product",
     "contact",
     "careers",
