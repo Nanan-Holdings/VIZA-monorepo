@@ -92,7 +92,7 @@ try {
 
 // ---- Titles and descriptions ------------------------------------------------------------------------------
 const chars = (s) => [...s].length;
-const PAGE_KEYS = ["home", "apply", "contact", "careers", "security", "status", "privacy", "terms", "product", "events"];
+const PAGE_KEYS = ["guides", "home", "apply", "contact", "careers", "security", "status", "privacy", "terms", "product", "events"];
 
 for (const locale of ENABLED_LOCALES) {
   const m = messages[locale];
@@ -116,6 +116,28 @@ for (const locale of ENABLED_LOCALES) {
     descriptions.set(r.description, r.id);
     for (const c of CLAIMS) {
       if (claimHit(c, r.title || "") || claimHit(c, r.description || "")) hits.push(`${r.id} ${c.why}`);
+    }
+  }
+}
+
+// ---- Evergreen guides (lib/guides/<locale>/*.ts) --------------------------------------------------------
+for (const locale of ENABLED_LOCALES) {
+  const dir = join(ROOT, "lib/guides", locale);
+  if (!existsSync(dir)) continue;
+  const seen = new Set();
+  for (const file of readdirSync(dir).filter((f) => f.endsWith(".ts"))) {
+    const guide = (await import(join(dir, file))).default;
+    const id = `${locale} guide ${file.replace(/\.ts$/, "")}`;
+    if (chars(guide.title) > TITLE_MAX) hits.push(`${id} title is ${chars(guide.title)} characters (max ${TITLE_MAX})`);
+    if (chars(guide.description) > DESCRIPTION_MAX) hits.push(`${id} description is ${chars(guide.description)} characters (max ${DESCRIPTION_MAX})`);
+    if (seen.has(guide.title)) hits.push(`${id} duplicates a guide title`);
+    seen.add(guide.title);
+    const text = JSON.stringify(guide);
+    for (const c of CLAIMS) if (claimHit(c, text)) hits.push(`${id} ${c.why}`);
+    for (const m of text.matchAll(/\]\((\/[^)\s]*)\)/g)) {
+      const href = m[1];
+      const ok = /^\/(visa\/[a-z-]+|arrival-cards\/[a-z-]+|guides\/[a-z-]+|contact|blog)$/.test(href);
+      if (!ok) hits.push(`${id} links to an unknown path ${href}`);
     }
   }
 }

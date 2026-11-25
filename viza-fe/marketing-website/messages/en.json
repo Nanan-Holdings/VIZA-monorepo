@@ -8,14 +8,15 @@
     "visas": "Visas",
     "explore": "Explore",
     "events": "Events",
-    "blog": "Guides",
+    "blog": "News",
     "careers": "Careers",
     "contact": "Contact",
     "signIn": "Sign in",
     "getStarted": "Get started",
     "yourPassport": "Your passport",
     "searchPlaceholder": "Search a country or visa…",
-    "arrivalCards": "Arrival cards"
+    "arrivalCards": "Arrival cards",
+    "guides": "Guides"
   },
   "footer": {
     "followUs": "Follow us:",
@@ -40,42 +41,46 @@
     "prodPhoto": "Visa Photo Creator",
     "prodHelpline": "VIZA Emergency Helpline",
     "prodStudent": "Student Visa",
-    "arrivalCards": "Arrival cards"
+    "arrivalCards": "Arrival cards",
+    "guides": "Guides",
+    "news": "News"
   },
   "pages": {
     "blog": {
-      "metaTitle": "Visa Guides and Travel Updates | VIZA",
-      "metaDescription": "Clear, practical guides on visas, application preparation and international travel from the VIZA team. Updated as rules change.",
-      "eyebrow": "VIZA journal",
-      "title": "Visa guidance, without the fine-print fog.",
-      "lede": "Practical explanations, official-policy updates, and preparation tips from the team that handles visa applications every day.",
+      "metaTitle": "Visa News and Policy Updates | VIZA",
+      "metaDescription": "Visa news from VIZA: rule changes, new e-visa and ETA schemes, and what they mean for people living in Singapore. Updated when the rules change.",
+      "eyebrow": "VIZA",
+      "title": "Visa news",
+      "lede": "Rule changes and policy updates, explained in plain words. For advice that stays true, read the guides.",
       "readArticle": "Read article",
-      "featuredLabel": "Latest article",
-      "articlesTitle": "Articles & guides",
-      "articlesDescription": "Visa explainers, travel updates, and practical application advice.",
+      "featuredLabel": "Latest news",
+      "articlesTitle": "Latest news",
+      "articlesDescription": "Policy updates and travel rule changes.",
       "allPosts": "All posts",
-      "noMorePosts": "More guides are on the way.",
-      "emptyTitle": "No articles published yet",
-      "emptyBody": "Our first guides are being prepared. Please check back soon.",
-      "unavailableTitle": "The journal is temporarily unavailable",
-      "unavailableBody": "We couldn't load the latest published articles. Please try again shortly.",
-      "backToBlog": "Back to the journal",
+      "noMorePosts": "More news is on the way.",
+      "emptyTitle": "No news published yet",
+      "emptyBody": "Our first updates are being prepared. Please check back soon.",
+      "unavailableTitle": "News is temporarily unavailable",
+      "unavailableBody": "We could not load the latest published news. Please try again shortly.",
+      "backToBlog": "Back to news",
       "by": "By",
       "updated": "Updated",
-      "categoriesLabel": "Article categories",
+      "categoriesLabel": "News topics",
       "topicLabel": "Topic",
-      "relatedTitle": "Keep reading",
-      "relatedDescription": "More guidance from VIZA.",
+      "relatedTitle": "More news",
+      "relatedDescription": "More visa news from VIZA.",
       "ctaEyebrow": "Plan with confidence",
       "ctaTitle": "Ready to start your application?",
       "ctaBody": "Tell us where you want to go. VIZA will guide you through the requirements and next steps.",
       "ctaAction": "Start an application",
-      "categoryMetaTitle": "{category} Guides | VIZA",
-      "categoryMetaDescription": "Read VIZA guides and updates about {category}: what changed, who it affects and what to do next.",
-      "categoryLede": "Guides and updates about {category}.",
+      "categoryMetaTitle": "{category} News | VIZA",
+      "categoryMetaDescription": "Read VIZA news about {category}: what changed, who it affects and what to do next.",
+      "categoryLede": "News about {category}.",
       "visaLinkTitle": "Applying for a {country} visa?",
       "visaLinkBody": "See the documents, government fee and steps for people living in Singapore.",
-      "visaLinkAction": "{country} visa guide"
+      "visaLinkAction": "{country} visa guide",
+      "guidesTitle": "Related guides",
+      "guidesBody": "Guides that stay up to date on this topic."
     },
     "home": {
       "title": "Visa Applications in Singapore: US, India, Vietnam | VIZA",
@@ -139,6 +144,10 @@
     "arrivalCards": {
       "title": "Arrival Card Guides: MDAC, SG Arrival Card, TDAC | VIZA",
       "description": "Free guides to arrival cards for Malaysia, Singapore, Japan, Thailand, Korea and Indonesia: who needs one, when to submit, and step by step help."
+    },
+    "guides": {
+      "title": "Visa Guides for People Living in Singapore | VIZA",
+      "description": "Plain guides for people living in Singapore: visa-free countries, Schengen documents, US interview, ETA, e-visa and refusals. Free to read, checked often."
     }
   },
   "common": {
@@ -2389,5 +2398,30 @@
         "when": "Up to 3 days before arrival"
       }
     }
+  },
+  "guides": {
+    "breadcrumbHome": "Home",
+    "breadcrumbHub": "Guides",
+    "hubH1": "Visa guides for people living in Singapore",
+    "hubLead": "Whether you hold a Singapore, Chinese, Indian or Filipino passport, these guides answer the same question: what do I need to enter this country, and where do I apply from Singapore. Each one names its sources and the date it was checked.",
+    "hubGuidesTitle": "All guides",
+    "hubGuidesSub": "Pick a topic. Rules change, so every guide lists the official pages to check before you travel.",
+    "readGuide": "Read the guide",
+    "hubMoreTitle": "More from VIZA",
+    "hubMoreBody": "Looking for a specific country, an arrival card or the latest rule change?",
+    "hubDestinations": "Visa pages",
+    "hubArrival": "Arrival card guides",
+    "hubNews": "Visa news",
+    "glanceTitle": "Quick answer",
+    "relatedVisaTitle": "Destination pages",
+    "relatedVisaSub": "Fees, documents and steps for people living in Singapore.",
+    "relatedArrivalTitle": "Arrival card guides",
+    "relatedGuidesTitle": "More guides",
+    "faqTitle": "Questions",
+    "sourcesTitle": "Sources",
+    "reviewedTitle": "How we checked",
+    "published": "Published",
+    "updated": "Updated",
+    "independent": "VIZA is an independent service and not a government website."
   }
 }

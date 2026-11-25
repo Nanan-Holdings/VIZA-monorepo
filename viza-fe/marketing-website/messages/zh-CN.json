@@ -8,14 +8,15 @@
     "visas": "签证服务",
     "explore": "浏览",
     "events": "活动",
-    "blog": "指南",
+    "blog": "签证资讯",
     "careers": "加入我们",
     "contact": "联系我们",
     "signIn": "登录",
     "getStarted": "开始申请",
     "yourPassport": "您的护照",
     "searchPlaceholder": "搜索国家或签证…",
-    "arrivalCards": "入境卡"
+    "arrivalCards": "入境卡",
+    "guides": "签证攻略"
   },
   "footer": {
     "followUs": "关注我们：",
@@ -40,42 +41,46 @@
     "prodPhoto": "签证照片生成",
     "prodHelpline": "VIZA 紧急热线",
     "prodStudent": "学生签证",
-    "arrivalCards": "入境卡"
+    "arrivalCards": "入境卡",
+    "guides": "签证攻略",
+    "news": "签证资讯"
   },
   "pages": {
     "blog": {
-      "metaTitle": "签证指南与旅行动态 | VIZA",
-      "metaDescription": "VIZA 团队整理的签证申请准备与国际旅行指南，规则变化时及时更新。",
-      "eyebrow": "VIZA 指南",
-      "title": "把签证信息讲清楚。",
-      "lede": "来自一线签证服务团队的实用解读、官方政策更新与申请准备建议。",
+      "metaTitle": "签证资讯与政策更新 | VIZA",
+      "metaDescription": "VIZA 的签证资讯：规则变化、新的电子签和电子旅行授权，以及对住在新加坡的人有什么影响。规则一变就更新。",
+      "eyebrow": "VIZA",
+      "title": "签证资讯",
+      "lede": "规则变化和政策更新，用平实的话讲清楚。想看长期有用的办理建议，请看签证攻略。",
       "readArticle": "阅读文章",
-      "featuredLabel": "最新文章",
-      "articlesTitle": "文章与指南",
-      "articlesDescription": "签证解读、旅行动态与实用申请建议。",
+      "featuredLabel": "最新资讯",
+      "articlesTitle": "最新资讯",
+      "articlesDescription": "政策更新与出行规则变化。",
       "allPosts": "全部文章",
-      "noMorePosts": "更多指南即将发布。",
-      "emptyTitle": "暂无已发布文章",
-      "emptyBody": "首批指南正在准备中，欢迎稍后再来查看。",
-      "unavailableTitle": "指南暂时无法加载",
-      "unavailableBody": "我们暂时无法获取最新已发布文章，请稍后再试。",
-      "backToBlog": "返回指南列表",
+      "noMorePosts": "更多资讯即将发布。",
+      "emptyTitle": "暂无已发布资讯",
+      "emptyBody": "首批更新正在准备中，欢迎稍后再来查看。",
+      "unavailableTitle": "资讯暂时无法加载",
+      "unavailableBody": "我们暂时无法获取最新已发布资讯，请稍后再试。",
+      "backToBlog": "返回资讯列表",
       "by": "作者：",
       "updated": "更新于",
-      "categoriesLabel": "文章分类",
+      "categoriesLabel": "资讯分类",
       "topicLabel": "主题",
-      "relatedTitle": "继续阅读",
-      "relatedDescription": "更多 VIZA 指南。",
+      "relatedTitle": "更多资讯",
+      "relatedDescription": "VIZA 的更多签证资讯。",
       "ctaEyebrow": "安心规划旅程",
       "ctaTitle": "准备开始申请签证？",
       "ctaBody": "告诉我们您的目的地，VIZA 会引导您了解所需材料和后续步骤。",
       "ctaAction": "开始申请",
-      "categoryMetaTitle": "{category}指南 | VIZA",
-      "categoryMetaDescription": "阅读 VIZA 关于{category}的指南与动态：有什么变化、影响谁、下一步怎么做。",
-      "categoryLede": "关于{category}的指南与动态。",
+      "categoryMetaTitle": "{category}资讯 | VIZA",
+      "categoryMetaDescription": "阅读 VIZA 关于{category}的资讯：有什么变化、影响谁、下一步怎么做。",
+      "categoryLede": "关于{category}的资讯。",
       "visaLinkTitle": "准备办理{country}签证？",
       "visaLinkBody": "查看在新加坡办理所需的材料、政府费用和流程。",
-      "visaLinkAction": "{country}签证指南"
+      "visaLinkAction": "{country}签证指南",
+      "guidesTitle": "相关攻略",
+      "guidesBody": "这个话题下会持续更新的攻略。"
     },
     "home": {
       "title": "美国签证、申根签证、越南/印度电子签申请 | VIZA 新加坡",
@@ -139,6 +144,10 @@
     "arrivalCards": {
       "title": "入境卡指南：MDAC、新加坡入境卡、TDAC | VIZA",
       "description": "马来西亚、新加坡、日本、泰国、韩国和印尼入境卡免费指南：谁需要、什么时候提交，以及逐步操作。"
+    },
+    "guides": {
+      "title": "新加坡居民签证攻略：免签、申根、美签、电子签 | VIZA",
+      "description": "写给住在新加坡的人：免签国家、申根材料、美国面签、电子旅行授权、电子签和拒签后怎么办。免费阅读，常常更新。"
     }
   },
   "common": {
@@ -2389,5 +2398,30 @@
         "when": "抵达前最多 3 天"
       }
     }
+  },
+  "guides": {
+    "breadcrumbHome": "首页",
+    "breadcrumbHub": "签证攻略",
+    "hubH1": "住在新加坡的人的签证攻略",
+    "hubLead": "不管你持新加坡、中国、印度还是菲律宾护照，这些攻略回答同一个问题：去这个国家要办什么，在新加坡去哪里递交。每篇都列出信息来源和核对日期。",
+    "hubGuidesTitle": "全部攻略",
+    "hubGuidesSub": "挑一个主题。规则会变，所以每篇攻略都列出出行前要核对的官方页面。",
+    "readGuide": "阅读攻略",
+    "hubMoreTitle": "更多内容",
+    "hubMoreBody": "想查某个国家、入境卡，或者最新的规则变化？",
+    "hubDestinations": "签证页面",
+    "hubArrival": "入境卡攻略",
+    "hubNews": "签证资讯",
+    "glanceTitle": "快速回答",
+    "relatedVisaTitle": "目的地页面",
+    "relatedVisaSub": "写给住在新加坡的人：费用、材料和流程。",
+    "relatedArrivalTitle": "入境卡攻略",
+    "relatedGuidesTitle": "更多攻略",
+    "faqTitle": "常见问题",
+    "sourcesTitle": "信息来源",
+    "reviewedTitle": "核对方式",
+    "published": "发布于",
+    "updated": "更新于",
+    "independent": "VIZA 是独立的服务机构，不是政府网站。"
   }
 }
