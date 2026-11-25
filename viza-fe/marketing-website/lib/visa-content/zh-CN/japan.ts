@@ -147,7 +147,7 @@ export const japan: DestinationContent = {
     travel: {
       intro: "拿到签证只是一半。日本的入境手续大多在线上完成，2026 年也有几项费用调整。",
       items: [
-        { title: "Visit Japan Web", body: "在 Visit Japan Web 上可以在线完成入境、海关和免税手续，抵达时出示二维码。这是可选的，但在主要机场能缩短排队时间。" },
+        { title: "Visit Japan Web", body: "在 Visit Japan Web 上可以在线完成入境、海关和免税手续，抵达时出示二维码。这是可选的，但在主要机场能缩短排队时间。", href: "/arrival-cards/japan-visit-japan-web", linkLabel: "阅读 Visit Japan Web 指南" },
         { title: "入境规则", body: "入境时会为外国访客拍摄面部照片并录指纹。请随身带回程机票和资金证明。eVISA 持有人在手机上出示签证签发通知，因为不接受打印件。" },
         { title: "出境税", body: "国际观光旅客税自 2026 年 7 月 1 日起上调为每次出境 3,000 日元，含在机票里收取，不用在机场另付。" },
         { title: "JESTA", body: "日本计划在 2028 财年对免签访客推出电子旅行授权，新加坡护照也在其中。日期和费用都未确定，所以现在不需要额外办理。" },

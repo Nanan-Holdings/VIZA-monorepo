@@ -158,7 +158,7 @@ export const southKorea: DestinationContent = {
     travel: {
       intro: "Korea has moved most arrival steps online. A few minutes before you fly saves time at Incheon.",
       items: [
-        { title: "e-Arrival Card", body: "File it within 3 days before arrival at the e-Arrival Card site. It is free. A valid K-ETA holder does not need it. Voluntary K-ETA applicants from exempt countries get the same benefit." },
+        { title: "e-Arrival Card", body: "File it within 3 days before arrival at the e-Arrival Card site. It is free. A valid K-ETA holder does not need it. Voluntary K-ETA applicants from exempt countries get the same benefit.", href: "/arrival-cards/korea-e-arrival-card", linkLabel: "Read the e-Arrival Card guide" },
         { title: "Q-CODE", body: "Q-CODE is only for travellers who have been in designated quarantine areas. Travellers from other places do not need one. Check the KDCA site before you fly." },
         { title: "Passport", body: "There is no fixed minimum validity for Singapore passports, but the passport must cover your whole stay. A renewed passport needs a new K-ETA." },
         { title: "Insurance", body: "No official page we read lists travel insurance as a condition. It is worth having for medical costs." },

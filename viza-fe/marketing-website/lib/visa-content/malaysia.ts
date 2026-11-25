@@ -156,7 +156,7 @@ export const malaysia: DestinationContent = {
     travel: {
       intro: "Entry rules are easy for most Singapore travellers, and the arrival card is the one step many people miss.",
       items: [
-        { title: "Malaysia Digital Arrival Card (MDAC)", body: "Foreign visitors complete the MDAC online, free, within three days before arrival, at the Immigration Department's site. Singapore citizens are exempt. Use only the official site, since the card is not a visa and does not grant entry by itself." },
+        { title: "Malaysia Digital Arrival Card (MDAC)", body: "Foreign visitors complete the MDAC online, free, within three days before arrival, at the Immigration Department's site. Singapore citizens are exempt. Use only the official site, since the card is not a visa and does not grant entry by itself.", href: "/arrival-cards/malaysia-mdac", linkLabel: "Read the MDAC guide" },
         { title: "Money limits", body: "Declare cash or bearer instruments worth more than US$10,000 to customs, and do not carry more than US$10,000 in ringgit without permission from Bank Negara Malaysia." },
         { title: "Overstaying", body: "An overstay can bring a fine or imprisonment under the Immigration Act. Leave before the days you were given run out." },
         { title: "Visa free is not work", body: "Visa exempt entry is for tourism, business, social visits and transit. Work and study need a visa." },

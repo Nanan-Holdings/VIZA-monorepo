@@ -145,7 +145,7 @@ export const thailand: DestinationContent = {
     travel: {
       intro: "不管免签还是电子签证，都要填入境卡，而且泰国 2026 年改了不止一条规定。",
       items: [
-        { title: "泰国数字入境卡（TDAC）", body: "每位外国访客入境前都要在线填写 TDAC。免费，抵达前三天内在 tdac.immigration.go.th 提交，每次入境都要新填一份。请把二维码存在手机里。" },
+        { title: "泰国数字入境卡（TDAC）", body: "每位外国访客入境前都要在线填写 TDAC。免费，抵达前三天内在 tdac.immigration.go.th 提交，每次入境都要新填一份。请把二维码存在手机里。", href: "/arrival-cards/thailand-tdac", linkLabel: "阅读 TDAC 指南" },
         { title: "30 天新规", body: "自 2026 年 9 月 15 日起，免签停留为 30 天。在这个日期之前已入境的人，保留抵达时获准的停留期。" },
         { title: "陆路入境", body: "据报道，免签旅客走陆路入境，每个日历年限两次，新加坡、马来西亚、印尼和文莱除外。过境前请先查最新规定。" },
         { title: "延期", body: "免签旅客可以向移民局申请一次最长 30 天的延期，须经批准。旅游签证要到泰国的移民局办理延期。" },

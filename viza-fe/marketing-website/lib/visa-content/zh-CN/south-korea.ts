@@ -141,7 +141,7 @@ export const southKorea: DestinationContent = {
     travel: {
       intro: "韩国把大部分入境手续搬到了线上，登机前花几分钟，能省下在仁川的时间。",
       items: [
-        { title: "入境电子卡", body: "在抵达前 3 天内到入境电子卡网站填写，免费。持有效 K-ETA 的人免填。免除国家的访客自愿办理 K-ETA，也能享受同样的便利。" },
+        { title: "入境电子卡", body: "在抵达前 3 天内到入境电子卡网站填写，免费。持有效 K-ETA 的人免填。免除国家的访客自愿办理 K-ETA，也能享受同样的便利。", href: "/arrival-cards/korea-e-arrival-card", linkLabel: "阅读电子入境卡指南" },
         { title: "Q-CODE", body: "Q-CODE 只针对到过指定检疫地区的旅客，从其他地方来的旅客不需要。出发前请查韩国疾病管理厅的网站。" },
         { title: "护照", body: "新加坡护照没有固定的最短有效期要求，但护照必须覆盖整个停留期。换了新护照，需要重新办 K-ETA。" },
         { title: "保险", body: "我们读到的官方页面没有把旅行保险列为条件，但为了医疗费用，建议购买。" },

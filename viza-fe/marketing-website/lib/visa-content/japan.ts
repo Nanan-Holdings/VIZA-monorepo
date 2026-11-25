@@ -166,7 +166,7 @@ export const japan: DestinationContent = {
     travel: {
       intro: "Having the visa is half of it. Japan runs most entry steps online, and a few costs changed in 2026.",
       items: [
-        { title: "Visit Japan Web", body: "Visit Japan Web lets you complete immigration, customs and tax-free steps online and show a QR code on arrival. It is optional, but it shortens queues at the major airports." },
+        { title: "Visit Japan Web", body: "Visit Japan Web lets you complete immigration, customs and tax-free steps online and show a QR code on arrival. It is optional, but it shortens queues at the major airports.", href: "/arrival-cards/japan-visit-japan-web", linkLabel: "Read the Visit Japan Web guide" },
         { title: "Entry rules", body: "Immigration takes a facial photo and fingerprints from foreign visitors. Carry your return ticket and proof of funds. An eVISA holder shows the Visa Issuance Notice on a phone, because printouts are not accepted." },
         { title: "Departure tax", body: "The international tourist tax rose to JPY 3,000 per departure on 1 July 2026. It is collected in your ticket, so you do not pay it at the airport." },
         { title: "JESTA", body: "Japan plans a travel authorisation for visa-exempt visitors during fiscal year 2028, which would include Singapore passports. No date or fee is final, so you need nothing extra today." },

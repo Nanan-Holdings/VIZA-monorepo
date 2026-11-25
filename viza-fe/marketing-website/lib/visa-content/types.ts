@@ -239,6 +239,9 @@ export interface PassportRow {
 export interface TitledText {
   title: string;
   body: string;
+  /** Optional internal link shown under the body (unprefixed path, for example "/arrival-cards/malaysia-mdac"). */
+  href?: string;
+  linkLabel?: string;
 }
 
 /** Requirements for residents of Singapore, one row per pass type (EP, S Pass, Dependant's Pass, PR, citizen). */
