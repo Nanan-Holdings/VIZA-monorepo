@@ -67,7 +67,12 @@ export default function SiteFooter() {
           </div>
         </div>
         <div className="ds-footer-bottom">
-          <p className="ds-footer-copy">{t("copyright", { year: new Date().getFullYear() })}</p>
+          <p className="ds-footer-copy">
+            {t("copyright", { year: new Date().getFullYear() })}{" "}
+            <a href="https://kelin.studio" target="_blank" rel="noopener" className="ds-footer-venture">
+              {t("kelin")}
+            </a>
+          </p>
           <p className="ds-footer-copy">{t("office")}</p>
           <ul className="ds-footer-legal">
             <li>
@@ -75,6 +80,12 @@ export default function SiteFooter() {
             </li>
             <li>
               <Link href="/legal/terms">{t("terms")}</Link>
+            </li>
+            <li>
+              <Link href="/refunds">{t("refunds")}</Link>
+            </li>
+            <li>
+              <Link href="/business-information">{t("business")}</Link>
             </li>
           </ul>
         </div>
