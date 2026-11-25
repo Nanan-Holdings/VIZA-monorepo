@@ -821,7 +821,7 @@
           "photo": "照片 · 新加坡总部",
           "open": "12 个在招",
           "name": "新加坡",
-          "addr1": "227 Pasir Panjang Rd,",
+          "addr1": "225 Pasir Panjang Rd,",
           "addr2": "Singapore",
           "tz": "GMT+8 · 亚太总部",
           "since": "总部 · 始于 2021"
@@ -1290,7 +1290,7 @@
         "intro": "隐私问题、请求、投诉——均由同一地址受理。",
         "email": "<strong>电子邮箱：</strong><a>privacy@viza.it.com</a>",
         "dpo": "<strong>数据保护官：</strong><a>dpo@viza.it.com</a>",
-        "address": "<strong>邮寄地址：</strong>227 Pasir Panjang Rd, Singapore",
+        "address": "<strong>邮寄地址：</strong>225 Pasir Panjang Rd, Singapore",
         "pdpc": "<strong>新加坡 PDPC：</strong><a>pdpc.gov.sg</a>"
       }
     },
@@ -1460,7 +1460,7 @@
         "title": "联系方式",
         "legal": "<strong>法律问题：</strong><a>legal@viza.it.com</a>",
         "privacy": "<strong>隐私 / 数据请求：</strong><a>privacy@viza.it.com</a>",
-        "address": "<strong>邮寄地址：</strong>227 Pasir Panjang Rd, Singapore",
+        "address": "<strong>邮寄地址：</strong>225 Pasir Panjang Rd, Singapore",
         "uen": "<strong>UEN：</strong>202312345A"
       }
     },

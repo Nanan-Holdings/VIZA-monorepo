@@ -821,7 +821,7 @@
           "photo": "photo · singapore HQ",
           "open": "12 open",
           "name": "Singapore",
-          "addr1": "227 Pasir Panjang Rd,",
+          "addr1": "225 Pasir Panjang Rd,",
           "addr2": "Singapore",
           "tz": "GMT+8 · Asia-Pacific HQ",
           "since": "HQ · since 2021"
@@ -1290,7 +1290,7 @@
         "intro": "Privacy questions, requests, complaints — same address.",
         "email": "<strong>Email:</strong> <a>privacy@viza.it.com</a>",
         "dpo": "<strong>Data Protection Officer:</strong> <a>dpo@viza.it.com</a>",
-        "address": "<strong>Mailing address:</strong> 227 Pasir Panjang Rd, Singapore",
+        "address": "<strong>Mailing address:</strong> 225 Pasir Panjang Rd, Singapore",
         "pdpc": "<strong>Singapore PDPC:</strong> <a>pdpc.gov.sg</a>"
       }
     },
@@ -1460,7 +1460,7 @@
         "title": "Contact",
         "legal": "<strong>Legal questions:</strong> <a>legal@viza.it.com</a>",
         "privacy": "<strong>Privacy / data requests:</strong> <a>privacy@viza.it.com</a>",
-        "address": "<strong>Mailing address:</strong> 227 Pasir Panjang Rd, Singapore",
+        "address": "<strong>Mailing address:</strong> 225 Pasir Panjang Rd, Singapore",
         "uen": "<strong>UEN:</strong> 202312345A"
       }
     },

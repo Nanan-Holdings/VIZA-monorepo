@@ -15,7 +15,7 @@ export default function SiteFooter() {
 
   const offices: Array<[string, string]> = [
     ["中国（上海）自由贸易试验区罗山路1502弄", "Lane 1502, Luoshan Road, China (Shanghai) Pilot Free Trade Zone"],
-    ["227 Pasir Panjang Rd,", "Singapore"],
+    ["225 Pasir Panjang Rd,", "Singapore"],
   ];
 
   const socialLinks = [
