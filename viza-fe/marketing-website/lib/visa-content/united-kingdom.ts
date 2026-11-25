@@ -127,25 +127,18 @@ export const unitedKingdom: VisaContent = {
   ],
 
   reviews: {
-    score: "4.6",
-    outOf: "/ 5",
-    sub: "Highest rated visa platform · 12,841 reviews",
-    platforms: [
-      { rating: "4.6", name: "Trustpilot" },
-      { rating: "4.7", name: "App Store" },
-    ],
     items: [
       {
         initials: "WL",
         name: "Wei Ling T.",
-        source: "Trustpilot · 2 weeks ago",
+        source: "Trustpilot",
         title: "Approval came faster than expected",
         body: "The consultant caught that my bank statement was missing a page — fixed it before submission. Visa approved within the standard window, no stress.",
       },
       {
         initials: "RN",
         name: "Rohan N.",
-        source: "App Store · 1 month ago",
+        source: "App Store",
         title: "Clear guidance on what UKVI needs",
         body: "I'd tried before and got confused by the financial evidence requirements. VIZA walked me through exactly what to upload. Approved first time.",
       },
@@ -197,8 +190,8 @@ export const unitedKingdom: VisaContent = {
   ],
 
   price: {
-    etaLabel: "Apply now, target decision by",
-    etaValue: "3 Jul 2026, 02:00 PM",
+    etaLabel: "Processing time",
+    etaValue: "Set by the issuing authority",
     title: "Standard Visitor Visa · up to 6 months",
     saving: "Consultant-guided · fewer delays",
     sub: "VIZA's help is free: document review, form filling, and biometric appointment booking. The UKVI fee is paid directly to UKVI.",

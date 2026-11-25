@@ -144,25 +144,18 @@ export const france: VisaContent = {
   ],
 
   reviews: {
-    score: "4.6",
-    outOf: "/ 5",
-    sub: "评分最高的签证平台 · 12,841条评价",
-    platforms: [
-      { rating: "4.7", name: "Trustpilot" },
-      { rating: "4.6", name: "App Store" },
-    ],
     items: [
       {
         initials: "MC",
         name: "陈美琪",
-        source: "Trustpilot · 5天前",
+        source: "Trustpilot",
         title: "第一次申请申根签证，全程无压力",
         body: "自己弄的时候材料清单看得头疼。VIZA 的顾问在提交前发现了保险上的两个问题，最后签证顺利下来了。",
       },
       {
         initials: "RT",
         name: "谭瑞轩",
-        source: "App Store · 2周前",
+        source: "App Store",
         title: "预约提醒太贴心了",
         body: "每个环节都收到通知——预约确认、材料递交、领取提醒。全程不需要自己去催领事馆。",
       },
@@ -220,8 +213,8 @@ export const france: VisaContent = {
   ],
 
   price: {
-    etaLabel: "立即申请，预计领取时间",
-    etaValue: "2026年6月26日 下午3:00",
+    etaLabel: "办理时间",
+    etaValue: "以签发机关为准",
     title: "申根签证（C类）· 停留90天",
     saving: "含完整材料审核服务",
     sub: "VIZA 免费提供材料审核、France-Visas 表格代填及预约支持。",

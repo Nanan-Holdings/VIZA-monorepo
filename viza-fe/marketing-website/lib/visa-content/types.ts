@@ -88,18 +88,14 @@ export interface Review {
   /** Avatar initials, e.g. "PL". */
   initials: string;
   name: string;
-  /** e.g. "Trustpilot · 3 days ago". */
+  /** Platform name only, for example "Trustpilot". No relative dates. */
   source: string;
   title: string;
   body: string;
 }
 
-/** Aggregate reviews block. */
+/** Reviews block. Only individual testimonials: no aggregate score or review totals. */
 export interface ReviewsBlock {
-  score: string;
-  outOf?: string;
-  sub: string;
-  platforms: { rating: string; name: string }[];
   items: Review[];
 }
 

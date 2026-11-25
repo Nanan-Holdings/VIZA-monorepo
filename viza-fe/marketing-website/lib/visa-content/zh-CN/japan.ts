@@ -114,25 +114,18 @@ export const japan: VisaContent = {
   ],
 
   reviews: {
-    score: "4.6",
-    outOf: "/ 5",
-    sub: "全球旅行者的信赖之选 · 14,203条评价",
-    platforms: [
-      { rating: "4.7", name: "Trustpilot" },
-      { rating: "4.6", name: "App Store" },
-    ],
     items: [
       {
         initials: "LX",
         name: "李晓梅",
-        source: "Trustpilot · 5天前",
+        source: "Trustpilot",
         title: "一次通过，顺利拿到日本签证",
         body: "材料清单非常清楚，顾问还发现我的证件照尺寸不符合45毫米规格。最终4个工作日就获批了。",
       },
       {
         initials: "ZW",
         name: "张伟杰",
-        source: "App Store · 2周前",
+        source: "App Store",
         title: "行程准备毫无压力",
         body: "我完全不知道需要提供详细的每日行程，VIZA提供了模板并在递交前帮我审核了一遍，整个过程非常顺畅。",
       },
@@ -185,8 +178,8 @@ export const japan: VisaContent = {
   ],
 
   price: {
-    etaLabel: "立即申请，预计送达",
-    etaValue: "2026年6月17日 下午2:00",
+    etaLabel: "办理时间",
+    etaValue: "以签发机关为准",
     title: "短期停留签证 · 最长90天",
     saving: "比直接申请更高效",
     sub: "VIZA免费提供材料审核与申请准备，签证费（如有）由您直接向签发机关支付。",

@@ -142,25 +142,18 @@ export const canada: VisaContent = {
   ],
 
   reviews: {
-    score: "4.6",
-    outOf: "/ 5",
-    sub: "Trusted by travellers worldwide · 15,712 reviews",
-    platforms: [
-      { rating: "4.7", name: "Trustpilot" },
-      { rating: "4.6", name: "App Store" },
-    ],
     items: [
       {
         initials: "FO",
         name: "Fatima Ouedraogo",
-        source: "Trustpilot · 4 days ago",
+        source: "Trustpilot",
         title: "Approved in under 5 minutes",
         body: "My VIZA consultant submitted the form and I had the approval email before I'd even finished my coffee. Seamless.",
       },
       {
         initials: "JP",
         name: "James Park",
-        source: "App Store · 2 weeks ago",
+        source: "App Store",
         title: "Caught a passport typo I missed",
         body: "The review step flagged that I'd transposed two digits in my passport number. Would have been a nightmare at the airport.",
       },
@@ -212,8 +205,8 @@ export const canada: VisaContent = {
   ],
 
   price: {
-    etaLabel: "Apply now, get it by",
-    etaValue: "25 Sep 2026, 03:15 PM",
+    etaLabel: "Processing time",
+    etaValue: "Set by the issuing authority",
     title: "Visitor visa (TRV) · multi-entry",
     saving: "Biometrics booked for you",
     sub: "VIZA's help is free: document review, IRCC Portal filing, and biometrics booking. Government fees are paid directly to IRCC.",

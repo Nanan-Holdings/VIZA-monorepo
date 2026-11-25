@@ -147,25 +147,18 @@ export const france: VisaContent = {
   ],
 
   reviews: {
-    score: "4.6",
-    outOf: "/ 5",
-    sub: "Highest rated visa platform · 12,841 reviews",
-    platforms: [
-      { rating: "4.7", name: "Trustpilot" },
-      { rating: "4.6", name: "App Store" },
-    ],
     items: [
       {
         initials: "MC",
         name: "Marie Chen",
-        source: "Trustpilot · 5 days ago",
+        source: "Trustpilot",
         title: "First Schengen visa — stress-free",
         body: "The checklist was overwhelming when I tried to do it myself. VIZA's consultant caught two issues with my insurance policy before I submitted. Visa came back clean.",
       },
       {
         initials: "RT",
         name: "Rajan Tan",
-        source: "App Store · 2 weeks ago",
+        source: "App Store",
         title: "Appointment reminders were a lifesaver",
         body: "Got alerts for every step — appointment confirmation, document lodge, and collection. I didn't have to chase the consulate once.",
       },
@@ -223,8 +216,8 @@ export const france: VisaContent = {
   ],
 
   price: {
-    etaLabel: "Apply now, target collection by",
-    etaValue: "26 Jun 2026, 03:00 PM",
+    etaLabel: "Processing time",
+    etaValue: "Set by the issuing authority",
     title: "Schengen Visa (Type C) · 90-day stay",
     saving: "Full dossier review included",
     sub: "VIZA's help is free: document review, France-Visas form preparation, and appointment support.",

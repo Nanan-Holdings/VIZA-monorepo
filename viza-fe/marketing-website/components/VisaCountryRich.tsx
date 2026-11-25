@@ -1,10 +1,12 @@
 "use client";
 
+import { Link } from "@/navigation";
+
 import { useEffect, type CSSProperties, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { CircleFlag } from "react-circle-flags";
 import SiteNav from "@/components/SiteNav";
-import { visaHref, type CountryMeta } from "@/lib/countries";
+import { nearbyCountries, visaHref, type CountryMeta } from "@/lib/countries";
 import { displayGovernmentFeeSgd, governmentFeeSgd } from "@/lib/pricing";
 import { useCatalogue, type CatalogueCountry } from "@/components/CatalogueProvider";
 import type { IconName, VisaContent } from "@/lib/visa-content/types";
@@ -25,7 +27,7 @@ import VisaStructuredData from "@/components/VisaStructuredData";
  * to the country-aware `/apply` wizard; payment happens later in the portal.
  */
 
-/** Icon registry — `VisaContent` references these by `IconName`. */
+/** Icon registry, `VisaContent` references these by `IconName`. */
 const ICONS: Record<IconName, ReactNode> = {
   globe: (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M2 12h20" /><path d="M12 2a15 15 0 0 1 0 20" /><path d="M12 2a15 15 0 0 0 0 20" /></svg>
@@ -74,9 +76,8 @@ const ICONS: Record<IconName, ReactNode> = {
   ),
 };
 
-function applyHref(locale: string, slug: string): string {
-  const prefix = locale === "en" ? "" : `/${locale}`;
-  return `${prefix}/apply?country=${encodeURIComponent(slug)}`;
+function applyHref(slug: string): string {
+  return `/apply?country=${encodeURIComponent(slug)}`;
 }
 
 export default function VisaCountryRich({
@@ -91,7 +92,7 @@ export default function VisaCountryRich({
   const tc = useTranslations("countries");
   const { launchedCountries } = useCatalogue();
 
-  // Section-tab pill + scroll-spy. Layout-driven (not country-specific) — kept
+  // Section-tab pill + scroll-spy. Layout-driven (not country-specific), kept
   // verbatim from the former bespoke Indonesia page.
   useEffect(() => {
     const sectionTabs = document.querySelectorAll<HTMLButtonElement>(".section-tab");
@@ -127,7 +128,7 @@ export default function VisaCountryRich({
     };
   }, []);
 
-  const nearby = launchedCountries.filter((c) => c.slug !== country.slug).slice(0, 4);
+  const nearby = nearbyCountries(country.slug, launchedCountries);
   const govFeeValue = governmentFeeSgd(country.pricing);
   const govFeeLabel = govFeeValue === 0 ? t("priceFree") : displayGovernmentFeeSgd(country.pricing) ?? t("govFeeSetByAuthorityShort");
   const localName = tc.has(country.slug) ? tc(country.slug) : country.name;
@@ -159,10 +160,10 @@ export default function VisaCountryRich({
           style={{ ["--hero-img"]: `url('${content.heroImage}')` } as CSSProperties}
         >
           <div className="hero-left">
-            <a href="/" className="hero-back">
+            <Link href="/" className="hero-back">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
               {t("back")}
-            </a>
+            </Link>
             <h1>
               {content.heroTitle}
               <span className="title-flag"><CircleFlag countryCode={country.flagCode} height={34} /></span>
@@ -320,23 +321,6 @@ export default function VisaCountryRich({
           {/* Reviews */}
           <section className="block" id="reviews">
             <h2>{t("reviewsTitle")}</h2>
-            <div className="reviews-head">
-              <div>
-                <div className="score">{content.reviews.score} {content.reviews.outOf ? <small>{content.reviews.outOf}</small> : null}</div>
-                <div className="stars">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <svg key={i} width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26" /></svg>
-                  ))}
-                </div>
-                <div className="score-sub">{content.reviews.sub}</div>
-              </div>
-              <div className="platforms">
-                {content.reviews.platforms.map((p) => (
-                  <span className="platform-pill" key={p.name}><span className="star">★</span> {p.rating} {p.name}</span>
-                ))}
-              </div>
-            </div>
-
             <div className="reviews">
               {content.reviews.items.map((r) => (
                 <div className="review" key={r.name}>
@@ -360,7 +344,7 @@ export default function VisaCountryRich({
             <p className="block-sub">{t("nearbySub")}</p>
             <div className="nearby">
               {nearby.map((c) => (
-                <a className="near" href={visaHref(c.slug)} key={c.slug}>
+                <Link className="near" href={visaHref(c.slug)} key={c.slug}>
                   <div className="img" style={{ backgroundImage: `url('${c.image}')` }}></div>
                   <div className="body">
                     <div>
@@ -369,7 +353,7 @@ export default function VisaCountryRich({
                     </div>
                     <span className="arrow"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg></span>
                   </div>
-                </a>
+                </Link>
               ))}
             </div>
           </section>
@@ -454,10 +438,10 @@ export default function VisaCountryRich({
               </div>
             </div>
 
-            <a href={applyHref(locale, country.slug)} className="price-cta" style={{ textDecoration: "none" }}>
+            <Link href={applyHref(country.slug)} className="price-cta" style={{ textDecoration: "none" }}>
               {t("priceCta")}
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
-            </a>
+            </Link>
             <div className="price-foot">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="m9 12 2 2 4-4" /></svg>
               {content.price.foot}

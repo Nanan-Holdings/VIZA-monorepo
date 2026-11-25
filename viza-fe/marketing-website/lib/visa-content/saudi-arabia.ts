@@ -130,25 +130,18 @@ export const saudiArabia: VisaContent = {
   ],
 
   reviews: {
-    score: "4.6",
-    outOf: "/ 5",
-    sub: "Highest rated visa platform · 12,841 reviews",
-    platforms: [
-      { rating: "4.6", name: "Trustpilot" },
-      { rating: "4.7", name: "App Store" },
-    ],
     items: [
       {
         initials: "FN",
         name: "Fatima Noor",
-        source: "Trustpilot · 4 days ago",
+        source: "Trustpilot",
         title: "Saudi e-Visa approved overnight",
         body: "Applied in the evening, woke up to my visa approval. The process was completely straightforward — all status updates were visible in the VIZA app.",
       },
       {
         initials: "KL",
         name: "Kevin Lim",
-        source: "App Store · 2 weeks ago",
+        source: "App Store",
         title: "Consultant made it stress-free",
         body: "I wasn't sure which documents were required. The consultant walked me through everything step by step and handled the submission for me.",
       },
@@ -208,8 +201,8 @@ export const saudiArabia: VisaContent = {
   ],
 
   price: {
-    etaLabel: "Apply now, get it by",
-    etaValue: "14 Jun 2026, 02:15 PM",
+    etaLabel: "Processing time",
+    etaValue: "Set by the issuing authority",
     title: "Tourist eVisa · 1-year multiple entry · 90-day stays",
     saving: "1 day faster",
     sub: "VIZA's help is free: document review, form filling, and tracking. The government fee, insurance included, is paid directly.",

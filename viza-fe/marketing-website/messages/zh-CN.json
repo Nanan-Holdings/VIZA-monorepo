@@ -42,8 +42,8 @@
   },
   "pages": {
     "blog": {
-      "metaTitle": "签证指南与旅行动态 — VIZA",
-      "metaDescription": "VIZA 提供清晰、实用的签证申请准备与国际旅行指南。",
+      "metaTitle": "签证指南与旅行动态 | VIZA",
+      "metaDescription": "VIZA 团队整理的签证申请准备与国际旅行指南，规则变化时及时更新。",
       "eyebrow": "VIZA 指南",
       "title": "把签证信息讲清楚。",
       "lede": "来自一线签证服务团队的实用解读、官方政策更新与申请准备建议。",
@@ -68,38 +68,41 @@
       "ctaTitle": "准备开始申请签证？",
       "ctaBody": "告诉我们您的目的地，VIZA 会引导您了解所需材料和后续步骤。",
       "ctaAction": "开始申请",
-      "categoryMetaTitle": "{category}指南 — VIZA",
-      "categoryMetaDescription": "阅读 VIZA 关于{category}的指南与动态。",
-      "categoryLede": "关于{category}的指南与动态。"
+      "categoryMetaTitle": "{category}指南 | VIZA",
+      "categoryMetaDescription": "阅读 VIZA 关于{category}的指南与动态：有什么变化、影响谁、下一步怎么做。",
+      "categoryLede": "关于{category}的指南与动态。",
+      "visaLinkTitle": "准备办理{country}签证？",
+      "visaLinkBody": "查看在新加坡办理所需的材料、政府费用和流程。",
+      "visaLinkAction": "{country}签证指南"
     },
     "home": {
       "title": "美国签证、申根签证、越南/印度电子签申请 | VIZA 新加坡",
       "description": "办理美国签证（DS-160）、印度/越南/埃及电子签和法国申根签证。每份表格提交前都由顾问核对。",
       "heroTitle": "下一站去哪？",
-      "heroLede": "浏览任何目的地的签证选项。VIZA 顾问与 AI 共同处理流程 — 您只管订机票。"
+      "heroLede": "浏览任何目的地的签证选项。VIZA 顾问与 AI 共同处理流程，您只管订机票。"
     },
     "apply": {
-      "title": "立即申请 — VIZA",
-      "description": "上传您的护照。我们自动提取信息。确认、结算，签证将发送至您的邮箱。",
+      "title": "开始办理签证 | VIZA",
+      "description": "上传护照，确认信息，把签证申请交给 VIZA 顾问。VIZA 的服务免费。",
       "saveBadge": "已保存 · 随时继续"
     },
     "careers": {
-      "title": "加入 VIZA",
+      "title": "新加坡与上海招聘 | VIZA",
       "description": "和我们一起，让边境消失。上海与新加坡招聘工程、设计、运营、咨询岗位。",
       "rightCta": "查看职位"
     },
     "contact": {
-      "title": "联系 VIZA",
-      "description": "WhatsApp、微信、电话、邮箱。四个渠道，四个客服台，5 分钟内真人响应。",
+      "title": "联系我们：WhatsApp、微信、电话、邮箱 | VIZA",
+      "description": "通过 WhatsApp、微信、电话或邮箱联系 VIZA 团队。四个渠道，四个客服台，真人回复。",
       "rightCta": "发送留言"
     },
     "security": {
-      "title": "VIZA 安全",
-      "description": "私密、透明、默认安全。我们如何保护客户数据、漏洞披露计划与安全港条款。",
+      "title": "安全与漏洞披露 | VIZA",
+      "description": "私密、透明、默认安全。VIZA 如何保护客户数据、漏洞披露计划与安全港条款。",
       "rightCta": "上报漏洞"
     },
     "status": {
-      "title": "系统状态 — VIZA",
+      "title": "系统状态 | VIZA",
       "description": "VIZA 及我们对接的各国政府签证门户实时状态。",
       "navPill": "所有系统运行正常"
     },
@@ -114,6 +117,22 @@
       "nearby": "邻近国家",
       "faq": "常见问题",
       "sources": "官方资料"
+    },
+    "privacy": {
+      "title": "隐私政策 | VIZA",
+      "description": "VIZA 在您申请签证时收集什么、为什么需要、谁能看到、保留多久。通俗易懂。"
+    },
+    "terms": {
+      "title": "服务条款 | VIZA",
+      "description": "您使用 VIZA 签证申请服务时与 VIZA 之间的协议。VIZA 的服务免费。"
+    },
+    "product": {
+      "title": "VIZA 如何协助您的签证申请 | VIZA",
+      "description": "签证准备、材料核对和申请进度集中在一处。VIZA 的服务免费，各目的地的服务范围会单独说明。"
+    },
+    "events": {
+      "title": "活动 | VIZA",
+      "description": "VIZA 的签证讲座、咨询会和合作活动。"
     }
   },
   "common": {
@@ -131,7 +150,7 @@
     "step1": "告诉我们您的行程并上传护照。",
     "step2": "我们按最新规则完成并核对您的申请。",
     "step3": "我们提交至政府门户并跟踪审批进度。",
-    "step4": "获批签证将通过电子邮件送达——全程由我们监控。",
+    "step4": "获批签证将通过电子邮件送达，全程由我们监控。",
     "documents": "所需材料",
     "doc1": "有效期至少6个月的护照。",
     "doc2": "近期护照照片。",
@@ -139,7 +158,7 @@
     "doc4": "如目的地收取签证费，需准备一张银行卡直接向政府支付。",
     "nearby": "邻近目的地",
     "startApplication": "开始申请",
-    "comingSoonTitle": "{country}——即将上线",
+    "comingSoonTitle": "{country}：即将上线",
     "comingSoonBody": "我们正在完善{country}的办理流程。注册账户，上线后第一时间通知您。",
     "browseDestinations": "浏览目的地",
     "notifyMe": "通知我",
@@ -155,7 +174,7 @@
     "tabFaq": "常见问题",
     "reviewsTitle": "评价",
     "nearbyTitle": "邻近国家",
-    "nearbySub": "在本区域旅行？为行程再添一份签证——您的 VIZA 顾问会一并办理。",
+    "nearbySub": "在本区域旅行？为行程再添一份签证，您的 VIZA 顾问会一并办理。",
     "faqTitle": "常见问题",
     "editorial": "本页遵循 VIZA 编辑政策。我们依据官方政府来源，并在政策变化时更新每项要求。",
     "editorialLink": "了解我们的审核方式",
@@ -172,7 +191,10 @@
     "govFeeSetByAuthorityShort": "以签发机关为准",
     "priceService": "VIZA 服务",
     "pillPaidToAuthority": "直接付给签发机关",
-    "priceTotalToViza": "您需支付给 VIZA"
+    "priceTotalToViza": "您需支付给 VIZA",
+    "breadcrumbVisas": "签证目的地",
+    "serviceDescription": "VIZA 帮助在新加坡生活的人准备、核对并提交{country}{type}申请，AI 辅助，专业顾问审核。",
+    "offerDescription": "VIZA 服务费。政府签证费用另计，直接支付给签发机关。"
   },
   "apply": {
     "stepOf": "第 {n} 步 / 共 3 步",

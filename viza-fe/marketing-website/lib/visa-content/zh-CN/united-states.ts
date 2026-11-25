@@ -112,25 +112,18 @@ export const unitedStates: VisaContent = {
   ],
 
   reviews: {
-    score: "4.7",
-    outOf: "/ 5",
-    sub: "全球旅行者的信赖之选 · 18,540条评价",
-    platforms: [
-      { rating: "4.8", name: "Trustpilot" },
-      { rating: "4.6", name: "App Store" },
-    ],
     items: [
       {
         initials: "CY",
         name: "陈雅婷",
-        source: "Trustpilot · 1周前",
+        source: "Trustpilot",
         title: "面试辅导是制胜关键",
         body: "我之前曾被拒签一次。VIZA的模拟面试题和DS-160审核让我信心大增——这次面试顺利通过了。",
       },
       {
         initials: "WH",
         name: "王浩然",
-        source: "App Store · 3周前",
+        source: "App Store",
         title: "半天搞定DS-160",
         body: "表格看起来很复杂，但顾问手把手带我填写了每个部分。下周就拿到了面试预约。",
       },
@@ -191,8 +184,8 @@ export const unitedStates: VisaContent = {
   ],
 
   price: {
-    etaLabel: "目标面试日期",
-    etaValue: "2026年7月10日 上午9:00",
+    etaLabel: "办理时间",
+    etaValue: "以签发机关为准",
     title: "美国 B1/B2 签证 · 10年有效期",
     saving: "含专家全程辅导",
     sub: "VIZA免费提供DS-160审核、面试辅导及预约支持，MRV签证费由您直接向美国政府缴纳。",

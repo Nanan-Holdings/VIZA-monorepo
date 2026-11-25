@@ -1,5 +1,7 @@
 "use client";
 
+import { Link } from "@/navigation";
+
 import { useTranslations } from "next-intl";
 import "./site-footer.css";
 
@@ -32,9 +34,9 @@ export default function SiteFooter() {
       <div className="foot-main">
         {/* Brand column */}
         <div className="foot-brand">
-          <a className="foot-logo" href="/">
+          <Link className="foot-logo" href="/">
             <img src="/assets/viza-logo-black.svg" alt="VIZA" />
-          </a>
+          </Link>
           <p className="foot-tag">{t("tagline")}</p>
 
           <div className="foot-social">
@@ -60,12 +62,12 @@ export default function SiteFooter() {
         <div className="col-company">
           <h4 className="col-head">{t("company")}</h4>
           <ul className="col-list">
-            <li><a href="/careers">{t("careers")}</a></li>
-            <li><a href="/contact">{t("contact")}</a></li>
-            <li><a href="/security">{t("security")}</a></li>
-            <li><a href="/status">{t("status")}</a></li>
-            <li><a href="/legal/privacy">{t("privacy")}</a></li>
-            <li><a href="/legal/terms">{t("terms")}</a></li>
+            <li><Link href="/careers">{t("careers")}</Link></li>
+            <li><Link href="/contact">{t("contact")}</Link></li>
+            <li><Link href="/security">{t("security")}</Link></li>
+            <li><Link href="/status">{t("status")}</Link></li>
+            <li><Link href="/legal/privacy">{t("privacy")}</Link></li>
+            <li><Link href="/legal/terms">{t("terms")}</Link></li>
           </ul>
         </div>
 
@@ -73,12 +75,12 @@ export default function SiteFooter() {
         <div className="col-products">
           <h4 className="col-head">{t("product")}</h4>
           <ul className="col-list">
-            <li><a href="/apply">{t("prodMockInterview")}</a></li>
-            <li><a href="/">{t("prodVisaReq")}</a></li>
-            <li><a href="/visa/france">{t("prodSchengen")}</a></li>
-            <li><a href="/apply">{t("prodPhoto")}</a></li>
-            <li><a href="/contact">{t("prodHelpline")}</a></li>
-            <li><a href="/apply">{t("prodStudent")}</a></li>
+            <li><Link href="/apply">{t("prodMockInterview")}</Link></li>
+            <li><Link href="/">{t("prodVisaReq")}</Link></li>
+            <li><Link href="/visa/france">{t("prodSchengen")}</Link></li>
+            <li><Link href="/apply">{t("prodPhoto")}</Link></li>
+            <li><Link href="/contact">{t("prodHelpline")}</Link></li>
+            <li><Link href="/apply">{t("prodStudent")}</Link></li>
           </ul>
         </div>
 
@@ -98,12 +100,12 @@ export default function SiteFooter() {
         {/* App buttons span the brand column area */}
         <div className="foot-apps">
           {/* Native apps pre-launch (MKT-013 intentional): badges link to the web app for now. */}
-          <a className="app-badge" href="/apply" aria-label="Download VIZA on the App Store">
+          <Link className="app-badge" href="/apply" aria-label="Download VIZA on the App Store">
             <img src="/assets/app-store-badge.png" alt="Download on the App Store" />
-          </a>
-          <a className="app-badge" href="/apply" aria-label="Get VIZA on Google Play">
+          </Link>
+          <Link className="app-badge" href="/apply" aria-label="Get VIZA on Google Play">
             <img src="/assets/google-play-badge.png" alt="Get it on Google Play" />
-          </a>
+          </Link>
         </div>
       </div>
 
@@ -113,9 +115,9 @@ export default function SiteFooter() {
         <div className="legal">
           <span>{t("copyright")}</span>
           <span className="sep"></span>
-          <a href="/legal/privacy">{t("privacy")}</a>
+          <Link href="/legal/privacy">{t("privacy")}</Link>
           <span className="sep"></span>
-          <a href="/legal/terms">{t("terms")}</a>
+          <Link href="/legal/terms">{t("terms")}</Link>
         </div>
         <div className="foot-mark">
           <img src="/assets/viza-logo-black.svg" alt="VIZA" />

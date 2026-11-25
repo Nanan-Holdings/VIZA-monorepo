@@ -4,12 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import { Globe, Check } from "lucide-react";
 import { useLocale } from "next-intl";
 import { usePathname, useRouter } from "@/navigation";
-import type { Locale } from "@/i18n";
+import { ENABLED_LOCALES, LOCALE_LABELS, rememberLocaleChoice, type Locale } from "@/lib/locales";
 
-const LANGUAGES: { code: Locale; label: string }[] = [
-  { code: "en", label: "English" },
-  { code: "zh-CN", label: "中文" },
-];
+/** Enabled locales only: a language appears here once it is in ENABLED_LOCALES. */
+const LANGUAGES: { code: Locale; label: string }[] = ENABLED_LOCALES.map((code) => ({
+  code,
+  label: LOCALE_LABELS[code],
+}));
 
 export default function LanguageToggle() {
   const locale = useLocale();
@@ -29,6 +30,8 @@ export default function LanguageToggle() {
 
   const select = (code: Locale) => {
     setOpen(false);
+    // An explicit choice is remembered, so a returning visitor keeps their language.
+    rememberLocaleChoice(code);
     if (code !== locale) router.replace(pathname, { locale: code });
   };
 

@@ -127,25 +127,18 @@ export const unitedStates: VisaContent = {
   ],
 
   reviews: {
-    score: "4.7",
-    outOf: "/ 5",
-    sub: "Trusted by travellers worldwide · 18,540 reviews",
-    platforms: [
-      { rating: "4.8", name: "Trustpilot" },
-      { rating: "4.6", name: "App Store" },
-    ],
     items: [
       {
         initials: "AW",
         name: "Amina Wanjiru",
-        source: "Trustpilot · 1 week ago",
+        source: "Trustpilot",
         title: "Interview prep made the difference",
         body: "I'd been refused once before. VIZA's mock interview questions and DS-160 review gave me the confidence I needed — approved first visit.",
       },
       {
         initials: "DC",
         name: "Daniel Chung",
-        source: "App Store · 3 weeks ago",
+        source: "App Store",
         title: "DS-160 done in an afternoon",
         body: "The form is intimidating but the consultant walked me through every section. Appointment secured for the following week.",
       },
@@ -206,8 +199,8 @@ export const unitedStates: VisaContent = {
   ],
 
   price: {
-    etaLabel: "Interview date target",
-    etaValue: "10 Jul 2026, 09:00 AM",
+    etaLabel: "Processing time",
+    etaValue: "Set by the issuing authority",
     title: "U.S. B1/B2 Visa · 10-year validity",
     saving: "Expert prep included",
     sub: "VIZA's help is free: DS-160 review, interview coaching, and appointment support. The MRV fee is paid directly to the U.S. government.",

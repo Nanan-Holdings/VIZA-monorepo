@@ -1,4 +1,6 @@
 "use client";
+
+import { Link } from "@/navigation";
 import "./explore.css";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -17,7 +19,7 @@ type FilterKey = (typeof FILTER_KEYS)[number];
 const SORT_KEYS = ["guaranteed", "duration", "popular", "recent"] as const;
 type SortKey = (typeof SORT_KEYS)[number];
 
-/** Passport ranking data (no copy — names resolve from the `passports` namespace). */
+/** Passport ranking data (no copy, names resolve from the `passports` namespace). */
 const PASSPORTS = [
   { code: "SG", free: 157, voa: 29, req: 9, rank: "#1" },
   { code: "JP", free: 154, voa: 30, req: 11, rank: "#2" },
@@ -210,7 +212,7 @@ export default function ExplorePage() {
     const isFast = c.tag === "fast";
     const hidden = !matches(c.name, c.city);
     return (
-      <a className={`card-c ${featured ? "featured" : ""}`} href={visaHref(c.slug)} style={{ textDecoration: "none", color: "inherit", display: hidden ? "none" : undefined }}>
+      <Link className={`card-c ${featured ? "featured" : ""}`} href={visaHref(c.slug)} style={{ textDecoration: "none", color: "inherit", display: hidden ? "none" : undefined }}>
         <div className="card-img">
           <div className="photo" style={{ backgroundImage: `url('${c.img}')` }}></div>
           {c.launched
@@ -251,7 +253,7 @@ export default function ExplorePage() {
             </button>
           </div>
         </div>
-      </a>
+      </Link>
     );
   };
 
@@ -261,7 +263,7 @@ export default function ExplorePage() {
       <nav className="nav">
         <div className="nav-inner">
           <div className="nav-left">
-            <a className="nav-logo" href="/"><img src="/assets/viza-logo-black.svg" alt="VIZA" /></a>
+            <Link className="nav-logo" href="/"><img src="/assets/viza-logo-black.svg" alt="VIZA" /></Link>
             <div
               className={`passport-pill ${ppOpen ? "open" : ""}`}
               role="button"
@@ -320,8 +322,8 @@ export default function ExplorePage() {
 
           <div className="center-tabs nav-tabs" ref={tabsRef}>
             <span className="pill-indicator" style={{ left: pill.left, width: pill.width }}></span>
-            <a ref={exploreRef} className={`nav-tab ${activeTab === "explore" ? "active" : ""}`} href="/" onClick={() => setActiveTab("explore")}>{t("nav.explore")}</a>
-            <a ref={eventsRef} className={`nav-tab ${activeTab === "events" ? "active" : ""}`} href="/events" onClick={() => setActiveTab("events")}>{t("nav.events")}</a>
+            <Link ref={exploreRef} className={`nav-tab ${activeTab === "explore" ? "active" : ""}`} href="/" onClick={() => setActiveTab("explore")}>{t("nav.explore")}</Link>
+            <Link ref={eventsRef} className={`nav-tab ${activeTab === "events" ? "active" : ""}`} href="/events" onClick={() => setActiveTab("events")}>{t("nav.events")}</Link>
           </div>
 
           <div className="nav-right">

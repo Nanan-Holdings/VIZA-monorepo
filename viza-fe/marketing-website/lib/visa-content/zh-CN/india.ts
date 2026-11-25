@@ -140,25 +140,18 @@ export const india: VisaContent = {
   ],
 
   reviews: {
-    score: "4.6",
-    outOf: "/ 5",
-    sub: "评分最高的签证平台 · 12,841条评价",
-    platforms: [
-      { rating: "4.7", name: "Trustpilot" },
-      { rating: "4.6", name: "App Store" },
-    ],
     items: [
       {
         initials: "DK",
         name: "邓凯",
-        source: "Trustpilot · 6天前",
+        source: "Trustpilot",
         title: "3天搞定印度电子签证，省心省力",
         body: "政府门户自己搞真的很乱。VIZA 帮我处理了照片格式，提交完所有材料，72小时内就收到ETA了。",
       },
       {
         initials: "SR",
         name: "苏睿",
-        source: "App Store · 1周前",
+        source: "App Store",
         title: "照片问题被提前发现，避免了麻烦",
         body: "我的照片背景不对，顾问马上发现了。当天重新提交，签证顺利下来，全程没有任何波折。",
       },
@@ -215,8 +208,8 @@ export const india: VisaContent = {
   ],
 
   price: {
-    etaLabel: "立即申请，预计到达时间",
-    etaValue: "2026年6月23日 下午3:00",
+    etaLabel: "办理时间",
+    etaValue: "以签发机关为准",
     title: "电子旅游签证 · 30天停留",
     saving: "全程在线——无需前往领事馆",
     sub: "VIZA 免费提供材料审核、照片核验与进度追踪，政府签证费由您直接在官方门户支付。",

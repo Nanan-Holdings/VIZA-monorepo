@@ -146,25 +146,18 @@ export const unitedArabEmirates: VisaContent = {
   ],
 
   reviews: {
-    score: "4.7",
-    outOf: "/ 5",
-    sub: "Trusted by thousands of travellers · 8,932 reviews",
-    platforms: [
-      { rating: "4.7", name: "Trustpilot" },
-      { rating: "4.8", name: "App Store" },
-    ],
     items: [
       {
         initials: "NS",
         name: "Nadia Shah",
-        source: "Trustpilot · 3 days ago",
+        source: "Trustpilot",
         title: "Dubai visa in under 3 days",
         body: "First time applying for a UAE visa and I was nervous about the photo spec. The consultant flagged the background colour before submission and sorted it. No stress at all.",
       },
       {
         initials: "BL",
         name: "Bernard Lim",
-        source: "App Store · 6 days ago",
+        source: "App Store",
         title: "Status updates made all the difference",
         body: "Watched my application move through each stage in real time. Knew exactly when the visa was issued — no refreshing emails. Would not apply any other way.",
       },
@@ -235,8 +228,8 @@ export const unitedArabEmirates: VisaContent = {
   ],
 
   price: {
-    etaLabel: "Apply now, get it by",
-    etaValue: "18 Jun 2026, 12:00 PM",
+    etaLabel: "Processing time",
+    etaValue: "Set by the issuing authority",
     title: "Tourist visa · 30 or 60-day stay",
     saving: "Faster than applying direct",
     sub: "VIZA's help is free: document review, form filling, and tracking. The government fee is paid directly to GDRFA.",

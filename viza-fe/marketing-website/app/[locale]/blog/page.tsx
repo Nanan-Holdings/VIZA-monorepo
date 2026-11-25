@@ -7,6 +7,7 @@ import MarketingBlogCta from "@/components/MarketingBlogCta";
 import { locales, type Locale } from "@/i18n";
 import { getMarketingBlogFeed } from "@/lib/marketing-blog";
 import { blogCategories } from "@/lib/blog-taxonomy";
+import { pageMetadata } from "@/lib/seo/metadata";
 import { blogUrl, breadcrumbJsonLd, jsonLd } from "@/lib/blog-structured-data";
 
 export const revalidate = 300;
@@ -17,12 +18,22 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
-  const t = await getTranslations({ locale, namespace: "pages.blog" });
-  return {
+  const [t, result] = await Promise.all([
+    getTranslations({ locale, namespace: "pages.blog" }),
+    getMarketingBlogFeed(locale as Locale),
+  ]);
+  // A locale with no published posts stays out of the index until it has some. A failed feed
+  // fetch is not "empty": it must not noindex the page for the length of the cache.
+  const empty = result.status === "ok" && result.feed.posts.length === 0;
+  return pageMetadata({
     title: t("metaTitle"),
     description: t("metaDescription"),
-    alternates: { canonical: locale === "en" ? "/blog" : `/${locale}/blog` },
-  };
+    path: "/blog",
+    locale,
+    ogKey: "blog",
+    hreflang: "none",
+    noindex: empty,
+  });
 }
 
 export default async function BlogPage({ params }: { params: Promise<{ locale: string }> }) {

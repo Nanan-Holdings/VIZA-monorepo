@@ -8,6 +8,7 @@ import MarketingBlogCta from "@/components/MarketingBlogCta";
 import type { Locale } from "@/i18n";
 import { getMarketingBlogFeed } from "@/lib/marketing-blog";
 import { blogCategories, categorySlug } from "@/lib/blog-taxonomy";
+import { clip, clipTitle, pageMetadata } from "@/lib/seo/metadata";
 import { blogUrl, breadcrumbJsonLd, jsonLd } from "@/lib/blog-structured-data";
 import { Link } from "@/navigation";
 
@@ -29,11 +30,14 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
     ? blogCategories(result.feed.posts).find((item) => item.slug === slug)
     : undefined;
   if (!category) return { robots: { index: false, follow: false } };
-  return {
-    title: t("categoryMetaTitle", { category: category.name }),
-    description: t("categoryMetaDescription", { category: category.name }),
-    alternates: { canonical: locale === "en" ? `/blog/category/${slug}` : `/${locale}/blog/category/${slug}` },
-  };
+  return pageMetadata({
+    title: clipTitle(t("categoryMetaTitle", { category: category.name }).replace(/ \| VIZA$/, "")),
+    description: clip(t("categoryMetaDescription", { category: category.name }), 155),
+    path: `/blog/category/${slug}`,
+    locale,
+    ogKey: "blog",
+    hreflang: "none",
+  });
 }
 
 export default async function BlogCategoryPage({ params }: CategoryPageProps) {

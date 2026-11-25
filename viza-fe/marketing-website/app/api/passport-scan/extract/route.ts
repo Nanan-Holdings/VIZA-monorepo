@@ -5,7 +5,7 @@
  * marketing-site apply flow to the agent-backend OCR endpoint (Claude vision).
  *
  * Marketing pages have zero user state by design (see CLAUDE.md), so this
- * route does not persist the image — it base64-encodes the upload in-memory
+ * route does not persist the image, it base64-encodes the upload in-memory
  * and relays the structured extraction result back to the browser.
  *
  * Body: multipart/form-data with `file` (image/jpeg | image/png | image/webp).

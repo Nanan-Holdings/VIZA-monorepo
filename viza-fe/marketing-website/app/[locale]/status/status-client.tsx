@@ -1,5 +1,7 @@
 "use client";
 
+import { Link } from "@/navigation";
+
 import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import type {
@@ -53,9 +55,9 @@ function localized(value: { en: string; "zh-CN": string }, locale: string): stri
 }
 
 function formatTimestamp(value: string | null, locale: string): string {
-  if (!value) return "—";
+  if (!value) return "-";
   const date = new Date(value);
-  if (!Number.isFinite(date.getTime())) return "—";
+  if (!Number.isFinite(date.getTime())) return "-";
   return new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
     timeStyle: "short",
@@ -149,11 +151,11 @@ export default function StatusClient({ initialSnapshot, locale }: StatusClientPr
   const renderMonitor = (monitor: PublicStatusMonitor, featured = false) => {
     const effective = monitorStatus(monitor, snapshot.staleAfterSeconds, now);
     const statusClass = uiStatus(effective);
-    const uptime = monitor.uptime90d == null ? "—" : `${monitor.uptime90d.toFixed(2)}%`;
+    const uptime = monitor.uptime90d == null ? "-" : `${monitor.uptime90d.toFixed(2)}%`;
     return (
       <div className={featured ? "feat" : "row"} key={monitor.id}>
         <div className={featured ? "feat-title" : "row-title"}>
-          <div className={featured ? "mark" : "iso"}>{monitor.code ?? "—"}</div>
+          <div className={featured ? "mark" : "iso"}>{monitor.code ?? "-"}</div>
           <div className="ti">
             {featured
               ? <h4>{localized(monitor.name, locale)}</h4>
@@ -187,7 +189,7 @@ export default function StatusClient({ initialSnapshot, locale }: StatusClientPr
       <section className="hero" data-screen-label="Hero">
         <div className="hero-inner">
           <div className="crumb">
-            <a href="/">{t("crumbHome")}</a>
+            <Link href="/">{t("crumbHome")}</Link>
             <span className="arr">›</span>
             <span className="here">{t("crumbHere")}</span>
           </div>
@@ -215,7 +217,7 @@ export default function StatusClient({ initialSnapshot, locale }: StatusClientPr
                 </div>
                 <div className="console-numbers">
                   <div className="console-num">
-                    <div className="v">{snapshot.summary.uptime90d == null ? "—" : `${snapshot.summary.uptime90d.toFixed(2)}%`}</div>
+                    <div className="v">{snapshot.summary.uptime90d == null ? "-" : `${snapshot.summary.uptime90d.toFixed(2)}%`}</div>
                     <div className="k">{t("console.kUptime")}</div>
                   </div>
                   <div className="console-num">
@@ -310,7 +312,7 @@ export default function StatusClient({ initialSnapshot, locale }: StatusClientPr
                 return (
                   <div className="incident" key={incident.id}>
                     <div className="incident-country">
-                      <div className="iso">{monitor?.code ?? "—"}</div>
+                      <div className="iso">{monitor?.code ?? "-"}</div>
                       <div className="ni">
                         <h5>{monitor ? localized(monitor.name, locale) : incident.monitorId}</h5>
                         <div className="when">{formatTimestamp(incident.startedAt, locale)}</div>

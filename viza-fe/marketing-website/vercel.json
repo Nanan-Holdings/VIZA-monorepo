@@ -1,9 +1,40 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "buildCommand": "next build",
+  "buildCommand": "npm run build",
   "installCommand": "npm ci",
   "outputDirectory": ".next",
-  "regions": ["sin1"],
-  "git": { "deploymentEnabled": { "main": true } }
+  "regions": [
+    "sin1"
+  ],
+  "git": {
+    "deploymentEnabled": {
+      "main": true
+    }
+  },
+  "redirects": [
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "header",
+          "key": "x-vercel-ip-country",
+          "value": "^(CN|HK|MO|TW)$"
+        }
+      ],
+      "missing": [
+        {
+          "type": "cookie",
+          "key": "viza_locale"
+        },
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*([Bb]ot|[Ss]pider|[Cc]rawl|[Ss]lurp|facebookexternalhit|WhatsApp|Lighthouse|PageSpeed|HeadlessChrome).*"
+        }
+      ],
+      "destination": "/zh-CN",
+      "permanent": false
+    }
+  ]
 }

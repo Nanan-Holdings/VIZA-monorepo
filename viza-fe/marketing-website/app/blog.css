@@ -470,3 +470,29 @@
     transition: none;
   }
 }
+
+.viza-blog__destination {
+  margin-top: 40px;
+  padding: 24px 28px;
+  border: 1px solid var(--border-hairline);
+  border-radius: 16px;
+  background: var(--brand-50);
+}
+.viza-blog__destination h2 {
+  margin: 0 0 6px;
+  font-size: 20px;
+  line-height: 1.25;
+  color: var(--fg-1);
+}
+.viza-blog__destination p {
+  margin: 0 0 14px;
+  color: var(--fg-2);
+}
+.viza-blog__destination a {
+  font-weight: 600;
+  color: var(--brand-500);
+  text-decoration: none;
+}
+.viza-blog__destination a:hover {
+  text-decoration: underline;
+}

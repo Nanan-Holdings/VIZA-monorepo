@@ -135,25 +135,18 @@ export const malaysia: VisaContent = {
   ],
 
   reviews: {
-    score: "4.6",
-    outOf: "/ 5",
-    sub: "Highest rated visa platform · 12,841 reviews",
-    platforms: [
-      { rating: "4.6", name: "Trustpilot" },
-      { rating: "4.7", name: "App Store" },
-    ],
     items: [
       {
         initials: "DM",
         name: "Divya M.",
-        source: "Trustpilot · 1 week ago",
+        source: "Trustpilot",
         title: "Seamless — approved in under 2 days",
         body: "The consultant checked everything and flagged that my photo background wasn't quite right before submission. Got the approval letter well ahead of my trip.",
       },
       {
         initials: "CW",
         name: "Calvin W.",
-        source: "App Store · 3 weeks ago",
+        source: "App Store",
         title: "Took the stress out of it",
         body: "I wasn't sure which documents Malaysia needed. VIZA gave me a clear list, reviewed my uploads, and the e-Visa came through faster than expected.",
       },
@@ -201,8 +194,8 @@ export const malaysia: VisaContent = {
   ],
 
   price: {
-    etaLabel: "Apply now, get it by",
-    etaValue: "17 Aug 2026, 10:00 AM",
+    etaLabel: "Processing time",
+    etaValue: "Set by the issuing authority",
     title: "Tourist eVISA (SEV) · 30-day stay",
     saving: "1 day faster than filing direct",
     sub: "VIZA's help is free: document review, form filling, and tracking. The government fee is paid directly on the official portal.",

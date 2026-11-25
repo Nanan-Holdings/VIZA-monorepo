@@ -70,14 +70,14 @@ async function main() {
       await writeFile(resolve(OUT_DIR, `${slug}.jpg`), buf);
       results.push(`✓ ${slug} (${(buf.length / 1024).toFixed(0)} KB)`);
     } catch (err) {
-      results.push(`✗ ${slug} — ${err.message}`);
+      results.push(`✗ ${slug}, ${err.message}`);
     }
   }
 
   console.log(results.join("\n"));
   const failed = results.filter((r) => r.startsWith("✗"));
   if (failed.length) {
-    console.error(`\n${failed.length} image(s) failed — replace the dead Unsplash id in HEROES.`);
+    console.error(`\n${failed.length} image(s) failed, replace the dead Unsplash id in HEROES.`);
     process.exit(1);
   }
 }
