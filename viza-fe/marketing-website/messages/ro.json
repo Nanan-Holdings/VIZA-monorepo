@@ -1780,6 +1780,7 @@
       "closeMenu": "Închide meniul",
       "nav": {
         "home": "Acasă",
+        "destinations": "Destinații",
         "arrivalCards": "Carduri de sosire",
         "guides": "Ghiduri",
         "news": "Noutăți",
@@ -1794,6 +1795,7 @@
       "follow": "Urmărește-ne",
       "followOn": "Urmărește VIZA pe {platform}",
       "links": {
+        "destinations": "Destinații",
         "arrivalCards": "Carduri de sosire",
         "guides": "Ghiduri",
         "news": "Noutăți",
@@ -2048,6 +2050,7 @@
       "text": "VIZA pregătește, verifică și depune cereri de viză pentru oamenii care locuiesc în Singapore. AI-ul nostru se ocupă de acte, iar consultanții noștri verifică fiecare formular. Serviciul este gratuit."
     },
     "facts": {
+      "destinations": "Destinații",
       "guides": "Ghiduri de viză",
       "arrival": "Ghiduri pentru carduri de sosire",
       "free": "Gratuit",

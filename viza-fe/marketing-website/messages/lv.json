@@ -1780,6 +1780,7 @@
       "closeMenu": "Aizvērt izvēlni",
       "nav": {
         "home": "Sākums",
+        "destinations": "Galamērķi",
         "arrivalCards": "Ierašanās kartes",
         "guides": "Ceļveži",
         "news": "Jaunumi",
@@ -1794,6 +1795,7 @@
       "follow": "Sekojiet mums",
       "followOn": "Sekojiet VIZA platformā {platform}",
       "links": {
+        "destinations": "Galamērķi",
         "arrivalCards": "Ierašanās kartes",
         "guides": "Ceļveži",
         "news": "Jaunumi",
@@ -2048,6 +2050,7 @@
       "text": "VIZA sagatavo, pārbauda un iesniedz vīzu pieteikumus Singapūrā dzīvojošajiem. Mūsu MI paveic papīra darbu, un konsultanti pārskata katru veidlapu. Pakalpojums ir bezmaksas."
     },
     "facts": {
+      "destinations": "Galamērķi",
       "guides": "Vīzu ceļveži",
       "arrival": "Ierašanās karšu ceļveži",
       "free": "Bezmaksas",

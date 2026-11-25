@@ -1780,6 +1780,7 @@
       "closeMenu": "關閉選單",
       "nav": {
         "home": "首頁",
+        "destinations": "目的地",
         "arrivalCards": "入境卡",
         "guides": "指南",
         "news": "最新消息",
@@ -1794,6 +1795,7 @@
       "follow": "追蹤我們",
       "followOn": "在 {platform} 追蹤 VIZA",
       "links": {
+        "destinations": "目的地",
         "arrivalCards": "入境卡",
         "guides": "指南",
         "news": "最新消息",
@@ -2048,6 +2050,7 @@
       "text": "VIZA 為住在新加坡的人準備、檢查並遞交簽證申請。我們的 AI 處理文書作業，顧問會審閱每一份表格。這項服務免費。"
     },
     "facts": {
+      "destinations": "目的地",
       "guides": "簽證指南",
       "arrival": "入境卡指南",
       "free": "免費",

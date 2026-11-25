@@ -1780,6 +1780,7 @@
       "closeMenu": "Lukk meny",
       "nav": {
         "home": "Hjem",
+        "destinations": "Reisemål",
         "arrivalCards": "Ankomstkort",
         "guides": "Guider",
         "news": "Nyheter",
@@ -1794,6 +1795,7 @@
       "follow": "Følg oss",
       "followOn": "Følg VIZA på {platform}",
       "links": {
+        "destinations": "Reisemål",
         "arrivalCards": "Ankomstkort",
         "guides": "Guider",
         "news": "Nyheter",
@@ -2048,6 +2050,7 @@
       "text": "VIZA forbereder, kontrollerer og sender inn visumsøknader for folk som bor i Singapore. AI-en vår tar papirarbeidet, og rådgiverne våre går gjennom hvert skjema. Tjenesten er gratis."
     },
     "facts": {
+      "destinations": "Reisemål",
       "guides": "Visumguider",
       "arrival": "Guider til ankomstkort",
       "free": "Gratis",

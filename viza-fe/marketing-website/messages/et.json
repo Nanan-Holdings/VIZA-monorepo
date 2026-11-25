@@ -1780,6 +1780,7 @@
       "closeMenu": "Sulge menüü",
       "nav": {
         "home": "Avaleht",
+        "destinations": "Sihtkohad",
         "arrivalCards": "Saabumiskaardid",
         "guides": "Juhendid",
         "news": "Uudised",
@@ -1794,6 +1795,7 @@
       "follow": "Jälgi meid",
       "followOn": "Jälgi VIZA-t kanalis {platform}",
       "links": {
+        "destinations": "Sihtkohad",
         "arrivalCards": "Saabumiskaardid",
         "guides": "Juhendid",
         "news": "Uudised",
@@ -2048,6 +2050,7 @@
       "text": "VIZA valmistab ette, kontrollib ja esitab viisataotlusi Singapuris elavatele inimestele. Meie tehisintellekt teeb paberitöö ja meie konsultandid vaatavad iga vormi üle. Teenus on tasuta."
     },
     "facts": {
+      "destinations": "Sihtkohad",
       "guides": "Viisajuhendid",
       "arrival": "Saabumiskaardi juhendid",
       "free": "Tasuta",

@@ -1780,6 +1780,7 @@
       "closeMenu": "Tutup menu",
       "nav": {
         "home": "Utama",
+        "destinations": "Destinasi",
         "arrivalCards": "Kad ketibaan",
         "guides": "Panduan",
         "news": "Berita",
@@ -1794,6 +1795,7 @@
       "follow": "Ikuti kami",
       "followOn": "Ikuti VIZA di {platform}",
       "links": {
+        "destinations": "Destinasi",
         "arrivalCards": "Kad ketibaan",
         "guides": "Panduan",
         "news": "Berita",
@@ -2048,6 +2050,7 @@
       "text": "VIZA menyediakan, menyemak dan memfailkan permohonan visa untuk orang yang tinggal di Singapura. AI kami menguruskan kertas kerja dan perunding kami menyemak setiap borang. Perkhidmatan ini percuma."
     },
     "facts": {
+      "destinations": "Destinasi",
       "guides": "Panduan visa",
       "arrival": "Panduan kad ketibaan",
       "free": "Percuma",

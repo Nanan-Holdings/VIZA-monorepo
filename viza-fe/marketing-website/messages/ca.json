@@ -1780,6 +1780,7 @@
       "closeMenu": "Tanca el menú",
       "nav": {
         "home": "Inici",
+        "destinations": "Destins",
         "arrivalCards": "Targetes d'arribada",
         "guides": "Guies",
         "news": "Notícies",
@@ -1794,6 +1795,7 @@
       "follow": "Segueix-nos",
       "followOn": "Segueix VIZA a {platform}",
       "links": {
+        "destinations": "Destins",
         "arrivalCards": "Targetes d'arribada",
         "guides": "Guies",
         "news": "Notícies",
@@ -2048,6 +2050,7 @@
       "text": "VIZA prepara, revisa i presenta sol·licituds de visat per a persones que viuen a Singapur. La nostra IA s'encarrega del paperassa i els nostres consultors revisen cada formulari. El servei és gratuït."
     },
     "facts": {
+      "destinations": "Destins",
       "guides": "Guies de visat",
       "arrival": "Guies de targetes d'arribada",
       "free": "Gratuït",

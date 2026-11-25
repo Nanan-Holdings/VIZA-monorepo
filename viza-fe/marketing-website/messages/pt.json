@@ -1780,6 +1780,7 @@
       "closeMenu": "Fechar menu",
       "nav": {
         "home": "Início",
+        "destinations": "Destinos",
         "arrivalCards": "Cartões de chegada",
         "guides": "Guias",
         "news": "Notícias",
@@ -1794,6 +1795,7 @@
       "follow": "Siga-nos",
       "followOn": "Siga a VIZA no {platform}",
       "links": {
+        "destinations": "Destinos",
         "arrivalCards": "Cartões de chegada",
         "guides": "Guias",
         "news": "Notícias",
@@ -2048,6 +2050,7 @@
       "text": "A VIZA prepara, confere e envia solicitações de visto para quem mora em Singapura. Nossa IA cuida da papelada e nossos consultores revisam cada formulário. O serviço é grátis."
     },
     "facts": {
+      "destinations": "Destinos",
       "guides": "Guias de visto",
       "arrival": "Guias de cartão de chegada",
       "free": "Grátis",

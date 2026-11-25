@@ -1780,6 +1780,7 @@
       "closeMenu": "Fermer le menu",
       "nav": {
         "home": "Accueil",
+        "destinations": "Destinations",
         "arrivalCards": "Cartes d’arrivée",
         "guides": "Guides",
         "news": "Actualités",
@@ -1794,6 +1795,7 @@
       "follow": "Suivez-nous",
       "followOn": "Suivre VIZA sur {platform}",
       "links": {
+        "destinations": "Destinations",
         "arrivalCards": "Cartes d’arrivée",
         "guides": "Guides",
         "news": "Actualités",
@@ -2048,6 +2050,7 @@
       "text": "VIZA prépare, vérifie et dépose des demandes de visa pour les personnes qui vivent à Singapour. Notre IA s’occupe des formalités et nos conseillers relisent chaque formulaire. Le service est gratuit."
     },
     "facts": {
+      "destinations": "Destinations",
       "guides": "Guides visa",
       "arrival": "Guides des cartes d’arrivée",
       "free": "Gratuit",

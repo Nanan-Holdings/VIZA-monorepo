@@ -1780,6 +1780,7 @@
       "closeMenu": "メニューを閉じる",
       "nav": {
         "home": "ホーム",
+        "destinations": "渡航先",
         "arrivalCards": "入国カード",
         "guides": "ガイド",
         "news": "ニュース",
@@ -1794,6 +1795,7 @@
       "follow": "フォローする",
       "followOn": "{platform}でVIZAをフォロー",
       "links": {
+        "destinations": "渡航先",
         "arrivalCards": "入国カード",
         "guides": "ガイド",
         "news": "ニュース",
@@ -2048,6 +2050,7 @@
       "text": "VIZAは、シンガポールにお住まいの方のビザ申請を準備、確認し、提出します。AIが書類作業を行い、コンサルタントがすべてのフォームを確認します。サービスは無料です。"
     },
     "facts": {
+      "destinations": "渡航先",
       "guides": "ビザガイド",
       "arrival": "入国カードガイド",
       "free": "無料",

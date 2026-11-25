@@ -1780,6 +1780,7 @@
       "closeMenu": "Cerrar menú",
       "nav": {
         "home": "Inicio",
+        "destinations": "Destinos",
         "arrivalCards": "Tarjetas de llegada",
         "guides": "Guías",
         "news": "Noticias",
@@ -1794,6 +1795,7 @@
       "follow": "Síganos",
       "followOn": "Siga a VIZA en {platform}",
       "links": {
+        "destinations": "Destinos",
         "arrivalCards": "Tarjetas de llegada",
         "guides": "Guías",
         "news": "Noticias",
@@ -2048,6 +2050,7 @@
       "text": "VIZA prepara, revisa y presenta solicitudes de visa para personas que viven en Singapur. Nuestra IA se encarga del papeleo y nuestros asesores revisan cada formulario. El servicio es gratis."
     },
     "facts": {
+      "destinations": "Destinos",
       "guides": "Guías de visas",
       "arrival": "Guías de tarjetas de llegada",
       "free": "Gratis",

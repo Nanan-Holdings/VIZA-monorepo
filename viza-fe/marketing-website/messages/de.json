@@ -1780,6 +1780,7 @@
       "closeMenu": "Menü schließen",
       "nav": {
         "home": "Startseite",
+        "destinations": "Reiseziele",
         "arrivalCards": "Einreisekarten",
         "guides": "Ratgeber",
         "news": "Neuigkeiten",
@@ -1794,6 +1795,7 @@
       "follow": "Folgen Sie uns",
       "followOn": "VIZA auf {platform} folgen",
       "links": {
+        "destinations": "Reiseziele",
         "arrivalCards": "Einreisekarten",
         "guides": "Ratgeber",
         "news": "Neuigkeiten",
@@ -2048,6 +2050,7 @@
       "text": "VIZA bereitet Visumanträge für in Singapur lebende Menschen vor, prüft und reicht sie ein. Unsere KI erledigt den Papierkram, unsere Berater prüfen jedes Formular. Der Service ist kostenlos."
     },
     "facts": {
+      "destinations": "Reiseziele",
       "guides": "Visa-Ratgeber",
       "arrival": "Ratgeber zu Einreisekarten",
       "free": "Kostenlos",

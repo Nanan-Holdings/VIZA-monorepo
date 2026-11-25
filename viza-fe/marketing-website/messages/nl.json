@@ -1780,6 +1780,7 @@
       "closeMenu": "Menu sluiten",
       "nav": {
         "home": "Home",
+        "destinations": "Bestemmingen",
         "arrivalCards": "Aankomstkaarten",
         "guides": "Gidsen",
         "news": "Nieuws",
@@ -1794,6 +1795,7 @@
       "follow": "Volg ons",
       "followOn": "Volg VIZA op {platform}",
       "links": {
+        "destinations": "Bestemmingen",
         "arrivalCards": "Aankomstkaarten",
         "guides": "Gidsen",
         "news": "Nieuws",
@@ -2048,6 +2050,7 @@
       "text": "VIZA bereidt visumaanvragen voor, controleert ze en dient ze in voor mensen die in Singapore wonen. Onze AI doet het papierwerk en onze consultants controleren elk formulier. De dienst is gratis."
     },
     "facts": {
+      "destinations": "Bestemmingen",
       "guides": "Visumgidsen",
       "arrival": "Gidsen voor aankomstkaarten",
       "free": "Gratis",

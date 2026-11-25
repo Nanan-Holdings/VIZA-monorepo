@@ -1780,6 +1780,7 @@
       "closeMenu": "Isara ang menu",
       "nav": {
         "home": "Home",
+        "destinations": "Mga destinasyon",
         "arrivalCards": "Mga arrival card",
         "guides": "Mga gabay",
         "news": "Balita",
@@ -1794,6 +1795,7 @@
       "follow": "Sundan kami",
       "followOn": "Sundan ang VIZA sa {platform}",
       "links": {
+        "destinations": "Mga destinasyon",
         "arrivalCards": "Mga arrival card",
         "guides": "Mga gabay",
         "news": "Balita",
@@ -2048,6 +2050,7 @@
       "text": "Inihahanda, sinusuri at ina-file ng VIZA ang mga aplikasyon sa visa para sa mga nakatira sa Singapore. Ang AI namin ang gumagawa ng papeles at sinusuri ng mga consultant namin ang bawat form. Libre ang serbisyo."
     },
     "facts": {
+      "destinations": "Mga destinasyon",
       "guides": "Mga gabay sa visa",
       "arrival": "Mga gabay sa arrival card",
       "free": "Libre",

@@ -1780,6 +1780,7 @@
       "closeMenu": "Sulje valikko",
       "nav": {
         "home": "Etusivu",
+        "destinations": "Kohdemaat",
         "arrivalCards": "Saapumiskortit",
         "guides": "Oppaat",
         "news": "Uutiset",
@@ -1794,6 +1795,7 @@
       "follow": "Seuraa meitä",
       "followOn": "Seuraa VIZA-palvelua kanavassa {platform}",
       "links": {
+        "destinations": "Kohdemaat",
         "arrivalCards": "Saapumiskortit",
         "guides": "Oppaat",
         "news": "Uutiset",
@@ -2048,6 +2050,7 @@
       "text": "VIZA valmistelee, tarkistaa ja jättää viisumihakemuksia Singaporessa asuville. Tekoälymme hoitaa paperityöt ja konsulttimme tarkistavat jokaisen lomakkeen. Palvelu on ilmainen."
     },
     "facts": {
+      "destinations": "Kohdemaat",
       "guides": "Viisumioppaat",
       "arrival": "Saapumiskorttioppaat",
       "free": "Ilmainen",

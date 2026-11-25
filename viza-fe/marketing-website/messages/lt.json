@@ -1780,6 +1780,7 @@
       "closeMenu": "Uždaryti meniu",
       "nav": {
         "home": "Pradžia",
+        "destinations": "Kryptys",
         "arrivalCards": "Atvykimo kortelės",
         "guides": "Gidai",
         "news": "Naujienos",
@@ -1794,6 +1795,7 @@
       "follow": "Sekite mus",
       "followOn": "Sekite VIZA: {platform}",
       "links": {
+        "destinations": "Kryptys",
         "arrivalCards": "Atvykimo kortelės",
         "guides": "Gidai",
         "news": "Naujienos",
@@ -2048,6 +2050,7 @@
       "text": "VIZA paruošia, patikrina ir pateikia vizų paraiškas Singapūre gyvenantiems žmonėms. Dokumentus tvarko mūsų dirbtinis intelektas, o kiekvieną formą peržiūri konsultantai. Paslauga nemokama."
     },
     "facts": {
+      "destinations": "Kryptys",
       "guides": "Vizų gidai",
       "arrival": "Atvykimo kortelių gidai",
       "free": "Nemokama",

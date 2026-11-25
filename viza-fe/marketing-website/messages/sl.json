@@ -1780,6 +1780,7 @@
       "closeMenu": "Zapri meni",
       "nav": {
         "home": "Domov",
+        "destinations": "Cilji",
         "arrivalCards": "Prihodne kartice",
         "guides": "Vodniki",
         "news": "Novice",
@@ -1794,6 +1795,7 @@
       "follow": "Sledite nam",
       "followOn": "Sledite storitvi VIZA na {platform}",
       "links": {
+        "destinations": "Cilji",
         "arrivalCards": "Prihodne kartice",
         "guides": "Vodniki",
         "news": "Novice",
@@ -2048,6 +2050,7 @@
       "text": "VIZA pripravi, preveri in odda vizumske vloge za ljudi, ki živijo v Singapurju. Papirologijo opravi naša umetna inteligenca, vsak obrazec pa pregledajo naši svetovalci. Storitev je brezplačna."
     },
     "facts": {
+      "destinations": "Cilji",
       "guides": "Vodniki po vizumih",
       "arrival": "Vodniki po prihodnih karticah",
       "free": "Brezplačno",

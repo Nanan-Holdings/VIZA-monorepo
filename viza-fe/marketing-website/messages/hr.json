@@ -1780,6 +1780,7 @@
       "closeMenu": "Zatvori izbornik",
       "nav": {
         "home": "Početna",
+        "destinations": "Odredišta",
         "arrivalCards": "Dolazne kartice",
         "guides": "Vodiči",
         "news": "Vijesti",
@@ -1794,6 +1795,7 @@
       "follow": "Pratite nas",
       "followOn": "Pratite VIZA na {platform}",
       "links": {
+        "destinations": "Odredišta",
         "arrivalCards": "Dolazne kartice",
         "guides": "Vodiči",
         "news": "Vijesti",
@@ -2048,6 +2050,7 @@
       "text": "VIZA priprema, provjerava i podnosi zahtjeve za vize za osobe koje žive u Singapuru. Naš AI obavlja papirologiju, a naši savjetnici pregledavaju svaki obrazac. Usluga je besplatna."
     },
     "facts": {
+      "destinations": "Odredišta",
       "guides": "Vodiči za vize",
       "arrival": "Vodiči za dolazne kartice",
       "free": "Besplatno",

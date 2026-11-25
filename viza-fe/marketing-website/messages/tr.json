@@ -1780,6 +1780,7 @@
       "closeMenu": "Menüyü kapat",
       "nav": {
         "home": "Ana sayfa",
+        "destinations": "Varış noktaları",
         "arrivalCards": "Varış kartları",
         "guides": "Rehberler",
         "news": "Haberler",
@@ -1794,6 +1795,7 @@
       "follow": "Bizi takip edin",
       "followOn": "VIZA'yı {platform} üzerinde takip edin",
       "links": {
+        "destinations": "Varış noktaları",
         "arrivalCards": "Varış kartları",
         "guides": "Rehberler",
         "news": "Haberler",
@@ -2048,6 +2050,7 @@
       "text": "VIZA, Singapur'da yaşayan kişiler için vize başvurularını hazırlar, kontrol eder ve gönderir. Evrak işini yapay zekamız yapar, her formu danışmanlarımız inceler. Hizmet ücretsizdir."
     },
     "facts": {
+      "destinations": "Varış noktaları",
       "guides": "Vize rehberleri",
       "arrival": "Varış kartı rehberleri",
       "free": "Ücretsiz",

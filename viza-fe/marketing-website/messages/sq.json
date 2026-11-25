@@ -1780,6 +1780,7 @@
       "closeMenu": "Mbyllni menunë",
       "nav": {
         "home": "Kreu",
+        "destinations": "Destinacionet",
         "arrivalCards": "Kartat e mbërritjes",
         "guides": "Udhëzues",
         "news": "Lajme",
@@ -1794,6 +1795,7 @@
       "follow": "Na ndiqni",
       "followOn": "Ndiqni VIZA në {platform}",
       "links": {
+        "destinations": "Destinacionet",
         "arrivalCards": "Kartat e mbërritjes",
         "guides": "Udhëzues",
         "news": "Lajme",
@@ -2048,6 +2050,7 @@
       "text": "VIZA përgatit, kontrollon dhe dorëzon aplikime për vizë për njerëzit që jetojnë në Singapor. AI-ja jonë bën punën me letrat dhe konsulentët tanë kontrollojnë çdo formular. Shërbimi është falas."
     },
     "facts": {
+      "destinations": "Destinacionet",
       "guides": "Udhëzues për viza",
       "arrival": "Udhëzues për kartat e mbërritjes",
       "free": "Falas",

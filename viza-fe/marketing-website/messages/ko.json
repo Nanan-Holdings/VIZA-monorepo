@@ -1780,6 +1780,7 @@
       "closeMenu": "메뉴 닫기",
       "nav": {
         "home": "홈",
+        "destinations": "여행지",
         "arrivalCards": "입국카드",
         "guides": "가이드",
         "news": "뉴스",
@@ -1794,6 +1795,7 @@
       "follow": "팔로우하기",
       "followOn": "{platform}에서 VIZA 팔로우하기",
       "links": {
+        "destinations": "여행지",
         "arrivalCards": "입국카드",
         "guides": "가이드",
         "news": "뉴스",
@@ -2048,6 +2050,7 @@
       "text": "VIZA는 싱가포르에 거주하는 분들의 비자 신청서를 준비하고, 확인하고, 제출합니다. AI가 서류 작업을 맡고 상담사가 모든 신청서를 검토합니다. 서비스는 무료입니다."
     },
     "facts": {
+      "destinations": "여행지",
       "guides": "비자 가이드",
       "arrival": "입국카드 가이드",
       "free": "무료",

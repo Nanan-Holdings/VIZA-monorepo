@@ -1780,6 +1780,7 @@
       "closeMenu": "Menyunu bağla",
       "nav": {
         "home": "Ana səhifə",
+        "destinations": "İstiqamətlər",
         "arrivalCards": "Gəliş kartları",
         "guides": "Bələdçilər",
         "news": "Xəbərlər",
@@ -1794,6 +1795,7 @@
       "follow": "Bizi izləyin",
       "followOn": "{platform} üzərində VIZA-nı izləyin",
       "links": {
+        "destinations": "İstiqamətlər",
         "arrivalCards": "Gəliş kartları",
         "guides": "Bələdçilər",
         "news": "Xəbərlər",
@@ -2048,6 +2050,7 @@
       "text": "VIZA Sinqapurda yaşayan insanlar üçün viza müraciətlərini hazırlayır, yoxlayır və təqdim edir. Süni intellektimiz sənəd işini görür, məsləhətçilərimiz isə hər formanı yoxlayır. Xidmət pulsuzdur."
     },
     "facts": {
+      "destinations": "İstiqamətlər",
       "guides": "Viza bələdçiləri",
       "arrival": "Gəliş kartı bələdçiləri",
       "free": "Pulsuz",

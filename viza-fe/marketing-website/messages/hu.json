@@ -1780,6 +1780,7 @@
       "closeMenu": "Menü bezárása",
       "nav": {
         "home": "Főoldal",
+        "destinations": "Úti célok",
         "arrivalCards": "Beutazási kártyák",
         "guides": "Útmutatók",
         "news": "Hírek",
@@ -1794,6 +1795,7 @@
       "follow": "Kövessen minket",
       "followOn": "Kövesse a VIZA-t itt: {platform}",
       "links": {
+        "destinations": "Úti célok",
         "arrivalCards": "Beutazási kártyák",
         "guides": "Útmutatók",
         "news": "Hírek",
@@ -2048,6 +2050,7 @@
       "text": "A VIZA Szingapúrban élő embereknek készíti elő, ellenőrzi és nyújtja be a vízumkérelmeket. Az MI végzi a papírmunkát, tanácsadóink pedig minden űrlapot átnéznek. A szolgáltatás ingyenes."
     },
     "facts": {
+      "destinations": "Úti célok",
       "guides": "Vízumútmutatók",
       "arrival": "Beutazási kártya útmutatók",
       "free": "Ingyenes",

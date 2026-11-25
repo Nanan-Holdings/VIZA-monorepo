@@ -34,7 +34,8 @@ const PROTECTED_RE = new RegExp(`(?<![A-Za-z0-9-])(?:${PROTECTED_SORTED.map(esca
 export function isTranslatable(path, text, skipExact = new Set()) {
   if (typeof text !== "string") return false;
   const last = path.split(SEP).pop();
-  if (SKIP_KEYS.has(last)) return false;
+  // "destinations" is skipped only as an array of slugs (rule below), never as a text label such as nav.destinations.
+  if (SKIP_KEYS.has(last) && last !== "destinations") return false;
   if (/(^|\/)reviews\/items\/\d+\/(name|source)$/.test(path)) return false;
   // Arrays of slugs (for example page/related/destinations/3): the last segment is an index, so check the parent key.
   if (new RegExp(`(^|${SEP.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})(${[...SKIP_KEYS].join("|")})${SEP.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\d+$`).test(path)) return false;

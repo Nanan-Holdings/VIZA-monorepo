@@ -1780,6 +1780,7 @@
       "closeMenu": "Chiudi il menu",
       "nav": {
         "home": "Home",
+        "destinations": "Destinazioni",
         "arrivalCards": "Carte d'arrivo",
         "guides": "Guide",
         "news": "Novità",
@@ -1794,6 +1795,7 @@
       "follow": "Seguici",
       "followOn": "Segui VIZA su {platform}",
       "links": {
+        "destinations": "Destinazioni",
         "arrivalCards": "Carte d'arrivo",
         "guides": "Guide",
         "news": "Novità",
@@ -2048,6 +2050,7 @@
       "text": "VIZA prepara, controlla e presenta le richieste di visto per chi vive a Singapore. La nostra IA si occupa delle pratiche e i nostri consulenti rivedono ogni modulo. Il servizio è gratuito."
     },
     "facts": {
+      "destinations": "Destinazioni",
       "guides": "Guide ai visti",
       "arrival": "Guide alle carte d'arrivo",
       "free": "Gratuito",

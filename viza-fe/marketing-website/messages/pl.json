@@ -1780,6 +1780,7 @@
       "closeMenu": "Zamknij menu",
       "nav": {
         "home": "Strona główna",
+        "destinations": "Kraje",
         "arrivalCards": "Karty przyjazdu",
         "guides": "Poradniki",
         "news": "Aktualności",
@@ -1794,6 +1795,7 @@
       "follow": "Obserwuj nas",
       "followOn": "Obserwuj VIZA na {platform}",
       "links": {
+        "destinations": "Kraje",
         "arrivalCards": "Karty przyjazdu",
         "guides": "Poradniki",
         "news": "Aktualności",
@@ -2048,6 +2050,7 @@
       "text": "VIZA przygotowuje, sprawdza i składa wnioski wizowe dla osób mieszkających w Singapurze. Nasza sztuczna inteligencja zajmuje się papierkową robotą, a konsultanci przeglądają każdy formularz. Usługa jest bezpłatna."
     },
     "facts": {
+      "destinations": "Kraje",
       "guides": "Poradniki wizowe",
       "arrival": "Poradniki o kartach przyjazdu",
       "free": "Bezpłatnie",

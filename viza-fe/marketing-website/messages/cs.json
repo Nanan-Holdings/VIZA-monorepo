@@ -1780,6 +1780,7 @@
       "closeMenu": "Zavřít menu",
       "nav": {
         "home": "Domů",
+        "destinations": "Cíle cest",
         "arrivalCards": "Příjezdové karty",
         "guides": "Průvodci",
         "news": "Novinky",
@@ -1794,6 +1795,7 @@
       "follow": "Sledujte nás",
       "followOn": "Sledujte VIZA na {platform}",
       "links": {
+        "destinations": "Cíle cest",
         "arrivalCards": "Příjezdové karty",
         "guides": "Průvodci",
         "news": "Novinky",
@@ -2048,6 +2050,7 @@
       "text": "VIZA připravuje, kontroluje a podává žádosti o víza pro lidi žijící v Singapuru. Papírování zvládne naše AI a každý formulář zkontrolují naši konzultanti. Služba je zdarma."
     },
     "facts": {
+      "destinations": "Cíle cest",
       "guides": "Průvodci vízy",
       "arrival": "Průvodci příjezdovými kartami",
       "free": "Zdarma",

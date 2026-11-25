@@ -1780,6 +1780,7 @@
       "closeMenu": "Đóng menu",
       "nav": {
         "home": "Trang chủ",
+        "destinations": "Điểm đến",
         "arrivalCards": "Thẻ nhập cảnh",
         "guides": "Hướng dẫn",
         "news": "Tin tức",
@@ -1794,6 +1795,7 @@
       "follow": "Theo dõi chúng tôi",
       "followOn": "Theo dõi VIZA trên {platform}",
       "links": {
+        "destinations": "Điểm đến",
         "arrivalCards": "Thẻ nhập cảnh",
         "guides": "Hướng dẫn",
         "news": "Tin tức",
@@ -2048,6 +2050,7 @@
       "text": "VIZA chuẩn bị, kiểm tra và nộp hồ sơ visa cho người đang sống tại Singapore. AI của chúng tôi lo phần giấy tờ, còn chuyên viên tư vấn rà soát từng tờ khai. Dịch vụ miễn phí."
     },
     "facts": {
+      "destinations": "Điểm đến",
       "guides": "Hướng dẫn visa",
       "arrival": "Hướng dẫn thẻ nhập cảnh",
       "free": "Miễn phí",
