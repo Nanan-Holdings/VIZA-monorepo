@@ -5,6 +5,7 @@ import { getPublishedCatalogue } from "@/lib/public-catalogue";
 import { getMarketingBlogFeed, type MarketingBlogSummary } from "@/lib/marketing-blog";
 import { blogCategories } from "@/lib/blog-taxonomy";
 import { SITE_URL } from "@/lib/seo/site";
+import { GUIDES } from "@/lib/arrival-cards";
 
 export const revalidate = 300;
 
@@ -15,7 +16,7 @@ type Entry = MetadataRoute.Sitemap[number];
  * /status, /events and /apply (noindex), /refunds (redirect), and any locale's
  * blog until that locale has published posts.
  */
-const STATIC_ROUTES = ["/", "/product", "/contact", "/careers", "/security", "/legal/privacy", "/legal/terms"];
+const STATIC_ROUTES = ["/", "/product", "/contact", "/arrival-cards", "/careers", "/security", "/legal/privacy", "/legal/terms"];
 
 /** One sitemap row per locale in `locales`, each naming every sibling plus x-default. */
 function rows(
@@ -54,6 +55,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const out: Entry[] = [];
   for (const route of STATIC_ROUTES) {
     out.push(...rows(route, ENABLED_LOCALES, { changeFrequency: "monthly", priority: route === "/" ? 1 : 0.6 }));
+  }
+  for (const guide of GUIDES) {
+    out.push(...rows(`/arrival-cards/${guide.slug}`, ENABLED_LOCALES, { changeFrequency: "monthly", priority: 0.8, lastModified: new Date("2026-11-25") }));
   }
   for (const slug of slugs) {
     const stamp = publishedAt.get(slug);

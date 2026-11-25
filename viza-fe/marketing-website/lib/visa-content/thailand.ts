@@ -167,7 +167,7 @@ export const thailand: DestinationContent = {
     travel: {
       intro: "Visa free or e-visa, you still do the arrival card, and Thailand changed more than one rule in 2026.",
       items: [
-        { title: "Thailand Digital Arrival Card (TDAC)", body: "Every foreign visitor completes the TDAC online before arriving. It is free, you submit it within three days before arrival at tdac.immigration.go.th, and you need a new one for each entry. Save the QR code to your phone." },
+        { title: "Thailand Digital Arrival Card (TDAC)", body: "Every foreign visitor completes the TDAC online before arriving. It is free, you submit it within three days before arrival at tdac.immigration.go.th, and you need a new one for each entry. Save the QR code to your phone.", href: "/arrival-cards/thailand-tdac", linkLabel: "Read the TDAC guide" },
         { title: "The 30-day change", body: "From 15 September 2026 the visa free stay is 30 days. A visitor who entered before that date keeps the stay they were given on arrival." },
         { title: "Entering by land", body: "Press reports say visa free visitors who enter by land are limited to two entries a calendar year, with Singapore, Malaysia, Indonesia and Brunei excluded. Check the current rule before a border run." },
         { title: "Extending", body: "A visa free visitor can apply to immigration for one extension of up to 30 days, subject to approval. A tourist visa is extended at an immigration office in Thailand." },

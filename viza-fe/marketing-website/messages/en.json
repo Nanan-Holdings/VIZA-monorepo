@@ -14,7 +14,8 @@
     "signIn": "Sign in",
     "getStarted": "Get started",
     "yourPassport": "Your passport",
-    "searchPlaceholder": "Search a country or visa…"
+    "searchPlaceholder": "Search a country or visa…",
+    "arrivalCards": "Arrival cards"
   },
   "footer": {
     "followUs": "Follow us:",
@@ -38,7 +39,8 @@
     "prodSchengen": "Schengen Appointment Checker",
     "prodPhoto": "Visa Photo Creator",
     "prodHelpline": "VIZA Emergency Helpline",
-    "prodStudent": "Student Visa"
+    "prodStudent": "Student Visa",
+    "arrivalCards": "Arrival cards"
   },
   "pages": {
     "blog": {
@@ -133,6 +135,10 @@
     "events": {
       "title": "Events | VIZA",
       "description": "Visa clinics, information sessions and partner events from VIZA."
+    },
+    "arrivalCards": {
+      "title": "Arrival Card Guides: MDAC, SG Arrival Card, TDAC | VIZA",
+      "description": "Free guides to arrival cards for Malaysia, Singapore, Japan, Thailand, Korea and Indonesia: who needs one, when to submit, and step by step help."
     }
   },
   "common": {
@@ -2305,6 +2311,83 @@
       "prodPhoto": "Visa Photo Creator",
       "prodHelpline": "VIZA Emergency Helpline",
       "copyright": "© VIZA, All rights reserved"
+    }
+  },
+  "arrival": {
+    "breadcrumbHome": "Home",
+    "breadcrumbHub": "Arrival cards",
+    "hubH1": "Arrival card guides",
+    "hubLead": "An arrival card is a short government form you fill in before you enter a country. Most are online, free, and take about five minutes. These guides show who needs each one, when to submit it, and how to avoid the fake sites that charge for it.",
+    "hubWhatTitle": "What an arrival card is",
+    "hubWhat": [
+      "An arrival card is a declaration your destination asks for on top of your passport and any visa. It records who you are, how you are arriving and where you will stay. Many countries replaced the paper card handed out on the plane with an online form.",
+      "It is not a visa. A visa lets you apply to enter. An arrival card tells the border authority about your trip, and you still need a visa where your nationality requires one."
+    ],
+    "hubFreeTitle": "Arrival cards are free",
+    "hubFree": [
+      "Every card in these guides is free on the government's own site. Some websites copy the government form and charge a fee for it. You never need to pay one of them.",
+      "Always start from the official address listed in each guide. VIZA is an independent service and not a government website."
+    ],
+    "hubWhenTitle": "When you need one",
+    "hubWhen": [
+      "Most cards open three days before you arrive and need to be submitted inside that window. Check each guide for the exact rule, because Japan's Visit Japan Web has no fixed deadline and is not required.",
+      "Residents, citizens and transit passengers are often exempt or have a shorter form. Each guide lists who is exempt, including the Singapore citizen exemption for Malaysia's MDAC."
+    ],
+    "hubGuidesTitle": "All guides",
+    "hubGuidesSub": "Pick your destination. Each guide has the steps, the common mistakes and the official links.",
+    "readGuide": "Read the guide",
+    "cardWhen": "When",
+    "cardsLabel": "Arrival card",
+    "hubVisaTitle": "Need a visa as well",
+    "hubVisaBody": "An arrival card does not replace a visa. Check the destination page to see whether your passport needs one.",
+    "hubVisaCta": "Browse visa pages",
+    "glanceTitle": "At a glance",
+    "stepsTitle": "How to fill it in, step by step",
+    "mistakesTitle": "Common mistakes",
+    "feesTitle": "Fees and fake sites",
+    "faqTitle": "Questions",
+    "sourcesTitle": "Sources",
+    "relatedTitle": "Other arrival card guides",
+    "independent": "VIZA is an independent service and not a government website.",
+    "officialCta": "Open the official site",
+    "officialLabel": "Official site",
+    "vizaTitle": "Let VIZA do it for you",
+    "vizaBody": "Start the {name} in your VIZA account. VIZA's form walks you through the same questions as the official one and keeps your details for later trips. You can always use the free official site instead.",
+    "vizaFee": "VIZA service fee",
+    "vizaFeeFree": "Free",
+    "vizaCta": "Start on VIZA",
+    "noVizaTitle": "Use the official site",
+    "noVizaBody": "VIZA does not fill in this card yet. Use the official site below, and read the steps in this guide first.",
+    "visaTitle": "Visa for {country}",
+    "visaBody": "The arrival card is separate from the visa. See who needs a visa for {country}, the fees and how to apply.",
+    "visaCta": "Open the {country} visa page",
+    "reviewedTitle": "Checked on 25 November 2026",
+    "stepLabel": "Step",
+    "cards": {
+      "malaysia-mdac": {
+        "summary": "Free online card for foreign visitors. Singapore citizens are exempt.",
+        "when": "Within 3 days before arrival"
+      },
+      "singapore-sg-arrival-card": {
+        "summary": "ICA's online card with a health declaration. Submit on the website or the MyICA app.",
+        "when": "Within 3 days before arrival"
+      },
+      "japan-visit-japan-web": {
+        "summary": "Free QR codes for immigration and customs. Recommended, not required.",
+        "when": "Before you fly"
+      },
+      "thailand-tdac": {
+        "summary": "Free card for every foreign visitor, visa free or not. Replaced the paper TM6.",
+        "when": "Within 3 days before arrival"
+      },
+      "korea-e-arrival-card": {
+        "summary": "Required since 1 January 2026. A valid K-ETA holder is exempt.",
+        "when": "Within 3 days before arrival"
+      },
+      "indonesia-all-indonesia": {
+        "summary": "One card for immigration, customs and health. Free, and not a visa.",
+        "when": "Up to 3 days before arrival"
+      }
     }
   }
 }

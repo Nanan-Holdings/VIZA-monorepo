@@ -159,7 +159,7 @@ export const indonesia: DestinationContent = {
     travel: {
       intro: "The visa is one part. Indonesia asks every visitor for an arrival declaration, and a few rules catch people out.",
       items: [
-        { title: "All Indonesia arrival declaration", body: "All travellers submit the arrival card on allindonesia.imigrasi.go.id within three days before arrival. It covers immigration, customs and health, it is free, and it gives you a QR code. It is not a visa." },
+        { title: "All Indonesia arrival declaration", body: "All travellers submit the arrival card on allindonesia.imigrasi.go.id within three days before arrival. It covers immigration, customs and health, it is free, and it gives you a QR code. It is not a visa.", href: "/arrival-cards/indonesia-all-indonesia", linkLabel: "Read the All Indonesia guide" },
         { title: "Extending the e-VOA", body: "You can extend the e-VOA once for 30 days on the portal, for 60 days in total. Visa free entry cannot be extended, so choose the e-VOA if you may stay longer." },
         { title: "Work and business", body: "The B1 does not let you sell goods or services or be paid by an Indonesian company. Check the portal for the right visa for work." },
         { title: "Bali levy", body: "Foreign visitors to Bali pay a separate tourist levy, reported at IDR 150,000. It is not part of the visa." },

@@ -55,6 +55,8 @@ const stripBrand = (title) => title.replace(/\s*\|\s*VIZA.*$/, "").trim();
 const firstSentence = (text) => text.split(/(?<=[.。])\s*/)[0];
 
 const PAGES = ["home", "product", "contact", "careers", "security", "status", "apply", "events", "privacy", "terms"];
+// Phase C: the arrival card hub (messages pages.arrivalCards) and one card per guide in lib/arrival-cards/<locale>/.
+const GUIDE_SLUGS = ["malaysia-mdac", "singapore-sg-arrival-card", "japan-visit-japan-web", "thailand-tdac", "korea-e-arrival-card", "indonesia-all-indonesia"];
 const BLOG = "blog";
 
 const photoCache = new Map();
@@ -119,6 +121,16 @@ for (const locale of ENABLED) {
   }
   if (m.pages?.[BLOG]) {
     items.push({ key: BLOG, title: stripBrand(m.pages.blog.metaTitle), subtitle: clip(m.pages.blog.metaDescription, 110), img: null });
+  }
+  const hub = m.pages?.arrivalCards;
+  if (hub) {
+    const [head] = stripBrand(hub.title).split(/[:：]/);
+    items.push({ key: "arrival-cards", title: head.trim(), subtitle: clip(firstSentence(hub.description), 110), img: null });
+  }
+  for (const slug of GUIDE_SLUGS) {
+    const guide = (await import(`../lib/arrival-cards/${locale}/${slug}.ts`)).default;
+    const [head] = stripBrand(guide.title).split(/[:：]/);
+    items.push({ key: `arrival-${slug}`, title: head.trim(), subtitle: clip(firstSentence(guide.description), 110), img: null });
   }
   for (const c of COUNTRIES.filter(isPublished)) {
     const name = m.countries?.[c.slug] ?? c.name;

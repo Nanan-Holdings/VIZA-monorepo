@@ -241,6 +241,9 @@ export default function VisaDestinationMain({
             <div className="dest-card" key={item.title}>
               <h3>{item.title}</h3>
               <p>{item.body}</p>
+              {item.href && item.linkLabel ? (
+                <p><Link href={item.href} style={{ color: "var(--brand-500)", fontWeight: 500 }}>{item.linkLabel}</Link></p>
+              ) : null}
             </div>
           ))}
         </div>

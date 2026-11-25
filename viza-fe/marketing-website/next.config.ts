@@ -61,6 +61,13 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [{ protocol: "https", hostname: "images.unsplash.com" }],
   },
+  async redirects() {
+    // The SG Arrival Card post (served from the portal CMS) folds into the guide.
+    return [
+      { source: "/blog/sg-arrival-card-myica-app-september-30", destination: "/arrival-cards/singapore-sg-arrival-card", permanent: true },
+      { source: "/zh-CN/blog/sg-arrival-card-myica-app-september-30", destination: "/zh-CN/arrival-cards/singapore-sg-arrival-card", permanent: true },
+    ];
+  },
   async headers() {
     return [{ source: "/:path*", headers: SECURITY_HEADERS }];
   },

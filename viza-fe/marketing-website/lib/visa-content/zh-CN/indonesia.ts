@@ -136,7 +136,7 @@ export const indonesia: DestinationContent = {
     travel: {
       intro: "签证只是一部分。印尼要求每位访客填入境申报，也有几条规定容易让人踩坑。",
       items: [
-        { title: "All Indonesia 入境申报", body: "所有旅客在抵达前三天内，到 allindonesia.imigrasi.go.id 提交入境卡。涵盖移民、海关和健康，免费，填好后得到二维码。它不是签证。" },
+        { title: "All Indonesia 入境申报", body: "所有旅客在抵达前三天内，到 allindonesia.imigrasi.go.id 提交入境卡。涵盖移民、海关和健康，免费，填好后得到二维码。它不是签证。", href: "/arrival-cards/indonesia-all-indonesia", linkLabel: "阅读 All Indonesia 指南" },
         { title: "e-VOA 延期", body: "e-VOA 可以在网站上延期一次 30 天，合计 60 天。免签入境不能延期，所以可能多留的话，请选 e-VOA。" },
         { title: "工作与商务", body: "B1 不允许销售商品或服务，也不能领取印尼公司的报酬。要工作，请到网站查对应的签证。" },
         { title: "巴厘岛旅游税", body: "外国游客去巴厘岛要另付旅游税，据报道是 15 万印尼盾。这不属于签证费用。" },

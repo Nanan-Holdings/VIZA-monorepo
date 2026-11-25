@@ -14,7 +14,8 @@
     "signIn": "登录",
     "getStarted": "开始申请",
     "yourPassport": "您的护照",
-    "searchPlaceholder": "搜索国家或签证…"
+    "searchPlaceholder": "搜索国家或签证…",
+    "arrivalCards": "入境卡"
   },
   "footer": {
     "followUs": "关注我们：",
@@ -38,7 +39,8 @@
     "prodSchengen": "申根预约查询",
     "prodPhoto": "签证照片生成",
     "prodHelpline": "VIZA 紧急热线",
-    "prodStudent": "学生签证"
+    "prodStudent": "学生签证",
+    "arrivalCards": "入境卡"
   },
   "pages": {
     "blog": {
@@ -133,6 +135,10 @@
     "events": {
       "title": "活动 | VIZA",
       "description": "VIZA 的签证讲座、咨询会和合作活动。"
+    },
+    "arrivalCards": {
+      "title": "入境卡指南：MDAC、新加坡入境卡、TDAC | VIZA",
+      "description": "马来西亚、新加坡、日本、泰国、韩国和印尼入境卡免费指南：谁需要、什么时候提交，以及逐步操作。"
     }
   },
   "common": {
@@ -2305,6 +2311,83 @@
       "prodPhoto": "签证照片生成",
       "prodHelpline": "VIZA 紧急热线",
       "copyright": "© VIZA，版权所有"
+    }
+  },
+  "arrival": {
+    "breadcrumbHome": "首页",
+    "breadcrumbHub": "入境卡",
+    "hubH1": "入境卡指南",
+    "hubLead": "入境卡是你进入一个国家前要填的政府表格。大多数是在线填写，免费，大约五分钟。这些指南告诉你每张卡谁需要、什么时候提交，以及怎样避开收费的假网站。",
+    "hubWhatTitle": "入境卡是什么",
+    "hubWhat": [
+      "入境卡是目的地在护照和签证之外要你填写的申报，记录你是谁、怎么抵达、住在哪里。许多国家已经用在线表格取代了在飞机上发的纸质卡。",
+      "它不是签证。签证是申请入境，入境卡则是向边境当局说明你的行程，如果你的国籍需要签证，仍然要办签证。"
+    ],
+    "hubFreeTitle": "入境卡是免费的",
+    "hubFree": [
+      "这些指南里的每一张卡，在政府自己的网站都是免费的。有些网站仿照政府表格并收费，你完全不需要付给它们。",
+      "请始终从每篇指南列出的官方地址开始。VIZA 是独立的服务，不是政府网站。"
+    ],
+    "hubWhenTitle": "什么时候需要",
+    "hubWhen": [
+      "多数入境卡在抵达前三天开放，需要在这个时间窗内提交。具体规则请看各篇指南，因为日本的 Visit Japan Web 没有固定截止时间，也不是必须使用。",
+      "居民、公民和过境旅客通常豁免，或者填写较短的表格。每篇指南都列出了谁可以豁免，包括新加坡公民免填马来西亚 MDAC。"
+    ],
+    "hubGuidesTitle": "全部指南",
+    "hubGuidesSub": "选择你的目的地。每篇指南都有步骤、常见错误和官方链接。",
+    "readGuide": "阅读指南",
+    "cardWhen": "提交时间",
+    "cardsLabel": "入境卡",
+    "hubVisaTitle": "还需要签证吗",
+    "hubVisaBody": "入境卡不能代替签证。请到目的地页面查看你的护照是否需要签证。",
+    "hubVisaCta": "浏览签证页面",
+    "glanceTitle": "要点一览",
+    "stepsTitle": "逐步填写",
+    "mistakesTitle": "常见错误",
+    "feesTitle": "费用与假网站",
+    "faqTitle": "常见问题",
+    "sourcesTitle": "资料来源",
+    "relatedTitle": "其他入境卡指南",
+    "independent": "VIZA 是独立的服务，不是政府网站。",
+    "officialCta": "打开官方网站",
+    "officialLabel": "官方网站",
+    "vizaTitle": "让 VIZA 帮你办",
+    "vizaBody": "在你的 VIZA 账号里开始办理{name}。VIZA 的表格会带你过一遍与官方表格相同的问题，并保存你的信息供以后的行程使用。你也可以随时改用免费的官方网站。",
+    "vizaFee": "VIZA 服务费",
+    "vizaFeeFree": "免费",
+    "vizaCta": "在 VIZA 开始",
+    "noVizaTitle": "请使用官方网站",
+    "noVizaBody": "VIZA 暂时没有这张卡的代填服务。请使用下方的官方网站，并先阅读本指南里的步骤。",
+    "visaTitle": "{country}签证",
+    "visaBody": "入境卡和签证是分开的。查看去{country}谁需要签证、费用以及怎么申请。",
+    "visaCta": "打开{country}签证页面",
+    "reviewedTitle": "2026 年 11 月 25 日核对",
+    "stepLabel": "第",
+    "cards": {
+      "malaysia-mdac": {
+        "summary": "外国游客的免费在线入境卡。新加坡公民豁免。",
+        "when": "抵达前 3 天内"
+      },
+      "singapore-sg-arrival-card": {
+        "summary": "ICA 的在线入境卡，附健康申报。可在网站或 MyICA 应用提交。",
+        "when": "抵达前 3 天内"
+      },
+      "japan-visit-japan-web": {
+        "summary": "免费的入境和海关二维码。建议使用，并非必须。",
+        "when": "出发前"
+      },
+      "thailand-tdac": {
+        "summary": "所有外国游客都要填，免签也一样。取代了纸质 TM6。",
+        "when": "抵达前 3 天内"
+      },
+      "korea-e-arrival-card": {
+        "summary": "2026 年 1 月 1 日起必须提交。持有效 K-ETA 的人豁免。",
+        "when": "抵达前 3 天内"
+      },
+      "indonesia-all-indonesia": {
+        "summary": "一张卡涵盖移民、海关和健康。免费，不是签证。",
+        "when": "抵达前最多 3 天"
+      }
     }
   }
 }
