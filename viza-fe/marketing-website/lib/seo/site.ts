@@ -4,9 +4,9 @@ export const BRAND_SUFFIX = " | VIZA";
 
 /** Registered address, used by the Organization schema and the contact page. */
 export const ADDRESS = {
-  streetAddress: "225 Pasir Panjang Rd",
+  streetAddress: "60 Paya Lebar Road, #06-28 Paya Lebar Square",
   addressLocality: "Singapore",
-  postalCode: "117341",
+  postalCode: "409051",
   addressCountry: "SG",
 } as const;
 

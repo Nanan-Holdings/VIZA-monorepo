@@ -591,7 +591,7 @@
       "photos": [
         {
           "label": "photo · singapore HQ — open floor",
-          "mark": "Pasir Panjang Rd, SG"
+          "mark": "Paya Lebar Square, SG"
         },
         {
           "label": "photo · consultant queue floor",
@@ -611,7 +611,7 @@
         },
         {
           "label": "photo · embassy partner visit",
-          "mark": "Pasir Panjang Rd, SG"
+          "mark": "Paya Lebar Square, SG"
         }
       ],
       "pull": "“We hire people who have an opinion about visas before they join. By month two, you’ll have a stronger one.”",
@@ -821,8 +821,8 @@
           "photo": "photo · singapore HQ",
           "open": "12 open",
           "name": "Singapore",
-          "addr1": "225 Pasir Panjang Rd,",
-          "addr2": "Singapore",
+          "addr1": "60 Paya Lebar Road, #06-28 Paya Lebar Square,",
+          "addr2": "Singapore 409051",
           "tz": "GMT+8 · Asia-Pacific HQ",
           "since": "HQ · since 2021"
         }
@@ -1290,7 +1290,7 @@
         "intro": "Privacy questions, requests, complaints — same address.",
         "email": "<strong>Email:</strong> <a>privacy@viza.it.com</a>",
         "dpo": "<strong>Data Protection Officer:</strong> <a>dpo@viza.it.com</a>",
-        "address": "<strong>Mailing address:</strong> 225 Pasir Panjang Rd, Singapore",
+        "address": "<strong>Mailing address:</strong> 60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapore 409051",
         "pdpc": "<strong>Singapore PDPC:</strong> <a>pdpc.gov.sg</a>"
       }
     },
@@ -1460,7 +1460,7 @@
         "title": "Contact",
         "legal": "<strong>Legal questions:</strong> <a>legal@viza.it.com</a>",
         "privacy": "<strong>Privacy / data requests:</strong> <a>privacy@viza.it.com</a>",
-        "address": "<strong>Mailing address:</strong> 225 Pasir Panjang Rd, Singapore",
+        "address": "<strong>Mailing address:</strong> 60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapore 409051",
         "uen": "<strong>UEN:</strong> 202312345A"
       }
     },
