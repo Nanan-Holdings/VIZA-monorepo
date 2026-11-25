@@ -172,3 +172,18 @@ template images are used.
 (Framer left, VIZA right). Re-take them with `node scripts/screens.mjs http://localhost:3217` against
 `NEXT_PUBLIC_SITE_URL=https://viza.it.com npx next start -p 3217` (add `--tablet` for 1000, `--only /a,/b` for
 other pages). The script reports any horizontal overflow.
+
+## 6. Part 3: destinations, index, utility pages
+
+| Page | Build | Framer reference |
+|---|---|---|
+| `/visa/<slug>` | `components/VisaDestinationPage.tsx` + `components/visa-dest.css`. Back button, H1 with flag, a hairline row of facts, a rounded photo with glass tags, then a sticky left column (apply card, in-page section nav) beside the 13 sections as white cards. `VisaCountryRich` only dispatches. | `works/<type>` detail |
+| `/visa` | `app/[locale]/visa/page.tsx` renders `DestinationGallery asPage` (H1 at display size, all cards open, `design-system/destinations.css`) and the closing band. Metadata `pages.visaIndex`, CollectionPage and BreadcrumbList JSON-LD, in the sitemap, link preview `visaIndex`. The header link and the destination breadcrumb now point here. | `works` index |
+| `/product`, `/events`, `/careers` | `design-system/sections/PageIntro.tsx` (+ `utility.css`), feature and team cards, a navy contact card. | none (not in Framer) |
+| `/status`, `/apply` | Behaviour and markup unchanged; `status-ds.css` and `apply-ds.css` load after the old stylesheets and put them on the canvas, cards and pills. | none |
+| Home | `hero-fixes.css`: a left-to-right dark scrim behind the hero copy, a stronger glass button on phones; filter pills scroll with a right edge fade on phones. | |
+
+Differences from Framer: no hero video or invented project imagery; the apply card replaces the Framer detail page's
+text-only intro rows; the section nav and FAQ cards are VIZA additions. `/careers` lost its invented roles, benefits,
+founder and headcount figures (none could be checked) and now lists team areas and a contact route.
+The floating "ask anything" bar on destination pages was a non-working input and is gone.

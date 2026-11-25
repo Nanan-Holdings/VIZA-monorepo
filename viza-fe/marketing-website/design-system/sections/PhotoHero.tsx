@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import Image from "next/image";
 import Button from "../ui/Button";
 import { delay } from "../motion/delay";
+import "../hero-fixes.css";
 
 type Cta = { label: string; href: string };
 

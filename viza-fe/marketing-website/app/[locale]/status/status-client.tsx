@@ -1,7 +1,5 @@
 "use client";
 
-import { Link } from "@/navigation";
-
 import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import type {
@@ -188,15 +186,10 @@ export default function StatusClient({ initialSnapshot, locale }: StatusClientPr
     <>
       <section className="hero" data-screen-label="Hero">
         <div className="hero-inner">
-          <div className="crumb">
-            <Link href="/">{t("crumbHome")}</Link>
-            <span className="arr">›</span>
-            <span className="here">{t("crumbHere")}</span>
-          </div>
           <div className="hero-grid">
             <div>
-              <h1>{t.rich("hero.title", { em: (chunks) => <em>{chunks}</em>, br: () => <br /> })}</h1>
-              <p className="lead">{t("hero.lead")}</p>
+              <h1 className="ds-hero-title">{t("hero.title")}</h1>
+              <p className="lead ds-body">{t("hero.lead")}</p>
             </div>
             <div className={`console console-${uiStatus(overallStatus)}`}>
               <div className="console-head">
