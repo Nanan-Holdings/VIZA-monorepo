@@ -13,7 +13,7 @@ import { switzer, geist } from "./fonts";
 import MotionScript from "@/design-system/motion/MotionScript";
 import Reveal from "@/design-system/motion/Reveal";
 import { PostHogAnalytics } from "@/components/PostHogAnalytics";
-import { LOCALE_HTML_LANG, isLocale, localeDir } from "@/lib/locales";
+import { ENABLED_LOCALES, LOCALE_HTML_LANG, isLocale, localeDir } from "@/lib/locales";
 import { ADDRESS, SAME_AS } from "@/lib/seo/site";
 
 const gtmId = process.env.NEXT_PUBLIC_GTM_ID?.trim();
@@ -88,7 +88,7 @@ const websiteJsonLd = {
   "@id": `${siteUrl}/#website`,
   name: "VIZA",
   url: siteUrl,
-  inLanguage: ["en", "zh-CN"],
+  inLanguage: ENABLED_LOCALES.map((l) => LOCALE_HTML_LANG[l]),
   publisher: { "@id": `${siteUrl}/#organization` },
 };
 

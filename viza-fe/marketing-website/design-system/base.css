@@ -331,3 +331,18 @@ select.ds-input {
   white-space: nowrap;
   border: 0;
 }
+
+/* Per-language CJK fallback. The default stack is Simplified Chinese first, which draws Japanese, Korean and
+   Traditional Chinese text with the wrong regional glyph forms. Latin still uses Inter Display and Switzer. */
+html:lang(ja) { --ds-font-cjk: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", Meiryo, sans-serif; }
+html:lang(ko) { --ds-font-cjk: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif; }
+html:lang(zh-TW) { --ds-font-cjk: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif; }
+html:lang(ja), html:lang(ko), html:lang(zh-TW) {
+  --font-cn: var(--ds-font-cjk);
+  --ds-font-display: var(--font-switzer, "Switzer"), "Switzer", var(--ds-font-cjk), system-ui, sans-serif;
+  --ds-font-body: "Inter Display", var(--ds-font-cjk), system-ui, -apple-system, sans-serif;
+  --font-heading: var(--font-switzer), var(--ds-font-cjk), system-ui, -apple-system, sans-serif;
+  --font-sans: "Inter Display", var(--font-geist-sans), var(--ds-font-cjk), system-ui, -apple-system, sans-serif;
+}
+/* CJK has no word spaces, so long strings may break between characters. */
+html:lang(ja) body, html:lang(zh-TW) body, html:lang(ko) body { word-break: normal; overflow-wrap: anywhere; line-break: strict; }

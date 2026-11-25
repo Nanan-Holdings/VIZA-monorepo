@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import type { PostHogInterface } from "posthog-js";
 import { MARKETING_EVENTS } from "@/lib/analytics";
+import { ALL_LOCALES } from "@/lib/locales";
 
 /*
  * PostHog: product analytics, session replay and exception capture.
@@ -45,7 +46,8 @@ const PRODUCTION_HOSTS = new Set(["viza.it.com", "www.viza.it.com"]);
    recorded. /apply shows passport scans and the identity details read from
    them; /contact collects name, email, phone and passport nationality. */
 const REPLAY_EXCLUDED_PREFIXES = ["/apply", "/contact"];
-const LOCALE_PREFIX = /^\/(?:en|zh-CN)(?=\/|$)/;
+/* Every locale code, not only the enabled ones, so a language added later is excluded from day one. */
+const LOCALE_PREFIX = new RegExp(`^/(?:${ALL_LOCALES.join("|")})(?=/|$)`);
 
 export function isReplayExcludedPath(pathname: string): boolean {
   const path = pathname.replace(LOCALE_PREFIX, "") || "/";
