@@ -19,6 +19,8 @@ import CtaBand from "@/design-system/sections/CtaBand";
 import Button from "@/design-system/ui/Button";
 import { Check, Languages, Tag } from "@/design-system/ui/Icons";
 import { HOME_FAQ, TYPE_IMAGES, guideImage, homeTiers } from "@/lib/site-content";
+import { buildLocalePath } from "@/lib/locales";
+import { SITE_URL } from "@/lib/seo/site";
 
 // `pages.home.title` / `pages.home.description` are the metadata; the visible H1 is `heroTitle`.
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
@@ -54,8 +56,31 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
 
   const tiers = homeTiers(t);
 
+  // The pricing table as an Offer per plan, so agents and search engines can read that both are free.
+  const pricingUrl = `${SITE_URL}${buildLocalePath(locale, "/")}#pricing`;
+  const pricingJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    name: tAll("pages.home.title").replace(/\s*\|\s*VIZA.*$/, ""),
+    serviceType: "Visa application service",
+    provider: { "@id": `${SITE_URL}/#organization` },
+    areaServed: { "@type": "Country", name: "Singapore" },
+    url: pricingUrl,
+    description: t("tiers.lede"),
+    offers: (["guided", "full"] as const).map((k) => ({
+      "@type": "Offer",
+      name: t(`tiers.${k}`),
+      price: "0",
+      priceCurrency: "SGD",
+      availability: "https://schema.org/InStock",
+      url: pricingUrl,
+      description: `${t(`tiers.rows.form.${k}`)}. ${t(`tiers.rows.bestFor.${k}`)}.`,
+    })),
+  };
+
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(pricingJsonLd) }} />
       <SiteHeader active="destinations" />
       <main className="ds-main">
         <PhotoHero
