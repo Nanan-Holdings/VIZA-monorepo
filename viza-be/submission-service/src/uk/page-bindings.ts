@@ -50,6 +50,27 @@ async function pickYn(
   return label;
 }
 
+async function selectUkCurrency(page: Page, currency: string | undefined): Promise<void> {
+  const normalized = currency?.trim().toUpperCase();
+  if (!normalized) throw new Error("UK spending currency is required before saving the official page");
+
+  const control = page.locator("#value_currencyRef").first();
+  if ((await control.count()) === 0) {
+    throw new Error("UK spending currency control was not found on the official page");
+  }
+  if (await control.isVisible().catch(() => false)) {
+    await ukSelectOption(page, "value_currencyRef", normalized);
+    return;
+  }
+
+  const type = await control.getAttribute("type");
+  if (type === "hidden" && normalized === "GBP") return;
+  if (type === "hidden") {
+    throw new Error("UKVI requires spending amounts in GBP; convert the amount before continuing");
+  }
+  throw new Error("UK spending currency control is hidden and cannot confirm GBP");
+}
+
 /**
  * Shared filler for gov.uk's "parentDetails" template — used by both
  * parentOneDetails (Mother) and parentTwoDetails (Father). Confirmed live
@@ -440,18 +461,14 @@ export const UK_PAGE_FILLERS: Record<string, UkPageFiller> = {
 
   // value.currencyRef + value.amount.
   plannedSpendOnVisitToUK: async (page, a) => {
-    if (a["planned_spend_currency"]) {
-      await ukSelectOption(page, "value_currencyRef", a["planned_spend_currency"]);
-    }
+    await selectUkCurrency(page, a["planned_spend_currency"]);
     if (a["planned_spend_amount"] ?? a["planned_spend_gbp"]) {
       await ukFillText(page, "value_amount", a["planned_spend_amount"] ?? a["planned_spend_gbp"]);
     }
   },
 
   monthlyOutgoings: async (page, a) => {
-    if (a["monthly_outgoings_currency"]) {
-      await ukSelectOption(page, "value_currencyRef", a["monthly_outgoings_currency"]);
-    }
+    await selectUkCurrency(page, a["monthly_outgoings_currency"]);
     if (a["monthly_outgoings_amount"] ?? a["monthly_outgoings_gbp"]) {
       await ukFillText(page, "value_amount", a["monthly_outgoings_amount"] ?? a["monthly_outgoings_gbp"]);
     }

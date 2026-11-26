@@ -101,6 +101,9 @@ official validator rejected an empty month value. Keep the timestamped
 Supabase mirror byte-identical.
 `0226_uk_ads_agreement.sql` adds the China-nationality ADS tour-operator
 question observed on UKVI. Keep its timestamped Supabase mirror byte-identical.
+`0227_uk_spending_currency_gbp.sql` aligns planned-spend and monthly-outgoings
+fields with UKVI's live GBP-only amount inputs. Keep its timestamped Supabase
+mirror byte-identical.
 
 ## Key Responsibilities
 

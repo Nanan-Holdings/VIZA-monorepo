@@ -325,8 +325,8 @@ const UK_FIELD_NAME_ZH: Record<string, string> = {
   immigration_status_visa_expiry: "签证到期日期",
   immigration_status_pr_year: "您成为永久居民的年份",
   immigration_status_other_details: "请说明您的移民身份情况",
-  planned_spend_currency: "计划花费——币种",
-  planned_spend_amount: "您计划在此次访问中花费多少？",
+  planned_spend_currency: "计划花费币种（GBP）",
+  planned_spend_amount: "您计划在此次访问中花费多少（英镑）？",
   someone_paying_for_visit: "是否有人为您此次访问的费用付费？",
   spoken_language_preference: "如需讨论您的申请，您希望使用哪种语言？",
   spoken_language_other_details: "请注明语言",
@@ -345,8 +345,8 @@ const UK_FIELD_NAME_ZH: Record<string, string> = {
   monthly_earnings_amount: "月收入（税后）",
   job_description: "请描述您的工作",
   has_other_income_or_savings: "您是否有其他收入或储蓄？",
-  monthly_outgoings_currency: "每月支出——币种",
-  monthly_outgoings_amount: "您每月支出的总金额",
+  monthly_outgoings_currency: "每月支出币种（GBP）",
+  monthly_outgoings_amount: "您每月支出的总金额（英镑）",
 };
 
 // Taiwan Online Entry Permit (TW_ENTRY_PERMIT) — complete field_name → Chinese
@@ -959,7 +959,7 @@ const FIELD_NAME_ZH_OVERRIDES: Record<string, string> = {
   has_other_income_or_savings: "是否有其他收入或储蓄？",
   has_savings: "是否有储蓄？",
   savings_amount: "储蓄总额（以当地货币填写）",
-  planned_spend_currency: "计划花费币种",
+  planned_spend_currency: "计划花费币种（GBP）",
   funds_currency: "资金币种",
   stream: "申请人选择的澳大利亚访客签证类别",
   applying_outside_australia: "申请人当前是否在澳大利亚境外？",

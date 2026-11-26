@@ -377,6 +377,56 @@ test("UKVI ADS page selects the boolean value for an explicit No", async () => {
   assert.deepEqual([...page.checked], ["yesNo_false"]);
 });
 
+class FakeSpendControl {
+  public value = "";
+  public constructor(private readonly id: string, private readonly kind: "hidden" | "select" | "number") {}
+  public async count(): Promise<number> { return 1; }
+  public first(): FakeSpendControl { return this; }
+  public async isVisible(): Promise<boolean> { return this.kind !== "hidden"; }
+  public async getAttribute(name: string): Promise<string | null> {
+    return name === "type" ? this.kind === "select" ? null : this.kind : null;
+  }
+  public async inputValue(): Promise<string> { return this.value; }
+  public async fill(value: string): Promise<void> { this.value = value; }
+  public async press(): Promise<void> {}
+  public async selectOption(option: unknown): Promise<string[]> {
+    this.value = typeof option === "string" ? option : "GBP";
+    return [this.value];
+  }
+}
+
+class FakeSpendPage {
+  public readonly currency = new FakeSpendControl("value_currencyRef", "hidden");
+  public readonly amount = new FakeSpendControl("value_amount", "number");
+  public locator(selector: string): FakeSpendControl {
+    return selector === "#value_currencyRef" ? this.currency : this.amount;
+  }
+}
+
+const asSpendPage = (page: FakeSpendPage): Page => page as unknown as Page;
+
+test("UKVI GBP spending pages accept the fixed GBP currency when its input is hidden", async () => {
+  const page = new FakeSpendPage();
+  await UK_PAGE_FILLERS.plannedSpendOnVisitToUK!(asSpendPage(page), {
+    planned_spend_currency: "GBP",
+    planned_spend_amount: "500",
+  });
+  assert.equal(page.currency.value, "");
+  assert.equal(page.amount.value, "500");
+});
+
+test("UKVI spending pages reject non-GBP currencies when the currency input is hidden", async () => {
+  const page = new FakeSpendPage();
+  await assert.rejects(
+    UK_PAGE_FILLERS.monthlyOutgoings!(asSpendPage(page), {
+      monthly_outgoings_currency: "CNY",
+      monthly_outgoings_amount: "1000",
+    }),
+    /requires spending amounts in GBP/,
+  );
+  assert.equal(page.amount.value, "");
+});
+
 test("UKVI home page requires months and ownership before saving", async () => {
   await assert.rejects(
     UK_PAGE_FILLERS.standardAboutYourHomeOoC!(asHomePage(new FakeHomePage()), {

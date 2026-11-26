@@ -418,8 +418,8 @@ const FIELDS: FieldDef[] = [
   { field_name: "immigration_status_other_details", label: "Tell us about your immigration situation", field_type: "textarea", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 28, conditional_logic: { showIf: "immigration_status_in_residence_country === other" }, validation_rules: { maxLength: 1000 } },
 
   // ─── Step 7: spend + sponsorship + language (uk_arrival_date / uk_departure_date already seeded above) ─
-  { field_name: "planned_spend_currency", label: "Planned spend — currency", field_type: "select", required: true, step_number: 7, step_name: "Your Trip to the UK", display_order: 100, options: [{ value: "GBP", text: "GBP" }, { value: "USD", text: "USD" }, { value: "EUR", text: "EUR" }, { value: "CNY", text: "CNY" }] },
-  { field_name: "planned_spend_amount", label: "How much do you plan to spend on this visit?", field_type: "text", required: true, step_number: 7, step_name: "Your Trip to the UK", display_order: 101, validation_rules: { pattern: "^[0-9]+(\\.[0-9]{1,2})?$" } },
+  { field_name: "planned_spend_currency", label: "Planned spend currency (GBP)", field_type: "select", required: true, step_number: 7, step_name: "Your Trip to the UK", display_order: 100, options: [{ value: "GBP", text: "GBP", label_en: "GBP", label_zh: "英镑（GBP）", official_label: "Pounds Sterling (GBP)" }] },
+  { field_name: "planned_spend_amount", label: "How much do you plan to spend on this visit (in GBP)?", field_type: "text", required: true, step_number: 7, step_name: "Your Trip to the UK", display_order: 101, validation_rules: { pattern: "^[0-9]+(\\.[0-9]{1,2})?$", label_zh: "您计划在此次访问中花费多少（英镑）？", official_label_en: "Provide the amount in Pounds Sterling (GBP).", official_page: "plannedSpendOnVisitToUK" } },
   { field_name: "someone_paying_for_visit", label: "Will anyone be paying towards the cost of your visit?", field_type: "radio", required: true, step_number: 7, step_name: "Your Trip to the UK", display_order: 31, options: YES_NO },
   { field_name: "spoken_language_preference", label: "Which language would you prefer if we need to discuss your application?", field_type: "radio", required: true, step_number: 7, step_name: "Your Trip to the UK", display_order: 40, options: [{ value: "english", text: "English" }, { value: "other", text: "Other" }] },
   { field_name: "spoken_language_other_details", label: "Specify the language", field_type: "text", required: true, step_number: 7, step_name: "Your Trip to the UK", display_order: 41, conditional_logic: { showIf: "spoken_language_preference === other" }, validation_rules: { maxLength: 60 } },
@@ -445,8 +445,8 @@ const FIELDS: FieldDef[] = [
 
   // ─── Step 10: Income / outgoings split ───────────────────────────────
   { field_name: "has_other_income_or_savings", label: "Do you have any other income or savings?", field_type: "radio", required: true, step_number: 10, step_name: "Your Finances", display_order: 0, options: YES_NO },
-  { field_name: "monthly_outgoings_currency", label: "Monthly outgoings — currency", field_type: "select", required: true, step_number: 10, step_name: "Your Finances", display_order: 100, options: [{ value: "GBP", text: "GBP" }, { value: "USD", text: "USD" }, { value: "EUR", text: "EUR" }, { value: "CNY", text: "CNY" }] },
-  { field_name: "monthly_outgoings_amount", label: "Total amount you spend each month", field_type: "text", required: true, step_number: 10, step_name: "Your Finances", display_order: 101, validation_rules: { pattern: "^[0-9]+(\\.[0-9]{1,2})?$" } },
+  { field_name: "monthly_outgoings_currency", label: "Monthly outgoings currency (GBP)", field_type: "select", required: true, step_number: 10, step_name: "Your Finances", display_order: 100, options: [{ value: "GBP", text: "GBP", label_en: "GBP", label_zh: "英镑（GBP）", official_label: "Pounds Sterling (GBP)" }] },
+  { field_name: "monthly_outgoings_amount", label: "Total amount you spend each month (in GBP)", field_type: "text", required: true, step_number: 10, step_name: "Your Finances", display_order: 101, validation_rules: { pattern: "^[0-9]+(\\.[0-9]{1,2})?$", label_zh: "您每月支出的总金额（英镑）", official_label_en: "Provide the amount in Pounds Sterling (GBP).", official_page: "monthlyOutgoings" } },
 ];
 
 // ─── Seed Runner ────────────────────────────────────────────────────────────

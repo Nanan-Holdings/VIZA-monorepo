@@ -315,6 +315,11 @@
       "drizzle": "viza-be/agent-backend/drizzle/0226_uk_ads_agreement.sql",
       "supabase": "viza-fe/internal-website/supabase/migrations/20261126100000_uk_ads_agreement.sql",
       "sha256": "a85255e73cebd46dd92024eccf6615de77825a4fe0fdc17376a3550091dcaaf2"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0227_uk_spending_currency_gbp.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20261126170000_uk_spending_currency_gbp.sql",
+      "sha256": "df55eed878b1cc5ea38ce40339d6d2877c2606609f260cf5cf1bf5cc66cdc256"
     }
   ],
   "no_mirror": [
