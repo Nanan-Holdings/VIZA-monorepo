@@ -78,11 +78,25 @@
 .ds-hero-photo img {
   object-fit: cover;
 }
+.ds-hero-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ds-hero-video {
+    display: none;
+  }
+}
 .ds-hero-photo::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: var(--ds-overlay);
+  /* The flat shade plus a soft darkening behind the headline, so white copy stays readable over bright
+     frames of the hero film (white beach, sky). */
+  background: var(--ds-overlay-hero), var(--ds-overlay);
 }
 .ds-hero-content {
   /* Framer: copy starts 188px down and 71px in from the frame edge. */
