@@ -91,6 +91,11 @@ Free guides to the government arrival forms travellers fill in before landing:
 
 The site is available in 48 languages. English pages have no prefix; other languages sit under a prefix such as `/zh-CN/`, `/ja/` or `/id/`.
 
+## Use of this content
+
+You may read, summarise and quote these pages to answer someone's question, with a link to the page.
+Bulk copying, mirroring, scraping or republishing VIZA's guides, fees or translations is not permitted.
+
 ## Reference
 
 - Address: 60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapore.
