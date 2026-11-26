@@ -25,9 +25,14 @@ import {
   selectPrimeFacesRadio,
   setJsfCheckbox,
   setJsfCheckboxGroup,
-  setJsfTextInput,
+  setJsfTextInputs,
   waitForJsfIdle,
 } from "./primefaces-ajax";
+
+/** Optional answer: skip the field when the answer is empty. */
+function optional(value: string | null | undefined): string | undefined {
+  return value ? value : undefined;
+}
 import { resolveOptionFromPage } from "./option-match";
 import type {
   FvStep1Answers,
@@ -91,9 +96,11 @@ export async function fillStep1(page: Page, answers: FvStep1Answers): Promise<vo
   await reapplyClearedSelects(page, targets);
 
   // Text fields last — every select postback upstream clears these.
-  await setJsfTextInput(page, "formStep1:Visas-dde-travel-document-number", a.travelDocumentNumber);
-  await setJsfTextInput(page, "formStep1:Visas-dde-release_date_real_input", a.releaseDate);
-  await setJsfTextInput(page, "formStep1:Visas-dde-expiration_date_input", a.expirationDate);
+  await setJsfTextInputs(page, [
+    ["formStep1:Visas-dde-travel-document-number", a.travelDocumentNumber],
+    ["formStep1:Visas-dde-release_date_real_input", a.releaseDate],
+    ["formStep1:Visas-dde-expiration_date_input", a.expirationDate],
+  ]);
 }
 
 /**
@@ -106,17 +113,19 @@ async function reapplyClearedSelects(
   page: Page,
   targets: ReadonlyArray<{ widget: string; name: string; value: string }>,
 ): Promise<void> {
+  const safeNames = JSON.stringify(targets.map((t) => t.name)).replace(/</g, "\\u003c");
   for (let pass = 0; pass < 3; pass += 1) {
-    let anyReapplied = false;
-    for (const t of targets) {
-      const safeName = JSON.stringify(t.name).replace(/</g, "\\u003c");
-      const current = await page.evaluate(`(() => {
-        const name = ${safeName};
+    // Read every select in one round trip; re-fire only the ones that drifted.
+    const currentValues = await page.evaluate(`(() => {
+      return ${safeNames}.map((name) => {
         const escaped = name.replace(/"/g, '\\"');
         const sel = document.querySelector('select[name="' + escaped + '"]');
         return sel ? sel.value : null;
-      })()`);
-      if (current === t.value) continue;
+      });
+    })()`) as Array<string | null>;
+    let anyReapplied = false;
+    for (const [index, t] of targets.entries()) {
+      if (currentValues[index] === t.value) continue;
       await selectPrimeFacesOption(page, t.widget, t.value);
       anyReapplied = true;
     }
@@ -169,39 +178,31 @@ export async function fillStep2(page: Page, a: FvStep2Answers): Promise<void> {
   await waitForJsfIdle(page);
 
   // Text fields last — ordered by appearance on the page.
-  await setJsfTextInput(page, "formStep2:visas-input-applicant-surname", a.surname);
-  if (a.surnameAtBirth) {
-    await setJsfTextInput(page, "formStep2:visas-input-applicant-surnameAtBirth", a.surnameAtBirth);
-  }
-  await setJsfTextInput(page, "formStep2:visas-input-applicant-firstnames", a.firstnames);
-  await setJsfTextInput(page, "formStep2:visas-input-applicant-dayOfBirth", a.dayOfBirth);
-  await setJsfTextInput(page, "formStep2:visas-input-applicant-monthOfBirth", a.monthOfBirth);
-  await setJsfTextInput(page, "formStep2:visas-input-applicant-yearOfBirth", a.yearOfBirth);
-  await setJsfTextInput(page, "formStep2:visas-input-applicant-placeOfBirth", a.placeOfBirth);
-  if (a.idCardNumber) {
-    await setJsfTextInput(page, "formStep2:visas-input-idcardNumber", a.idCardNumber);
-  }
-  await setJsfTextInput(page, "formStep2:visas-input-applicant-street", a.street);
-  if (a.zipcode) {
-    await setJsfTextInput(page, "formStep2:visas-input-applicant-zipcode", a.zipcode);
-  }
-  await setJsfTextInput(page, "formStep2:visas-input-applicant-place", a.place);
-  await setJsfTextInput(page, "formStep2:visas-input-applicant-phoneNumber", a.phoneNumber);
-  await setJsfTextInput(page, "formStep2:visas-input-applicant-email", a.email);
+  await setJsfTextInputs(page, [
+    ["formStep2:visas-input-applicant-surname", a.surname],
+    ["formStep2:visas-input-applicant-surnameAtBirth", optional(a.surnameAtBirth)],
+    ["formStep2:visas-input-applicant-firstnames", a.firstnames],
+    ["formStep2:visas-input-applicant-dayOfBirth", a.dayOfBirth],
+    ["formStep2:visas-input-applicant-monthOfBirth", a.monthOfBirth],
+    ["formStep2:visas-input-applicant-yearOfBirth", a.yearOfBirth],
+    ["formStep2:visas-input-applicant-placeOfBirth", a.placeOfBirth],
+    ["formStep2:visas-input-idcardNumber", optional(a.idCardNumber)],
+    ["formStep2:visas-input-applicant-street", a.street],
+    ["formStep2:visas-input-applicant-zipcode", optional(a.zipcode)],
+    ["formStep2:visas-input-applicant-place", a.place],
+    ["formStep2:visas-input-applicant-phoneNumber", a.phoneNumber],
+    ["formStep2:visas-input-applicant-email", a.email],
+  ]);
 
   if (hasEmployerData) {
-    if (a.occupationOtherSpecify) {
-      await setJsfTextInput(
-        page,
-        "formStep2:visas-input-applicant-activity-otherOccupation",
-        a.occupationOtherSpecify,
-      );
-    }
-    if (a.employerName) await setJsfTextInput(page, "formStep2:visas-input-applicant-employer-name", a.employerName);
-    if (a.employerStreet) await setJsfTextInput(page, "formStep2:visas-input-applicant-employer-street", a.employerStreet);
-    if (a.employerPlace) await setJsfTextInput(page, "formStep2:visas-input-applicant-employer-place", a.employerPlace);
-    if (a.employerPhone) await setJsfTextInput(page, "formStep2:visas-input-phoneNumber-employer", a.employerPhone);
-    if (a.employerEmail) await setJsfTextInput(page, "formStep2:visas-input-email-employer", a.employerEmail);
+    await setJsfTextInputs(page, [
+      ["formStep2:visas-input-applicant-activity-otherOccupation", optional(a.occupationOtherSpecify)],
+      ["formStep2:visas-input-applicant-employer-name", optional(a.employerName)],
+      ["formStep2:visas-input-applicant-employer-street", optional(a.employerStreet)],
+      ["formStep2:visas-input-applicant-employer-place", optional(a.employerPlace)],
+      ["formStep2:visas-input-phoneNumber-employer", optional(a.employerPhone)],
+      ["formStep2:visas-input-email-employer", optional(a.employerEmail)],
+    ]);
   }
 }
 
@@ -215,24 +216,20 @@ export async function fillStep3(page: Page, a: FvStep3Answers): Promise<void> {
 
   if (a.haveOldSchengenVisas !== "Yes") return;
 
-  if (a.validVisaStart) {
-    await setJsfTextInput(page, "formStep3:valid-visa-start_input", a.validVisaStart);
-  }
-  if (a.validVisaEnd) {
-    await setJsfTextInput(page, "formStep3:valid-visa-end_input", a.validVisaEnd);
-  }
+  await setJsfTextInputs(page, [
+    ["formStep3:valid-visa-start_input", optional(a.validVisaStart)],
+    ["formStep3:valid-visa-end_input", optional(a.validVisaEnd)],
+  ]);
 
   if (a.hasFingerPrints) {
     await selectPrimeFacesRadio(page, "formStep3:hasFingerPrints", a.hasFingerPrints);
     await waitForJsfIdle(page);
 
     if (a.hasFingerPrints === "Yes") {
-      if (a.dateFingerprints) {
-        await setJsfTextInput(page, "formStep3:date-fingerprints_real_input", a.dateFingerprints);
-      }
-      if (a.numVisaBiometrique) {
-        await setJsfTextInput(page, "formStep3:num-visa-biometrique", a.numVisaBiometrique);
-      }
+      await setJsfTextInputs(page, [
+        ["formStep3:date-fingerprints_real_input", optional(a.dateFingerprints)],
+        ["formStep3:num-visa-biometrique", optional(a.numVisaBiometrique)],
+      ]);
     }
   }
 }
@@ -248,10 +245,12 @@ export async function fillStep4(page: Page, a: FvStep4Answers): Promise<void> {
 
   await waitForJsfIdle(page);
 
-  await setJsfTextInput(page, "formStep4:date-of-arrival_input", a.dateOfArrival);
-  await setJsfTextInput(page, "formStep4:date-of-departure_input", a.dateOfDeparture);
-  await setJsfTextInput(page, "formStep4:visas-dde-number-days-travel", a.numberOfDays);
-  await setJsfTextInput(page, "formStep4:visas-input-applicant-numberOfStays_input", a.numberOfStays);
+  await setJsfTextInputs(page, [
+    ["formStep4:date-of-arrival_input", a.dateOfArrival],
+    ["formStep4:date-of-departure_input", a.dateOfDeparture],
+    ["formStep4:visas-dde-number-days-travel", a.numberOfDays],
+    ["formStep4:visas-input-applicant-numberOfStays_input", a.numberOfStays],
+  ]);
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -274,13 +273,16 @@ export async function fillStep5(page: Page, a: FvStep5Answers): Promise<void> {
       await selectPrimeFacesOption(page, "widget_formStep5_visas_selected_hostPerson_country", a.hostPersonCountry);
     }
     await waitForJsfIdle(page);
-    if (a.hostPersonSurname) await setJsfTextInput(page, "formStep5:visas-input-applicant-hostPerson-surname", a.hostPersonSurname);
-    if (a.hostPersonFirstnames) await setJsfTextInput(page, "formStep5:visas-input-applicant-hostPerson-firstnames", a.hostPersonFirstnames);
-    if (a.hostPersonAddress) await setJsfTextInput(page, "formStep5:visas-input-applicant-hostPerson-address", a.hostPersonAddress);
-    if (a.hostPersonZipcode) await setJsfTextInput(page, "formStep5:visas-input-applicant-hostPerson-zipcode", a.hostPersonZipcode);
-    if (a.hostPersonPlace) await setJsfTextInput(page, "formStep5:visas-input-applicant-hostPerson-place", a.hostPersonPlace);
-    if (a.hostPersonPhone) await setJsfTextInput(page, "formStep5:visas-input-applicant-hostPerson-phoneNumber", a.hostPersonPhone);
-    if (a.hostPersonEmail) await setJsfTextInput(page, "formStep5:visas-input-applicant-hostPerson-email", a.hostPersonEmail);
+    const host = "formStep5:visas-input-applicant-hostPerson";
+    await setJsfTextInputs(page, [
+      [`${host}-surname`, optional(a.hostPersonSurname)],
+      [`${host}-firstnames`, optional(a.hostPersonFirstnames)],
+      [`${host}-address`, optional(a.hostPersonAddress)],
+      [`${host}-zipcode`, optional(a.hostPersonZipcode)],
+      [`${host}-place`, optional(a.hostPersonPlace)],
+      [`${host}-phoneNumber`, optional(a.hostPersonPhone)],
+      [`${host}-email`, optional(a.hostPersonEmail)],
+    ]);
   }
 
   // Host organisation subsection (hotel / rental) and its contact person.
@@ -298,24 +300,21 @@ export async function fillStep5(page: Page, a: FvStep5Answers): Promise<void> {
     }
     await waitForJsfIdle(page);
     const org = "formStep5:visas-input-application-hostOrganization";
-    const texts: Array<[string, string | undefined]> = [
-      [`${org}-orgname`, a.hostOrgName],
-      [`${org}-address-street`, a.hostOrgStreet],
-      [`${org}-address-zipcode`, a.hostOrgZipcode],
-      [`${org}-address-place`, a.hostOrgPlace],
-      [`${org}-address-phoneNumber`, a.hostOrgPhone],
-      [`${org}-address-email`, a.hostOrgEmail],
-      [`${org}-contactSurname`, a.hostOrgContactSurname],
-      [`${org}-contactFirstNames`, a.hostOrgContactFirstnames],
-      [`${org}-addressContact-address`, a.hostOrgContactAddress],
-      [`${org}-addressContact-zipcode`, a.hostOrgContactZipcode],
-      [`${org}-addressContact-place`, a.hostOrgContactPlace],
-      [`${org}-addressContact-phoneNumber`, a.hostOrgContactPhone],
-      [`${org}-addressContact-email`, a.hostOrgContactEmail],
-    ];
-    for (const [name, value] of texts) {
-      if (value) await setJsfTextInput(page, name, value);
-    }
+    await setJsfTextInputs(page, [
+      [`${org}-orgname`, optional(a.hostOrgName)],
+      [`${org}-address-street`, optional(a.hostOrgStreet)],
+      [`${org}-address-zipcode`, optional(a.hostOrgZipcode)],
+      [`${org}-address-place`, optional(a.hostOrgPlace)],
+      [`${org}-address-phoneNumber`, optional(a.hostOrgPhone)],
+      [`${org}-address-email`, optional(a.hostOrgEmail)],
+      [`${org}-contactSurname`, optional(a.hostOrgContactSurname)],
+      [`${org}-contactFirstNames`, optional(a.hostOrgContactFirstnames)],
+      [`${org}-addressContact-address`, optional(a.hostOrgContactAddress)],
+      [`${org}-addressContact-zipcode`, optional(a.hostOrgContactZipcode)],
+      [`${org}-addressContact-place`, optional(a.hostOrgContactPlace)],
+      [`${org}-addressContact-phoneNumber`, optional(a.hostOrgContactPhone)],
+      [`${org}-addressContact-email`, optional(a.hostOrgContactEmail)],
+    ]);
   }
 
   // Auto-funding methods (multi-select checkbox group)
@@ -328,11 +327,14 @@ export async function fillStep5(page: Page, a: FvStep5Answers): Promise<void> {
     await selectPrimeFacesOption(page, "widget_formStep5_visas_input_application_representative_country", a.representativeCountry);
   }
   await waitForJsfIdle(page);
-  if (a.representativeSurname) await setJsfTextInput(page, "formStep5:visas-input-application-representative-surname", a.representativeSurname);
-  if (a.representativeFirstnames) await setJsfTextInput(page, "formStep5:visas-input-application-representative-firstnames", a.representativeFirstnames);
-  if (a.representativeStreet) await setJsfTextInput(page, "formStep5:visas-input-application-representative-street", a.representativeStreet);
-  if (a.representativeZipcode) await setJsfTextInput(page, "formStep5:visas-input-application-representative-zipcode", a.representativeZipcode);
-  if (a.representativePlace) await setJsfTextInput(page, "formStep5:visas-input-application-representative-place", a.representativePlace);
-  if (a.representativePhone) await setJsfTextInput(page, "formStep5:visas-input-application-representative-phoneNumber", a.representativePhone);
-  if (a.representativeEmail) await setJsfTextInput(page, "formStep5:visas-input-application-representative-email", a.representativeEmail);
+  const rep = "formStep5:visas-input-application-representative";
+  await setJsfTextInputs(page, [
+    [`${rep}-surname`, optional(a.representativeSurname)],
+    [`${rep}-firstnames`, optional(a.representativeFirstnames)],
+    [`${rep}-street`, optional(a.representativeStreet)],
+    [`${rep}-zipcode`, optional(a.representativeZipcode)],
+    [`${rep}-place`, optional(a.representativePlace)],
+    [`${rep}-phoneNumber`, optional(a.representativePhone)],
+    [`${rep}-email`, optional(a.representativeEmail)],
+  ]);
 }

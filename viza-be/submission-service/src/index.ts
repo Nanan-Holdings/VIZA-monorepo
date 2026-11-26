@@ -4009,7 +4009,9 @@ async function processFvItem(
               /authentication code|code d'authentification/i.test(row.subject ?? "")
               && extractFranceVisasLoginCode(row.text ?? row.html) !== null,
             180_000,
-            { since: sinceIso, newestFirst: true },
+            // The code usually lands within seconds; poll every second instead
+            // of the default 5 s so sign-in does not sit idle.
+            { since: sinceIso, newestFirst: true, pollIntervalMs: 1_000 },
           );
           const code = extractFranceVisasLoginCode(message.text ?? message.html);
           if (!code) throw new Error("France-Visas access-code email had no 6-digit code");
