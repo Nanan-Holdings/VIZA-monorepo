@@ -137,7 +137,7 @@ function CountryDisplay({ alpha3 }: { alpha3: string }) {
   if (!entry) return <>{alpha3 || "-"}</>;
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-      <CircleFlag countryCode={entry.a2} height={16} />
+      <CircleFlag alt="" countryCode={entry.a2} height={16} />
       {entry.name}
     </span>
   );
@@ -951,7 +951,7 @@ export default function ApplyClient() {
         <aside className="summary">
           <div className="sum-title">{tA("yourApp")}</div>
           <div className="sum-country">
-            <div className="flag"><CircleFlag countryCode={country.flagCode} height={40}/></div>
+            <div className="flag"><CircleFlag alt="" countryCode={country.flagCode} height={40}/></div>
             <div>
               <div className="nm">{countryName}</div>
               <div className="vt">{country.type} · {country.validity}</div>
