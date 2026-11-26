@@ -1905,7 +1905,7 @@
       "side": {
         "freeValue": "Tasuta",
         "freeLabel": "VIZA teenus",
-        "langLabel": "Keeled: inglise ja hiina",
+        "langLabel": "Keeled",
         "note": "Sa tasud ainult riigilõivu.",
         "noteBody": "See läheb otse väljastavale asutusele. VIZA ei lisa omaltpoolt tasu."
       },

@@ -1102,7 +1102,3 @@
 .ds-footer-venture:hover {
   text-decoration-color: var(--ds-accent);
 }
-.ds-footer-legal {
-  flex-wrap: wrap;
-  gap: 8px 24px;
-}
