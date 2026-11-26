@@ -18,7 +18,7 @@ export const DEFAULT_LOCALE: Locale = "en";
 
 /** Locales that ship today (each passes `npm run i18n:check`). Keep in ALL_LOCALES order. */
 export const ENABLED_LOCALES: readonly Locale[] = [
-  "en", "zh-CN", "zh-TW", "ru", "ja", "pt", "es", "ko", "de", "fr", "uk", "id", "it", "nl", "pl", "tr", "vi", "th", "ms", "hi", "sv", "ro", "cs", "ar", "fa", "he", "ur", "el", "hu", "da", "fi", "nb", "bg", "hr", "sr", "sk", "sl", "lt", "lv", "et", "ca", "sq", "fil", "bn", "ta", "te", "mr", "gu", "az",
+  "en", "zh-CN", "zh-TW", "ru", "ja", "pt", "es", "ko", "de", "fr", "uk", "id", "it", "nl", "pl", "tr", "vi", "th", "ms", "hi", "sv", "ro", "cs", "ar", "fa", "he", "ur", "el", "hu", "da", "fi", "nb", "bg", "hr", "sr", "sk", "sl", "lt", "lv", "et", "ca", "sq", "fil", "bn", "ta", "te", "mr", "gu", "kn", "ml", "pa", "ne", "kk", "uz", "az", "ka", "hy", "sw", "am", "ps",
 ];
 
 export function isLocale(value: unknown): value is Locale {
