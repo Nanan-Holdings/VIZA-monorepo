@@ -61,7 +61,13 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         <PhotoHero
           title={tAll("pages.home.heroTitle")}
           lede={tAll("pages.home.heroLede")}
-          image="/assets/heroes/canada.jpg"
+          image="/assets/hero/travel-film-poster.jpg"
+          video={{
+            webm: "/assets/hero/travel-film-1080.webm",
+            mp4: "/assets/hero/travel-film-1080.mp4",
+            mobileMp4: "/assets/hero/travel-film-720.mp4",
+            poster: "/assets/hero/travel-film-poster.jpg",
+          }}
           primary={{ label: tAll("cta.startFreeApplication"), href: "/apply" }}
           secondary={{ label: t("hero.browse"), href: "#destinations" }}
           aside={<HeroPicks label={t("hero.picks")} picks={picks} />}
