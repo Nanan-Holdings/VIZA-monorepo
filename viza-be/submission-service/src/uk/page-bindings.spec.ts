@@ -335,6 +335,9 @@ class FakeHomePage {
   public readonly values = new Map<string, string>();
 
   public locator(selector: string): FakeHomeList | FakeHomeControl {
+    if (selector.includes('input[type="radio"][name="yesNo"]')) {
+      return new FakeHomeControl(this, selector.includes('[value="false"]') ? "yesNo_false" : "yesNo_true");
+    }
     if (selector === 'input[type="radio"][name="ownershipCategory"]') {
       return new FakeHomeList([
         new FakeHomeControl(this, "ownershipCategory_own", "I own it"),
@@ -364,6 +367,14 @@ test("UKVI ADS page stops immediately when the applicant has not answered", asyn
     UK_PAGE_FILLERS.adsAgreement!(asHomePage(new FakeHomePage()), {}),
     /ADS tour operator answer is required/,
   );
+});
+
+test("UKVI ADS page selects the boolean value for an explicit No", async () => {
+  const page = new FakeHomePage();
+  await UK_PAGE_FILLERS.adsAgreement!(asHomePage(page), {
+    ads_tour_operator_employee: "no",
+  });
+  assert.deepEqual([...page.checked], ["yesNo_false"]);
 });
 
 test("UKVI home page requires months and ownership before saving", async () => {

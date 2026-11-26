@@ -25,6 +25,7 @@ import {
   ukFillText,
   ukFillTextarea,
   ukPickCheckboxes,
+  ukPickBooleanRadio,
   ukPickRadio,
   ukPickCorrespondenceAddressSame,
   ukSelectCountry,
@@ -319,7 +320,9 @@ export const UK_PAGE_FILLERS: Record<string, UkPageFiller> = {
   adsAgreement: async (page, a) => {
     const isAdsOperator = a["ads_tour_operator_employee"];
     if (!yn(isAdsOperator)) throw new Error("UK ADS tour operator answer is required before saving the official page");
-    await pickYn(page, "yesNo", isAdsOperator);
+    // The live page failed label matching. Try standard boolean values first,
+    // then fall back to visible text; the helper fails closed if neither matches.
+    await ukPickBooleanRadio(page, "yesNo", isAdsOperator === "yes");
   },
 
   // immigrationStatusTypeRef radio (3-option), date splits expirationDate
