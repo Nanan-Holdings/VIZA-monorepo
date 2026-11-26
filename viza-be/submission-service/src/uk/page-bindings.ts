@@ -483,8 +483,11 @@ export const UK_PAGE_FILLERS: Record<string, UkPageFiller> = {
   spokenLanguagePreference: async (page, a) => {
     const lang = a["preferred_spoken_language_label"] ?? a["preferred_spoken_language"];
     if (!lang) return;
+    if (lang !== "English" && !a["preferred_spoken_language_details"]?.trim()) {
+      throw new Error("UK spoken-language preference requires the specific language when Other is selected");
+    }
     await ukPickRadio(page, "preferredLanguage", lang === "English" ? "English" : "Other");
-    if (lang !== "English" && a["preferred_spoken_language_details"]) {
+    if (lang !== "English") {
       await ukFillText(page, "details", a["preferred_spoken_language_details"]);
     }
   },

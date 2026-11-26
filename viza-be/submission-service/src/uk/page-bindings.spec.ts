@@ -338,6 +338,12 @@ class FakeHomePage {
     if (selector.includes('input[type="radio"][name="yesNo"]')) {
       return new FakeHomeControl(this, selector.includes('[value="false"]') ? "yesNo_false" : "yesNo_true");
     }
+    if (selector === 'input[type="radio"][name="preferredLanguage"]') {
+      return new FakeHomeList([
+        new FakeHomeControl(this, "preferredLanguage_english", "English"),
+        new FakeHomeControl(this, "preferredLanguage_other", "Other"),
+      ]);
+    }
     if (selector === 'input[type="radio"][name="ownershipCategory"]') {
       return new FakeHomeList([
         new FakeHomeControl(this, "ownershipCategory_own", "I own it"),
@@ -351,6 +357,8 @@ class FakeHomePage {
         ownershipCategory_own: "I own it",
         ownershipCategory_rent: "I rent it",
         ownershipCategory_other: "Other",
+        preferredLanguage_english: "English",
+        preferredLanguage_other: "Other",
       };
       return new FakeHomeControl(this, labelMatch[1]!, labels[labelMatch[1]!]);
     }
@@ -425,6 +433,25 @@ test("UKVI spending pages reject non-GBP currencies when the currency input is h
     /requires spending amounts in GBP/,
   );
   assert.equal(page.amount.value, "");
+});
+
+test("UKVI spoken-language page requires the language name when Other is selected", async () => {
+  await assert.rejects(
+    UK_PAGE_FILLERS.spokenLanguagePreference!(asHomePage(new FakeHomePage()), {
+      preferred_spoken_language: "Other",
+    }),
+    /requires the specific language/,
+  );
+});
+
+test("UKVI spoken-language page fills the specified language when Other is selected", async () => {
+  const page = new FakeHomePage();
+  await UK_PAGE_FILLERS.spokenLanguagePreference!(asHomePage(page), {
+    preferred_spoken_language: "Other",
+    preferred_spoken_language_details: "Mandarin Chinese",
+  });
+  assert.equal(page.values.get("details"), "Mandarin Chinese");
+  assert.deepEqual([...page.checked], ["preferredLanguage_other"]);
 });
 
 test("UKVI home page requires months and ownership before saving", async () => {
