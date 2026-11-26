@@ -1563,6 +1563,27 @@
           { "id": "post_uk_home_ads_form_fields", "kind": "relation_exists", "identity": "public.visa_form_fields" }
         ]
       }
+    },
+    {
+      "batch_id": "uk-spending-currency-gbp-v1",
+      "source_ref": "6217cb2e91e661539ab49c03dbe65bd10b3f9a1f",
+      "mode": "transactional",
+      "migrations": [
+        { "version": "20261126170000", "name": "uk_spending_currency_gbp", "path": "viza-fe/internal-website/supabase/migrations/20261126170000_uk_spending_currency_gbp.sql", "sha256": "df55eed878b1cc5ea38ce40339d6d2877c2606609f260cf5cf1bf5cc66cdc256" }
+      ],
+      "preconditions": {
+        "absent_migration_versions": ["20261126170000"],
+        "catalog_assertions": [
+          { "id": "pre_uk_spending_form_fields", "kind": "relation_exists", "identity": "public.visa_form_fields" }
+        ]
+      },
+      "postconditions": {
+        "required_migration_versions": ["20261126170000"],
+        "catalog_assertions": [
+          { "id": "uk_spending_currency_migration_record", "kind": "migration_record", "version": "20261126170000", "name": "uk_spending_currency_gbp", "sha256": "df55eed878b1cc5ea38ce40339d6d2877c2606609f260cf5cf1bf5cc66cdc256" },
+          { "id": "post_uk_spending_form_fields", "kind": "relation_exists", "identity": "public.visa_form_fields" }
+        ]
+      }
     }
   ]
 }
