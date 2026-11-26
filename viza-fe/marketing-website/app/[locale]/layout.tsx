@@ -65,6 +65,7 @@ const organizationJsonLd = {
   "@type": ["Organization", "TravelAgency"],
   "@id": `${siteUrl}/#organization`,
   name: "VIZA",
+  alternateName: ["VIZA AI", "viza.it.com"],
   legalName: "Kelin Studio Pte. Ltd.",
   parentOrganization: { "@type": "Organization", name: "Kelin Studio", url: "https://kelin.studio" },
   url: siteUrl,
