@@ -19,7 +19,9 @@ kill_timeout = "5m"
   # DS-160 runs on its own US East worker (fly.ds160.toml) next to the CEAC
   # browser. Needs claim RPC migration 0212; without it the denylist is not sent
   # successfully, so apply 0212 before deploying this.
-  SUBMISSION_SERVICE_PROVIDER_DENYLIST = "ceac_live,ceac_proof,ceac_dry_run"
+  # France-Visas likewise runs on its own Frankfurt worker (fly.france.toml)
+  # next to its eu-central-1 browser. France TLS appointment work stays here.
+  SUBMISSION_SERVICE_PROVIDER_DENYLIST = "ceac_live,ceac_proof,ceac_dry_run,france_visas_live,france_visas_dry_run"
   # Applicant-authorized DS-160 jobs are claimed by this legacy worker.
   # Preserve the review and durable final-submit guards when recovering drafts.
   DS160_SUBMISSION_MODE = "live_assisted"
@@ -73,9 +75,9 @@ kill_timeout = "5m"
   FRANCE_TLS_ACCOUNT_REGISTRATION_ENABLED = "false"
   FRANCE_TLS_LOCAL_OFFICIAL_SESSION_ENABLED = "false"
   FRANCE_TLS_LIVE_BOOKING_ENABLED = "false"
-  # France-Visas live prefill (no payment, no appointment). Applicants link the
-  # France-Visas login they registered themselves; automatic registration and
-  # CAPTCHA solving stay off. Fly has no display, so the browser is headless.
+  # France-Visas live prefill normally runs on the Frankfurt worker
+  # (fly.france.toml; denylisted above). These settings mirror it so dropping
+  # the denylist entries is enough to fall back to this worker.
   FRANCE_SUBMISSION_MODE = "live_assisted"
   FRANCE_LIVE_SUBMISSION_ENABLED = "true"
   FRANCE_PLAYWRIGHT_HEADLESS = "true"

@@ -73,6 +73,13 @@ its proxy route returned an explicit official block on 2026-09-29. Do not
 silently re-enable the proxy during deployment. Do not release frontend retry UI
 without updating this worker image and verifying these runtime flags.
 
+France-Visas jobs (`france_visas_live`, `france_visas_dry_run`) run on the
+dedicated Frankfurt worker `viza-prod-submission-france` (`deploy/fly/fly.france.toml`,
+`scripts/fly/deploy-france.sh`) next to the eu-central-1 France-Visas Browserbase
+browser; the Singapore legacy worker denylists those providers. Deploy the
+France worker before legacy so France jobs are never left unclaimed. France TLS
+appointment work stays on legacy.
+
 Scope: this file applies to `viza-be/submission-service/**`.
 
 Automatic DS-160 confirmation-email intents are retired. New successful

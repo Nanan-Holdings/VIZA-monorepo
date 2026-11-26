@@ -1,0 +1,72 @@
+# Dedicated France-Visas worker. It runs in Frankfurt next to the France-Visas
+# Browserbase browser (eu-central-1, French proxy): every field fill is several
+# worker<->browser round trips, so co-locating them cuts most of a run's
+# latency (Singapore -> Frankfurt is ~160 ms per round trip). It claims only
+# France-Visas providers; the Singapore legacy worker denylists the same ones.
+# France TLS appointment work stays on the legacy worker.
+app = "viza-prod-submission-france"
+primary_region = "fra"
+kill_signal = "SIGINT"
+kill_timeout = "5m"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "8080"
+  # Shares the global runner_machine_slot capacity with the legacy worker.
+  RUNNER_MACHINE_KIND = "legacy"
+  SUBMISSION_SERVICE_LEGACY_QUEUE_ENABLED = "true"
+  SUBMISSION_SERVICE_RUNNER_JOB_CONSUMER_ENABLED = "false"
+  SUBMISSION_SERVICE_PROVIDER_ALLOWLIST = "france_visas_live,france_visas_dry_run"
+  SUBMISSION_SERVICE_IDLE_EXIT_MS = "120000"
+  # Everything else stays on the legacy worker in Singapore.
+  VN_CLOUD_QUEUE_ENABLED = "false"
+  SUBMISSION_SERVICE_INDONESIA_QUEUE_ENABLED = "false"
+  SUBMISSION_SERVICE_LEGACY_US_APPOINTMENT_POLL_ENABLED = "false"
+  SUBMISSION_SERVICE_VN_STATUS_CHECKS_ENABLED = "false"
+  # France-Visas live prefill (no payment, no appointment). One new
+  # France-Visas account per application on its inbox alias; the registration
+  # CAPTCHA is solved by 2Captcha. Fly has no display, so the browser is headless.
+  FRANCE_SUBMISSION_MODE = "live_assisted"
+  FRANCE_LIVE_SUBMISSION_ENABLED = "true"
+  FRANCE_PLAYWRIGHT_HEADLESS = "true"
+  FRANCE_ACCOUNT_REGISTRATION_ENABLED = "true"
+  FRANCE_REGISTRATION_2CAPTCHA_ENABLED = "true"
+  # France-Visas returns a blank page to a Browserbase session without a
+  # French proxy. Frankfurt session behind a French proxy, kept alive for the
+  # whole run limit.
+  FRANCE_VISAS_BROWSERBASE_ENABLED = "true"
+  FRANCE_VISAS_BROWSERBASE_PROXIES = "true"
+  FRANCE_VISAS_BROWSERBASE_VERIFIED = "false"
+  FRANCE_VISAS_BROWSERBASE_REGION = "eu-central-1"
+  FRANCE_VISAS_BROWSERBASE_COUNTRY = "FR"
+  FRANCE_VISAS_BROWSERBASE_TIMEOUT_SECONDS = "1800"
+  # France TLS appointment work is not handled here.
+  FRANCE_TLS_ACCOUNT_REGISTRATION_ENABLED = "false"
+  FRANCE_TLS_LOCAL_OFFICIAL_SESSION_ENABLED = "false"
+  FRANCE_TLS_LIVE_BOOKING_ENABLED = "false"
+  BROWSERBASE_MAX_CONCURRENCY = "1"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "off"
+  # Fly proxy starts a stopped Machine on any request (enqueue wake, /health
+  # probe), so queued work is picked up even if the Machines API wake fails.
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    grace_period = "30s"
+    interval = "15s"
+    method = "GET"
+    timeout = "5s"
+    path = "/health"
+
+[[restart]]
+  policy = "on-failure"
+  retries = 10
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 2
+  memory_mb = 4096

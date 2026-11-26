@@ -112,6 +112,12 @@ UKVI application to test machine startup.
   `shared-cpu-1x` with 2 GB RAM, one retained Machine and concurrency one.
   There is no persistent volume. The retained legacy worker uses two shared
   CPUs and 4 GB RAM when started.
+- France-Visas runs on `viza-prod-submission-france` in Fly `fra`, next to its
+  eu-central-1 Browserbase browser (every Playwright call is a worker-browser
+  round trip, ~160 ms from Singapore). It uses the legacy image, takes a
+  legacy-kind machine slot and claims only `france_visas_*` providers, which
+  the Singapore legacy worker denylists. The deploy workflow runs it before
+  legacy. DS-160 follows the same pattern in `iad`.
 - Before Indonesia card submission, the worker records cgroup peak usage when
   available and blocks card submission at the configured 1.7 GB safety water
   line. Keep the 2 GB size when the payment smoke remains below that line

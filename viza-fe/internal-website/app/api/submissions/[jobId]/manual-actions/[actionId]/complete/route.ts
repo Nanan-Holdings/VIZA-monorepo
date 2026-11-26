@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { wakeCloudSubmissionWorker } from "@/lib/submission-worker-wake.server";
+import {
+  wakeCloudSubmissionWorker,
+  wakeDs160SubmissionWorker,
+  wakeFranceSubmissionWorker,
+} from "@/lib/submission-worker-wake.server";
 import { isRunnerCutoverPaused } from "@/lib/runner-cutover-pause.server";
 
 export const dynamic = "force-dynamic";
@@ -366,7 +370,14 @@ export async function POST(
     return NextResponse.json({ error: applicationError.message }, { status: 500 });
   }
 
-  const wake = await wakeCloudSubmissionWorker(jobId, { target: "legacy" });
+  // France-Visas and DS-160 jobs are claimed by their own regional workers,
+  // which the Singapore legacy worker denylists; wake the one that owns the job.
+  const provider = authorized.queue.provider;
+  const wake = provider === "france_visas_live" || provider === "france_visas_dry_run"
+    ? await wakeFranceSubmissionWorker(jobId)
+    : provider === "ceac_live" || provider === "ceac_proof" || provider === "ceac_dry_run"
+      ? await wakeDs160SubmissionWorker(jobId)
+      : await wakeCloudSubmissionWorker(jobId, { target: "legacy" });
   if (!wake.ok) {
     console.warn("[submission-queue] Manual-action requeue wake failed; durable queue remains recoverable.", wake);
   }

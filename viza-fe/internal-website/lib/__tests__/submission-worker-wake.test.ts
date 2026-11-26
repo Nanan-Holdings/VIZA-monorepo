@@ -191,16 +191,16 @@ describe("wakeCloudSubmissionWorker", () => {
     );
   });
 
-  it("cold-starts France on the legacy app and calls the legacy endpoint, not Vietnam's", async () => {
+  it("cold-starts France on the Frankfurt France app and uses its endpoint, not legacy's or Vietnam's", async () => {
     const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
-      if (url.endsWith("/apps/viza-prod-submission-legacy/machines")) {
-        return Response.json([{ id: "legacy-machine", state: "stopped" }]);
+      if (url.endsWith("/apps/viza-prod-submission-france/machines")) {
+        return Response.json([{ id: "france-machine", state: "stopped" }]);
       }
-      if (url.endsWith("/apps/viza-prod-submission-legacy/machines/legacy-machine/start")) {
+      if (url.endsWith("/apps/viza-prod-submission-france/machines/france-machine/start")) {
         return new Response(null, { status: 202 });
       }
-      if (url === "https://legacy-worker.example.test/internal/submission-queue/wake") {
+      if (url === "https://viza-prod-submission-france.fly.dev/internal/submission-queue/wake") {
         return new Response(null, { status: 202 });
       }
       return new Response(null, { status: 404 });
@@ -220,15 +220,17 @@ describe("wakeCloudSubmissionWorker", () => {
 
     expect(result).toEqual({ ok: true });
     expect(fetchImpl).toHaveBeenCalledWith(
-      "https://api.machines.dev/v1/apps/viza-prod-submission-legacy/machines",
+      "https://api.machines.dev/v1/apps/viza-prod-submission-france/machines",
       expect.anything(),
     );
-    expect(fetchImpl).not.toHaveBeenCalledWith(
+    for (const otherWake of [
       "https://vietnam-worker.example.test/internal/submission-queue/wake",
-      expect.anything(),
-    );
-    expect(fetchImpl).toHaveBeenCalledWith(
       "https://legacy-worker.example.test/internal/submission-queue/wake",
+    ]) {
+      expect(fetchImpl).not.toHaveBeenCalledWith(otherWake, expect.anything());
+    }
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "https://viza-prod-submission-france.fly.dev/internal/submission-queue/wake",
       expect.objectContaining({ body: JSON.stringify({ jobId: "job-france" }) }),
     );
   });

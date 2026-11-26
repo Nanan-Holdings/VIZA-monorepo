@@ -4,7 +4,7 @@ import { isRunnerCutoverPaused } from "@/lib/runner-cutover-pause.server";
 
 type WakeEnvironment = Partial<NodeJS.ProcessEnv>;
 
-export type FlyWakeTarget = "legacy" | "ds160" | "pool" | "indonesia" | "south_korea";
+export type FlyWakeTarget = "legacy" | "ds160" | "france" | "pool" | "indonesia" | "south_korea";
 
 export type FlyMachineWakeResult =
   | { ok: true; target: FlyWakeTarget; app: string; state: "already_running" | "start_requested" }
@@ -45,6 +45,9 @@ const DEFAULT_TARGET_APPS: Record<FlyWakeTarget, string> = {
   legacy: "viza-submission-legacy",
   // DS-160 (CEAC) runs on its own US East worker next to the CEAC browser.
   ds160: "viza-prod-submission-ds160",
+  // France-Visas runs on its own Frankfurt worker next to the eu-central-1
+  // France-Visas browser.
+  france: "viza-prod-submission-france",
   indonesia: "viza-runner-indonesia",
   south_korea: "viza-runner-south-korea",
 };
@@ -55,6 +58,7 @@ function targetApps(env: WakeEnvironment): Record<FlyWakeTarget, string> {
     legacy:
       env.FLY_SUBMISSION_LEGACY_APP?.trim() || DEFAULT_TARGET_APPS.legacy,
     ds160: env.FLY_SUBMISSION_DS160_APP?.trim() || DEFAULT_TARGET_APPS.ds160,
+    france: env.FLY_SUBMISSION_FRANCE_APP?.trim() || DEFAULT_TARGET_APPS.france,
     indonesia:
       env.FLY_RUNNER_INDONESIA_APP?.trim() || DEFAULT_TARGET_APPS.indonesia,
     south_korea:
@@ -73,6 +77,8 @@ const COUNTRY_ALIASES: Record<string, FlyWakeTarget> = {
   usa: "ds160",
   united_states: "ds160",
   united_states_of_america: "ds160",
+  fr: "france",
+  france: "france",
   id: "indonesia",
   indonesia: "indonesia",
   vn: "pool",
@@ -108,9 +114,9 @@ function normalizeTarget(target: string): FlyWakeTarget | null {
 }
 
 function slotKind(target: FlyWakeTarget): "pool" | "legacy" | "south_korea" | "indonesia" | null {
-  // The DS-160 worker is the legacy image in another region; it takes a
-  // legacy-kind slot like the Singapore legacy worker.
-  if (target === "ds160") return "legacy";
+  // The DS-160 and France-Visas workers are the legacy image in other regions;
+  // they take a legacy-kind slot like the Singapore legacy worker.
+  if (target === "ds160" || target === "france") return "legacy";
   if (
     target === "pool" ||
     target === "legacy" ||

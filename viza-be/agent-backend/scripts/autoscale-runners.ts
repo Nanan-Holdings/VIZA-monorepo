@@ -60,13 +60,14 @@ const SUBMISSION_LEGACY_APP =
 // DS-160 (CEAC) runs on its own US East worker next to the CEAC browser.
 const SUBMISSION_DS160_APP =
   process.env.FLY_SUBMISSION_DS160_APP?.trim() || "viza-prod-submission-ds160";
+// France-Visas runs on its own Frankfurt worker next to the France-Visas browser.
+const SUBMISSION_FRANCE_APP =
+  process.env.FLY_SUBMISSION_FRANCE_APP?.trim() || "viza-prod-submission-france";
 const RUNNER_INDONESIA_APP =
   process.env.FLY_RUNNER_INDONESIA_APP?.trim() || "viza-runner-indonesia";
 
 const LEGACY_CLAIMABLE_QUEUE_STATUSES = [
   "pending",
-  "fv_prefill_pending",
-  "france_live_assisted_pending",
   "uk_prefill_pending",
   "uk_live_assisted_pending",
   "vn_dry_run_pending",
@@ -89,6 +90,11 @@ const DS160_CLAIMABLE_QUEUE_STATUSES = [
   "ds160_prefill_pending",
   "ds160_live_assisted_pending",
   "ds160_proof_pending",
+] as const;
+
+export const FRANCE_CLAIMABLE_QUEUE_STATUSES = [
+  "fv_prefill_pending",
+  "france_live_assisted_pending",
 ] as const;
 
 const LEGACY_SCHEDULED_QUEUE_STATUSES = [
@@ -193,6 +199,16 @@ async function fetchDs160QueueDepth(supabase: SupabaseClient): Promise<number> {
   return count ?? 0;
 }
 
+export async function fetchFranceQueueDepth(supabase: SupabaseClient): Promise<number> {
+  const { count, error } = await supabase
+    .from("submission_queue")
+    .select("id", { count: "exact", head: true })
+    .in("status", [...FRANCE_CLAIMABLE_QUEUE_STATUSES])
+    .lt("attempts", 3);
+  if (error) throw new Error(`France submission_queue depth read: ${error.message}`);
+  return count ?? 0;
+}
+
 export async function fetchLegacyQueueDepth(supabase: SupabaseClient): Promise<number> {
   const { count, error } = await supabase
     .from("submission_queue")
@@ -289,10 +305,11 @@ async function alertViolations(decision: PoolScaleDecision): Promise<void> {
 
 async function main(): Promise<void> {
   const supabase = client();
-  const [pool, legacyQueued, ds160Queued, indonesiaQueued] = await Promise.all([
+  const [pool, legacyQueued, ds160Queued, franceQueued, indonesiaQueued] = await Promise.all([
     fetchPoolDecision(supabase),
     fetchLegacyQueueDepth(supabase),
     fetchDs160QueueDepth(supabase),
+    fetchFranceQueueDepth(supabase),
     fetchIndonesiaQueueDepth(supabase),
   ]);
   await alertViolations(pool);
@@ -309,6 +326,12 @@ async function main(): Promise<void> {
     queued: ds160Queued,
     desired: ds160Queued > 0 ? 1 : 0,
   };
+  const france: LegacyScaleDecision = {
+    kind: "legacy",
+    app: SUBMISSION_FRANCE_APP,
+    queued: franceQueued,
+    desired: franceQueued > 0 ? 1 : 0,
+  };
   const indonesia: IndonesiaScaleDecision = {
     kind: "indonesia",
     app: RUNNER_INDONESIA_APP,
@@ -317,7 +340,7 @@ async function main(): Promise<void> {
   };
 
   if (process.argv.includes("--json")) {
-    process.stdout.write(`${JSON.stringify([pool, indonesia, legacy, ds160], null, 2)}\n`);
+    process.stdout.write(`${JSON.stringify([pool, indonesia, legacy, ds160, france], null, 2)}\n`);
     return;
   }
   console.log(
@@ -331,6 +354,7 @@ async function main(): Promise<void> {
   console.log(`${indonesia.app} queued=${indonesia.queued} desired=${indonesia.desired}`);
   console.log(`${legacy.app} queued=${legacy.queued} desired=${legacy.desired}`);
   console.log(`${ds160.app} queued=${ds160.queued} desired=${ds160.desired}`);
+  console.log(`${france.app} queued=${france.queued} desired=${france.desired}`);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

@@ -4,7 +4,7 @@ import { isRunnerCutoverPaused } from "@/lib/runner-cutover-pause.server";
 
 type WakeEnvironment = Partial<NodeJS.ProcessEnv>;
 
-type WakeEndpoint = "default" | "legacy" | "ds160";
+type WakeEndpoint = "default" | "legacy" | "ds160" | "france";
 
 export type SubmissionWorkerWakeResult =
   | { ok: true }
@@ -21,8 +21,11 @@ function resolveWakeBaseUrl(
   const isIndonesia = normalized === "indonesia" || normalized === "id";
   const isSouthKorea = normalized === "south_korea" || normalized === "korea" || normalized === "kr" || normalized === "kor";
   const isDs160 = endpoint === "ds160" || normalized === "ds160";
+  const isFrance = endpoint === "france" || normalized === "france" || normalized === "fr";
   const explicitUrl = isDs160
     ? env.SUBMISSION_SERVICE_DS160_URL
+    : isFrance
+    ? env.SUBMISSION_SERVICE_FRANCE_URL
     : endpoint === "legacy"
     ? env.SUBMISSION_SERVICE_CLOUD_URL
     : isPool
@@ -36,6 +39,8 @@ function resolveWakeBaseUrl(
 
   const app = isDs160
     ? env.FLY_SUBMISSION_DS160_APP?.trim() || "viza-prod-submission-ds160"
+    : isFrance
+    ? env.FLY_SUBMISSION_FRANCE_APP?.trim() || "viza-prod-submission-france"
     : isPool
     ? env.FLY_RUNNER_POOL_APP?.trim() || "viza-runner-pool"
     : isIndonesia
@@ -184,10 +189,9 @@ export async function wakeUkSubmissionWorker(
 }
 
 /**
- * France-Visas runs on the Singapore legacy worker. "france" is not a Fly
- * country target, so waking by country neither started that Machine nor
- * reached its endpoint (the generic path goes to the Vietnam compatibility
- * URL), and France jobs sat unclaimed. Wake the legacy worker explicitly.
+ * France-Visas runs on its own Frankfurt worker (the legacy image, next to the
+ * eu-central-1 France-Visas browser); the Singapore legacy worker denylists
+ * the France-Visas providers. Wake that worker explicitly.
  */
 export async function wakeFranceSubmissionWorker(
   jobId: string | null,
@@ -198,7 +202,7 @@ export async function wakeFranceSubmissionWorker(
 ): Promise<SubmissionWorkerWakeResult> {
   return wakeCloudSubmissionWorker(jobId, {
     ...options,
-    target: "legacy",
-    endpoint: "legacy",
+    target: "france",
+    endpoint: "france",
   });
 }

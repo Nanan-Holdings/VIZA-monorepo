@@ -49,6 +49,11 @@ on:
         required: true
         default: true
         type: boolean
+      deploy_france_worker:
+        description: Deploy the Frankfurt France-Visas worker
+        required: true
+        default: true
+        type: boolean
 
 permissions:
   contents: read
@@ -159,6 +164,12 @@ jobs:
       - name: Deploy sticky South Korea worker
         if: ${{ inputs.deploy_south_korea_worker && !cancelled() }}
         run: bash viza-be/submission-service/scripts/fly/deploy-south-korea.sh "$IMAGE"
+      - name: Deploy France-Visas worker
+        # Runs before the legacy worker: legacy denylists France-Visas, so the
+        # Frankfurt worker must be up first or France jobs would sit unclaimed.
+        # It runs next to the eu-central-1 France-Visas Browserbase browser.
+        if: ${{ inputs.deploy_france_worker && !cancelled() }}
+        run: bash viza-be/submission-service/scripts/fly/deploy-france.sh "$IMAGE"
       - name: Deploy legacy worker
         # Country workers and the legacy queue consumer are independent
         # production targets. A transient country /ready timeout must not skip

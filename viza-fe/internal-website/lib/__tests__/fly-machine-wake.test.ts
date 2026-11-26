@@ -33,10 +33,10 @@ describe("ensureFlyMachineStarted", () => {
   it("does not manage countries outside the shared/sticky topology", async () => {
     const fetchImpl = vi.fn() as unknown as typeof fetch;
     await expect(
-      ensureFlyMachineStarted("france", { env: {}, fetchImpl }),
+      ensureFlyMachineStarted("japan", { env: {}, fetchImpl }),
     ).resolves.toEqual({
       ok: false,
-      target: "france",
+      target: "japan",
       reason: "unmanaged_target",
     });
     expect(fetchImpl).not.toHaveBeenCalled();
