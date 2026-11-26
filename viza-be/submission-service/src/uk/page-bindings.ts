@@ -255,12 +255,21 @@ export const UK_PAGE_FILLERS: Record<string, UkPageFiller> = {
 
   // yearsLived + monthsLived (number splits), ownershipCategory radio.
   standardAboutYourHomeOoC: async (page, a) => {
-    if (a["years_at_address"]) await ukFillText(page, "yearsLived", a["years_at_address"]);
-    if (a["months_at_address"]) await ukFillText(page, "monthsLived", a["months_at_address"]);
+    const years = a["years_at_address"];
+    if (!years) throw new Error("UK residence duration years is required before saving the official home page");
+    const months = a["months_at_address"];
+    if (!months) throw new Error("UK residence duration months is required before saving the official home page");
+    const monthNumber = Number(months);
+    if (!Number.isInteger(monthNumber) || monthNumber < 0 || monthNumber > 11) {
+      throw new Error("UK residence duration months must be between 0 and 11");
+    }
+    await ukFillText(page, "yearsLived", years);
+    await ukFillText(page, "monthsLived", months);
     const ownership =
       a["home_ownership_label"] ??
       (a["owns_home"] === "yes" ? "I own it" : a["owns_home"] === "no" ? "I rent it" : undefined);
-    if (ownership) await ukPickRadio(page, "ownershipCategory", ownership);
+    if (!ownership) throw new Error("UK home ownership is required before saving the official home page");
+    await ukPickRadio(page, "ownershipCategory", ownership);
     if (a["other_living_situation_details"]) {
       await ukFillTextarea(page, "otherCategoryDetails", a["other_living_situation_details"]);
     }
@@ -309,7 +318,8 @@ export const UK_PAGE_FILLERS: Record<string, UkPageFiller> = {
   // answered when the application explicitly supplies that answer.
   adsAgreement: async (page, a) => {
     const isAdsOperator = a["ads_tour_operator_employee"];
-    if (isAdsOperator) await pickYn(page, "yesNo", isAdsOperator);
+    if (!yn(isAdsOperator)) throw new Error("UK ADS tour operator answer is required before saving the official page");
+    await pickYn(page, "yesNo", isAdsOperator);
   },
 
   // immigrationStatusTypeRef radio (3-option), date splits expirationDate

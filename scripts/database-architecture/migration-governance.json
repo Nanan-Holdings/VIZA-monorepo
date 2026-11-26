@@ -305,6 +305,16 @@
       "drizzle": "viza-be/agent-backend/drizzle/0224_uk_telephone_contact_fields.sql",
       "supabase": "viza-fe/internal-website/supabase/migrations/20261125110000_uk_telephone_contact_fields.sql",
       "sha256": "831f6d670109a6f515d0a9aaee727d6ac66be87153170705f3de6c33bf89d5a7"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0225_uk_home_duration_months_required.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20261126090000_uk_home_duration_months_required.sql",
+      "sha256": "3f178506d9bb95f4aac9b78b041a76c09a09e20f4cbaf9a064ad8060a26b0c77"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0226_uk_ads_agreement.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20261126100000_uk_ads_agreement.sql",
+      "sha256": "a85255e73cebd46dd92024eccf6615de77825a4fe0fdc17376a3550091dcaaf2"
     }
   ],
   "no_mirror": [

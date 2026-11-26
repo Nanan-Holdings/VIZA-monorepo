@@ -95,6 +95,12 @@ values to match the available selection values without changing answers.
 type, contact-preference, and conditional explanation controls without
 changing application answers. Keep the timestamped Supabase mirror
 byte-identical.
+`0225_uk_home_duration_months_required.sql` marks the UK home-property month
+component required and constrains it to the live UKVI 0–11 range after the
+official validator rejected an empty month value. Keep the timestamped
+Supabase mirror byte-identical.
+`0226_uk_ads_agreement.sql` adds the China-nationality ADS tour-operator
+question observed on UKVI. Keep its timestamped Supabase mirror byte-identical.
 
 ## Key Responsibilities
 

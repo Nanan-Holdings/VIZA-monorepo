@@ -96,6 +96,14 @@ const FIELDS: FieldDef[] = [
   { field_name: "country_of_nationality", label: "What is your nationality?", field_type: "country", required: true, step_number: 1, step_name: "About You — Personal Details", display_order: 10, validation_rules: { source: "ISO3166-1" } },
   { field_name: "has_other_nationalities", label: "Do you have any other nationalities?", field_type: "radio", required: true, step_number: 1, step_name: "About You — Personal Details", display_order: 11, options: YES_NO },
   { field_name: "other_nationality", label: "Other nationality", field_type: "country", required: true, step_number: 1, step_name: "About You — Personal Details", display_order: 12, conditional_logic: { showIf: "has_other_nationalities === yes" }, validation_rules: { source: "ISO3166-1", repeatable: true, repeat_group: "other_nationalities", max_items: 5 } },
+  // UKVI shows the China-only adsAgreement branch after nationality. Keep
+  // the exact official question in the applicant form so the runner has an
+  // explicit answer instead of inferring that every China applicant is an ADS
+  // tour-operator employee.
+  { field_name: "ads_tour_operator_employee", label: "Are you the employee of a licensed ADS tour operator submitting this application on behalf of an ADS group?", field_type: "radio", required: true, step_number: 1, step_name: "About You — Personal Details", display_order: 20, options: [
+    { value: "yes", text: "Yes", label_zh: "是", official_label: "Yes" },
+    { value: "no", text: "No", label_zh: "否", official_label: "No" },
+  ], conditional_logic: { showIf: "country_of_nationality in [China,CN,CHN]" }, validation_rules: { label_zh: "您是否是持牌 ADS 旅游运营商的员工，并代表 ADS 团队提交这份申请？", official_label_en: "Are you the employee of a licensed ADS tour operator submitting this application on behalf of an ADS group?", official_page: "adsAgreement" } },
   { field_name: "country_of_birth", label: "Country of birth", field_type: "country", required: true, step_number: 1, step_name: "About You — Personal Details", display_order: 13, validation_rules: { source: "ISO3166-1" } },
   { field_name: "place_of_birth", label: "Place of birth (city or town)", field_type: "text", required: true, step_number: 1, step_name: "About You — Personal Details", display_order: 14, validation_rules: { maxLength: 60 } },
   { field_name: "is_applicant_under_18", label: "Will you be under 18 on the date you plan to travel to the UK?", field_type: "radio", required: true, step_number: 1, step_name: "About You — Personal Details", display_order: 15, options: YES_NO },
@@ -396,7 +404,10 @@ const FIELDS: FieldDef[] = [
 
   // ─── Step 3: Address duration split + 3-option ownership ──────────────
   { field_name: "years_at_address", label: "Years at this address", field_type: "text", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 100, validation_rules: { pattern: "^[0-9]{1,3}$", maxLength: 3, inline_group: "address_duration" } },
-  { field_name: "months_at_address", label: "Additional months", field_type: "text", required: false, step_number: 3, step_name: "Your Contact Details", display_order: 101, validation_rules: { pattern: "^[0-9]{1,2}$", maxLength: 2, inline_group: "address_duration" } },
+  // UKVI rejects the page when the month component is omitted and reports
+  // "Enter months between 0 and 11". Keep it explicit in the applicant form
+  // even though the public HTML snapshot omits a required attribute.
+  { field_name: "months_at_address", label: "Additional months", field_type: "text", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 101, validation_rules: { pattern: "^(?:0|[1-9]|1[01])$", maxLength: 2, min: 0, max: 11, inline_group: "address_duration" } },
   { field_name: "home_ownership", label: "Ownership status of your home", field_type: "select", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 102, options: [{ value: "own", text: "I own it" }, { value: "rent", text: "I rent it" }, { value: "other", text: "Other" }] },
   { field_name: "home_ownership_other_details", label: "Tell us more about your living situation", field_type: "textarea", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 103, conditional_logic: { showIf: "home_ownership === other" }, validation_rules: { maxLength: 500 } },
 

@@ -301,3 +301,97 @@ test("UKVI telephone-contact page requires the observed preference", async () =>
     /telephone contact preference is required/,
   );
 });
+
+class FakeHomeControl {
+  public constructor(
+    private readonly page: FakeHomePage,
+    public readonly id: string,
+    private readonly label?: string,
+  ) {}
+
+  public async count(): Promise<number> { return 1; }
+  public first(): FakeHomeControl { return this; }
+  public async getAttribute(name: string): Promise<string | null> {
+    return name === "id" ? this.id : null;
+  }
+  public async textContent(): Promise<string | null> { return this.label ?? null; }
+  public async isChecked(): Promise<boolean> { return this.page.checked.has(this.id); }
+  public async isDisabled(): Promise<boolean> { return false; }
+  public async check(): Promise<void> { this.page.checked.add(this.id); }
+  public async inputValue(): Promise<string> { return this.page.values.get(this.id) ?? ""; }
+  public async fill(value: string): Promise<void> { this.page.values.set(this.id, value); }
+  public async press(): Promise<void> {}
+}
+
+class FakeHomeList {
+  public constructor(private readonly controls: FakeHomeControl[]) {}
+  public async count(): Promise<number> { return this.controls.length; }
+  public first(): FakeHomeControl { return this.controls[0]!; }
+  public nth(index: number): FakeHomeControl { return this.controls[index]!; }
+}
+
+class FakeHomePage {
+  public readonly checked = new Set<string>();
+  public readonly values = new Map<string, string>();
+
+  public locator(selector: string): FakeHomeList | FakeHomeControl {
+    if (selector === 'input[type="radio"][name="ownershipCategory"]') {
+      return new FakeHomeList([
+        new FakeHomeControl(this, "ownershipCategory_own", "I own it"),
+        new FakeHomeControl(this, "ownershipCategory_rent", "I rent it"),
+        new FakeHomeControl(this, "ownershipCategory_other", "Other"),
+      ]);
+    }
+    const labelMatch = selector.match(/^label\[for="([^"]+)"\]$/);
+    if (labelMatch) {
+      const labels: Record<string, string> = {
+        ownershipCategory_own: "I own it",
+        ownershipCategory_rent: "I rent it",
+        ownershipCategory_other: "Other",
+      };
+      return new FakeHomeControl(this, labelMatch[1]!, labels[labelMatch[1]!]);
+    }
+    const idMatch = selector.match(/^#(.+)$/);
+    if (idMatch) return new FakeHomeControl(this, idMatch[1]!);
+    return new FakeHomeList([]);
+  }
+}
+
+const asHomePage = (page: FakeHomePage): Page => page as unknown as Page;
+
+test("UKVI ADS page stops immediately when the applicant has not answered", async () => {
+  await assert.rejects(
+    UK_PAGE_FILLERS.adsAgreement!(asHomePage(new FakeHomePage()), {}),
+    /ADS tour operator answer is required/,
+  );
+});
+
+test("UKVI home page requires months and ownership before saving", async () => {
+  await assert.rejects(
+    UK_PAGE_FILLERS.standardAboutYourHomeOoC!(asHomePage(new FakeHomePage()), {
+      years_at_address: "2",
+      home_ownership_label: "I rent it",
+    }),
+    /duration months is required/,
+  );
+
+  await assert.rejects(
+    UK_PAGE_FILLERS.standardAboutYourHomeOoC!(asHomePage(new FakeHomePage()), {
+      years_at_address: "2",
+      months_at_address: "0",
+    }),
+    /home ownership is required/,
+  );
+});
+
+test("UKVI home page fills the observed month and ownership controls", async () => {
+  const page = new FakeHomePage();
+  await UK_PAGE_FILLERS.standardAboutYourHomeOoC!(asHomePage(page), {
+    years_at_address: "2",
+    months_at_address: "0",
+    home_ownership_label: "I rent it",
+  });
+  assert.equal(page.values.get("yearsLived"), "2");
+  assert.equal(page.values.get("monthsLived"), "0");
+  assert.deepEqual([...page.checked], ["ownershipCategory_rent"]);
+});
