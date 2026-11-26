@@ -179,21 +179,31 @@ export async function waitForPage(
   const expectedList = Array.isArray(expected) ? expected : [expected];
   const deadline = Date.now() + timeoutMs;
 
+  const checkpointError = (result: PageIdentityResult): GateDetectedError =>
+    new GateDetectedError(
+      `France-Visas security checkpoint detected (${result.securityCheckpoint}): worker cannot proceed`,
+      {
+        url: result.url,
+        details: {
+          checkpoint: result.securityCheckpoint,
+          message: result.securityMessage,
+        },
+      },
+    );
+
   let last: PageIdentityResult | null = null;
   while (Date.now() < deadline) {
     last = await detectPage(page);
 
+    // France-Visas pages stay blank for several seconds after their HTML
+    // arrives through the remote browser. A worker close to the browser sees
+    // that window, so blank only counts as a gate if it outlasts the wait.
+    if (last.securityCheckpoint === "blank") {
+      await page.waitForTimeout(pollIntervalMs);
+      continue;
+    }
     if (last.securityCheckpoint && last.securityCheckpoint !== "ready") {
-      throw new GateDetectedError(
-        `France-Visas security checkpoint detected (${last.securityCheckpoint}): worker cannot proceed`,
-        {
-          url: last.url,
-          details: {
-            checkpoint: last.securityCheckpoint,
-            message: last.securityMessage,
-          },
-        },
-      );
+      throw checkpointError(last);
     }
 
     if (last.id === "session_expired" && !expectedList.includes("session_expired")) {
@@ -211,6 +221,7 @@ export async function waitForPage(
     await page.waitForTimeout(pollIntervalMs);
   }
 
+  if (last?.securityCheckpoint === "blank") throw checkpointError(last);
   throw new UnexpectedPageError(
     `Timed out waiting for France-Visas page [${expectedList.join(", ")}] after ${timeoutMs}ms`,
     {
