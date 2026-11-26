@@ -73,35 +73,43 @@ export async function selectPrimeFacesOption(
   const widgetWaitMs = options.widgetWaitMs ?? 5_000;
   const url = page.url();
 
+  // One browser round trip in the common case: select straight away when the
+  // widget is registered. The worker talks to a remote browser, so every
+  // extra page call costs a full network round trip.
+  const trySelect = async (): Promise<boolean> => {
+    const postbackPromise = page.waitForResponse(
+      (res) => res.url() === url && res.request().method() === "POST",
+      { timeout: timeoutMs },
+    ).catch(() => null);
+    const selected = await page.evaluate(`(() => {
+        const widgetVar = ${pageLiteral(widgetVar)};
+        const value = ${pageLiteral(value)};
+        const widget = window.PrimeFaces && window.PrimeFaces.widgets
+          ? window.PrimeFaces.widgets[widgetVar]
+          : undefined;
+        if (!widget || typeof widget.selectValue !== "function" || typeof widget.triggerChange !== "function") {
+          return false;
+        }
+        widget.selectValue(value);
+        widget.triggerChange();
+        return true;
+      })()`) as boolean;
+    if (selected) await postbackPromise;
+    return selected;
+  };
+
+  if (await trySelect()) return;
+
   // Conditionally-rendered widgets aren't yet registered when this is
   // called right after their gating field changes — wait briefly for the
   // PrimeFaces bootstrap to register them before failing.
   const widgetReady = await waitForPrimeFacesWidget(page, widgetVar, widgetWaitMs);
-  if (!widgetReady) {
+  if (!widgetReady || !(await trySelect())) {
     throw new NavigationError(
       `PrimeFaces widget "${widgetVar}" could not be updated to value "${value}": widget not found or missing API`,
       { url, details: { widgetVar, value } },
     );
   }
-
-  const postbackPromise = page.waitForResponse(
-    (res) => res.url() === url && res.request().method() === "POST",
-    { timeout: timeoutMs },
-  ).catch(() => null);
-
-  await page.evaluate(`(() => {
-      const widgetVar = ${pageLiteral(widgetVar)};
-      const value = ${pageLiteral(value)};
-      const widget = window.PrimeFaces && window.PrimeFaces.widgets
-        ? window.PrimeFaces.widgets[widgetVar]
-        : undefined;
-      if (widget) {
-        widget.selectValue(value);
-        widget.triggerChange();
-      }
-    })()`);
-
-  await postbackPromise;
 }
 
 /**
@@ -134,6 +142,42 @@ export async function setJsfTextInput(
     throw new NavigationError(
       `JSF text input "${fieldName}" not found`,
       { url: page.url(), details: { fieldName } },
+    );
+  }
+}
+
+/**
+ * Set several JSF text inputs in ONE browser round trip, in order, with the
+ * same events as `setJsfTextInput`. Entries whose value is undefined or null
+ * are skipped (optional fields); an empty string is written. Throws, naming
+ * every missing field, if any target input is absent.
+ */
+export async function setJsfTextInputs(
+  page: Page,
+  entries: ReadonlyArray<readonly [fieldName: string, value: string | null | undefined]>,
+): Promise<void> {
+  const writes = entries.filter((entry): entry is readonly [string, string] => typeof entry[1] === "string");
+  if (writes.length === 0) return;
+  const missing = await page.evaluate(`(() => {
+      const writes = JSON.parse(${pageLiteral(JSON.stringify(writes))});
+      const missing = [];
+      for (const [fieldName, value] of writes) {
+        const escaped = fieldName.replace(/"/g, '\\"');
+        const el = document.querySelector('input[name="' + escaped + '"]');
+        if (!el) { missing.push(fieldName); continue; }
+        el.focus();
+        el.value = value;
+        el.dispatchEvent(new Event("input", { bubbles: true }));
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+        el.dispatchEvent(new Event("blur", { bubbles: true }));
+      }
+      return missing;
+    })()`) as string[];
+
+  if (missing.length > 0) {
+    throw new NavigationError(
+      `JSF text input "${missing.join('", "')}" not found`,
+      { url: page.url(), details: { fieldName: missing[0], missingFields: missing } },
     );
   }
 }
