@@ -14,8 +14,8 @@ export const ADDRESS = {
 export const SAME_AS = [
   "https://www.facebook.com/profile.php?id=61592698634582",
   "https://www.pinterest.com/viza_com/",
-  "https://www.instagram.com/viza_com/?hl=en",
-  "https://www.linkedin.com/company/viza-com/home/?viewAsMember=true",
+  "https://www.instagram.com/viza_com/",
+  "https://www.linkedin.com/company/viza-com/",
   "https://x.com/viza_it_com",
   "https://www.reddit.com/user/viza_com/",
 ] as const;

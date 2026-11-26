@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Image from "next/image";
 import { Link } from "@/navigation";
 import { ArrowDown } from "../ui/Icons";
 
@@ -22,7 +23,11 @@ export default function ArticleHero({ title, crumbs, image, target = "article", 
       <div className="ds-arthero-frame">
         {image ? (
           <div className="ds-arthero-photo" aria-hidden="true">
-            <img src={image} alt="" referrerPolicy="no-referrer" fetchPriority="high" />
+            {image.startsWith("/") ? (
+              <Image src={image} alt="" fill sizes="100vw" priority />
+            ) : (
+              <img src={image} alt="" referrerPolicy="no-referrer" fetchPriority="high" />
+            )}
           </div>
         ) : null}
         <div>
