@@ -59,6 +59,44 @@ async function hasInvalidSecurityCodeMessage(page: { locator: (selector: string)
 }
 
 /**
+ * PII-free snapshot of the registration form after a submit that did not
+ * advance: which fields are empty or invalid, whether the CAPTCHA token is
+ * present, and any feedback text Keycloak shows. Field values are never read.
+ */
+async function describeRegistrationForm(page: Page): Promise<Record<string, unknown>> {
+  return page
+    .evaluate(
+      ({ uuidSelector, captchaInputSelector }) => {
+        const fields = Array.from(document.querySelectorAll("form input, form select")) as HTMLInputElement[];
+        const visible = fields.filter((el) => el.type !== "hidden");
+        const feedback = Array.from(
+          document.querySelectorAll(
+            '.alert, .kc-feedback-text, [id^="input-error"], .error, .invalid-feedback, [aria-live]',
+          ),
+        )
+          .map((el) => (el as HTMLElement).innerText.replace(/\s+/g, " ").trim())
+          .filter(Boolean)
+          .slice(0, 5);
+        const captchaImage = document.querySelector("#captchaImage") as HTMLImageElement | null;
+        return {
+          url: location.pathname,
+          emptyFields: visible.filter((el) => !el.value).map((el) => el.name || el.id),
+          invalidFields: visible.filter((el) => !el.checkValidity()).map((el) => el.name || el.id),
+          captchaUuidSet: Boolean((document.querySelector(uuidSelector) as HTMLInputElement | null)?.value),
+          captchaAnswerLength: (document.querySelector(captchaInputSelector) as HTMLInputElement | null)?.value.length ?? null,
+          captchaImageLoaded: Boolean(captchaImage?.complete && captchaImage.naturalWidth > 0),
+          feedback,
+        };
+      },
+      {
+        uuidSelector: FV_REGISTRATION_SELECTORS.captchaUuidHidden,
+        captchaInputSelector: FV_REGISTRATION_SELECTORS.captchaInput,
+      },
+    )
+    .catch((error: unknown) => ({ describeFailed: error instanceof Error ? error.message : String(error) }));
+}
+
+/**
  * Walk through France-Visas registration after the applicant has explicitly
  * authorized live-assisted account creation. Only the registration image
  * CAPTCHA is solved; anti-bot, final validation, payment, and appointment
@@ -176,6 +214,16 @@ export async function registerFvAccount(
       lastRegistrationFailure = invalidSecurityCode
         ? "invalid_security_code"
         : "registration_form_still_visible";
+      console.warn(
+        `[france-visas] registration attempt ${attempt}/${maxCaptchaAttempts} did not advance`,
+        JSON.stringify({
+          runId,
+          captcha: outcome.status,
+          captchaAnswerLength: outcome.status === "solved" ? outcome.solve.text.trim().length : null,
+          failure: lastRegistrationFailure,
+          form: await describeRegistrationForm(page),
+        }),
+      );
       if (outcome.status === "solved") {
         telemetry[telemetry.length - 1] = {
           solveId: outcome.solve.solveId,

@@ -38,14 +38,32 @@ export interface FvCaptchaSolveWithTelemetry {
  * answer into the CAPTCHA input. Does NOT click submit — caller advances
  * the form after all fields (including CAPTCHA answer) are filled.
  */
+const CAPTCHA_APPEAR_TIMEOUT_MS = 20_000;
+
 export async function solveRegistrationCaptcha(page: Page): Promise<FvCaptchaOutcome> {
   const captchaImage = page.locator(FV_REGISTRATION_SELECTORS.captchaImage).first();
-  if ((await captchaImage.count()) === 0) {
+  // The CAPTCHA widget is injected after the registration page renders. A
+  // worker next to the browser gets here before it exists; deciding
+  // "no_captcha" then submits the form without an answer.
+  const appeared = await captchaImage
+    .waitFor({ state: "attached", timeout: CAPTCHA_APPEAR_TIMEOUT_MS })
+    .then(() => true, () => false);
+  if (!appeared) {
     return { status: "no_captcha" };
   }
 
   try {
     await captchaImage.waitFor({ state: "visible", timeout: 15_000 });
+    await captchaImage.evaluate(
+      (img) =>
+        new Promise<void>((resolve) => {
+          const image = img as HTMLImageElement;
+          if (image.complete && image.naturalWidth > 0) return resolve();
+          image.addEventListener("load", () => resolve(), { once: true });
+        }),
+      undefined,
+      { timeout: 15_000 },
+    );
     await captchaImage.scrollIntoViewIfNeeded({ timeout: 5_000 }).catch(() => undefined);
     const box = await captchaImage.boundingBox({ timeout: 5_000 });
     if (!box || box.width <= 0 || box.height <= 0) {
