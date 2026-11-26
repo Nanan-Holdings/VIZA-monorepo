@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { staticPageMetadata } from "@/lib/seo/page-meta";
 import { COUNTRIES, visaHref } from "@/lib/countries";
-import { GUIDES } from "@/lib/guides";
+import { localizedGuides } from "@/lib/guides";
 import HowItWorks from "@/components/HowItWorks";
 import SiteHeader from "@/design-system/sections/SiteHeader";
 import SiteFooter from "@/design-system/sections/SiteFooter";
@@ -32,7 +32,6 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   setRequestLocale(locale);
   const t = await getTranslations("homePage");
   const tAll = await getTranslations();
-  const zh = locale.startsWith("zh");
 
   const picks = PICKS.map((slug) => {
     const c = COUNTRIES.find((x) => x.slug === slug)!;
@@ -45,12 +44,12 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   });
 
   const usedPhotos = new Set<string>();
-  const guides = GUIDES.slice(0, 3).map((g) => ({
+  const guides = (await localizedGuides(locale)).slice(0, 3).map((g) => ({
     href: `/guides/${g.slug}`,
     image: guideImage(g.visa, usedPhotos),
-    meta: zh ? g.tag.zh : g.tag.en,
-    title: zh ? g.name.zh : g.name.en,
-    body: zh ? g.summary.zh : g.summary.en,
+    meta: g.tag,
+    title: g.name,
+    body: g.summary,
   }));
 
   const tiers = homeTiers(t);

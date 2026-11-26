@@ -1,0 +1,2150 @@
+{
+  "cta": {
+    "startFreeApplication": "Pulsuz müraciətinə başla"
+  },
+  "nav": {
+    "home": "Ana səhifə",
+    "apply": "Müraciət",
+    "visas": "Vizalar",
+    "explore": "Kəşf et",
+    "events": "Tədbirlər",
+    "blog": "Xəbərlər",
+    "careers": "Karyera",
+    "contact": "Əlaqə",
+    "signIn": "Daxil ol",
+    "getStarted": "Başla",
+    "yourPassport": "Sizin pasportunuz",
+    "searchPlaceholder": "Ölkə və ya viza axtar…",
+    "arrivalCards": "Gəliş kartları",
+    "guides": "Bələdçilər"
+  },
+  "footer": {
+    "followUs": "Bizi izləyin:",
+    "followOn": "{platform} üzərində VIZA-nı izləyin",
+    "product": "Məhsullar",
+    "company": "Şirkət",
+    "legal": "Hüquqi məlumat",
+    "offices": "Ofislər",
+    "askAi": "VIZA haqqında süni intellektdən soruş",
+    "security": "Təhlükəsizlik",
+    "status": "Status",
+    "privacy": "Məxfilik",
+    "terms": "Şərtlər",
+    "rights": "Bütün hüquqlar qorunur.",
+    "tagline": "VIZA viza planlamağa, müraciət etməyə və izləməyə dünyanın hər yerində rahatlıqla kömək edir.",
+    "careers": "Karyera",
+    "contact": "Əlaqə",
+    "copyright": "© VIZA, Bütün hüquqlar qorunur",
+    "prodMockInterview": "ABŞ sınaq müsahibəsi",
+    "prodVisaReq": "Viza tələbləri",
+    "prodSchengen": "Şengen qəbul vaxtı yoxlayıcısı",
+    "prodPhoto": "Viza şəkli yaradıcısı",
+    "prodHelpline": "VIZA təcili yardım xətti",
+    "prodStudent": "Tələbə vizası",
+    "arrivalCards": "Gəliş kartları",
+    "guides": "Bələdçilər",
+    "news": "Xəbərlər"
+  },
+  "pages": {
+    "blog": {
+      "metaTitle": "Viza xəbərləri və siyasət yenilikləri | VIZA",
+      "metaDescription": "VIZA-dan viza xəbərləri: qayda dəyişiklikləri, yeni elektron viza və ETA sxemləri, Sinqapurda yaşayanlar üçün nə demək olduqları. Qaydalar dəyişdikdə yenilənir.",
+      "title": "Viza xəbərləri",
+      "lede": "Qayda dəyişiklikləri və siyasət yenilikləri sadə dillə izah olunur. Dəyişməyən məsləhət üçün bələdçiləri oxuyun.",
+      "readArticle": "Məqaləni oxu",
+      "featuredLabel": "Son xəbərlər",
+      "articlesTitle": "Son xəbərlər",
+      "articlesDescription": "Siyasət yenilikləri və səyahət qaydalarındakı dəyişikliklər.",
+      "allPosts": "Bütün yazılar",
+      "noMorePosts": "Daha çox xəbər yoldadır.",
+      "emptyTitle": "Hələ xəbər dərc edilməyib",
+      "emptyBody": "İlk yeniliklərimiz hazırlanır. Tezliklə yenidən baxın.",
+      "unavailableTitle": "Xəbərlər müvəqqəti əlçatmazdır",
+      "unavailableBody": "Son dərc edilmiş xəbərləri yükləyə bilmədik. Bir azdan yenidən cəhd edin.",
+      "backToBlog": "Xəbərlərə qayıt",
+      "by": "Müəllif:",
+      "updated": "Yenilənib",
+      "categoriesLabel": "Xəbər mövzuları",
+      "topicLabel": "Mövzu",
+      "relatedTitle": "Daha çox xəbər",
+      "relatedDescription": "VIZA-dan daha çox viza xəbəri.",
+      "ctaEyebrow": "Əminliklə planlayın",
+      "ctaTitle": "Müraciətinizə başlamağa hazırsınız?",
+      "ctaBody": "Hara getmək istədiyinizi bildirin. VIZA sizi tələblər və növbəti addımlar boyunca aparacaq.",
+      "ctaAction": "Müraciətə başla",
+      "categoryMetaTitle": "{category} xəbərləri | VIZA",
+      "categoryMetaDescription": "{category} haqqında VIZA xəbərlərini oxuyun: nə dəyişdi, kimə təsir edir və sonra nə etməli.",
+      "categoryLede": "{category} haqqında xəbərlər.",
+      "visaLinkTitle": "{country} vizasına müraciət edirsiniz?",
+      "visaLinkBody": "Sinqapurda yaşayanlar üçün sənədlərə, dövlət rüsumuna və addımlara baxın.",
+      "visaLinkAction": "{country} viza bələdçisi",
+      "guidesTitle": "Əlaqəli bələdçilər",
+      "guidesBody": "Bu mövzuda aktual qalan bələdçilər."
+    },
+    "home": {
+      "title": "Sinqapurda viza müraciətləri: ABŞ, Hindistan | VIZA",
+      "description": "ABŞ vizasına (DS-160), Hindistan, Vyetnam və ya Misir elektron vizasına, Fransa Şengen vizasına müraciət edin. Hər formanı məsləhətçi yoxlayır.",
+      "heroTitle": "Növbəti hara?",
+      "heroLede": "İstənilən istiqamət üçün viza seçimlərinə baxın. VIZA məsləhətçiniz və süni intellektimiz sənəd işini görür, siz isə səfəri sifariş edirsiniz."
+    },
+    "apply": {
+      "title": "Viza müraciətinə başla | VIZA",
+      "description": "Pasportunuzu yükləyin, məlumatlarınızı təsdiqləyin və viza müraciətinizi VIZA məsləhətçisinə həvalə edin. VIZA-nın xidməti pulsuzdur.",
+      "saveBadge": "Saxlanıb · istənilən vaxt davam edin"
+    },
+    "careers": {
+      "title": "Karyera | VIZA",
+      "description": "Kelin Studio-nun Sinqapurda idarə etdiyi pulsuz viza xidməti VIZA-da işləyin. İşə götürdüyümüz komandalara və vakansiya üçün necə əlaqə saxlamağa baxın.",
+      "rightCta": "Vakansiyalara bax"
+    },
+    "contact": {
+      "title": "Əlaqə: WhatsApp, WeChat, telefon, e-poçt | VIZA",
+      "description": "VIZA komandası ilə WhatsApp, WeChat, telefon və ya e-poçtla əlaqə saxlayın. Dörd kanal, dörd masa və real insan cavab verir.",
+      "rightCta": "Bizə yazın"
+    },
+    "security": {
+      "title": "Təhlükəsizlik və məsul bildiriş | VIZA",
+      "description": "Standart olaraq məxfi, şəffaf və təhlükəsiz. VIZA müştəri məlumatlarını necə qoruyur, zəiflik bildirişi proqramımız və təhlükəsiz liman.",
+      "rightCta": "Zəiflik barədə bildir"
+    },
+    "status": {
+      "title": "Sistem statusu | VIZA",
+      "description": "VIZA-nın və müraciət etdiyimiz dövlət viza portallarının canlı statusu.",
+      "navPill": "Bütün sistemlər işləyir"
+    },
+    "visa": {
+      "applyCta": "İndi müraciət et",
+      "applicationProcess": "Müraciət prosesi",
+      "documents": "Sənədlər",
+      "rejectionReasons": "İmtina səbəbləri",
+      "entryExit": "Giriş və çıxış",
+      "extension": "Uzatma",
+      "reviews": "Rəylər",
+      "nearby": "Yaxın ölkələr",
+      "sources": "Rəsmi mənbələr"
+    },
+    "privacy": {
+      "title": "Məxfilik siyasəti | VIZA",
+      "description": "Viza üçün müraciət etdikdə VIZA nəyi toplayır, niyə, kim görür və nə qədər saxlayırıq, Sinqapurun PDPA qanunu çərçivəsində."
+    },
+    "terms": {
+      "title": "Şərtlər və qaydalar | VIZA",
+      "description": "Kelin Studio Pte. Ltd. tərəfindən Sinqapurda idarə olunan VIZA viza müraciəti xidmətindən istifadə şərtləri. VIZA-nın xidməti pulsuzdur."
+    },
+    "product": {
+      "title": "VIZA viza müraciətinizə necə dəstək olur | VIZA",
+      "description": "Viza hazırlığı, sənədlərin yoxlanması və müraciət statusu bir yerdə. VIZA-nın xidməti pulsuzdur. Əhatə və mövcudluq hər istiqamət üçün göstərilir."
+    },
+    "events": {
+      "title": "Tədbirlər | VIZA",
+      "description": "VIZA-dan viza klinikaları, məlumat sessiyaları və tərəfdaş tədbirləri."
+    },
+    "arrivalCards": {
+      "title": "Gəliş kartı: MDAC, SG Arrival Card, TDAC | VIZA",
+      "description": "Malayziya, Sinqapur, Yaponiya, Tailand, Koreya və İndoneziya gəliş kartları üçün pulsuz bələdçilər: kimə lazımdır, nə vaxt təqdim etməli və addım-addım kömək."
+    },
+    "guides": {
+      "title": "Sinqapurda yaşayanlar üçün viza bələdçiləri | VIZA",
+      "description": "Sinqapurda yaşayanlar üçün sadə bələdçilər: vizasız ölkələr, Şengen sənədləri, ABŞ müsahibəsi, ETA, elektron viza, imtinalar. Oxumaq pulsuzdur."
+    },
+    "about": {
+      "title": "VIZA haqqında: Sinqapurda pulsuz viza köməyi | VIZA",
+      "description": "VIZA Sinqapurdakı insanlar üçün viza müraciətlərini süni intellekt və məsləhətçilərlə hazırlayır, yoxlayır, təqdim edir. Xidmət pulsuzdur."
+    },
+    "visaIndex": {
+      "title": "Viza istiqamətləri: ölkələr üzrə tələblər | VIZA",
+      "description": "Ölkələr üzrə viza tələblərini, hər biri üçün sənədləri və rüsumları müqayisə edin. VIZA-nın köməyi pulsuzdur.",
+      "heroTitle": "Viza istiqamətləri"
+    },
+    "refunds": {
+      "title": "Geri ödəniş siyasəti | VIZA",
+      "description": "VIZA-nın xidməti pulsuzdur, ona görə geri ödəniləcək xidmət haqqı yoxdur. Dövlət rüsumları və digər təchizatçıların haqları necə işləyir."
+    },
+    "businessInformation": {
+      "title": "Biznes məlumatı | VIZA",
+      "description": "VIZA Sinqapur şirkəti Kelin Studio Pte. Ltd. tərəfindən idarə olunur. Qeydiyyat ünvanı, UEN və əlaqə məlumatları."
+    }
+  },
+  "common": {
+    "comingSoon": "Tezliklə",
+    "learnMore": "Ətraflı bax",
+    "readMore": "Daha çox oxu",
+    "applyNow": "İndi müraciət et",
+    "talkToHuman": "Canlı insanla danış",
+    "viewAll": "Hamısına bax"
+  },
+  "visa": {
+    "heroTitle": "{country} vizası",
+    "validity": "Etibarlılıq",
+    "howItWorks": "Necə işləyir",
+    "step1": "Səfər məlumatlarınızı bizə bildirin və pasportunuzu yükləyin.",
+    "step2": "Müraciətinizi tamamlayır və ən son qaydalara uyğun yoxlayırıq.",
+    "step3": "Dövlət portalına təqdim edir və qərarı izləyirik.",
+    "step4": "Təsdiqlənmiş vizanız e-poçtla gəlir, biz isə prosesi başdan sona izləyirik.",
+    "documents": "Nə lazım olacaq",
+    "doc1": "Ən azı 6 ay etibarlı pasport.",
+    "doc2": "Pasport formatında yeni şəkil.",
+    "doc3": "Səyahət tarixləriniz və yaşayış yeriniz.",
+    "doc4": "İstiqamət viza rüsumu tələb edirsə, onu birbaşa dövlətə ödəmək üçün ödəniş kartı.",
+    "nearby": "Yaxın istiqamətlər",
+    "startApplication": "Müraciətinizə başlayın",
+    "comingSoonTitle": "{country}: tezliklə",
+    "comingSoonBody": "{country} üzrə son toxunuşları edirik. Hesab yaradın, hazır olan kimi sizə xəbər verək.",
+    "browseDestinations": "İstiqamətlərə bax",
+    "notifyMe": "Mənə xəbər ver",
+    "back": "Kəşf et bölməsinə qayıt",
+    "tabOverview": "İcmal",
+    "tabProcess": "Müraciət prosesi",
+    "tabDocuments": "Sənədlər",
+    "tabRejection": "İmtina səbəbləri",
+    "tabEntry": "Giriş və çıxış",
+    "tabExtension": "Uzatma",
+    "tabReviews": "Rəylər",
+    "tabNearby": "Yaxın ölkələr",
+    "reviewsTitle": "Rəylər",
+    "nearbyTitle": "Yaxın ölkələr",
+    "nearbySub": "Regionda səyahət edirsiniz? Səfərinizə başqa viza əlavə edin, VIZA məsləhətçiniz onları birlikdə həll edir.",
+    "faqTitle": "Tez-tez verilən suallar",
+    "editorial": "Bu səhifə VIZA-nın redaksiya siyasətinə əməl edir. Rəsmi dövlət mənbələrinə əsaslanırıq və siyasət dəyişdikdə hər tələbi yeniləyirik.",
+    "editorialLink": "Necə yoxladığımızı oxuyun",
+    "sourcesTitle": "Mənbələr",
+    "priceGovt": "Dövlət rüsumu",
+    "priceFree": "Pulsuz",
+    "pillAllInclusive": "Hər şey daxil",
+    "priceCta": "Müraciətə başla",
+    "onTime": "Vaxtında",
+    "freeService": "Pulsuz VIZA xidməti",
+    "freeServiceNote": "VIZA köməyi üçün heç nə tutmur",
+    "govFeePaidDirect": "Dövlət rüsumu {fee}, birbaşa verən orqana ödənilir.",
+    "govFeeSetByAuthority": "Hər hansı dövlət rüsumunu verən orqan müəyyən edir və birbaşa ona ödənilir.",
+    "govFeeSetByAuthorityShort": "Orqan tərəfindən müəyyən edilir",
+    "priceService": "VIZA xidməti",
+    "pillPaidToAuthority": "Orqana ödənilir",
+    "priceTotalToViza": "VIZA-ya ödəyirsiniz",
+    "breadcrumbVisas": "Viza istiqamətləri",
+    "serviceDescription": "VIZA Sinqapurda yaşayan insanlara {country} {type} müraciətlərini süni intellekt bələdçiliyi və mütəxəssis nəzəri ilə hazırlamağa, yoxlamağa və təqdim etməyə kömək edir.",
+    "offerDescription": "VIZA xidmət haqqı. Dövlət viza rüsumları ayrıdır və birbaşa verən orqana ödənilir.",
+    "dest": {
+      "tabGlance": "Qısa icmal",
+      "tabPassports": "Pasportlar",
+      "tabTypes": "Viza növləri",
+      "tabResidents": "Sakinlər",
+      "tabFees": "Rüsumlar",
+      "tabApply": "Necə müraciət etməli",
+      "tabChecklist": "Sənədlər",
+      "tabRejection": "İmtinalar",
+      "tabTravel": "Səyahətdən əvvəl",
+      "tabRelated": "Əlaqəli",
+      "glanceTitle": "Qısa icmal",
+      "glanceVisa": "Viza lazımdır",
+      "glanceGovFee": "Dövlət rüsumu",
+      "glanceVizaFee": "VIZA haqqı",
+      "glanceProcessing": "Baxılma müddəti",
+      "glanceMaxStay": "Maksimum qalma müddəti",
+      "glanceChecked": "Yoxlanma tarixi",
+      "passportsTitle": "Vizaya ehtiyacınız var?",
+      "typesTitle": "Viza növləri",
+      "residentsTitle": "Sinqapur sakinləri",
+      "feesTitle": "Rüsumlar və müddət",
+      "applyTitle": "Necə müraciət etməli",
+      "checklistTitle": "Sənəd siyahısı",
+      "travelTitle": "Səyahətdən əvvəl",
+      "colPassport": "Pasport",
+      "colEntry": "Giriş",
+      "colNotes": "Qeydlər",
+      "colItem": "Bənd",
+      "colAmount": "Məbləğ",
+      "vizaFeeNote": "VIZA-nın köməyi pulsuzdur. Yalnız dövlət rüsumunu birbaşa orqana ödəyirsiniz.",
+      "reviewedBy": "{date} tarixində VIZA məsləhətçisi tərəfindən yoxlanılıb.",
+      "relatedTitle": "Əlaqəli istiqamətlər",
+      "relatedSub": "İnsanların eyni səfərə əlavə etdiyi digər yerlər və daha çox oxumaq üçün hara baxmalı.",
+      "startTitle": "Müraciətə başla",
+      "startBody": "Pasportunuz və səyahət tarixlərinizlə başlayın. VIZA-nın köməyi pulsuzdur, dövlət rüsumunu isə birbaşa orqana ödəyirsiniz.",
+      "startConsultBody": "VIZA məsləhətçisinə harada yaşadığınızı, pasportunuzu və səyahət tarixlərinizi bildirin. VIZA-nın köməyi pulsuzdur.",
+      "consultCta": "Məsləhətçi ilə danış"
+    }
+  },
+  "apply": {
+    "stepOf": "Addım {n} / 3",
+    "back": "Geri",
+    "continue": "Davam et",
+    "step1Name": "Pasportu yüklə",
+    "step2Name": "Məlumatları təsdiqlə",
+    "step3Name": "Müraciətə başla",
+    "s1Title": "Pasportunuzu yükləyin",
+    "s1Desc": "Məlumatlarınızı avtomatik oxuyacağıq, yazmağa ehtiyac yoxdur. Şəkilli səhifədən (şəkliniz olan səhifə) istifadə edin.",
+    "segUpload": "Fayl yüklə",
+    "segCapture": "Şəkil çək",
+    "dzTitle": "Pasport şəklinizi bura buraxın",
+    "dzSub": "Və ya göz gəzdirmək üçün klikləyin, faylınız şifrələnir və heç vaxt paylaşılmır",
+    "dzBrowse": "Fayl seçin",
+    "dzUpTo": "10 MB-a qədər",
+    "tip1Title": "Dörd künc də görünməlidir",
+    "tip1Sub": "Şəkilli səhifəni, o cümlədən aşağıdakı MRZ zonasını tam çərçivəyə alın.",
+    "tip2Title": "Parlaq, bərabər işıq",
+    "tip2Sub": "Əlinizin və ya telefon qabının kölgəsindən qaçının.",
+    "tip3Title": "Parıltı və əks olunma olmasın",
+    "tip3Sub": "Möhür əks edirsə, bir az əyin.",
+    "errReadFail": "Həmin pasportu oxuya bilmədik: {detail}. Şəkilli səhifənin daha aydın şəklini yükləyin.",
+    "extReading": "Sənəd oxunur",
+    "extExtracting": "Məlumatlarınız çıxarılır",
+    "extVerifying": "Həqiqilik yoxlanır",
+    "stReading": "Oxunur…",
+    "stExtracting": "Çıxarılır…",
+    "stVerifying": "Yoxlanır…",
+    "s2Title": "Məlumatlarınızı təsdiqləyin",
+    "s2Desc": "Bunları birbaşa pasportunuzdan götürdük. Redaktə etmək üçün istənilən sahəyə toxunun.",
+    "successHigh": "Pasport uğurla oxundu, yüksək dəqiqlik",
+    "warnLow": "Bəzi sahələri oxumaq çətin oldu, aşağıdakı hər dəyəri yenidən yoxlayın.",
+    "warnMed": "Məlumatlarınızın çoxunu oxuduq, işıqlandırılmış sahələri yoxlayın.",
+    "ppDetails": "Pasport məlumatları",
+    "autoExtracted": "Avtomatik oxunub",
+    "fSurname": "Soyad",
+    "fGiven": "Ad",
+    "fPassport": "Pasport nömrəsi",
+    "fDob": "Doğum tarixi",
+    "fNationality": "Vətəndaşlıq",
+    "fExpires": "Bitmə tarixi",
+    "reachTitle": "Sizinlə necə əlaqə saxlayaq?",
+    "reachDesc": "Vizanızı bura göndərəcəyik, həmçinin telefonunuza status mətn bildirişləri.",
+    "email": "E-poçt",
+    "phone": "Telefon",
+    "consent": "Yuxarıdakı məlumatların pasportuma uyğun olduğunu təsdiqləyirəm və VIZA-ya bu müraciəti mənim adımdan {country} immiqrasiya orqanlarına təqdim etmək səlahiyyəti verirəm.",
+    "s3Title": "Müraciətinizə başlayın",
+    "s3Desc": "VIZA-nın xidməti pulsuzdur. VIZA portalına daxil olun, qalanını biz edirik.",
+    "headsUp": "Nəzərinizə:",
+    "headsUpBody": "{country} hökuməti viza rüsumu tələb edirsə, onu birbaşa onlara ödəyirsiniz. VIZA bu məbləği heç vaxt yığmır və üzərinə əlavə qoymur.",
+    "yourApp": "Müraciətiniz",
+    "guaranteedBy": "Zəmanətli çatdırılma tarixi",
+    "govFee": "Dövlət rüsumu",
+    "expressUpgrade": "Express yeniləmə",
+    "total": "Cəmi",
+    "footEncrypted": "Başdan sona şifrələnib. VIZA bu müraciət üçün sizdən pul tutmur.",
+    "helpOnline": "Priya onlayndır",
+    "helpTap": "VIZA məsləhətçiniz ilə söhbət üçün toxunun",
+    "totalAmount": "SGD {amount}",
+    "totalFree": "Pulsuz",
+    "etaStandard": "12 May 2026, səhər 8:00 SGT",
+    "failTitle": "Həmin sənədi oxuya bilmədik",
+    "failNotPassport": "Bu, pasportun şəkilli səhifəsinə oxşamır. Şəkliniz və şəxsi məlumatlarınız olan səhifənin şəklini yükləyin.",
+    "failUnreadable": "Tələb olunan sahələrin heç biri oxuna bilmədi. Şəkli yaxşı işıqda, şəkilli səhifə düz və fokusda olmaqla yenidən çəkin.",
+    "tryAgain": "Yenidən cəhd et",
+    "warnPartial": "Hər şeyi oxuya bilmədik, aşağıdakı işıqlandırılmış sahələri tamamlayın.",
+    "warnExpired": "Bu pasportun müddəti bitmiş görünür. Əksər istiqamətlər ən azı 6 ay etibarlılıq tələb edir.",
+    "warnMrz": "Maşınla oxunan zona (aşağıdakı iki sətir) oxunmadı, hər sahəni yenidən yoxlayın.",
+    "warnBlurry": "Şəkil bulanıq idi, hər sahəni diqqətlə yenidən yoxlayın.",
+    "fieldRequired": "Tələb olunur, doldurun",
+    "editField": "{field} redaktə et",
+    "emailInvalid": "Düzgün e-poçt ünvanı daxil edin, viza yenilikləriniz və daxil olma linkiniz bura gələcək.",
+    "phoneInvalid": "Düzgün telefon nömrəsi daxil edin.",
+    "consentRequired": "Davam etmək üçün bəyannaməni təsdiqləyin.",
+    "continueToStart": "Davam et",
+    "startTitle": "VIZA portalında davam edin",
+    "startSub": "Daxil olun və ya pulsuz hesab yaradın. Bu istiqamət üzrə müraciətiniz dərhal açılır.",
+    "vizaService": "VIZA xidməti",
+    "govFeeSetByAuthority": "Orqan tərəfindən müəyyən edilir",
+    "govFeeNote": "Hər hansı dövlət viza rüsumu VIZA-ya deyil, birbaşa verən orqana ödənilir.",
+    "completeBeforeStart": "Davam etməzdən əvvəl yuxarıdakı işıqlandırılmış bəndləri tamamlayın."
+  },
+  "explore": {
+    "help": "Kömək",
+    "passportLabel": "{name} pasportu",
+    "passportSub": "{n} istiqamət üzrə viza tələbləri · Reyting {rank}",
+    "freeLabel": "Vizasız",
+    "freeNote": "sənəd işi yoxdur",
+    "voaLabel": "Elektron viza və ya gəlişdə viza",
+    "voaNote": "biz həll edirik",
+    "reqLabel": "Viza lazımdır",
+    "reqNote": "səfirliyə müraciət",
+    "fullMap": "Tam viza xəritəsinə bax",
+    "grid": "Şəbəkə",
+    "map": "Xəritə",
+    "mapLegendEvisa": "Elektron viza və ziyarətçi vizaları",
+    "mapHint": "İstiqamətə öncədən baxmaq üçün işıqlandırılmış nöqtənin üzərinə gətirin",
+    "sectionTitle": "{country} pasportları üçün",
+    "seeAll": "Hamısına bax ({n})",
+    "footnote": "VIZA-nın xidməti pulsuzdur. Hər hansı dövlət viza rüsumu birbaşa verən orqana ödənilir və ölkədən asılı olaraq dəyişir.",
+    "fastTrack": "Sürətli yol",
+    "cardType": "Növ",
+    "cardValid": "Etibarlıdır",
+    "cardFee": "VIZA xidməti",
+    "save": "Saxla",
+    "startApplication": "Müraciətə başla",
+    "catalogueUnavailable": "Hazırda onlayn müraciət üçün açıq istiqamət yoxdur. Tezliklə yenidən yoxlayın.",
+    "choosePassport": "Pasportunuzu seçin",
+    "searchPassport": "Pasport ölkəsini axtar…",
+    "visaFree": "{n} vizasız",
+    "ppFoot": "May 2026 üçün yenilənib · IATA Timatic mənbəli",
+    "noMatch": "“{q}” üçün pasport tapılmadı",
+    "filters": {
+      "delivery": "Viza çatdırılması",
+      "type": "Viza növü",
+      "documents": "Sənədlər",
+      "dates": "Səyahət tarixləri"
+    },
+    "filterOpts": {
+      "delivery": [
+        "İstənilən vaxt",
+        "24 saat ərzində",
+        "3 gün ərzində",
+        "1 həftə ərzində",
+        "1 ay ərzində"
+      ],
+      "type": [
+        "Bütün növlər",
+        "Turist",
+        "Biznes",
+        "İş",
+        "Tələbə",
+        "Rəqəmsal köçəri"
+      ],
+      "documents": [
+        "İstənilən sənədlər",
+        "Minimal (yalnız pasport)",
+        "Standart",
+        "Ətraflı paket"
+      ],
+      "dates": [
+        "Tarix seçin",
+        "Bu həftə",
+        "Bu ay",
+        "3 ay sonra",
+        "6 ay sonra"
+      ]
+    }
+  },
+  "cities": {
+    "viza-test": "Canlı ödəniş testi",
+    "indonesia": "Bali · Cakarta",
+    "egypt": "Qahirə · Gizə",
+    "australia": "Sidney · Melburn",
+    "saudi-arabia": "Ər-Riyad · Əl-Ula",
+    "united-kingdom": "London · Edinburq",
+    "vietnam": "Hanoy · Hoyan",
+    "malaysia": "KL · Penanq",
+    "japan": "Tokio · Kioto",
+    "united-states": "Nyu-York · Los-Anceles",
+    "canada": "Toronto · Vankuver",
+    "turkiye": "İstanbul · Kapadokya",
+    "thailand": "Banqkok · Phuket",
+    "united-arab-emirates": "Dubay · Əbu-Dabi",
+    "france": "Paris · Nitsa",
+    "italy": "Roma · Florensiya",
+    "india": "Dehli · Mumbay"
+  },
+  "validity": {
+    "viza-test": "Yalnız demo",
+    "indonesia": "90 gün",
+    "egypt": "90 gün",
+    "australia": "1 il",
+    "saudi-arabia": "365 gün",
+    "united-kingdom": "6 ay",
+    "vietnam": "90 gün",
+    "malaysia": "3 ay",
+    "japan": "90 gün",
+    "united-states": "10 il",
+    "canada": "10 il",
+    "turkiye": "180 gün",
+    "thailand": "3 ay",
+    "united-arab-emirates": "60 gün",
+    "france": "90 gün",
+    "italy": "90 gün",
+    "india": "30 gün"
+  },
+  "passports": {
+    "SG": "Sinqapur",
+    "JP": "Yaponiya",
+    "KR": "Cənubi Koreya",
+    "DE": "Almaniya",
+    "FR": "Fransa",
+    "GB": "Böyük Britaniya",
+    "US": "Amerika Birləşmiş Ştatları",
+    "AU": "Avstraliya",
+    "CA": "Kanada",
+    "AE": "Birləşmiş Ərəb Əmirlikləri",
+    "CN": "Çin",
+    "IN": "Hindistan",
+    "BR": "Braziliya",
+    "PH": "Filippin",
+    "ID": "İndoneziya",
+    "MY": "Malayziya",
+    "TH": "Tailand"
+  },
+  "countries": {
+    "viza-test": "VIZA Test",
+    "indonesia": "İndoneziya",
+    "egypt": "Misir",
+    "australia": "Avstraliya",
+    "saudi-arabia": "Səudiyyə Ərəbistanı",
+    "united-kingdom": "Böyük Britaniya",
+    "vietnam": "Vyetnam",
+    "malaysia": "Malayziya",
+    "japan": "Yaponiya",
+    "united-states": "Amerika Birləşmiş Ştatları",
+    "canada": "Kanada",
+    "turkiye": "Türkiyə",
+    "thailand": "Tailand",
+    "united-arab-emirates": "Birləşmiş Ərəb Əmirlikləri",
+    "france": "Fransa",
+    "italy": "İtaliya",
+    "india": "Hindistan",
+    "china": "Çin",
+    "south-korea": "Cənubi Koreya",
+    "schengen": "Şengen"
+  },
+  "visaTypes": {
+    "Test checkout": "Test ödənişi",
+    "e-Visa": "Elektron viza",
+    "Standard Visitor": "Standard Visitor",
+    "Visitor 600": "Visitor 600",
+    "Tourist": "Turist",
+    "B1/B2": "B1/B2",
+    "eTA": "eTA",
+    "Schengen": "Şengen",
+    "eVisa": "Elektron viza",
+    "Visitor visa": "Ziyarətçi vizası",
+    "Tourist visa": "Turist vizası"
+  },
+  "careers": {
+    "hero": {
+      "nowHiring": "İşə götürürük:",
+      "cities": [
+        "Şanxay",
+        "Sinqapur"
+      ],
+      "openRoles": "28 açıq vakansiya",
+      "title": "Sərhədləri<br></br><em>yox etməyə</em> kömək edin, <u>sakitcə,</u><br></br>proqram sürətiylə.",
+      "lead": "Aylarla viza sənəd işini saatlarla proqrama çeviririk, sadəcə təyyarəyə minmək istəyən milyonlarla insan üçün. Sənətkarlığınızı real müddətlərə qarşı işləyən komandaya gətirin.",
+      "ctaRoles": "Bütün açıq vakansiyalara bax",
+      "ctaWhy": "Niyə varıq"
+    },
+    "board": {
+      "ariaLabel": "VIZA-dakı açıq vakansiyaları göstərən uçuş tablosu",
+      "head": "Açıq vəzifələr · canlı",
+      "live": "Vaxtında",
+      "cols": {
+        "req": "№",
+        "role": "Vəzifə",
+        "office": "Ofis",
+        "status": "Status"
+      },
+      "rows": [
+        {
+          "role": "Staff Engineer",
+          "sub": "Sənəd xətti",
+          "status": "Minik"
+        },
+        {
+          "role": "Product Designer",
+          "sub": "Müraciət edən axınları",
+          "status": "Açıq"
+        },
+        {
+          "role": "Səfirlik əlaqələndiricisi",
+          "sub": "Dövlət tərəfdaşlıqları",
+          "status": "Son çağırış"
+        },
+        {
+          "role": "Müştəri əməliyyatları",
+          "sub": "2-ci səviyyə eskalasiyalar",
+          "status": "Açıq"
+        }
+      ],
+      "foot": "+24 vakansiya daha: mühəndislik, əməliyyatlar və dizayn",
+      "browseAll": "Hamısına bax",
+      "chip1Label": "İşə götürürük:",
+      "chip1Value": "4 ofis",
+      "chip2Label": "Orta cavab müddəti",
+      "chip2Value": "ilk zəngə qədər 3.2 gün"
+    },
+    "stats": [
+      {
+        "value": "2.4M",
+        "label": "Keçən il VIZA vasitəsilə verilən vizalar"
+      },
+      {
+        "label": "Canlı emal ilə dəstəklənən istiqamətlər"
+      },
+      {
+        "label": "2025-ci ildə bütün viza növləri üzrə təsdiq nisbəti"
+      },
+      {
+        "label": "Şanxay və Sinqapurdakı insanlar"
+      }
+    ],
+    "mission": {
+      "eyebrow": "Hekayəmiz",
+      "title": "Dünyanın çox hissəsi<br></br>hələ də<br></br><em>çap olunmuş sənədlərlə</em> səyahət edir.",
+      "kicker1": "VIZA-nı 2021-ci ildə səfirliklərlə gözləmədə çox həftə keçirdikdən sonra qurduq. İnsanları sərhədlərdən keçirən sistem internetdən də köhnədir və onun içində ilişib qalanlar daha yaxşısına layiqdir.",
+      "kicker2": "Bu gün dörd ofisdəki 340 nəfərlik komanda 194 ölkədə proqram hazırlayır, sənədləri təqdim edir və əməliyyatları idarə edir. Cansıxıcı, yorucu işi biz görürük ki, səyahət internetin qalanı kimi hiss olunsun: bir neçə toxunuş və yola düşürsən.",
+      "founderName": "Mira Kohli",
+      "founderRole": "Həmtəsisçi və CEO · Sinqapur",
+      "beliefs": [
+        {
+          "title": "Biz proqram hazırlayan əməliyyat şirkətiyik.",
+          "body": "VIZA-nın yarısı mühəndislər, dizaynerlər və məhsul menecerləridir. Digər yarısı ölkələrdəki məsləhətçilər, əməliyyat işçiləri və sənəd mütəxəssisləridir. Biri o birisiz qalib gəlmir."
+        },
+        {
+          "title": "Müraciət edən həmişə müştəridir.",
+          "body": "Səfirliklər, tərəfdaşlar, aviaşirkətlər, hamısı vacibdir. Amma gecə saat 3-də növbədə qalıb portalı yeniləyən insan işlədiyimiz və özümüzü ölçdüyümüz şəxsdir."
+        },
+        {
+          "title": "Keyfiyyətdə səbirli olduqda sürət artır.",
+          "body": "Təqdim etməkdə sürətli, geri qaytarılmaz qərarlarda yavaşıq. Yanlış viza qərarı toyu, işi, dəfni pozə bilər. Bu səviyyəni bizi yavaşlatsa belə qoruyuruq."
+        },
+        {
+          "title": "Məsafə məhdudiyyət deyil, UX problemidir.",
+          "body": "Komandalarımız dörd saat qurşağında yerləşir. Asinxron yazı, aydın sahiblik və yaxşı sənəd mədəniyyəti vaxtı etimada çevirmə yolumuzdur və heç kimi yormadan dünya üzrə işləmə yolumuzdur."
+        }
+      ]
+    },
+    "values": {
+      "eyebrow": "Özümüzə qoyduğumuz tələblər",
+      "title": "Baha başa gəlsə də inandığımız beş şey.",
+      "lead": "Dəyərləri yazmaq asan, onlara əməl etmək çətindir. Bunlar işə götürmədə, qiymətləndirmədə və nadir çətin qərarlarda həqiqətən istifadə etdiyimiz beş dəyərdir.",
+      "cards": [
+        {
+          "title": "Həqiqəti deyin, xüsusən də bizə baha başa gəldikdə.",
+          "body": "Viza vaxtında çıxmayacaqsa, bunu uçuşdan bir gün əvvəl yox, bu gün deyin. Yalan təqdim etməkdənsə, satışı itirərik.",
+          "kicker": "Praktikada → dərc edilmiş siyasətlər, dəyişiklik auditi"
+        },
+        {
+          "title": "Sürəti qazanın. Sadəcə məşğul hiss etməyin.",
+          "body": "Görüşləri və yazışmaları yox, qərarları və təqdim edilmiş işi qeyd edirik. Məqsəd missiyaya qarşı məhsuldarlıqdır, təqviminizə qarşı hərəkət deyil.",
+          "kicker": "Praktikada → rüblük məhsuldarlıq icmalı"
+        },
+        {
+          "title": "Persona yox, pasportlarla düşünün.",
+          "body": "Viza qaydaları vətəndaşlığa görədir. “İstifadəçi” mövcud deyil, Şengenə müraciət edən Filippin pasportu sahibi var. Orta göstəricilər üçün yox, real insanlar üçün qururuq.",
+          "kicker": "Praktikada → pasportu əsas götürən məhsul spesifikasiyası"
+        },
+        {
+          "title": "Yazın. Xüsusən qərarları.",
+          "body": "Dörd ofis, dörd saat qurşağı. Qərar yazılmayıbsa, baş verməyib. Vikimiz məcburi oxunuşdur, gündəlik yığıncaqlarımız isə könüllüdür.",
+          "kicker": "Praktikada → ADR-lər, həftəlik memo, əvvəlcə asinxron"
+        },
+        {
+          "title": "Növbəyə yaxın qalın.",
+          "body": "Hər mühəndis rübdə bir dəfə məsləhətçi mərtəbəsində növbə çəkir. Bazar günü axşam saat 11-də hiss etmədiyiniz sürtünməni dizaynla aradan qaldıra bilməzsiniz.",
+          "kicker": "Praktikada → növbəli növbə fasilələri"
+        },
+        {
+          "title": "Uzun variantı seçin.",
+          "body": "Otuz saniyəlik cavab adətən yanlış olur. Dərin sənədləşməyə, möhkəm təlimatlara və dayanıqlı izahatlara investisiya edirik, hətta asan variant kifayət etsə belə.",
+          "kicker": "Praktikada → işə qəbul təlimatı, açıq təlimatlar"
+        }
+      ]
+    },
+    "inside": {
+      "eyebrow": "VIZA-nın içində",
+      "title": "Burada işləmək<br></br>əslində necə görünür.",
+      "lead": "Müraciətlərin təqdim olunduğu yerlərə yaxın işə götürdüyümüz üçün iki şəhərdə ofislərimiz var. Qələbələr barədə yüksək, siyasət barədə sakit və hələ nə qədər qurmalı olduğumuz barədə dürüstük.",
+      "photos": [
+        {
+          "label": "foto · Sinqapur baş ofisi, açıq mərtəbə",
+          "mark": "Paya Lebar Square, SG"
+        },
+        {
+          "label": "foto · məsləhətçi növbə mərtəbəsi",
+          "mark": "Luoshan Rd, Şanxay"
+        },
+        {
+          "label": "foto · lövhə sessiyası",
+          "mark": "Texnologiya səfəri, Bali"
+        },
+        {
+          "label": "foto · Şanxay əməliyyat mərtəbəsi",
+          "mark": "Pudong, Şanxay"
+        },
+        {
+          "label": "foto · komanda şam yeməyi",
+          "mark": "All-hands, Lissabon"
+        },
+        {
+          "label": "foto · səfirlik tərəfdaşı ziyarəti",
+          "mark": "Paya Lebar Square, SG"
+        }
+      ],
+      "pull": "“Qoşulmazdan əvvəl vizalar barədə fikri olan insanları işə götürürük. İkinci ayda daha güclü fikriniz olacaq.”",
+      "pullBy": "Felix Adekunle, mühəndislik üzrə vitse-prezident",
+      "para1": "VIZA yüksək muxtariyyət və yüksək kontekstdir. Etdiyiniz hər şey üçün sahibiniz, real büdcələriniz olacaq və işinizin arxasındakı məntiqi şirkətin qalanına izah etməyiniz gözlənilir.",
+      "para2": "Hər gün nə edəcəyiniz sizə deyilsin istəyirsinizsə, bura uyğun yer deyil. Kiminsə sükanı sizə verməsini gözləyirdinizsə, o, məhz buradadır."
+    },
+    "how": {
+      "eyebrow": "VIZA-da mühəndislik və əməliyyatlar",
+      "title": "İş əslində necə irəliləyir.",
+      "lead": "Burada qurur, təqdim edir və ya dizayn edirsinizsə, həftəniz belə görünür. Daha az mərasim, daha çox təqdim edilmiş iş. Daha az Slack, daha çox yazılmış qərar.",
+      "cells": [
+        {
+          "title": "Başdan sona sahiblik",
+          "body": "Dizayn edirsiniz, qurursunuz, təqdim edirsiniz və istehsalda sahib çıxırsınız. Təhvil növbəsi yoxdur, üç pillə uzaqdakı insanların yazdığı yol xəritəsi yoxdur. Sizindirsə, həqiqətən sizindir."
+        },
+        {
+          "title": "Hər gün standart olaraq deploy",
+          "body": "Əksər komandalar gündə bir neçə dəfə təqdim edir. Rəy dövrələri nəzərdə tutulmuş şəkildə qısadır və otuz dəqiqəlik geri dönüş üç həftəlik mübahisədən üstündür."
+        },
+        {
+          "title": "Real, qarışıq problemlər",
+          "body": "Bu CRUD deyil. Sənəd OCR, 90+ dövlət portalına qarşı gecikməyə həssas planlaşdırma və milyonların istifadə etdiyi istehlakçı axınları üzərində işləyəcəksiniz."
+        },
+        {
+          "title": "Standart açıq şəkildə yüksəkdir",
+          "body": "Dizayn icmallarını birlikdə edirik. PR-lərə sətir daxilində şərh yazırıq. Zövqün öyrədilə biləcəyinə inanırıq və insanların ətrafındakı hər kəsin yaxşılaşmasına fəal kömək etməsini gözləyirik."
+        },
+        {
+          "title": "Real öyrənmə büdcəsi",
+          "body": "Hər nəfərə ildə $2,000, sual verilmədən, konfranslar, kitablar, kurslar üçün və burada gördüyünüz işə geri qayıdan hər şey üçün."
+        },
+        {
+          "title": "Sizin yazdığınız arxitektura",
+          "body": "RFC-lər hər kəsə açıqdır. Yeni mühəndislər ilk ayında əsas infrastrukturu formalaşdırıblar. Daha güclü planınız varsa, yazın, biz oxuyacağıq."
+        }
+      ]
+    },
+    "roles": {
+      "eyebrow": "Açıq vakansiyalar · həftəlik yenilənir",
+      "title": "Yolculuğun bir hissəsi olun.",
+      "lead": "Dörd ofisdə 28 açıq vakansiya. Mühəndislik, dizayn, əməliyyatlar, məsləhətçilər və tərəfdaşlıqlar üzrə işə götürürük. Yeni vakansiyalar bazar ertəsi günləri görünür.",
+      "allDepartments": "Bütün şöbələr",
+      "deps": {
+        "eng": "Mühəndislik",
+        "design": "Dizayn",
+        "ops": "Əməliyyatlar",
+        "consult": "Məsləhətçilər",
+        "data": "Data və ML",
+        "gtm": "Marketinq və GTM"
+      },
+      "showing": "<strong>{count}</strong> vakansiya göstərilir · bütün yerlər · bütün komandalar",
+      "anyLocation": "İstənilən yer",
+      "groupCount": "{count} açıq",
+      "posSub": "{team} · biz ustalığa və mühakiməyə görə işə götürürük, mənşəyə görə yox",
+      "locationLabel": "Yer",
+      "typeLabel": "Növ",
+      "fullTime": "Tam ştat",
+      "viewRole": "Vakansiyaya bax",
+      "locations": {
+        "sg": "Sinqapur",
+        "sf": "Şanxay",
+        "ldn": "Sinqapur",
+        "dxb": "Şanxay"
+      },
+      "jobs": {
+        "backendPayments": "Senior Backend Engineer, platforma",
+        "staffDocPipeline": "Staff Engineer: sənəd xətti",
+        "iosApplicant": "iOS Engineer: müraciət edən tətbiqi",
+        "platformInfra": "Platform Engineer: infrastruktur və təhlükəsizlik",
+        "frontendConsole": "Frontend Engineer: məsləhətçi konsolu",
+        "emWeb": "Engineering Manager: veb",
+        "sre": "Site Reliability Engineer",
+        "androidSenior": "Senior Android Engineer",
+        "leadEmbassy": "Engineering Lead: səfirlik inteqrasiyaları",
+        "productDesignerApplicant": "Senior Product Designer: müraciət edən axını",
+        "brandDesigner": "Brend dizayneri",
+        "designLeadConsultant": "Design Lead: məsləhətçi alətləri",
+        "headOpsMe": "Əməliyyatlar rəhbəri, Yaxın Şərq",
+        "visaOpsSchengen": "Viza əməliyyatları rəhbəri: Şengen",
+        "logistics": "Logistika və kuryer meneceri",
+        "processDocQa": "Proses mühəndisi: sənəd QA",
+        "opsAnalyst": "Əməliyyat analitiki: sifarişlər",
+        "consultSchengen": "Viza məsləhətçisi: Şengen",
+        "consultUs": "Viza məsləhətçisi: ABŞ B1/B2",
+        "consultUae": "Viza məsləhətçisi: BƏƏ yaşayış icazəsi",
+        "consultStudent": "Baş məsləhətçi: tələbə vizaları",
+        "consultApac": "Məsləhətçi rəhbəri: Asiya-Sakit okean",
+        "consultUk": "Viza məsləhətçisi: Böyük Britaniya",
+        "dataScientist": "Senior Data Scientist: təsdiq modelləşdirməsi",
+        "mlOcr": "ML Engineer: OCR və sənəd AI",
+        "perfMarketing": "Performans marketinq meneceri",
+        "contentLead": "Məzmun rəhbəri: hekayə danışma",
+        "lifecycleCrm": "Lifecycle və CRM meneceri"
+      }
+    },
+    "fellowship": {
+      "tag": "▲ VIZA Launchpad · 12 həftəlik proqram",
+      "title": "On iki həftə. Bir məhsul komandası.<br></br><em>Nəsə təqdim etmək üçün bir şans.</em>",
+      "para1": "Launchpad karyerasının əvvəlindəki mühəndislər, məhsul menecerləri və dizaynerlər üçün rezident proqramımızdır, real zərbə vurmazdan əvvəl iki il daha “təcrübə” lazım olacaq insanlar üçün.",
+      "para2": "Senior rəhbərlərlə birgə işləyəcək, real məhsul səthinə başlanğıcdan buraxılışa qədər sahib çıxacaq və milyonlarla insanın istifadə edəcəyi bir işlə çıxacaqsınız. Qrupun təxminən 60%-nə tam ştat təklifi qaytarılır.",
+      "meta": [
+        {
+          "k": "Müddət",
+          "v": "12 həftə"
+        },
+        {
+          "k": "Yer",
+          "v": "Ofisdə, istənilən baş ofis"
+        },
+        {
+          "k": "Təqaüd",
+          "v": "Bazar səviyyəsindən yuxarı"
+        },
+        {
+          "k": "Növbəti qrup",
+          "v": "Sentyabr 2026"
+        }
+      ],
+      "apply": "Launchpad-a müraciət et",
+      "readCohort": "2025 qrupu haqqında oxu",
+      "projects": [
+        {
+          "k": "2024 · Mühəndislik",
+          "title": "OCR xəttinin yenidən yazılması",
+          "meta1": "İstehsala buraxılıb",
+          "meta2": "3.2× daha sürətli"
+        },
+        {
+          "k": "2025 · Dizayn",
+          "title": "Şengen axınının yenidən dizaynı",
+          "meta1": "14 ölkədə canlı",
+          "meta2": "↑ 22% konv."
+        },
+        {
+          "k": "2025 · Məhsul",
+          "title": "Səfirlik vaxt planlayıcısı",
+          "meta1": "9 səfirlik",
+          "meta2": "ayda 40k yer"
+        }
+      ]
+    },
+    "benefits": {
+      "eyebrow": "Yanınızdayıq (həqiqətən)",
+      "title": "Cansıxıcı məsələlər,<br></br>düzgün həll olunub.",
+      "lead": "İmtiyazların bonus olduğunu düşünmürük. Onlar insanların ən yaxşı işini görməsinə imkan verən bazadır. Hər ofisdə hər VIZA işçisinin ilk gündən aldığı budur.",
+      "items": [
+        {
+          "title": "Hərtərəfli səhiyyə, həll olunub.",
+          "body": "İlk gündən tam tibbi, diş və görmə sığortası, özünüz, həyat yoldaşınız və uşaqlarınız üçün. Sığorta haqqını biz ödəyirik, mükəlləfiyyət oyunları yoxdur."
+        },
+        {
+          "title": "Yalnız maaş yox, sərvət qurun.",
+          "body": "İşə götürdüyümüz hər bazarda bazar səviyyəsindən yuxarı baza maaş və yalnız illərlə yox, mərhələlərlə bağlı səxavətli səhm qrantı. Hər iki ildən bir yeniləyirik."
+        },
+        {
+          "title": "Həqiqətən vacib olanı öyrənin.",
+          "body": "İldə $2,000 öyrənmə büdcəsi, aylıq daxili təlimlər və təqvimdə vaxt, yalnız icazə yox, həmin kursa getmək və ya həmin konfransda iştirak etmək üçün."
+        },
+        {
+          "title": "Müştəriləri öz pulunuz kimi sevindirin.",
+          "body": "Hər müraciət edənə gözləntidən artıq xoş niyyət üçün $100 büdcə verilir. Təsdiq yoxdur, eskalasiya yoxdur: həll edin, sonra nə baş verdiyini yazın."
+        },
+        {
+          "title": "Psixika > hər şey.",
+          "body": "Məxfi, peşəkar psixi sağlamlıq dəstəyi, sığorta əngəlləri olmadan. Üstəlik ayda üç “görüşsüz” gün, şirkət üzrə."
+        },
+        {
+          "title": "Səyahət imtiyazları (məcburuq).",
+          "body": "Biz vizalarla məşğuluq, komandamız hesabımıza səyahət etməlidir. İldə $4k səyahət krediti, üstəlik VIZA ehtiyacınız olan hər vizanı dərhal, daxildən həll edir."
+        },
+        {
+          "title": "Səxavətli, real istirahət.",
+          "body": "30 gün PTO, üstəlik ölkənizin bayramları, üstəlik 24 dekabrdan 1 yanvara qədər ödənişli bir həftə istirahət. İstifadəni izləyirik və insanları azı yox, çoxu götürməyə həvəsləndiririk."
+        },
+        {
+          "title": "Avadanlıq, sual verilmədən.",
+          "body": "Noutbukunuzu, monitorunuzu və kreslonuzu ilk gün seçin. Qurğunuz üçün evdən iş təqaüdü. Yaxşı iş görmək üçün nəyə ehtiyacınız olduğunu bildiyinizə güvənirik."
+        },
+        {
+          "title": "Həqiqətən işləyən valideyn məzuniyyəti.",
+          "body": "Əsas baxıcılar üçün 20 həftə, ikinci üçün 12 həftə, tam ödənişli. Üstəlik mərhələli qayıdış, beləliklə ilk gün tam sürətlə geri dönmürsünüz."
+        }
+      ]
+    },
+    "offices": {
+      "eyebrow": "Harada işləyirik",
+      "title": "İki ofis, bir məhsul.",
+      "lead": "Səfirliklərə, tərəfdaşlara və xidmət etdiyimiz bazarlara yaxın işə götürürük. Hər ofisdə həm mühəndislər, həm də əməliyyatçılar var, quranları mərtəbəni idarə edənlərdən ayırmırıq.",
+      "cards": [
+        {
+          "photo": "foto · Şanxay",
+          "open": "6 açıq",
+          "name": "Şanxay",
+          "addr1": "Lane 1502, Luoshan Road,",
+          "addr2": "China (Shanghai) Pilot Free Trade Zone, Çin",
+          "tz": "GMT+8 · Çin əməliyyatları",
+          "since": "2023-dən"
+        },
+        {
+          "photo": "foto · Sinqapur baş ofisi",
+          "open": "12 açıq",
+          "name": "Sinqapur",
+          "addr1": "60 Paya Lebar Road, #06-28 Paya Lebar Square, Sinqapur",
+          "addr2": "409051",
+          "tz": "GMT+8 · Asiya-Sakit okean baş ofisi",
+          "since": "Baş ofis · 2021-dən"
+        }
+      ]
+    },
+    "ctaStrip": {
+      "title": "Rolunuzu görmürsünüz,<br></br>amma qoşulmaq istəyirsiniz?",
+      "body": "Qeyri-adi keçmişiniz varsa və dünyanın səyahətçilərini daha sürətli hərəkət etdirməyə kömək edə biləcəyinizi düşünürsünüzsə, sizdən eşitmək istəyirik. Avtobus sürücülərini, keçmiş səfirlik əməkdaşlarını və hüquqşünasları işə götürmüşük. Bizim tipimiz yoxdur.",
+      "lead": "Ümumi müraciət",
+      "cta": "Hekayənizi göndərin",
+      "note": "Hətta imtina olsa da, 7 gün ərzində cavab veririk."
+    },
+    "footer": {
+      "tagline": "VIZA viza planlamağa, müraciət etməyə və izləməyə dünyanın hər yerində rahatlıqla kömək edir.",
+      "company": "Şirkət",
+      "products": "Məhsullar",
+      "offices": "Ofislər",
+      "careers": "Karyera",
+      "contact": "Əlaqə",
+      "security": "Təhlükəsizlik",
+      "privacy": "Məxfilik",
+      "terms": "Şərtlər",
+      "prodVisaReq": "Viza tələbləri",
+      "prodSchengen": "Şengen qəbul vaxtı yoxlayıcısı",
+      "prodPhoto": "Viza şəkli yaradıcısı",
+      "prodHelpline": "VIZA təcili yardım xətti",
+      "prodStudent": "Tələbə vizası",
+      "officeSg": "Sinqapur, baş ofis",
+      "officeSf": "Şanxay",
+      "copyright": "© VIZA, Bütün hüquqlar qorunur"
+    }
+  },
+  "security": {
+    "hero": {
+      "eyebrow": "VIZA-da təhlükəsizlik · son yenilənmə: May 2026",
+      "title": "Məxfi. Şəffaf.<br></br><em>Standart olaraq təhlükəsiz.</em>",
+      "lead": "Dünyanın hər yerindən müştərilər bizə milyonlarla həssas sənəd etibar edir: pasportlar, bank çıxarışları, şəkillər. Onları necə topladığımızı, necə saxladığımızı və düzgün etdiyimizi necə sübut etdiyimizi burada dəqiq göstəririk.",
+      "ctaPrimary": "Məlumatınızı necə qoruyuruq",
+      "ctaVdp": "Zəiflik barədə bildir"
+    },
+    "clearance": {
+      "republicKey": "Respublikası",
+      "officeKey": "Verən ofis",
+      "officeVal": "Etimad və təhlükəsizlik",
+      "title": "Təhlükəsizlik icazəsi /<br></br>Müştəri məlumatı",
+      "grid": {
+        "encryption": {
+          "k": "Şifrələmə",
+          "v": "AES-256 / TLS 1.3"
+        },
+        "region": {
+          "k": "Region",
+          "v": "SG · US · EU"
+        },
+        "audit": {
+          "k": "Audit tezliyi",
+          "v": "Rüblük"
+        },
+        "retention": {
+          "k": "Saxlama",
+          "v": "maksimum 90 gün"
+        }
+      },
+      "referenceKey": "İstinad",
+      "glyph": "TƏSDİQLƏNİB<br></br>VIZA · 26"
+    },
+    "chips": {
+      "transitLabel": "Ötürülmə zamanı",
+      "transitVal": "Başdan sona TLS 1.3",
+      "restLabel": "Saxlanma zamanı",
+      "restVal": "AES-256, regiona bağlı"
+    },
+    "stats": {
+      "docs": {
+        "value": "2.4M",
+        "label": "2025-ci ildə emal edilən sənədlər, müştəri məlumatı sızması sıfır"
+      },
+      "retention": {
+        "unit": "gün",
+        "label": "Verildikdən sonra mənbə sənədlərinin maksimum saxlanma müddəti"
+      },
+      "pentests": {
+        "label": "Xarici penetrasiya testləri, bütün hesabatlar daxildə dərc edilib"
+      },
+      "ack": {
+        "unit": "saat",
+        "label": "Bildirilən zəifliyin qəbulunun təsdiqlənməsi üçün median vaxt"
+      }
+    },
+    "docs": {
+      "eyebrow": "Nəyi toplayırıq",
+      "title": "Beş sənəd növü.<br></br><em>Artıq heç nə.</em>",
+      "copy1": "Viza müraciəti sənəd işidir. Yalnız səfirliyin açıq şəkildə istədiyini toplayırıq və mümkün olan yerdə anonimləşdiririk. Hər sənəd tək müraciətə bağlıdır, qəbul zamanı şifrələnir və sabit cədvəl üzrə silinir.",
+      "copy2": "Məlumatlarınızı heç vaxt satmırıq. Vizanızla birbaşa əlaqəli konsulluq və ya tərəfdaşdan kənar üçüncü tərəflərlə paylaşmırıq.",
+      "cards": {
+        "payment": {
+          "name": "Ödəniş məlumatı",
+          "meta": "toplanmır"
+        },
+        "photos": {
+          "name": "Viza şəkilləri",
+          "meta": "emal olunur · maks. 90 gün"
+        },
+        "bank": {
+          "name": "Bank çıxarışları",
+          "meta": "maskalanıb · yalnız pdf"
+        },
+        "pastVisas": {
+          "name": "Əvvəlki vizalar",
+          "meta": "yalnız oxunur · OCR"
+        },
+        "passport": {
+          "name": "Pasport",
+          "meta": "MRZ çıxarılır"
+        }
+      }
+    },
+    "features": {
+      "eyebrow": "Yeddi nəzarət, həmişə aktiv",
+      "title": "Məlumatınız necə sizin<br></br>olaraq qalır, başdan <em>sona.</em>",
+      "intro": "VIZA-da hər baytın standart vəziyyəti “şifrələnmiş, əhatəli və müddətlə məhdud”dur. Bunu təmin edən yeddi nəzarət budur: arzular deyil, bu gün platformaya həqiqətən qoşulmuş şeylər.",
+      "cells": {
+        "minimise": {
+          "title": "Məlumatın minimallaşdırılması və anonimləşdirilməsi",
+          "body": "Yalnız konkret müraciət üçün səfirliyin və ya tərəfdaşın həqiqətən tələb etdiyini toplayırıq və platformanın qalanı icazə verən yerdə anonimləşdiririk. Formalarımızda görmədiyiniz sahələr saxlamadığımız sahələrdir.",
+          "why": "<strong>Niyə:</strong> sızma heç vaxt toplanmamış məlumatı aça bilməz."
+        },
+        "payments": {
+          "title": "Ödəniş məlumatı yoxdur",
+          "body": "VIZA-nın xidməti pulsuzdur və ödəniş qəbul etmirik, ona görə kart nömrələrini heç vaxt soruşmuruq, görmürük və saxlamırıq.",
+          "why": "<strong>Niyə:</strong> heç vaxt saxlamadığımız məlumat oğurlana bilməz."
+        },
+        "atRest": {
+          "title": "Saxlanma zamanı şifrələmə",
+          "body": "VIZA serverlərindəki hər sənəd, mesaj və metadata sahəsi diskə toxunmazdan əvvəl AES-256 ilə şifrələnir. Açarlar avtomatik dəyişdirilir və hətta infrastruktur komandamızın birbaşa oxuya bilmədiyi aparat dəstəkli KMS-də saxlanılır.",
+          "why": "<strong>Niyə:</strong> oğurlanmış disklər və ya ehtiyat nüsxələr açarlar olmadan oxunmaz qalır."
+        },
+        "inTransit": {
+          "title": "Başdan sona şifrələmə",
+          "body": "Cihazınız, serverlərimiz və tərəfdaş konsulluqlar arasındakı bütün trafik sərt pinning ilə TLS 1.3 istifadə edir. Sənəd yükləmələri ayrıca, imzalı kanaldan keçir ki, şəbəkə səviyyəsindəki rəqiblər belə nə göndərdiyinizi görə bilməsin.",
+          "why": "<strong>Niyə:</strong> düşmən şəbəkələr, o cümlədən hava limanı Wi-Fi-ı müraciətinizi oxuya bilməz."
+        },
+        "audits": {
+          "title": "Müntəzəm təhlükəsizlik auditləri",
+          "body": "Hər rüb xarici penetrasiya testi, illik SOC 2 Type II auditi və fasiləsiz avtomatik zəiflik skanı aparırıq. Hər tapıntı düzəliş tarixi ilə qeyd olunur və vaxtı keçmiş bəndlər mühəndislik rəhbərinə xəbər verir.",
+          "why": "<strong>Niyə:</strong> təhdidlər dəyişir, müdafiələrimiz onlara qarşı cədvəllə yoxlanılır."
+        },
+        "access": {
+          "title": "Təhlükəsiz giriş nəzarətləri",
+          "body": "Müştəri məlumatına daxili giriş rola görə məhdudlaşdırılır, hər sorğu üzrə audit edilir və vaxtında yüksəliş ilə verilir. Məsləhətçilər yalnız aktiv işlədikləri müraciəti görür. Hər oxuma 12 ay qeyd olunur.",
+          "why": "<strong>Niyə:</strong> daxili səhvlər və sui-istifadə məhdudlaşdırılır, kimə aid olduğu bilinir və yoxlana bilir."
+        },
+        "education": {
+          "title": "İstifadəçi təhsili və məlumatlılığı",
+          "body": "Təhlükəsizliyin ən çətin hissəsi sizin üçün göndərə bilmədiyimiz hissədir. Müraciətə başlayan kimi fişinq, pasport şəkli fırıldaqları və saxta səfirlik SMS-ləri haqqında sadə dildə bələdçilər göndəririk və nəsə şübhəli görünən kimi onları məhsulun içində yenidən göstəririk. Siz son müdafiə xəttisiniz. Sizi günahlandırmaqdansa, sizi təchiz etməyi üstün tuturuq.",
+          "why": "<strong>Niyə:</strong> yaxşı məlumatlı müraciət edən bizdə olan ən ucuz və ən təsirli təhlükəsizlik nəzarətidir."
+        }
+      }
+    },
+    "vdp": {
+      "tag": "▲ Zəiflik bildirişi · bütün tədqiqatçılara açıq",
+      "title": "Nəsə tapdınız?<br></br><em>Bu barədə eşitmək istəyirik.</em>",
+      "p1": "İstifadəçilərimizin və tərəfdaşlarımızın təhlükəsizliyi hər şeydir. VIZA xidmətlərinə təsir edən real zəiflik müəyyən etdiyinizi düşünürsünüzsə, bunu birbaşa bizə bildirməyinizi istəyirik və onu düzəltmək üçün sizinlə hörmətlə və sürətlə işləyəcəyik.",
+      "p2": "Tapıntılarınızı <strong>security@viza.it.com</strong> ünvanına göndərin. Artıq məlum və ya əhatədən kənar olsa belə, bir iş günü ərzində qəbulu təsdiqləyəcəyik.",
+      "meta": {
+        "ack": {
+          "k": "Təsdiq müddəti",
+          "v": "'<' 24 saat"
+        },
+        "triage": {
+          "k": "Qiymətləndirmə müddəti",
+          "v": "3 iş günü"
+        },
+        "lang": {
+          "k": "Dillər",
+          "v": "EN · ID · AR"
+        },
+        "pgp": {
+          "k": "PGP açarı",
+          "v": "0xVIZA · 2026"
+        }
+      },
+      "ctaEmail": "security@viza.it.com ünvanına yazın",
+      "ctaScope": "Əhatəni oxu",
+      "terminal": {
+        "title": "hesabat-layihəsi · security@viza.it.com",
+        "l1": "# zəiflik hesabatı",
+        "typeKey": "növ:",
+        "typeVal": "autentifikasiyanın-keçilməsi",
+        "urlKey": "url:",
+        "reproKey": "təkrar:",
+        "reproVal": "[addımlar 1-4]",
+        "impactKey": "təsir:",
+        "impactVal": "hesabın ələ keçirilməsi",
+        "pocKey": "poc:",
+        "l7": "# ↳ 0xVIZA açarı ilə şifrələnib",
+        "send": "göndər"
+      }
+    },
+    "report": {
+      "eyebrow": "Zəiflik barədə bildiriş",
+      "title": "Hesabatınıza nə yazmalı<br></br>və <em>nə yazmamalı.</em>",
+      "intro": "Yaxşı hesabat ikimizə də bir həftə qənaət edir. Ən sürətli qiymətləndirilən format və gələn qutumuzda görmək istəmədiyimiz şeylər budur.",
+      "include": {
+        "heading": "Zəhmət olmasa əlavə edin",
+        "sub": "Beş sahə. Nə qədər aydındırsa, təsdiq edib düzəltmək bir o qədər sürətli olur.",
+        "items": {
+          "type": "<strong>Problem növü</strong>: məsələn, autentifikasiya, giriş nəzarəti, injection, IDOR, SSRF.",
+          "steps": "<strong>Təkrar etmək üçün aydın addımlar</strong>: nömrələnmiş, ardıcıl, mümkünsə təmiz sessiyada.",
+          "impact": "<strong>Potensial təhlükəsizlik təsiri</strong>: hücumçunun bununla nə edə biləcəyi, sadə dildə.",
+          "poc": "<strong>Konsepsiya sübutu</strong>: ekran görüntüləri və ya qısa ekran videosu üstündür, loglar ikinci."
+        }
+      },
+      "dontSend": {
+        "heading": "Zəhmət olmasa göndərməyin",
+        "sub": "Bunlar təhlükəlidir, faydasızdır və ya hər ikisidir, qəbul zamanı silməli olacağıq.",
+        "items": {
+          "secrets": "<strong>Parollar və ya autentifikasiya tokenləri</strong>, sizin və ya başqasının. Sirri yox, vektoru göstərin.",
+          "malware": "<strong>Xam zərərli proqram nümunələri və ya stealer logları.</strong> Gördüyünüzü təsvir edin, əlavə etməyin.",
+          "scanners": "<strong>Əl ilə seçilmiş, nümayiş olunmuş tapıntı olmadan böyük avtomatik skaner hesabatları.</strong>",
+          "customerData": "<strong>Müştərinin şəxsi məlumatı və ya sənədləri</strong>, hətta tapıntınızın əsası olsalar belə.",
+          "socialEng": "<strong>Əməkdaşlarımıza və ya məsləhətçilərimizə qarşı sosial mühəndislik cəhdlərinin qeydləri.</strong>"
+        }
+      }
+    },
+    "scope": {
+      "eyebrow": "Proqramın əhatəsi",
+      "title": "Nə daxildir, nə xaricdir.",
+      "intro": "Hesabatın bu siyahıya daxil olub-olmadığına əmin deyilsinizsə, yenə də göndərin və soruşun. Sərhəd aydın olmadığı üçün real problemi gizlətməyinizdənsə, qiymətləndirib keçməyi üstün tuturuq.",
+      "fileRef": "/security/scope.md · v6",
+      "in": {
+        "pill": "Əhatə daxilində",
+        "heading": "Fəal qiymətləndirəcəyimiz hesabatlar",
+        "items": {
+          "web": "<code>*.viza.com</code> ünvanındakı VIZA veb tətbiqləri və API-lər, o cümlədən müraciət edən portalı, məsləhətçi konsolu və tərəfdaş endpointləri.",
+          "infra": "VIZA-ya məxsus infrastruktur və xidmətlər: auth, sənəd xətti, planlaşdırma.",
+          "mobile": "VIZA developer hesabı altında dərc edilmiş mobil tətbiqlər (iOS, Android).",
+          "marketing": "VIZA-nın nəzarət etdiyi domenlər altındakı ictimai marketinq və məzmun saytları."
+        }
+      },
+      "out": {
+        "pill": "Əhatədən kənar",
+        "heading": "Bu proqram çərçivəsində işləyə bilmədiyimiz hesabatlar",
+        "items": {
+          "devices": "Ələ keçirilmiş istifadəçi cihazları, brauzer genişlənmələri və ya oğurlanmış etimadnamələr nəticəsində yaranan problemlər.",
+          "phishing": "VIZA işçilərini, tərəfdaşlarını və ya məsləhətçilərini hədəfləyən sosial mühəndislik və ya fişinq hücumları.",
+          "thirdParty": "VIZA-nın birbaşa idarə etmədiyi üçüncü tərəf xidmətləri və ya inteqrasiyalar (konsulluq portalları, kuryer saytları).",
+          "scanners": "Nümayiş olunmuş, real istismar imkanı olmayan avtomatik skaner tapıntıları.",
+          "headers": "İstismar yolu olmayan çatışmayan təhlükəsizlik başlıqları və ya ümumi ən yaxşı təcrübə tövsiyələri."
+        }
+      }
+    },
+    "pledge": {
+      "eyebrow": "Məsul bildiriş",
+      "title": "Bir-birimizlə etdiyimiz<br></br>razılaşma.",
+      "intro": "Bildiriş hər iki tərəf xoş niyyətlə hərəkət etdiyi üçün işləyir. Sizdən nə istədiyimiz və bunun müqabilində bizi nəyə cavabdeh tuta biləcəyiniz burada yazılıb ki, heç kim təxmin etməli olmasın.",
+      "researcher": {
+        "kicker": "Sizdən nə istəyirik",
+        "title": "Tədqiqatçı <em>öhdəlikləri.</em>",
+        "p": "Hesabat göndərməklə, yalnız hərfinə yox, proqramın ruhuna uyğun xoş niyyətlə hərəkət etməyə razılaşırsınız.",
+        "items": {
+          "1": "Xoş niyyətlə hərəkət edin: tədqiqat zamanı məxfilik pozuntularından, məlumatın məhv edilməsindən və ya xidmətin pozulmasından çəkinin.",
+          "2": "Problemi təsdiq etmək üçün lazım olan minimumdan artıq istismar etməyin və heç vaxt sizə aid olmayan məlumata daxil olmayın.",
+          "3": "Düzəlişi təqdim edib sizinlə təsdiq edənə qədər zəiflik təfərrüatlarını məxfi saxlayın.",
+          "4": "VIZA təhlükəsizlik komandasının əvvəlcədən yazılı razılığı olmadan tapıntıları ictimaiyyətə açıqlamayın."
+        }
+      },
+      "viza": {
+        "kicker": "Bizi nəyə cavabdeh tuta bilərsiniz",
+        "title": "VIZA <em>öhdəlikləri.</em>",
+        "p": "Müqabilində, bildirənləri tərk etmirik, düzəlişdən yayınmaq üçün ciddiliyi mübahisə etmirik və bizə kömək edən insanları məhkəməyə vermirik.",
+        "items": {
+          "1": "Ciddiliyindən asılı olmayaraq hər etibarlı hesabata baxacaq və bir iş günü ərzində cavab verəcəyik.",
+          "2": "Hörmətlə ünsiyyət quracağıq: müdafiə dili yox, “nəzərdə tutulduğu kimi işləyir” deyib keçmək yox.",
+          "3": "Lazım olduqda müvafiq düzəliş tədbirləri görəcək və düzəliş təqdim edildikdə sizə bildirəcəyik.",
+          "4": "Problem həll edildikdə (razılığınızla) sizi təhlükəsizlik dəyişiklik qeydimizdə qeyd edəcəyik."
+        }
+      }
+    },
+    "legal": {
+      "eyebrow": "Hüquqi məsələlər və mükafatlar",
+      "title": "Təhlükəsiz liman, mükafatlar<br></br>və xırda hərflər.",
+      "intro": "Bu siyasətə xoş niyyətlə əməl etsəniz, tədqiqatınızı səlahiyyətli hesab edirik. Səhifənin qalanı cansıxıcı, lakin vacib hissədir: gizlədilməyib, açıq göstərilib.",
+      "cards": {
+        "safeHarbour": {
+          "title": "Hüquqi təhlükəsiz liman",
+          "body": "Bu siyasətə xoş niyyətlə əməl etsəniz, VIZA tədqiqatınızla bağlı təsadüfi və ya qəsdsiz pozuntulara görə sizə qarşı hüquqi tədbir görməyəcək. Hələ də tətbiq olunan qanun və qaydalara riayət etməyiniz gözlənilir."
+        },
+        "rewards": {
+          "title": "Mükafatlar və bug bounty",
+          "body": "VIZA hazırda ictimai bug bounty proqramı aparmır. Etibarlı, məsul şəkildə bildirilmiş problemlər üçün təsir, yenilik və hesabatın keyfiyyətinə görə qiymətləndirilən könüllü minnətdarlıq nişanəsi təklif edirik.",
+          "meta": "könüllü · hər hal üzrə"
+        },
+        "updates": {
+          "title": "Proqram yenilikləri",
+          "body": "VIZA bu proqramı istənilən vaxt dəyişdirmək və ya dayandırmaq hüququnu saxlayır. Tədqiqatınızın siyasətə uyğun olub-olmadığına əmin deyilsinizsə, davam etməzdən <em>əvvəl</em> security@viza.it.com ünvanında bizimlə əlaqə saxlayın.",
+          "meta": "son redaktə · May 2026"
+        }
+      }
+    },
+    "cta": {
+      "title": "Nəsə düz deyil?<br></br>Təhlükəsizlik komandamıza deyin.",
+      "body": "Kiçik tapıntı barədə iki dəfə eşitməyi böyüyü bir dəfə qaçırmaqdan üstün tuturuq. Hesabatlar birbaşa təhlükəsizlik komandasındakı real insana gedir: bilet portalı yox, triaj robotu yox.",
+      "lead": "Birbaşa təhlükəsizliyə",
+      "small": "Median cavab müddəti: 24 saatdan az, həftənin hər günü."
+    },
+    "footer": {
+      "tagline": "VIZA viza planlamağa, müraciət etməyə və izləməyə dünyanın hər yerində rahatlıqla kömək edir.",
+      "company": "Şirkət",
+      "careers": "Karyera",
+      "contact": "Əlaqə",
+      "security": "Təhlükəsizlik",
+      "privacy": "Məxfilik",
+      "terms": "Şərtlər",
+      "products": "Məhsullar",
+      "prodVisaReq": "Viza tələbləri",
+      "prodSchengen": "Şengen qəbul vaxtı yoxlayıcısı",
+      "prodPhoto": "Viza şəkli yaradıcısı",
+      "prodHelpline": "VIZA təcili yardım xətti",
+      "prodStudent": "Tələbə vizası",
+      "offices": "Ofislər",
+      "officeSg": "Sinqapur, baş ofis",
+      "officeSf": "Şanxay",
+      "copyright": "© VIZA, Bütün hüquqlar qorunur"
+    }
+  },
+  "status": {
+    "crumbHome": "Şəffaflıq",
+    "crumbHere": "Sistem statusu",
+    "hero": {
+      "title": "Sistem statusu",
+      "lead": "VIZA və işlədiyimiz dövlət viza portalları üçün sübutlu əlçatanlıq. Aşağıdakı hər faiz, zaman xətti və insident qeydə alınmış sintetik yoxlamadan gəlir."
+    },
+    "console": {
+      "title": "VIZA etibarlılığı · Canlı",
+      "live": "Təsdiqlənib",
+      "unverified": "Təsdiqlənməyib",
+      "allOperational": "Bütün sistemlər işləyir",
+      "degraded": "Bəzi sistemlərin işi pisləşib",
+      "majorOutage": "İzlənilən sistem əlçatmazdır",
+      "dataUnavailable": "İzləmə məlumatı əlçatmazdır",
+      "lastChecked": "Son qeydə alınmış yoxlama: {time}",
+      "noChecks": "Hələ tamamlanmış yoxlama qeydə alınmayıb",
+      "kUptime": "90 günlük keçən yoxlamalar",
+      "kMonitors": "İzlənilən endpointlər",
+      "kIncidents": "Aktiv insident"
+    },
+    "subnav": {
+      "current": "Cari status",
+      "incidents": "Keçmiş insidentlər",
+      "subscribe": "Abunə ol",
+      "searchPlaceholder": "Ölkə axtar",
+      "subscribeBtn": "Yeniliklərə abunə ol"
+    },
+    "platform": {
+      "title": "VIZA platforması",
+      "realMeta": "Hər 5 dəqiqədən bir yoxlanılır · {count} endpoint",
+      "meta": "Hər 5 dəqiqədən bir yoxlanılır",
+      "name": "VIZA müraciət platforması",
+      "sub": "İctimai VIZA xidmətləri"
+    },
+    "uptime": {
+      "ago": "90 gün əvvəl",
+      "today": "Bu gün",
+      "pct": "yoxlamaların {pct}% keçir",
+      "noData": "Qeydə alınmış yoxlama yoxdur"
+    },
+    "dayObservation": "{date}: {checks} qeydə alınmış yoxlama",
+    "dayNoData": "{date}: qeydə alınmış məlumat yoxdur",
+    "dayTitle": "Gün {n}",
+    "statusLabels": {
+      "op": "İşləyir",
+      "deg": "Pisləşib",
+      "part": "Qismən fasilə",
+      "maj": "Əlçatmaz",
+      "none": "Cari məlumat yoxdur"
+    },
+    "lastChecked": "Yoxlanılıb {time}",
+    "monitorStale": "Yoxlama yoxdur və ya köhnəlib",
+    "monitoringUnavailable": "Status API-sində təzə sübut yoxdur. VIZA keşlənmiş və ya yaradılmış əlçatanlığı cari xidmət sağlamlığı kimi göstərməyəcək.",
+    "noSearchResults": "Bu axtarışa uyğun izlənilən ölkə yoxdur.",
+    "noRecordedIncidents": "Son 90 gündə qeydə alınmış yoxlamalardan heç bir insident çıxarılmayıb.",
+    "incidentCount": "{count, plural, one {# insident} other {# insident}}",
+    "incidentRecovered": "Qeydə alınmış yoxlamalar bu xidmətin bərpa olunduğunu göstərir.",
+    "noIssues": "Aktiv problem yoxdur",
+    "activeIncident": "Aktiv insident",
+    "portalsHead": {
+      "title": "Dövlət portalları",
+      "lead": "Məhdud sintetik sorğu hər konfiqurasiya edilmiş portalı beş dəqiqədən bir yoxlayır. Boz tarixçə müşahidənin qeydə alınmadığını bildirir, o heç vaxt təxmini məlumatla doldurulmur."
+    },
+    "incidentsHead": {
+      "title": "Keçmiş insidentlər",
+      "lead": "İnsidentlər saxlanmış monitor keçidlərindən açılır və həll olunur. Bu əməliyyat əlçatanlığıdır, müraciət edənin şəxsi viza qərarı statusu deyil."
+    },
+    "tags": {
+      "identified": "Müəyyən edilib",
+      "investigating": "Araşdırılır",
+      "resolved": "Həll olunub"
+    },
+    "portals": {
+      "AE": {
+        "name": "Birləşmiş Ərəb Əmirlikləri",
+        "sub": "GDRFA · ICA portalları"
+      },
+      "AM": {
+        "name": "Ermənistan",
+        "sub": "Elektron viza portalı"
+      },
+      "AU": {
+        "name": "Avstraliya",
+        "sub": "ImmiAccount"
+      },
+      "AZ": {
+        "name": "Azərbaycan",
+        "sub": "ASAN Visa"
+      },
+      "DE": {
+        "name": "Almaniya",
+        "sub": "VIDEX · konsulluq vaxtları"
+      },
+      "DK": {
+        "name": "Danimarka"
+      },
+      "EG": {
+        "name": "Misir",
+        "sub": "Elektron viza portalı"
+      },
+      "FI": {
+        "name": "Finlandiya",
+        "sub": "EnterFinland"
+      },
+      "FR": {
+        "name": "Fransa",
+        "sub": "France-Visas"
+      },
+      "GB": {
+        "name": "Böyük Britaniya",
+        "sub": "UKVCAS · UK Visas",
+        "bannerText": "Bəzi müraciət növləri fasilə ilə üzləşir.",
+        "bannerLink": "İnsident zaman xəttinə bax"
+      },
+      "GE": {
+        "name": "Gürcüstan"
+      },
+      "GR": {
+        "name": "Yunanıstan",
+        "sub": "AEGEAN · konsulluq"
+      },
+      "HK": {
+        "name": "Honkonq",
+        "sub": "İmmiqrasiya eVisa"
+      },
+      "ID": {
+        "name": "İndoneziya",
+        "sub": "Elektron viza İndoneziya"
+      },
+      "IN": {
+        "name": "Hindistan",
+        "sub": "Indian Visa Online"
+      },
+      "JO": {
+        "name": "İordaniya"
+      },
+      "KE": {
+        "name": "Keniya",
+        "sub": "eCitizen / eVisa"
+      },
+      "KH": {
+        "name": "Kamboca"
+      },
+      "LK": {
+        "name": "Şri-Lanka",
+        "sub": "ETA portalı"
+      },
+      "MA": {
+        "name": "Mərakeş"
+      },
+      "TH": {
+        "name": "Tailand",
+        "sub": "Tailand elektron vizası"
+      }
+    },
+    "incidents": {
+      "count": "<strong>{count}</strong> {count, plural, one {ölkə} other {ölkə}} performans problemləri ilə üzləşdi",
+      "events": "{count, plural, one {# hadisə} other {# hadisə}}",
+      "days": [
+        {
+          "date": "10 May 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "10 May, 3:05 PM",
+                  "desc": "Bu insident həll olunub. Xidmət normal işinə qayıdıb."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "10 May, 5:05 PM",
+                  "desc": "Bu insident həll olunub. Xidmət normal işinə qayıdıb."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "9 May 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "9 May, 10:50 PM",
+                  "desc": "Artan uğursuzluq səviyyələrini araşdırırıq."
+                },
+                {
+                  "time": "10 May, 12:20 AM",
+                  "desc": "Ciddilik pisləşmədən qismən fasiləyə yüksəldi."
+                },
+                {
+                  "time": "10 May, 2:50 AM",
+                  "desc": "Ciddilik qismən fasilədən böyük fasiləyə yüksəldi."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "9 May, 3:05 PM",
+                  "desc": "Artan uğursuzluq səviyyələrini araşdırırıq."
+                },
+                {
+                  "time": "9 May, 7:20 PM",
+                  "desc": "Ciddilik qismən fasilədən böyük fasiləyə yüksəldi."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "8 May 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "8 May, 1:05 PM",
+                  "desc": "Artan uğursuzluq səviyyələrini araşdırırıq."
+                },
+                {
+                  "time": "8 May, 2:05 PM",
+                  "desc": "Bu insident həll olunub. Xidmət normal işinə qayıdıb."
+                },
+                {
+                  "time": "8 May, 2:50 PM",
+                  "desc": "Artan uğursuzluq səviyyələrini araşdırırıq."
+                },
+                {
+                  "time": "8 May, 7:35 PM",
+                  "desc": "Bu insident həll olunub. Xidmət normal işinə qayıdıb."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "5 May 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "5 May, 1:36 PM",
+                  "desc": "Ciddilik pisləşmədən qismən fasiləyə yüksəldi."
+                },
+                {
+                  "time": "5 May, 4:50 PM",
+                  "desc": "Bu insident həll olunub."
+                },
+                {
+                  "time": "5 May, 9:20 PM",
+                  "desc": "Artan uğursuzluq səviyyələrini araşdırırıq."
+                },
+                {
+                  "time": "5 May, 10:20 PM",
+                  "desc": "Bu insident həll olunub."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "5 May, 2:43 PM",
+                  "desc": "Bu insident həll olunub."
+                },
+                {
+                  "time": "5 May, 3:35 PM",
+                  "desc": "Artan uğursuzluq səviyyələrini araşdırırıq."
+                },
+                {
+                  "time": "5 May, 7:35 PM",
+                  "desc": "Ciddilik qismən fasilədən böyük fasiləyə yüksəldi."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "4 May 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "4 May, 4:05 PM",
+                  "desc": "Artan uğursuzluq səviyyələrini araşdırırıq."
+                },
+                {
+                  "time": "4 May, 5:05 PM",
+                  "desc": "Bu insident həll olunub."
+                },
+                {
+                  "time": "4 May, 7:36 PM",
+                  "desc": "Artan uğursuzluq səviyyələrini araşdırırıq."
+                },
+                {
+                  "time": "4 May, 8:35 PM",
+                  "desc": "Bu insident həll olunub."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "4 May, 12:05 PM",
+                  "desc": "Bu insident həll olunub."
+                },
+                {
+                  "time": "4 May, 1:50 PM",
+                  "desc": "Artan uğursuzluq səviyyələrini araşdırırıq."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2 May 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "2 May, 6:35 PM",
+                  "desc": "Artan uğursuzluq səviyyələrini araşdırırıq."
+                },
+                {
+                  "time": "2 May, 7:50 PM",
+                  "desc": "Bu insident həll olunub."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "2 May, 9:20 AM",
+                  "desc": "Artan uğursuzluq səviyyələrini araşdırırıq."
+                },
+                {
+                  "time": "2 May, 10:20 AM",
+                  "desc": "Bu insident həll olunub."
+                },
+                {
+                  "time": "2 May, 8:20 PM",
+                  "desc": "Artan uğursuzluq səviyyələrini araşdırırıq."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "2 May, 8:20 PM",
+                  "desc": "Artan uğursuzluq səviyyələrini araşdırırıq."
+                },
+                {
+                  "time": "3 May, 12:05 AM",
+                  "desc": "Bu insident həll olunub."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "1 May 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "1 May, 2:05 PM",
+                  "desc": "Artan uğursuzluq səviyyələrini araşdırırıq."
+                },
+                {
+                  "time": "1 May, 3:05 PM",
+                  "desc": "Bu insident həll olunub."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "30 Aprel 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "30 Aprel, 8:20 AM",
+                  "desc": "Artan uğursuzluq səviyyələrini araşdırırıq."
+                },
+                {
+                  "time": "30 Aprel, 9:50 AM",
+                  "desc": "Bu insident həll olunub."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 Aprel, 3:05 PM",
+                  "desc": "Bu insident həll olunub."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 Aprel, 4:51 PM",
+                  "desc": "Bu insident həll olunub."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 Aprel, 1:20 PM",
+                  "desc": "Artan uğursuzluq səviyyələrini araşdırırıq."
+                },
+                {
+                  "time": "30 Aprel, 2:37 PM",
+                  "desc": "Ciddilik pisləşmədən qismən fasiləyə yüksəldi."
+                },
+                {
+                  "time": "30 Aprel, 8:20 PM",
+                  "desc": "Bu insident həll olunub."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 Aprel, 6:50 PM",
+                  "desc": "Bu insident həll olunub."
+                },
+                {
+                  "time": "30 Aprel, 7:50 PM",
+                  "desc": "Artan uğursuzluq səviyyələrini araşdırırıq."
+                },
+                {
+                  "time": "1 May, 12:20 AM",
+                  "desc": "Bu insident həll olunub."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "subscribe": {
+      "title": "Nəsə pozulduqda<br></br>ilk eşidən olun.",
+      "lead": "Maraqlandığınız ölkələri seçin, portalları, ya da bizimki sönəndə və ya bərpa olunanda sizə sadə dildə bir yenilik göndərək.",
+      "emailLabel": "İnsident yeniliklərini e-poçtla alın",
+      "button": "Abunə ol",
+      "follow": "Və ya statusu belə izləyin:",
+      "chipEmail": "E-poçt icmalı",
+      "chipSms": "SMS və WhatsApp",
+      "chipRss": "RSS lenti",
+      "chipWebhook": "Əməliyyatlar üçün webhook"
+    },
+    "footer": {
+      "tagline": "VIZA viza planlamağa, müraciət etməyə və izləməyə dünyanın hər yerində rahatlıqla kömək edir.",
+      "company": "Şirkət",
+      "careers": "Karyera",
+      "contact": "Əlaqə",
+      "security": "Təhlükəsizlik",
+      "systemStatus": "Sistem statusu",
+      "privacy": "Məxfilik",
+      "terms": "Şərtlər",
+      "products": "Məhsullar",
+      "prodVisaReq": "Viza tələbləri",
+      "prodSchengen": "Şengen qəbul vaxtı yoxlayıcısı",
+      "prodPhoto": "Viza şəkli yaradıcısı",
+      "prodHelpline": "VIZA təcili yardım xətti",
+      "copyright": "© VIZA, Bütün hüquqlar qorunur"
+    }
+  },
+  "arrival": {
+    "breadcrumbHome": "Ana səhifə",
+    "breadcrumbHub": "Gəliş kartları",
+    "hubH1": "Gəliş kartı bələdçiləri",
+    "hubLead": "Gəliş kartı ölkəyə girməzdən əvvəl doldurduğunuz qısa dövlət formasıdır. Əksəriyyəti onlayndır, pulsuzdur və təxminən beş dəqiqə çəkir. Bu bələdçilər hər kartın kimə lazım olduğunu, nə vaxt təqdim etməli olduğunuzu və onun üçün pul alan saxta saytlardan necə qaçacağınızı göstərir.",
+    "hubWhatTitle": "Gəliş kartı nədir",
+    "hubWhat": [
+      "Gəliş kartı istiqamətinizin pasport və viza ilə yanaşı tələb etdiyi bəyannamədir. Kim olduğunuzu, necə gəldiyinizi və harada qalacağınızı qeyd edir. Bir çox ölkə təyyarədə paylanan kağız kartı onlayn formayla əvəz edib.",
+      "Bu viza deyil. Viza girişə müraciət etməyə imkan verir. Gəliş kartı isə sərhəd orqanına səfəriniz barədə məlumat verir, vətəndaşlığınız viza tələb edirsə, yenə də viza lazımdır."
+    ],
+    "hubFreeTitle": "Gəliş kartları pulsuzdur",
+    "hubFree": [
+      "Bu bələdçilərdəki hər kart dövlətin öz saytında pulsuzdur. Bəzi saytlar dövlət formasını kopyalayıb onun üçün pul alır. Onlardan heç birinə ödəniş etmək lazım deyil.",
+      "Həmişə hər bələdçidə göstərilən rəsmi ünvandan başlayın. VIZA müstəqil xidmətdir və dövlət veb saytı deyil."
+    ],
+    "hubWhenTitle": "Nə vaxt lazımdır",
+    "hubWhen": [
+      "Əksər kartlar gəlişdən üç gün əvvəl açılır və bu pəncərə daxilində təqdim edilməlidir. Dəqiq qaydanı hər bələdçidən yoxlayın, çünki Yaponiyanın Visit Japan Web xidmətində sabit son tarix yoxdur və məcburi deyil.",
+      "Sakinlər, vətəndaşlar və tranzit sərnişinlər çox vaxt azaddır və ya daha qısa forma doldurur. Hər bələdçi kimin azad olduğunu göstərir, o cümlədən Malayziyanın MDAC kartı üçün Sinqapur vətəndaşlarının azad olması."
+    ],
+    "hubGuidesTitle": "Bütün bələdçilər",
+    "hubGuidesSub": "İstiqamətinizi seçin. Hər bələdçidə addımlar, tez-tez edilən səhvlər və rəsmi linklər var.",
+    "readGuide": "Bələdçini oxu",
+    "cardWhen": "Nə vaxt",
+    "cardsLabel": "Gəliş kartı",
+    "hubVisaTitle": "Viza da lazımdır",
+    "hubVisaBody": "Gəliş kartı vizanı əvəz etmir. Pasportunuza viza lazım olub-olmadığını istiqamət səhifəsindən yoxlayın.",
+    "hubVisaCta": "Viza səhifələrinə bax",
+    "glanceTitle": "Qısa icmal",
+    "stepsTitle": "Necə doldurmaq olar, addım-addım",
+    "mistakesTitle": "Tez-tez edilən səhvlər",
+    "feesTitle": "Rüsumlar və saxta saytlar",
+    "faqTitle": "Suallar",
+    "sourcesTitle": "Mənbələr",
+    "relatedTitle": "Digər gəliş kartı bələdçiləri",
+    "independent": "VIZA müstəqil xidmətdir və dövlət veb saytı deyil.",
+    "officialCta": "Rəsmi sayta keç",
+    "officialLabel": "Rəsmi sayt",
+    "vizaTitle": "VIZA sizin üçün doldursun",
+    "vizaBody": "{name} kartını VIZA hesabınızda başladın. VIZA-nın forması rəsmi formadakı eyni suallarla sizi aparır və məlumatlarınızı sonrakı səfərlər üçün saxlayır. İstənilən vaxt pulsuz rəsmi saytdan da istifadə edə bilərsiniz.",
+    "vizaFee": "VIZA xidmət haqqı",
+    "vizaFeeFree": "Pulsuz",
+    "vizaCta": "VIZA-da başla",
+    "noVizaTitle": "Rəsmi saytdan istifadə edin",
+    "noVizaBody": "VIZA bu kartı hələ doldurmur. Aşağıdakı rəsmi saytdan istifadə edin və əvvəlcə bu bələdçidəki addımları oxuyun.",
+    "visaTitle": "{country} üçün viza",
+    "visaBody": "Gəliş kartı vizadan ayrıdır. {country} üçün kimə viza lazım olduğunu, rüsumları və necə müraciət etməli olduğunu görün.",
+    "visaCta": "{country} viza səhifəsini aç",
+    "reviewedTitle": "25 Noyabr 2026 tarixində yoxlanılıb",
+    "stepLabel": "Addım",
+    "cards": {
+      "malaysia-mdac": {
+        "summary": "Əcnəbi ziyarətçilər üçün pulsuz onlayn kart. Sinqapur vətəndaşları azaddır.",
+        "when": "Gəlişdən 3 gün əvvəl ərzində"
+      },
+      "singapore-sg-arrival-card": {
+        "summary": "ICA-nın sağlamlıq bəyannaməsi olan onlayn kartı. Veb saytda və ya MyICA tətbiqində təqdim edin.",
+        "when": "Gəlişdən 3 gün əvvəl ərzində"
+      },
+      "japan-visit-japan-web": {
+        "summary": "İmmiqrasiya və gömrük üçün pulsuz QR kodlar. Tövsiyə olunur, məcburi deyil.",
+        "when": "Uçuşdan əvvəl"
+      },
+      "thailand-tdac": {
+        "summary": "Vizalı və ya vizasız hər əcnəbi ziyarətçi üçün pulsuz kart. Kağız TM6-nı əvəz edib.",
+        "when": "Gəlişdən 3 gün əvvəl ərzində"
+      },
+      "korea-e-arrival-card": {
+        "summary": "1 yanvar 2026-dan məcburidir. Etibarlı K-ETA sahibi azaddır.",
+        "when": "Gəlişdən 3 gün əvvəl ərzində"
+      },
+      "indonesia-all-indonesia": {
+        "summary": "İmmiqrasiya, gömrük və sağlamlıq üçün bir kart. Pulsuzdur və viza deyil.",
+        "when": "Gəlişdən 3 günə qədər əvvəl"
+      }
+    }
+  },
+  "guides": {
+    "breadcrumbHome": "Ana səhifə",
+    "breadcrumbHub": "Bələdçilər",
+    "hubH1": "Sinqapurda yaşayanlar üçün viza bələdçiləri",
+    "hubLead": "Sinqapur, Çin, Hindistan və ya Filippin pasportunuz olsun, bu bələdçilər eyni suala cavab verir: bu ölkəyə girmək üçün nə lazımdır və Sinqapurdan harada müraciət etməli. Hər biri mənbələrini və yoxlandığı tarixi göstərir.",
+    "hubGuidesTitle": "Bütün bələdçilər",
+    "hubGuidesSub": "Mövzu seçin. Qaydalar dəyişir, ona görə hər bələdçi səyahətdən əvvəl yoxlamalı rəsmi səhifələri göstərir.",
+    "readGuide": "Bələdçini oxu",
+    "hubMoreTitle": "VIZA-dan daha çox",
+    "hubMoreBody": "Konkret ölkə, gəliş kartı və ya ən son qayda dəyişikliyini axtarırsınız?",
+    "hubDestinations": "Viza səhifələri",
+    "hubArrival": "Gəliş kartı bələdçiləri",
+    "hubNews": "Viza xəbərləri",
+    "glanceTitle": "Qısa cavab",
+    "relatedVisaTitle": "İstiqamət səhifələri",
+    "relatedVisaSub": "Sinqapurda yaşayanlar üçün rüsumlar, sənədlər və addımlar.",
+    "relatedArrivalTitle": "Gəliş kartı bələdçiləri",
+    "relatedGuidesTitle": "Daha çox bələdçi",
+    "faqTitle": "Suallar",
+    "sourcesTitle": "Mənbələr",
+    "reviewedTitle": "Necə yoxladıq",
+    "published": "Dərc edilib",
+    "updated": "Yenilənib",
+    "independent": "VIZA müstəqil xidmətdir və dövlət veb saytı deyil."
+  },
+  "ds": {
+    "header": {
+      "home": "VIZA ana səhifə",
+      "primary": "Əsas",
+      "language": "Dil",
+      "signIn": "Daxil ol",
+      "openMenu": "Menyunu aç",
+      "closeMenu": "Menyunu bağla",
+      "nav": {
+        "home": "Ana səhifə",
+        "destinations": "İstiqamətlər",
+        "arrivalCards": "Gəliş kartları",
+        "guides": "Bələdçilər",
+        "news": "Xəbərlər",
+        "about": "Haqqımızda",
+        "contact": "Əlaqə"
+      }
+    },
+    "footer": {
+      "home": "VIZA ana səhifə",
+      "tagline": "VIZA-nın süni intellekti ilə hazırlanan və məsləhətçilərimizin yoxladığı viza müraciətləri. İstifadəsi pulsuzdur.",
+      "explore": "Kəşf et",
+      "follow": "Bizi izləyin",
+      "followOn": "{platform} üzərində VIZA-nı izləyin",
+      "links": {
+        "destinations": "İstiqamətlər",
+        "arrivalCards": "Gəliş kartları",
+        "guides": "Bələdçilər",
+        "news": "Xəbərlər",
+        "about": "Haqqımızda",
+        "contact": "Əlaqə",
+        "careers": "Karyera",
+        "security": "Təhlükəsizlik",
+        "status": "Status"
+      },
+      "copyright": "© {year} VIZA. Bütün hüquqlar qorunur.",
+      "office": "Qeydiyyatdan keçmiş ofis: 60 Paya Lebar Road, #06-28 Paya Lebar Square, Sinqapur 409051",
+      "privacy": "Məxfilik",
+      "terms": "Şərtlər",
+      "kelin": "Kelin Studio layihəsi",
+      "refunds": "Geri ödənişlər",
+      "business": "Biznes məlumatı"
+    },
+    "form": {
+      "fullName": {
+        "label": "Adınız",
+        "placeholder": "Jane Tan"
+      },
+      "email": {
+        "label": "E-poçt"
+      },
+      "phone": {
+        "label": "Telefon"
+      },
+      "destination": {
+        "label": "İstiqamət",
+        "placeholder": "Yaponiya, Şengen, Amerika Birləşmiş Ştatları"
+      },
+      "message": {
+        "label": "Sualınız",
+        "placeholder": "Hara gedirsiniz, pasportunuz və səyahət tarixləriniz."
+      },
+      "submit": "Mesaj göndər",
+      "sending": "Göndərilir",
+      "success": "Təşəkkür edirik, mesajınız çatdı. E-poçtla cavab verəcəyik.",
+      "error": "Mesajınızı göndərə bilmədik. Yenidən cəhd edin və ya sales@kelin.studio ünvanına yazın.",
+      "consent": "Göndərməklə <privacy>Məxfilik Siyasəti</privacy> və <terms>Şərtlər</terms> ilə razılaşırsınız."
+    },
+    "gallery": {
+      "title": "İstiqamətlər",
+      "lede": "Lazım olan vizanı, sənədləri və dövlət rüsumunu görmək üçün istiqamət seçin.",
+      "view": "Bax",
+      "passportSummary": "{free} vizasız · {voa} elektron viza və ya gəlişdə · {req} viza lazımdır",
+      "noResults": "Axtarışınıza uyğun istiqamət yoxdur.",
+      "sorts": {
+        "featured": "Seçilmişlər",
+        "open": "Əvvəlcə açıq olanlar",
+        "name": "A-dan Z-yə"
+      }
+    },
+    "dest": {
+      "all": "Bütün istiqamətlər",
+      "onPage": "Bu səhifədə",
+      "applyTitle": "Müraciətə başla",
+      "facts": "Faktlar"
+    },
+    "article": {
+      "toc": "Bu səhifədə",
+      "down": "Məqaləyə keç",
+      "faqLede": "Bu mövzuda qısa cavablar."
+    },
+    "legal": {
+      "updated": "Son yenilənmə",
+      "contents": "Məzmun"
+    }
+  },
+  "homePage": {
+    "hero": {
+      "browse": "İstiqamətlərə bax",
+      "picks": "İstiqamətlər"
+    },
+    "types": {
+      "title": "Viza növləri",
+      "lede": "Turist, biznes, iş, tələbə və uzunmüddətli vizalar.",
+      "prev": "Əvvəlki",
+      "next": "Növbəti",
+      "items": {
+        "tourist": {
+          "title": "Turist",
+          "body": "Tətillər, ailə ziyarətləri və qısa qalmalar."
+        },
+        "business": {
+          "title": "Biznes",
+          "body": "Görüşlər, konfranslar və obyekt ziyarətləri."
+        },
+        "work": {
+          "title": "İş",
+          "body": "İş icazələri və iş vizaları."
+        },
+        "student": {
+          "title": "Tələbə",
+          "body": "Məktəblər və universitetlər üçün təhsil vizaları."
+        },
+        "long": {
+          "title": "Uzunmüddətli qalma",
+          "body": "Yaşayış və digər uzunmüddətli vizalar."
+        }
+      }
+    },
+    "steps": {
+      "title": "Necə işləyir",
+      "cta": "Pulsuz müraciətinə başla",
+      "side": {
+        "freeValue": "Pulsuz",
+        "freeLabel": "VIZA xidməti",
+        "langLabel": "Dillər: ingilis və çin",
+        "note": "Yalnız dövlət rüsumunu ödəyirsiniz.",
+        "noteBody": "O, birbaşa verən orqana gedir. VIZA öz haqqını əlavə etmir."
+      },
+      "items": {
+        "choose": {
+          "title": "İstiqamət seçin",
+          "body": "Başlamazdan əvvəl lazım olan vizanı, hazırlanacaq sənədləri və dövlət rüsumunu görün.",
+          "chips": "Viza növü|Sənədlər|Dövlət rüsumu"
+        },
+        "passport": {
+          "title": "Pasportunuzu yükləyin",
+          "body": "VIZA məlumatlarınızı şəkilli səhifədən oxuyur, ona görə demək olar ki, heç nə yazmaq lazım olmur.",
+          "chips": "Şəkilli səhifə|Məlumatlar doldurulur"
+        },
+        "confirm": {
+          "title": "Məlumatlarınızı təsdiqləyin",
+          "body": "VIZA-nın oxuduqlarını yoxlayın, səyahət tarixlərinizi əlavə edin və pulsuz VIZA hesabınızda davam edin.",
+          "chips": "Səyahət tarixləri|Pulsuz hesab"
+        },
+        "file": {
+          "title": "VIZA yoxlayır və təqdim edir",
+          "body": "Məsləhətçi hər formanı təqdim edilməzdən əvvəl yoxlayır, siz isə gedişatı hesabınızda izləyirsiniz.",
+          "chips": "Məsləhətçi yoxlaması|Gedişat yenilikləri"
+        }
+      }
+    },
+    "tiers": {
+      "title": "Qiymətlər",
+      "lede": "Müraciət etməyin iki yolu, ikisi də pulsuzdur.",
+      "cta": "Bizimlə əlaqə",
+      "criteria": "Müqayisə",
+      "guided": "Rəhbərliklə (Guided)",
+      "full": "Tam xidmət",
+      "rows": {
+        "fee": {
+          "label": "VIZA haqqı",
+          "guided": "Pulsuz",
+          "full": "Pulsuz"
+        },
+        "form": {
+          "label": "Müraciət formu",
+          "guided": "Siz cavab verirsiniz, VIZA-nın süni intellekti bələdçiniz olur",
+          "full": "Məsləhətçi cavabları sizinlə birlikdə hazırlayır"
+        },
+        "documents": {
+          "label": "Sənədlər",
+          "guided": "Vəziyyətinizə uyğun yoxlama siyahısı",
+          "full": "Məsləhətçi sənədlərinizi yoxlayır"
+        },
+        "interview": {
+          "label": "Qəbul vaxtı və müsahibə",
+          "guided": "Özünüz yazılır və iştirak edirsiniz",
+          "full": "Ehtimal olunan sualları sizinlə birlikdə nəzərdən keçiririk"
+        },
+        "govFee": {
+          "label": "Dövlət rüsumu",
+          "guided": "Birbaşa orqana ödənilir",
+          "full": "Birbaşa orqana ödənilir"
+        },
+        "bestFor": {
+          "label": "Uyğundur",
+          "guided": "Sadə müraciətlər üçün",
+          "full": "Mürəkkəb hallar və ya əvvəlki imtina üçün"
+        }
+      }
+    },
+    "why": {
+      "title": "Niyə VIZA",
+      "lede": "Aydın addımlar, yoxlanmış formalar və danışa biləcəyiniz real insanlar.",
+      "items": {
+        "free": {
+          "title": "Pulsuz xidmət",
+          "body": "VIZA-nın köməyi pulsuzdur. Yalnız dövlət rüsumunu birbaşa orqana ödəyirsiniz."
+        },
+        "checked": {
+          "title": "Yoxlanmış formalar",
+          "body": "Məsləhətçi hər formanı təqdim edilməzdən əvvəl yoxlayır, beləliklə kiçik səhvlər erkən tutulur."
+        },
+        "language": {
+          "title": "İngilis və çin dilləri",
+          "body": "VIZA ilə ingilis və ya çin dilində WhatsApp, WeChat və ya e-poçt vasitəsilə danışın."
+        }
+      },
+      "photos": {
+        "arrival": {
+          "title": "Gəliş kartları",
+          "body": "Malayziya, Sinqapur, Yaponiya, Tailand, Koreya və İndoneziya üçün pulsuz gəliş kartlarında addım-addım kömək."
+        },
+        "news": {
+          "title": "Xəbərlər",
+          "body": "Viza qaydalarındakı dəyişikliklər və yeni elektron viza sxemləri sadə dillə izah olunur."
+        }
+      }
+    },
+    "guides": {
+      "title": "Bələdçilər",
+      "cta": "Bütün bələdçilər"
+    },
+    "faq": {
+      "lede": "VIZA-nın viza xidməti haqqında qısa cavablar.",
+      "more": "Başqa suallar var?",
+      "items": {
+        "cost": {
+          "q": "VIZA xidməti üçün pul tutur?",
+          "a": "Xeyr. VIZA-nın köməyi pulsuzdur. İstiqamət dövlət viza rüsumu tələb edirsə, onu birbaşa həmin dövlətə ödəyirsiniz."
+        },
+        "visas": {
+          "q": "VIZA hansı vizalarda kömək edə bilər?",
+          "a": "Bu səhifədəki istiqamətlər üçün turist, biznes, iş, tələbə və uzunmüddətli vizalar. Sizinki siyahıda yoxdursa, bizə yazın, məsləhətçi nəyin mümkün olduğunu deyəcək."
+        },
+        "approval": {
+          "q": "Vizam barədə qərarı kim verir?",
+          "a": "Hər qərarı verən orqan verir. VIZA formanızı və sənədlərinizi təqdim edilməzdən əvvəl yoxlayır ki, müraciətiniz tam və ardıcıl olsun."
+        },
+        "tiers": {
+          "q": "Rəhbərliklə (Guided) ilə Tam xidmət arasında fərq nədir?",
+          "a": "Rəhbərliklə (Guided) seçimində VIZA-nın süni intellekti sizi forma və yoxlama siyahısı boyunca aparır, hər cavaba isə özünüz nəzarət edirsiniz. Tam xidmətdə məsləhətçi cavabları sizinlə birlikdə hazırlayır və sənədlərinizi yoxlayır. Hər ikisi pulsuzdur."
+        },
+        "language": {
+          "q": "Hansı dilləri dəstəkləyirsiniz?",
+          "a": "İngilis və çin dilləri, WhatsApp, WeChat, telefon və e-poçt vasitəsilə."
+        }
+      }
+    },
+    "contactCard": {
+      "title": "VIZA məsləhətçisi ilə danışın",
+      "body": "İngilis və ya çin dilində cavab veririk.",
+      "cta": "Bizimlə əlaqə"
+    },
+    "cta": {
+      "title": "Müraciətinizə başlayın",
+      "point1": "Məlumatlarınız məxfi qalır",
+      "point2": "Real insan cavab verir",
+      "formTitle": "Sual verin",
+      "formBody": "Hara getdiyinizi yazın, VIZA məsləhətçisi e-poçtla cavab verəcək."
+    }
+  },
+  "aboutPage": {
+    "h1": "VIZA haqqında",
+    "intro": {
+      "title": "VIZA nədir",
+      "text": "VIZA Sinqapurda yaşayan insanlar üçün viza müraciətlərini hazırlayır, yoxlayır və təqdim edir. Süni intellektimiz sənəd işini görür, məsləhətçilərimiz isə hər formanı yoxlayır. Xidmət pulsuzdur."
+    },
+    "facts": {
+      "destinations": "İstiqamətlər",
+      "guides": "Viza bələdçiləri",
+      "arrival": "Gəliş kartı bələdçiləri",
+      "free": "Pulsuz",
+      "freeLabel": "VIZA xidməti"
+    },
+    "tiersTitle": "Rəhbərliklə (Guided) və ya Tam xidmət",
+    "tiersLede": "Nə qədər kömək istədiyinizi seçin. Hər ikisi pulsuzdur.",
+    "free": {
+      "title": "Pulsuz xidmət",
+      "text": "VIZA köməyi üçün pul tutmur. İstiqamət üzrə dövlət viza rüsumu varsa, VIZA onu başlamazdan əvvəl göstərir və siz onu birbaşa verən orqana ödəyirsiniz. Ödənişli yeniləmələr yoxdur."
+    },
+    "company": {
+      "title": "Şirkət məlumatları",
+      "office": "Qeydiyyatdan keçmiş ofis",
+      "officeValue": "60 Paya Lebar Road, #06-28 Paya Lebar Square, Sinqapur 409051",
+      "email": "E-poçt",
+      "phone": "Telefon və WhatsApp",
+      "languages": "Dillər",
+      "languagesValue": "İngilis və Çin dilləri"
+    }
+  },
+  "contactPage": {
+    "h1": "Əlaqə",
+    "lines": {
+      "whatsapp": {
+        "title": "Telefon və WhatsApp",
+        "body": "Məsləhətçiyə zəng edin və ya yazın."
+      },
+      "wechat": {
+        "body": "Bizi əlavə etmək üçün WeChat-də ID-ni axtarın."
+      },
+      "email": {
+        "title": "E-poçt",
+        "body": "Sənədlər və uzun suallar üçün ən yaxşısı."
+      },
+      "office": {
+        "top": "Sinqapur",
+        "title": "Ofis",
+        "body": "60 Paya Lebar Road, #06-28 Paya Lebar Square, Sinqapur 409051"
+      }
+    },
+    "message": {
+      "title": "Mesaj göndər",
+      "text": "Viza, istiqamət və ya VIZA ilə işləmək barədə suallar. Bizə yazın, məsləhətçi cavab verəcək."
+    }
+  },
+  "careersPage": {
+    "title": "Karyera",
+    "lede": "VIZA Sinqapurda yaşayan insanlara süni intellekt və məsləhətçilərlə viza almağa kömək edir, xidmət pulsuzdur. Diqqətli və faydalı işi sevən insanları işə götürürük.",
+    "teamsTitle": "Komandalar",
+    "teams": [
+      {
+        "title": "Mühəndislik",
+        "body": "Sənəd yoxlamalarını, müraciət axınını və məsləhətçilərimizin istifadə etdiyi alətləri qurun."
+      },
+      {
+        "title": "Dizayn",
+        "body": "Stresli prosesi müraciət edən üçün aydın hiss etdirin."
+      },
+      {
+        "title": "Əməliyyatlar",
+        "body": "Hər müraciətin irəliləməsini və hər tələbin aktual qalmasını təmin edin."
+      },
+      {
+        "title": "Məsləhətçilik",
+        "body": "İnsan tələb edən hallarda müraciət edənlərə ingilis və çin dillərində kömək edin."
+      },
+      {
+        "title": "Data",
+        "body": "Dövlət mənbələrini problemləri erkən tutan yoxlamalara çevirin."
+      },
+      {
+        "title": "Marketinq",
+        "body": "Vizaları insanların etibar edə biləcəyi bələdçilərdə və səhifələrdə sadə dillə izah edin."
+      }
+    ],
+    "applyTitle": "Bizimlə əlaqə saxlayın",
+    "applyBody": "Özünüz və qoşulmaq istədiyiniz komanda haqqında bizə yazın. Hər qeydi oxuyuruq.",
+    "applyCta": "Bizimlə əlaqə"
+  },
+  "pageCopy": {
+    "product": {
+      "introTitle": "VIZA viza müraciətinizə necə dəstək olur",
+      "introLede": "Mövcud viza hazırlığı, sənədlərin yoxlanması və müraciət statusu xidmətlərinə baxın. VIZA-nın xidməti pulsuzdur. Dəqiq əhatə və mövcudluq istiqamət seçdikdən sonra göstərilir.",
+      "browse": "İstiqamətlərə bax"
+    },
+    "events": {
+      "title": "Hələ tədbir yoxdur",
+      "lede": "Gələcək viza klinikaları, məlumat sessiyaları və tərəfdaş tədbirləri burada elan olunacaq.",
+      "contact": "Bizimlə əlaqə"
+    }
+  },
+  "og": {
+    "band": "VIZA pulsuzdur. Dövlət rüsumları ayrıdır.",
+    "destSubtitle": "Rüsumlar və müraciət qaydası"
+  }
+}

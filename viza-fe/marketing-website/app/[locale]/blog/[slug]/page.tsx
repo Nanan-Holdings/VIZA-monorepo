@@ -9,10 +9,15 @@ import { getMarketingBlogFeed, getMarketingBlogPost } from "@/lib/marketing-blog
 import { clip, clipTitle, pageMetadata } from "@/lib/seo/metadata";
 import { SITE_URL } from "@/lib/seo/site";
 import { destinationForPost } from "@/lib/blog-destination";
-import { guidesForPost } from "@/lib/guides";
+import { guidesForPost, localizedGuides } from "@/lib/guides";
 import { blogUrl, articleJsonLd, breadcrumbJsonLd, jsonLd } from "@/lib/blog-structured-data";
 
-export const revalidate = 300;
+export const revalidate = false;
+
+/** No pages at build: each post renders once on first request, is cached, and is refreshed only by /api/revalidate. */
+export function generateStaticParams() {
+  return [];
+}
 
 interface BlogPostPageProps {
   params: Promise<{ locale: string; slug: string }>;
@@ -63,6 +68,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const tc = await getTranslations({ locale, namespace: "countries" });
   const destinationName = destination ? (tc.has(destination.slug) ? tc(destination.slug) : destination.name) : "";
 
+  const guideNames = new Map((await localizedGuides(locale)).map((g) => [g.slug, g.name]));
   const guides = result.status === "ok" ? guidesForPost(result.post, destination?.slug ?? null) : [];
 
   return (
@@ -108,7 +114,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
             guideLinks={guides.length ? {
               title: t("guidesTitle"),
               body: t("guidesBody"),
-              items: guides.map((g) => ({ slug: g.slug, label: locale === "zh-CN" ? g.name.zh : g.name.en })),
+              items: guides.map((g) => ({ slug: g.slug, label: guideNames.get(g.slug) ?? g.name.en })),
             } : undefined}
           />
         )}

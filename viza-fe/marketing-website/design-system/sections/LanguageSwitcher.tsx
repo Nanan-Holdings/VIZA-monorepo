@@ -73,7 +73,7 @@ export default function LanguageSwitcher({ inline = false }: { inline?: boolean 
         }}
       >
         <Globe size={16} />
-        <span>{SHORT[locale] ?? locale}</span>
+        <span>{SHORT[locale] ?? locale.toUpperCase()}</span>
         <ChevronDown size={12} />
       </button>
       {open && (

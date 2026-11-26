@@ -2,14 +2,18 @@
 // and writes lib/seo/og-manifest.json (which cards exist, so lib/seo/metadata.ts can fall back to English).
 // Run with: npm run og   (Node 22.18+ strips the TS types in lib/)
 // Brand look: navy #03346E ground, white type in Geist, the white VIZA logo, and the destination photo on the right.
-// Latin text uses Geist. Chinese, Japanese and Korean use Arial Unicode (macOS). A locale whose script has no font
-// here is skipped, and its pages use the English card.
+// Latin text uses Geist. Every other script is drawn with Arial Unicode (macOS, covers Cyrillic, Greek, Hebrew, Arabic,
+// Thai, Indic, Georgian, Armenian and CJK) plus any Noto font dropped into scripts/fonts/*.ttf (for scripts Arial Unicode
+// lacks, such as Ethiopic, Khmer and Myanmar). Satori has no text shaping engine, so Arabic-script, Indic, Thai, Khmer,
+// Myanmar and Ethiopic cards are only made when OG_SHAPED=1 is set (check the result by eye); without it those locales
+// use the English card, as does any locale whose font is missing.
 import satori from "satori";
 import { Resvg } from "@resvg/resvg-js";
 import sharp from "sharp";
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from "node:fs";
 import { COUNTRIES, isPublished } from "../lib/countries.ts";
-import { destinationTitle } from "../lib/seo/titles.ts";
+import { destinationTitle, SEO_SOURCE } from "../lib/seo/titles.ts";
+import { applyOverlay } from "../lib/i18n-overlay.ts";
 
 const ROOT = new URL("../", import.meta.url);
 const NAVY = "#03346E";
@@ -27,14 +31,22 @@ const latinFonts = [
   { name: "Geist", data: geist("Geist-Medium"), weight: 500, style: "normal" },
   { name: "Geist", data: geist("Geist-Regular"), weight: 400, style: "normal" },
 ];
-const CJK = "/System/Library/Fonts/Supplemental/Arial Unicode.ttf";
-const cjkFonts = existsSync(CJK) ? [{ name: "Cjk", data: readFileSync(CJK), weight: 400, style: "normal" }] : null;
-const isCjk = (locale) => /^(zh|ja|ko)/.test(locale);
+const UNI = "/System/Library/Fonts/Supplemental/Arial Unicode.ttf";
+const extraFonts = existsSync(new URL("scripts/fonts/", ROOT))
+  ? readdirSync(new URL("scripts/fonts/", ROOT)).filter((f) => f.endsWith(".ttf")).map((f) => ({ name: "Uni", data: readFileSync(new URL(`scripts/fonts/${f}`, ROOT)), weight: 400, style: "normal" }))
+  : [];
+const uniFonts = [...(existsSync(UNI) ? [{ name: "Uni", data: readFileSync(UNI), weight: 400, style: "normal" }] : []), ...extraFonts];
+/** Locales whose script is not Latin: drawn with the Uni family. */
+const NON_LATIN = new Set(["zh-CN", "zh-TW", "ja", "ko", "ru", "uk", "bg", "sr", "kk", "el", "ar", "fa", "he", "ur", "ps", "hi", "mr", "ne", "bn", "pa", "gu", "ta", "te", "kn", "ml", "th", "ka", "hy", "am"]);
+/** Scripts that need shaping (joining, reordering) which Satori cannot do. */
+const NEEDS_SHAPING = new Set(["ar", "fa", "ur", "ps", "hi", "mr", "ne", "bn", "pa", "gu", "ta", "te", "kn", "ml", "th", "am"]);
+const isCjk = (locale) => NON_LATIN.has(locale);
 
 const logo = "data:image/svg+xml;base64," + readFileSync(new URL("public/assets/viza-logo-white.svg", ROOT)).toString("base64");
 
 const readMessages = (locale) => JSON.parse(readFileSync(new URL(`messages/${locale}.json`, ROOT), "utf8"));
 const en = readMessages("en");
+const readJson = (rel) => (existsSync(new URL(rel, ROOT)) ? JSON.parse(readFileSync(new URL(rel, ROOT), "utf8")) : null);
 const merge = (a, b) => {
   const out = { ...a };
   for (const [k, v] of Object.entries(b)) {
@@ -52,7 +64,14 @@ const clip = (text, max) => {
   return (sp > max * 0.6 ? cut.slice(0, sp) : cut).replace(/[\s,;:.]+$/, "");
 };
 const stripBrand = (title) => title.replace(/\s*\|\s*VIZA.*$/, "").trim();
-const firstSentence = (text) => text.split(/(?<=[.。])\s*/)[0];
+const firstSentence = (text) => text.split(/(?<=[.。!?！？])\s*/)[0];
+/** A guide or arrival card in `locale`: the hand-written file for en and zh-CN, else English with its translation overlay. */
+async function guideFor(kind, locale, slug) {
+  const dir = kind === "arrival" ? "arrival-cards" : "guides";
+  if (locale === "en" || locale === "zh-CN") return (await import(`../lib/${dir}/${locale}/${slug}.ts`)).default;
+  const base = (await import(`../lib/${dir}/en/${slug}.ts`)).default;
+  return applyOverlay(base, readJson(`translations/${locale}/${kind}/${slug}.json`));
+}
 
 const PAGES = ["home", "visaIndex", "about", "product", "contact", "careers", "security", "status", "apply", "events", "privacy", "terms", "refunds", "businessInformation"];
 // Phase C: the arrival card hub (messages pages.arrivalCards) and one card per guide in lib/arrival-cards/<locale>/.
@@ -77,7 +96,7 @@ async function photo(slug) {
 const h = (type, style, children) => ({ type, props: { style, children } });
 
 function card({ title, subtitle, band, cjk, img }) {
-  const family = cjk ? "Cjk" : "Geist";
+  const family = cjk ? "Uni" : "Geist";
   const len = [...title].length;
   const wide = !img;
   const size = cjk ? (len > 16 ? 60 : len > 10 ? 68 : 76) : wide ? (len > 40 ? 58 : len > 28 ? 68 : 80) : len > 22 ? 46 : len > 16 ? 56 : 66;
@@ -103,17 +122,18 @@ mkdirSync(new URL("public/og/", ROOT), { recursive: true });
 
 for (const locale of ENABLED) {
   const cjk = isCjk(locale);
-  const fonts = cjk ? (cjkFonts ? [...cjkFonts, ...latinFonts] : null) : latinFonts;
-  if (locale !== "en" && !cjk && !/^(de|fr|es|pt|it|nl|id|ms|vi|tr|pl|sv|ro|cs)$/.test(locale)) {
-    console.warn(`Skipped ${locale}: no font for its script, pages use the English card`);
-    continue;
-  }
+  const fonts = cjk ? (uniFonts.length ? [...uniFonts, ...latinFonts] : null) : latinFonts;
   if (!fonts) {
-    console.warn(`Skipped ${locale}: no CJK font at ${CJK}`);
+    console.warn(`Skipped ${locale}: no font for its script (need ${UNI} or a Noto .ttf in scripts/fonts/), pages use the English card`);
     continue;
   }
+  if (NEEDS_SHAPING.has(locale) && !process.env.OG_SHAPED) {
+    console.warn(`Skipped ${locale}: its script needs text shaping, which Satori lacks. Set OG_SHAPED=1 to render anyway and check the cards by eye`);
+    continue;
+  }
+  const seoCopy = locale === "en" || locale === "zh-CN" ? null : applyOverlay(SEO_SOURCE, readJson(`translations/${locale}/seo.json`));
   const m = messagesFor(locale);
-  const band = cjk ? "VIZA 服务免费 · 政府费用另计" : "VIZA is free. Government fees are separate.";
+  const band = m.og?.band ?? "VIZA is free. Government fees are separate.";
   const items = [];
 
   for (const key of PAGES) {
@@ -130,7 +150,7 @@ for (const locale of ENABLED) {
     items.push({ key: "arrival-cards", title: head.trim(), subtitle: clip(firstSentence(hub.description), 110), img: null });
   }
   for (const slug of GUIDE_SLUGS) {
-    const guide = (await import(`../lib/arrival-cards/${locale}/${slug}.ts`)).default;
+    const guide = await guideFor("arrival", locale, slug);
     const [head] = stripBrand(guide.title).split(/[:：]/);
     items.push({ key: `arrival-${slug}`, title: head.trim(), subtitle: clip(firstSentence(guide.description), 110), img: null });
   }
@@ -140,16 +160,16 @@ for (const locale of ENABLED) {
     items.push({ key: "guides", title: head.trim(), subtitle: clip(firstSentence(guidesHub.description), 110), img: null });
   }
   for (const slug of EVERGREEN_SLUGS) {
-    const guide = (await import(`../lib/guides/${locale}/${slug}.ts`)).default;
+    const guide = await guideFor("guides", locale, slug);
     const [head] = stripBrand(guide.title).split(/[:：]/);
     items.push({ key: `guide-${slug}`, title: head.trim(), subtitle: clip(firstSentence(guide.description), 110), img: null });
   }
   for (const c of COUNTRIES.filter(isPublished)) {
     const name = m.countries?.[c.slug] ?? c.name;
-    const full = stripBrand(destinationTitle(c, name, locale));
+    const full = stripBrand(destinationTitle(c, name, locale, seoCopy));
     const [head, tail] = full.split(/[:：]/);
-    const subtitle = cjk ? "费用、材料与办理流程" : tail?.trim() || "Fees and how to apply";
-    items.push({ key: `visa-${c.slug}`, title: cjk ? `新加坡办理${name}签证` : head.trim(), subtitle, img: await photo(c.slug) });
+    const subtitle = locale === "zh-CN" ? m.og?.destSubtitle : tail?.trim() || m.og?.destSubtitle || "Fees and how to apply";
+    items.push({ key: `visa-${c.slug}`, title: locale === "zh-CN" ? `新加坡办理${name}签证` : head.trim(), subtitle, img: await photo(c.slug) });
   }
 
   manifest[locale] = [];

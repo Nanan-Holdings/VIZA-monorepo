@@ -1,0 +1,2150 @@
+{
+  "cta": {
+    "startFreeApplication": "Începe cererea gratuită"
+  },
+  "nav": {
+    "home": "Acasă",
+    "apply": "Aplică",
+    "visas": "Vize",
+    "explore": "Explorează",
+    "events": "Evenimente",
+    "blog": "Noutăți",
+    "careers": "Cariere",
+    "contact": "Contact",
+    "signIn": "Autentificare",
+    "getStarted": "Începe acum",
+    "yourPassport": "Pașaportul tău",
+    "searchPlaceholder": "Caută o țară sau o viză…",
+    "arrivalCards": "Carduri de sosire",
+    "guides": "Ghiduri"
+  },
+  "footer": {
+    "followUs": "Urmărește-ne:",
+    "followOn": "Urmărește VIZA pe {platform}",
+    "product": "Produse",
+    "company": "Companie",
+    "legal": "Informații legale",
+    "offices": "Birouri",
+    "askAi": "Întreabă AI despre VIZA",
+    "security": "Securitate",
+    "status": "Stare",
+    "privacy": "Confidențialitate",
+    "terms": "Termeni",
+    "rights": "Toate drepturile rezervate.",
+    "tagline": "VIZA te ajută să planifici, să aplici și să urmărești vizele fără bătăi de cap, oriunde în lume.",
+    "careers": "Cariere",
+    "contact": "Contact",
+    "copyright": "© VIZA, Toate drepturile rezervate",
+    "prodMockInterview": "Interviu de probă pentru SUA",
+    "prodVisaReq": "Cerințe de viză",
+    "prodSchengen": "Verificator de programări Schengen",
+    "prodPhoto": "Creator de fotografii pentru viză",
+    "prodHelpline": "Linia de urgență VIZA",
+    "prodStudent": "Viză de student",
+    "arrivalCards": "Carduri de sosire",
+    "guides": "Ghiduri",
+    "news": "Noutăți"
+  },
+  "pages": {
+    "blog": {
+      "metaTitle": "Noutăți și actualizări despre vize | VIZA",
+      "metaDescription": "Noutăți despre vize de la VIZA: schimbări de reguli, scheme noi de e-visa și ETA și ce înseamnă pentru cei din Singapore. Actualizate când se schimbă regulile.",
+      "title": "Noutăți despre vize",
+      "lede": "Schimbări de reguli și actualizări de politici, explicate pe înțelesul tuturor. Pentru sfaturi care rămân valabile, citește ghidurile.",
+      "readArticle": "Citește articolul",
+      "featuredLabel": "Ultimele noutăți",
+      "articlesTitle": "Ultimele noutăți",
+      "articlesDescription": "Actualizări de politici și schimbări ale regulilor de călătorie.",
+      "allPosts": "Toate articolele",
+      "noMorePosts": "Mai multe noutăți urmează.",
+      "emptyTitle": "Nicio noutate publicată încă",
+      "emptyBody": "Pregătim primele actualizări. Revino în curând.",
+      "unavailableTitle": "Noutățile sunt momentan indisponibile",
+      "unavailableBody": "Nu am putut încărca ultimele noutăți publicate. Încearcă din nou în scurt timp.",
+      "backToBlog": "Înapoi la noutăți",
+      "by": "De",
+      "updated": "Actualizat",
+      "categoriesLabel": "Subiecte de noutăți",
+      "topicLabel": "Subiect",
+      "relatedTitle": "Mai multe noutăți",
+      "relatedDescription": "Mai multe noutăți despre vize de la VIZA.",
+      "ctaEyebrow": "Planifică cu încredere",
+      "ctaTitle": "Ești gata să începi cererea?",
+      "ctaBody": "Spune-ne încotro vrei să mergi. VIZA te conduce prin cerințe și pașii următori.",
+      "ctaAction": "Începe o cerere",
+      "categoryMetaTitle": "Noutăți {category} | VIZA",
+      "categoryMetaDescription": "Citește noutățile VIZA despre {category}: ce s-a schimbat, pe cine afectează și ce faci mai departe.",
+      "categoryLede": "Noutăți despre {category}.",
+      "visaLinkTitle": "Aplici pentru o viză {country}?",
+      "visaLinkBody": "Vezi documentele, taxa guvernamentală și pașii pentru cei care locuiesc în Singapore.",
+      "visaLinkAction": "Ghid de viză {country}",
+      "guidesTitle": "Ghiduri conexe",
+      "guidesBody": "Ghiduri actualizate pe acest subiect."
+    },
+    "home": {
+      "title": "Cereri de viză în Singapore: SUA, India, Vietnam | VIZA",
+      "description": "Aplică pentru viză SUA (DS-160), e-visa India, Vietnam sau Egipt, ori viză Schengen Franța. Un consilier verifică fiecare formular înainte de depunere.",
+      "heroTitle": "Încotro mergi?",
+      "heroLede": "Răsfoiește opțiunile de viză pentru orice destinație. Consultantul tău VIZA și AI-ul nostru se ocupă de acte, tu îți rezervi călătoria."
+    },
+    "apply": {
+      "title": "Începe o cerere de viză | VIZA",
+      "description": "Încarcă pașaportul, confirmă datele și încredințează cererea de viză unui consilier VIZA. Serviciul VIZA este gratuit.",
+      "saveBadge": "Salvat · reia oricând"
+    },
+    "careers": {
+      "title": "Cariere | VIZA",
+      "description": "Lucrează la VIZA, serviciul de vize gratuit al Kelin Studio din Singapore. Vezi echipele pentru care angajăm și cum ne contactezi despre un rol.",
+      "rightCta": "Vezi rolurile"
+    },
+    "contact": {
+      "title": "Contact: WhatsApp, WeChat, telefon, e-mail | VIZA",
+      "description": "Contactează echipa VIZA pe WhatsApp, WeChat, telefon sau e-mail. Patru canale, patru birouri și îți răspunde o persoană reală.",
+      "rightCta": "Scrie-ne"
+    },
+    "security": {
+      "title": "Securitate și divulgare responsabilă | VIZA",
+      "description": "Privat, transparent și sigur implicit. Cum protejează VIZA datele clienților, programul nostru de divulgare a vulnerabilităților și protecția legală.",
+      "rightCta": "Raportează o vulnerabilitate"
+    },
+    "status": {
+      "title": "Starea sistemului | VIZA",
+      "description": "Starea în direct a VIZA și a portalurilor guvernamentale de vize la care depunem cereri.",
+      "navPill": "Toate sistemele funcționează"
+    },
+    "visa": {
+      "applyCta": "Aplică acum",
+      "applicationProcess": "Procesul de aplicare",
+      "documents": "Documente",
+      "rejectionReasons": "Motive de respingere",
+      "entryExit": "Intrare și ieșire",
+      "extension": "Prelungire",
+      "reviews": "Recenzii",
+      "nearby": "Țări din apropiere",
+      "sources": "Surse oficiale"
+    },
+    "privacy": {
+      "title": "Politica de confidențialitate | VIZA",
+      "description": "Ce colectează VIZA când aplici pentru o viză, de ce, cine vede datele și cât timp le păstrăm, conform PDPA din Singapore."
+    },
+    "terms": {
+      "title": "Termeni și condiții | VIZA",
+      "description": "Termenii de utilizare a serviciului de cereri de viză VIZA, operat de Kelin Studio Pte. Ltd. în Singapore. Serviciul VIZA este gratuit."
+    },
+    "product": {
+      "title": "Cum te sprijină VIZA în cererea de viză | VIZA",
+      "description": "Pregătirea vizei, verificarea documentelor și starea cererii într-un loc. Serviciul VIZA este gratuit. Disponibilitatea apare pentru fiecare destinație."
+    },
+    "events": {
+      "title": "Evenimente | VIZA",
+      "description": "Clinici de vize, sesiuni de informare și evenimente cu parteneri de la VIZA."
+    },
+    "arrivalCards": {
+      "title": "Carduri de sosire: MDAC, SG Arrival Card, TDAC | VIZA",
+      "description": "Ghiduri gratuite pentru cardurile de sosire din Malaezia, Singapore, Japonia, Thailanda, Coreea și Indonezia: cine are nevoie, când le depui, pas cu pas."
+    },
+    "guides": {
+      "title": "Ghiduri de viză pentru cei din Singapore | VIZA",
+      "description": "Ghiduri simple pentru cei din Singapore: țări fără viză, documente Schengen, interviu SUA, ETA, e-visa și refuzuri. Gratuite și verificate des."
+    },
+    "about": {
+      "title": "Despre VIZA: ajutor gratuit pentru vize | VIZA",
+      "description": "VIZA pregătește, verifică și depune cereri de viză pentru cei din Singapore, cu AI și consultanți. Serviciul e gratuit; taxele merg la autoritate."
+    },
+    "visaIndex": {
+      "title": "Destinații de viză: cerințe pe țări | VIZA",
+      "description": "Compară cerințele de viză pe țări, cu documentele și taxele fiecăreia. Ajutorul VIZA este gratuit.",
+      "heroTitle": "Destinații de viză"
+    },
+    "refunds": {
+      "title": "Politica de rambursare | VIZA",
+      "description": "Serviciul VIZA este gratuit, deci nu există taxă de serviciu de rambursat. Cum funcționează taxele guvernamentale și ale altor furnizori."
+    },
+    "businessInformation": {
+      "title": "Informații despre companie | VIZA",
+      "description": "VIZA este operată de Kelin Studio Pte. Ltd., o companie din Singapore. Adresa sediului, UEN și date de contact."
+    }
+  },
+  "common": {
+    "comingSoon": "În curând",
+    "learnMore": "Află mai multe",
+    "readMore": "Citește mai mult",
+    "applyNow": "Aplică acum",
+    "talkToHuman": "Vorbește cu o persoană",
+    "viewAll": "Vezi tot"
+  },
+  "visa": {
+    "heroTitle": "Viză {country}",
+    "validity": "Valabilitate",
+    "howItWorks": "Cum funcționează",
+    "step1": "Ne spui detaliile călătoriei și încarci pașaportul.",
+    "step2": "Completăm cererea și o verificăm după cele mai recente reguli.",
+    "step3": "O depunem pe portalul guvernamental și urmărim decizia.",
+    "step4": "Viza aprobată ajunge pe e-mail, iar noi o urmărim de la un capăt la altul.",
+    "documents": "De ce ai nevoie",
+    "doc1": "Un pașaport valabil cel puțin 6 luni.",
+    "doc2": "O fotografie recentă, de tip pașaport.",
+    "doc3": "Datele călătoriei și cazarea.",
+    "doc4": "Dacă destinația percepe o taxă de viză, un card de plată cu care o achiți direct guvernului.",
+    "nearby": "Destinații din apropiere",
+    "startApplication": "Începe cererea",
+    "comingSoonTitle": "{country}: în curând",
+    "comingSoonBody": "Finalizăm detaliile pentru {country}. Creează un cont și te anunțăm de îndată ce este disponibilă.",
+    "browseDestinations": "Vezi destinațiile",
+    "notifyMe": "Anunță-mă",
+    "back": "Înapoi la explorare",
+    "tabOverview": "Prezentare",
+    "tabProcess": "Procesul de aplicare",
+    "tabDocuments": "Documente",
+    "tabRejection": "Motive de respingere",
+    "tabEntry": "Intrare și ieșire",
+    "tabExtension": "Prelungire",
+    "tabReviews": "Recenzii",
+    "tabNearby": "Țări din apropiere",
+    "reviewsTitle": "Recenzii",
+    "nearbyTitle": "Țări din apropiere",
+    "nearbySub": "Călătorești prin regiune? Adaugă încă o viză la călătorie, iar consultantul tău VIZA le grupează.",
+    "faqTitle": "Întrebări frecvente",
+    "editorial": "Această pagină urmează politica editorială VIZA. Ne bazăm pe surse guvernamentale oficiale și actualizăm fiecare cerință când se schimbă politica.",
+    "editorialLink": "Citește cum verificăm",
+    "sourcesTitle": "Surse",
+    "priceGovt": "Taxă guvernamentală",
+    "priceFree": "Gratuit",
+    "pillAllInclusive": "Tot inclus",
+    "priceCta": "Începe cererea",
+    "onTime": "La timp",
+    "freeService": "Serviciu VIZA gratuit",
+    "freeServiceNote": "VIZA nu percepe nimic pentru ajutorul ei",
+    "govFeePaidDirect": "Taxă guvernamentală {fee}, plătită direct autorității emitente.",
+    "govFeeSetByAuthority": "Orice taxă guvernamentală este stabilită de autoritatea emitentă și plătită direct acesteia.",
+    "govFeeSetByAuthorityShort": "Stabilită de autoritate",
+    "priceService": "Serviciul VIZA",
+    "pillPaidToAuthority": "Plătită autorității",
+    "priceTotalToViza": "Plătești VIZA",
+    "breadcrumbVisas": "Destinații de viză",
+    "serviceDescription": "VIZA îi ajută pe cei care locuiesc în Singapore să pregătească, să verifice și să depună cereri de {type} pentru {country}, cu îndrumare AI și verificare de către specialiști.",
+    "offerDescription": "Taxa de serviciu VIZA. Taxele guvernamentale de viză sunt separate și se plătesc direct autorității emitente.",
+    "dest": {
+      "tabGlance": "Pe scurt",
+      "tabPassports": "Pașapoarte",
+      "tabTypes": "Tipuri de viză",
+      "tabResidents": "Rezidenți",
+      "tabFees": "Taxe",
+      "tabApply": "Cum aplici",
+      "tabChecklist": "Documente",
+      "tabRejection": "Respingeri",
+      "tabTravel": "Înainte de călătorie",
+      "tabRelated": "Conexe",
+      "glanceTitle": "Pe scurt",
+      "glanceVisa": "Viză necesară",
+      "glanceGovFee": "Taxă guvernamentală",
+      "glanceVizaFee": "Taxa VIZA",
+      "glanceProcessing": "Timp de procesare",
+      "glanceMaxStay": "Ședere maximă",
+      "glanceChecked": "Data verificării",
+      "passportsTitle": "Ai nevoie de viză?",
+      "typesTitle": "Tipuri de viză",
+      "residentsTitle": "Rezidenți în Singapore",
+      "feesTitle": "Taxe și termene",
+      "applyTitle": "Cum aplici",
+      "checklistTitle": "Lista de documente",
+      "travelTitle": "Înainte de călătorie",
+      "colPassport": "Pașaport",
+      "colEntry": "Intrare",
+      "colNotes": "Note",
+      "colItem": "Element",
+      "colAmount": "Sumă",
+      "vizaFeeNote": "Ajutorul VIZA este gratuit. Plătești doar taxa guvernamentală, direct autorității.",
+      "reviewedBy": "Verificat de un consultant VIZA la {date}.",
+      "relatedTitle": "Destinații conexe",
+      "relatedSub": "Alte locuri pe care oamenii le adaugă aceleiași călătorii și unde poți citi mai mult.",
+      "startTitle": "Începe cererea",
+      "startBody": "Începe cu pașaportul și datele călătoriei. Ajutorul VIZA este gratuit, iar taxa guvernamentală o plătești direct autorității.",
+      "startConsultBody": "Spune unui consultant VIZA unde locuiești, ce pașaport ai și când călătorești. Ajutorul VIZA este gratuit.",
+      "consultCta": "Vorbește cu un consultant"
+    }
+  },
+  "apply": {
+    "stepOf": "Pasul {n} din 3",
+    "back": "Înapoi",
+    "continue": "Continuă",
+    "step1Name": "Încarcă pașaportul",
+    "step2Name": "Confirmă datele",
+    "step3Name": "Începe cererea",
+    "s1Title": "Încarcă pașaportul",
+    "s1Desc": "Îți citim datele automat, fără să scrii nimic. Folosește pagina cu date personale (cea cu fotografia ta).",
+    "segUpload": "Încarcă un fișier",
+    "segCapture": "Fă o fotografie",
+    "dzTitle": "Trage aici fotografia pașaportului",
+    "dzSub": "Sau dă clic pentru a căuta. Fișierul tău este criptat și nu este distribuit niciodată",
+    "dzBrowse": "Alege fișierul",
+    "dzUpTo": "Până la 10 MB",
+    "tip1Title": "Toate cele patru colțuri vizibile",
+    "tip1Sub": "Încadrează toată pagina cu date, inclusiv zona MRZ de jos.",
+    "tip2Title": "Lumină bună și uniformă",
+    "tip2Sub": "Evită umbrele de la mână sau de la husa telefonului.",
+    "tip3Title": "Fără reflexii sau strălucire",
+    "tip3Sub": "Înclină puțin pașaportul dacă ștampila reflectă lumina.",
+    "errReadFail": "Nu am putut citi pașaportul: {detail}. Încearcă o fotografie mai clară a paginii cu date.",
+    "extReading": "Se citește documentul",
+    "extExtracting": "Se extrag datele tale",
+    "extVerifying": "Se verifică autenticitatea",
+    "stReading": "Se citește…",
+    "stExtracting": "Se extrag…",
+    "stVerifying": "Se verifică…",
+    "s2Title": "Confirmă-ți datele",
+    "s2Desc": "Le-am preluat direct din pașaportul tău. Atinge orice câmp pentru a-l modifica.",
+    "successHigh": "Pașaport citit cu succes, încredere ridicată",
+    "warnLow": "Unele câmpuri au fost greu de citit. Verifică cu atenție fiecare valoare de mai jos.",
+    "warnMed": "Am preluat cea mai mare parte din date. Verifică câmpurile evidențiate.",
+    "ppDetails": "Datele pașaportului",
+    "autoExtracted": "Preluat automat",
+    "fSurname": "Nume de familie",
+    "fGiven": "Prenume",
+    "fPassport": "Numărul pașaportului",
+    "fDob": "Data nașterii",
+    "fNationality": "Cetățenie",
+    "fExpires": "Expiră la",
+    "reachTitle": "Cum te putem contacta?",
+    "reachDesc": "Îți trimitem viza aici, plus actualizări despre stare prin mesaj text pe telefon.",
+    "email": "E-mail",
+    "phone": "Telefon",
+    "consent": "Confirm că datele de mai sus corespund cu pașaportul meu și autorizez VIZA să depună această cerere în numele meu la autoritățile de imigrare din {country}.",
+    "s3Title": "Începe cererea",
+    "s3Desc": "Serviciul VIZA este gratuit. Autentifică-te în portalul VIZA și ne ocupăm noi de restul.",
+    "headsUp": "Reține:",
+    "headsUpBody": "dacă guvernul din {country} percepe o taxă de viză, o plătești direct acestuia. VIZA nu încasează și nu majorează niciodată această sumă.",
+    "yourApp": "Cererea ta",
+    "guaranteedBy": "Livrare garantată până la",
+    "govFee": "Taxă guvernamentală",
+    "expressUpgrade": "Upgrade express",
+    "total": "Total",
+    "footEncrypted": "Criptat de la un capăt la altul. VIZA nu îți percepe nimic pentru această cerere.",
+    "helpOnline": "Priya este online",
+    "helpTap": "Atinge pentru a discuta cu consultantul tău VIZA",
+    "totalAmount": "SGD {amount}",
+    "totalFree": "Gratuit",
+    "etaStandard": "12 mai 2026, 8:00 SGT",
+    "failTitle": "Nu am putut citi documentul",
+    "failNotPassport": "Nu pare a fi pagina cu date a unui pașaport. Încarcă o fotografie a paginii cu fotografia și datele tale personale.",
+    "failUnreadable": "Niciunul dintre câmpurile necesare nu a putut fi citit. Refă fotografia într-o lumină bună, cu toată pagina de date întinsă și clară.",
+    "tryAgain": "Încearcă din nou",
+    "warnPartial": "Nu am putut citi totul. Completează câmpurile evidențiate de mai jos.",
+    "warnExpired": "Pașaportul pare expirat. Cele mai multe destinații cer cel puțin 6 luni de valabilitate.",
+    "warnMrz": "Zona care poate fi citită de aparate (cele două rânduri de jos) nu a putut fi citită. Verifică cu atenție fiecare câmp.",
+    "warnBlurry": "Fotografia a ieșit neclară. Verifică cu atenție fiecare câmp.",
+    "fieldRequired": "Obligatoriu, completează",
+    "editField": "Modifică {field}",
+    "emailInvalid": "Introdu o adresă de e-mail validă. Aici ajung noutățile despre viză și linkul de autentificare.",
+    "phoneInvalid": "Introdu un număr de telefon valid.",
+    "consentRequired": "Confirmă declarația pentru a continua.",
+    "continueToStart": "Continuă",
+    "startTitle": "Continuă în portalul VIZA",
+    "startSub": "Autentifică-te sau creează-ți contul gratuit. Cererea pentru această destinație se deschide imediat.",
+    "vizaService": "Serviciul VIZA",
+    "govFeeSetByAuthority": "Stabilită de autoritate",
+    "govFeeNote": "Orice taxă guvernamentală de viză se plătește direct autorității emitente, nu VIZA.",
+    "completeBeforeStart": "Completează elementele evidențiate de mai sus înainte de a continua."
+  },
+  "explore": {
+    "help": "Ajutor",
+    "passportLabel": "Pașaport {name}",
+    "passportSub": "Cerințe de viză pentru {n} destinații · Loc {rank}",
+    "freeLabel": "Fără viză",
+    "freeNote": "fără acte",
+    "voaLabel": "e-Visa sau VOA",
+    "voaNote": "ne ocupăm noi",
+    "reqLabel": "Viză necesară",
+    "reqNote": "depunere la ambasadă",
+    "fullMap": "Vezi harta completă a vizelor",
+    "grid": "Grilă",
+    "map": "Hartă",
+    "mapLegendEvisa": "e-Visa și vize de vizitator",
+    "mapHint": "Treci cu mouse-ul peste un punct evidențiat pentru a previzualiza o destinație",
+    "sectionTitle": "Pentru pașapoarte {country}",
+    "seeAll": "Vezi toate cele {n}",
+    "footnote": "Serviciul VIZA este gratuit. Orice taxă guvernamentală de viză se plătește direct autorității emitente și diferă de la o țară la alta.",
+    "fastTrack": "Procesare rapidă",
+    "cardType": "Tip",
+    "cardValid": "Valabilă",
+    "cardFee": "Serviciul VIZA",
+    "save": "Salvează",
+    "startApplication": "Începe cererea",
+    "catalogueUnavailable": "Nicio destinație nu este deschisă acum pentru cereri online. Revino în curând.",
+    "choosePassport": "Alege pașaportul",
+    "searchPassport": "Caută țara pașaportului…",
+    "visaFree": "{n} fără viză",
+    "ppFoot": "Actualizat pentru mai 2026 · Sursă: IATA Timatic",
+    "noMatch": "Niciun pașaport nu se potrivește cu „{q}”",
+    "filters": {
+      "delivery": "Livrarea vizei",
+      "type": "Tip de viză",
+      "documents": "Documente",
+      "dates": "Datele călătoriei"
+    },
+    "filterOpts": {
+      "delivery": [
+        "Oricând",
+        "În 24 de ore",
+        "În 3 zile",
+        "În 1 săptămână",
+        "În 1 lună"
+      ],
+      "type": [
+        "Toate tipurile",
+        "Turist",
+        "Afaceri",
+        "Muncă",
+        "Student",
+        "Nomad digital"
+      ],
+      "documents": [
+        "Orice documente",
+        "Minime (doar pașaport)",
+        "Standard",
+        "Pachet detaliat"
+      ],
+      "dates": [
+        "Alege datele",
+        "Săptămâna aceasta",
+        "Luna aceasta",
+        "Peste 3 luni",
+        "Peste 6 luni"
+      ]
+    }
+  },
+  "cities": {
+    "viza-test": "Test de plată în direct",
+    "indonesia": "Bali · Jakarta",
+    "egypt": "Cairo · Giza",
+    "australia": "Sydney · Melbourne",
+    "saudi-arabia": "Riad · AlUla",
+    "united-kingdom": "Londra · Edinburgh",
+    "vietnam": "Hanoi · Hoi An",
+    "malaysia": "KL · Penang",
+    "japan": "Tokyo · Kyoto",
+    "united-states": "New York · Los Angeles",
+    "canada": "Toronto · Vancouver",
+    "turkiye": "Istanbul · Cappadocia",
+    "thailand": "Bangkok · Phuket",
+    "united-arab-emirates": "Dubai · Abu Dhabi",
+    "france": "Paris · Nisa",
+    "italy": "Roma · Florența",
+    "india": "Delhi · Mumbai"
+  },
+  "validity": {
+    "viza-test": "Doar demonstrație",
+    "indonesia": "90 de zile",
+    "egypt": "90 de zile",
+    "australia": "1 an",
+    "saudi-arabia": "365 de zile",
+    "united-kingdom": "6 luni",
+    "vietnam": "90 de zile",
+    "malaysia": "3 luni",
+    "japan": "90 de zile",
+    "united-states": "10 ani",
+    "canada": "10 ani",
+    "turkiye": "180 de zile",
+    "thailand": "3 luni",
+    "united-arab-emirates": "60 de zile",
+    "france": "90 de zile",
+    "italy": "90 de zile",
+    "india": "30 de zile"
+  },
+  "passports": {
+    "SG": "Singapore",
+    "JP": "Japonia",
+    "KR": "Coreea de Sud",
+    "DE": "Germania",
+    "FR": "Franța",
+    "GB": "Regatul Unit",
+    "US": "Statele Unite",
+    "AU": "Australia",
+    "CA": "Canada",
+    "AE": "Emiratele Arabe Unite",
+    "CN": "China",
+    "IN": "India",
+    "BR": "Brazilia",
+    "PH": "Filipine",
+    "ID": "Indonezia",
+    "MY": "Malaezia",
+    "TH": "Thailanda"
+  },
+  "countries": {
+    "viza-test": "VIZA Test",
+    "indonesia": "Indonezia",
+    "egypt": "Egipt",
+    "australia": "Australia",
+    "saudi-arabia": "Arabia Saudită",
+    "united-kingdom": "Regatul Unit",
+    "vietnam": "Vietnam",
+    "malaysia": "Malaezia",
+    "japan": "Japonia",
+    "united-states": "Statele Unite",
+    "canada": "Canada",
+    "turkiye": "Turcia",
+    "thailand": "Thailanda",
+    "united-arab-emirates": "Emiratele Arabe Unite",
+    "france": "Franța",
+    "italy": "Italia",
+    "india": "India",
+    "china": "China",
+    "south-korea": "Coreea de Sud",
+    "schengen": "Schengen"
+  },
+  "visaTypes": {
+    "Test checkout": "Test de plată",
+    "e-Visa": "e-Visa",
+    "Standard Visitor": "Standard Visitor",
+    "Visitor 600": "Visitor 600",
+    "Tourist": "Turist",
+    "B1/B2": "B1/B2",
+    "eTA": "eTA",
+    "Schengen": "Schengen",
+    "eVisa": "eVisa",
+    "Visitor visa": "Viză de vizitator",
+    "Tourist visa": "Viză turistică"
+  },
+  "careers": {
+    "hero": {
+      "nowHiring": "Angajăm acum în",
+      "cities": [
+        "Shanghai",
+        "Singapore"
+      ],
+      "openRoles": "28 de roluri deschise",
+      "title": "Ajută-ne să facem granițele<br></br><em>să dispară</em>, <u>în liniște,</u><br></br>cu viteza software-ului.",
+      "lead": "Transformăm luni de acte pentru viză în ore de software, pentru milioane de oameni care vor doar să se urce într-un avion. Adu-ți meseria într-o echipă care livrează sub termene reale.",
+      "ctaRoles": "Vezi toate rolurile deschise",
+      "ctaWhy": "De ce existăm"
+    },
+    "board": {
+      "ariaLabel": "Panou de plecări cu rolurile deschise la VIZA",
+      "head": "Poziții deschise · în direct",
+      "live": "La timp",
+      "cols": {
+        "req": "Nr.",
+        "role": "Rol",
+        "office": "Birou",
+        "status": "Stare"
+      },
+      "rows": [
+        {
+          "role": "Staff Engineer",
+          "sub": "Fluxul de documente",
+          "status": "Îmbarcare"
+        },
+        {
+          "role": "Product Designer",
+          "sub": "Fluxurile solicitanților",
+          "status": "Deschis"
+        },
+        {
+          "role": "Ofițer de legătură cu ambasadele",
+          "sub": "Parteneriate cu guverne",
+          "status": "Ultimul apel"
+        },
+        {
+          "role": "Operațiuni clienți",
+          "sub": "Escaladări nivel 2",
+          "status": "Deschis"
+        }
+      ],
+      "foot": "+24 de roluri în inginerie, operațiuni și design",
+      "browseAll": "Vezi tot",
+      "chip1Label": "Angajăm în",
+      "chip1Value": "4 birouri",
+      "chip2Label": "Răspuns mediu",
+      "chip2Value": "3.2 zile până la primul apel"
+    },
+    "stats": [
+      {
+        "value": "2.4M",
+        "label": "Vize emise prin VIZA anul trecut"
+      },
+      {
+        "label": "Destinații acceptate cu procesare în direct"
+      },
+      {
+        "label": "Rata de aprobare pentru toate tipurile de viză în 2025"
+      },
+      {
+        "label": "Oameni în Shanghai și Singapore"
+      }
+    ],
+    "mission": {
+      "eyebrow": "Povestea noastră",
+      "title": "Cea mai mare parte a lumii<br></br>încă mai călătorește cu<br></br><em>acte tipărite.</em>",
+      "kicker1": "Am început VIZA în 2021, după ce am petrecut prea multe săptămâni așteptând la telefon cu ambasadele. Sistemul prin care oamenii trec granițele este mai vechi decât internetul, iar cei blocați în el merită mai mult.",
+      "kicker2": "Astăzi, o echipă de 340 de oameni în patru birouri livrează software, depune documente și conduce operațiuni în 194 de țări. Facem munca plictisitoare și obositoare ca să poți călători așa cum navighezi pe restul internetului: câteva atingeri și ești pe drum.",
+      "founderName": "Mira Kohli",
+      "founderRole": "Co-fondatoare și CEO · Singapore",
+      "beliefs": [
+        {
+          "title": "Suntem o companie de operațiuni care livrează software.",
+          "body": "Jumătate din VIZA sunt ingineri, designeri și manageri de produs. Cealaltă jumătate sunt consultanți, oameni de operațiuni și specialiști în documente din fiecare țară. Niciuna nu câștigă fără cealaltă."
+        },
+        {
+          "title": "Solicitantul este mereu clientul.",
+          "body": "Ambasadele, partenerii, companiile aeriene, toți contează. Dar omul blocat la coadă la 3 dimineața, reîmprospătând un portal, este cel pentru care lucrăm și după care ne măsurăm."
+        },
+        {
+          "title": "Viteza crește când ești răbdător cu calitatea.",
+          "body": "Mergem repede cu livrarea și încet cu deciziile ireversibile. O decizie greșită de viză poate strica o nuntă, un job, o înmormântare. Ținem acest standard chiar dacă ne încetinește."
+        },
+        {
+          "title": "Distanța este o problemă de UX, nu o limită.",
+          "body": "Echipele noastre sunt în patru fusuri orare. Scrisul asincron, responsabilitatea clară și o cultură bună a documentației sunt felul în care schimbăm timp pe încredere și livrăm în toată lumea fără să epuizăm pe nimeni."
+        }
+      ]
+    },
+    "values": {
+      "eyebrow": "Ce ne cerem nouă înșine",
+      "title": "Cinci lucruri în care credem, chiar când ne costă.",
+      "lead": "Valorile sunt ușor de scris și greu de aplicat. Acestea sunt cele cinci pe care le folosim cu adevărat la angajări, la evaluări și la rarele decizii grele.",
+      "cards": [
+        {
+          "title": "Spune adevărul, mai ales când ne costă.",
+          "body": "Dacă o viză nu va ajunge la timp, spune-o azi, nu în ajunul zborului. Preferăm să pierdem o vânzare decât să livrăm o minciună.",
+          "kicker": "În practică → politici publicate, audit al modificărilor"
+        },
+        {
+          "title": "Câștigă viteză. Nu te simți doar ocupat.",
+          "body": "Sărbătorim deciziile și munca livrată, nu ședințele și conversațiile. Contează productivitatea față de misiune, nu mișcarea în calendarul tău.",
+          "kicker": "În practică → evaluare trimestrială a productivității"
+        },
+        {
+          "title": "Gândește în pașapoarte, nu în persona.",
+          "body": "Regulile de viză depind de cetățenie. Un „utilizator” nu există, dar există un deținător de pașaport filipinez care aplică pentru Schengen. Construim pentru oameni reali, nu pentru medii.",
+          "kicker": "În practică → specificații de produs pornind de la pașaport"
+        },
+        {
+          "title": "Scrie lucrurile. Mai ales deciziile.",
+          "body": "Patru birouri, patru fusuri orare. Dacă o decizie nu e scrisă, nu s-a întâmplat. Wiki-ul nostru este lectură obligatorie; ședințele de dimineață sunt opționale.",
+          "kicker": "În practică → ADR-uri, memo săptămânal, asincron întâi"
+        },
+        {
+          "title": "Rămâi aproape de coadă.",
+          "body": "Fiecare inginer face o tură pe trimestru la etajul consultanților. Nu poți elimina prin design o fricțiune pe care nu ai simțit-o niciodată la 11 seara într-o duminică.",
+          "kicker": "În practică → ture rotative la coadă"
+        },
+        {
+          "title": "Alege varianta lungă.",
+          "body": "Răspunsul de treizeci de secunde este de obicei greșit. Investim în documentație amănunțită, ghiduri solide și explicații care rezistă, chiar și când varianta ușoară ar fi de ajuns.",
+          "kicker": "În practică → manual de integrare, ghiduri publice"
+        }
+      ]
+    },
+    "inside": {
+      "eyebrow": "În interiorul VIZA",
+      "title": "Cum arată, de fapt,<br></br>munca aici.",
+      "lead": "Avem birouri în două orașe pentru că angajăm aproape de locul unde se depun cererile. Vorbim tare despre reușite, încet despre politică și suntem sinceri despre cât mai avem de construit.",
+      "photos": [
+        {
+          "label": "foto · sediul din Singapore, spațiu deschis",
+          "mark": "Paya Lebar Square, SG"
+        },
+        {
+          "label": "foto · etajul cozii de consultanți",
+          "mark": "Luoshan Rd, Shanghai"
+        },
+        {
+          "label": "foto · sesiune la tablă",
+          "mark": "Întâlnire tech, Bali"
+        },
+        {
+          "label": "foto · etajul de operațiuni din Shanghai",
+          "mark": "Pudong, Shanghai"
+        },
+        {
+          "label": "foto · cina echipei",
+          "mark": "Întâlnire generală, Lisabona"
+        },
+        {
+          "label": "foto · vizită la un partener de ambasadă",
+          "mark": "Paya Lebar Square, SG"
+        }
+      ],
+      "pull": "„Angajăm oameni care au o părere despre vize înainte să vină. Până în luna a doua, vei avea una mai fermă.”",
+      "pullBy": "Felix Adekunle, VP Engineering",
+      "para1": "VIZA înseamnă multă autonomie și mult context. Vei avea un responsabil pentru tot ce faci, bugete reale și așteptarea să explici restului companiei raționamentul din spatele muncii tale.",
+      "para2": "Dacă vrei să ți se spună zilnic ce să faci, nu e locul potrivit. Dacă ai așteptat să ți se dea volanul în mână, e chiar aici."
+    },
+    "how": {
+      "eyebrow": "Inginerie și operațiuni la VIZA",
+      "title": "Cum se mișcă, de fapt, munca.",
+      "lead": "Dacă construiești, depui sau proiectezi aici, așa arată săptămâna ta. Mai puține ceremonii, mai multă muncă livrată. Mai puțin Slack, mai multe decizii scrise.",
+      "cells": [
+        {
+          "title": "Responsabilitate de la cap la coadă",
+          "body": "Proiectezi, construiești, livrezi și răspunzi pentru ea în producție. Fără cozi de predare, fără planuri scrise de oameni aflați la trei niveluri distanță. Dacă e a ta, e cu adevărat a ta."
+        },
+        {
+          "title": "Livrări zilnice, implicit",
+          "body": "Cele mai multe echipe livrează de mai multe ori pe zi. Buclele de feedback sunt scurte prin design, iar o revenire de treizeci de minute este preferată unei dispute de trei săptămâni."
+        },
+        {
+          "title": "Probleme reale și încâlcite",
+          "body": "Nu e doar CRUD. Vei lucra la OCR pentru documente, programare sensibilă la latență pentru peste 90 de portaluri guvernamentale și fluxuri pentru consumatori folosite de milioane de oameni."
+        },
+        {
+          "title": "Ștacheta este sus, pe față",
+          "body": "Lucrăm în pereche la evaluările de design. Comentăm direct în PR-uri. Credem că gustul poate fi învățat și ne așteptăm ca oamenii să-i ajute activ pe cei din jur să devină mai buni."
+        },
+        {
+          "title": "Un buget real pentru învățare",
+          "body": "$2,000 pe persoană pe an, fără întrebări, pentru conferințe, cărți, cursuri, orice se întoarce în munca pe care o faci aici."
+        },
+        {
+          "title": "Arhitectură scrisă de tine",
+          "body": "RFC-urile sunt deschise tuturor. Ingineri noi au modelat infrastructura de bază în prima lor lună. Dacă ai un plan mai bun, scrie-l, îl citim."
+        }
+      ]
+    },
+    "roles": {
+      "eyebrow": "Roluri deschise · actualizate săptămânal",
+      "title": "Fii parte din călătorie.",
+      "lead": "28 de roluri deschise în patru birouri. Angajăm în inginerie, design, operațiuni, consultanță și parteneriate. Rolurile noi apar lunea.",
+      "allDepartments": "Toate departamentele",
+      "deps": {
+        "eng": "Inginerie",
+        "design": "Design",
+        "ops": "Operațiuni",
+        "consult": "Consultanți",
+        "data": "Date și ML",
+        "gtm": "Marketing și GTM"
+      },
+      "showing": "Se afișează <strong>{count}</strong> roluri · toate locațiile · toate echipele",
+      "anyLocation": "Orice locație",
+      "groupCount": "{count} deschise",
+      "posSub": "{team} · angajăm după meserie și judecată, nu după pedigree",
+      "locationLabel": "Locație",
+      "typeLabel": "Tip",
+      "fullTime": "Normă întreagă",
+      "viewRole": "Vezi rolul",
+      "locations": {
+        "sg": "Singapore",
+        "sf": "Shanghai",
+        "ldn": "Singapore",
+        "dxb": "Shanghai"
+      },
+      "jobs": {
+        "backendPayments": "Senior Backend Engineer, Platformă",
+        "staffDocPipeline": "Staff Engineer, fluxul de documente",
+        "iosApplicant": "iOS Engineer, aplicația pentru solicitanți",
+        "platformInfra": "Platform Engineer, infrastructură și securitate",
+        "frontendConsole": "Frontend Engineer, consola consultanților",
+        "emWeb": "Engineering Manager, Web",
+        "sre": "Site Reliability Engineer",
+        "androidSenior": "Senior Android Engineer",
+        "leadEmbassy": "Engineering Lead, integrări cu ambasadele",
+        "productDesignerApplicant": "Senior Product Designer, fluxul solicitantului",
+        "brandDesigner": "Brand Designer",
+        "designLeadConsultant": "Design Lead, instrumente pentru consultanți",
+        "headOpsMe": "Director de operațiuni, Orientul Mijlociu",
+        "visaOpsSchengen": "Responsabil operațiuni de viză, Schengen",
+        "logistics": "Manager logistică și curierat",
+        "processDocQa": "Process Engineer, controlul calității documentelor",
+        "opsAnalyst": "Analist de operațiuni, rezervări",
+        "consultSchengen": "Consultant de viză, Schengen",
+        "consultUs": "Consultant de viză, SUA B1/B2",
+        "consultUae": "Consultant de viză, reședința în EAU",
+        "consultStudent": "Consultant senior, vize de student",
+        "consultApac": "Consultant Lead, Asia-Pacific",
+        "consultUk": "Consultant de viză, Regatul Unit",
+        "dataScientist": "Senior Data Scientist, modelarea aprobărilor",
+        "mlOcr": "ML Engineer, OCR și AI pentru documente",
+        "perfMarketing": "Performance Marketing Manager",
+        "contentLead": "Content Lead, storytelling",
+        "lifecycleCrm": "Lifecycle și CRM Manager"
+      }
+    },
+    "fellowship": {
+      "tag": "▲ VIZA Launchpad · program de 12 săptămâni",
+      "title": "Douăsprezece săptămâni. O echipă de produs.<br></br><em>O singură șansă să livrezi ceva.</em>",
+      "para1": "Launchpad este programul nostru de rezidență pentru ingineri, manageri de produs și designeri la început de carieră, oameni care altfel ar mai avea nevoie de doi ani de „experiență” înainte să primească o șansă reală.",
+      "para2": "Vei lucra în pereche cu lideri seniori, vei răspunde de o parte reală a produsului de la start până la lansare și vei pleca cu ceva pe care îl vor folosi milioane de oameni. Aproximativ 60% din cohortă primesc ofertă cu normă întreagă.",
+      "meta": [
+        {
+          "k": "Durată",
+          "v": "12 săptămâni"
+        },
+        {
+          "k": "Locație",
+          "v": "La birou, orice sediu"
+        },
+        {
+          "k": "Bursă",
+          "v": "Peste piață"
+        },
+        {
+          "k": "Următoarea cohortă",
+          "v": "sept. 2026"
+        }
+      ],
+      "apply": "Aplică la Launchpad",
+      "readCohort": "Citește despre cohorta 2025",
+      "projects": [
+        {
+          "k": "2024 · Inginerie",
+          "title": "Rescrierea fluxului OCR",
+          "meta1": "Livrat în producție",
+          "meta2": "3.2× mai rapid"
+        },
+        {
+          "k": "2025 · Design",
+          "title": "Reproiectarea fluxului Schengen",
+          "meta1": "14 țări active",
+          "meta2": "↑ 22% conv."
+        },
+        {
+          "k": "2025 · Produs",
+          "title": "Planificator de sloturi la ambasade",
+          "meta1": "9 ambasade",
+          "meta2": "40k sloturi/lună"
+        }
+      ]
+    },
+    "benefits": {
+      "eyebrow": "Suntem alături de tine (pe bune)",
+      "title": "Lucrurile plictisitoare,<br></br>rezolvate cum trebuie.",
+      "lead": "Nu credem că beneficiile sunt un extra. Sunt baza care îi lasă pe oameni să lucreze cât mai bine. Iată ce primește fiecare angajat VIZA, în fiecare birou, din prima zi.",
+      "items": [
+        {
+          "title": "Sănătate completă, rezolvată.",
+          "body": "Asigurare medicală, stomatologică și oftalmologică completă din prima zi, pentru tine, partenerul tău și copiii tăi. Plătim noi prima, fără jocuri cu franșiza."
+        },
+        {
+          "title": "Construiește avere, nu doar salariu.",
+          "body": "Salariu de bază peste piață în fiecare piață unde angajăm, plus un pachet generos de acțiuni legat de etape atinse, nu doar de ani lucrați. Îl reînnoim la doi ani."
+        },
+        {
+          "title": "Învață ce contează cu adevărat.",
+          "body": "Buget de învățare de $2,000 pe an, prezentări interne lunare și timp în calendar, nu doar permisiunea, pentru a face acel curs sau a merge la acea conferință."
+        },
+        {
+          "title": "Încântă clienții ca și cum ar fi banii tăi.",
+          "body": "Fiecare solicitant are un buget de $100 pentru gesturi de bunăvoință peste așteptări. Fără aprobare, fără escaladare: rezolvă, apoi scrie ce s-a întâmplat."
+        },
+        {
+          "title": "Mintea înaintea tuturor.",
+          "body": "Sprijin psihologic confidențial și profesionist, fără bariere de asigurare. Plus trei zile pe lună „fără ședințe”, în toată compania."
+        },
+        {
+          "title": "Avantaje de călătorie (a trebuit).",
+          "body": "Noi facem vize; echipa noastră ar trebui să călătorească pe gratis. Credit de călătorie de $4k pe an, plus VIZA se ocupă de fiecare viză de care ai putea avea nevoie, instant, intern."
+        },
+        {
+          "title": "Concediu generos și real.",
+          "body": "30 de zile de concediu plătit, plus sărbătorile țării tale, plus o săptămână plătită liberă între 24 decembrie și 1 ianuarie. Urmărim utilizarea și îi încurajăm pe oameni să ia mai mult, nu mai puțin."
+        },
+        {
+          "title": "Echipament, fără întrebări.",
+          "body": "Alegi laptopul, monitorul și scaunul din prima zi. Indemnizație pentru munca de acasă pentru amenajarea ta. Avem încredere că știi ce îți trebuie pentru a lucra bine."
+        },
+        {
+          "title": "Concediu parental care chiar funcționează.",
+          "body": "20 de săptămâni pentru persoana care îngrijește în principal copilul, 12 pentru a doua, plătite integral. Plus o revenire treptată, ca să nu te întorci la capacitate maximă din prima zi."
+        }
+      ]
+    },
+    "offices": {
+      "eyebrow": "Unde lucrăm",
+      "title": "Două birouri, un produs.",
+      "lead": "Angajăm aproape de ambasade, parteneri și piețele pe care le servim. Fiecare birou are și ingineri, și operațiuni: nu separăm echipele care construiesc de cele care conduc activitatea zilnică.",
+      "cards": [
+        {
+          "photo": "foto · Shanghai",
+          "open": "6 deschise",
+          "name": "Shanghai",
+          "addr1": "Lane 1502, Luoshan Road,",
+          "addr2": "Zona pilot de liber schimb China (Shanghai)",
+          "tz": "GMT+8 · operațiuni China",
+          "since": "Din 2023"
+        },
+        {
+          "photo": "foto · sediul din Singapore",
+          "open": "12 deschise",
+          "name": "Singapore",
+          "addr1": "60 Paya Lebar Road, #06-28, Paya Lebar Square,",
+          "addr2": "Singapore 409051",
+          "tz": "GMT+8 · sediul Asia-Pacific",
+          "since": "Sediu central · din 2021"
+        }
+      ]
+    },
+    "ctaStrip": {
+      "title": "Nu vezi rolul tău,<br></br>dar vrei să intri?",
+      "body": "Dacă ai un parcurs neobișnuit și crezi că ne-ai ajuta să mișcăm mai repede călătorii lumii, vrem să auzim de la tine. Am angajat șoferi de autobuz, foști angajați de ambasadă și avocați. Nu avem un tipar.",
+      "lead": "Aplicație generală",
+      "cta": "Trimite-ne povestea ta",
+      "note": "Răspundem în 7 zile, chiar dacă răspunsul e nu."
+    },
+    "footer": {
+      "tagline": "VIZA te ajută să planifici, să aplici și să urmărești vizele fără bătăi de cap, oriunde în lume.",
+      "company": "Companie",
+      "products": "Produse",
+      "offices": "Birouri",
+      "careers": "Cariere",
+      "contact": "Contact",
+      "security": "Securitate",
+      "privacy": "Confidențialitate",
+      "terms": "Termeni",
+      "prodVisaReq": "Cerințe de viză",
+      "prodSchengen": "Verificator de programări Schengen",
+      "prodPhoto": "Creator de fotografii pentru viză",
+      "prodHelpline": "Linia de urgență VIZA",
+      "prodStudent": "Viză de student",
+      "officeSg": "Singapore, sediul central",
+      "officeSf": "Shanghai",
+      "copyright": "© VIZA, Toate drepturile rezervate"
+    }
+  },
+  "security": {
+    "hero": {
+      "eyebrow": "Securitate la VIZA · actualizat ultima dată în mai 2026",
+      "title": "Privat. Transparent.<br></br><em>Sigur implicit.</em>",
+      "lead": "Clienți din toată lumea ne încredințează milioane de documente sensibile: pașapoarte, extrase de cont, fotografii. Iată exact cum le colectăm, cum le stocăm și cum dovedim că facem lucrurile corect.",
+      "ctaPrimary": "Cum îți protejăm datele",
+      "ctaVdp": "Raportează o vulnerabilitate"
+    },
+    "clearance": {
+      "republicKey": "Republica",
+      "officeKey": "Birou emitent",
+      "officeVal": "Încredere și siguranță",
+      "title": "Autorizare de securitate /<br></br>Datele clienților",
+      "grid": {
+        "encryption": {
+          "k": "Criptare",
+          "v": "AES-256 / TLS 1.3"
+        },
+        "region": {
+          "k": "Regiune",
+          "v": "SG · SUA · UE"
+        },
+        "audit": {
+          "k": "Frecvența auditului",
+          "v": "Trimestrială"
+        },
+        "retention": {
+          "k": "Păstrare",
+          "v": "Maximum 90 de zile"
+        }
+      },
+      "referenceKey": "Referință",
+      "glyph": "APROBAT<br></br>VIZA · 26"
+    },
+    "chips": {
+      "transitLabel": "În tranzit",
+      "transitVal": "TLS 1.3 de la un capăt la altul",
+      "restLabel": "În repaus",
+      "restVal": "AES-256, fixat pe regiune"
+    },
+    "stats": {
+      "docs": {
+        "value": "2.4M",
+        "label": "Documente procesate în 2025, zero breșe de date ale clienților"
+      },
+      "retention": {
+        "unit": "z",
+        "label": "Păstrare maximă a documentelor sursă după emitere"
+      },
+      "pentests": {
+        "label": "Teste externe de penetrare, toate rapoartele publicate intern"
+      },
+      "ack": {
+        "unit": "h",
+        "label": "Timp median de confirmare pentru o vulnerabilitate raportată"
+      }
+    },
+    "docs": {
+      "eyebrow": "Ce colectăm",
+      "title": "Cinci tipuri de documente.<br></br><em>Nimic mai mult.</em>",
+      "copy1": "O cerere de viză este o problemă de acte. Colectăm doar ce cere explicit o ambasadă și anonimizăm ori de câte ori se poate. Fiecare document este legat de o singură cerere, criptat la primire și șters după un program fix.",
+      "copy2": "Nu ne vindem niciodată datele tale. Nu le dăm niciodată unor terți, în afară de consulatul sau partenerul implicat direct în viza ta.",
+      "cards": {
+        "payment": {
+          "name": "Informații de plată",
+          "meta": "nu se colectează"
+        },
+        "photos": {
+          "name": "Fotografii pentru viză",
+          "meta": "procesate · maximum 90 de zile"
+        },
+        "bank": {
+          "name": "Extrase de cont",
+          "meta": "mascate · doar pdf"
+        },
+        "pastVisas": {
+          "name": "Vize anterioare",
+          "meta": "doar citire · OCR"
+        },
+        "passport": {
+          "name": "Pașaport",
+          "meta": "MRZ extras"
+        }
+      }
+    },
+    "features": {
+      "eyebrow": "Șapte controale, mereu active",
+      "title": "Cum rămân datele tale<br></br>ale tale, de la un capăt la <em>altul.</em>",
+      "intro": "Starea implicită a fiecărui octet la VIZA este „criptat, delimitat și limitat în timp”. Acestea sunt cele șapte controale care fac acest lucru posibil: nu aspirații, ci ce este conectat efectiv în platformă astăzi.",
+      "cells": {
+        "minimise": {
+          "title": "Minimizarea și anonimizarea datelor",
+          "body": "Colectăm doar ce cere cu adevărat o ambasadă sau un partener pentru o anumită cerere și anonimizăm oriunde restul platformei permite. Câmpurile pe care nu le vezi în formularele noastre sunt câmpuri pe care nu le stocăm.",
+          "why": "<strong>De ce:</strong> o breșă nu poate dezvălui date care nu au fost colectate niciodată."
+        },
+        "payments": {
+          "title": "Fără date de plată",
+          "body": "Serviciul VIZA este gratuit și nu primim plăți, așa că nu cerem, nu vedem și nu stocăm niciodată numere de card.",
+          "why": "<strong>De ce:</strong> datele pe care nu le avem nu pot fi furate."
+        },
+        "atRest": {
+          "title": "Criptare în repaus",
+          "body": "Fiecare document, mesaj și câmp de metadate de pe serverele VIZA este criptat cu AES-256 înainte să ajungă pe disc. Cheile sunt rotite automat și stocate într-un KMS susținut de hardware, pe care nici echipa noastră de infrastructură nu îl poate citi direct.",
+          "why": "<strong>De ce:</strong> discurile sau copiile de rezervă furate rămân ilizibile fără chei."
+        },
+        "inTransit": {
+          "title": "Criptare de la un capăt la altul",
+          "body": "Tot traficul dintre dispozitivul tău, serverele noastre și consulatele partenere folosește TLS 1.3 cu fixare strictă. Încărcările de documente folosesc un canal separat, semnat, astfel încât nici atacatorii de la nivelul rețelei să nu vadă ce trimiți.",
+          "why": "<strong>De ce:</strong> rețelele ostile, inclusiv Wi-Fi-ul din aeroport, nu îți pot citi cererea."
+        },
+        "audits": {
+          "title": "Audituri de securitate periodice",
+          "body": "Facem un test extern de penetrare în fiecare trimestru, un audit anual SOC 2 Type II și scanare automată continuă a vulnerabilităților. Fiecare constatare este înregistrată cu o dată-limită de remediere, iar elementele întârziate alertează responsabilul de inginerie.",
+          "why": "<strong>De ce:</strong> amenințările se schimbă; apărarea noastră este verificată față de ele după un orar."
+        },
+        "access": {
+          "title": "Controale de acces sigure",
+          "body": "Accesul intern la datele clienților este limitat pe rol, auditat pentru fiecare cerere și acordat cu ridicare de privilegii exact la momentul necesar. Consultanții văd doar cererea la care lucrează activ. Fiecare citire este înregistrată timp de 12 luni.",
+          "why": "<strong>De ce:</strong> greșelile și abuzurile interne sunt limitate, atribuibile și verificabile."
+        },
+        "education": {
+          "title": "Educarea și informarea utilizatorilor",
+          "body": "Cea mai grea parte a securității este cea pe care nu o putem livra noi în locul tău. Îți trimitem ghiduri pe înțelesul tuturor despre phishing, înșelătorii cu fotografii de pașaport și SMS-uri false de la ambasade, imediat ce începi o cerere, și le afișăm din nou în produs de îndată ce ceva pare în neregulă. Tu ești ultima linie de apărare; preferăm să te pregătim decât să te învinovățim.",
+          "why": "<strong>De ce:</strong> un solicitant bine informat este cel mai ieftin și mai eficient control de securitate pe care îl avem."
+        }
+      }
+    },
+    "vdp": {
+      "tag": "▲ Divulgarea vulnerabilităților · deschis tuturor cercetătorilor",
+      "title": "Ai găsit ceva?<br></br><em>Vrem să aflăm.</em>",
+      "p1": "Securitatea utilizatorilor și partenerilor noștri înseamnă totul. Dacă crezi că ai identificat o vulnerabilitate reală care afectează serviciile VIZA, vrem să ne spui direct, iar noi vom lucra cu tine cu respect și repede pentru a o remedia.",
+      "p2": "Trimite constatările pe e-mail la <strong>security@viza.it.com</strong>. Confirmăm primirea într-o zi lucrătoare, chiar dacă se dovedește a fi deja cunoscută sau în afara domeniului.",
+      "meta": {
+        "ack": {
+          "k": "Confirmare în",
+          "v": "'<' 24 de ore"
+        },
+        "triage": {
+          "k": "Triere în",
+          "v": "3 zile lucrătoare"
+        },
+        "lang": {
+          "k": "Limbi",
+          "v": "EN · ID · AR"
+        },
+        "pgp": {
+          "k": "Cheie PGP",
+          "v": "0xVIZA · 2026"
+        }
+      },
+      "ctaEmail": "Scrie la security@viza.it.com",
+      "ctaScope": "Citește domeniul",
+      "terminal": {
+        "title": "raport-ciornă · security@viza.it.com",
+        "l1": "# raport de vulnerabilitate",
+        "typeKey": "tip:",
+        "typeVal": "ocolire-autentificare",
+        "urlKey": "url:",
+        "reproKey": "repro:",
+        "reproVal": "[pașii 1-4]",
+        "impactKey": "impact:",
+        "impactVal": "preluare de cont",
+        "pocKey": "poc:",
+        "l7": "# ↳ criptat către 0xVIZA",
+        "send": "trimite"
+      }
+    },
+    "report": {
+      "eyebrow": "Raportarea unei vulnerabilități",
+      "title": "Ce să pui în<br></br>raport și <em>ce nu.</em>",
+      "intro": "Un raport bun ne scutește pe amândoi de o săptămână de muncă. Iată formatul care duce la cea mai rapidă triere, plus lucrurile pe care preferăm să nu le primim în căsuța de e-mail.",
+      "include": {
+        "heading": "Te rugăm să incluzi",
+        "sub": "Cinci câmpuri. Cu cât sunt mai clare, cu atât confirmăm și remediem mai repede.",
+        "items": {
+          "type": "<strong>Tipul problemei</strong>: de exemplu autentificare, control al accesului, injecție, IDOR, SSRF.",
+          "steps": "<strong>Pași clari de reproducere</strong>: numerotați, în ordine, dacă se poate pe o sesiune curată.",
+          "impact": "<strong>Impact potențial asupra securității</strong>: ce ar putea face un atacator cu aceasta, pe înțelesul tuturor.",
+          "poc": "<strong>Dovadă de concept</strong>: preferăm capturi de ecran sau o scurtă înregistrare a ecranului; jurnalele pe locul doi."
+        }
+      },
+      "dontSend": {
+        "heading": "Te rugăm să nu trimiți",
+        "sub": "Acestea sunt nesigure, inutile sau ambele, și va trebui să le ștergem la primire.",
+        "items": {
+          "secrets": "<strong>Parole sau jetoane de autentificare</strong>, ale tale sau ale altcuiva. Arată vectorul, nu secretul.",
+          "malware": "<strong>Mostre brute de malware sau jurnale de tip stealer.</strong> Descrie ce ai văzut; nu le atașa.",
+          "scanners": "<strong>Rapoarte mari de scanere automate</strong> fără o constatare aleasă manual și demonstrată.",
+          "customerData": "<strong>Date personale sau documente ale clienților</strong>, chiar dacă au stat la baza constatării tale.",
+          "socialEng": "<strong>Înregistrări ale încercărilor de inginerie socială</strong> împotriva personalului sau consultanților noștri."
+        }
+      }
+    },
+    "scope": {
+      "eyebrow": "Domeniul programului",
+      "title": "Ce intră, ce nu.",
+      "intro": "Dacă nu ești sigur că un raport se încadrează în această listă, trimite-l oricum și întreabă. Preferăm să triem și să mergem mai departe decât să ții o problemă reală pentru că limita nu a fost evidentă.",
+      "fileRef": "/security/scope.md · v6",
+      "in": {
+        "pill": "În domeniu",
+        "heading": "Rapoarte pe care le triem activ",
+        "items": {
+          "web": "Aplicațiile web și API-urile VIZA de la <code>*.viza.com</code>, inclusiv portalul solicitanților, consola consultanților și punctele de acces pentru parteneri.",
+          "infra": "Infrastructura și serviciile deținute de VIZA: autentificare, fluxul de documente, programare.",
+          "mobile": "Aplicații mobile (iOS, Android) publicate sub contul de dezvoltator VIZA.",
+          "marketing": "Site-uri publice de marketing și conținut de pe domenii controlate de VIZA."
+        }
+      },
+      "out": {
+        "pill": "În afara domeniului",
+        "heading": "Rapoarte pe care nu le putem trata în acest program",
+        "items": {
+          "devices": "Probleme rezultate din dispozitive compromise ale utilizatorilor, extensii de browser sau credențiale furate.",
+          "phishing": "Atacuri de inginerie socială sau phishing împotriva angajaților, partenerilor sau consultanților VIZA.",
+          "thirdParty": "Servicii sau integrări ale unor terți care nu sunt operate direct de VIZA (portaluri de consulate, site-uri de curierat).",
+          "scanners": "Constatări de scanere automate fără exploatabilitate demonstrată în lumea reală.",
+          "headers": "Anteturi de securitate lipsă sau recomandări generale de bune practici fără o cale de exploatare."
+        }
+      }
+    },
+    "pledge": {
+      "eyebrow": "Divulgare responsabilă",
+      "title": "Înțelegerea pe care<br></br>o avem unii cu alții.",
+      "intro": "Divulgarea funcționează pentru că ambele părți acționează cu bună-credință. Iată ce îți cerem și iată de ce ne poți trage la răspundere în schimb, scris ca nimeni să nu fie nevoit să ghicească.",
+      "researcher": {
+        "kicker": "Ce îți cerem",
+        "title": "<em>Angajamentele</em> cercetătorului.",
+        "p": "Trimițând un raport, ești de acord să acționezi cu bună-credință și în spiritul programului, nu doar în litera lui.",
+        "items": {
+          "1": "Acționează cu bună-credință: evită încălcările confidențialității, distrugerea de date sau întreruperea serviciului în timpul cercetării.",
+          "2": "Nu exploata o problemă dincolo de minimul necesar pentru a o confirma și nu accesa niciodată date care nu sunt ale tale.",
+          "3": "Păstrează confidențiale detaliile vulnerabilității până când am livrat o remediere și am confirmat-o cu tine.",
+          "4": "Nu divulga public constatările fără acordul scris prealabil al echipei de securitate VIZA."
+        }
+      },
+      "viza": {
+        "kicker": "De ce ne poți trage la răspundere",
+        "title": "<em>Angajamentele</em> VIZA.",
+        "p": "În schimb, nu ignorăm persoanele care raportează, nu contestăm gravitatea ca să evităm o remediere și nu dăm în judecată oamenii care ne ajută.",
+        "items": {
+          "1": "Vom analiza fiecare raport valid și vom răspunde într-o zi lucrătoare, indiferent de gravitate.",
+          "2": "Vom comunica cu respect, fără limbaj defensiv, fără scuze de tipul „funcționează conform designului”.",
+          "3": "Vom lua măsuri de remediere adecvate acolo unde este nevoie și îți vom spune când remedierea a fost livrată.",
+          "4": "Te vom menționa (cu acordul tău) în jurnalul nostru de modificări de securitate când problema este rezolvată."
+        }
+      }
+    },
+    "legal": {
+      "eyebrow": "Aspecte legale și recompense",
+      "title": "Protecție legală, recompense<br></br>și literele mici.",
+      "intro": "Dacă urmezi această politică cu bună-credință, tratăm cercetarea ta ca fiind autorizată. Restul paginii este partea plictisitoare, dar importantă, prezentată la vedere, nu ascunsă.",
+      "cards": {
+        "safeHarbour": {
+          "title": "Protecție legală",
+          "body": "Dacă urmezi această politică cu bună-credință, VIZA nu va iniția acțiuni în justiție împotriva ta pentru încălcări accidentale sau neintenționate legate de cercetarea ta. Rămâne așteptarea să respecți legile și reglementările aplicabile."
+        },
+        "rewards": {
+          "title": "Recompense și bug bounty",
+          "body": "VIZA nu are în prezent un program public de bug bounty. Oferim totuși o recunoștință discreționară pentru probleme valide, raportate responsabil, evaluată după impact, noutate și calitatea raportului.",
+          "meta": "discreționar · de la caz la caz"
+        },
+        "updates": {
+          "title": "Actualizări ale programului",
+          "body": "VIZA își rezervă dreptul de a modifica sau de a închide acest program în orice moment. Dacă nu ești sigur că cercetarea ta respectă politica, scrie-ne la security@viza.it.com <em>înainte</em> de a continua.",
+          "meta": "ultima revizuire · mai 2026"
+        }
+      }
+    },
+    "cta": {
+      "title": "Ai văzut ceva în neregulă?<br></br>Spune echipei noastre de securitate.",
+      "body": "Preferăm să aflăm de două ori despre o constatare mică decât să ratăm o dată una mare. Rapoartele ajung direct la o persoană reală din echipa de securitate, fără portal de tichete, fără robot de triere.",
+      "lead": "Direct la securitate",
+      "small": "Răspuns median în mai puțin de 24 de ore, în fiecare zi a săptămânii."
+    },
+    "footer": {
+      "tagline": "VIZA te ajută să planifici, să aplici și să urmărești vizele fără bătăi de cap, oriunde în lume.",
+      "company": "Companie",
+      "careers": "Cariere",
+      "contact": "Contact",
+      "security": "Securitate",
+      "privacy": "Confidențialitate",
+      "terms": "Termeni",
+      "products": "Produse",
+      "prodVisaReq": "Cerințe de viză",
+      "prodSchengen": "Verificator de programări Schengen",
+      "prodPhoto": "Creator de fotografii pentru viză",
+      "prodHelpline": "Linia de urgență VIZA",
+      "prodStudent": "Viză de student",
+      "offices": "Birouri",
+      "officeSg": "Singapore, sediul central",
+      "officeSf": "Shanghai",
+      "copyright": "© VIZA, Toate drepturile rezervate"
+    }
+  },
+  "status": {
+    "crumbHome": "Transparență",
+    "crumbHere": "Starea sistemului",
+    "hero": {
+      "title": "Starea sistemului",
+      "lead": "Disponibilitate susținută de dovezi pentru VIZA și portalurile guvernamentale de vize cu care lucrăm. Fiecare procent, bară de cronologie și incident de mai jos provine dintr-o verificare sintetică înregistrată."
+    },
+    "console": {
+      "title": "Fiabilitate VIZA · în direct",
+      "live": "Verificat",
+      "unverified": "Neverificat",
+      "allOperational": "Toate sistemele funcționează",
+      "degraded": "Unele sisteme au performanță redusă",
+      "majorOutage": "Un sistem monitorizat este indisponibil",
+      "dataUnavailable": "Datele de monitorizare sunt indisponibile",
+      "lastChecked": "Ultima verificare înregistrată: {time}",
+      "noChecks": "Nu a fost înregistrată încă nicio verificare finalizată",
+      "kUptime": "Verificări reușite în 90 de zile",
+      "kMonitors": "Puncte de acces monitorizate",
+      "kIncidents": "Incident activ"
+    },
+    "subnav": {
+      "current": "Starea curentă",
+      "incidents": "Incidente anterioare",
+      "subscribe": "Abonează-te",
+      "searchPlaceholder": "Caută țări",
+      "subscribeBtn": "Abonează-te la actualizări"
+    },
+    "platform": {
+      "title": "Platforma VIZA",
+      "realMeta": "Verificat la fiecare 5 minute · {count} punct(e) de acces",
+      "meta": "Verificat la fiecare 5 minute",
+      "name": "Platforma de aplicare VIZA",
+      "sub": "Servicii publice VIZA"
+    },
+    "uptime": {
+      "ago": "Acum 90 de zile",
+      "today": "Astăzi",
+      "pct": "{pct}% verificări reușite",
+      "noData": "Nicio verificare înregistrată"
+    },
+    "dayObservation": "{date}: {checks} verificare(ări) înregistrată(e)",
+    "dayNoData": "{date}: nicio dată înregistrată",
+    "dayTitle": "Ziua {n}",
+    "statusLabels": {
+      "op": "Funcțional",
+      "deg": "Performanță redusă",
+      "part": "Întrerupere parțială",
+      "maj": "Indisponibil",
+      "none": "Fără date curente"
+    },
+    "lastChecked": "Verificat {time}",
+    "monitorStale": "Verificare lipsă sau veche",
+    "monitoringUnavailable": "API-ul de stare nu are dovezi recente. VIZA nu va afișa disponibilitate din cache sau generată ca stare curentă a serviciului.",
+    "noSearchResults": "Nicio țară monitorizată nu se potrivește acestei căutări.",
+    "noRecordedIncidents": "Nu a fost dedus niciun incident din verificările înregistrate în ultimele 90 de zile.",
+    "incidentCount": "{count, plural, one {# incident} few {# incidente} other {# de incidente}}",
+    "incidentRecovered": "Verificările înregistrate arată că acest serviciu și-a revenit.",
+    "noIssues": "Nicio problemă activă",
+    "activeIncident": "Incident activ",
+    "portalsHead": {
+      "title": "Portaluri guvernamentale",
+      "lead": "O cerere sintetică limitată verifică fiecare portal configurat la fiecare cinci minute. Un istoric gri înseamnă că nu a fost înregistrată nicio observație; nu este niciodată completat cu date estimate."
+    },
+    "incidentsHead": {
+      "title": "Incidente anterioare",
+      "lead": "Incidentele se deschid și se închid pe baza tranzițiilor de monitorizare salvate. Aceasta este disponibilitatea operațională, nu starea deciziei de viză personale a unui solicitant."
+    },
+    "tags": {
+      "identified": "Identificat",
+      "investigating": "În investigare",
+      "resolved": "Rezolvat"
+    },
+    "portals": {
+      "AE": {
+        "name": "Emiratele Arabe Unite",
+        "sub": "Portaluri GDRFA · ICA"
+      },
+      "AM": {
+        "name": "Armenia",
+        "sub": "Portal e-Visa"
+      },
+      "AU": {
+        "name": "Australia",
+        "sub": "ImmiAccount"
+      },
+      "AZ": {
+        "name": "Azerbaidjan",
+        "sub": "ASAN Visa"
+      },
+      "DE": {
+        "name": "Germania",
+        "sub": "VIDEX · locuri la consulat"
+      },
+      "DK": {
+        "name": "Danemarca"
+      },
+      "EG": {
+        "name": "Egipt",
+        "sub": "Portal e-Visa"
+      },
+      "FI": {
+        "name": "Finlanda",
+        "sub": "EnterFinland"
+      },
+      "FR": {
+        "name": "Franța",
+        "sub": "France-Visas"
+      },
+      "GB": {
+        "name": "Regatul Unit",
+        "sub": "UKVCAS · UK Visas",
+        "bannerText": "Unele tipuri de cereri se confruntă cu o întrerupere.",
+        "bannerLink": "Vezi cronologia incidentului"
+      },
+      "GE": {
+        "name": "Georgia"
+      },
+      "GR": {
+        "name": "Grecia",
+        "sub": "AEGEAN · consular"
+      },
+      "HK": {
+        "name": "Hong Kong",
+        "sub": "Immigration eVisa"
+      },
+      "ID": {
+        "name": "Indonezia",
+        "sub": "e-Visa Indonesia"
+      },
+      "IN": {
+        "name": "India",
+        "sub": "Indian Visa Online"
+      },
+      "JO": {
+        "name": "Iordania"
+      },
+      "KE": {
+        "name": "Kenya",
+        "sub": "eCitizen / eVisa"
+      },
+      "KH": {
+        "name": "Cambodgia"
+      },
+      "LK": {
+        "name": "Sri Lanka",
+        "sub": "Portal ETA"
+      },
+      "MA": {
+        "name": "Maroc"
+      },
+      "TH": {
+        "name": "Thailanda",
+        "sub": "Thailand e-Visa"
+      }
+    },
+    "incidents": {
+      "count": "<strong>{count}</strong> {count, plural, one {țară a avut} few {țări au avut} other {de țări au avut}} probleme de performanță",
+      "events": "{count, plural, one {# eveniment} few {# evenimente} other {# de evenimente}}",
+      "days": [
+        {
+          "date": "10 mai 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "10 mai, 3:05 PM",
+                  "desc": "Incidentul a fost rezolvat. Serviciul a revenit la funcționarea normală."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "10 mai, 5:05 PM",
+                  "desc": "Incidentul a fost rezolvat. Serviciul a revenit la funcționarea normală."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "9 mai 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "9 mai, 10:50 PM",
+                  "desc": "Investigăm ratele crescute de eșec."
+                },
+                {
+                  "time": "10 mai, 12:20 AM",
+                  "desc": "Gravitatea a crescut de la degradare la întrerupere parțială."
+                },
+                {
+                  "time": "10 mai, 2:50 AM",
+                  "desc": "Gravitatea a crescut de la întrerupere parțială la întrerupere majoră."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "9 mai, 3:05 PM",
+                  "desc": "Investigăm ratele crescute de eșec."
+                },
+                {
+                  "time": "9 mai, 7:20 PM",
+                  "desc": "Gravitatea a crescut de la întrerupere parțială la întrerupere majoră."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "8 mai 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "8 mai, 1:05 PM",
+                  "desc": "Investigăm ratele crescute de eșec."
+                },
+                {
+                  "time": "8 mai, 2:05 PM",
+                  "desc": "Incidentul a fost rezolvat. Serviciul a revenit la funcționarea normală."
+                },
+                {
+                  "time": "8 mai, 2:50 PM",
+                  "desc": "Investigăm ratele crescute de eșec."
+                },
+                {
+                  "time": "8 mai, 7:35 PM",
+                  "desc": "Incidentul a fost rezolvat. Serviciul a revenit la funcționarea normală."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "5 mai 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "5 mai, 1:36 PM",
+                  "desc": "Gravitatea a crescut de la degradare la întrerupere parțială."
+                },
+                {
+                  "time": "5 mai, 4:50 PM",
+                  "desc": "Incidentul a fost rezolvat."
+                },
+                {
+                  "time": "5 mai, 9:20 PM",
+                  "desc": "Investigăm ratele crescute de eșec."
+                },
+                {
+                  "time": "5 mai, 10:20 PM",
+                  "desc": "Incidentul a fost rezolvat."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "5 mai, 2:43 PM",
+                  "desc": "Incidentul a fost rezolvat."
+                },
+                {
+                  "time": "5 mai, 3:35 PM",
+                  "desc": "Investigăm ratele crescute de eșec."
+                },
+                {
+                  "time": "5 mai, 7:35 PM",
+                  "desc": "Gravitatea a crescut de la întrerupere parțială la întrerupere majoră."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "4 mai 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "4 mai, 4:05 PM",
+                  "desc": "Investigăm ratele crescute de eșec."
+                },
+                {
+                  "time": "4 mai, 5:05 PM",
+                  "desc": "Incidentul a fost rezolvat."
+                },
+                {
+                  "time": "4 mai, 7:36 PM",
+                  "desc": "Investigăm ratele crescute de eșec."
+                },
+                {
+                  "time": "4 mai, 8:35 PM",
+                  "desc": "Incidentul a fost rezolvat."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "4 mai, 12:05 PM",
+                  "desc": "Incidentul a fost rezolvat."
+                },
+                {
+                  "time": "4 mai, 1:50 PM",
+                  "desc": "Investigăm ratele crescute de eșec."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2 mai 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "2 mai, 6:35 PM",
+                  "desc": "Investigăm ratele crescute de eșec."
+                },
+                {
+                  "time": "2 mai, 7:50 PM",
+                  "desc": "Incidentul a fost rezolvat."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "2 mai, 9:20 AM",
+                  "desc": "Investigăm ratele crescute de eșec."
+                },
+                {
+                  "time": "2 mai, 10:20 AM",
+                  "desc": "Incidentul a fost rezolvat."
+                },
+                {
+                  "time": "2 mai, 8:20 PM",
+                  "desc": "Investigăm ratele crescute de eșec."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "2 mai, 8:20 PM",
+                  "desc": "Investigăm ratele crescute de eșec."
+                },
+                {
+                  "time": "3 mai, 12:05 AM",
+                  "desc": "Incidentul a fost rezolvat."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "1 mai 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "1 mai, 2:05 PM",
+                  "desc": "Investigăm ratele crescute de eșec."
+                },
+                {
+                  "time": "1 mai, 3:05 PM",
+                  "desc": "Incidentul a fost rezolvat."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "30 aprilie 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "30 apr., 8:20 AM",
+                  "desc": "Investigăm ratele crescute de eșec."
+                },
+                {
+                  "time": "30 apr., 9:50 AM",
+                  "desc": "Incidentul a fost rezolvat."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 apr., 3:05 PM",
+                  "desc": "Incidentul a fost rezolvat."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 apr., 4:51 PM",
+                  "desc": "Incidentul a fost rezolvat."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 apr., 1:20 PM",
+                  "desc": "Investigăm ratele crescute de eșec."
+                },
+                {
+                  "time": "30 apr., 2:37 PM",
+                  "desc": "Gravitatea a crescut de la degradare la întrerupere parțială."
+                },
+                {
+                  "time": "30 apr., 8:20 PM",
+                  "desc": "Incidentul a fost rezolvat."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 apr., 6:50 PM",
+                  "desc": "Incidentul a fost rezolvat."
+                },
+                {
+                  "time": "30 apr., 7:50 PM",
+                  "desc": "Investigăm ratele crescute de eșec."
+                },
+                {
+                  "time": "1 mai, 12:20 AM",
+                  "desc": "Incidentul a fost rezolvat."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "subscribe": {
+      "title": "Fii primul<br></br>care află când ceva se strică.",
+      "lead": "Alege țările care te interesează și îți trimitem o singură actualizare, pe înțelesul tuturor, când portalurile lor sau ale noastre se opresc sau revin.",
+      "emailLabel": "Primește actualizări despre incidente pe e-mail",
+      "button": "Abonează-te",
+      "follow": "Sau urmărește starea prin:",
+      "chipEmail": "Rezumat pe e-mail",
+      "chipSms": "SMS și WhatsApp",
+      "chipRss": "Flux RSS",
+      "chipWebhook": "Webhook pentru operațiuni"
+    },
+    "footer": {
+      "tagline": "VIZA te ajută să planifici, să aplici și să urmărești vizele fără bătăi de cap, oriunde în lume.",
+      "company": "Companie",
+      "careers": "Cariere",
+      "contact": "Contact",
+      "security": "Securitate",
+      "systemStatus": "Starea sistemului",
+      "privacy": "Confidențialitate",
+      "terms": "Termeni",
+      "products": "Produse",
+      "prodVisaReq": "Cerințe de viză",
+      "prodSchengen": "Verificator de programări Schengen",
+      "prodPhoto": "Creator de fotografii pentru viză",
+      "prodHelpline": "Linia de urgență VIZA",
+      "copyright": "© VIZA, Toate drepturile rezervate"
+    }
+  },
+  "arrival": {
+    "breadcrumbHome": "Acasă",
+    "breadcrumbHub": "Carduri de sosire",
+    "hubH1": "Ghiduri pentru carduri de sosire",
+    "hubLead": "Un card de sosire este un formular scurt al guvernului, pe care îl completezi înainte să intri într-o țară. Cele mai multe sunt online, gratuite și durează cam cinci minute. Ghidurile arată cine are nevoie de fiecare, când îl depui și cum eviți site-urile false care cer bani pentru el.",
+    "hubWhatTitle": "Ce este un card de sosire",
+    "hubWhat": [
+      "Un card de sosire este o declarație pe care destinația ta o cere pe lângă pașaport și orice viză. Înregistrează cine ești, cum sosești și unde vei sta. Multe țări au înlocuit cardul de hârtie din avion cu un formular online.",
+      "Nu este o viză. O viză îți permite să soliciți intrarea. Un card de sosire informează autoritatea de frontieră despre călătoria ta, iar viza îți rămâne necesară acolo unde cetățenia ta o cere."
+    ],
+    "hubFreeTitle": "Cardurile de sosire sunt gratuite",
+    "hubFree": [
+      "Fiecare card din aceste ghiduri este gratuit pe site-ul guvernului. Unele site-uri copiază formularul guvernamental și cer o taxă pentru el. Nu trebuie să plătești niciodată unuia dintre ele.",
+      "Pornește mereu de la adresa oficială din fiecare ghid. VIZA este un serviciu independent și nu un site guvernamental."
+    ],
+    "hubWhenTitle": "Când ai nevoie de unul",
+    "hubWhen": [
+      "Cele mai multe carduri se deschid cu trei zile înainte de sosire și trebuie depuse în acea fereastră. Verifică în fiecare ghid regula exactă, pentru că Visit Japan Web din Japonia nu are termen fix și nu este obligatoriu.",
+      "Rezidenții, cetățenii și pasagerii în tranzit sunt deseori scutiți sau au un formular mai scurt. Fiecare ghid arată cine este scutit, inclusiv scutirea cetățenilor din Singapore pentru MDAC din Malaezia."
+    ],
+    "hubGuidesTitle": "Toate ghidurile",
+    "hubGuidesSub": "Alege destinația. Fiecare ghid are pașii, greșelile frecvente și linkurile oficiale.",
+    "readGuide": "Citește ghidul",
+    "cardWhen": "Când",
+    "cardsLabel": "Card de sosire",
+    "hubVisaTitle": "Ai nevoie și de o viză",
+    "hubVisaBody": "Un card de sosire nu înlocuiește o viză. Vezi pagina destinației pentru a afla dacă pașaportul tău are nevoie de una.",
+    "hubVisaCta": "Vezi paginile de viză",
+    "glanceTitle": "Pe scurt",
+    "stepsTitle": "Cum îl completezi, pas cu pas",
+    "mistakesTitle": "Greșeli frecvente",
+    "feesTitle": "Taxe și site-uri false",
+    "faqTitle": "Întrebări",
+    "sourcesTitle": "Surse",
+    "relatedTitle": "Alte ghiduri pentru carduri de sosire",
+    "independent": "VIZA este un serviciu independent și nu un site guvernamental.",
+    "officialCta": "Deschide site-ul oficial",
+    "officialLabel": "Site oficial",
+    "vizaTitle": "Lasă VIZA să o facă pentru tine",
+    "vizaBody": "Începe {name} în contul tău VIZA. Formularul VIZA te conduce prin aceleași întrebări ca cel oficial și îți păstrează datele pentru călătoriile viitoare. Poți oricând folosi în schimb site-ul oficial gratuit.",
+    "vizaFee": "Taxa de serviciu VIZA",
+    "vizaFeeFree": "Gratuit",
+    "vizaCta": "Începe pe VIZA",
+    "noVizaTitle": "Folosește site-ul oficial",
+    "noVizaBody": "VIZA nu completează încă acest card. Folosește site-ul oficial de mai jos și citește mai întâi pașii din acest ghid.",
+    "visaTitle": "Viză pentru {country}",
+    "visaBody": "Cardul de sosire este separat de viză. Vezi cine are nevoie de viză pentru {country}, taxele și cum aplici.",
+    "visaCta": "Deschide pagina de viză pentru {country}",
+    "reviewedTitle": "Verificat la 25 noiembrie 2026",
+    "stepLabel": "Pasul",
+    "cards": {
+      "malaysia-mdac": {
+        "summary": "Card online gratuit pentru vizitatorii străini. Cetățenii din Singapore sunt scutiți.",
+        "when": "În cele 3 zile dinaintea sosirii"
+      },
+      "singapore-sg-arrival-card": {
+        "summary": "Cardul online al ICA, cu declarație de sănătate. Depune-l pe site sau în aplicația MyICA.",
+        "when": "În cele 3 zile dinaintea sosirii"
+      },
+      "japan-visit-japan-web": {
+        "summary": "Coduri QR gratuite pentru imigrare și vamă. Recomandat, nu obligatoriu.",
+        "when": "Înainte de zbor"
+      },
+      "thailand-tdac": {
+        "summary": "Card gratuit pentru fiecare vizitator străin, cu sau fără viză. A înlocuit TM6 pe hârtie.",
+        "when": "În cele 3 zile dinaintea sosirii"
+      },
+      "korea-e-arrival-card": {
+        "summary": "Obligatoriu din 1 ianuarie 2026. Un deținător de K-ETA valid este scutit.",
+        "when": "În cele 3 zile dinaintea sosirii"
+      },
+      "indonesia-all-indonesia": {
+        "summary": "Un singur card pentru imigrare, vamă și sănătate. Gratuit și nu este o viză.",
+        "when": "Cu până la 3 zile înainte de sosire"
+      }
+    }
+  },
+  "guides": {
+    "breadcrumbHome": "Acasă",
+    "breadcrumbHub": "Ghiduri",
+    "hubH1": "Ghiduri de viză pentru cei care locuiesc în Singapore",
+    "hubLead": "Indiferent dacă ai pașaport din Singapore, China, India sau Filipine, ghidurile răspund la aceeași întrebare: ce am nevoie ca să intru în această țară și unde aplic din Singapore. Fiecare își numește sursele și data la care a fost verificat.",
+    "hubGuidesTitle": "Toate ghidurile",
+    "hubGuidesSub": "Alege un subiect. Regulile se schimbă, așa că fiecare ghid listează paginile oficiale de verificat înainte să călătorești.",
+    "readGuide": "Citește ghidul",
+    "hubMoreTitle": "Mai multe de la VIZA",
+    "hubMoreBody": "Cauți o anumită țară, un card de sosire sau ultima schimbare de regulă?",
+    "hubDestinations": "Pagini de viză",
+    "hubArrival": "Ghiduri pentru carduri de sosire",
+    "hubNews": "Noutăți despre vize",
+    "glanceTitle": "Răspuns rapid",
+    "relatedVisaTitle": "Pagini de destinații",
+    "relatedVisaSub": "Taxe, documente și pași pentru cei care locuiesc în Singapore.",
+    "relatedArrivalTitle": "Ghiduri pentru carduri de sosire",
+    "relatedGuidesTitle": "Mai multe ghiduri",
+    "faqTitle": "Întrebări",
+    "sourcesTitle": "Surse",
+    "reviewedTitle": "Cum am verificat",
+    "published": "Publicat",
+    "updated": "Actualizat",
+    "independent": "VIZA este un serviciu independent și nu un site guvernamental."
+  },
+  "ds": {
+    "header": {
+      "home": "Pagina principală VIZA",
+      "primary": "Principal",
+      "language": "Limbă",
+      "signIn": "Autentificare",
+      "openMenu": "Deschide meniul",
+      "closeMenu": "Închide meniul",
+      "nav": {
+        "home": "Acasă",
+        "destinations": "Destinații",
+        "arrivalCards": "Carduri de sosire",
+        "guides": "Ghiduri",
+        "news": "Noutăți",
+        "about": "Despre noi",
+        "contact": "Contact"
+      }
+    },
+    "footer": {
+      "home": "Pagina principală VIZA",
+      "tagline": "Cereri de viză pregătite de AI-ul VIZA și verificate de consultanții noștri. Gratuit.",
+      "explore": "Explorează",
+      "follow": "Urmărește-ne",
+      "followOn": "Urmărește VIZA pe {platform}",
+      "links": {
+        "destinations": "Destinații",
+        "arrivalCards": "Carduri de sosire",
+        "guides": "Ghiduri",
+        "news": "Noutăți",
+        "about": "Despre noi",
+        "contact": "Contact",
+        "careers": "Cariere",
+        "security": "Securitate",
+        "status": "Stare"
+      },
+      "copyright": "© {year} VIZA. Toate drepturile rezervate.",
+      "office": "Sediu social: 60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapore 409051",
+      "privacy": "Confidențialitate",
+      "terms": "Termeni",
+      "kelin": "O inițiativă Kelin Studio",
+      "refunds": "Rambursări",
+      "business": "Informații despre companie"
+    },
+    "form": {
+      "fullName": {
+        "label": "Numele tău",
+        "placeholder": "Jane Tan"
+      },
+      "email": {
+        "label": "E-mail"
+      },
+      "phone": {
+        "label": "Telefon"
+      },
+      "destination": {
+        "label": "Destinație",
+        "placeholder": "Japonia, Schengen, Statele Unite"
+      },
+      "message": {
+        "label": "Întrebarea ta",
+        "placeholder": "Încotro călătorești, pașaportul tău și datele călătoriei."
+      },
+      "submit": "Trimite mesajul",
+      "sending": "Se trimite",
+      "success": "Mulțumim, mesajul tău a ajuns. Îți vom răspunde pe e-mail.",
+      "error": "Nu am putut trimite mesajul. Încearcă din nou sau scrie la sales@kelin.studio.",
+      "consent": "Prin trimitere, ești de acord cu <privacy>Politica de confidențialitate</privacy> și <terms>Termenii</terms> noștri."
+    },
+    "gallery": {
+      "title": "Destinații",
+      "lede": "Alege o destinație ca să vezi viza de care ai nevoie, documentele și taxa guvernamentală.",
+      "view": "Vezi",
+      "passportSummary": "{free} fără viză · {voa} e-Visa sau la sosire · {req} viză necesară",
+      "noResults": "Nicio destinație nu se potrivește căutării.",
+      "sorts": {
+        "featured": "Recomandate",
+        "open": "Disponibile acum primele",
+        "name": "A la Z"
+      }
+    },
+    "dest": {
+      "all": "Toate destinațiile",
+      "onPage": "Pe această pagină",
+      "applyTitle": "Începe cererea",
+      "facts": "Date esențiale"
+    },
+    "article": {
+      "toc": "Pe această pagină",
+      "down": "Sari la articol",
+      "faqLede": "Răspunsuri rapide pe acest subiect."
+    },
+    "legal": {
+      "updated": "Ultima actualizare",
+      "contents": "Cuprins"
+    }
+  },
+  "homePage": {
+    "hero": {
+      "browse": "Vezi destinațiile",
+      "picks": "Destinații"
+    },
+    "types": {
+      "title": "Tipuri de viză",
+      "lede": "Vize turistice, de afaceri, de muncă, de student și de lungă durată.",
+      "prev": "Înapoi",
+      "next": "Înainte",
+      "items": {
+        "tourist": {
+          "title": "Turist",
+          "body": "Vacanțe, vizite la familie și sejururi scurte."
+        },
+        "business": {
+          "title": "Afaceri",
+          "body": "Întâlniri, conferințe și vizite la fața locului."
+        },
+        "work": {
+          "title": "Muncă",
+          "body": "Permise de muncă și vize de angajare."
+        },
+        "student": {
+          "title": "Student",
+          "body": "Vize de studii pentru școli și universități."
+        },
+        "long": {
+          "title": "Ședere lungă",
+          "body": "Vize de reședință și alte vize de lungă durată."
+        }
+      }
+    },
+    "steps": {
+      "title": "Cum funcționează",
+      "cta": "Începe cererea gratuită",
+      "side": {
+        "freeValue": "Gratuit",
+        "freeLabel": "Serviciul VIZA",
+        "langLabel": "Limbi: engleză și chineză",
+        "note": "Plătești doar taxa guvernamentală.",
+        "noteBody": "Ajunge direct la autoritatea emitentă. VIZA nu adaugă nicio taxă proprie."
+      },
+      "items": {
+        "choose": {
+          "title": "Alege o destinație",
+          "body": "Vezi viza de care ai nevoie, documentele de pregătit și taxa guvernamentală înainte să începi.",
+          "chips": "Tip de viză|Documente|Taxă guvernamentală"
+        },
+        "passport": {
+          "title": "Încarcă pașaportul",
+          "body": "VIZA îți citește datele de pe pagina cu fotografie, așa că ai foarte puțin de scris.",
+          "chips": "Pagina cu fotografie|Date completate"
+        },
+        "confirm": {
+          "title": "Confirmă-ți datele",
+          "body": "Verifică ce a citit VIZA, adaugă datele călătoriei și continuă în contul tău VIZA gratuit.",
+          "chips": "Datele călătoriei|Cont gratuit"
+        },
+        "file": {
+          "title": "VIZA verifică și depune",
+          "body": "Un consilier verifică fiecare formular înainte de depunere, iar tu urmărești progresul în cont.",
+          "chips": "Verificare de consilier|Actualizări de progres"
+        }
+      }
+    },
+    "tiers": {
+      "title": "Prețuri",
+      "lede": "Două moduri de a aplica, ambele gratuite.",
+      "cta": "Contactează-ne",
+      "criteria": "Compară",
+      "guided": "Ghidat",
+      "full": "Servicii complete",
+      "rows": {
+        "fee": {
+          "label": "Taxa VIZA",
+          "guided": "Gratuit",
+          "full": "Gratuit"
+        },
+        "form": {
+          "label": "Formularul de cerere",
+          "guided": "Răspunzi tu, cu AI-ul VIZA drept ghid",
+          "full": "Un consultant pregătește răspunsurile împreună cu tine"
+        },
+        "documents": {
+          "label": "Documente",
+          "guided": "O listă de verificare pentru situația ta",
+          "full": "Un consultant îți verifică documentele"
+        },
+        "interview": {
+          "label": "Programare și interviu",
+          "guided": "Te programezi și participi tu",
+          "full": "Parcurgem împreună întrebările probabile"
+        },
+        "govFee": {
+          "label": "Taxă guvernamentală",
+          "guided": "Plătită direct autorității",
+          "full": "Plătită direct autorității"
+        },
+        "bestFor": {
+          "label": "Potrivit pentru",
+          "guided": "Cereri simple",
+          "full": "Cazuri complexe sau un refuz anterior"
+        }
+      }
+    },
+    "why": {
+      "title": "De ce VIZA",
+      "lede": "Pași clari, formulare verificate și oameni reali cu care poți vorbi.",
+      "items": {
+        "free": {
+          "title": "Serviciu gratuit",
+          "body": "Ajutorul VIZA nu costă nimic. Plătești doar taxa guvernamentală, direct autorității."
+        },
+        "checked": {
+          "title": "Formulare verificate",
+          "body": "Un consilier verifică fiecare formular înainte de depunere, așa că greșelile mici sunt prinse din timp."
+        },
+        "language": {
+          "title": "Engleză și chineză",
+          "body": "Vorbește cu VIZA în engleză sau chineză, pe WhatsApp, WeChat sau e-mail."
+        }
+      },
+      "photos": {
+        "arrival": {
+          "title": "Carduri de sosire",
+          "body": "Ajutor pas cu pas pentru cardurile de sosire gratuite din Malaezia, Singapore, Japonia, Thailanda, Coreea și Indonezia."
+        },
+        "news": {
+          "title": "Noutăți",
+          "body": "Schimbări ale regulilor de viză și scheme noi de e-visa, explicate pe înțelesul tuturor."
+        }
+      }
+    },
+    "guides": {
+      "title": "Ghiduri",
+      "cta": "Toate ghidurile"
+    },
+    "faq": {
+      "lede": "Răspunsuri rapide despre serviciul de vize VIZA.",
+      "more": "Mai ai întrebări?",
+      "items": {
+        "cost": {
+          "q": "Percepe VIZA vreo taxă pentru serviciul ei?",
+          "a": "Nu. Ajutorul VIZA este gratuit. Dacă o destinație percepe o taxă guvernamentală de viză, o plătești direct acelui guvern."
+        },
+        "visas": {
+          "q": "Cu ce vize te poate ajuta VIZA?",
+          "a": "Vize turistice, de afaceri, de muncă, de student și de lungă durată pentru destinațiile de pe această pagină. Dacă a ta nu apare, scrie-ne și un consultant îți spune ce este posibil."
+        },
+        "approval": {
+          "q": "Cine decide asupra vizei mele?",
+          "a": "Autoritatea emitentă ia fiecare decizie. VIZA îți verifică formularul și documentele înainte de depunere, ca cererea să fie completă și coerentă."
+        },
+        "tiers": {
+          "q": "Care este diferența dintre Ghidat și Servicii complete?",
+          "a": "La Ghidat, AI-ul VIZA te conduce prin formular și prin lista de verificare, iar tu păstrezi controlul asupra fiecărui răspuns. La Servicii complete, un consultant pregătește răspunsurile împreună cu tine și îți verifică documentele. Ambele sunt gratuite."
+        },
+        "language": {
+          "q": "Ce limbi sunt disponibile?",
+          "a": "Engleză și chineză, pe WhatsApp, WeChat, telefon și e-mail."
+        }
+      }
+    },
+    "contactCard": {
+      "title": "Vorbește cu un consultant VIZA",
+      "body": "Îți răspundem în engleză sau chineză.",
+      "cta": "Contactează-ne"
+    },
+    "cta": {
+      "title": "Începe cererea",
+      "point1": "Datele tale rămân private",
+      "point2": "Îți răspunde o persoană reală",
+      "formTitle": "Pune o întrebare",
+      "formBody": "Spune-ne încotro călătorești și un consultant VIZA îți va răspunde pe e-mail."
+    }
+  },
+  "aboutPage": {
+    "h1": "Despre VIZA",
+    "intro": {
+      "title": "Ce este VIZA",
+      "text": "VIZA pregătește, verifică și depune cereri de viză pentru oamenii care locuiesc în Singapore. AI-ul nostru se ocupă de acte, iar consultanții noștri verifică fiecare formular. Serviciul este gratuit."
+    },
+    "facts": {
+      "destinations": "Destinații",
+      "guides": "Ghiduri de viză",
+      "arrival": "Ghiduri pentru carduri de sosire",
+      "free": "Gratuit",
+      "freeLabel": "Serviciul VIZA"
+    },
+    "tiersTitle": "Ghidat sau Servicii complete",
+    "tiersLede": "Alegi cât de mult ajutor vrei. Ambele sunt gratuite.",
+    "free": {
+      "title": "Serviciu gratuit",
+      "text": "VIZA nu percepe nimic pentru ajutorul ei. Când o destinație are o taxă guvernamentală de viză, VIZA ți-o arată înainte să începi, iar tu o plătești direct autorității emitente. Nu există upgrade-uri contra cost."
+    },
+    "company": {
+      "title": "Date despre companie",
+      "office": "Sediu social",
+      "officeValue": "60 Paya Lebar Road, #06-28, Paya Lebar Square, Singapore 409051",
+      "email": "E-mail",
+      "phone": "Telefon și WhatsApp",
+      "languages": "Limbi",
+      "languagesValue": "Engleză și chineză"
+    }
+  },
+  "contactPage": {
+    "h1": "Contact",
+    "lines": {
+      "whatsapp": {
+        "title": "Telefon și WhatsApp",
+        "body": "Sună sau scrie unui consultant."
+      },
+      "wechat": {
+        "body": "Caută ID-ul în WeChat ca să ne adaugi."
+      },
+      "email": {
+        "title": "E-mail",
+        "body": "Potrivit pentru documente și întrebări mai lungi."
+      },
+      "office": {
+        "top": "Singapore",
+        "title": "Birou",
+        "body": "60 Paya Lebar Road, #06-28, Paya Lebar Square, Singapore 409051"
+      }
+    },
+    "message": {
+      "title": "Trimite un mesaj",
+      "text": "Întrebări despre o viză, o destinație sau colaborarea cu VIZA. Scrie-ne și un consultant îți va răspunde."
+    }
+  },
+  "careersPage": {
+    "title": "Cariere",
+    "lede": "VIZA îi ajută pe oamenii din Singapore să obțină viza cu AI și consultanți, iar serviciul este gratuit. Angajăm oameni cărora le place munca atentă și utilă.",
+    "teamsTitle": "Echipe",
+    "teams": [
+      {
+        "title": "Inginerie",
+        "body": "Construiești verificările de documente, fluxul de aplicare și instrumentele folosite de consultanții noștri."
+      },
+      {
+        "title": "Design",
+        "body": "Faci ca un proces stresant să fie clar pentru cel care aplică."
+      },
+      {
+        "title": "Operațiuni",
+        "body": "Ții fiecare cerere în mișcare și fiecare cerință la zi."
+      },
+      {
+        "title": "Consultanță",
+        "body": "Ajuți solicitanții în cazurile care au nevoie de o persoană, în engleză și chineză."
+      },
+      {
+        "title": "Date",
+        "body": "Transformi sursele guvernamentale în verificări care prind problemele din timp."
+      },
+      {
+        "title": "Marketing",
+        "body": "Explici vizele pe înțelesul tuturor, în ghiduri și pagini în care oamenii pot avea încredere."
+      }
+    ],
+    "applyTitle": "Ia legătura cu noi",
+    "applyBody": "Spune-ne despre tine și despre echipa din care ai vrea să faci parte. Citim fiecare mesaj.",
+    "applyCta": "Contactează-ne"
+  },
+  "pageCopy": {
+    "product": {
+      "introTitle": "Cum te sprijină VIZA în cererea de viză",
+      "introLede": "Descoperă serviciile disponibile de pregătire a vizei, verificare a documentelor și urmărire a stării cererii. Serviciul VIZA este gratuit. Sfera exactă și disponibilitatea se afișează după ce alegi o destinație.",
+      "browse": "Vezi destinațiile"
+    },
+    "events": {
+      "title": "Încă niciun eveniment",
+      "lede": "Viitoarele clinici de vize, sesiuni de informare și evenimente cu parteneri vor fi anunțate aici.",
+      "contact": "Contactează-ne"
+    }
+  },
+  "og": {
+    "band": "VIZA este gratuit. Taxele guvernamentale se plătesc separat.",
+    "destSubtitle": "Taxe și cum aplici"
+  }
+}

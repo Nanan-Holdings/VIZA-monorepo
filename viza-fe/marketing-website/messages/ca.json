@@ -1,0 +1,2150 @@
+{
+  "cta": {
+    "startFreeApplication": "Comença la teva sol·licitud gratuïta"
+  },
+  "nav": {
+    "home": "Inici",
+    "apply": "Sol·licita",
+    "visas": "Visats",
+    "explore": "Explora",
+    "events": "Esdeveniments",
+    "blog": "Notícies",
+    "careers": "Feina",
+    "contact": "Contacte",
+    "signIn": "Inicia la sessió",
+    "getStarted": "Comença",
+    "yourPassport": "El teu passaport",
+    "searchPlaceholder": "Cerca un país o un visat…",
+    "arrivalCards": "Targetes d'arribada",
+    "guides": "Guies"
+  },
+  "footer": {
+    "followUs": "Segueix-nos:",
+    "followOn": "Segueix VIZA a {platform}",
+    "product": "Productes",
+    "company": "Empresa",
+    "legal": "Legal",
+    "offices": "Oficines",
+    "askAi": "Pregunta a la IA sobre VIZA",
+    "security": "Seguretat",
+    "status": "Estat",
+    "privacy": "Privadesa",
+    "terms": "Condicions",
+    "rights": "Tots els drets reservats.",
+    "tagline": "VIZA t'ajuda a planificar, sol·licitar i seguir visats arreu del món sense complicacions.",
+    "careers": "Feina",
+    "contact": "Contacte",
+    "copyright": "© VIZA, tots els drets reservats",
+    "prodMockInterview": "Entrevista simulada dels EUA",
+    "prodVisaReq": "Requisits de visat",
+    "prodSchengen": "Comprovador de cites Schengen",
+    "prodPhoto": "Creador de fotos de visat",
+    "prodHelpline": "Línia d'emergència VIZA",
+    "prodStudent": "Visat d'estudiant",
+    "arrivalCards": "Targetes d'arribada",
+    "guides": "Guies",
+    "news": "Notícies"
+  },
+  "pages": {
+    "blog": {
+      "metaTitle": "Notícies i novetats de visats | VIZA",
+      "metaDescription": "Notícies de visats de VIZA: canvis de normes, nous visats electrònics i ETA, i què signifiquen per a qui viu a Singapur. Es posa al dia quan canvien les normes.",
+      "title": "Notícies de visats",
+      "lede": "Canvis de normes i novetats, explicats amb paraules clares. Per a consells que continuen sent vàlids, llegeix les guies.",
+      "readArticle": "Llegeix l'article",
+      "featuredLabel": "Últimes notícies",
+      "articlesTitle": "Últimes notícies",
+      "articlesDescription": "Novetats de normativa i canvis en les normes de viatge.",
+      "allPosts": "Totes les publicacions",
+      "noMorePosts": "Hi haurà més notícies aviat.",
+      "emptyTitle": "Encara no hi ha notícies publicades",
+      "emptyBody": "Estem preparant les primeres novetats. Torna a mirar aviat.",
+      "unavailableTitle": "Les notícies no estan disponibles temporalment",
+      "unavailableBody": "No hem pogut carregar les últimes notícies publicades. Torna-ho a provar d'aquí a poc.",
+      "backToBlog": "Torna a les notícies",
+      "by": "Per",
+      "updated": "Actualitzat",
+      "categoriesLabel": "Temes de les notícies",
+      "topicLabel": "Tema",
+      "relatedTitle": "Més notícies",
+      "relatedDescription": "Més notícies de visats de VIZA.",
+      "ctaEyebrow": "Planifica amb confiança",
+      "ctaTitle": "Preparat per començar la sol·licitud?",
+      "ctaBody": "Digue'ns on vols anar. VIZA et guiarà pels requisits i els passos següents.",
+      "ctaAction": "Comença una sol·licitud",
+      "categoryMetaTitle": "Notícies de {category} | VIZA",
+      "categoryMetaDescription": "Llegeix les notícies de VIZA sobre {category}: què ha canviat, a qui afecta i què fer a continuació.",
+      "categoryLede": "Notícies sobre {category}.",
+      "visaLinkTitle": "Sol·licites un visat per a {country}?",
+      "visaLinkBody": "Consulta els documents, la taxa governamental i els passos per a qui viu a Singapur.",
+      "visaLinkAction": "Guia del visat de {country}",
+      "guidesTitle": "Guies relacionades",
+      "guidesBody": "Guies que es mantenen al dia sobre aquest tema."
+    },
+    "home": {
+      "title": "Visats a Singapur: EUA, Índia, Vietnam | VIZA",
+      "description": "Sol·licita el visat dels EUA (DS-160), el visat electrònic de l'Índia, Vietnam o Egipte, o un Schengen de França. Un assessor revisa cada formulari.",
+      "heroTitle": "Cap a on ara?",
+      "heroLede": "Explora les opcions de visat de qualsevol destí. El teu consultor de VIZA i la nostra IA s'encarreguen del paperassa, tu reserves el viatge."
+    },
+    "apply": {
+      "title": "Comença una sol·licitud de visat | VIZA",
+      "description": "Puja el passaport, confirma les dades i passa la sol·licitud de visat a un assessor de VIZA. El servei de VIZA és gratuït.",
+      "saveBadge": "Desat · reprèn quan vulguis"
+    },
+    "careers": {
+      "title": "Feina | VIZA",
+      "description": "Treballa a VIZA, el servei de visats gratuït de Kelin Studio a Singapur. Mira els equips que contractem i com contactar-nos per a un lloc de feina.",
+      "rightCta": "Mostra les ofertes"
+    },
+    "contact": {
+      "title": "Contacte: WhatsApp, WeChat, telèfon, correu | VIZA",
+      "description": "Contacta amb l'equip de VIZA per WhatsApp, WeChat, telèfon o correu electrònic. Quatre canals, quatre taulells i et respon una persona real.",
+      "rightCta": "Escriu-nos"
+    },
+    "security": {
+      "title": "Seguretat i divulgació responsable | VIZA",
+      "description": "Privat, transparent i segur per defecte. Com protegeix VIZA les dades dels clients, el nostre programa de divulgació de vulnerabilitats i el port segur.",
+      "rightCta": "Informa d'una vulnerabilitat"
+    },
+    "status": {
+      "title": "Estat del sistema | VIZA",
+      "description": "Estat en directe de VIZA i dels portals governamentals de visats on presentem les sol·licituds.",
+      "navPill": "Tots els sistemes funcionen"
+    },
+    "visa": {
+      "applyCta": "Sol·licita ara",
+      "applicationProcess": "Procés de sol·licitud",
+      "documents": "Documents",
+      "rejectionReasons": "Motius de denegació",
+      "entryExit": "Entrada i sortida",
+      "extension": "Pròrroga",
+      "reviews": "Ressenyes",
+      "nearby": "Països propers",
+      "sources": "Fonts oficials"
+    },
+    "privacy": {
+      "title": "Política de privadesa | VIZA",
+      "description": "Què recull VIZA quan sol·licites un visat, per què, qui ho veu i quant de temps ho conservem, d'acord amb la PDPA de Singapur."
+    },
+    "terms": {
+      "title": "Termes i condicions | VIZA",
+      "description": "Les condicions d'ús del servei de sol·licitud de visats de VIZA, gestionat per Kelin Studio Pte. Ltd. a Singapur. El servei de VIZA és gratuït."
+    },
+    "product": {
+      "title": "Com ajuda VIZA amb el teu visat | VIZA",
+      "description": "Preparació del visat, revisió de documents i estat de la sol·licitud en un sol lloc. El servei de VIZA és gratuït. L'abast es mostra per a cada destí."
+    },
+    "events": {
+      "title": "Esdeveniments | VIZA",
+      "description": "Consultes de visat, sessions informatives i esdeveniments amb col·laboradors de VIZA."
+    },
+    "arrivalCards": {
+      "title": "Targetes d'arribada: MDAC, SG Arrival Card, TDAC | VIZA",
+      "description": "Guies gratuïtes de targetes d'arribada de Malàisia, Singapur, el Japó, Tailàndia, Corea i Indonèsia: qui en necessita, quan enviar-les i ajuda pas a pas."
+    },
+    "guides": {
+      "title": "Guies de visat per a residents a Singapur | VIZA",
+      "description": "Guies clares per a qui viu a Singapur: països sense visat, documents Schengen, entrevista dels EUA, ETA, visat electrònic i denegacions. Gratuïtes."
+    },
+    "about": {
+      "title": "Qui som: ajuda gratuïta amb visats a Singapur | VIZA",
+      "description": "VIZA prepara, revisa i presenta sol·licituds de visat per a qui és a Singapur, amb IA i consultors. És gratuït; les taxes governamentals van a l'autoritat."
+    },
+    "visaIndex": {
+      "title": "Destins de visat: requisits per país | VIZA",
+      "description": "Compara els requisits de visat per país, amb els documents i les taxes de cada un. L'ajuda de VIZA és gratuïta.",
+      "heroTitle": "Destins de visat"
+    },
+    "refunds": {
+      "title": "Política de reemborsaments | VIZA",
+      "description": "El servei de VIZA és gratuït, així que no hi ha cap tarifa de servei per reemborsar. Com funcionen les taxes governamentals i les d'altres proveïdors."
+    },
+    "businessInformation": {
+      "title": "Informació de l'empresa | VIZA",
+      "description": "VIZA és gestionat per Kelin Studio Pte. Ltd., una empresa de Singapur. Domicili social, UEN i dades de contacte."
+    }
+  },
+  "common": {
+    "comingSoon": "Aviat",
+    "learnMore": "Més informació",
+    "readMore": "Llegeix més",
+    "applyNow": "Sol·licita ara",
+    "talkToHuman": "Parla amb una persona",
+    "viewAll": "Mostra-ho tot"
+  },
+  "visa": {
+    "heroTitle": "Visat de {country}",
+    "validity": "Validesa",
+    "howItWorks": "Com funciona",
+    "step1": "Ens expliques els detalls del viatge i puges el passaport.",
+    "step2": "Completem i revisem la teva sol·licitud segons les normes més recents.",
+    "step3": "La presentem al portal del govern i en seguim la decisió.",
+    "step4": "El teu visat aprovat arriba per correu electrònic, i el supervisem de punta a punta.",
+    "documents": "Què necessitaràs",
+    "doc1": "Un passaport vàlid almenys 6 mesos.",
+    "doc2": "Una foto recent de mida passaport.",
+    "doc3": "Les dates del viatge i l'allotjament.",
+    "doc4": "Si el destí cobra una taxa de visat, una targeta de pagament per pagar-la directament al govern.",
+    "nearby": "Destins propers",
+    "startApplication": "Comença la teva sol·licitud",
+    "comingSoonTitle": "{country}: aviat",
+    "comingSoonBody": "Estem donant els últims retocs a {country}. Crea un compte i t'avisarem en el moment que estigui disponible.",
+    "browseDestinations": "Explora els destins",
+    "notifyMe": "Avisa'm",
+    "back": "Torna a explorar",
+    "tabOverview": "Resum",
+    "tabProcess": "Procés de sol·licitud",
+    "tabDocuments": "Documents",
+    "tabRejection": "Motius de denegació",
+    "tabEntry": "Entrada i sortida",
+    "tabExtension": "Pròrroga",
+    "tabReviews": "Ressenyes",
+    "tabNearby": "Països propers",
+    "reviewsTitle": "Ressenyes",
+    "nearbyTitle": "Països propers",
+    "nearbySub": "Viatges per la regió? Afegeix un altre visat al teu viatge, i el teu consultor de VIZA els tramitarà junts.",
+    "faqTitle": "Preguntes freqüents",
+    "editorial": "Aquesta pàgina segueix la política editorial de VIZA. Ens basem en fonts governamentals oficials i actualitzem cada requisit quan canvia la normativa.",
+    "editorialLink": "Llegeix com ho revisem",
+    "sourcesTitle": "Fonts",
+    "priceGovt": "Taxa governamental",
+    "priceFree": "Gratuït",
+    "pillAllInclusive": "Tot inclòs",
+    "priceCta": "Comença la sol·licitud",
+    "onTime": "Puntual",
+    "freeService": "Servei gratuït de VIZA",
+    "freeServiceNote": "VIZA no cobra res per la seva ajuda",
+    "govFeePaidDirect": "Taxa governamental de {fee}, que es paga directament a l'autoritat que l'emet.",
+    "govFeeSetByAuthority": "Qualsevol taxa governamental la fixa l'autoritat que emet el visat i es paga directament a aquesta.",
+    "govFeeSetByAuthorityShort": "La fixa l'autoritat",
+    "priceService": "Servei de VIZA",
+    "pillPaidToAuthority": "Es paga a l'autoritat",
+    "priceTotalToViza": "Pagues a VIZA",
+    "breadcrumbVisas": "Destins de visat",
+    "serviceDescription": "VIZA ajuda les persones que viuen a Singapur a preparar, revisar i presentar sol·licituds de {type} per a {country} amb orientació d'IA i revisió experta d'una persona.",
+    "offerDescription": "Tarifa del servei de VIZA. Les taxes governamentals de visat són a part i es paguen directament a l'autoritat que l'emet.",
+    "dest": {
+      "tabGlance": "D'un cop d'ull",
+      "tabPassports": "Passaports",
+      "tabTypes": "Tipus de visat",
+      "tabResidents": "Residents",
+      "tabFees": "Taxes",
+      "tabApply": "Com sol·licitar-lo",
+      "tabChecklist": "Documents",
+      "tabRejection": "Denegacions",
+      "tabTravel": "Abans de viatjar",
+      "tabRelated": "Relacionats",
+      "glanceTitle": "D'un cop d'ull",
+      "glanceVisa": "Visat necessari",
+      "glanceGovFee": "Taxa governamental",
+      "glanceVizaFee": "Tarifa de VIZA",
+      "glanceProcessing": "Temps de tramitació",
+      "glanceMaxStay": "Estada màxima",
+      "glanceChecked": "Data de comprovació",
+      "passportsTitle": "Necessites un visat?",
+      "typesTitle": "Tipus de visat",
+      "residentsTitle": "Residents a Singapur",
+      "feesTitle": "Taxes i terminis",
+      "applyTitle": "Com sol·licitar-lo",
+      "checklistTitle": "Llista de documents",
+      "travelTitle": "Abans de viatjar",
+      "colPassport": "Passaport",
+      "colEntry": "Entrada",
+      "colNotes": "Notes",
+      "colItem": "Concepte",
+      "colAmount": "Import",
+      "vizaFeeNote": "L'ajuda de VIZA és gratuïta. Només pagues la taxa governamental, directament a l'autoritat.",
+      "reviewedBy": "Revisat per un consultor de VIZA el {date}.",
+      "relatedTitle": "Destins relacionats",
+      "relatedSub": "Altres llocs que la gent afegeix al mateix viatge, i on llegir-ne més.",
+      "startTitle": "Comença la sol·licitud",
+      "startBody": "Comença amb el passaport i les dates del viatge. L'ajuda de VIZA és gratuïta i la taxa governamental la pagues directament a l'autoritat.",
+      "startConsultBody": "Explica a un consultor de VIZA on vius, quin passaport tens i quines dates de viatge. L'ajuda de VIZA és gratuïta.",
+      "consultCta": "Parla amb un consultor"
+    }
+  },
+  "apply": {
+    "stepOf": "Pas {n} de 3",
+    "back": "Enrere",
+    "continue": "Continua",
+    "step1Name": "Puja el passaport",
+    "step2Name": "Confirma les dades",
+    "step3Name": "Comença la sol·licitud",
+    "s1Title": "Puja el teu passaport",
+    "s1Desc": "Llegirem les teves dades automàticament, sense haver d'escriure res. Fes servir la pàgina de dades (la que té la teva foto).",
+    "segUpload": "Puja un fitxer",
+    "segCapture": "Fes una foto",
+    "dzTitle": "Deixa aquí la foto del passaport",
+    "dzSub": "O fes clic per cercar-la: el teu fitxer està xifrat i mai no es comparteix",
+    "dzBrowse": "Tria un fitxer",
+    "dzUpTo": "Fins a 10 MB",
+    "tip1Title": "Els quatre cantons visibles",
+    "tip1Sub": "Encadra tota la pàgina de dades, inclosa la MRZ de la part inferior.",
+    "tip2Title": "Llum clara i uniforme",
+    "tip2Sub": "Evita les ombres de la mà o de la funda del mòbil.",
+    "tip3Title": "Sense enlluernaments ni reflexos",
+    "tip3Sub": "Inclina'l una mica si el segell reflecteix la llum.",
+    "errReadFail": "No hem pogut llegir aquest passaport: {detail}. Prova amb una foto més nítida de la pàgina de dades.",
+    "extReading": "Llegint el document",
+    "extExtracting": "Extraient les teves dades",
+    "extVerifying": "Verificant l'autenticitat",
+    "stReading": "Llegint…",
+    "stExtracting": "Extraient…",
+    "stVerifying": "Verificant…",
+    "s2Title": "Confirma les teves dades",
+    "s2Desc": "Les hem extret directament del teu passaport. Toca qualsevol camp per editar-lo.",
+    "successHigh": "Passaport llegit correctament, amb molta fiabilitat",
+    "warnLow": "Alguns camps eren difícils de llegir: revisa bé cada valor de sota.",
+    "warnMed": "Hem extret la majoria de les teves dades: verifica els camps destacats.",
+    "ppDetails": "Dades del passaport",
+    "autoExtracted": "Extret automàticament",
+    "fSurname": "Cognoms",
+    "fGiven": "Nom",
+    "fPassport": "Número de passaport",
+    "fDob": "Data de naixement",
+    "fNationality": "Nacionalitat",
+    "fExpires": "Caduca",
+    "reachTitle": "Com et podem contactar?",
+    "reachDesc": "T'hi enviarem el visat, a més d'actualitzacions d'estat per SMS al mòbil.",
+    "email": "Correu electrònic",
+    "phone": "Telèfon",
+    "consent": "Confirmo que les dades de dalt coincideixen amb el meu passaport i autoritzo VIZA a presentar aquesta sol·licitud en nom meu a les autoritats d'immigració de {country}.",
+    "s3Title": "Comença la teva sol·licitud",
+    "s3Desc": "El servei de VIZA és gratuït. Inicia la sessió al portal de VIZA i nosaltres ens encarreguem de la resta.",
+    "headsUp": "Compte:",
+    "headsUpBody": "si el govern de {country} cobra una taxa de visat, la pagues directament a ells. VIZA mai no cobra ni augmenta aquest import.",
+    "yourApp": "La teva sol·licitud",
+    "guaranteedBy": "Lliurament garantit abans del",
+    "govFee": "Taxa governamental",
+    "expressUpgrade": "Millora exprés",
+    "total": "Total",
+    "footEncrypted": "Xifrat de punta a punta. VIZA no et cobra res per aquesta sol·licitud.",
+    "helpOnline": "Priya és en línia",
+    "helpTap": "Toca per xatejar amb el teu consultor de VIZA",
+    "totalAmount": "SGD {amount}",
+    "totalFree": "Gratuït",
+    "etaStandard": "12 de maig del 2026, 8:00 SGT",
+    "failTitle": "No hem pogut llegir aquest document",
+    "failNotPassport": "Això no sembla la pàgina de dades d'un passaport. Puja una foto de la pàgina amb la teva foto i les dades personals.",
+    "failUnreadable": "No s'ha pogut llegir cap dels camps obligatoris. Torna a fer la foto amb bona llum, amb la pàgina de dades plana i enfocada.",
+    "tryAgain": "Torna-ho a provar",
+    "warnPartial": "No ho hem pogut llegir tot: completa els camps destacats de sota.",
+    "warnExpired": "Aquest passaport sembla caducat: la majoria de destins exigeixen almenys 6 mesos de validesa.",
+    "warnMrz": "La zona de lectura automàtica (les dues línies de la part inferior) no s'ha pogut llegir: revisa bé tots els camps.",
+    "warnBlurry": "La foto estava borrosa: revisa bé tots els camps.",
+    "fieldRequired": "Obligatori: omple'l",
+    "editField": "Edita {field}",
+    "emailInvalid": "Introdueix una adreça electrònica vàlida: hi arribaran les actualitzacions del visat i l'enllaç d'inici de sessió.",
+    "phoneInvalid": "Introdueix un número de telèfon vàlid.",
+    "consentRequired": "Confirma la declaració per continuar.",
+    "continueToStart": "Continua",
+    "startTitle": "Continua al portal de VIZA",
+    "startSub": "Inicia la sessió o crea el teu compte gratuït. La sol·licitud d'aquest destí s'obre de seguida.",
+    "vizaService": "Servei de VIZA",
+    "govFeeSetByAuthority": "La fixa l'autoritat",
+    "govFeeNote": "Qualsevol taxa governamental de visat es paga directament a l'autoritat que l'emet, no a VIZA.",
+    "completeBeforeStart": "Completa els elements destacats de dalt abans de continuar."
+  },
+  "explore": {
+    "help": "Ajuda",
+    "passportLabel": "Passaport de {name}",
+    "passportSub": "Requisits de visat en {n} destins · Posició {rank}",
+    "freeLabel": "Sense visat",
+    "freeNote": "sense papers",
+    "voaLabel": "Visat electrònic o VOA",
+    "voaNote": "ho gestionem nosaltres",
+    "reqLabel": "Cal visat",
+    "reqNote": "tràmit a l'ambaixada",
+    "fullMap": "Mostra el mapa complet de visats",
+    "grid": "Quadrícula",
+    "map": "Mapa",
+    "mapLegendEvisa": "Visats electrònics i de visitant",
+    "mapHint": "Passa el cursor per un punt destacat per veure un destí",
+    "sectionTitle": "Per a passaports de {country}",
+    "seeAll": "Mostra els {n}",
+    "footnote": "El servei de VIZA és gratuït. Qualsevol taxa governamental de visat es paga directament a l'autoritat que l'emet i varia segons el país.",
+    "fastTrack": "Via ràpida",
+    "cardType": "Tipus",
+    "cardValid": "Validesa",
+    "cardFee": "Servei de VIZA",
+    "save": "Desa",
+    "startApplication": "Comença la sol·licitud",
+    "catalogueUnavailable": "Ara mateix no hi ha cap destí obert a sol·licituds en línia. Torna a mirar aviat.",
+    "choosePassport": "Tria el teu passaport",
+    "searchPassport": "Cerca el país del passaport…",
+    "visaFree": "{n} sense visat",
+    "ppFoot": "Actualitzat per al maig del 2026 · Font: IATA Timatic",
+    "noMatch": "Cap passaport coincideix amb «{q}»",
+    "filters": {
+      "delivery": "Lliurament del visat",
+      "type": "Tipus de visat",
+      "documents": "Documents",
+      "dates": "Dates de viatge"
+    },
+    "filterOpts": {
+      "delivery": [
+        "Qualsevol moment",
+        "En 24 hores",
+        "En 3 dies",
+        "En 1 setmana",
+        "En 1 mes"
+      ],
+      "type": [
+        "Tots els tipus",
+        "Turista",
+        "Negocis",
+        "Feina",
+        "Estudiant",
+        "Nòmada digital"
+      ],
+      "documents": [
+        "Qualsevol document",
+        "Mínims (només passaport)",
+        "Estàndard",
+        "Paquet detallat"
+      ],
+      "dates": [
+        "Tria les dates",
+        "Aquesta setmana",
+        "Aquest mes",
+        "D'aquí a 3 mesos",
+        "D'aquí a 6 mesos"
+      ]
+    }
+  },
+  "cities": {
+    "viza-test": "Prova de pagament en directe",
+    "indonesia": "Bali · Jakarta",
+    "egypt": "el Caire · Gizeh",
+    "australia": "Sydney · Melbourne",
+    "saudi-arabia": "Riad · AlUla",
+    "united-kingdom": "Londres · Edimburg",
+    "vietnam": "Hanoi · Hoi An",
+    "malaysia": "KL · Penang",
+    "japan": "Tòquio · Kyoto",
+    "united-states": "Nova York · Los Angeles",
+    "canada": "Toronto · Vancouver",
+    "turkiye": "Istanbul · Capadòcia",
+    "thailand": "Bangkok · Phuket",
+    "united-arab-emirates": "Dubai · Abu Dhabi",
+    "france": "París · Niça",
+    "italy": "Roma · Florència",
+    "india": "Delhi · Bombai"
+  },
+  "validity": {
+    "viza-test": "Només demostració",
+    "indonesia": "90 dies",
+    "egypt": "90 dies",
+    "australia": "1 any",
+    "saudi-arabia": "365 dies",
+    "united-kingdom": "6 mesos",
+    "vietnam": "90 dies",
+    "malaysia": "3 mesos",
+    "japan": "90 dies",
+    "united-states": "10 anys",
+    "canada": "10 anys",
+    "turkiye": "180 dies",
+    "thailand": "3 mesos",
+    "united-arab-emirates": "60 dies",
+    "france": "90 dies",
+    "italy": "90 dies",
+    "india": "30 dies"
+  },
+  "passports": {
+    "SG": "Singapur",
+    "JP": "Japó",
+    "KR": "Corea del Sud",
+    "DE": "Alemanya",
+    "FR": "França",
+    "GB": "Regne Unit",
+    "US": "Estats Units",
+    "AU": "Austràlia",
+    "CA": "Canadà",
+    "AE": "Emirats Àrabs Units",
+    "CN": "Xina",
+    "IN": "Índia",
+    "BR": "Brasil",
+    "PH": "Filipines",
+    "ID": "Indonèsia",
+    "MY": "Malàisia",
+    "TH": "Tailàndia"
+  },
+  "countries": {
+    "viza-test": "Prova de VIZA",
+    "indonesia": "Indonèsia",
+    "egypt": "Egipte",
+    "australia": "Austràlia",
+    "saudi-arabia": "Aràbia Saudita",
+    "united-kingdom": "Regne Unit",
+    "vietnam": "Vietnam",
+    "malaysia": "Malàisia",
+    "japan": "Japó",
+    "united-states": "Estats Units",
+    "canada": "Canadà",
+    "turkiye": "Turquia",
+    "thailand": "Tailàndia",
+    "united-arab-emirates": "Emirats Àrabs Units",
+    "france": "França",
+    "italy": "Itàlia",
+    "india": "Índia",
+    "china": "Xina",
+    "south-korea": "Corea del Sud",
+    "schengen": "Schengen"
+  },
+  "visaTypes": {
+    "Test checkout": "Prova de pagament",
+    "e-Visa": "Visat electrònic",
+    "Standard Visitor": "Visitant estàndard",
+    "Visitor 600": "Visitant 600",
+    "Tourist": "Turista",
+    "B1/B2": "B1/B2",
+    "eTA": "eTA",
+    "Schengen": "Schengen",
+    "eVisa": "Visat electrònic",
+    "Visitor visa": "Visat de visitant",
+    "Tourist visa": "Visat de turista"
+  },
+  "careers": {
+    "hero": {
+      "nowHiring": "Contractem a",
+      "cities": [
+        "Xangai",
+        "Singapur"
+      ],
+      "openRoles": "28 llocs oberts",
+      "title": "Ajuda'ns a fer que les fronteres<br></br><em>desapareguin</em>, <u>sense fer soroll,</u><br></br>a la velocitat del programari.",
+      "lead": "Convertim mesos de papereria de visats en hores de programari, per a milions de persones que només volen pujar a un avió. Aporta el teu ofici a un equip que treballa amb terminis reals.",
+      "ctaRoles": "Mostra tots els llocs oberts",
+      "ctaWhy": "Per què existim"
+    },
+    "board": {
+      "ariaLabel": "Tauler de sortides amb els llocs oberts a VIZA",
+      "head": "Llocs oberts · en directe",
+      "live": "Puntual",
+      "cols": {
+        "req": "Ref.",
+        "role": "Lloc",
+        "office": "Oficina",
+        "status": "Estat"
+      },
+      "rows": [
+        {
+          "role": "Enginyer principal",
+          "sub": "Flux de documents",
+          "status": "Embarcant"
+        },
+        {
+          "role": "Dissenyador de producte",
+          "sub": "Fluxos del sol·licitant",
+          "status": "Obert"
+        },
+        {
+          "role": "Enllaç amb ambaixades",
+          "sub": "Aliances amb governs",
+          "status": "Última crida"
+        },
+        {
+          "role": "Operacions amb clients",
+          "sub": "Escalades de nivell 2",
+          "status": "Obert"
+        }
+      ],
+      "foot": "+24 llocs més en enginyeria, operacions i disseny",
+      "browseAll": "Mostra'ls tots",
+      "chip1Label": "Contractem a",
+      "chip1Value": "4 oficines",
+      "chip2Label": "Resposta mitjana",
+      "chip2Value": "3.2 dies fins a la primera trucada"
+    },
+    "stats": [
+      {
+        "value": "2.4M",
+        "label": "Visats emesos amb VIZA l'any passat"
+      },
+      {
+        "label": "Destins admesos amb tramitació en directe"
+      },
+      {
+        "label": "Taxa d'aprovació de tots els tipus de visat el 2025"
+      },
+      {
+        "label": "Persones entre Xangai i Singapur"
+      }
+    ],
+    "mission": {
+      "eyebrow": "La nostra història",
+      "title": "Gran part del món<br></br>encara viatja amb<br></br><em>papers impresos.</em>",
+      "kicker1": "Vam crear VIZA el 2021 després de passar massa setmanes en espera amb les ambaixades. El sistema per moure persones entre fronteres és més antic que internet, i les persones atrapades en aquest sistema es mereixen alguna cosa millor.",
+      "kicker2": "Avui, un equip de 340 persones en quatre oficines crea programari, presenta documents i gestiona operacions en 194 països. Fem la feina avorrida i esgotadora perquè viatjar sigui com la resta d'internet: uns quants tocs i ja ets en marxa.",
+      "founderName": "Mira Kohli",
+      "founderRole": "Cofundadora i CEO · Singapur",
+      "beliefs": [
+        {
+          "title": "Som una empresa d'operacions que crea programari.",
+          "body": "La meitat de VIZA són enginyers, dissenyadors i responsables de producte. L'altra meitat són consultors, operacions i especialistes en documents als països. Cap de les dues meitats guanya sense l'altra."
+        },
+        {
+          "title": "El sol·licitant és sempre el client.",
+          "body": "Les ambaixades, els socis i les aerolínies importen. Però treballem per a la persona que a les 3 de la matinada actualitza un portal a la cua, i és amb ella que ens mesurem."
+        },
+        {
+          "title": "La velocitat s'acumula quan tens paciència amb la qualitat.",
+          "body": "Anem de pressa a l'hora de publicar i a poc a poc amb les decisions irreversibles. Una decisió de visat equivocada pot arruïnar un casament, una feina, un funeral. Mantenim aquesta exigència encara que ens alenteixi."
+        },
+        {
+          "title": "La distància és un problema d'experiència d'usuari, no una limitació.",
+          "body": "Els nostres equips són en quatre fusos horaris. Escriure en asíncron, responsabilitats clares i una bona cultura de documentació són la nostra manera de canviar temps per confiança, i de treballar arreu del món sense esgotar ningú."
+        }
+      ]
+    },
+    "values": {
+      "eyebrow": "El que ens exigim",
+      "title": "Cinc coses en què creiem, encara que surtin cares.",
+      "lead": "Els valors són fàcils d'escriure i difícils de portar a la pràctica. Aquests són els cinc que fem servir de debò en la contractació, en les avaluacions i en les poques decisions difícils.",
+      "cards": [
+        {
+          "title": "Digues la veritat, sobretot quan ens costa.",
+          "body": "Si un visat no arribarà a temps, ho diem avui, no el dia abans del vol. Preferim perdre una venda que dir una mentida.",
+          "kicker": "A la pràctica → polítiques publicades, registre de canvis"
+        },
+        {
+          "title": "Guanya't la velocitat. No et limitis a estar ocupat.",
+          "body": "Celebrem les decisions i la feina entregada, no les reunions ni els fils de converses. El que compta és el rendiment cap a la missió, no el moviment a l'agenda.",
+          "kicker": "A la pràctica → revisió trimestral del rendiment"
+        },
+        {
+          "title": "Pensa en passaports, no en personatges.",
+          "body": "Les normes de visat depenen de la nacionalitat. Un «usuari» no existeix: existeix una persona amb passaport filipí que sol·licita un Schengen. Construïm per a persones reals, no per a mitjanes.",
+          "kicker": "A la pràctica → especificació de producte centrada en el passaport"
+        },
+        {
+          "title": "Escriu les coses. Sobretot les decisions.",
+          "body": "Quatre oficines, quatre fusos horaris. Si una decisió no està escrita, no ha passat. La nostra wiki és de lectura obligatòria; les reunions diàries són opcionals.",
+          "kicker": "A la pràctica → ADR, memoràndum setmanal, primer l'asíncron"
+        },
+        {
+          "title": "Mantén-te a prop de la cua.",
+          "body": "Cada enginyer fa un torn al trimestre a la sala de consultors. No pots eliminar amb el disseny una fricció que mai no has sentit a les 11 de la nit d'un diumenge.",
+          "kicker": "A la pràctica → torns rotatius a la cua"
+        },
+        {
+          "title": "Tria la versió llarga.",
+          "body": "La resposta de trenta segons sol ser errònia. Invertim en documentació a fons, guies sòlides i explicacions que aguanten, encara que la versió fàcil bastaria.",
+          "kicker": "A la pràctica → manual d'acollida, guies públiques"
+        }
+      ]
+    },
+    "inside": {
+      "eyebrow": "Dins de VIZA",
+      "title": "Com és realment<br></br>treballar aquí.",
+      "lead": "Tenim oficines en dues ciutats perquè contractem a prop d'on es presenten les sol·licituds. Parlem fort dels èxits, discretament de la política i amb honestedat de tot el que encara hem de construir.",
+      "photos": [
+        {
+          "label": "foto · seu de Singapur, planta oberta",
+          "mark": "Paya Lebar Square, SG"
+        },
+        {
+          "label": "foto · sala de la cua de consultors",
+          "mark": "Luoshan Rd, Xangai"
+        },
+        {
+          "label": "foto · sessió a la pissarra",
+          "mark": "Trobada tècnica, Bali"
+        },
+        {
+          "label": "foto · sala d'operacions de Xangai",
+          "mark": "Pudong, Xangai"
+        },
+        {
+          "label": "foto · sopar d'equip",
+          "mark": "Trobada general, Lisboa"
+        },
+        {
+          "label": "foto · visita d'una ambaixada col·laboradora",
+          "mark": "Paya Lebar Square, SG"
+        }
+      ],
+      "pull": "«Contractem gent que té una opinió sobre els visats abans d'entrar. Al segon mes en tindràs una de més sòlida.»",
+      "pullBy": "Felix Adekunle, VP d'Enginyeria",
+      "para1": "A VIZA hi ha molta autonomia i molt context. Tindràs un responsable per a tot el que facis, pressupostos reals i l'expectativa que expliquis el raonament de la teva feina a la resta de l'empresa.",
+      "para2": "Si vols que et diguin què has de fer cada dia, aquest no és el lloc. Si portaves temps esperant que algú et passés el volant, és aquí."
+    },
+    "how": {
+      "eyebrow": "Enginyeria i operacions a VIZA",
+      "title": "Com avança realment la feina.",
+      "lead": "Si aquí construeixes, presentes o dissenyes, així és la teva setmana. Menys cerimònia, més feina entregada. Menys Slack, més decisions escrites.",
+      "cells": [
+        {
+          "title": "Responsabilitat de punta a punta",
+          "body": "El dissenyes, el construeixes, el publiques i te'n fas responsable en producció. Sense cues de traspàs ni plans escrits per gent a tres nivells de distància. Si és teu, és realment teu."
+        },
+        {
+          "title": "Desplegaments cada dia, per defecte",
+          "body": "La majoria d'equips publiquen diverses vegades al dia. Els cicles de retroacció són curts per disseny, i es prefereix una reversió de trenta minuts a una discussió de tres setmanes."
+        },
+        {
+          "title": "Problemes reals i complicats",
+          "body": "Això no és CRUD. Treballaràs en OCR de documents, en programació sensible a la latència amb més de 90 portals governamentals i en fluxos per a consumidors que fan servir milions de persones."
+        },
+        {
+          "title": "L'exigència és alta, i oberta",
+          "body": "Treballem en parella en les revisions de disseny. Comentem línia per línia les PR. Creiem que el criteri s'aprèn, i esperem que tothom ajudi activament els qui l'envolten a millorar."
+        },
+        {
+          "title": "Un pressupost de formació real",
+          "body": "$2,000 per persona i any, sense preguntes, per a congressos, llibres, cursos: tot el que torni a la feina que fas aquí."
+        },
+        {
+          "title": "Arquitectura escrita per tu",
+          "body": "Les RFC són obertes a tothom. Enginyers nous han donat forma a la infraestructura central el primer mes. Si tens un pla millor, escriu-lo: el llegirem."
+        }
+      ]
+    },
+    "roles": {
+      "eyebrow": "Llocs oberts · actualitzat cada setmana",
+      "title": "Forma part del viatge.",
+      "lead": "28 llocs oberts en quatre oficines. Contractem a enginyeria, disseny, operacions, consultors i aliances. Els llocs nous apareixen els dilluns.",
+      "allDepartments": "Tots els departaments",
+      "deps": {
+        "eng": "Enginyeria",
+        "design": "Disseny",
+        "ops": "Operacions",
+        "consult": "Consultors",
+        "data": "Dades i ML",
+        "gtm": "Màrqueting i GTM"
+      },
+      "showing": "Es mostren <strong>{count}</strong> llocs · totes les ubicacions · tots els equips",
+      "anyLocation": "Qualsevol ubicació",
+      "groupCount": "{count} oberts",
+      "posSub": "{team} · contractem pel talent i el criteri, no pel currículum",
+      "locationLabel": "Ubicació",
+      "typeLabel": "Tipus",
+      "fullTime": "Jornada completa",
+      "viewRole": "Mostra el lloc",
+      "locations": {
+        "sg": "Singapur",
+        "sf": "Xangai",
+        "ldn": "Singapur",
+        "dxb": "Xangai"
+      },
+      "jobs": {
+        "backendPayments": "Enginyer sènior de backend, plataforma",
+        "staffDocPipeline": "Enginyer principal: flux de documents",
+        "iosApplicant": "Enginyer d'iOS: app del sol·licitant",
+        "platformInfra": "Enginyer de plataforma: infraestructura i seguretat",
+        "frontendConsole": "Enginyer de frontend: consola de consultors",
+        "emWeb": "Gerent d'enginyeria: web",
+        "sre": "Enginyer de fiabilitat de llocs (SRE)",
+        "androidSenior": "Enginyer sènior d'Android",
+        "leadEmbassy": "Responsable d'enginyeria: integracions amb ambaixades",
+        "productDesignerApplicant": "Dissenyador sènior de producte: flux del sol·licitant",
+        "brandDesigner": "Dissenyador de marca",
+        "designLeadConsultant": "Responsable de disseny: eines per a consultors",
+        "headOpsMe": "Cap d'operacions, Orient Mitjà",
+        "visaOpsSchengen": "Responsable d'operacions de visats: Schengen",
+        "logistics": "Gerent de logística i missatgeria",
+        "processDocQa": "Enginyer de processos: control de qualitat de documents",
+        "opsAnalyst": "Analista d'operacions: reserves",
+        "consultSchengen": "Consultor de visats: Schengen",
+        "consultUs": "Consultor de visats: EUA B1/B2",
+        "consultUae": "Consultor de visats: residència als Emirats",
+        "consultStudent": "Consultor sènior: visats d'estudiant",
+        "consultApac": "Responsable de consultors: Àsia-Pacífic",
+        "consultUk": "Consultor de visats: Regne Unit",
+        "dataScientist": "Científic de dades sènior: models d'aprovació",
+        "mlOcr": "Enginyer de ML: OCR i IA de documents",
+        "perfMarketing": "Gerent de màrqueting de rendiment",
+        "contentLead": "Responsable de contingut: narrativa",
+        "lifecycleCrm": "Gerent de cicle de vida i CRM"
+      }
+    },
+    "fellowship": {
+      "tag": "▲ VIZA Launchpad · programa de 12 setmanes",
+      "title": "Dotze setmanes. Un equip de producte.<br></br><em>Una oportunitat per publicar alguna cosa.</em>",
+      "para1": "Launchpad és el nostre programa de residència per a enginyers, responsables de producte i dissenyadors que comencen la carrera: gent que d'una altra manera necessitaria dos anys més d'«experiència» abans de tenir una oportunitat real.",
+      "para2": "Treballaràs en parella amb responsables sèniors, tindràs una part real del producte des de l'inici fins al llançament i marxaràs amb alguna cosa que faran servir milions de persones. Ofereix contracte a jornada completa a ~60% de la promoció.",
+      "meta": [
+        {
+          "k": "Durada",
+          "v": "12 setmanes"
+        },
+        {
+          "k": "Ubicació",
+          "v": "A l'oficina, a qualsevol seu"
+        },
+        {
+          "k": "Beca",
+          "v": "Per sobre del mercat"
+        },
+        {
+          "k": "Pròxima promoció",
+          "v": "Set. 2026"
+        }
+      ],
+      "apply": "Sol·licita Launchpad",
+      "readCohort": "Llegeix sobre la promoció del 2025",
+      "projects": [
+        {
+          "k": "2024 · Enginyeria",
+          "title": "Reescriptura del flux d'OCR",
+          "meta1": "Publicat en producció",
+          "meta2": "3.2× més ràpid"
+        },
+        {
+          "k": "2025 · Disseny",
+          "title": "Redisseny del flux Schengen",
+          "meta1": "14 països en directe",
+          "meta2": "↑ 22% conv."
+        },
+        {
+          "k": "2025 · Producte",
+          "title": "Programador de cites d'ambaixada",
+          "meta1": "9 ambaixades",
+          "meta2": "40k cites/mes"
+        }
+      ]
+    },
+    "benefits": {
+      "eyebrow": "Ens tens al darrere (de debò)",
+      "title": "El que és avorrit,<br></br>ben resolt.",
+      "lead": "No creiem que els beneficis siguin un extra. Són la base que permet a la gent fer la seva millor feina. Això és el que rep cada empleat de VIZA, a totes les oficines, des del primer dia.",
+      "items": [
+        {
+          "title": "Salut completa, resolta.",
+          "body": "Assistència mèdica, dental i òptica completa des del primer dia, per a tu, la teva parella i els teus fills. Paguem la prima, sense trucs amb franquícies."
+        },
+        {
+          "title": "Construeix patrimoni, no només sou.",
+          "body": "Sou base per sobre del mercat a tots els mercats on contractem, a més d'una assignació generosa d'accions lligada a fites, no només als anys de servei. La renovem cada dos anys."
+        },
+        {
+          "title": "Aprèn el que de debò importa.",
+          "body": "Pressupost de formació de $2,000 l'any, sessions internes mensuals i temps a l'agenda, no només permís, per fer aquell curs o anar a aquell congrés."
+        },
+        {
+          "title": "Sorprèn els clients com si fossin diners teus.",
+          "body": "Cada sol·licitant té un pressupost de $100 per a gestos de bona voluntat extra. Sense aprovació ni escalada: soluciona-ho i després explica què ha passat."
+        },
+        {
+          "title": "La ment > tot.",
+          "body": "Suport professional i confidencial de salut mental, sense passar per l'assegurança. A més, tres dies al mes sense reunions per a tota l'empresa."
+        },
+        {
+          "title": "Avantatges de viatge (no hi havia remei).",
+          "body": "Nosaltres fem visats; el nostre equip hauria de viatjar a compte de l'empresa. $4k l'any de crèdit de viatge, i VIZA gestiona tots els visats que puguis necessitar, a l'instant i internament."
+        },
+        {
+          "title": "Vacances generoses i de veritat.",
+          "body": "30 dies de vacances pagades, més els festius del teu país, més una setmana pagada entre el 24 de desembre i l'1 de gener. Fem el seguiment de l'ús i animem la gent a agafar-ne més, no menys."
+        },
+        {
+          "title": "Equipament, sense preguntes.",
+          "body": "Tria el portàtil, el monitor i la cadira el primer dia. Ajuda per al teletreball per a la teva configuració. Confiem que saps què necessites per fer bona feina."
+        },
+        {
+          "title": "Un permís parental que funciona de debò.",
+          "body": "20 setmanes per al cuidador principal, 12 per al secundari, totalment pagades. A més, un retorn gradual, perquè el primer dia no tornis a tot gas."
+        }
+      ]
+    },
+    "offices": {
+      "eyebrow": "On treballem",
+      "title": "Dues oficines, un producte.",
+      "lead": "Contractem a prop d'ambaixades, socis i dels mercats que servim. Cada oficina té enginyers i operacions: no separem els equips que construeixen dels que gestionen la sala.",
+      "cards": [
+        {
+          "photo": "foto · Xangai",
+          "open": "6 oberts",
+          "name": "Xangai",
+          "addr1": "Lane 1502, Luoshan Road,",
+          "addr2": "Zona Pilot de Lliure Comerç de la Xina (Xangai)",
+          "tz": "GMT+8 · operacions a la Xina",
+          "since": "Des del 2023"
+        },
+        {
+          "photo": "foto · seu de Singapur",
+          "open": "12 oberts",
+          "name": "Singapur",
+          "addr1": "60 Paya Lebar Road, #06-28 Paya Lebar Square",
+          "addr2": "Singapur 409051",
+          "tz": "GMT+8 · seu d'Àsia-Pacífic",
+          "since": "Seu · des del 2021"
+        }
+      ]
+    },
+    "ctaStrip": {
+      "title": "No veus el teu lloc,<br></br>però vols entrar-hi?",
+      "body": "Si tens un perfil poc habitual i creus que ens ajudaries a fer que els viatgers del món es moguin més de pressa, volem saber de tu. Hem contractat conductors d'autobús, antic personal d'ambaixades i advocats. No tenim un tipus.",
+      "lead": "Sol·licitud general",
+      "cta": "Explica'ns la teva història",
+      "note": "Responem en 7 dies, encara que sigui un no."
+    },
+    "footer": {
+      "tagline": "VIZA t'ajuda a planificar, sol·licitar i seguir visats arreu del món sense complicacions.",
+      "company": "Empresa",
+      "products": "Productes",
+      "offices": "Oficines",
+      "careers": "Feina",
+      "contact": "Contacte",
+      "security": "Seguretat",
+      "privacy": "Privadesa",
+      "terms": "Condicions",
+      "prodVisaReq": "Requisits de visat",
+      "prodSchengen": "Comprovador de cites Schengen",
+      "prodPhoto": "Creador de fotos de visat",
+      "prodHelpline": "Línia d'emergència VIZA",
+      "prodStudent": "Visat d'estudiant",
+      "officeSg": "Singapur: seu",
+      "officeSf": "Xangai",
+      "copyright": "© VIZA, tots els drets reservats"
+    }
+  },
+  "security": {
+    "hero": {
+      "eyebrow": "Seguretat a VIZA · última actualització: maig del 2026",
+      "title": "Privat. Transparent.<br></br><em>Segur per defecte.</em>",
+      "lead": "Clients d'arreu del món ens confien milions de documents sensibles: passaports, extractes bancaris, fotos. Aquí t'expliquem exactament com els recollim, com els guardem i com demostrem que ho fem bé.",
+      "ctaPrimary": "Com protegim les teves dades",
+      "ctaVdp": "Informa d'una vulnerabilitat"
+    },
+    "clearance": {
+      "republicKey": "República de",
+      "officeKey": "Oficina emissora",
+      "officeVal": "Confiança i seguretat",
+      "title": "Habilitació de seguretat /<br></br>Dades dels clients",
+      "grid": {
+        "encryption": {
+          "k": "Xifratge",
+          "v": "AES-256 / TLS 1.3"
+        },
+        "region": {
+          "k": "Regió",
+          "v": "SG · EUA · UE"
+        },
+        "audit": {
+          "k": "Freqüència d'auditoria",
+          "v": "Trimestral"
+        },
+        "retention": {
+          "k": "Conservació",
+          "v": "90 dies com a màxim"
+        }
+      },
+      "referenceKey": "Referència",
+      "glyph": "HABILITAT<br></br>VIZA · 26"
+    },
+    "chips": {
+      "transitLabel": "En trànsit",
+      "transitVal": "TLS 1.3 de punta a punta",
+      "restLabel": "En repòs",
+      "restVal": "AES-256, fixat a la regió"
+    },
+    "stats": {
+      "docs": {
+        "value": "2.4M",
+        "label": "Documents tractats el 2025, cap filtració de dades de clients"
+      },
+      "retention": {
+        "unit": "d",
+        "label": "Conservació màxima dels documents d'origen després de l'emissió"
+      },
+      "pentests": {
+        "label": "Proves de penetració externes, tots els informes publicats internament"
+      },
+      "ack": {
+        "unit": "h",
+        "label": "Temps mitjà per confirmar la recepció d'una vulnerabilitat notificada"
+      }
+    },
+    "docs": {
+      "eyebrow": "Què recollim",
+      "title": "Cinc tipus de documents.<br></br><em>Res més.</em>",
+      "copy1": "Una sol·licitud de visat és un tema de papers. Només recollim el que una ambaixada demana expressament, i ho anonimitzem sempre que és possible. Cada document es lliga a una sola sol·licitud, es xifra en rebre'l i s'elimina segons un calendari fix.",
+      "copy2": "Mai no venem les teves dades. Mai no les compartim amb tercers, més enllà del consolat o el soci directament implicat en el teu visat.",
+      "cards": {
+        "payment": {
+          "name": "Dades de pagament",
+          "meta": "no es recullen"
+        },
+        "photos": {
+          "name": "Fotos del visat",
+          "meta": "processades · 90 dies com a màxim"
+        },
+        "bank": {
+          "name": "Extractes bancaris",
+          "meta": "emmascarats · només pdf"
+        },
+        "pastVisas": {
+          "name": "Visats anteriors",
+          "meta": "només lectura · OCR"
+        },
+        "passport": {
+          "name": "Passaport",
+          "meta": "MRZ extreta"
+        }
+      }
+    },
+    "features": {
+      "eyebrow": "Set controls, sempre actius",
+      "title": "Com les teves dades continuen<br></br>sent teves, de punta a <em>punta.</em>",
+      "intro": "L'estat per defecte de cada byte a VIZA és «xifrat, delimitat i limitat en el temps». Aquests són els set controls que ho fan possible: no són aspiracions, sinó el que ja està integrat a la plataforma avui.",
+      "cells": {
+        "minimise": {
+          "title": "Minimització i anonimització de dades",
+          "body": "Només recollim el que una ambaixada o un soci necessita realment per a una sol·licitud, i anonimitzem tot el que la resta de la plataforma permet. Els camps que no veus als nostres formularis són camps que no guardem.",
+          "why": "<strong>Per què:</strong> una filtració no pot revelar dades que mai no s'han recollit."
+        },
+        "payments": {
+          "title": "Cap dada de pagament",
+          "body": "El servei de VIZA és gratuït i no cobrem res, així que mai no demanem, veiem ni guardem números de targeta.",
+          "why": "<strong>Per què:</strong> les dades que mai no tenim no es poden robar."
+        },
+        "atRest": {
+          "title": "Xifratge en repòs",
+          "body": "Cada document, missatge i camp de metadades als servidors de VIZA es xifra amb AES-256 abans d'arribar al disc. Les claus es roten automàticament i es guarden en un KMS amb suport de maquinari que ni el nostre equip d'infraestructura pot llegir directament.",
+          "why": "<strong>Per què:</strong> uns discos o còpies de seguretat robats continuen sent il·legibles sense les claus."
+        },
+        "inTransit": {
+          "title": "Xifratge de punta a punta",
+          "body": "Tot el trànsit entre el teu dispositiu, els nostres servidors i els consolats col·laboradors fa servir TLS 1.3 amb fixació estricta. Les pujades de documents fan servir un canal independent i signat, de manera que ni un adversari a nivell de xarxa pot veure què envies.",
+          "why": "<strong>Per què:</strong> les xarxes hostils, com el wifi d'un aeroport, no poden llegir la teva sol·licitud."
+        },
+        "audits": {
+          "title": "Auditories de seguretat periòdiques",
+          "body": "Fem una prova de penetració externa cada trimestre, una auditoria SOC 2 Type II anual i una exploració contínua i automàtica de vulnerabilitats. Cada troballa es registra amb una data límit per arreglar-la, i els punts endarrerits avisen el responsable d'enginyeria.",
+          "why": "<strong>Per què:</strong> les amenaces evolucionen; les nostres defenses es comproven contra elles amb un calendari."
+        },
+        "access": {
+          "title": "Controls d'accés segurs",
+          "body": "L'accés intern a les dades dels clients està limitat per rol, s'audita per cada petició i es concedeix amb elevació just-in-time. Els consultors només veuen la sol·licitud en què treballen en aquell moment. Cada lectura es registra durant 12 mesos.",
+          "why": "<strong>Per què:</strong> els errors i els usos indeguts interns queden continguts, atribuïbles i revisables."
+        },
+        "education": {
+          "title": "Formació i sensibilització dels usuaris",
+          "body": "La part més difícil de la seguretat és la que no podem lliurar-te nosaltres. T'enviem guies en un llenguatge clar sobre frau per correu, estafes amb fotos de passaport i SMS falsos d'ambaixades en el moment que comences una sol·licitud, i te les tornem a mostrar dins del producte quan alguna cosa sembla estranya. Ets l'última línia de defensa; preferim equipar-te que culpar-te.",
+          "why": "<strong>Per què:</strong> un sol·licitant ben informat és el control de seguretat més barat i eficaç que tenim."
+        }
+      }
+    },
+    "vdp": {
+      "tag": "▲ Divulgació de vulnerabilitats · oberta a tots els investigadors",
+      "title": "Has trobat alguna cosa?<br></br><em>Volem saber-ho.</em>",
+      "p1": "La seguretat dels nostres usuaris i socis ho és tot. Si creus que has identificat una vulnerabilitat real que afecta els serveis de VIZA, volem que ens ho diguis directament, i treballarem amb tu amb respecte i rapidesa per arreglar-la.",
+      "p2": "Envia les teves troballes per correu electrònic a <strong>security@viza.it.com</strong>. Confirmarem la recepció en un dia hàbil, encara que resulti que ja la coneixíem o que queda fora de l'abast.",
+      "meta": {
+        "ack": {
+          "k": "Confirmació en",
+          "v": "'<' 24 hores"
+        },
+        "triage": {
+          "k": "Classificació en",
+          "v": "3 dies hàbils"
+        },
+        "lang": {
+          "k": "Idiomes",
+          "v": "EN · ID · AR"
+        },
+        "pgp": {
+          "k": "Clau PGP",
+          "v": "0xVIZA · 2026"
+        }
+      },
+      "ctaEmail": "Escriu a security@viza.it.com",
+      "ctaScope": "Llegeix l'abast",
+      "terminal": {
+        "title": "esborrany-informe · security@viza.it.com",
+        "l1": "# informe de vulnerabilitat",
+        "typeKey": "tipus:",
+        "typeVal": "elusió-d'autenticació",
+        "urlKey": "url:",
+        "reproKey": "repro:",
+        "reproVal": "[passos 1-4]",
+        "impactKey": "impacte:",
+        "impactVal": "apropiació del compte",
+        "pocKey": "poc:",
+        "l7": "# ↳ xifrat amb 0xVIZA",
+        "send": "envia"
+      }
+    },
+    "report": {
+      "eyebrow": "Notificar una vulnerabilitat",
+      "title": "Què posar a l'informe<br></br>i <em>què no.</em>",
+      "intro": "Un bon informe ens estalvia una setmana a tots dos. Aquest és el format que fa que es classifiqui més de pressa, i les coses que preferiríem no rebre a la safata d'entrada.",
+      "include": {
+        "heading": "Inclou-hi",
+        "sub": "Cinc camps. Com més clars, més de pressa podem confirmar-ho i arreglar-ho.",
+        "items": {
+          "type": "<strong>Tipus de problema</strong>: per exemple, autenticació, control d'accés, injecció, IDOR, SSRF.",
+          "steps": "<strong>Passos clars per reproduir-lo</strong>: numerats, en ordre, si pot ser en una sessió neta.",
+          "impact": "<strong>Impacte potencial en la seguretat</strong>: què podria fer un atacant amb això, en llenguatge clar.",
+          "poc": "<strong>Prova de concepte</strong>: preferim captures de pantalla o un vídeo curt; els registres en segon lloc."
+        }
+      },
+      "dontSend": {
+        "heading": "No ens enviïs",
+        "sub": "Això és insegur, inútil o tots dos, i haurem d'eliminar-ho en rebre'l.",
+        "items": {
+          "secrets": "<strong>Contrasenyes o testimonis d'autenticació</strong>, teus o d'algú altre. Mostra el vector, no el secret.",
+          "malware": "<strong>Mostres de programari maliciós en brut o registres de robatori.</strong> Descriu el que has vist; no ho adjuntis.",
+          "scanners": "<strong>Informes grans d'escàners automàtics</strong> sense una troballa triada a mà i demostrada.",
+          "customerData": "<strong>Dades personals o documents de clients</strong>, encara que hagin estat la base de la teva troballa.",
+          "socialEng": "<strong>Gravacions d'intents d'enginyeria social</strong> contra el nostre personal o els nostres consultors."
+        }
+      }
+    },
+    "scope": {
+      "eyebrow": "Abast del programa",
+      "title": "Què hi entra i què no.",
+      "intro": "Si no tens clar si un informe entra en aquesta llista, envia'l igualment i pregunta. Preferim classificar-lo i seguir endavant que no pas que et quedis amb un problema real perquè el límit no era evident.",
+      "fileRef": "/security/scope.md · v6",
+      "in": {
+        "pill": "Dins de l'abast",
+        "heading": "Informes que classificarem activament",
+        "items": {
+          "web": "Aplicacions web i API de VIZA a <code>*.viza.com</code>, incloent-hi el portal del sol·licitant, la consola de consultors i els punts d'accés dels socis.",
+          "infra": "Infraestructura i serveis propietat de VIZA: autenticació, flux de documents, programació.",
+          "mobile": "Aplicacions mòbils (iOS, Android) publicades amb el compte de desenvolupador de VIZA.",
+          "marketing": "Llocs públics de màrqueting i contingut sota dominis controlats per VIZA."
+        }
+      },
+      "out": {
+        "pill": "Fora de l'abast",
+        "heading": "Informes que no podem tramitar en aquest programa",
+        "items": {
+          "devices": "Problemes derivats de dispositius d'usuari compromesos, extensions del navegador o credencials robades.",
+          "phishing": "Atacs d'enginyeria social o de suplantació dirigits a empleats, socis o consultors de VIZA.",
+          "thirdParty": "Serveis o integracions de tercers que VIZA no gestiona directament (portals de consolats, llocs de missatgeria).",
+          "scanners": "Troballes d'escàners automàtics sense una explotabilitat real demostrada.",
+          "headers": "Capçaleres de seguretat que falten o recomanacions generals de bones pràctiques sense un camí d'explotació."
+        }
+      }
+    },
+    "pledge": {
+      "eyebrow": "Divulgació responsable",
+      "title": "El tracte que fem<br></br>entre nosaltres.",
+      "intro": "La divulgació funciona perquè les dues parts actuen de bona fe. Això és el que et demanem, i això és el que ens pots exigir a canvi: per escrit perquè ningú hagi d'endevinar.",
+      "researcher": {
+        "kicker": "El que et demanem",
+        "title": "Compromisos de qui <em>investiga.</em>",
+        "p": "En enviar un informe, acceptes actuar de bona fe i dins de l'esperit del programa, no només de la lletra.",
+        "items": {
+          "1": "Actua de bona fe: evita violacions de la privadesa, la destrucció de dades o la interrupció del servei mentre investigues.",
+          "2": "No aprofitis un problema més enllà del mínim necessari per confirmar-lo, i no accedeixis mai a dades que no siguin teves.",
+          "3": "Mantén confidencials els detalls de la vulnerabilitat fins que hàgim publicat una correcció i te l'hàgim confirmat.",
+          "4": "No divulguis públicament les troballes sense el consentiment previ per escrit de l'equip de seguretat de VIZA."
+        }
+      },
+      "viza": {
+        "kicker": "El que ens pots exigir",
+        "title": "Compromisos de <em>VIZA.</em>",
+        "p": "A canvi, no desapareixem davant dels qui informen, no discutim la gravetat per esquivar una correcció i no denunciem les persones que ens ajuden.",
+        "items": {
+          "1": "Revisarem cada informe vàlid i respondrem en un dia hàbil, sigui quina sigui la gravetat.",
+          "2": "Ens comunicarem amb respecte: sense llenguatge defensiu ni excuses del tipus «funciona com s'ha dissenyat».",
+          "3": "Prendrem les mesures de correcció adequades quan calgui, i t'avisarem quan la correcció s'hagi publicat.",
+          "4": "T'esmentarem (amb el teu consentiment) al nostre registre de canvis de seguretat quan el problema estigui resolt."
+        }
+      }
+    },
+    "legal": {
+      "eyebrow": "Legal i recompenses",
+      "title": "Port segur, recompenses<br></br>i la lletra petita.",
+      "intro": "Si segueixes aquesta política de bona fe, considerem la teva investigació autoritzada. La resta de la pàgina és la part avorrida però important: ben exposada, no amagada.",
+      "cards": {
+        "safeHarbour": {
+          "title": "Port segur legal",
+          "body": "Si segueixes aquesta política de bona fe, VIZA no emprendrà accions legals contra tu per infraccions accidentals o involuntàries relacionades amb la teva investigació. Encara s'espera que compleixis les lleis i normatives aplicables."
+        },
+        "rewards": {
+          "title": "Recompenses i programa de bugs",
+          "body": "VIZA no té actualment un programa públic de recompenses per errors. Sí que oferim un gest d'agraïment discrecional per als problemes vàlids notificats de manera responsable, valorat segons l'impacte, la novetat i la qualitat de l'informe.",
+          "meta": "discrecional · cas per cas"
+        },
+        "updates": {
+          "title": "Actualitzacions del programa",
+          "body": "VIZA es reserva el dret de modificar o finalitzar aquest programa en qualsevol moment. Si no tens clar si la teva investigació s'ajusta a la política, contacta amb nosaltres a security@viza.it.com <em>abans</em> de continuar.",
+          "meta": "última revisió · maig del 2026"
+        }
+      }
+    },
+    "cta": {
+      "title": "Veus alguna cosa estranya?<br></br>Explica-ho al nostre equip de seguretat.",
+      "body": "Preferim sentir parlar d'una troballa petita dues vegades que perdre'n una de gran una sola vegada. Els informes van directament a una persona real de l'equip de seguretat: sense portal de tiquets ni robot de classificació.",
+      "lead": "Directe a seguretat",
+      "small": "Resposta mitjana: menys de 24 hores, tots els dies de la setmana."
+    },
+    "footer": {
+      "tagline": "VIZA t'ajuda a planificar, sol·licitar i seguir visats arreu del món sense complicacions.",
+      "company": "Empresa",
+      "careers": "Feina",
+      "contact": "Contacte",
+      "security": "Seguretat",
+      "privacy": "Privadesa",
+      "terms": "Condicions",
+      "products": "Productes",
+      "prodVisaReq": "Requisits de visat",
+      "prodSchengen": "Comprovador de cites Schengen",
+      "prodPhoto": "Creador de fotos de visat",
+      "prodHelpline": "Línia d'emergència VIZA",
+      "prodStudent": "Visat d'estudiant",
+      "offices": "Oficines",
+      "officeSg": "Singapur: seu",
+      "officeSf": "Xangai",
+      "copyright": "© VIZA, tots els drets reservats"
+    }
+  },
+  "status": {
+    "crumbHome": "Transparència",
+    "crumbHere": "Estat del sistema",
+    "hero": {
+      "title": "Estat del sistema",
+      "lead": "Disponibilitat avalada per proves per a VIZA i els portals governamentals de visats amb què treballem. Cada percentatge, barra de cronologia i incident de sota prové d'una comprovació sintètica registrada."
+    },
+    "console": {
+      "title": "Fiabilitat de VIZA · En directe",
+      "live": "Verificat",
+      "unverified": "Sense verificar",
+      "allOperational": "Tots els sistemes funcionen",
+      "degraded": "Alguns sistemes funcionen amb problemes",
+      "majorOutage": "Un sistema supervisat no està disponible",
+      "dataUnavailable": "Dades de supervisió no disponibles",
+      "lastChecked": "Última comprovació registrada: {time}",
+      "noChecks": "Encara no s'ha registrat cap comprovació completada",
+      "kUptime": "Comprovacions superades en 90 dies",
+      "kMonitors": "Punts d'accés supervisats",
+      "kIncidents": "Incident actiu"
+    },
+    "subnav": {
+      "current": "Estat actual",
+      "incidents": "Incidents passats",
+      "subscribe": "Subscriu-t'hi",
+      "searchPlaceholder": "Cerca països",
+      "subscribeBtn": "Subscriu-te a les actualitzacions"
+    },
+    "platform": {
+      "title": "Plataforma VIZA",
+      "realMeta": "Es comprova cada 5 minuts · {count} punt(s) d'accés",
+      "meta": "Es comprova cada 5 minuts",
+      "name": "Plataforma de sol·licituds de VIZA",
+      "sub": "Serveis públics de VIZA"
+    },
+    "uptime": {
+      "ago": "Fa 90 dies",
+      "today": "Avui",
+      "pct": "{pct}% de comprovacions superades",
+      "noData": "Cap comprovació registrada"
+    },
+    "dayObservation": "{date}: {checks} comprovació(ns) registrada(es)",
+    "dayNoData": "{date}: sense dades registrades",
+    "dayTitle": "Dia {n}",
+    "statusLabels": {
+      "op": "Operatiu",
+      "deg": "Amb problemes",
+      "part": "Interrupció parcial",
+      "maj": "No disponible",
+      "none": "Sense dades actuals"
+    },
+    "lastChecked": "Comprovat {time}",
+    "monitorStale": "Comprovació que falta o és antiga",
+    "monitoringUnavailable": "L'API d'estat no té proves recents. VIZA no mostrarà disponibilitat desada en memòria cau ni generada com si fos l'estat actual del servei.",
+    "noSearchResults": "Cap país supervisat coincideix amb aquesta cerca.",
+    "noRecordedIncidents": "No s'ha derivat cap incident de les comprovacions registrades en els últims 90 dies.",
+    "incidentCount": "{count, plural, one {# incident} other {# incidents}}",
+    "incidentRecovered": "Les comprovacions registrades mostren que aquest servei s'ha recuperat.",
+    "noIssues": "Cap problema actiu",
+    "activeIncident": "Incident actiu",
+    "portalsHead": {
+      "title": "Portals governamentals",
+      "lead": "Una petició sintètica limitada comprova cada portal configurat cada cinc minuts. L'historial gris vol dir que no s'ha registrat cap observació; mai s'omple amb dades estimades."
+    },
+    "incidentsHead": {
+      "title": "Incidents passats",
+      "lead": "Els incidents s'obren i es resolen a partir de transicions del monitor desades. Això és disponibilitat operativa, no l'estat de la decisió de visat personal d'un sol·licitant."
+    },
+    "tags": {
+      "identified": "Identificat",
+      "investigating": "En investigació",
+      "resolved": "Resolt"
+    },
+    "portals": {
+      "AE": {
+        "name": "Emirats Àrabs Units",
+        "sub": "GDRFA · portals de l'ICA"
+      },
+      "AM": {
+        "name": "Armènia",
+        "sub": "Portal de visat electrònic"
+      },
+      "AU": {
+        "name": "Austràlia",
+        "sub": "ImmiAccount"
+      },
+      "AZ": {
+        "name": "Azerbaidjan",
+        "sub": "ASAN Visa"
+      },
+      "DE": {
+        "name": "Alemanya",
+        "sub": "VIDEX · cites als consolats"
+      },
+      "DK": {
+        "name": "Dinamarca"
+      },
+      "EG": {
+        "name": "Egipte",
+        "sub": "Portal de visat electrònic"
+      },
+      "FI": {
+        "name": "Finlàndia",
+        "sub": "EnterFinland"
+      },
+      "FR": {
+        "name": "França",
+        "sub": "France-Visas"
+      },
+      "GB": {
+        "name": "Regne Unit",
+        "sub": "UKVCAS · UK Visas",
+        "bannerText": "Alguns tipus de sol·licitud pateixen una interrupció.",
+        "bannerLink": "Mostra la cronologia de l'incident"
+      },
+      "GE": {
+        "name": "Geòrgia"
+      },
+      "GR": {
+        "name": "Grècia",
+        "sub": "AEGEAN · consular"
+      },
+      "HK": {
+        "name": "Hong Kong",
+        "sub": "eVisa d'immigració"
+      },
+      "ID": {
+        "name": "Indonèsia",
+        "sub": "e-Visa Indonesia"
+      },
+      "IN": {
+        "name": "Índia",
+        "sub": "Indian Visa Online"
+      },
+      "JO": {
+        "name": "Jordània"
+      },
+      "KE": {
+        "name": "Kenya",
+        "sub": "eCitizen / eVisa"
+      },
+      "KH": {
+        "name": "Cambodja"
+      },
+      "LK": {
+        "name": "Sri Lanka",
+        "sub": "Portal ETA"
+      },
+      "MA": {
+        "name": "Marroc"
+      },
+      "TH": {
+        "name": "Tailàndia",
+        "sub": "Thailand e-Visa"
+      }
+    },
+    "incidents": {
+      "count": "<strong>{count}</strong> {count, plural, one {país ha tingut} other {països han tingut}} problemes de rendiment",
+      "events": "{count, plural, one {# esdeveniment} other {# esdeveniments}}",
+      "days": [
+        {
+          "date": "10 de maig del 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "10 de maig, 3:05 p. m.",
+                  "desc": "Aquest incident s'ha resolt. El servei ha tornat a funcionar amb normalitat."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "10 de maig, 5:05 p. m.",
+                  "desc": "Aquest incident s'ha resolt. El servei ha tornat a funcionar amb normalitat."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "9 de maig del 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "9 de maig, 10:50 p. m.",
+                  "desc": "Estem investigant un augment de la taxa d'errors."
+                },
+                {
+                  "time": "10 de maig, 12:20 a. m.",
+                  "desc": "La gravetat ha passat de problemes de rendiment a interrupció parcial."
+                },
+                {
+                  "time": "10 de maig, 2:50 a. m.",
+                  "desc": "La gravetat ha passat d'interrupció parcial a interrupció greu."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "9 de maig, 3:05 p. m.",
+                  "desc": "Estem investigant un augment de la taxa d'errors."
+                },
+                {
+                  "time": "9 de maig, 7:20 p. m.",
+                  "desc": "La gravetat ha passat d'interrupció parcial a interrupció greu."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "8 de maig del 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "8 de maig, 1:05 p. m.",
+                  "desc": "Estem investigant un augment de la taxa d'errors."
+                },
+                {
+                  "time": "8 de maig, 2:05 p. m.",
+                  "desc": "Aquest incident s'ha resolt. El servei ha tornat a funcionar amb normalitat."
+                },
+                {
+                  "time": "8 de maig, 2:50 p. m.",
+                  "desc": "Estem investigant un augment de la taxa d'errors."
+                },
+                {
+                  "time": "8 de maig, 7:35 p. m.",
+                  "desc": "Aquest incident s'ha resolt. El servei ha tornat a funcionar amb normalitat."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "5 de maig del 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "5 de maig, 1:36 p. m.",
+                  "desc": "La gravetat ha passat de problemes de rendiment a interrupció parcial."
+                },
+                {
+                  "time": "5 de maig, 4:50 p. m.",
+                  "desc": "Aquest incident s'ha resolt."
+                },
+                {
+                  "time": "5 de maig, 9:20 p. m.",
+                  "desc": "Estem investigant un augment de la taxa d'errors."
+                },
+                {
+                  "time": "5 de maig, 10:20 p. m.",
+                  "desc": "Aquest incident s'ha resolt."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "5 de maig, 2:43 p. m.",
+                  "desc": "Aquest incident s'ha resolt."
+                },
+                {
+                  "time": "5 de maig, 3:35 p. m.",
+                  "desc": "Estem investigant un augment de la taxa d'errors."
+                },
+                {
+                  "time": "5 de maig, 7:35 p. m.",
+                  "desc": "La gravetat ha passat d'interrupció parcial a interrupció greu."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "4 de maig del 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "4 de maig, 4:05 p. m.",
+                  "desc": "Estem investigant un augment de la taxa d'errors."
+                },
+                {
+                  "time": "4 de maig, 5:05 p. m.",
+                  "desc": "Aquest incident s'ha resolt."
+                },
+                {
+                  "time": "4 de maig, 7:36 p. m.",
+                  "desc": "Estem investigant un augment de la taxa d'errors."
+                },
+                {
+                  "time": "4 de maig, 8:35 p. m.",
+                  "desc": "Aquest incident s'ha resolt."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "4 de maig, 12:05 p. m.",
+                  "desc": "Aquest incident s'ha resolt."
+                },
+                {
+                  "time": "4 de maig, 1:50 p. m.",
+                  "desc": "Estem investigant un augment de la taxa d'errors."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2 de maig del 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "2 de maig, 6:35 p. m.",
+                  "desc": "Estem investigant un augment de la taxa d'errors."
+                },
+                {
+                  "time": "2 de maig, 7:50 p. m.",
+                  "desc": "Aquest incident s'ha resolt."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "2 de maig, 9:20 a. m.",
+                  "desc": "Estem investigant un augment de la taxa d'errors."
+                },
+                {
+                  "time": "2 de maig, 10:20 a. m.",
+                  "desc": "Aquest incident s'ha resolt."
+                },
+                {
+                  "time": "2 de maig, 8:20 p. m.",
+                  "desc": "Estem investigant un augment de la taxa d'errors."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "2 de maig, 8:20 p. m.",
+                  "desc": "Estem investigant un augment de la taxa d'errors."
+                },
+                {
+                  "time": "3 de maig, 12:05 a. m.",
+                  "desc": "Aquest incident s'ha resolt."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "1 de maig del 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "1 de maig, 2:05 p. m.",
+                  "desc": "Estem investigant un augment de la taxa d'errors."
+                },
+                {
+                  "time": "1 de maig, 3:05 p. m.",
+                  "desc": "Aquest incident s'ha resolt."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "30 d'abril del 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "30 d'abril, 8:20 a. m.",
+                  "desc": "Estem investigant un augment de la taxa d'errors."
+                },
+                {
+                  "time": "30 d'abril, 9:50 a. m.",
+                  "desc": "Aquest incident s'ha resolt."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 d'abril, 3:05 p. m.",
+                  "desc": "Aquest incident s'ha resolt."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 d'abril, 4:51 p. m.",
+                  "desc": "Aquest incident s'ha resolt."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 d'abril, 1:20 p. m.",
+                  "desc": "Estem investigant un augment de la taxa d'errors."
+                },
+                {
+                  "time": "30 d'abril, 2:37 p. m.",
+                  "desc": "La gravetat ha passat de problemes de rendiment a interrupció parcial."
+                },
+                {
+                  "time": "30 d'abril, 8:20 p. m.",
+                  "desc": "Aquest incident s'ha resolt."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 d'abril, 6:50 p. m.",
+                  "desc": "Aquest incident s'ha resolt."
+                },
+                {
+                  "time": "30 d'abril, 7:50 p. m.",
+                  "desc": "Estem investigant un augment de la taxa d'errors."
+                },
+                {
+                  "time": "1 de maig, 12:20 a. m.",
+                  "desc": "Aquest incident s'ha resolt."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "subscribe": {
+      "title": "Sigues el primer<br></br>a saber quan alguna cosa falla.",
+      "lead": "Tria els països que t'interessen i t'enviarem una única actualització clara quan els seus portals, o els nostres, caiguin o tornin a funcionar.",
+      "emailLabel": "Rep les actualitzacions d'incidents per correu electrònic",
+      "button": "Subscriu-te",
+      "follow": "O segueix l'estat per:",
+      "chipEmail": "Resum per correu",
+      "chipSms": "SMS i WhatsApp",
+      "chipRss": "Canal RSS",
+      "chipWebhook": "Webhook per a operacions"
+    },
+    "footer": {
+      "tagline": "VIZA t'ajuda a planificar, sol·licitar i seguir visats arreu del món sense complicacions.",
+      "company": "Empresa",
+      "careers": "Feina",
+      "contact": "Contacte",
+      "security": "Seguretat",
+      "systemStatus": "Estat del sistema",
+      "privacy": "Privadesa",
+      "terms": "Condicions",
+      "products": "Productes",
+      "prodVisaReq": "Requisits de visat",
+      "prodSchengen": "Comprovador de cites Schengen",
+      "prodPhoto": "Creador de fotos de visat",
+      "prodHelpline": "Línia d'emergència VIZA",
+      "copyright": "© VIZA, tots els drets reservats"
+    }
+  },
+  "arrival": {
+    "breadcrumbHome": "Inici",
+    "breadcrumbHub": "Targetes d'arribada",
+    "hubH1": "Guies de targetes d'arribada",
+    "hubLead": "Una targeta d'arribada és un formulari governamental breu que omples abans d'entrar en un país. La majoria són en línia, gratuïtes i es fan en uns cinc minuts. Aquestes guies expliquen qui necessita cadascuna, quan enviar-la i com evitar els llocs falsos que en cobren.",
+    "hubWhatTitle": "Què és una targeta d'arribada",
+    "hubWhat": [
+      "Una targeta d'arribada és una declaració que el destí demana a més del passaport i de qualsevol visat. Hi consten qui ets, com arribes i on t'allotjaràs. Molts països han substituït la targeta de paper que es repartia a l'avió per un formulari en línia.",
+      "No és un visat. Un visat et permet sol·licitar l'entrada. Una targeta d'arribada informa l'autoritat fronterera del teu viatge, i continues necessitant un visat si la teva nacionalitat l'exigeix."
+    ],
+    "hubFreeTitle": "Les targetes d'arribada són gratuïtes",
+    "hubFree": [
+      "Totes les targetes d'aquestes guies són gratuïtes al web del mateix govern. Alguns llocs copien el formulari governamental i en cobren una tarifa. Mai no cal que en paguis cap.",
+      "Comença sempre per l'adreça oficial que figura a cada guia. VIZA és un servei independent i no és un web governamental."
+    ],
+    "hubWhenTitle": "Quan en necessites una",
+    "hubWhen": [
+      "La majoria de targetes s'obren tres dies abans d'arribar i s'han d'enviar dins d'aquest període. Consulta cada guia per veure la norma exacta, perquè el Visit Japan Web del Japó no té data límit fixa i no és obligatori.",
+      "Els residents, els ciutadans i els passatgers en trànsit sovint en queden exempts o tenen un formulari més curt. Cada guia indica qui n'està exempt, inclosa l'exempció dels ciutadans de Singapur per a la MDAC de Malàisia."
+    ],
+    "hubGuidesTitle": "Totes les guies",
+    "hubGuidesSub": "Tria el teu destí. Cada guia té els passos, els errors habituals i els enllaços oficials.",
+    "readGuide": "Llegeix la guia",
+    "cardWhen": "Quan",
+    "cardsLabel": "Targeta d'arribada",
+    "hubVisaTitle": "Necessites també un visat",
+    "hubVisaBody": "Una targeta d'arribada no substitueix un visat. Consulta la pàgina del destí per veure si el teu passaport en necessita un.",
+    "hubVisaCta": "Mostra les pàgines de visat",
+    "glanceTitle": "D'un cop d'ull",
+    "stepsTitle": "Com omplir-la, pas a pas",
+    "mistakesTitle": "Errors habituals",
+    "feesTitle": "Tarifes i llocs falsos",
+    "faqTitle": "Preguntes",
+    "sourcesTitle": "Fonts",
+    "relatedTitle": "Altres guies de targetes d'arribada",
+    "independent": "VIZA és un servei independent i no és un web governamental.",
+    "officialCta": "Obre el web oficial",
+    "officialLabel": "Web oficial",
+    "vizaTitle": "Deixa que VIZA ho faci per tu",
+    "vizaBody": "Comença {name} al teu compte de VIZA. El formulari de VIZA et guia amb les mateixes preguntes que l'oficial i conserva les teves dades per a viatges futurs. Sempre pots fer servir el web oficial gratuït.",
+    "vizaFee": "Tarifa del servei de VIZA",
+    "vizaFeeFree": "Gratuït",
+    "vizaCta": "Comença a VIZA",
+    "noVizaTitle": "Fes servir el web oficial",
+    "noVizaBody": "VIZA encara no omple aquesta targeta. Fes servir el web oficial que trobaràs a sota i llegeix primer els passos d'aquesta guia.",
+    "visaTitle": "Visat per a {country}",
+    "visaBody": "La targeta d'arribada és independent del visat. Consulta qui necessita visat per a {country}, les taxes i com sol·licitar-lo.",
+    "visaCta": "Obre la pàgina de visat de {country}",
+    "reviewedTitle": "Comprovat el 25 de novembre del 2026",
+    "stepLabel": "Pas",
+    "cards": {
+      "malaysia-mdac": {
+        "summary": "Targeta gratuïta en línia per a visitants estrangers. Els ciutadans de Singapur en queden exempts.",
+        "when": "Fins a 3 dies abans d'arribar"
+      },
+      "singapore-sg-arrival-card": {
+        "summary": "Targeta en línia de l'ICA amb una declaració de salut. Envia-la al web o a l'app MyICA.",
+        "when": "Fins a 3 dies abans d'arribar"
+      },
+      "japan-visit-japan-web": {
+        "summary": "Codis QR gratuïts per a immigració i duanes. Recomanat, no obligatori.",
+        "when": "Abans de volar"
+      },
+      "thailand-tdac": {
+        "summary": "Targeta gratuïta per a tots els visitants estrangers, amb visat o sense. Ha substituït el TM6 en paper.",
+        "when": "Fins a 3 dies abans d'arribar"
+      },
+      "korea-e-arrival-card": {
+        "summary": "Obligatòria des de l'1 de gener del 2026. Els titulars d'una K-ETA vàlida en queden exempts.",
+        "when": "Fins a 3 dies abans d'arribar"
+      },
+      "indonesia-all-indonesia": {
+        "summary": "Una sola targeta per a immigració, duanes i salut. Gratuïta, i no és un visat.",
+        "when": "Fins a 3 dies abans d'arribar"
+      }
+    }
+  },
+  "guides": {
+    "breadcrumbHome": "Inici",
+    "breadcrumbHub": "Guies",
+    "hubH1": "Guies de visat per a persones que viuen a Singapur",
+    "hubLead": "Tant si tens passaport de Singapur, xinès, indi o filipí, aquestes guies responen la mateixa pregunta: què necessito per entrar en aquest país i on sol·licito el visat des de Singapur. Cada guia indica les fonts i la data en què es va comprovar.",
+    "hubGuidesTitle": "Totes les guies",
+    "hubGuidesSub": "Tria un tema. Les normes canvien, per això cada guia enumera les pàgines oficials que has de consultar abans de viatjar.",
+    "readGuide": "Llegeix la guia",
+    "hubMoreTitle": "Més de VIZA",
+    "hubMoreBody": "Busques un país concret, una targeta d'arribada o l'últim canvi de normes?",
+    "hubDestinations": "Pàgines de visat",
+    "hubArrival": "Guies de targetes d'arribada",
+    "hubNews": "Notícies de visats",
+    "glanceTitle": "Resposta ràpida",
+    "relatedVisaTitle": "Pàgines de destí",
+    "relatedVisaSub": "Taxes, documents i passos per a persones que viuen a Singapur.",
+    "relatedArrivalTitle": "Guies de targetes d'arribada",
+    "relatedGuidesTitle": "Més guies",
+    "faqTitle": "Preguntes",
+    "sourcesTitle": "Fonts",
+    "reviewedTitle": "Com ho hem comprovat",
+    "published": "Publicat",
+    "updated": "Actualitzat",
+    "independent": "VIZA és un servei independent i no és un web governamental."
+  },
+  "ds": {
+    "header": {
+      "home": "Inici de VIZA",
+      "primary": "Principal",
+      "language": "Idioma",
+      "signIn": "Inicia la sessió",
+      "openMenu": "Obre el menú",
+      "closeMenu": "Tanca el menú",
+      "nav": {
+        "home": "Inici",
+        "destinations": "Destins",
+        "arrivalCards": "Targetes d'arribada",
+        "guides": "Guies",
+        "news": "Notícies",
+        "about": "Qui som",
+        "contact": "Contacte"
+      }
+    },
+    "footer": {
+      "home": "Inici de VIZA",
+      "tagline": "Sol·licituds de visat preparades per la IA de VIZA i revisades pels nostres consultors. Ús gratuït.",
+      "explore": "Explora",
+      "follow": "Segueix-nos",
+      "followOn": "Segueix VIZA a {platform}",
+      "links": {
+        "destinations": "Destins",
+        "arrivalCards": "Targetes d'arribada",
+        "guides": "Guies",
+        "news": "Notícies",
+        "about": "Qui som",
+        "contact": "Contacte",
+        "careers": "Feina",
+        "security": "Seguretat",
+        "status": "Estat"
+      },
+      "copyright": "© {year} VIZA. Tots els drets reservats.",
+      "office": "Domicili social: 60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapur 409051",
+      "privacy": "Privadesa",
+      "terms": "Condicions",
+      "kelin": "Un projecte de Kelin Studio",
+      "refunds": "Reemborsaments",
+      "business": "Informació de l'empresa"
+    },
+    "form": {
+      "fullName": {
+        "label": "El teu nom",
+        "placeholder": "Jane Tan"
+      },
+      "email": {
+        "label": "Correu electrònic"
+      },
+      "phone": {
+        "label": "Telèfon"
+      },
+      "destination": {
+        "label": "Destí",
+        "placeholder": "Japó, Schengen, Estats Units"
+      },
+      "message": {
+        "label": "La teva pregunta",
+        "placeholder": "On vas, quin passaport tens i quines dates de viatge."
+      },
+      "submit": "Envia el missatge",
+      "sending": "S'està enviant",
+      "success": "Gràcies, hem rebut el teu missatge. Et respondrem per correu electrònic.",
+      "error": "No hem pogut enviar el teu missatge. Torna-ho a provar o escriu a sales@kelin.studio.",
+      "consent": "En enviar-lo, acceptes la nostra <privacy>Política de privadesa</privacy> i les <terms>Condicions</terms>."
+    },
+    "gallery": {
+      "title": "Destins",
+      "lede": "Tria un destí per veure el visat que necessites, els documents i la taxa governamental.",
+      "view": "Mostra",
+      "passportSummary": "{free} sense visat · {voa} visat electrònic o a l'arribada · {req} cal visat",
+      "noResults": "Cap destí coincideix amb la teva cerca.",
+      "sorts": {
+        "featured": "Destacats",
+        "open": "Primer els oberts ara",
+        "name": "De la A a la Z"
+      }
+    },
+    "dest": {
+      "all": "Tots els destins",
+      "onPage": "En aquesta pàgina",
+      "applyTitle": "Comença la sol·licitud",
+      "facts": "Dades"
+    },
+    "article": {
+      "toc": "En aquesta pàgina",
+      "down": "Ves a l'article",
+      "faqLede": "Respostes ràpides sobre aquest tema."
+    },
+    "legal": {
+      "updated": "Última actualització",
+      "contents": "Contingut"
+    }
+  },
+  "homePage": {
+    "hero": {
+      "browse": "Explora els destins",
+      "picks": "Destins"
+    },
+    "types": {
+      "title": "Tipus de visat",
+      "lede": "Visats de turista, de negocis, de feina, d'estudiant i de llarga estada.",
+      "prev": "Anterior",
+      "next": "Següent",
+      "items": {
+        "tourist": {
+          "title": "Turista",
+          "body": "Vacances, visites familiars i estades curtes."
+        },
+        "business": {
+          "title": "Negocis",
+          "body": "Reunions, congressos i visites a obres o instal·lacions."
+        },
+        "work": {
+          "title": "Feina",
+          "body": "Permisos de treball i visats laborals."
+        },
+        "student": {
+          "title": "Estudiant",
+          "body": "Visats d'estudi per a escoles i universitats."
+        },
+        "long": {
+          "title": "Llarga estada",
+          "body": "Residència i altres visats de llarga durada."
+        }
+      }
+    },
+    "steps": {
+      "title": "Com funciona",
+      "cta": "Comença la teva sol·licitud gratuïta",
+      "side": {
+        "freeValue": "Gratuït",
+        "freeLabel": "Servei de VIZA",
+        "langLabel": "Idiomes: anglès i xinès",
+        "note": "Només pagues la taxa governamental.",
+        "noteBody": "Va directament a l'autoritat que l'emet. VIZA no hi afegeix cap tarifa pròpia."
+      },
+      "items": {
+        "choose": {
+          "title": "Tria un destí",
+          "body": "Mira el visat que necessites, els documents que has de preparar i la taxa governamental abans de començar.",
+          "chips": "Tipus de visat|Documents|Taxa governamental"
+        },
+        "passport": {
+          "title": "Puja el teu passaport",
+          "body": "VIZA llegeix les teves dades de la pàgina de la foto, així que gairebé no has d'escriure res.",
+          "chips": "Pàgina de la foto|Dades omplertes"
+        },
+        "confirm": {
+          "title": "Confirma les teves dades",
+          "body": "Revisa el que ha llegit VIZA, afegeix les dates del viatge i continua al teu compte gratuït de VIZA.",
+          "chips": "Dates del viatge|Compte gratuït"
+        },
+        "file": {
+          "title": "VIZA ho revisa i ho presenta",
+          "body": "Un assessor revisa cada formulari abans de presentar-lo i tu en segueixes l'avanç al teu compte.",
+          "chips": "Revisió d'un assessor|Actualitzacions de l'avanç"
+        }
+      }
+    },
+    "tiers": {
+      "title": "Preus",
+      "lede": "Dues maneres de sol·licitar-lo, totes dues gratuïtes.",
+      "cta": "Contacta amb nosaltres",
+      "criteria": "Compara",
+      "guided": "Guiat",
+      "full": "Servei complet",
+      "rows": {
+        "fee": {
+          "label": "Tarifa de VIZA",
+          "guided": "Gratuït",
+          "full": "Gratuït"
+        },
+        "form": {
+          "label": "Formulari de sol·licitud",
+          "guided": "Respons tu, amb la IA de VIZA com a guia",
+          "full": "Un consultor prepara les respostes amb tu"
+        },
+        "documents": {
+          "label": "Documents",
+          "guided": "Una llista de verificació per a la teva situació",
+          "full": "Un consultor revisa els teus documents"
+        },
+        "interview": {
+          "label": "Cita i entrevista",
+          "guided": "Reserves i hi vas tu",
+          "full": "Repassem amb tu les preguntes més probables"
+        },
+        "govFee": {
+          "label": "Taxa governamental",
+          "guided": "Es paga directament a l'autoritat",
+          "full": "Es paga directament a l'autoritat"
+        },
+        "bestFor": {
+          "label": "Ideal per a",
+          "guided": "Sol·licituds senzilles",
+          "full": "Casos complexos o una denegació anterior"
+        }
+      }
+    },
+    "why": {
+      "title": "Per què VIZA",
+      "lede": "Passos clars, formularis revisats i persones reals amb qui parlar.",
+      "items": {
+        "free": {
+          "title": "Servei gratuït",
+          "body": "L'ajuda de VIZA no costa res. Només pagues la taxa governamental, directament a l'autoritat."
+        },
+        "checked": {
+          "title": "Formularis revisats",
+          "body": "Un assessor revisa cada formulari abans de presentar-lo, així els petits errors es detecten d'hora."
+        },
+        "language": {
+          "title": "Anglès i xinès",
+          "body": "Parla amb VIZA en anglès o en xinès, per WhatsApp, WeChat o correu electrònic."
+        }
+      },
+      "photos": {
+        "arrival": {
+          "title": "Targetes d'arribada",
+          "body": "Ajuda pas a pas amb les targetes d'arribada gratuïtes de Malàisia, Singapur, el Japó, Tailàndia, Corea i Indonèsia."
+        },
+        "news": {
+          "title": "Notícies",
+          "body": "Canvis en les normes de visat i nous sistemes de visat electrònic, explicats amb paraules clares."
+        }
+      }
+    },
+    "guides": {
+      "title": "Guies",
+      "cta": "Totes les guies"
+    },
+    "faq": {
+      "lede": "Respostes ràpides sobre el servei de visats de VIZA.",
+      "more": "Més preguntes?",
+      "items": {
+        "cost": {
+          "q": "VIZA cobra pel seu servei?",
+          "a": "No. L'ajuda de VIZA és gratuïta. Si un destí cobra una taxa governamental de visat, la pagues directament a aquell govern."
+        },
+        "visas": {
+          "q": "Amb quins visats pot ajudar VIZA?",
+          "a": "Visats de turista, de negocis, de feina, d'estudiant i de llarga estada per als destins d'aquesta pàgina. Si el teu no hi surt, escriu-nos i un consultor t'explicarà què és possible."
+        },
+        "approval": {
+          "q": "Qui decideix sobre el meu visat?",
+          "a": "L'autoritat que l'emet pren totes les decisions. VIZA revisa el formulari i els documents abans de presentar-los, perquè la sol·licitud sigui completa i coherent."
+        },
+        "tiers": {
+          "q": "Quina diferència hi ha entre Guiat i Servei complet?",
+          "a": "Amb Guiat, la IA de VIZA et guia pel formulari i la llista de verificació, i tu controles cada resposta. Amb Servei complet, un consultor prepara les respostes amb tu i revisa els teus documents. Tots dos són gratuïts."
+        },
+        "language": {
+          "q": "Quins idiomes oferiu?",
+          "a": "Anglès i xinès, per WhatsApp, WeChat, telèfon i correu electrònic."
+        }
+      }
+    },
+    "contactCard": {
+      "title": "Parla amb un consultor de VIZA",
+      "body": "Responem en anglès o en xinès.",
+      "cta": "Contacta amb nosaltres"
+    },
+    "cta": {
+      "title": "Comença la teva sol·licitud",
+      "point1": "Les teves dades es mantenen privades",
+      "point2": "Et respon una persona real",
+      "formTitle": "Fes una pregunta",
+      "formBody": "Digue'ns on vas i un consultor de VIZA et respondrà per correu electrònic."
+    }
+  },
+  "aboutPage": {
+    "h1": "Sobre VIZA",
+    "intro": {
+      "title": "Què és VIZA",
+      "text": "VIZA prepara, revisa i presenta sol·licituds de visat per a persones que viuen a Singapur. La nostra IA s'encarrega del paperassa i els nostres consultors revisen cada formulari. El servei és gratuït."
+    },
+    "facts": {
+      "destinations": "Destins",
+      "guides": "Guies de visat",
+      "arrival": "Guies de targetes d'arribada",
+      "free": "Gratuït",
+      "freeLabel": "Servei de VIZA"
+    },
+    "tiersTitle": "Guiat o Servei complet",
+    "tiersLede": "Tria quanta ajuda vols. Tots dos són gratuïts.",
+    "free": {
+      "title": "Servei gratuït",
+      "text": "VIZA no cobra per la seva ajuda. Quan un destí té una taxa governamental de visat, VIZA te la mostra abans de començar i la pagues directament a l'autoritat que l'emet. No hi ha millores de pagament."
+    },
+    "company": {
+      "title": "Dades de l'empresa",
+      "office": "Domicili social",
+      "officeValue": "60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapur 409051",
+      "email": "Correu electrònic",
+      "phone": "Telèfon i WhatsApp",
+      "languages": "Idiomes",
+      "languagesValue": "Anglès i xinès"
+    }
+  },
+  "contactPage": {
+    "h1": "Contacte",
+    "lines": {
+      "whatsapp": {
+        "title": "Telèfon i WhatsApp",
+        "body": "Truca o escriu a un consultor."
+      },
+      "wechat": {
+        "body": "Cerca l'ID a WeChat per afegir-nos."
+      },
+      "email": {
+        "title": "Correu electrònic",
+        "body": "Ideal per a documents i preguntes més llargues."
+      },
+      "office": {
+        "top": "Singapur",
+        "title": "Oficina",
+        "body": "60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapur 409051"
+      }
+    },
+    "message": {
+      "title": "Envia'ns un missatge",
+      "text": "Preguntes sobre un visat, un destí o sobre com treballar amb VIZA. Escriu-nos i un consultor et respondrà."
+    }
+  },
+  "careersPage": {
+    "title": "Feina",
+    "lede": "VIZA ajuda les persones a Singapur a obtenir el visat amb IA i consultors, i el servei és gratuït. Contractem gent a qui li agrada el treball acurat i útil.",
+    "teamsTitle": "Equips",
+    "teams": [
+      {
+        "title": "Enginyeria",
+        "body": "Construeix les comprovacions de documents, el flux de sol·licitud i les eines que fan servir els nostres consultors."
+      },
+      {
+        "title": "Disseny",
+        "body": "Fes que un procés estressant sigui clar per a qui sol·licita."
+      },
+      {
+        "title": "Operacions",
+        "body": "Mantén cada sol·licitud en marxa i cada requisit al dia."
+      },
+      {
+        "title": "Consultoria",
+        "body": "Ajuda els sol·licitants en els casos que necessiten una persona, en anglès i en xinès."
+      },
+      {
+        "title": "Dades",
+        "body": "Converteix les fonts governamentals en comprovacions que detecten els problemes d'hora."
+      },
+      {
+        "title": "Màrqueting",
+        "body": "Explica els visats amb claredat, en guies i pàgines en què es pugui confiar."
+      }
+    ],
+    "applyTitle": "Posa't en contacte",
+    "applyBody": "Explica'ns qui ets i a quin equip t'agradaria unir-te. Llegim totes les notes.",
+    "applyCta": "Contacta amb nosaltres"
+  },
+  "pageCopy": {
+    "product": {
+      "introTitle": "Com ajuda VIZA amb la teva sol·licitud de visat",
+      "introLede": "Descobreix els serveis disponibles de preparació del visat, revisió de documents i estat de la sol·licitud. El servei de VIZA és gratuït. L'abast exacte i la disponibilitat es mostren quan tries un destí.",
+      "browse": "Explora els destins"
+    },
+    "events": {
+      "title": "Encara no hi ha esdeveniments",
+      "lede": "Aquí s'anunciaran les futures consultes de visat, sessions informatives i esdeveniments amb col·laboradors.",
+      "contact": "Contacta amb nosaltres"
+    }
+  },
+  "og": {
+    "band": "VIZA és gratuït. Les taxes governamentals es paguen a part.",
+    "destSubtitle": "Taxes i com sol·licitar-lo"
+  }
+}

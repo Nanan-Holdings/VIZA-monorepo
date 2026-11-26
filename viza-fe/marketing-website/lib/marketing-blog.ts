@@ -107,7 +107,7 @@ function blogUrl(origin: string, path: string, locale: Locale): string {
 async function fetchBlog(url: string): Promise<Response> {
   return fetch(url, {
     headers: { Accept: "application/json" },
-    next: { revalidate: 300 },
+    cache: "force-cache", // static at build; fresh posts arrive through /api/revalidate, never timed ISR
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
 }

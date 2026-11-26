@@ -1,0 +1,2150 @@
+{
+  "cta": {
+    "startFreeApplication": "Simulan ang iyong libreng aplikasyon"
+  },
+  "nav": {
+    "home": "Home",
+    "apply": "Mag-apply",
+    "visas": "Mga visa",
+    "explore": "Mag-explore",
+    "events": "Mga event",
+    "blog": "Balita",
+    "careers": "Mga trabaho",
+    "contact": "Makipag-ugnayan",
+    "signIn": "Mag-sign in",
+    "getStarted": "Magsimula",
+    "yourPassport": "Ang pasaporte mo",
+    "searchPlaceholder": "Maghanap ng bansa o visa…",
+    "arrivalCards": "Mga arrival card",
+    "guides": "Mga gabay"
+  },
+  "footer": {
+    "followUs": "Sundan kami:",
+    "followOn": "Sundan ang VIZA sa {platform}",
+    "product": "Mga produkto",
+    "company": "Kumpanya",
+    "legal": "Legal",
+    "offices": "Mga opisina",
+    "askAi": "Magtanong sa AI tungkol sa VIZA",
+    "security": "Seguridad",
+    "status": "Status",
+    "privacy": "Privacy",
+    "terms": "Mga tuntunin",
+    "rights": "Lahat ng karapatan ay nakalaan.",
+    "tagline": "Tinutulungan ka ng VIZA na magplano, mag-apply at mag-track ng mga visa nang maayos saanmang panig ng mundo.",
+    "careers": "Mga trabaho",
+    "contact": "Makipag-ugnayan",
+    "copyright": "© VIZA, Lahat ng karapatan ay nakalaan",
+    "prodMockInterview": "U.S. Mock Interview",
+    "prodVisaReq": "Mga requirement sa visa",
+    "prodSchengen": "Schengen Appointment Checker",
+    "prodPhoto": "Visa Photo Creator",
+    "prodHelpline": "VIZA Emergency Helpline",
+    "prodStudent": "Student Visa",
+    "arrivalCards": "Mga arrival card",
+    "guides": "Mga gabay",
+    "news": "Balita"
+  },
+  "pages": {
+    "blog": {
+      "metaTitle": "Balita sa Visa at Pagbabago ng Patakaran | VIZA",
+      "metaDescription": "Balita sa visa mula sa VIZA: mga pagbabago sa patakaran, bagong e-visa at ETA, at epekto nito sa mga nakatira sa Singapore. Ina-update kapag may pagbabago.",
+      "title": "Balita sa visa",
+      "lede": "Mga pagbabago sa patakaran at update, ipinaliwanag sa simpleng salita. Para sa payo na nananatiling totoo, basahin ang mga gabay.",
+      "readArticle": "Basahin ang artikulo",
+      "featuredLabel": "Pinakabagong balita",
+      "articlesTitle": "Pinakabagong balita",
+      "articlesDescription": "Mga update sa patakaran at pagbabago sa mga patakaran sa biyahe.",
+      "allPosts": "Lahat ng post",
+      "noMorePosts": "Parating pa ang iba pang balita.",
+      "emptyTitle": "Wala pang nailathalang balita",
+      "emptyBody": "Inihahanda pa ang mga unang update namin. Bumalik ka ulit sa susunod.",
+      "unavailableTitle": "Pansamantalang hindi available ang balita",
+      "unavailableBody": "Hindi namin ma-load ang mga pinakabagong nailathalang balita. Subukan ulit mamaya.",
+      "backToBlog": "Bumalik sa balita",
+      "by": "Ni",
+      "updated": "Na-update",
+      "categoriesLabel": "Mga paksa ng balita",
+      "topicLabel": "Paksa",
+      "relatedTitle": "Iba pang balita",
+      "relatedDescription": "Iba pang balita sa visa mula sa VIZA.",
+      "ctaEyebrow": "Magplano nang panatag",
+      "ctaTitle": "Handa ka na bang simulan ang aplikasyon mo?",
+      "ctaBody": "Sabihin sa amin kung saan mo gustong pumunta. Gagabayan ka ng VIZA sa mga requirement at susunod na hakbang.",
+      "ctaAction": "Magsimula ng aplikasyon",
+      "categoryMetaTitle": "Balita sa {category} | VIZA",
+      "categoryMetaDescription": "Basahin ang balita ng VIZA tungkol sa {category}: ano ang nagbago, sino ang apektado at ano ang susunod na gagawin.",
+      "categoryLede": "Balita tungkol sa {category}.",
+      "visaLinkTitle": "Mag-a-apply ba ng visa sa {country}?",
+      "visaLinkBody": "Tingnan ang mga dokumento, bayad sa gobyerno at mga hakbang para sa mga nakatira sa Singapore.",
+      "visaLinkAction": "Gabay sa visa ng {country}",
+      "guidesTitle": "Mga kaugnay na gabay",
+      "guidesBody": "Mga gabay na laging napapanahon sa paksang ito."
+    },
+    "home": {
+      "title": "Aplikasyon sa Visa sa Singapore: US, India, Vietnam | VIZA",
+      "description": "Mag-apply ng US visa (DS-160), e-visa ng India, Vietnam o Egypt, o Schengen visa ng France. Sinusuri ng advisor ang bawat form bago ito i-file.",
+      "heroTitle": "Saan naman susunod?",
+      "heroLede": "Tingnan ang mga opsyon sa visa para sa kahit anong destinasyon. Ang VIZA consultant mo at ang AI namin ang bahala sa papeles, ikaw ang magbu-book ng biyahe."
+    },
+    "apply": {
+      "title": "Magsimula ng Aplikasyon sa Visa | VIZA",
+      "description": "I-upload ang pasaporte, kumpirmahin ang detalye at ipasa ang aplikasyon sa visa sa VIZA advisor. Libre ang serbisyo ng VIZA.",
+      "saveBadge": "Na-save · ituloy anumang oras"
+    },
+    "careers": {
+      "title": "Mga Trabaho | VIZA",
+      "description": "Magtrabaho sa VIZA, ang libreng visa service ng Kelin Studio sa Singapore. Tingnan ang mga team na kumukuha at paano makipag-ugnayan tungkol sa isang role.",
+      "rightCta": "Tingnan ang mga role"
+    },
+    "contact": {
+      "title": "Makipag-ugnayan: WhatsApp, WeChat, Telepono, Email | VIZA",
+      "description": "Abutin ang VIZA team sa WhatsApp, WeChat, telepono o email. Apat na channel, apat na desk, at totoong tao ang sumasagot.",
+      "rightCta": "Sumulat sa amin"
+    },
+    "security": {
+      "title": "Seguridad at Responsible Disclosure | VIZA",
+      "description": "Pribado, bukas at ligtas bilang default. Paano pinoprotektahan ng VIZA ang data ng customer, ang vulnerability disclosure program namin at safe harbour.",
+      "rightCta": "Mag-ulat ng vulnerability"
+    },
+    "status": {
+      "title": "Status ng Sistema | VIZA",
+      "description": "Live na status ng VIZA at ng mga visa portal ng gobyerno na pinagpa-file-an namin.",
+      "navPill": "Gumagana ang lahat ng sistema"
+    },
+    "visa": {
+      "applyCta": "Mag-apply na",
+      "applicationProcess": "Proseso ng aplikasyon",
+      "documents": "Mga dokumento",
+      "rejectionReasons": "Mga dahilan ng pagtanggi",
+      "entryExit": "Pagpasok at paglabas",
+      "extension": "Extension",
+      "reviews": "Mga review",
+      "nearby": "Mga kalapit na bansa",
+      "sources": "Mga opisyal na pinagkunan"
+    },
+    "privacy": {
+      "title": "Patakaran sa Privacy | VIZA",
+      "description": "Ano ang kinokolekta ng VIZA kapag nag-apply ka ng visa, bakit, sino ang nakakakita at gaano katagal itinatago, ayon sa PDPA ng Singapore."
+    },
+    "terms": {
+      "title": "Mga Tuntunin at Kundisyon | VIZA",
+      "description": "Ang mga tuntunin sa paggamit ng serbisyo ng VIZA sa aplikasyon ng visa, na pinapatakbo ng Kelin Studio Pte. Ltd. sa Singapore. Libre ang serbisyo ng VIZA."
+    },
+    "product": {
+      "title": "Paano Ka Sinusuportahan ng VIZA sa Visa | VIZA",
+      "description": "Paghahanda ng visa, pagsusuri ng dokumento at status ng aplikasyon sa iisang lugar. Libre ang serbisyo ng VIZA. Makikita ang saklaw sa bawat destinasyon."
+    },
+    "events": {
+      "title": "Mga Event | VIZA",
+      "description": "Mga visa clinic, info session at partner event mula sa VIZA."
+    },
+    "arrivalCards": {
+      "title": "Arrival Card: MDAC, SG Arrival Card, TDAC | VIZA",
+      "description": "Libreng gabay sa arrival card ng Malaysia, Singapore, Japan, Thailand, Korea at Indonesia: sino ang kailangan, kailan isusumite, at tulong na hakbang-hakbang."
+    },
+    "guides": {
+      "title": "Mga Gabay sa Visa para sa mga Nasa Singapore | VIZA",
+      "description": "Simpleng gabay para sa mga nakatira sa Singapore: visa-free na bansa, dokumento sa Schengen, US interview, ETA, e-visa at pagtanggi. Libreng basahin."
+    },
+    "about": {
+      "title": "Tungkol sa VIZA: Libreng Tulong sa Visa | VIZA",
+      "description": "Inihahanda, sinusuri at ina-file ng VIZA ang visa application ng mga nasa Singapore gamit ang AI at consultant. Libre ito; bayad sa gobyerno ay sa awtoridad."
+    },
+    "visaIndex": {
+      "title": "Mga Destinasyon ng Visa: Requirement sa Bawat Bansa | VIZA",
+      "description": "Ihambing ang mga requirement sa visa sa bawat bansa, kasama ang mga dokumento at bayarin. Libre ang tulong ng VIZA.",
+      "heroTitle": "Mga destinasyon ng visa"
+    },
+    "refunds": {
+      "title": "Patakaran sa Refund | VIZA",
+      "description": "Libre ang serbisyo ng VIZA, kaya walang service fee na ire-refund. Paano gumagana ang mga bayad sa gobyerno at sa ibang provider."
+    },
+    "businessInformation": {
+      "title": "Impormasyon ng Negosyo | VIZA",
+      "description": "Pinapatakbo ang VIZA ng Kelin Studio Pte. Ltd., isang kumpanya sa Singapore. Rehistradong address, UEN at detalye ng contact."
+    }
+  },
+  "common": {
+    "comingSoon": "Malapit na",
+    "learnMore": "Alamin pa",
+    "readMore": "Magbasa pa",
+    "applyNow": "Mag-apply na",
+    "talkToHuman": "Kausapin ang tao",
+    "viewAll": "Tingnan lahat"
+  },
+  "visa": {
+    "heroTitle": "Visa ng {country}",
+    "validity": "Bisa",
+    "howItWorks": "Paano ito gumagana",
+    "step1": "Sabihin sa amin ang detalye ng biyahe mo at i-upload ang pasaporte.",
+    "step2": "Kukumpletuhin at susuriin namin ang aplikasyon mo ayon sa pinakabagong patakaran.",
+    "step3": "Isusumite namin ito sa portal ng gobyerno at susubaybayan ang desisyon.",
+    "step4": "Darating sa email ang aprubadong visa mo, at binabantayan namin ito mula simula hanggang dulo.",
+    "documents": "Ano ang kakailanganin mo",
+    "doc1": "Pasaporteng may bisa nang hindi bababa sa 6 na buwan.",
+    "doc2": "Bagong litratong pang-pasaporte.",
+    "doc3": "Ang petsa ng biyahe at tutuluyan mo.",
+    "doc4": "Kung may bayad sa visa ang destinasyon, payment card para direktang bayaran ito sa gobyerno.",
+    "nearby": "Mga kalapit na destinasyon",
+    "startApplication": "Simulan ang aplikasyon mo",
+    "comingSoonTitle": "{country}: malapit na",
+    "comingSoonBody": "Tinatapos na namin ang {country}. Gumawa ng account at ipapaalam namin sa iyo sa sandaling live na ito.",
+    "browseDestinations": "Tingnan ang mga destinasyon",
+    "notifyMe": "Ipaalam sa akin",
+    "back": "Bumalik sa explore",
+    "tabOverview": "Pangkalahatang-ideya",
+    "tabProcess": "Proseso ng aplikasyon",
+    "tabDocuments": "Mga dokumento",
+    "tabRejection": "Mga dahilan ng pagtanggi",
+    "tabEntry": "Pagpasok at paglabas",
+    "tabExtension": "Extension",
+    "tabReviews": "Mga review",
+    "tabNearby": "Mga kalapit na bansa",
+    "reviewsTitle": "Mga review",
+    "nearbyTitle": "Mga kalapit na bansa",
+    "nearbySub": "Naglalakbay sa rehiyon? Magdagdag ng isa pang visa sa biyahe mo, at pagsasama-samahin ito ng VIZA consultant mo.",
+    "faqTitle": "Mga madalas itanong",
+    "editorial": "Sumusunod ang pahinang ito sa editorial policy ng VIZA. Umaasa kami sa mga opisyal na source ng gobyerno at ina-update ang bawat requirement kapag nagbago ang patakaran.",
+    "editorialLink": "Basahin kung paano kami nagsusuri",
+    "sourcesTitle": "Mga pinagkunan",
+    "priceGovt": "Bayad sa gobyerno",
+    "priceFree": "Libre",
+    "pillAllInclusive": "Kasama na ang lahat",
+    "priceCta": "Simulan ang aplikasyon",
+    "onTime": "Nasa oras",
+    "freeService": "Libreng serbisyo ng VIZA",
+    "freeServiceNote": "Walang sinisingil ang VIZA para sa tulong nito",
+    "govFeePaidDirect": "Bayad sa gobyerno na {fee}, direktang binabayaran sa ahensyang nag-iisyu.",
+    "govFeeSetByAuthority": "Ang ahensyang nag-iisyu ang nagtatakda ng anumang bayad sa gobyerno at dito ito direktang binabayaran.",
+    "govFeeSetByAuthorityShort": "Itinakda ng awtoridad",
+    "priceService": "Serbisyo ng VIZA",
+    "pillPaidToAuthority": "Binabayaran sa awtoridad",
+    "priceTotalToViza": "Babayaran mo sa VIZA",
+    "breadcrumbVisas": "Mga destinasyon ng visa",
+    "serviceDescription": "Tinutulungan ng VIZA ang mga nakatira sa Singapore na maghanda, magsuri at magsumite ng aplikasyon sa {country} {type} gamit ang gabay ng AI at pagsusuri ng eksperto.",
+    "offerDescription": "Service fee ng VIZA. Hiwalay ang mga bayad sa visa sa gobyerno at direktang binabayaran sa ahensyang nag-iisyu.",
+    "dest": {
+      "tabGlance": "Sa isang tingin",
+      "tabPassports": "Mga pasaporte",
+      "tabTypes": "Mga uri ng visa",
+      "tabResidents": "Mga residente",
+      "tabFees": "Mga bayarin",
+      "tabApply": "Paano mag-apply",
+      "tabChecklist": "Mga dokumento",
+      "tabRejection": "Mga pagtanggi",
+      "tabTravel": "Bago ka bumiyahe",
+      "tabRelated": "Kaugnay",
+      "glanceTitle": "Sa isang tingin",
+      "glanceVisa": "Kailangan ng visa",
+      "glanceGovFee": "Bayad sa gobyerno",
+      "glanceVizaFee": "Bayad sa VIZA",
+      "glanceProcessing": "Tagal ng pagproseso",
+      "glanceMaxStay": "Pinakamahabang pananatili",
+      "glanceChecked": "Petsa ng pagsusuri",
+      "passportsTitle": "Kailangan mo ba ng visa?",
+      "typesTitle": "Mga uri ng visa",
+      "residentsTitle": "Mga residente ng Singapore",
+      "feesTitle": "Mga bayarin at tagal",
+      "applyTitle": "Paano mag-apply",
+      "checklistTitle": "Checklist ng dokumento",
+      "travelTitle": "Bago ka bumiyahe",
+      "colPassport": "Pasaporte",
+      "colEntry": "Pagpasok",
+      "colNotes": "Mga tala",
+      "colItem": "Item",
+      "colAmount": "Halaga",
+      "vizaFeeNote": "Libre ang tulong ng VIZA. Bayad sa gobyerno lang ang babayaran mo, direkta sa awtoridad.",
+      "reviewedBy": "Sinuri ng isang VIZA consultant noong {date}.",
+      "relatedTitle": "Mga kaugnay na destinasyon",
+      "relatedSub": "Iba pang lugar na idinadagdag ng mga tao sa parehong biyahe, at kung saan magbabasa pa.",
+      "startTitle": "Simulan ang aplikasyon",
+      "startBody": "Magsimula sa pasaporte at petsa ng biyahe mo. Libre ang tulong ng VIZA at direkta mong babayaran ang bayad sa gobyerno sa awtoridad.",
+      "startConsultBody": "Sabihin sa VIZA consultant kung saan ka nakatira, ang pasaporte mo at ang petsa ng biyahe mo. Libre ang tulong ng VIZA.",
+      "consultCta": "Kausapin ang consultant"
+    }
+  },
+  "apply": {
+    "stepOf": "Hakbang {n} sa 3",
+    "back": "Bumalik",
+    "continue": "Magpatuloy",
+    "step1Name": "I-upload ang pasaporte",
+    "step2Name": "Kumpirmahin ang detalye",
+    "step3Name": "Simulan ang aplikasyon",
+    "s1Title": "I-upload ang pasaporte mo",
+    "s1Desc": "Awtomatiko naming babasahin ang detalye mo, hindi mo na kailangang mag-type. Gamitin ang bio page (ang may litrato mo).",
+    "segUpload": "Mag-upload ng file",
+    "segCapture": "Kumuha ng litrato",
+    "dzTitle": "I-drop dito ang litrato ng pasaporte mo",
+    "dzSub": "O i-click para mag-browse. Naka-encrypt ang file mo at hindi ibinabahagi kaninuman",
+    "dzBrowse": "Pumili ng file",
+    "dzUpTo": "Hanggang 10 MB",
+    "tip1Title": "Kita ang lahat ng apat na sulok",
+    "tip1Sub": "Kunan ang buong bio page, kasama ang MRZ sa ibaba.",
+    "tip2Title": "Maliwanag at pantay na ilaw",
+    "tip2Sub": "Iwasan ang anino ng kamay o phone case mo.",
+    "tip3Title": "Walang glare o repleksyon",
+    "tip3Sub": "Bahagyang ikiling kung nagre-reflect ang seal.",
+    "errReadFail": "Hindi nabasa ang pasaporteng iyon: {detail}. Subukan ang mas malinaw na litrato ng bio page.",
+    "extReading": "Binabasa ang dokumento",
+    "extExtracting": "Kinukuha ang detalye mo",
+    "extVerifying": "Bine-verify ang pagiging tunay",
+    "stReading": "Binabasa…",
+    "stExtracting": "Kinukuha…",
+    "stVerifying": "Bine-verify…",
+    "s2Title": "Kumpirmahin ang detalye mo",
+    "s2Desc": "Direkta naming kinuha ang mga ito sa pasaporte mo. I-tap ang kahit anong field para i-edit.",
+    "successHigh": "Matagumpay na nakuha ang detalye ng pasaporte, mataas ang kumpiyansa",
+    "warnLow": "Mahirap basahin ang ilang field. Pakisuri ulit ang bawat value sa ibaba.",
+    "warnMed": "Nakuha namin ang karamihan ng detalye mo. Pakitiyak ang mga naka-highlight na field.",
+    "ppDetails": "Detalye ng pasaporte",
+    "autoExtracted": "Awtomatikong nakuha",
+    "fSurname": "Apelyido",
+    "fGiven": "Mga pangalan",
+    "fPassport": "Numero ng pasaporte",
+    "fDob": "Petsa ng kapanganakan",
+    "fNationality": "Nasyonalidad",
+    "fExpires": "Mag-e-expire",
+    "reachTitle": "Paano ka namin makokontak?",
+    "reachDesc": "Ipapadala namin dito ang visa mo, at magte-text kami ng mga update sa status sa telepono mo.",
+    "email": "Email",
+    "phone": "Telepono",
+    "consent": "Kinukumpirma kong tugma sa pasaporte ko ang mga detalye sa itaas, at pinapahintulutan ko ang VIZA na isumite ang aplikasyong ito para sa akin sa mga awtoridad sa imigrasyon ng {country}.",
+    "s3Title": "Simulan ang aplikasyon mo",
+    "s3Desc": "Libre ang serbisyo ng VIZA. Mag-sign in sa VIZA portal at kami na ang bahala sa susunod.",
+    "headsUp": "Paalala:",
+    "headsUpBody": "kung may bayad sa visa ang gobyerno ng {country}, direkta mo itong babayaran sa kanila. Hindi kailanman kinokolekta o dinadagdagan ng VIZA ang halagang iyon.",
+    "yourApp": "Ang aplikasyon mo",
+    "guaranteedBy": "Garantisadong maihahatid pagsapit ng",
+    "govFee": "Bayad sa gobyerno",
+    "expressUpgrade": "Express upgrade",
+    "total": "Kabuuan",
+    "footEncrypted": "Naka-encrypt mula simula hanggang dulo. Hindi ka sinisingil ng VIZA para sa aplikasyong ito.",
+    "helpOnline": "Online si Priya",
+    "helpTap": "I-tap para makipag-chat sa VIZA consultant mo",
+    "totalAmount": "SGD {amount}",
+    "totalFree": "Libre",
+    "etaStandard": "12 Mayo 2026, 8:00 AM SGT",
+    "failTitle": "Hindi namin nabasa ang dokumentong iyon",
+    "failNotPassport": "Mukhang hindi ito bio page ng pasaporte. Mag-upload ng litrato ng pahinang may litrato at personal na detalye mo.",
+    "failUnreadable": "Wala sa mga kinakailangang field ang nabasa. Kunan ulit ng litrato sa maliwanag na lugar, nakapatag at malinaw ang buong bio page.",
+    "tryAgain": "Subukan ulit",
+    "warnPartial": "Hindi namin nabasa lahat. Pakikumpleto ang mga naka-highlight na field sa ibaba.",
+    "warnExpired": "Mukhang expired na ang pasaporteng ito. Karamihan ng destinasyon ay nangangailangan ng hindi bababa sa 6 na buwang bisa.",
+    "warnMrz": "Hindi nabasa ang machine-readable zone (ang dalawang linya sa ibaba). Pakisuri ulit ang bawat field.",
+    "warnBlurry": "Malabo ang litrato. Pakisuri nang mabuti ang bawat field.",
+    "fieldRequired": "Kailangan, pakilagyan",
+    "editField": "I-edit ang {field}",
+    "emailInvalid": "Maglagay ng wastong email address. Dito ipapadala ang mga update sa visa at sign-in link mo.",
+    "phoneInvalid": "Maglagay ng wastong numero ng telepono.",
+    "consentRequired": "Pakikumpirma ang deklarasyon para magpatuloy.",
+    "continueToStart": "Magpatuloy",
+    "startTitle": "Ipagpatuloy sa VIZA portal",
+    "startSub": "Mag-sign in o gumawa ng libreng account. Agad na bubukas ang aplikasyon mo para sa destinasyong ito.",
+    "vizaService": "Serbisyo ng VIZA",
+    "govFeeSetByAuthority": "Itinakda ng awtoridad",
+    "govFeeNote": "Anumang bayad sa visa sa gobyerno ay direktang binabayaran sa ahensyang nag-iisyu, hindi sa VIZA.",
+    "completeBeforeStart": "Pakikumpleto muna ang mga naka-highlight na item sa itaas bago magpatuloy."
+  },
+  "explore": {
+    "help": "Tulong",
+    "passportLabel": "Pasaporte ng {name}",
+    "passportSub": "Mga requirement sa visa sa {n} destinasyon · Ranggo {rank}",
+    "freeLabel": "Visa-free",
+    "freeNote": "walang papeles",
+    "voaLabel": "e-Visa o VOA",
+    "voaNote": "kami na ang bahala",
+    "reqLabel": "Kailangan ng visa",
+    "reqNote": "file sa embahada",
+    "fullMap": "Tingnan ang buong visa map",
+    "grid": "Grid",
+    "map": "Mapa",
+    "mapLegendEvisa": "e-Visa at mga visitor visa",
+    "mapHint": "I-hover ang may markang tuldok para makita ang preview ng destinasyon",
+    "sectionTitle": "Para sa mga pasaporte ng {country}",
+    "seeAll": "Tingnan lahat ng {n}",
+    "footnote": "Libre ang serbisyo ng VIZA. Anumang bayad sa visa sa gobyerno ay direktang binabayaran sa ahensyang nag-iisyu at iba-iba sa bawat bansa.",
+    "fastTrack": "Fast track",
+    "cardType": "Uri",
+    "cardValid": "Bisa",
+    "cardFee": "Serbisyo ng VIZA",
+    "save": "I-save",
+    "startApplication": "Simulan ang aplikasyon",
+    "catalogueUnavailable": "Walang destinasyong bukas para sa online na aplikasyon ngayon. Bumalik ka ulit sa susunod.",
+    "choosePassport": "Piliin ang pasaporte mo",
+    "searchPassport": "Hanapin ang bansa ng pasaporte…",
+    "visaFree": "{n} visa-free",
+    "ppFoot": "Na-update para sa Mayo 2026 · Mula sa IATA Timatic",
+    "noMatch": "Walang pasaporteng tumutugma sa “{q}”",
+    "filters": {
+      "delivery": "Paghahatid ng visa",
+      "type": "Uri ng visa",
+      "documents": "Mga dokumento",
+      "dates": "Petsa ng biyahe"
+    },
+    "filterOpts": {
+      "delivery": [
+        "Kahit kailan",
+        "Sa loob ng 24 oras",
+        "Sa loob ng 3 araw",
+        "Sa loob ng 1 linggo",
+        "Sa loob ng 1 buwan"
+      ],
+      "type": [
+        "Lahat ng uri",
+        "Turista",
+        "Negosyo",
+        "Trabaho",
+        "Estudyante",
+        "Digital nomad"
+      ],
+      "documents": [
+        "Kahit anong dokumento",
+        "Kaunti lang (pasaporte lang)",
+        "Karaniwan",
+        "Kumpletong pakete"
+      ],
+      "dates": [
+        "Pumili ng petsa",
+        "Ngayong linggo",
+        "Ngayong buwan",
+        "Sa loob ng 3 buwan",
+        "Sa loob ng 6 na buwan"
+      ]
+    }
+  },
+  "cities": {
+    "viza-test": "Live checkout test",
+    "indonesia": "Bali · Jakarta",
+    "egypt": "Cairo · Giza",
+    "australia": "Sydney · Melbourne",
+    "saudi-arabia": "Riyadh · AlUla",
+    "united-kingdom": "London · Edinburgh",
+    "vietnam": "Hanoi · Hoi An",
+    "malaysia": "KL · Penang",
+    "japan": "Tokyo · Kyoto",
+    "united-states": "NYC · LA",
+    "canada": "Toronto · Vancouver",
+    "turkiye": "Istanbul · Cappadocia",
+    "thailand": "Bangkok · Phuket",
+    "united-arab-emirates": "Dubai · Abu Dhabi",
+    "france": "Paris · Nice",
+    "italy": "Roma · Florence",
+    "india": "Delhi · Mumbai"
+  },
+  "validity": {
+    "viza-test": "Pang-demo lang",
+    "indonesia": "90 araw",
+    "egypt": "90 araw",
+    "australia": "1 taon",
+    "saudi-arabia": "365 araw",
+    "united-kingdom": "6 buwan",
+    "vietnam": "90 araw",
+    "malaysia": "3 buwan",
+    "japan": "90 araw",
+    "united-states": "10 taon",
+    "canada": "10 taon",
+    "turkiye": "180 araw",
+    "thailand": "3 buwan",
+    "united-arab-emirates": "60 araw",
+    "france": "90 araw",
+    "italy": "90 araw",
+    "india": "30 araw"
+  },
+  "passports": {
+    "SG": "Singapore",
+    "JP": "Japan",
+    "KR": "Timog Korea",
+    "DE": "Alemanya",
+    "FR": "Pransya",
+    "GB": "United Kingdom",
+    "US": "Estados Unidos",
+    "AU": "Australia",
+    "CA": "Canada",
+    "AE": "United Arab Emirates",
+    "CN": "Tsina",
+    "IN": "India",
+    "BR": "Brazil",
+    "PH": "Pilipinas",
+    "ID": "Indonesia",
+    "MY": "Malaysia",
+    "TH": "Thailand"
+  },
+  "countries": {
+    "viza-test": "VIZA Test",
+    "indonesia": "Indonesia",
+    "egypt": "Ehipto",
+    "australia": "Australia",
+    "saudi-arabia": "Saudi Arabia",
+    "united-kingdom": "United Kingdom",
+    "vietnam": "Vietnam",
+    "malaysia": "Malaysia",
+    "japan": "Japan",
+    "united-states": "Estados Unidos",
+    "canada": "Canada",
+    "turkiye": "Türkiye",
+    "thailand": "Thailand",
+    "united-arab-emirates": "United Arab Emirates",
+    "france": "Pransya",
+    "italy": "Italya",
+    "india": "India",
+    "china": "Tsina",
+    "south-korea": "Timog Korea",
+    "schengen": "Schengen"
+  },
+  "visaTypes": {
+    "Test checkout": "Test checkout",
+    "e-Visa": "e-Visa",
+    "Standard Visitor": "Standard Visitor",
+    "Visitor 600": "Visitor 600",
+    "Tourist": "Turista",
+    "B1/B2": "B1/B2",
+    "eTA": "eTA",
+    "Schengen": "Schengen",
+    "eVisa": "eVisa",
+    "Visitor visa": "Visitor visa",
+    "Tourist visa": "Tourist visa"
+  },
+  "careers": {
+    "hero": {
+      "nowHiring": "Kumukuha ngayon sa",
+      "cities": [
+        "Shanghai",
+        "Singapore"
+      ],
+      "openRoles": "28 bukas na role",
+      "title": "Tulungan kaming gawing<br></br><em>mawala</em> ang mga hangganan, <u>nang tahimik,</u><br></br>sa bilis ng software.",
+      "lead": "Ginagawa naming oras ng software ang mga buwang papeles sa visa, para sa milyun-milyong taong gusto lang sumakay ng eroplano. Dalhin ang husay mo sa team na naghahatid ng trabaho laban sa totoong deadline.",
+      "ctaRoles": "Tingnan ang lahat ng bukas na role",
+      "ctaWhy": "Bakit kami narito"
+    },
+    "board": {
+      "ariaLabel": "Departures board na naglilista ng mga bukas na role sa VIZA",
+      "head": "Mga bukas na posisyon · live",
+      "live": "Nasa oras",
+      "cols": {
+        "req": "Req.",
+        "role": "Role",
+        "office": "Opisina",
+        "status": "Status"
+      },
+      "rows": [
+        {
+          "role": "Staff Engineer",
+          "sub": "Document pipeline",
+          "status": "Boarding"
+        },
+        {
+          "role": "Product Designer",
+          "sub": "Mga daloy ng aplikante",
+          "status": "Bukas"
+        },
+        {
+          "role": "Embassy Liaison",
+          "sub": "Mga partnership sa gobyerno",
+          "status": "Huling tawag"
+        },
+        {
+          "role": "Customer Operations",
+          "sub": "Mga Tier-2 escalation",
+          "status": "Bukas"
+        }
+      ],
+      "foot": "+24 pang role sa engineering, ops at design",
+      "browseAll": "Tingnan lahat",
+      "chip1Label": "Kumukuha sa",
+      "chip1Value": "4 na opisina",
+      "chip2Label": "Karaniwang tugon",
+      "chip2Value": "3.2 araw hanggang unang tawag"
+    },
+    "stats": [
+      {
+        "value": "2.4M",
+        "label": "Mga visa na naisyu sa pamamagitan ng VIZA noong nakaraang taon"
+      },
+      {
+        "label": "Mga destinasyong sinusuportahan na may live na pagproseso"
+      },
+      {
+        "label": "Rate ng pag-apruba sa lahat ng uri ng visa noong 2025"
+      },
+      {
+        "label": "Mga tao sa Shanghai at Singapore"
+      }
+    ],
+    "mission": {
+      "eyebrow": "Ang kuwento namin",
+      "title": "Karamihan ng mundo<br></br>ay naglalakbay pa rin<br></br>gamit ang <em>nakaprint na papeles.</em>",
+      "kicker1": "Sinimulan namin ang VIZA noong 2021 matapos ang sobrang daming linggong naghihintay sa linya ng mga embahada. Mas matanda pa sa internet ang sistema sa paglipat ng tao sa mga hangganan, at karapat-dapat sa mas mabuti ang mga taong nakulong dito.",
+      "kicker2": "Ngayon, isang team na 340 sa apat na opisina ang gumagawa ng software, nagpa-file ng dokumento, at nagpapatakbo ng operasyon sa 194 na bansa. Kami ang gumagawa ng nakakapagod na trabaho para maging parang ibang bahagi ng internet ang paglalakbay: ilang tap, tapos gumagalaw ka na.",
+      "founderName": "Mira Kohli",
+      "founderRole": "Co-founder at CEO · Singapore",
+      "beliefs": [
+        {
+          "title": "Isa kaming operations company na gumagawa ng software.",
+          "body": "Kalahati ng VIZA ay mga engineer, designer at PM. Ang kalahati pa ay mga consultant, ops at document specialist sa bansa mismo. Walang mananalo sa isa kung wala ang isa pa."
+        },
+        {
+          "title": "Ang aplikante ang laging customer.",
+          "body": "Mahalaga ang mga embahada, partner at airline. Pero ang taong nakapila nang alas-3 ng madaling araw na nagre-refresh ng portal ang pinaglilingkuran namin, at siya ang sukatan namin sa sarili."
+        },
+        {
+          "title": "Bumibilis ang takbo kapag matiyaga ka sa kalidad.",
+          "body": "Mabilis kami sa paghahatid, mabagal sa mga desisyong hindi na mababawi. Ang maling desisyon sa visa ay puwedeng sumira ng kasal, trabaho, o libing. Pinapanatili namin ang pamantayang iyon kahit nagpapabagal ito sa amin."
+        },
+        {
+          "title": "Problema sa UX ang distansya, hindi hadlang.",
+          "body": "Nasa apat na time zone ang mga team namin. Ang async na pagsusulat, malinaw na may-ari at magandang kultura ng dokumentasyon ang paraan namin para ipagpalit ang oras sa tiwala, at para makapaghatid sa buong mundo nang walang napapagod."
+        }
+      ]
+    },
+    "values": {
+      "eyebrow": "Ang pinanghahawakan namin",
+      "title": "Limang bagay na pinaniniwalaan namin, kahit magastos.",
+      "lead": "Madaling isulat ang mga pagpapahalaga pero mahirap isabuhay. Ito ang limang talagang ginagamit namin sa pag-hire, sa mga review, at sa mga bihirang mahirap na desisyon.",
+      "cards": [
+        {
+          "title": "Magsabi ng totoo, lalo na kapag may kapalit.",
+          "body": "Kung hindi darating sa tamang oras ang visa, sabihin ngayon, hindi sa araw bago ang flight. Mas gusto naming mawalan ng benta kaysa maghatid ng kasinungalingan.",
+          "kicker": "Sa praktika → mga nakalathalang patakaran, change audit"
+        },
+        {
+          "title": "Pagsikapan ang bilis. Huwag lang magmukhang abala.",
+          "body": "Ipinagdiriwang namin ang mga desisyon at natapos na trabaho, hindi ang mga meeting at thread. Ang punto ay ang naihahatid para sa misyon, hindi ang galaw sa kalendaryo mo.",
+          "kicker": "Sa praktika → quarterly throughput review"
+        },
+        {
+          "title": "Mag-isip sa mga pasaporte, hindi sa persona.",
+          "body": "Nakadepende sa nasyonalidad ang mga patakaran sa visa. Walang “user”, ang meron ay ang may hawak ng pasaporte ng Pilipinas na nag-a-apply sa Schengen. Gumagawa kami para sa totoong tao, hindi sa average.",
+          "kicker": "Sa praktika → passport-first na product spec"
+        },
+        {
+          "title": "Isulat ang mga bagay. Lalo na ang mga desisyon.",
+          "body": "Apat na opisina, apat na time zone. Kung hindi nakasulat ang desisyon, hindi ito nangyari. Kailangang basahin ang wiki namin; opsyonal ang mga standup.",
+          "kicker": "Sa praktika → mga ADR, lingguhang memo, async-first"
+        },
+        {
+          "title": "Manatiling malapit sa pila.",
+          "body": "Bawat engineer ay may isang shift kada quarter sa consultant floor. Hindi mo maaalis sa disenyo ang hirap na hindi mo pa nararamdaman nang alas-11 ng gabi ng Linggo.",
+          "kicker": "Sa praktika → paikot na queue shift"
+        },
+        {
+          "title": "Piliin ang mahabang bersyon.",
+          "body": "Kadalasang mali ang tatlumpung segundong sagot. Namumuhunan kami sa malalim na dokumentasyon, matibay na playbook at mga paliwanag na tumatagal, kahit kaya na sana ng madaling bersyon.",
+          "kicker": "Sa praktika → onboarding handbook, mga pampublikong playbook"
+        }
+      ]
+    },
+    "inside": {
+      "eyebrow": "Sa loob ng VIZA",
+      "title": "Ganito talaga<br></br>ang pagtatrabaho rito.",
+      "lead": "May opisina kami sa dalawang lungsod dahil kumukuha kami malapit sa pinagpa-file-an ng mga aplikasyon. Maingay kami sa mga panalo, tahimik sa politika, at tapat kung gaano pa karami ang kailangan naming buuin.",
+      "photos": [
+        {
+          "label": "larawan · Singapore HQ, open floor",
+          "mark": "Paya Lebar Square, SG"
+        },
+        {
+          "label": "larawan · consultant queue floor",
+          "mark": "Luoshan Rd, Shanghai"
+        },
+        {
+          "label": "larawan · whiteboard session",
+          "mark": "Tech offsite, Bali"
+        },
+        {
+          "label": "larawan · ops floor sa Shanghai",
+          "mark": "Pudong, Shanghai"
+        },
+        {
+          "label": "larawan · hapunan ng team",
+          "mark": "All-hands, Lisbon"
+        },
+        {
+          "label": "larawan · pagbisita sa partner na embahada",
+          "mark": "Paya Lebar Square, SG"
+        }
+      ],
+      "pull": "“Kumukuha kami ng mga taong may opinyon na tungkol sa visa bago pa sumali. Pagdating ng ikalawang buwan, mas matibay na ang opinyon mo.”",
+      "pullBy": "Felix Adekunle, VP Engineering",
+      "para1": "Mataas ang autonomy at konteksto sa VIZA. Magkakaroon ka ng may-ari para sa lahat ng ginagawa mo, totoong budget, at inaasahang ipapaliwanag mo sa buong kumpanya ang katwiran sa likod ng trabaho mo.",
+      "para2": "Kung gusto mong sabihan araw-araw kung ano ang gagawin, hindi ito ang tamang lugar. Kung matagal ka nang naghihintay na may mag-abot sa iyo ng manibela, nandito na ito."
+    },
+    "how": {
+      "eyebrow": "Engineering at ops sa VIZA",
+      "title": "Paano talaga gumagalaw ang trabaho.",
+      "lead": "Kung gumagawa, nagpa-file o nagdidisenyo ka rito, ganito ang linggo mo. Mas kaunting seremonya, mas maraming natatapos. Mas kaunting Slack, mas maraming desisyong nakasulat.",
+      "cells": [
+        {
+          "title": "Pagmamay-ari mula simula hanggang dulo",
+          "body": "Ikaw ang nagdidisenyo, gumagawa, naghahatid at may-ari nito sa production. Walang pila ng handoff, walang roadmap na isinulat ng mga taong tatlong layer ang layo. Kung sa iyo, talagang sa iyo."
+        },
+        {
+          "title": "Araw-araw ang deploy, bilang default",
+          "body": "Karamihan ng team ay naghahatid nang ilang beses sa isang araw. Sadyang maikli ang feedback loop, at mas gusto ang tatlumpung minutong pag-urong kaysa tatlong linggong pagtatalo."
+        },
+        {
+          "title": "Totoo at magulong problema",
+          "body": "Hindi ito simpleng CRUD. Gagawa ka ng document OCR, scheduling na sensitibo sa latency laban sa mahigit 90 portal ng gobyerno, at mga daloy para sa consumer na ginagamit ng milyun-milyon."
+        },
+        {
+          "title": "Mataas ang pamantayan, hayagan",
+          "body": "Nagpa-pair kami sa design review. Nagko-comment kami nang inline sa mga PR. Naniniwala kaming natututunan ang panlasa, at inaasahan naming aktibong tutulong ang bawat isa para gumaling ang lahat sa paligid."
+        },
+        {
+          "title": "Totoong learning budget",
+          "body": "$2,000 kada tao kada taon, walang tanong, para sa mga kumperensya, libro, kurso, anumang bagay na bumabalik sa trabahong ginagawa mo rito."
+        },
+        {
+          "title": "Arkitekturang ikaw ang sumulat",
+          "body": "Bukas sa lahat ang mga RFC. May mga bagong engineer na humubog ng core infra sa unang buwan nila. Kung mas matibay ang plano mo, isulat mo, babasahin namin."
+        }
+      ]
+    },
+    "roles": {
+      "eyebrow": "Mga bukas na role · ina-update lingguhan",
+      "title": "Maging bahagi ng paglalakbay.",
+      "lead": "28 bukas na role sa apat na opisina. Kumukuha kami sa engineering, design, operations, consultant at partnership. Lumalabas ang mga bagong role tuwing Lunes.",
+      "allDepartments": "Lahat ng departamento",
+      "deps": {
+        "eng": "Engineering",
+        "design": "Design",
+        "ops": "Operations",
+        "consult": "Mga consultant",
+        "data": "Data at ML",
+        "gtm": "Marketing at GTM"
+      },
+      "showing": "Ipinapakita ang <strong>{count}</strong> role · lahat ng lokasyon · lahat ng team",
+      "anyLocation": "Kahit anong lokasyon",
+      "groupCount": "{count} bukas",
+      "posSub": "{team} · kumukuha kami batay sa husay at paghuhusga, hindi sa pinagmulan",
+      "locationLabel": "Lokasyon",
+      "typeLabel": "Uri",
+      "fullTime": "Full-time",
+      "viewRole": "Tingnan ang role",
+      "locations": {
+        "sg": "Singapore",
+        "sf": "Shanghai",
+        "ldn": "Singapore",
+        "dxb": "Shanghai"
+      },
+      "jobs": {
+        "backendPayments": "Senior na Backend Engineer, Platform",
+        "staffDocPipeline": "Staff Engineer: Document Pipeline",
+        "iosApplicant": "iOS Engineer: Applicant App",
+        "platformInfra": "Platform Engineer: Infra at Security",
+        "frontendConsole": "Frontend Engineer: Consultant Console",
+        "emWeb": "Engineering Manager: Web",
+        "sre": "Site Reliability Engineer",
+        "androidSenior": "Senior Android Engineer",
+        "leadEmbassy": "Engineering Lead: Embassy Integrations",
+        "productDesignerApplicant": "Senior Product Designer: Applicant Flow",
+        "brandDesigner": "Brand Designer",
+        "designLeadConsultant": "Design Lead: Consultant Tools",
+        "headOpsMe": "Head of Operations, Gitnang Silangan",
+        "visaOpsSchengen": "Visa Operations Lead: Schengen",
+        "logistics": "Logistics at Courier Manager",
+        "processDocQa": "Process Engineer: Document QA",
+        "opsAnalyst": "Operations Analyst: Bookings",
+        "consultSchengen": "Visa Consultant: Schengen",
+        "consultUs": "Visa Consultant: US B1/B2",
+        "consultUae": "Visa Consultant: UAE Residency",
+        "consultStudent": "Senior Consultant: Student Visas",
+        "consultApac": "Consultant Lead: Asia-Pacific",
+        "consultUk": "Visa Consultant: UK",
+        "dataScientist": "Senior Data Scientist: Approval Modeling",
+        "mlOcr": "ML Engineer: OCR at Document AI",
+        "perfMarketing": "Performance Marketing Manager",
+        "contentLead": "Content Lead: Storytelling",
+        "lifecycleCrm": "Lifecycle at CRM Manager"
+      }
+    },
+    "fellowship": {
+      "tag": "▲ VIZA Launchpad · 12-linggong programa",
+      "title": "Labindalawang linggo. Isang product team.<br></br><em>Isang pagkakataong maghatid ng bagay.</em>",
+      "para1": "Ang Launchpad ang resident program namin para sa mga early-career na engineer, PM at designer, ang mga taong kung hindi ay mangangailangan pa ng dalawang taon ng “karanasan” bago makakuha ng totoong pagkakataon.",
+      "para2": "Magpa-pair ka sa mga senior lead, magmamay-ari ng totoong product surface mula kick-off hanggang release, at aalis na may bagay na gagamitin ng milyun-milyong tao. Nagbabalik ng full-time na alok para sa ~60% ng cohort.",
+      "meta": [
+        {
+          "k": "Tagal",
+          "v": "12 linggo"
+        },
+        {
+          "k": "Lokasyon",
+          "v": "Sa opisina, alinmang HQ"
+        },
+        {
+          "k": "Stipend",
+          "v": "Higit sa karaniwan sa merkado"
+        },
+        {
+          "k": "Susunod na cohort",
+          "v": "Set 2026"
+        }
+      ],
+      "apply": "Mag-apply sa Launchpad",
+      "readCohort": "Basahin ang tungkol sa 2025 cohort",
+      "projects": [
+        {
+          "k": "2024 · Engineering",
+          "title": "Rewrite ng OCR pipeline",
+          "meta1": "Naihatid sa prod",
+          "meta2": "3.2× mas mabilis"
+        },
+        {
+          "k": "2025 · Design",
+          "title": "Redesign ng Schengen flow",
+          "meta1": "14 na bansang live",
+          "meta2": "↑ 22% conv."
+        },
+        {
+          "k": "2025 · Product",
+          "title": "Embassy-slot scheduler",
+          "meta1": "9 na embahada",
+          "meta2": "40k slot/buwan"
+        }
+      ]
+    },
+    "benefits": {
+      "eyebrow": "Nandito kami para sa iyo (totoo)",
+      "title": "Maayos na inaasikaso<br></br>ang mga pangunahing bagay.",
+      "lead": "Hindi namin itinuturing na perk ang mga benepisyo. Ito ang baseline para magawa ng mga tao ang pinakamahusay nilang trabaho. Ito ang natatanggap ng bawat empleyado ng VIZA, sa bawat opisina, sa unang araw.",
+      "items": [
+        {
+          "title": "Kumpletong kalusugan, ayos na.",
+          "body": "Buong medical, dental at vision mula sa unang araw, para sa iyo, sa partner mo at sa mga anak mo. Kami ang nagbabayad ng premium, walang kalokohan sa deductible."
+        },
+        {
+          "title": "Magpundar ng yaman, hindi lang sahod.",
+          "body": "Base na higit sa karaniwan sa bawat merkadong pinag-hire-an namin, kasama ang malaking equity grant na nakatali sa mga milestone, hindi lang sa tagal ng serbisyo. Nire-refresh namin kada dalawang taon."
+        },
+        {
+          "title": "Matuto ng tunay na mahalaga.",
+          "body": "$2,000/taon na learning budget, buwanang internal na teach-in, at oras sa kalendaryo, hindi lang pahintulot, para kumuha ng kursong iyon o dumalo sa kumperensyang iyon."
+        },
+        {
+          "title": "Pasayahin ang customer na parang sarili mong pera.",
+          "body": "May $100 na budget ang bawat aplikante para sa goodwill na higit pa sa inaasahan. Walang approval, walang escalation: ayusin ito, saka isulat ang nangyari."
+        },
+        {
+          "title": "Isip > lahat.",
+          "body": "Kumpidensyal at propesyonal na suporta sa mental health, walang hirap sa insurance. Dagdag pa ang tatlong “no-meeting” na araw kada buwan, sa buong kumpanya."
+        },
+        {
+          "title": "Travel perks (kailangan namin).",
+          "body": "Visa ang trabaho namin; dapat libre ang biyahe ng team namin. $4k/taon na travel credit, at inaasikaso ng VIZA ang bawat visa na kakailanganin mo, agad, sa loob mismo ng kumpanya."
+        },
+        {
+          "title": "Malaki at totoong bakasyon.",
+          "body": "30 araw na PTO, dagdag ang mga holiday ng bansa mo, dagdag ang isang bayad na linggong pahinga sa pagitan ng Dis 24 at Ene 1. Sinusubaybayan namin ang paggamit at hinihikayat ang mga tao na kumuha pa, hindi bawasan."
+        },
+        {
+          "title": "Kagamitan, walang tanong.",
+          "body": "Piliin ang laptop, monitor at upuan mo sa unang araw. May WFH stipend para sa setup mo. Pinagkakatiwalaan ka naming alam mo ang kailangan mo para makagawa ng mahusay na trabaho."
+        },
+        {
+          "title": "Parental leave na talagang gumagana.",
+          "body": "20 linggo para sa primary caregiver, 12 para sa secondary, bayad nang buo. Dagdag pa ang unti-unting pagbabalik, para hindi ka full throttle agad sa unang araw."
+        }
+      ]
+    },
+    "offices": {
+      "eyebrow": "Saan kami nagtatrabaho",
+      "title": "Dalawang opisina, isang produkto.",
+      "lead": "Kumukuha kami malapit sa mga embahada, partner at merkadong pinaglilingkuran namin. May engineer at operations ang bawat opisina, hindi namin pinaghihiwalay ang mga gumagawa at ang nagpapatakbo ng floor.",
+      "cards": [
+        {
+          "photo": "larawan · Shanghai",
+          "open": "6 bukas",
+          "name": "Shanghai",
+          "addr1": "Lane 1502, Luoshan Road,",
+          "addr2": "Pilot Free Trade Zone ng Tsina (Shanghai)",
+          "tz": "GMT+8 · Operasyon sa Tsina",
+          "since": "Mula 2023"
+        },
+        {
+          "photo": "larawan · Singapore HQ",
+          "open": "12 bukas",
+          "name": "Singapore",
+          "addr1": "60 Paya Lebar Kalsada, #06-28 Paya Lebar Square,",
+          "addr2": "Singapore 409051",
+          "tz": "GMT+8 · HQ sa Asia-Pacific",
+          "since": "HQ · mula 2021"
+        }
+      ]
+    },
+    "ctaStrip": {
+      "title": "Hindi nakikita ang role mo,<br></br>pero gustong sumali?",
+      "body": "Kung kakaiba ang pinanggalingan mo at sa tingin mo makakatulong kang pabilisin ang mga biyahero sa mundo, gusto naming marinig ka. Kumuha na kami ng mga driver ng bus, dating staff ng embahada at mga abogado. Wala kaming partikular na tipo.",
+      "lead": "Pangkalahatang aplikasyon",
+      "cta": "Ipadala ang kuwento mo",
+      "note": "Sumasagot kami sa loob ng 7 araw, kahit hindi ang sagot."
+    },
+    "footer": {
+      "tagline": "Tinutulungan ka ng VIZA na magplano, mag-apply at mag-track ng mga visa nang maayos saanmang panig ng mundo.",
+      "company": "Kumpanya",
+      "products": "Mga produkto",
+      "offices": "Mga opisina",
+      "careers": "Mga trabaho",
+      "contact": "Makipag-ugnayan",
+      "security": "Seguridad",
+      "privacy": "Privacy",
+      "terms": "Mga tuntunin",
+      "prodVisaReq": "Mga requirement sa visa",
+      "prodSchengen": "Schengen Appointment Checker",
+      "prodPhoto": "Visa Photo Creator",
+      "prodHelpline": "VIZA Emergency Helpline",
+      "prodStudent": "Student Visa",
+      "officeSg": "Singapore, HQ",
+      "officeSf": "Shanghai",
+      "copyright": "© VIZA, Lahat ng karapatan ay nakalaan"
+    }
+  },
+  "security": {
+    "hero": {
+      "eyebrow": "Seguridad sa VIZA · huling na-update Mayo 2026",
+      "title": "Pribado. Bukas.<br></br><em>Ligtas bilang default.</em>",
+      "lead": "Pinagkakatiwalaan kami ng mga customer sa buong mundo ng milyun-milyong sensitibong dokumento: pasaporte, bank statement, litrato. Ito mismo ang paraan namin ng pagkolekta, pag-iimbak, at pagpapatunay na tama ang ginagawa namin.",
+      "ctaPrimary": "Paano namin pinoprotektahan ang data mo",
+      "ctaVdp": "Mag-ulat ng vulnerability"
+    },
+    "clearance": {
+      "republicKey": "Republic of",
+      "officeKey": "Opisinang nag-isyu",
+      "officeVal": "Trust & Safety",
+      "title": "Security clearance /<br></br>Data ng customer",
+      "grid": {
+        "encryption": {
+          "k": "Encryption",
+          "v": "AES-256 / TLS 1.3"
+        },
+        "region": {
+          "k": "Rehiyon",
+          "v": "SG · US · EU"
+        },
+        "audit": {
+          "k": "Dalas ng audit",
+          "v": "Kada quarter"
+        },
+        "retention": {
+          "k": "Retention",
+          "v": "Hanggang 90 araw"
+        }
+      },
+      "referenceKey": "Reference",
+      "glyph": "CLEARED<br></br>VIZA · 26"
+    },
+    "chips": {
+      "transitLabel": "Habang inililipat",
+      "transitVal": "End-to-end TLS 1.3",
+      "restLabel": "Habang nakaimbak",
+      "restVal": "AES-256, nakakabit sa rehiyon"
+    },
+    "stats": {
+      "docs": {
+        "value": "2.4M",
+        "label": "Mga dokumentong naasikaso noong 2025, walang breach sa data ng customer"
+      },
+      "retention": {
+        "unit": "araw",
+        "label": "Pinakamahabang retention ng mga source na dokumento pagkatapos ng pag-isyu"
+      },
+      "pentests": {
+        "label": "Mga external na penetration test, lahat ng ulat ay inilalathala sa loob ng kumpanya"
+      },
+      "ack": {
+        "unit": "oras",
+        "label": "Karaniwang oras bago kilalanin ang naiulat na vulnerability"
+      }
+    },
+    "docs": {
+      "eyebrow": "Ano ang kinokolekta namin",
+      "title": "Limang uri ng dokumento.<br></br><em>Wala nang iba.</em>",
+      "copy1": "Problema sa papeles ang aplikasyon sa visa. Kinokolekta lang namin ang tahasang hinihingi ng embahada, at ina-anonymise namin hangga't maaari. Bawat dokumento ay nakatali sa iisang aplikasyon, naka-encrypt pagkatanggap, at binubura ayon sa takdang iskedyul.",
+      "copy2": "Hindi namin ibinebenta ang data mo. Hindi namin ito ibinabahagi sa third party maliban sa konsulado o partner na direktang sangkot sa visa mo.",
+      "cards": {
+        "payment": {
+          "name": "Impormasyon sa pagbabayad",
+          "meta": "hindi kinokolekta"
+        },
+        "photos": {
+          "name": "Mga litrato sa visa",
+          "meta": "pinoproseso · hanggang 90 araw"
+        },
+        "bank": {
+          "name": "Mga bank statement",
+          "meta": "may mask · pdf lang"
+        },
+        "pastVisas": {
+          "name": "Mga nakaraang visa",
+          "meta": "read-only · OCR"
+        },
+        "passport": {
+          "name": "Pasaporte",
+          "meta": "nakuha ang MRZ"
+        }
+      }
+    },
+    "features": {
+      "eyebrow": "Pitong kontrol, laging bukas",
+      "title": "Paano nananatiling sa iyo<br></br>ang data mo, mula simula hanggang <em>dulo.</em>",
+      "intro": "Ang default na kalagayan ng bawat byte sa VIZA ay “naka-encrypt, may saklaw, at may takdang panahon.” Ito ang pitong kontrol na nagpapatotoo niyon: hindi mga hangarin, kundi ang talagang nakakabit na sa platform ngayon.",
+      "cells": {
+        "minimise": {
+          "title": "Data minimisation at anonymisation",
+          "body": "Kinokolekta lang namin ang talagang kailangan ng embahada o partner para sa isang aplikasyon, at ina-anonymise namin kapag pinapayagan ng natitirang bahagi ng platform. Ang mga field na hindi mo nakikita sa mga form namin ay mga field na hindi namin iniimbak.",
+          "why": "<strong>Bakit:</strong> hindi maaaring malantad sa breach ang data na hindi kailanman kinolekta."
+        },
+        "payments": {
+          "title": "Walang data sa pagbabayad",
+          "body": "Libre ang serbisyo ng VIZA at hindi kami tumatanggap ng bayad, kaya hindi kami humihingi, nakakakita o nag-iimbak ng card number.",
+          "why": "<strong>Bakit:</strong> hindi manananakaw ang data na hindi namin hawak."
+        },
+        "atRest": {
+          "title": "Encryption habang nakaimbak",
+          "body": "Bawat dokumento, mensahe at metadata field sa mga server ng VIZA ay naka-encrypt gamit ang AES-256 bago pa dumampi sa disk. Awtomatikong pinapalitan ang mga key at iniimbak sa hardware-backed na KMS na hindi direktang mababasa kahit ng infrastructure team namin.",
+          "why": "<strong>Bakit:</strong> nananatiling hindi mababasa ang nanakaw na drive o backup kung walang key."
+        },
+        "inTransit": {
+          "title": "End-to-end encryption",
+          "body": "Lahat ng trapiko sa pagitan ng device mo, mga server namin at mga partner na konsulado ay gumagamit ng TLS 1.3 na may mahigpit na pinning. Gumagamit ang pag-upload ng dokumento ng hiwalay at naka-sign na channel para hindi makita ng kahit network-level na kalaban ang ipinapadala mo.",
+          "why": "<strong>Bakit:</strong> hindi mababasa ng mapanganib na network, kasama ang Wi-Fi sa airport, ang aplikasyon mo."
+        },
+        "audits": {
+          "title": "Regular na security audit",
+          "body": "Nagsasagawa kami ng external na penetration test kada quarter, taunang SOC 2 Type II audit, at tuluy-tuloy na automated na pag-scan ng vulnerability. Bawat natuklasan ay nakatala na may fix-by na petsa, at ina-alert ang engineering lead kapag lampas na sa takda.",
+          "why": "<strong>Bakit:</strong> gumagalaw ang mga banta; sinusuri ang depensa namin laban sa mga ito ayon sa orasan."
+        },
+        "access": {
+          "title": "Ligtas na kontrol sa access",
+          "body": "Ang internal na access sa data ng customer ay may saklaw ayon sa role, inaudit sa bawat request, at ibinibigay sa pamamagitan ng just-in-time na elevation. Ang application lang na aktibong ginagawa nila ang nakikita ng mga consultant. Naitatala ang bawat pagbasa sa loob ng 12 buwan.",
+          "why": "<strong>Bakit:</strong> nakukulong, natutukoy at nasusuri ang pagkakamali at maling paggamit ng mga nasa loob."
+        },
+        "education": {
+          "title": "Edukasyon at kamalayan ng user",
+          "body": "Ang pinakamahirap sa seguridad ay ang bahaging hindi namin maihahatid para sa iyo. Nagpapadala kami ng mga simpleng gabay tungkol sa phishing, scam sa litrato ng pasaporte, at pekeng SMS ng embahada sa sandaling magsimula ka ng aplikasyon, at ipinapakita ulit sa loob ng produkto sa sandaling may mukhang kakaiba. Ikaw ang huling linya ng depensa; mas gusto naming bigyan ka ng kakayahan kaysa sisihin ka.",
+          "why": "<strong>Bakit:</strong> ang aplikanteng may alam ang pinakamura at pinakaepektibong kontrol sa seguridad na mayroon kami."
+        }
+      }
+    },
+    "vdp": {
+      "tag": "▲ Vulnerability disclosure · bukas sa lahat ng researcher",
+      "title": "May nahanap ka?<br></br><em>Gusto naming marinig.</em>",
+      "p1": "Pinakamahalaga ang seguridad ng mga user at partner namin. Kung naniniwala kang may natukoy kang totoong vulnerability na nakakaapekto sa mga serbisyo ng VIZA, gusto naming direkta mo itong sabihin sa amin, at makikipagtulungan kami sa iyo nang magalang at mabilis para ayusin ito.",
+      "p2": "I-email ang mga natuklasan mo sa <strong>security@viza.it.com</strong>. Kikilalanin namin ang pagtanggap sa loob ng isang business day, kahit lumabas na kilala na ito o wala sa saklaw.",
+      "meta": {
+        "ack": {
+          "k": "Kinikilala sa loob ng",
+          "v": "'<' 24 oras"
+        },
+        "triage": {
+          "k": "Tinataya sa loob ng",
+          "v": "3 business day"
+        },
+        "lang": {
+          "k": "Mga wika",
+          "v": "EN · ID · AR"
+        },
+        "pgp": {
+          "k": "PGP key",
+          "v": "0xVIZA · 2026"
+        }
+      },
+      "ctaEmail": "I-email ang security@viza.it.com",
+      "ctaScope": "Basahin ang saklaw",
+      "terminal": {
+        "title": "draft-report · security@viza.it.com",
+        "l1": "# ulat ng vulnerability",
+        "typeKey": "uri:",
+        "typeVal": "authentication-bypass",
+        "urlKey": "url:",
+        "reproKey": "repro:",
+        "reproVal": "[hakbang 1 hanggang 4]",
+        "impactKey": "epekto:",
+        "impactVal": "account takeover",
+        "pocKey": "poc:",
+        "l7": "# ↳ naka-encrypt sa 0xVIZA",
+        "send": "ipadala"
+      }
+    },
+    "report": {
+      "eyebrow": "Pag-uulat ng vulnerability",
+      "title": "Ano ang ilalagay sa<br></br>ulat mo, at <em>ano ang hindi.</em>",
+      "intro": "Ang magandang ulat ay nakakatipid sa ating dalawa ng isang linggo. Ito ang format na pinakamabilis matasa, kasama ang mga bagay na mas gusto naming huwag matanggap sa inbox namin.",
+      "include": {
+        "heading": "Pakilagay",
+        "sub": "Limang field. Habang mas malinaw ang mga ito, mas mabilis namin itong makukumpirma at maaayos.",
+        "items": {
+          "type": "<strong>Uri ng isyu</strong>, hal. authentication, access control, injection, IDOR, SSRF.",
+          "steps": "<strong>Malinaw na hakbang para ma-reproduce</strong>, may numero, magkakasunod, sa malinis na session kung maaari.",
+          "impact": "<strong>Posibleng epekto sa seguridad</strong>, ano ang magagawa ng umaatake rito, sa simpleng wika.",
+          "poc": "<strong>Proof of concept</strong>, mas gusto ang mga screenshot o maikling screencast; log ang ikalawa."
+        }
+      },
+      "dontSend": {
+        "heading": "Pakiusap huwag ipadala",
+        "sub": "Mapanganib o walang silbi ang mga ito, o pareho, at kailangan naming burahin pagkatanggap.",
+        "items": {
+          "secrets": "<strong>Mga password o authentication token</strong>, sa iyo o sa iba. Ipakita ang paraan, hindi ang sikreto.",
+          "malware": "<strong>Mga raw na sample ng malware o stealer log.</strong> Ilarawan ang nakita mo; huwag i-attach.",
+          "scanners": "<strong>Malalaking ulat ng automated scanner</strong> na walang piniling at napatunayang natuklasan.",
+          "customerData": "<strong>Personal na data o dokumento ng customer</strong>, kahit ito ang batayan ng natuklasan mo.",
+          "socialEng": "<strong>Mga recording ng pagtatangkang social-engineering</strong> laban sa staff o consultant namin."
+        }
+      }
+    },
+    "scope": {
+      "eyebrow": "Saklaw ng programa",
+      "title": "Ano ang kasama, ano ang hindi.",
+      "intro": "Kung hindi ka sigurado kung nasa listahang ito ang ulat mo, ipadala pa rin, at magtanong. Mas gusto naming tasahin at magpatuloy kaysa itago mo ang totoong isyu dahil hindi malinaw ang hangganan.",
+      "fileRef": "/security/scope.md · v6",
+      "in": {
+        "pill": "Sakop",
+        "heading": "Mga ulat na aktibo naming tatasahin",
+        "items": {
+          "web": "Mga web application at API ng VIZA sa <code>*.viza.com</code>, kasama ang applicant portal, consultant console at mga partner endpoint.",
+          "infra": "Imprastraktura at mga serbisyong pag-aari ng VIZA: auth, document pipeline, scheduling.",
+          "mobile": "Mga mobile application (iOS, Android) na inilathala sa ilalim ng VIZA developer account.",
+          "marketing": "Mga pampublikong marketing at content site sa ilalim ng mga domain na kontrolado ng VIZA."
+        }
+      },
+      "out": {
+        "pill": "Hindi sakop",
+        "heading": "Mga ulat na hindi namin maaaksyunan sa programang ito",
+        "items": {
+          "devices": "Mga isyung bunga ng nakompromisong device ng user, browser extension, o nanakaw na credential.",
+          "phishing": "Mga pag-atakeng social engineering o phishing laban sa mga empleyado, partner o consultant ng VIZA.",
+          "thirdParty": "Mga serbisyo o integrasyon ng third party na hindi direktang pinapatakbo ng VIZA (mga portal ng konsulado, site ng courier).",
+          "scanners": "Mga natuklasan ng automated scanner na walang napatunayan at totoong posibilidad ng exploit.",
+          "headers": "Kulang na security header o pangkalahatang rekomendasyon sa best practice na walang landas ng exploit."
+        }
+      }
+    },
+    "pledge": {
+      "eyebrow": "Responsible disclosure",
+      "title": "Ang kasunduan natin<br></br>sa isa't isa.",
+      "intro": "Gumagana ang disclosure dahil kapwa tapat ang dalawang panig. Ito ang hinihingi namin sa iyo, at ito ang maaari mong panghawakan sa amin bilang kapalit, nakasulat para walang manghuhula.",
+      "researcher": {
+        "kicker": "Ang hinihingi namin sa iyo",
+        "title": "Mga <em>pangako ng researcher.</em>",
+        "p": "Sa pagsusumite ng ulat, sumasang-ayon kang kumilos nang tapat at ayon sa diwa ng programa, hindi lang sa letra nito.",
+        "items": {
+          "1": "Kumilos nang tapat. Iwasan ang paglabag sa privacy, pagsira ng data, o pagkagambala sa serbisyo habang nagsasaliksik.",
+          "2": "Huwag samantalahin ang isyu nang higit sa kailangan para makumpirma ito, at huwag kailanman mag-access ng data na hindi sa iyo.",
+          "3": "Panatilihing kumpidensyal ang detalye ng vulnerability hangga't hindi pa kami nakapaghatid ng fix at nakukumpirma ito sa iyo.",
+          "4": "Huwag isapubliko ang mga natuklasan nang walang paunang nakasulat na pahintulot mula sa security team ng VIZA."
+        }
+      },
+      "viza": {
+        "kicker": "Ang maaari mong panghawakan sa amin",
+        "title": "Mga <em>pangako ng VIZA.</em>",
+        "p": "Bilang kapalit, hindi namin binabalewala ang mga nag-uulat, hindi kami nakikipagtalo sa tindi para umiwas sa pag-aayos, at hindi kami nagdedemanda sa mga taong tumutulong sa amin.",
+        "items": {
+          "1": "Susuriin namin ang bawat balidong ulat at sasagot sa loob ng isang business day, gaano man kalaki ang tindi.",
+          "2": "Makikipag-usap kami nang magalang, walang depensibong salita, walang “gumagana ayon sa disenyo” na pagwawalang-bahala.",
+          "3": "Gagawa kami ng angkop na remediation kung kailangan, at sasabihin sa iyo kapag naihatid na ang fix.",
+          "4": "Kikilalanin ka namin (kung pumayag ka) sa security changelog namin kapag nalutas na ang isyu."
+        }
+      }
+    },
+    "legal": {
+      "eyebrow": "Legal at gantimpala",
+      "title": "Safe harbour, bounty,<br></br>at ang maliliit na letra.",
+      "intro": "Kung susundin mo nang tapat ang patakarang ito, ituturing naming awtorisado ang pananaliksik mo. Ang natitirang bahagi ng pahina ay ang nakakabagot pero mahalagang bahagi, inilatag at hindi itinago.",
+      "cards": {
+        "safeHarbour": {
+          "title": "Legal safe harbour",
+          "body": "Kung susundin mo nang tapat ang patakarang ito, hindi magsasampa ng legal na aksyon ang VIZA laban sa iyo para sa aksidente o hindi sinasadyang paglabag na kaugnay ng pananaliksik mo. Inaasahan pa rin na susunod ka sa mga naaangkop na batas at regulasyon."
+        },
+        "rewards": {
+          "title": "Mga gantimpala at bug bounty",
+          "body": "Walang pampublikong bug bounty ang VIZA sa ngayon. Nag-aalok kami ng kusang token ng pasasalamat para sa mga balido at responsableng naiulat na isyu, na tinatasa batay sa epekto, pagiging bago, at kalidad ng ulat.",
+          "meta": "kusang bigay · bawat kaso"
+        },
+        "updates": {
+          "title": "Mga update sa programa",
+          "body": "May karapatan ang VIZA na baguhin o tapusin ang programang ito anumang oras. Kung hindi ka sigurado kung tugma ang pananaliksik mo sa patakaran, makipag-ugnayan sa amin sa security@viza.it.com <em>bago</em> ka magpatuloy.",
+          "meta": "huling binago · Mayo 2026"
+        }
+      }
+    },
+    "cta": {
+      "title": "May napansing kakaiba?<br></br>Sabihin sa security team namin.",
+      "body": "Mas gusto naming marinig nang dalawang beses ang maliit na natuklasan kaysa makalampas ang malaki nang minsan. Diretso ang mga ulat sa totoong tao sa security team, walang ticketing portal, walang triage robot.",
+      "lead": "Diretso sa security",
+      "small": "Karaniwang tugon: wala pang 24 oras, araw-araw ng linggo."
+    },
+    "footer": {
+      "tagline": "Tinutulungan ka ng VIZA na magplano, mag-apply at mag-track ng mga visa nang maayos saanmang panig ng mundo.",
+      "company": "Kumpanya",
+      "careers": "Mga trabaho",
+      "contact": "Makipag-ugnayan",
+      "security": "Seguridad",
+      "privacy": "Privacy",
+      "terms": "Mga tuntunin",
+      "products": "Mga produkto",
+      "prodVisaReq": "Mga requirement sa visa",
+      "prodSchengen": "Schengen Appointment Checker",
+      "prodPhoto": "Visa Photo Creator",
+      "prodHelpline": "VIZA Emergency Helpline",
+      "prodStudent": "Student Visa",
+      "offices": "Mga opisina",
+      "officeSg": "Singapore, HQ",
+      "officeSf": "Shanghai",
+      "copyright": "© VIZA, Lahat ng karapatan ay nakalaan"
+    }
+  },
+  "status": {
+    "crumbHome": "Transparency",
+    "crumbHere": "Status ng Sistema",
+    "hero": {
+      "title": "Status ng sistema",
+      "lead": "Availability na may patunay para sa VIZA at sa mga portal ng visa ng gobyerno na katrabaho namin. Ang bawat porsyento, timeline bar at insidente sa ibaba ay galing sa naitalang synthetic check."
+    },
+    "console": {
+      "title": "VIZA Reliability · Live",
+      "live": "Na-verify",
+      "unverified": "Hindi pa na-verify",
+      "allOperational": "Gumagana ang lahat ng sistema",
+      "degraded": "May mga sistemang bumabagal",
+      "majorOutage": "May binabantayang sistemang hindi available",
+      "dataUnavailable": "Hindi available ang data ng monitoring",
+      "lastChecked": "Pinakahuling naitalang check: {time}",
+      "noChecks": "Wala pang naitalang kumpletong check",
+      "kUptime": "Pumapasa na check sa nakaraang 90 araw",
+      "kMonitors": "Mga endpoint na minomonitor",
+      "kIncidents": "Aktibong insidente"
+    },
+    "subnav": {
+      "current": "Kasalukuyang status",
+      "incidents": "Mga nakaraang insidente",
+      "subscribe": "Mag-subscribe",
+      "searchPlaceholder": "Maghanap ng bansa",
+      "subscribeBtn": "Mag-subscribe sa mga update"
+    },
+    "platform": {
+      "title": "VIZA platform",
+      "realMeta": "Sinusuri kada 5 minuto · {count} endpoint",
+      "meta": "Sinusuri kada 5 minuto",
+      "name": "VIZA application platform",
+      "sub": "Mga pampublikong serbisyo ng VIZA"
+    },
+    "uptime": {
+      "ago": "90 araw ang nakalipas",
+      "today": "Ngayon",
+      "pct": "{pct}% ng mga check ang pumapasa",
+      "noData": "Walang naitalang check"
+    },
+    "dayObservation": "{date}: {checks} naitalang check",
+    "dayNoData": "{date}: walang naitalang data",
+    "dayTitle": "Araw {n}",
+    "statusLabels": {
+      "op": "Gumagana",
+      "deg": "Bumabagal",
+      "part": "Bahagyang outage",
+      "maj": "Hindi available",
+      "none": "Walang kasalukuyang data"
+    },
+    "lastChecked": "Sinuri {time}",
+    "monitorStale": "Kulang o luma ang check",
+    "monitoringUnavailable": "Walang bagong ebidensya ang status API. Hindi ipapakita ng VIZA ang naka-cache o gawa-gawang availability bilang kasalukuyang kalusugan ng serbisyo.",
+    "noSearchResults": "Walang binabantayang bansang tumutugma sa paghahanap na ito.",
+    "noRecordedIncidents": "Walang insidenteng nakuha mula sa mga naitalang check sa nakaraang 90 araw.",
+    "incidentCount": "{count, plural, one {# insidente} other {# na insidente}}",
+    "incidentRecovered": "Ipinapakita ng mga naitalang check na nakabawi ang serbisyong ito.",
+    "noIssues": "Walang aktibong isyu",
+    "activeIncident": "Aktibong insidente",
+    "portalsHead": {
+      "title": "Mga portal ng gobyerno",
+      "lead": "Sinusuri ng isang limitadong synthetic request ang bawat naka-configure na portal kada limang minuto. Ang kulay-abong history ay nangangahulugang walang naitalang obserbasyon; hindi ito kailanman pinupunan ng tantiyang data."
+    },
+    "incidentsHead": {
+      "title": "Mga nakaraang insidente",
+      "lead": "Nagbubukas at nagsasara ang mga insidente batay sa mga naitalang paglipat ng monitor. Ito ay operational availability, hindi ang status ng personal na desisyon sa visa ng aplikante."
+    },
+    "tags": {
+      "identified": "Natukoy",
+      "investigating": "Iniimbestigahan",
+      "resolved": "Nalutas"
+    },
+    "portals": {
+      "AE": {
+        "name": "United Arab Emirates",
+        "sub": "Mga portal ng GDRFA · ICA"
+      },
+      "AM": {
+        "name": "Armenia",
+        "sub": "e-Visa portal"
+      },
+      "AU": {
+        "name": "Australia",
+        "sub": "ImmiAccount"
+      },
+      "AZ": {
+        "name": "Azerbaijan",
+        "sub": "ASAN Visa"
+      },
+      "DE": {
+        "name": "Alemanya",
+        "sub": "VIDEX · mga slot sa konsulado"
+      },
+      "DK": {
+        "name": "Denmark"
+      },
+      "EG": {
+        "name": "Ehipto",
+        "sub": "e-Visa Portal"
+      },
+      "FI": {
+        "name": "Finland",
+        "sub": "EnterFinland"
+      },
+      "FR": {
+        "name": "Pransya",
+        "sub": "France-Visas"
+      },
+      "GB": {
+        "name": "United Kingdom",
+        "sub": "UKVCAS · UK Visas",
+        "bannerText": "May outage ang ilang uri ng aplikasyon.",
+        "bannerLink": "Tingnan ang timeline ng insidente"
+      },
+      "GE": {
+        "name": "Georgia"
+      },
+      "GR": {
+        "name": "Gresya",
+        "sub": "AEGEAN · konsular"
+      },
+      "HK": {
+        "name": "Hong Kong",
+        "sub": "Immigration eVisa"
+      },
+      "ID": {
+        "name": "Indonesia",
+        "sub": "e-Visa Indonesia"
+      },
+      "IN": {
+        "name": "India",
+        "sub": "Indian Visa Online"
+      },
+      "JO": {
+        "name": "Jordan"
+      },
+      "KE": {
+        "name": "Kenya",
+        "sub": "eCitizen / eVisa"
+      },
+      "KH": {
+        "name": "Cambodia"
+      },
+      "LK": {
+        "name": "Sri Lanka",
+        "sub": "ETA portal"
+      },
+      "MA": {
+        "name": "Morocco"
+      },
+      "TH": {
+        "name": "Thailand",
+        "sub": "Thailand e-Visa"
+      }
+    },
+    "incidents": {
+      "count": "<strong>{count}</strong> {count, plural, one {bansa} other {bansa}} ang nagkaroon ng isyu sa performance",
+      "events": "{count, plural, one {# pangyayari} other {# na pangyayari}}",
+      "days": [
+        {
+          "date": "10 Mayo 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "10 Mayo, 3:05 PM",
+                  "desc": "Nalutas na ang insidenteng ito. Bumalik na sa normal ang serbisyo."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "10 Mayo, 5:05 PM",
+                  "desc": "Nalutas na ang insidenteng ito. Bumalik na sa normal ang serbisyo."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "9 Mayo 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "9 Mayo, 10:50 PM",
+                  "desc": "Iniimbestigahan namin ang mataas na rate ng pagkabigo."
+                },
+                {
+                  "time": "10 Mayo, 12:20 AM",
+                  "desc": "Tumaas ang tindi mula sa degraded tungo sa partial outage."
+                },
+                {
+                  "time": "10 Mayo, 2:50 AM",
+                  "desc": "Tumaas ang tindi mula sa partial outage tungo sa major outage."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "9 Mayo, 3:05 PM",
+                  "desc": "Iniimbestigahan namin ang mataas na rate ng pagkabigo."
+                },
+                {
+                  "time": "9 Mayo, 7:20 PM",
+                  "desc": "Tumaas ang tindi mula sa partial outage tungo sa major outage."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "8 Mayo 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "8 Mayo, 1:05 PM",
+                  "desc": "Iniimbestigahan namin ang mataas na rate ng pagkabigo."
+                },
+                {
+                  "time": "8 Mayo, 2:05 PM",
+                  "desc": "Nalutas na ang insidenteng ito. Bumalik na sa normal ang serbisyo."
+                },
+                {
+                  "time": "8 Mayo, 2:50 PM",
+                  "desc": "Iniimbestigahan namin ang mataas na rate ng pagkabigo."
+                },
+                {
+                  "time": "8 Mayo, 7:35 PM",
+                  "desc": "Nalutas na ang insidenteng ito. Bumalik na sa normal ang serbisyo."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "5 Mayo 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "5 Mayo, 1:36 PM",
+                  "desc": "Tumaas ang tindi mula sa degraded tungo sa partial outage."
+                },
+                {
+                  "time": "5 Mayo, 4:50 PM",
+                  "desc": "Nalutas na ang insidenteng ito."
+                },
+                {
+                  "time": "5 Mayo, 9:20 PM",
+                  "desc": "Iniimbestigahan namin ang mataas na rate ng pagkabigo."
+                },
+                {
+                  "time": "5 Mayo, 10:20 PM",
+                  "desc": "Nalutas na ang insidenteng ito."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "5 Mayo, 2:43 PM",
+                  "desc": "Nalutas na ang insidenteng ito."
+                },
+                {
+                  "time": "5 Mayo, 3:35 PM",
+                  "desc": "Iniimbestigahan namin ang mataas na rate ng pagkabigo."
+                },
+                {
+                  "time": "5 Mayo, 7:35 PM",
+                  "desc": "Tumaas ang tindi mula sa partial outage tungo sa major outage."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "4 Mayo 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "4 Mayo, 4:05 PM",
+                  "desc": "Iniimbestigahan namin ang mataas na rate ng pagkabigo."
+                },
+                {
+                  "time": "4 Mayo, 5:05 PM",
+                  "desc": "Nalutas na ang insidenteng ito."
+                },
+                {
+                  "time": "4 Mayo, 7:36 PM",
+                  "desc": "Iniimbestigahan namin ang mataas na rate ng pagkabigo."
+                },
+                {
+                  "time": "4 Mayo, 8:35 PM",
+                  "desc": "Nalutas na ang insidenteng ito."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "4 Mayo, 12:05 PM",
+                  "desc": "Nalutas na ang insidenteng ito."
+                },
+                {
+                  "time": "4 Mayo, 1:50 PM",
+                  "desc": "Iniimbestigahan namin ang mataas na rate ng pagkabigo."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2 Mayo 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "2 Mayo, 6:35 PM",
+                  "desc": "Iniimbestigahan namin ang mataas na rate ng pagkabigo."
+                },
+                {
+                  "time": "2 Mayo, 7:50 PM",
+                  "desc": "Nalutas na ang insidenteng ito."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "2 Mayo, 9:20 AM",
+                  "desc": "Iniimbestigahan namin ang mataas na rate ng pagkabigo."
+                },
+                {
+                  "time": "2 Mayo, 10:20 AM",
+                  "desc": "Nalutas na ang insidenteng ito."
+                },
+                {
+                  "time": "2 Mayo, 8:20 PM",
+                  "desc": "Iniimbestigahan namin ang mataas na rate ng pagkabigo."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "2 Mayo, 8:20 PM",
+                  "desc": "Iniimbestigahan namin ang mataas na rate ng pagkabigo."
+                },
+                {
+                  "time": "3 Mayo, 12:05 AM",
+                  "desc": "Nalutas na ang insidenteng ito."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "1 Mayo 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "1 Mayo, 2:05 PM",
+                  "desc": "Iniimbestigahan namin ang mataas na rate ng pagkabigo."
+                },
+                {
+                  "time": "1 Mayo, 3:05 PM",
+                  "desc": "Nalutas na ang insidenteng ito."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "30 Abril 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "30 Abr, 8:20 AM",
+                  "desc": "Iniimbestigahan namin ang mataas na rate ng pagkabigo."
+                },
+                {
+                  "time": "30 Abr, 9:50 AM",
+                  "desc": "Nalutas na ang insidenteng ito."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 Abr, 3:05 PM",
+                  "desc": "Nalutas na ang insidenteng ito."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 Abr, 4:51 PM",
+                  "desc": "Nalutas na ang insidenteng ito."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 Abr, 1:20 PM",
+                  "desc": "Iniimbestigahan namin ang mataas na rate ng pagkabigo."
+                },
+                {
+                  "time": "30 Abr, 2:37 PM",
+                  "desc": "Tumaas ang tindi mula sa degraded tungo sa partial outage."
+                },
+                {
+                  "time": "30 Abr, 8:20 PM",
+                  "desc": "Nalutas na ang insidenteng ito."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 Abr, 6:50 PM",
+                  "desc": "Nalutas na ang insidenteng ito."
+                },
+                {
+                  "time": "30 Abr, 7:50 PM",
+                  "desc": "Iniimbestigahan namin ang mataas na rate ng pagkabigo."
+                },
+                {
+                  "time": "1 Mayo, 12:20 AM",
+                  "desc": "Nalutas na ang insidenteng ito."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "subscribe": {
+      "title": "Maging una<br></br>sa makaaalam kapag may nasira.",
+      "lead": "Piliin ang mga bansang mahalaga sa iyo at magpapadala kami ng isang simpleng update kapag nawala o bumalik online ang mga portal nila, o ang amin.",
+      "emailLabel": "Kumuha ng mga update sa insidente sa email",
+      "button": "Mag-subscribe",
+      "follow": "O sundan ang status sa pamamagitan ng:",
+      "chipEmail": "Email digest",
+      "chipSms": "SMS at WhatsApp",
+      "chipRss": "RSS feed",
+      "chipWebhook": "Webhook para sa ops"
+    },
+    "footer": {
+      "tagline": "Tinutulungan ka ng VIZA na magplano, mag-apply at mag-track ng mga visa nang maayos saanmang panig ng mundo.",
+      "company": "Kumpanya",
+      "careers": "Mga trabaho",
+      "contact": "Makipag-ugnayan",
+      "security": "Seguridad",
+      "systemStatus": "Status ng sistema",
+      "privacy": "Privacy",
+      "terms": "Mga tuntunin",
+      "products": "Mga produkto",
+      "prodVisaReq": "Mga requirement sa visa",
+      "prodSchengen": "Schengen Appointment Checker",
+      "prodPhoto": "Visa Photo Creator",
+      "prodHelpline": "VIZA Emergency Helpline",
+      "copyright": "© VIZA, Lahat ng karapatan ay nakalaan"
+    }
+  },
+  "arrival": {
+    "breadcrumbHome": "Home",
+    "breadcrumbHub": "Mga arrival card",
+    "hubH1": "Mga gabay sa arrival card",
+    "hubLead": "Ang arrival card ay maikling form ng gobyerno na pinupunan bago pumasok sa isang bansa. Karamihan ay online, libre at tumatagal ng mga limang minuto. Ipinapakita ng mga gabay na ito kung sino ang nangangailangan ng bawat isa, kailan ito isusumite, at paano maiiwasan ang mga pekeng site na naniningil para rito.",
+    "hubWhatTitle": "Ano ang arrival card",
+    "hubWhat": [
+      "Ang arrival card ay deklarasyong hinihingi ng destinasyon bukod sa pasaporte at anumang visa. Itinatala nito kung sino ka, paano ka darating at saan ka tutuloy. Maraming bansa ang pumalit na ng online form sa papel na card na dating ipinamimigay sa eroplano.",
+      "Hindi ito visa. Pinapayagan ka ng visa na mag-apply para makapasok. Ang arrival card ay nagsasabi sa border authority tungkol sa biyahe mo, at kailangan mo pa rin ng visa kung hinihingi ito sa nasyonalidad mo."
+    ],
+    "hubFreeTitle": "Libre ang mga arrival card",
+    "hubFree": [
+      "Libre ang bawat card sa mga gabay na ito sa mismong site ng gobyerno. May mga website na kinokopya ang form ng gobyerno at naniningil para rito. Hindi mo kailangang magbayad sa alinman sa mga iyon.",
+      "Laging magsimula sa opisyal na address na nakalista sa bawat gabay. Malayang serbisyo ang VIZA at hindi ito website ng gobyerno."
+    ],
+    "hubWhenTitle": "Kailan mo ito kailangan",
+    "hubWhen": [
+      "Karamihan ng card ay bumubukas tatlong araw bago ka dumating at kailangang maisumite sa loob ng panahong iyon. Tingnan ang bawat gabay para sa eksaktong patakaran, dahil walang takdang deadline ang Visit Japan Web ng Japan at hindi ito sapilitan.",
+      "Madalas na exempted o mas maikli ang form para sa mga residente, mamamayan at transit passenger. Nakalista sa bawat gabay kung sino ang exempted, kasama ang exemption ng mamamayan ng Singapore para sa MDAC ng Malaysia."
+    ],
+    "hubGuidesTitle": "Lahat ng gabay",
+    "hubGuidesSub": "Piliin ang destinasyon mo. May mga hakbang, karaniwang pagkakamali at opisyal na link ang bawat gabay.",
+    "readGuide": "Basahin ang gabay",
+    "cardWhen": "Kailan",
+    "cardsLabel": "Arrival card",
+    "hubVisaTitle": "Kailangan mo rin ba ng visa",
+    "hubVisaBody": "Hindi pinapalitan ng arrival card ang visa. Tingnan ang pahina ng destinasyon para malaman kung kailangan ito ng pasaporte mo.",
+    "hubVisaCta": "Tingnan ang mga pahina ng visa",
+    "glanceTitle": "Sa isang tingin",
+    "stepsTitle": "Paano ito punan, hakbang-hakbang",
+    "mistakesTitle": "Karaniwang pagkakamali",
+    "feesTitle": "Mga bayarin at pekeng site",
+    "faqTitle": "Mga tanong",
+    "sourcesTitle": "Mga pinagkunan",
+    "relatedTitle": "Iba pang gabay sa arrival card",
+    "independent": "Malayang serbisyo ang VIZA at hindi ito website ng gobyerno.",
+    "officialCta": "Buksan ang opisyal na site",
+    "officialLabel": "Opisyal na site",
+    "vizaTitle": "Hayaang gawin ito ng VIZA para sa iyo",
+    "vizaBody": "Simulan ang {name} sa VIZA account mo. Ang form ng VIZA ay gagabay sa iyo sa parehong mga tanong ng opisyal na form at itatago ang detalye mo para sa mga susunod na biyahe. Maaari mo ring gamitin anumang oras ang libreng opisyal na site.",
+    "vizaFee": "Service fee ng VIZA",
+    "vizaFeeFree": "Libre",
+    "vizaCta": "Magsimula sa VIZA",
+    "noVizaTitle": "Gamitin ang opisyal na site",
+    "noVizaBody": "Hindi pa pinupunan ng VIZA ang card na ito. Gamitin ang opisyal na site sa ibaba, at basahin muna ang mga hakbang sa gabay na ito.",
+    "visaTitle": "Visa para sa {country}",
+    "visaBody": "Hiwalay ang arrival card sa visa. Alamin kung sino ang nangangailangan ng visa para sa {country}, ang mga bayarin at kung paano mag-apply.",
+    "visaCta": "Buksan ang pahina ng visa ng {country}",
+    "reviewedTitle": "Sinuri noong 25 Nobyembre 2026",
+    "stepLabel": "Hakbang",
+    "cards": {
+      "malaysia-mdac": {
+        "summary": "Libreng online card para sa mga dayuhang bisita. Exempted ang mga mamamayan ng Singapore.",
+        "when": "Sa loob ng 3 araw bago dumating"
+      },
+      "singapore-sg-arrival-card": {
+        "summary": "Online card ng ICA na may health declaration. Isumite sa website o sa MyICA app.",
+        "when": "Sa loob ng 3 araw bago dumating"
+      },
+      "japan-visit-japan-web": {
+        "summary": "Mga libreng QR code para sa immigration at customs. Inirerekomenda, hindi sapilitan.",
+        "when": "Bago ka lumipad"
+      },
+      "thailand-tdac": {
+        "summary": "Libreng card para sa bawat dayuhang bisita, visa-free man o hindi. Pumalit sa papel na TM6.",
+        "when": "Sa loob ng 3 araw bago dumating"
+      },
+      "korea-e-arrival-card": {
+        "summary": "Sapilitan mula 1 Enero 2026. Exempted ang may balidong K-ETA.",
+        "when": "Sa loob ng 3 araw bago dumating"
+      },
+      "indonesia-all-indonesia": {
+        "summary": "Isang card para sa immigration, customs at kalusugan. Libre, at hindi visa.",
+        "when": "Hanggang 3 araw bago dumating"
+      }
+    }
+  },
+  "guides": {
+    "breadcrumbHome": "Home",
+    "breadcrumbHub": "Mga gabay",
+    "hubH1": "Mga gabay sa visa para sa mga nakatira sa Singapore",
+    "hubLead": "May hawak ka mang pasaporte ng Singapore, Tsina, India o Pilipinas, iisa ang sagot ng mga gabay na ito: ano ang kailangan ko para makapasok sa bansang ito, at saan ako mag-a-apply mula sa Singapore. Nakalista sa bawat gabay ang mga pinagkunan nito at ang petsa kung kailan ito sinuri.",
+    "hubGuidesTitle": "Lahat ng gabay",
+    "hubGuidesSub": "Pumili ng paksa. Nagbabago ang mga patakaran, kaya may listahan ang bawat gabay ng mga opisyal na pahinang dapat tingnan bago ka bumiyahe.",
+    "readGuide": "Basahin ang gabay",
+    "hubMoreTitle": "Iba pa mula sa VIZA",
+    "hubMoreBody": "Naghahanap ba ng partikular na bansa, arrival card o pinakabagong pagbabago sa patakaran?",
+    "hubDestinations": "Mga pahina ng visa",
+    "hubArrival": "Mga gabay sa arrival card",
+    "hubNews": "Balita sa visa",
+    "glanceTitle": "Mabilis na sagot",
+    "relatedVisaTitle": "Mga pahina ng destinasyon",
+    "relatedVisaSub": "Mga bayarin, dokumento at hakbang para sa mga nakatira sa Singapore.",
+    "relatedArrivalTitle": "Mga gabay sa arrival card",
+    "relatedGuidesTitle": "Iba pang gabay",
+    "faqTitle": "Mga tanong",
+    "sourcesTitle": "Mga pinagkunan",
+    "reviewedTitle": "Paano namin sinuri",
+    "published": "Inilathala",
+    "updated": "Na-update",
+    "independent": "Malayang serbisyo ang VIZA at hindi ito website ng gobyerno."
+  },
+  "ds": {
+    "header": {
+      "home": "Home ng VIZA",
+      "primary": "Pangunahin",
+      "language": "Wika",
+      "signIn": "Mag-sign in",
+      "openMenu": "Buksan ang menu",
+      "closeMenu": "Isara ang menu",
+      "nav": {
+        "home": "Home",
+        "destinations": "Mga destinasyon",
+        "arrivalCards": "Mga arrival card",
+        "guides": "Mga gabay",
+        "news": "Balita",
+        "about": "Tungkol sa amin",
+        "contact": "Makipag-ugnayan"
+      }
+    },
+    "footer": {
+      "home": "Home ng VIZA",
+      "tagline": "Mga aplikasyon sa visa na inihanda ng AI ng VIZA at sinuri ng mga consultant namin. Libreng gamitin.",
+      "explore": "Mag-explore",
+      "follow": "Sundan kami",
+      "followOn": "Sundan ang VIZA sa {platform}",
+      "links": {
+        "destinations": "Mga destinasyon",
+        "arrivalCards": "Mga arrival card",
+        "guides": "Mga gabay",
+        "news": "Balita",
+        "about": "Tungkol sa amin",
+        "contact": "Makipag-ugnayan",
+        "careers": "Mga trabaho",
+        "security": "Seguridad",
+        "status": "Status"
+      },
+      "copyright": "© {year} VIZA. Lahat ng karapatan ay nakalaan.",
+      "office": "Rehistradong opisina: 60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapore 409051",
+      "privacy": "Privacy",
+      "terms": "Mga tuntunin",
+      "kelin": "Isang venture ng Kelin Studio",
+      "refunds": "Mga refund",
+      "business": "Impormasyon ng negosyo"
+    },
+    "form": {
+      "fullName": {
+        "label": "Pangalan mo",
+        "placeholder": "Jane Tan"
+      },
+      "email": {
+        "label": "Email"
+      },
+      "phone": {
+        "label": "Telepono"
+      },
+      "destination": {
+        "label": "Destinasyon",
+        "placeholder": "Japan, Schengen, Estados Unidos"
+      },
+      "message": {
+        "label": "Tanong mo",
+        "placeholder": "Saan ka pupunta, ang pasaporte mo at ang petsa ng biyahe mo."
+      },
+      "submit": "Ipadala ang mensahe",
+      "sending": "Ipinapadala",
+      "success": "Salamat, natanggap na namin ang mensahe mo. Sasagot kami sa email.",
+      "error": "Hindi naipadala ang mensahe mo. Subukan ulit, o mag-email sa sales@kelin.studio.",
+      "consent": "Sa pagpapadala, sumasang-ayon ka sa aming <privacy>Patakaran sa Privacy</privacy> at <terms>Mga Tuntunin</terms>."
+    },
+    "gallery": {
+      "title": "Mga destinasyon",
+      "lede": "Pumili ng destinasyon para makita ang visa na kailangan mo, ang mga dokumento at ang bayad sa gobyerno.",
+      "view": "Tingnan",
+      "passportSummary": "{free} visa-free · {voa} e-Visa o on arrival · {req} kailangan ng visa",
+      "noResults": "Walang destinasyong tumutugma sa hinahanap mo.",
+      "sorts": {
+        "featured": "Tampok",
+        "open": "Bukas ngayon muna",
+        "name": "A hanggang Z"
+      }
+    },
+    "dest": {
+      "all": "Lahat ng destinasyon",
+      "onPage": "Sa pahinang ito",
+      "applyTitle": "Simulan ang aplikasyon",
+      "facts": "Mga detalye"
+    },
+    "article": {
+      "toc": "Sa pahinang ito",
+      "down": "Pumunta sa artikulo",
+      "faqLede": "Mabilis na sagot sa paksang ito."
+    },
+    "legal": {
+      "updated": "Huling na-update",
+      "contents": "Nilalaman"
+    }
+  },
+  "homePage": {
+    "hero": {
+      "browse": "Tingnan ang mga destinasyon",
+      "picks": "Mga destinasyon"
+    },
+    "types": {
+      "title": "Mga uri ng visa",
+      "lede": "Tourist, business, work, student at long-term na visa.",
+      "prev": "Nakaraan",
+      "next": "Susunod",
+      "items": {
+        "tourist": {
+          "title": "Turista",
+          "body": "Bakasyon, pagdalaw sa pamilya at maiikling pananatili."
+        },
+        "business": {
+          "title": "Negosyo",
+          "body": "Mga meeting, kumperensya at pagbisita sa site."
+        },
+        "work": {
+          "title": "Trabaho",
+          "body": "Mga work permit at visa sa pagtatrabaho."
+        },
+        "student": {
+          "title": "Estudyante",
+          "body": "Mga study visa para sa mga paaralan at unibersidad."
+        },
+        "long": {
+          "title": "Mahabang pananatili",
+          "body": "Residence at iba pang long-term na visa."
+        }
+      }
+    },
+    "steps": {
+      "title": "Paano ito gumagana",
+      "cta": "Simulan ang iyong libreng aplikasyon",
+      "side": {
+        "freeValue": "Libre",
+        "freeLabel": "Serbisyo ng VIZA",
+        "langLabel": "Mga wika: English at Chinese",
+        "note": "Bayad sa gobyerno lang ang babayaran mo.",
+        "noteBody": "Direkta itong napupunta sa ahensyang nag-iisyu. Walang idinadagdag na bayad ang VIZA."
+      },
+      "items": {
+        "choose": {
+          "title": "Pumili ng destinasyon",
+          "body": "Tingnan ang visa na kailangan mo, ang mga dokumentong ihahanda at ang bayad sa gobyerno bago ka magsimula.",
+          "chips": "Uri ng visa|Mga dokumento|Bayad sa gobyerno"
+        },
+        "passport": {
+          "title": "I-upload ang pasaporte mo",
+          "body": "Binabasa ng VIZA ang detalye mo mula sa photo page, kaya halos wala kang ita-type.",
+          "chips": "Photo page|Napunan na ang detalye"
+        },
+        "confirm": {
+          "title": "Kumpirmahin ang detalye mo",
+          "body": "Tingnan ang binasa ng VIZA, idagdag ang petsa ng biyahe mo at magpatuloy sa libreng VIZA account mo.",
+          "chips": "Petsa ng biyahe|Libreng account"
+        },
+        "file": {
+          "title": "Sinusuri at ina-file ng VIZA",
+          "body": "Sinusuri ng advisor ang bawat form bago ito i-lodge, at masusubaybayan mo ang progreso sa account mo.",
+          "chips": "Pagsusuri ng advisor|Mga update sa progreso"
+        }
+      }
+    },
+    "tiers": {
+      "title": "Presyo",
+      "lede": "Dalawang paraan ng pag-apply, parehong libre.",
+      "cta": "Makipag-ugnayan",
+      "criteria": "Ihambing",
+      "guided": "Guided",
+      "full": "Full-service",
+      "rows": {
+        "fee": {
+          "label": "Bayad sa VIZA",
+          "guided": "Libre",
+          "full": "Libre"
+        },
+        "form": {
+          "label": "Application form",
+          "guided": "Ikaw ang sasagot, gabay mo ang AI ng VIZA",
+          "full": "Ang consultant ang naghahanda ng mga sagot kasama ka"
+        },
+        "documents": {
+          "label": "Mga dokumento",
+          "guided": "Checklist para sa sitwasyon mo",
+          "full": "Sinusuri ng consultant ang mga dokumento mo"
+        },
+        "interview": {
+          "label": "Appointment at interview",
+          "guided": "Ikaw ang magbu-book at dadalo",
+          "full": "Pinag-uusapan namin kasama ka ang mga posibleng tanong"
+        },
+        "govFee": {
+          "label": "Bayad sa gobyerno",
+          "guided": "Direktang binabayaran sa awtoridad",
+          "full": "Direktang binabayaran sa awtoridad"
+        },
+        "bestFor": {
+          "label": "Bagay para sa",
+          "guided": "Mga simpleng aplikasyon",
+          "full": "Mga komplikadong kaso o dating pagtanggi"
+        }
+      }
+    },
+    "why": {
+      "title": "Bakit VIZA",
+      "lede": "Malilinaw na hakbang, sinuring form at totoong taong makakausap.",
+      "items": {
+        "free": {
+          "title": "Libreng serbisyo",
+          "body": "Walang bayad ang tulong ng VIZA. Bayad sa gobyerno lang ang babayaran mo, direkta sa awtoridad."
+        },
+        "checked": {
+          "title": "Sinuring form",
+          "body": "Sinusuri ng advisor ang bawat form bago ito i-lodge, kaya maagang nahuhuli ang maliliit na pagkakamali."
+        },
+        "language": {
+          "title": "English at Chinese",
+          "body": "Makipag-usap sa VIZA sa English o Chinese, sa WhatsApp, WeChat o email."
+        }
+      },
+      "photos": {
+        "arrival": {
+          "title": "Mga arrival card",
+          "body": "Hakbang-hakbang na tulong sa mga libreng arrival card ng Malaysia, Singapore, Japan, Thailand, Korea at Indonesia."
+        },
+        "news": {
+          "title": "Balita",
+          "body": "Mga pagbabago sa patakaran sa visa at bagong e-visa, ipinaliwanag sa simpleng salita."
+        }
+      }
+    },
+    "guides": {
+      "title": "Mga gabay",
+      "cta": "Lahat ng gabay"
+    },
+    "faq": {
+      "lede": "Mabilis na sagot tungkol sa serbisyo ng VIZA sa visa.",
+      "more": "May iba pang tanong?",
+      "items": {
+        "cost": {
+          "q": "Naniningil ba ang VIZA para sa serbisyo nito?",
+          "a": "Hindi. Libre ang tulong ng VIZA. Kung may bayad sa visa ang isang destinasyon, direkta mo itong babayaran sa gobyernong iyon."
+        },
+        "visas": {
+          "q": "Anong mga visa ang matutulungan ng VIZA?",
+          "a": "Tourist, business, work, student at long-term na visa para sa mga destinasyon sa pahinang ito. Kung wala sa listahan ang sa iyo, sumulat sa amin at sasabihin ng consultant kung ano ang posible."
+        },
+        "approval": {
+          "q": "Sino ang nagpapasya sa visa ko?",
+          "a": "Ang ahensyang nag-iisyu ang nagpapasya sa bawat aplikasyon. Sinusuri ng VIZA ang form at mga dokumento mo bago i-lodge, para kumpleto at pare-pareho ang aplikasyon mo."
+        },
+        "tiers": {
+          "q": "Ano ang pagkakaiba ng Guided at Full-service?",
+          "a": "Sa Guided, ginagabayan ka ng AI ng VIZA sa form at checklist, at ikaw ang may hawak ng bawat sagot. Sa Full-service, ang consultant ang naghahanda ng mga sagot kasama ka at sumusuri ng mga dokumento mo. Parehong libre."
+        },
+        "language": {
+          "q": "Anong mga wika ang sinusuportahan ninyo?",
+          "a": "English at Chinese, sa WhatsApp, WeChat, telepono at email."
+        }
+      }
+    },
+    "contactCard": {
+      "title": "Kausapin ang VIZA consultant",
+      "body": "Sumasagot kami sa English o Chinese.",
+      "cta": "Makipag-ugnayan"
+    },
+    "cta": {
+      "title": "Simulan ang aplikasyon mo",
+      "point1": "Pribado ang detalye mo",
+      "point2": "Totoong tao ang sumasagot",
+      "formTitle": "Magtanong",
+      "formBody": "Sabihin sa amin kung saan ka pupunta at sasagot ang VIZA consultant sa email."
+    }
+  },
+  "aboutPage": {
+    "h1": "Tungkol sa VIZA",
+    "intro": {
+      "title": "Ano ang VIZA",
+      "text": "Inihahanda, sinusuri at ina-file ng VIZA ang mga aplikasyon sa visa para sa mga nakatira sa Singapore. Ang AI namin ang gumagawa ng papeles at sinusuri ng mga consultant namin ang bawat form. Libre ang serbisyo."
+    },
+    "facts": {
+      "destinations": "Mga destinasyon",
+      "guides": "Mga gabay sa visa",
+      "arrival": "Mga gabay sa arrival card",
+      "free": "Libre",
+      "freeLabel": "Serbisyo ng VIZA"
+    },
+    "tiersTitle": "Guided o Full-service",
+    "tiersLede": "Piliin kung gaano karaming tulong ang gusto mo. Parehong libre.",
+    "free": {
+      "title": "Libreng serbisyo",
+      "text": "Hindi naniningil ang VIZA para sa tulong nito. Kapag may bayad sa gobyerno ang visa ng isang destinasyon, ipinapakita ito ng VIZA bago ka magsimula at direkta mo itong babayaran sa ahensyang nag-iisyu. Walang bayad na upgrade."
+    },
+    "company": {
+      "title": "Detalye ng kumpanya",
+      "office": "Rehistradong opisina",
+      "officeValue": "60 Paya Lebar Kalsada, #06-28 Paya Lebar Square, Singapore 409051",
+      "email": "Email",
+      "phone": "Telepono at WhatsApp",
+      "languages": "Mga wika",
+      "languagesValue": "English at Chinese"
+    }
+  },
+  "contactPage": {
+    "h1": "Makipag-ugnayan",
+    "lines": {
+      "whatsapp": {
+        "title": "Telepono at WhatsApp",
+        "body": "Tawagan o i-message ang isang consultant."
+      },
+      "wechat": {
+        "body": "Hanapin ang ID sa WeChat para madagdag kami."
+      },
+      "email": {
+        "title": "Email",
+        "body": "Pinakamainam para sa mga dokumento at mas mahahabang tanong."
+      },
+      "office": {
+        "top": "Singapore",
+        "title": "Opisina",
+        "body": "60 Paya Lebar Kalsada, #06-28 Paya Lebar Square, Singapore 409051"
+      }
+    },
+    "message": {
+      "title": "Magpadala ng mensahe",
+      "text": "Mga tanong tungkol sa visa, destinasyon o pakikipagtrabaho sa VIZA. Sumulat sa amin at sasagot ang isang consultant."
+    }
+  },
+  "careersPage": {
+    "title": "Mga trabaho",
+    "lede": "Tinutulungan ng VIZA ang mga nasa Singapore na makuha ang visa nila gamit ang AI at mga consultant, at libre ang serbisyo. Kumukuha kami ng mga taong mahilig sa maingat at kapaki-pakinabang na trabaho.",
+    "teamsTitle": "Mga team",
+    "teams": [
+      {
+        "title": "Engineering",
+        "body": "Buuin ang mga pagsusuri ng dokumento, ang daloy ng aplikasyon at ang mga tool na ginagamit ng mga consultant namin."
+      },
+      {
+        "title": "Design",
+        "body": "Gawing malinaw para sa nag-a-apply ang prosesong nakakastress."
+      },
+      {
+        "title": "Operations",
+        "body": "Panatilihing umuusad ang bawat aplikasyon at napapanahon ang bawat requirement."
+      },
+      {
+        "title": "Consulting",
+        "body": "Tulungan ang mga aplikante sa mga kasong kailangan ng tao, sa English at Chinese."
+      },
+      {
+        "title": "Data",
+        "body": "Gawing mga pagsusuri ang mga source mula sa gobyerno para maagang mahuli ang mga problema."
+      },
+      {
+        "title": "Marketing",
+        "body": "Ipaliwanag nang simple ang mga visa, sa mga gabay at pahinang mapagkakatiwalaan ng tao."
+      }
+    ],
+    "applyTitle": "Makipag-ugnayan",
+    "applyBody": "Ikuwento sa amin ang tungkol sa iyo at ang team na gusto mong salihan. Binabasa namin ang bawat mensahe.",
+    "applyCta": "Makipag-ugnayan sa amin"
+  },
+  "pageCopy": {
+    "product": {
+      "introTitle": "Paano ka sinusuportahan ng VIZA sa aplikasyon mo sa visa",
+      "introLede": "Tingnan ang mga serbisyo sa paghahanda ng visa, pagsusuri ng dokumento at status ng aplikasyon. Libre ang serbisyo ng VIZA. Makikita ang eksaktong saklaw at availability pagkatapos mong pumili ng destinasyon.",
+      "browse": "Tingnan ang mga destinasyon"
+    },
+    "events": {
+      "title": "Wala pang event",
+      "lede": "Dito iaanunsyo ang mga susunod na visa clinic, info session at partner event.",
+      "contact": "Makipag-ugnayan sa amin"
+    }
+  },
+  "og": {
+    "band": "Libre ang VIZA. Hiwalay ang bayad sa gobyerno.",
+    "destSubtitle": "Mga bayarin at paano mag-apply"
+  }
+}

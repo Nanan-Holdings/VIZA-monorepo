@@ -1,0 +1,2150 @@
+{
+  "cta": {
+    "startFreeApplication": "Anza ombi lako la bure"
+  },
+  "nav": {
+    "home": "Mwanzo",
+    "apply": "Omba",
+    "visas": "Viza",
+    "explore": "Gundua",
+    "events": "Matukio",
+    "blog": "Habari",
+    "careers": "Kazi",
+    "contact": "Wasiliana",
+    "signIn": "Ingia",
+    "getStarted": "Anza",
+    "yourPassport": "Pasipoti yako",
+    "searchPlaceholder": "Tafuta nchi au viza…",
+    "arrivalCards": "Kadi za kuwasili",
+    "guides": "Miongozo"
+  },
+  "footer": {
+    "followUs": "Tufuate:",
+    "followOn": "Fuata VIZA kwenye {platform}",
+    "product": "Bidhaa",
+    "company": "Kampuni",
+    "legal": "Kisheria",
+    "offices": "Ofisi",
+    "askAi": "Uliza AI kuhusu VIZA",
+    "security": "Usalama",
+    "status": "Hali ya huduma",
+    "privacy": "Faragha",
+    "terms": "Masharti",
+    "rights": "Haki zote zimehifadhiwa.",
+    "tagline": "VIZA hukusaidia kupanga, kuomba na kufuatilia viza kwa urahisi duniani kote.",
+    "careers": "Kazi",
+    "contact": "Wasiliana",
+    "copyright": "© VIZA, Haki zote zimehifadhiwa",
+    "prodMockInterview": "Mahojiano ya Majaribio ya Marekani",
+    "prodVisaReq": "Mahitaji ya Viza",
+    "prodSchengen": "Kikagua Miadi ya Schengen",
+    "prodPhoto": "Kitengeneza Picha ya Viza",
+    "prodHelpline": "Simu ya Dharura ya VIZA",
+    "prodStudent": "Viza ya Mwanafunzi",
+    "arrivalCards": "Kadi za kuwasili",
+    "guides": "Miongozo",
+    "news": "Habari"
+  },
+  "pages": {
+    "blog": {
+      "metaTitle": "Habari za Viza na Mabadiliko ya Sera | VIZA",
+      "metaDescription": "Habari za viza kutoka VIZA: mabadiliko ya kanuni, mifumo mipya ya e-visa na ETA, na maana yake kwa watu wanaoishi Singapore. Husasishwa kanuni zikibadilika.",
+      "title": "Habari za viza",
+      "lede": "Mabadiliko ya kanuni na sera, yakielezwa kwa maneno rahisi. Kwa ushauri unaodumu, soma miongozo.",
+      "readArticle": "Soma makala",
+      "featuredLabel": "Habari mpya",
+      "articlesTitle": "Habari mpya",
+      "articlesDescription": "Mabadiliko ya sera na kanuni za kusafiri.",
+      "allPosts": "Machapisho yote",
+      "noMorePosts": "Habari zaidi zinakuja.",
+      "emptyTitle": "Hakuna habari zilizochapishwa bado",
+      "emptyBody": "Taarifa zetu za kwanza zinaandaliwa. Tafadhali angalia tena hivi karibuni.",
+      "unavailableTitle": "Habari hazipatikani kwa muda",
+      "unavailableBody": "Hatukuweza kupakia habari za hivi karibuni zilizochapishwa. Tafadhali jaribu tena baada ya muda mfupi.",
+      "backToBlog": "Rudi kwenye habari",
+      "by": "Na",
+      "updated": "Imesasishwa",
+      "categoriesLabel": "Mada za habari",
+      "topicLabel": "Mada",
+      "relatedTitle": "Habari zaidi",
+      "relatedDescription": "Habari zaidi za viza kutoka VIZA.",
+      "ctaEyebrow": "Panga kwa uhakika",
+      "ctaTitle": "Uko tayari kuanza ombi lako?",
+      "ctaBody": "Tuambie unakotaka kwenda. VIZA itakuongoza kupitia mahitaji na hatua zinazofuata.",
+      "ctaAction": "Anza ombi",
+      "categoryMetaTitle": "Habari za {category} | VIZA",
+      "categoryMetaDescription": "Soma habari za VIZA kuhusu {category}: kilichobadilika, nani anaathirika na la kufanya baadaye.",
+      "categoryLede": "Habari kuhusu {category}.",
+      "visaLinkTitle": "Unaomba viza ya {country}?",
+      "visaLinkBody": "Tazama nyaraka, ada ya serikali na hatua kwa watu wanaoishi Singapore.",
+      "visaLinkAction": "Mwongozo wa viza ya {country}",
+      "guidesTitle": "Miongozo inayohusiana",
+      "guidesBody": "Miongozo inayosasishwa kuhusu mada hii."
+    },
+    "home": {
+      "title": "Maombi ya Viza Singapore: Marekani, India, Vietnam | VIZA",
+      "description": "Omba viza ya Marekani (DS-160), e-visa ya India, Vietnam au Misri, au viza ya Schengen ya Ufaransa. Mshauri hukagua kila fomu kabla ya kuwasilishwa.",
+      "heroTitle": "Unaelekea wapi?",
+      "heroLede": "Tazama chaguo za viza kwa nchi yoyote. Mshauri wako wa VIZA na AI yetu hushughulikia makaratasi, wewe unapanga safari."
+    },
+    "apply": {
+      "title": "Anza Ombi la Viza | VIZA",
+      "description": "Pakia pasipoti yako, thibitisha taarifa zako na umkabidhi mshauri wa VIZA ombi lako la viza. Huduma ya VIZA ni bure.",
+      "saveBadge": "Imehifadhiwa · endelea wakati wowote"
+    },
+    "careers": {
+      "title": "Kazi | VIZA",
+      "description": "Fanya kazi VIZA, huduma ya viza ya bure inayoendeshwa na Kelin Studio Singapore. Tazama timu tunazoajiri na jinsi ya kuwasiliana kuhusu nafasi.",
+      "rightCta": "Tazama nafasi"
+    },
+    "contact": {
+      "title": "Wasiliana Nasi: WhatsApp, WeChat, Simu, Barua Pepe | VIZA",
+      "description": "Wasiliane na timu ya VIZA kwa WhatsApp, WeChat, simu au barua pepe. Njia nne, madawati manne, na mtu halisi hujibu.",
+      "rightCta": "Tuandikie"
+    },
+    "security": {
+      "title": "Usalama na Kuripoti Udhaifu kwa Uwajibikaji | VIZA",
+      "description": "Faragha, uwazi na usalama kwa chaguo-msingi. Jinsi VIZA inavyolinda data ya wateja, mpango wetu wa kuripoti udhaifu na hifadhi salama.",
+      "rightCta": "Ripoti udhaifu"
+    },
+    "status": {
+      "title": "Hali ya Mfumo | VIZA",
+      "description": "Hali ya moja kwa moja ya VIZA na tovuti za viza za serikali tunazowasilisha kwazo.",
+      "navPill": "Mifumo yote inafanya kazi"
+    },
+    "visa": {
+      "applyCta": "Omba sasa",
+      "applicationProcess": "Mchakato wa ombi",
+      "documents": "Nyaraka",
+      "rejectionReasons": "Sababu za kukataliwa",
+      "entryExit": "Kuingia na kutoka",
+      "extension": "Kuongeza muda",
+      "reviews": "Maoni",
+      "nearby": "Nchi za karibu",
+      "sources": "Vyanzo rasmi"
+    },
+    "privacy": {
+      "title": "Sera ya Faragha | VIZA",
+      "description": "Kile VIZA inachokusanya unapoomba viza, kwa nini, nani anakiona na tunakihifadhi kwa muda gani, chini ya PDPA ya Singapore."
+    },
+    "terms": {
+      "title": "Masharti na Vigezo | VIZA",
+      "description": "Masharti ya kutumia huduma ya maombi ya viza ya VIZA, inayoendeshwa na Kelin Studio Pte. Ltd. Singapore. Huduma ya VIZA ni bure."
+    },
+    "product": {
+      "title": "Jinsi VIZA Inavyosaidia Ombi Lako la Viza | VIZA",
+      "description": "Maandalizi ya viza, ukaguzi wa nyaraka na hali ya ombi mahali pamoja. Huduma ya VIZA ni bure. Wigo na upatikanaji huonyeshwa kwa kila nchi."
+    },
+    "events": {
+      "title": "Matukio | VIZA",
+      "description": "Kliniki za viza, vikao vya taarifa na matukio ya washirika kutoka VIZA."
+    },
+    "arrivalCards": {
+      "title": "Kadi za Kuwasili: MDAC, SG Arrival Card, TDAC | VIZA",
+      "description": "Miongozo ya bure ya kadi za kuwasili za Malaysia, Singapore, Japani, Thailand, Korea na Indonesia: nani anahitaji, lini kuwasilisha, na hatua kwa hatua."
+    },
+    "guides": {
+      "title": "Miongozo ya Viza kwa Wakazi wa Singapore | VIZA",
+      "description": "Miongozo rahisi kwa wakazi wa Singapore: nchi zisizohitaji viza, nyaraka za Schengen, mahojiano ya Marekani, ETA, e-visa na kukataliwa. Bure kusoma."
+    },
+    "about": {
+      "title": "Kuhusu VIZA: Msaada wa Viza Bure Singapore | VIZA",
+      "description": "VIZA huandaa, hukagua na kuwasilisha maombi ya viza kwa watu walio Singapore, kwa AI na washauri. Huduma ni bure; ada za serikali huenda kwa mamlaka."
+    },
+    "visaIndex": {
+      "title": "Nchi za Viza: Mahitaji kwa Kila Nchi | VIZA",
+      "description": "Linganisha mahitaji ya viza kwa kila nchi, pamoja na nyaraka na ada za kila moja. Msaada wa VIZA ni bure.",
+      "heroTitle": "Nchi za viza"
+    },
+    "refunds": {
+      "title": "Sera ya Marejesho | VIZA",
+      "description": "Huduma ya VIZA ni bure, kwa hiyo hakuna ada ya huduma ya kurejeshwa. Jinsi ada za serikali na za watoa huduma wengine zinavyofanya kazi."
+    },
+    "businessInformation": {
+      "title": "Taarifa za Biashara | VIZA",
+      "description": "VIZA inaendeshwa na Kelin Studio Pte. Ltd., kampuni ya Singapore. Anwani iliyosajiliwa, UEN na mawasiliano."
+    }
+  },
+  "common": {
+    "comingSoon": "Inakuja hivi karibuni",
+    "learnMore": "Jifunze zaidi",
+    "readMore": "Soma zaidi",
+    "applyNow": "Omba sasa",
+    "talkToHuman": "Ongea na mtu",
+    "viewAll": "Tazama zote"
+  },
+  "visa": {
+    "heroTitle": "Viza ya {country}",
+    "validity": "Uhalali",
+    "howItWorks": "Inavyofanya kazi",
+    "step1": "Tuambie maelezo ya safari yako na upakie pasipoti yako.",
+    "step2": "Tunakamilisha na kukagua ombi lako kulingana na kanuni za hivi karibuni.",
+    "step3": "Tunawasilisha kwenye tovuti ya serikali na kufuatilia uamuzi.",
+    "step4": "Viza yako iliyoidhinishwa inafika kwa barua pepe, nasi tunaifuatilia kutoka mwanzo hadi mwisho.",
+    "documents": "Utakachohitaji",
+    "doc1": "Pasipoti yenye uhalali wa angalau miezi 6.",
+    "doc2": "Picha ya hivi karibuni ya ukubwa wa pasipoti.",
+    "doc3": "Tarehe zako za safari na malazi.",
+    "doc4": "Ikiwa nchi inatoza ada ya viza, kadi ya malipo ya kuilipa moja kwa moja kwa serikali.",
+    "nearby": "Nchi za karibu",
+    "startApplication": "Anza ombi lako",
+    "comingSoonTitle": "{country}: inakuja hivi karibuni",
+    "comingSoonBody": "Tunamalizia maandalizi ya {country}. Fungua akaunti nasi tutakujulisha mara itakapoanza.",
+    "browseDestinations": "Tazama nchi",
+    "notifyMe": "Nijulishe",
+    "back": "Rudi kwenye gundua",
+    "tabOverview": "Muhtasari",
+    "tabProcess": "Mchakato wa ombi",
+    "tabDocuments": "Nyaraka",
+    "tabRejection": "Sababu za kukataliwa",
+    "tabEntry": "Kuingia na kutoka",
+    "tabExtension": "Kuongeza muda",
+    "tabReviews": "Maoni",
+    "tabNearby": "Nchi za karibu",
+    "reviewsTitle": "Maoni",
+    "nearbyTitle": "Nchi za karibu",
+    "nearbySub": "Unasafiri kanda hii? Ongeza viza nyingine kwenye safari yako, na mshauri wako wa VIZA atazishughulikia pamoja.",
+    "faqTitle": "Maswali yanayoulizwa mara kwa mara",
+    "editorial": "Ukurasa huu unafuata sera ya uhariri ya VIZA. Tunategemea vyanzo rasmi vya serikali na kusasisha kila sharti sera inapobadilika.",
+    "editorialLink": "Soma jinsi tunavyokagua",
+    "sourcesTitle": "Vyanzo",
+    "priceGovt": "Ada ya serikali",
+    "priceFree": "Bure",
+    "pillAllInclusive": "Kila kitu pamoja",
+    "priceCta": "Anza ombi",
+    "onTime": "Kwa wakati",
+    "freeService": "Huduma ya bure ya VIZA",
+    "freeServiceNote": "VIZA haitozi chochote kwa msaada wake",
+    "govFeePaidDirect": "Ada ya serikali {fee}, inalipwa moja kwa moja kwa mamlaka inayotoa viza.",
+    "govFeeSetByAuthority": "Ada yoyote ya serikali huwekwa na mamlaka inayotoa viza na hulipwa moja kwa moja kwake.",
+    "govFeeSetByAuthorityShort": "Inawekwa na mamlaka",
+    "priceService": "Huduma ya VIZA",
+    "pillPaidToAuthority": "Hulipwa kwa mamlaka",
+    "priceTotalToViza": "Unalipa VIZA",
+    "breadcrumbVisas": "Nchi za viza",
+    "serviceDescription": "VIZA huwasaidia watu wanaoishi Singapore kuandaa, kukagua na kuwasilisha maombi ya {type} ya {country} kwa mwongozo wa AI na ukaguzi wa wataalamu.",
+    "offerDescription": "Ada ya huduma ya VIZA. Ada za viza za serikali ni tofauti na hulipwa moja kwa moja kwa mamlaka inayotoa viza.",
+    "dest": {
+      "tabGlance": "Kwa muhtasari",
+      "tabPassports": "Pasipoti",
+      "tabTypes": "Aina za viza",
+      "tabResidents": "Wakazi",
+      "tabFees": "Ada",
+      "tabApply": "Jinsi ya kuomba",
+      "tabChecklist": "Nyaraka",
+      "tabRejection": "Kukataliwa",
+      "tabTravel": "Kabla ya kusafiri",
+      "tabRelated": "Zinazohusiana",
+      "glanceTitle": "Kwa muhtasari",
+      "glanceVisa": "Viza inahitajika",
+      "glanceGovFee": "Ada ya serikali",
+      "glanceVizaFee": "Ada ya VIZA",
+      "glanceProcessing": "Muda wa kushughulikia",
+      "glanceMaxStay": "Muda mrefu zaidi wa kukaa",
+      "glanceChecked": "Tarehe ya ukaguzi",
+      "passportsTitle": "Je, unahitaji viza?",
+      "typesTitle": "Aina za viza",
+      "residentsTitle": "Wakazi wa Singapore",
+      "feesTitle": "Ada na muda",
+      "applyTitle": "Jinsi ya kuomba",
+      "checklistTitle": "Orodha ya nyaraka",
+      "travelTitle": "Kabla ya kusafiri",
+      "colPassport": "Pasipoti",
+      "colEntry": "Kuingia",
+      "colNotes": "Maelezo",
+      "colItem": "Kipengele",
+      "colAmount": "Kiasi",
+      "vizaFeeNote": "Msaada wa VIZA ni bure. Unalipa ada ya serikali pekee, moja kwa moja kwa mamlaka.",
+      "reviewedBy": "Imekaguliwa na mshauri wa VIZA tarehe {date}.",
+      "relatedTitle": "Nchi zinazohusiana",
+      "relatedSub": "Maeneo mengine ambayo watu huongeza kwenye safari hiyohiyo, na mahali pa kusoma zaidi.",
+      "startTitle": "Anza ombi",
+      "startBody": "Anza na pasipoti yako na tarehe za safari. Msaada wa VIZA ni bure nawe unalipa ada ya serikali moja kwa moja kwa mamlaka.",
+      "startConsultBody": "Mwambie mshauri wa VIZA unapoishi, pasipoti yako na tarehe zako za safari. Msaada wa VIZA ni bure.",
+      "consultCta": "Ongea na mshauri"
+    }
+  },
+  "apply": {
+    "stepOf": "Hatua ya {n} kati ya 3",
+    "back": "Rudi",
+    "continue": "Endelea",
+    "step1Name": "Pakia pasipoti",
+    "step2Name": "Thibitisha taarifa",
+    "step3Name": "Anza ombi",
+    "s1Title": "Pakia pasipoti yako",
+    "s1Desc": "Tutasoma taarifa zako kiotomatiki, huhitaji kuandika. Tumia ukurasa wa taarifa (wenye picha yako).",
+    "segUpload": "Pakia faili",
+    "segCapture": "Piga picha",
+    "dzTitle": "Weka picha ya pasipoti yako hapa",
+    "dzSub": "Au bofya kuchagua, faili lako husimbwa kwa njia fiche na halishirikiwi kamwe",
+    "dzBrowse": "Chagua faili",
+    "dzUpTo": "Hadi MB 10",
+    "tip1Title": "Pembe zote nne zionekane",
+    "tip1Sub": "Piga picha ya ukurasa mzima wa taarifa pamoja na MRZ ya chini.",
+    "tip2Title": "Mwanga mkali na sawia",
+    "tip2Sub": "Epuka vivuli vya mkono wako au kifuniko cha simu.",
+    "tip3Title": "Bila mng'ao au mwangaza",
+    "tip3Sub": "Inamisha kidogo ikiwa muhuri unang'aa.",
+    "errReadFail": "Hatukuweza kusoma pasipoti hiyo: {detail}. Tafadhali jaribu picha iliyo wazi zaidi ya ukurasa wa taarifa.",
+    "extReading": "Inasoma hati",
+    "extExtracting": "Inatoa taarifa zako",
+    "extVerifying": "Inathibitisha uhalisi",
+    "stReading": "Inasoma…",
+    "stExtracting": "Inatoa taarifa…",
+    "stVerifying": "Inathibitisha…",
+    "s2Title": "Thibitisha taarifa zako",
+    "s2Desc": "Tumezichukua moja kwa moja kutoka kwenye pasipoti yako. Gusa sehemu yoyote ili kuhariri.",
+    "successHigh": "Taarifa za pasipoti zimetolewa kwa mafanikio, uhakika wa juu",
+    "warnLow": "Baadhi ya sehemu zilikuwa ngumu kusoma. Tafadhali hakiki kila thamani hapa chini.",
+    "warnMed": "Tumetoa taarifa zako nyingi. Tafadhali hakiki sehemu zilizoangaziwa.",
+    "ppDetails": "Taarifa za pasipoti",
+    "autoExtracted": "Imetolewa kiotomatiki",
+    "fSurname": "Jina la ukoo",
+    "fGiven": "Majina ya kwanza",
+    "fPassport": "Nambari ya pasipoti",
+    "fDob": "Tarehe ya kuzaliwa",
+    "fNationality": "Uraia",
+    "fExpires": "Inaisha",
+    "reachTitle": "Tukufikie vipi?",
+    "reachDesc": "Tutakutumia viza yako hapa, pamoja na taarifa za hali kwa ujumbe mfupi kwenye simu yako.",
+    "email": "Barua pepe",
+    "phone": "Simu",
+    "consent": "Ninathibitisha kwamba taarifa zilizo hapo juu zinalingana na pasipoti yangu, na ninairuhusu VIZA kuwasilisha ombi hili kwa niaba yangu kwa mamlaka za uhamiaji za {country}.",
+    "s3Title": "Anza ombi lako",
+    "s3Desc": "Huduma ya VIZA ni bure. Ingia kwenye tovuti ya VIZA na tutaendelea kutoka hapo.",
+    "headsUp": "Fahamu:",
+    "headsUpBody": "ikiwa serikali ya {country} inatoza ada ya viza, unailipa moja kwa moja kwao. VIZA haikusanyi wala haiongezi bei ya kiasi hicho.",
+    "yourApp": "Ombi lako",
+    "guaranteedBy": "Utoaji umehakikishwa kufikia",
+    "govFee": "Ada ya serikali",
+    "expressUpgrade": "Uboreshaji wa haraka",
+    "total": "Jumla",
+    "footEncrypted": "Imesimbwa kwa njia fiche kutoka mwanzo hadi mwisho. VIZA haikutozi ada kwa ombi hili.",
+    "helpOnline": "Priya yuko mtandaoni",
+    "helpTap": "Gusa kuongea na mshauri wako wa VIZA",
+    "totalAmount": "SGD {amount}",
+    "totalFree": "Bure",
+    "etaStandard": "12 Mei 2026, 8:00 asubuhi SGT",
+    "failTitle": "Hatukuweza kusoma hati hiyo",
+    "failNotPassport": "Hii haionekani kuwa ukurasa wa taarifa wa pasipoti. Tafadhali pakia picha ya ukurasa wenye picha yako na taarifa binafsi.",
+    "failUnreadable": "Hakuna sehemu yoyote inayohitajika iliyoweza kusomwa. Tafadhali piga picha upya kwenye mwanga mzuri, ukurasa mzima wa taarifa ukiwa tambarare na wazi.",
+    "tryAgain": "Jaribu tena",
+    "warnPartial": "Hatukuweza kusoma kila kitu. Tafadhali kamilisha sehemu zilizoangaziwa hapa chini.",
+    "warnExpired": "Pasipoti hii inaonekana kuwa imeisha muda, nchi nyingi zinahitaji uhalali wa angalau miezi 6.",
+    "warnMrz": "Eneo linalosomeka na mashine (mistari miwili ya chini) halikusomeka. Tafadhali hakiki kila sehemu.",
+    "warnBlurry": "Picha ilikuwa na ukungu. Tafadhali hakiki kila sehemu kwa makini.",
+    "fieldRequired": "Inahitajika, tafadhali jaza",
+    "editField": "Hariri {field}",
+    "emailInvalid": "Weka barua pepe halali, taarifa za viza yako na kiungo cha kuingia vitatumwa hapa.",
+    "phoneInvalid": "Weka nambari halali ya simu.",
+    "consentRequired": "Tafadhali thibitisha tamko ili kuendelea.",
+    "continueToStart": "Endelea",
+    "startTitle": "Endelea kwenye tovuti ya VIZA",
+    "startSub": "Ingia au fungua akaunti yako ya bure. Ombi lako la nchi hii hufunguka mara moja.",
+    "vizaService": "Huduma ya VIZA",
+    "govFeeSetByAuthority": "Inawekwa na mamlaka",
+    "govFeeNote": "Ada yoyote ya viza ya serikali hulipwa moja kwa moja kwa mamlaka inayotoa viza, si kwa VIZA.",
+    "completeBeforeStart": "Tafadhali kamilisha vipengele vilivyoangaziwa hapo juu kabla ya kuendelea."
+  },
+  "explore": {
+    "help": "Msaada",
+    "passportLabel": "Pasipoti ya {name}",
+    "passportSub": "Mahitaji ya viza katika nchi {n} · Nafasi {rank}",
+    "freeLabel": "Bila viza",
+    "freeNote": "hakuna makaratasi",
+    "voaLabel": "e-Visa au VOA",
+    "voaNote": "tunashughulikia",
+    "reqLabel": "Viza inahitajika",
+    "reqNote": "uwasilishaji ubalozini",
+    "fullMap": "Tazama ramani kamili ya viza",
+    "grid": "Gridi",
+    "map": "Ramani",
+    "mapLegendEvisa": "e-Visa na viza za wageni",
+    "mapHint": "Elea juu ya nukta iliyoangaziwa kuona muhtasari wa nchi",
+    "sectionTitle": "Kwa pasipoti za {country}",
+    "seeAll": "Tazama zote {n}",
+    "footnote": "Huduma ya VIZA ni bure. Ada yoyote ya viza ya serikali hulipwa moja kwa moja kwa mamlaka inayotoa viza na hutofautiana kwa kila nchi.",
+    "fastTrack": "Njia ya haraka",
+    "cardType": "Aina",
+    "cardValid": "Uhalali",
+    "cardFee": "Huduma ya VIZA",
+    "save": "Hifadhi",
+    "startApplication": "Anza ombi",
+    "catalogueUnavailable": "Hakuna nchi zilizo wazi kwa maombi ya mtandaoni kwa sasa. Tafadhali angalia tena hivi karibuni.",
+    "choosePassport": "Chagua pasipoti yako",
+    "searchPassport": "Tafuta nchi ya pasipoti…",
+    "visaFree": "{n} bila viza",
+    "ppFoot": "Imesasishwa kwa Mei 2026 · Chanzo: IATA Timatic",
+    "noMatch": "Hakuna pasipoti zinazolingana na “{q}”",
+    "filters": {
+      "delivery": "Utoaji wa viza",
+      "type": "Aina ya viza",
+      "documents": "Nyaraka",
+      "dates": "Tarehe za safari"
+    },
+    "filterOpts": {
+      "delivery": [
+        "Wakati wowote",
+        "Ndani ya saa 24",
+        "Ndani ya siku 3",
+        "Ndani ya wiki 1",
+        "Ndani ya mwezi 1"
+      ],
+      "type": [
+        "Aina zote",
+        "Utalii",
+        "Biashara",
+        "Kazi",
+        "Mwanafunzi",
+        "Digital nomad (mfanyakazi wa mtandaoni anayesafiri)"
+      ],
+      "documents": [
+        "Nyaraka zozote",
+        "Chache (pasipoti pekee)",
+        "Za kawaida",
+        "Kifurushi kamili"
+      ],
+      "dates": [
+        "Chagua tarehe",
+        "Wiki hii",
+        "Mwezi huu",
+        "Baada ya miezi 3",
+        "Baada ya miezi 6"
+      ]
+    }
+  },
+  "cities": {
+    "viza-test": "Jaribio la malipo ya moja kwa moja",
+    "indonesia": "Bali · Jakarta",
+    "egypt": "Kairo · Giza",
+    "australia": "Sydney · Melbourne",
+    "saudi-arabia": "Riyadh · AlUla",
+    "united-kingdom": "London · Edinburgh",
+    "vietnam": "Hanoi · Hoi An",
+    "malaysia": "KL · Penang",
+    "japan": "Tokyo · Kyoto",
+    "united-states": "NYC · LA",
+    "canada": "Toronto · Vancouver",
+    "turkiye": "Istanbul · Kapadokia",
+    "thailand": "Bangkok · Phuket",
+    "united-arab-emirates": "Dubai · Abu Dhabi",
+    "france": "Paris · Nice",
+    "italy": "Roma · Florence",
+    "india": "Delhi · Mumbai"
+  },
+  "validity": {
+    "viza-test": "Maonyesho tu",
+    "indonesia": "Siku 90",
+    "egypt": "Siku 90",
+    "australia": "Mwaka 1",
+    "saudi-arabia": "Siku 365",
+    "united-kingdom": "Miezi 6",
+    "vietnam": "Siku 90",
+    "malaysia": "Miezi 3",
+    "japan": "Siku 90",
+    "united-states": "Miaka 10",
+    "canada": "Miaka 10",
+    "turkiye": "Siku 180",
+    "thailand": "Miezi 3",
+    "united-arab-emirates": "Siku 60",
+    "france": "Siku 90",
+    "italy": "Siku 90",
+    "india": "Siku 30"
+  },
+  "passports": {
+    "SG": "Singapore",
+    "JP": "Japani",
+    "KR": "Korea Kusini",
+    "DE": "Ujerumani",
+    "FR": "Ufaransa",
+    "GB": "Uingereza",
+    "US": "Marekani",
+    "AU": "Australia",
+    "CA": "Kanada",
+    "AE": "Falme za Kiarabu",
+    "CN": "China",
+    "IN": "India",
+    "BR": "Brazil",
+    "PH": "Ufilipino",
+    "ID": "Indonesia",
+    "MY": "Malaysia",
+    "TH": "Thailand"
+  },
+  "countries": {
+    "viza-test": "Jaribio la VIZA",
+    "indonesia": "Indonesia",
+    "egypt": "Misri",
+    "australia": "Australia",
+    "saudi-arabia": "Saudi Arabia",
+    "united-kingdom": "Uingereza",
+    "vietnam": "Vietnam",
+    "malaysia": "Malaysia",
+    "japan": "Japani",
+    "united-states": "Marekani",
+    "canada": "Kanada",
+    "turkiye": "Uturuki",
+    "thailand": "Thailand",
+    "united-arab-emirates": "Falme za Kiarabu",
+    "france": "Ufaransa",
+    "italy": "Italia",
+    "india": "India",
+    "china": "China",
+    "south-korea": "Korea Kusini",
+    "schengen": "Schengen"
+  },
+  "visaTypes": {
+    "Test checkout": "Jaribio la malipo",
+    "e-Visa": "Viza ya kielektroniki (e-Visa)",
+    "Standard Visitor": "Standard Visitor (mgeni wa kawaida)",
+    "Visitor 600": "Visitor 600",
+    "Tourist": "Utalii",
+    "B1/B2": "B1/B2",
+    "eTA": "eTA",
+    "Schengen": "Schengen",
+    "eVisa": "Viza ya kielektroniki (eVisa)",
+    "Visitor visa": "Viza ya mgeni",
+    "Tourist visa": "Viza ya utalii"
+  },
+  "careers": {
+    "hero": {
+      "nowHiring": "Tunaajiri sasa katika",
+      "cities": [
+        "Shanghai",
+        "Singapore"
+      ],
+      "openRoles": "Nafasi 28 za kazi",
+      "title": "Tusaidie kufanya mipaka<br></br><em>kutoweka</em>, <u>kimyakimya,</u><br></br>kwa kasi ya programu.",
+      "lead": "Tunageuza miezi ya makaratasi ya viza kuwa masaa ya programu, kwa mamilioni ya watu wanaotaka tu kupanda ndege. Leta ufundi wako kwa timu inayotoa kazi kwa makataa ya ulimwengu halisi.",
+      "ctaRoles": "Tazama nafasi zote",
+      "ctaWhy": "Kwa nini tupo"
+    },
+    "board": {
+      "ariaLabel": "Ubao wa safari za kuondoka unaoorodhesha nafasi za kazi VIZA",
+      "head": "Nafasi wazi · moja kwa moja",
+      "live": "Kwa wakati",
+      "cols": {
+        "req": "Nambari",
+        "role": "Nafasi",
+        "office": "Ofisi",
+        "status": "Hali"
+      },
+      "rows": [
+        {
+          "role": "Mhandisi Mkuu",
+          "sub": "Mfumo wa nyaraka",
+          "status": "Inapanda"
+        },
+        {
+          "role": "Mbunifu wa Bidhaa",
+          "sub": "Mtiririko wa waombaji",
+          "status": "Wazi"
+        },
+        {
+          "role": "Mwakilishi wa Ubalozi",
+          "sub": "Ushirikiano na serikali",
+          "status": "Wito wa mwisho"
+        },
+        {
+          "role": "Uendeshaji wa Wateja",
+          "sub": "Kesi za ngazi ya 2",
+          "status": "Wazi"
+        }
+      ],
+      "foot": "+24 nafasi zaidi katika uhandisi, uendeshaji na usanifu",
+      "browseAll": "Tazama zote",
+      "chip1Label": "Tunaajiri katika",
+      "chip1Value": "Ofisi 4",
+      "chip2Label": "Wastani wa jibu",
+      "chip2Value": "Siku 3.2 hadi simu ya kwanza"
+    },
+    "stats": [
+      {
+        "value": "2.4M",
+        "label": "Viza zilizotolewa kupitia VIZA mwaka jana"
+      },
+      {
+        "label": "Nchi zinazosaidiwa kwa usindikaji wa moja kwa moja"
+      },
+      {
+        "label": "Kiwango cha idhini kwa aina zote za viza mwaka 2025"
+      },
+      {
+        "label": "Watu katika Shanghai na Singapore"
+      }
+    ],
+    "mission": {
+      "eyebrow": "Hadithi yetu",
+      "title": "Sehemu kubwa ya dunia<br></br>bado husafiri na<br></br><em>makaratasi yaliyochapishwa.</em>",
+      "kicker1": "Tulianzisha VIZA mwaka 2021 baada ya kutumia wiki nyingi mno tukisubiri kwenye simu za balozi. Mfumo wa kuhamisha watu kuvuka mipaka ni mkongwe kuliko intaneti, na watu waliokwama ndani yake wanastahili bora zaidi.",
+      "kicker2": "Leo, timu ya watu 340 katika ofisi nne hutoa programu, huwasilisha nyaraka, na kuendesha shughuli katika nchi 194. Tunafanya kazi ya kuchosha ili kusafiri kuhisike kama sehemu nyingine ya intaneti: miguso michache, kisha unaondoka.",
+      "founderName": "Mira Kohli",
+      "founderRole": "Mwanzilishi Mwenza na Mkurugenzi Mtendaji · Singapore",
+      "beliefs": [
+        {
+          "title": "Sisi ni kampuni ya uendeshaji inayotoa programu.",
+          "body": "Nusu ya VIZA ni wahandisi, wabunifu na mameneja wa bidhaa. Nusu nyingine ni washauri, waendeshaji na wataalamu wa nyaraka walio nchini. Hakuna nusu inayoshinda bila nyingine."
+        },
+        {
+          "title": "Mwombaji ndiye mteja kila mara.",
+          "body": "Balozi, washirika, mashirika ya ndege, wote ni muhimu. Lakini mtu aliyekwama kwenye foleni saa 3 alfajiri akisasisha tovuti ndiye tunayemfanyia kazi, na ndiye tunayejipima naye."
+        },
+        {
+          "title": "Kasi huongezeka unapokuwa mvumilivu kwa ubora.",
+          "body": "Tunakwenda haraka katika kutoa kazi, polepole katika maamuzi yasiyoweza kurudishwa. Uamuzi mbaya wa viza unaweza kuharibu harusi, kazi, au mazishi. Tunashikilia kiwango hicho hata kinapotupunguza kasi."
+        },
+        {
+          "title": "Umbali ni tatizo la matumizi, si kizuizi.",
+          "body": "Timu zetu ziko katika maeneo manne ya saa. Kuandika bila kusubiri, umiliki ulio wazi na utamaduni mzuri wa nyaraka ndivyo tunavyobadilisha muda kuwa uaminifu, na jinsi tunavyofanya kazi duniani kote bila kumchosha mtu."
+        }
+      ]
+    },
+    "values": {
+      "eyebrow": "Tunachojishikilia nacho",
+      "title": "Mambo matano tunayoamini, hata yanapogharimu.",
+      "lead": "Maadili ni rahisi kuandika na magumu kutekeleza. Haya matano ndiyo tunayotumia kweli wakati wa kuajiri, wakati wa tathmini, na wakati wa maamuzi magumu yasiyo ya kawaida.",
+      "cards": [
+        {
+          "title": "Sema ukweli, hasa unapotugharimu.",
+          "body": "Ikiwa viza haitafika kwa wakati, sema leo, si siku moja kabla ya safari ya ndege. Tungependa kupoteza mauzo kuliko kutoa uongo.",
+          "kicker": "Kwa vitendo: sera zilizochapishwa, ukaguzi wa mabadiliko"
+        },
+        {
+          "title": "Pata kasi halisi. Usijihisi tu una shughuli.",
+          "body": "Tunasherehekea maamuzi na kazi iliyotolewa, si mikutano na mazungumzo. Hoja ni matokeo kwa ajili ya dhamira, si mwendo kwenye kalenda yako.",
+          "kicker": "Kwa vitendo: tathmini ya robo mwaka ya matokeo"
+        },
+        {
+          "title": "Fikiria pasipoti, si watumiaji wa kubuni.",
+          "body": "Kanuni za viza hutegemea uraia. “Mtumiaji” kama huyo hayupo, yupo mwenye pasipoti ya Ufilipino anayeomba Schengen. Tunajenga kwa ajili ya watu halisi, si wastani.",
+          "kicker": "Kwa vitendo: vipimo vya bidhaa vinavyoanza na pasipoti"
+        },
+        {
+          "title": "Andika mambo. Maamuzi hasa.",
+          "body": "Ofisi nne, maeneo manne ya saa. Uamuzi usipoandikwa, haukutokea. Wiki yetu ni usomaji wa lazima; mikutano yetu ya kila siku ni ya hiari.",
+          "kicker": "Kwa vitendo: ADR, memo ya wiki, kuandika kwanza"
+        },
+        {
+          "title": "Kaa karibu na foleni.",
+          "body": "Kila mhandisi hufanya zamu moja kila robo mwaka kwenye sakafu ya washauri. Huwezi kuondoa msuguano ambao hujawahi kuuhisi saa 11 usiku Jumapili.",
+          "kicker": "Kwa vitendo: zamu za kupokezana kwenye foleni"
+        },
+        {
+          "title": "Chagua toleo refu.",
+          "body": "Jibu la sekunde thelathini mara nyingi si sahihi. Tunawekeza katika nyaraka za kina, miongozo imara na maelezo yanayodumu, hata pale toleo rahisi lingetosha.",
+          "kicker": "Kwa vitendo: kitabu cha kuanzia kazi, miongozo ya wazi"
+        }
+      ]
+    },
+    "inside": {
+      "eyebrow": "Ndani ya VIZA",
+      "title": "Jinsi ilivyo kweli<br></br>kufanya kazi hapa.",
+      "lead": "Tuna ofisi katika miji miwili kwa sababu tunaajiri karibu na mahali maombi yanapowasilishwa. Tunapiga kelele kuhusu mafanikio, tunanyamaza kuhusu siasa, na tuko wazi kuhusu kiasi tunachopaswa kujenga bado.",
+      "photos": [
+        {
+          "label": "picha · makao makuu Singapore, sakafu wazi",
+          "mark": "Paya Lebar Square, SG"
+        },
+        {
+          "label": "picha · sakafu ya foleni ya washauri",
+          "mark": "Barabara ya Luoshan, Shanghai"
+        },
+        {
+          "label": "picha · kikao cha ubaoni",
+          "mark": "Mkutano wa teknolojia, Bali"
+        },
+        {
+          "label": "picha · sakafu ya uendeshaji Shanghai",
+          "mark": "Pudong, Shanghai"
+        },
+        {
+          "label": "picha · chakula cha jioni cha timu",
+          "mark": "Mkutano wa wote, Lisbon"
+        },
+        {
+          "label": "picha · ziara ya mshirika wa ubalozi",
+          "mark": "Paya Lebar Square, SG"
+        }
+      ],
+      "pull": "“Tunaajiri watu wenye maoni kuhusu viza kabla ya kujiunga. Kufikia mwezi wa pili, utakuwa na maoni yenye nguvu zaidi.”",
+      "pullBy": "Felix Adekunle, Makamu wa Rais, Uhandisi",
+      "para1": "VIZA ina uhuru mkubwa na muktadha mkubwa. Utapata mmiliki wa kila unachofanya, bajeti halisi, na matarajio kwamba utaeleza sababu za kazi yako kwa kampuni nzima.",
+      "para2": "Ikiwa unataka kuambiwa la kufanya kila siku, hapa si mahali sahihi. Ikiwa umekuwa ukisubiri mtu akupe usukani, uko hapa."
+    },
+    "how": {
+      "eyebrow": "Uhandisi na uendeshaji VIZA",
+      "title": "Jinsi kazi inavyosonga kweli.",
+      "lead": "Ikiwa unajenga, unawasilisha au unabuni hapa, hivi ndivyo wiki yako inavyokuwa. Sherehe chache, kazi nyingi zaidi zinazotolewa. Slack kidogo, maamuzi mengi zaidi yaliyoandikwa.",
+      "cells": [
+        {
+          "title": "Umiliki kuanzia mwanzo hadi mwisho",
+          "body": "Unabuni, unajenga, unatoa na kumiliki kazi katika uzalishaji. Hakuna foleni za makabidhiano, wala ramani za njia zilizoandikwa na watu walio mbali kwa ngazi tatu. Ikiwa ni yako, ni yako kweli."
+        },
+        {
+          "title": "Kutoa kazi kila siku, kwa chaguo-msingi",
+          "body": "Timu nyingi hutoa kazi mara kadhaa kwa siku. Mizunguko ya maoni ni mifupi kwa makusudi, na kurudisha nyuma kwa dakika thelathini kunapendelewa kuliko mabishano ya wiki tatu."
+        },
+        {
+          "title": "Matatizo halisi na magumu",
+          "body": "Hii si kazi rahisi ya CRUD. Utafanya kazi kwenye OCR ya nyaraka, upangaji unaohitaji kasi dhidi ya tovuti zaidi ya 90 za serikali, na mtiririko wa watumiaji unaotumiwa na mamilioni."
+        },
+        {
+          "title": "Kiwango ni cha juu, waziwazi",
+          "body": "Tunafanya kazi pamoja kwenye mapitio ya usanifu. Tunatoa maoni moja kwa moja kwenye PR. Tunaamini ladha inafundishika, na tunatarajia watu wasaidie kikamilifu wote wanaowazunguka kuwa bora."
+        },
+        {
+          "title": "Bajeti halisi ya kujifunza",
+          "body": "$2,000 kwa kila mtu kwa mwaka, bila maswali, kwa makongamano, vitabu, kozi, chochote kinachorudi kuongeza kazi unayofanya hapa."
+        },
+        {
+          "title": "Usanifu wa mfumo ulioandikwa na wewe",
+          "body": "RFC ziko wazi kwa kila mtu. Wahandisi wapya wameunda miundombinu mikuu katika mwezi wao wa kwanza. Ikiwa una mpango bora, uandike, tutausoma."
+        }
+      ]
+    },
+    "roles": {
+      "eyebrow": "Nafasi wazi · husasishwa kila wiki",
+      "title": "Kuwa sehemu ya safari.",
+      "lead": "Nafasi 28 wazi katika ofisi nne. Tunaajiri katika uhandisi, usanifu, uendeshaji, ushauri na ushirikiano. Nafasi mpya huonekana Jumatatu.",
+      "allDepartments": "Idara zote",
+      "deps": {
+        "eng": "Uhandisi",
+        "design": "Usanifu",
+        "ops": "Uendeshaji",
+        "consult": "Washauri",
+        "data": "Data na ML",
+        "gtm": "Masoko na GTM"
+      },
+      "showing": "Inaonyesha nafasi <strong>{count}</strong> · maeneo yote · timu zote",
+      "anyLocation": "Eneo lolote",
+      "groupCount": "{count} wazi",
+      "posSub": "{team} · tunaajiri kwa ufundi na busara, si kwa sifa za nje",
+      "locationLabel": "Eneo",
+      "typeLabel": "Aina",
+      "fullTime": "Muda kamili",
+      "viewRole": "Tazama nafasi",
+      "locations": {
+        "sg": "Singapore",
+        "sf": "Shanghai",
+        "ldn": "Singapore",
+        "dxb": "Shanghai"
+      },
+      "jobs": {
+        "backendPayments": "Mhandisi Mwandamizi wa Backend, Jukwaa",
+        "staffDocPipeline": "Mhandisi Mkuu: Mfumo wa Nyaraka",
+        "iosApplicant": "Mhandisi wa iOS: Programu ya Waombaji",
+        "platformInfra": "Mhandisi wa Jukwaa: Miundombinu na Usalama",
+        "frontendConsole": "Mhandisi wa Frontend: Kiweko cha Washauri",
+        "emWeb": "Meneja wa Uhandisi: Wavuti",
+        "sre": "Mhandisi wa Uthabiti wa Mifumo",
+        "androidSenior": "Mhandisi Mwandamizi wa Android",
+        "leadEmbassy": "Kiongozi wa Uhandisi: Uunganishaji na Balozi",
+        "productDesignerApplicant": "Mbunifu Mwandamizi wa Bidhaa: Mtiririko wa Waombaji",
+        "brandDesigner": "Mbunifu wa Chapa",
+        "designLeadConsultant": "Kiongozi wa Usanifu: Zana za Washauri",
+        "headOpsMe": "Mkuu wa Uendeshaji, Mashariki ya Kati",
+        "visaOpsSchengen": "Kiongozi wa Uendeshaji wa Viza: Schengen",
+        "logistics": "Meneja wa Usafirishaji na Wasafirishaji",
+        "processDocQa": "Mhandisi wa Michakato: Ukaguzi wa Ubora wa Nyaraka",
+        "opsAnalyst": "Mchambuzi wa Uendeshaji: Uwekaji Miadi",
+        "consultSchengen": "Mshauri wa Viza: Schengen",
+        "consultUs": "Mshauri wa Viza: Marekani B1/B2",
+        "consultUae": "Mshauri wa Viza: Ukaazi wa UAE",
+        "consultStudent": "Mshauri Mwandamizi: Viza za Wanafunzi",
+        "consultApac": "Kiongozi wa Washauri: Asia-Pasifiki",
+        "consultUk": "Mshauri wa Viza: Uingereza",
+        "dataScientist": "Mwanasayansi Mwandamizi wa Data: Uundaji wa Mifano ya Idhini",
+        "mlOcr": "Mhandisi wa ML: OCR na AI ya Nyaraka",
+        "perfMarketing": "Meneja wa Masoko ya Utendaji",
+        "contentLead": "Kiongozi wa Maudhui: Usimulizi wa Hadithi",
+        "lifecycleCrm": "Meneja wa Mzunguko wa Wateja na CRM"
+      }
+    },
+    "fellowship": {
+      "tag": "▲ VIZA Launchpad · programu ya wiki 12",
+      "title": "Wiki kumi na mbili. Timu moja ya bidhaa.<br></br><em>Nafasi moja ya kutoa kitu.</em>",
+      "para1": "Launchpad ni programu yetu ya ukaazi kwa wahandisi, mameneja wa bidhaa na wabunifu walio mwanzoni mwa kazi, watu ambao vinginevyo wangehitaji miaka miwili zaidi ya “uzoefu” kabla ya kupata nafasi halisi.",
+      "para2": "Utafanya kazi pamoja na viongozi wakuu, kumiliki sehemu halisi ya bidhaa kuanzia mwanzo hadi kutolewa, na kuondoka na kitu ambacho mamilioni ya watu watatumia. Takriban 60% ya kundi hupata ofisa ya kazi ya muda kamili.",
+      "meta": [
+        {
+          "k": "Muda",
+          "v": "Wiki 12"
+        },
+        {
+          "k": "Eneo",
+          "v": "Ofisini, makao makuu yoyote"
+        },
+        {
+          "k": "Posho",
+          "v": "Juu ya soko"
+        },
+        {
+          "k": "Kundi lijalo",
+          "v": "Septemba 2026"
+        }
+      ],
+      "apply": "Omba Launchpad",
+      "readCohort": "Soma kuhusu kundi la 2025",
+      "projects": [
+        {
+          "k": "2024 · Uhandisi",
+          "title": "Uandishi upya wa mfumo wa OCR",
+          "meta1": "Imetolewa kwenye uzalishaji",
+          "meta2": "Kasi mara 3.2"
+        },
+        {
+          "k": "2025 · Usanifu",
+          "title": "Usanifu upya wa mtiririko wa Schengen",
+          "meta1": "Nchi 14 zinafanya kazi",
+          "meta2": "↑ 22% ubadilishaji"
+        },
+        {
+          "k": "2025 · Bidhaa",
+          "title": "Kipanga nafasi za ubalozi",
+          "meta1": "Balozi 9",
+          "meta2": "Nafasi 40k kwa mwezi"
+        }
+      ]
+    },
+    "benefits": {
+      "eyebrow": "Tuko nawe (kweli)",
+      "title": "Mambo ya kawaida,<br></br>yakishughulikiwa ipasavyo.",
+      "lead": "Hatuoni marupurupu kama zawadi. Ni msingi unaowawezesha watu kufanya kazi yao bora. Haya ndiyo kila mfanyakazi wa VIZA anapata, katika kila ofisi, siku ya kwanza.",
+      "items": [
+        {
+          "title": "Afya kamili, imeshughulikiwa.",
+          "body": "Matibabu kamili, meno na macho tangu siku yako ya kwanza, kwa ajili yako, mwenzi wako na watoto wako. Tunalipa ada ya bima, bila michezo ya makato."
+        },
+        {
+          "title": "Jenga utajiri, si mshahara tu.",
+          "body": "Mshahara wa msingi juu ya soko katika kila soko tunaloajiri, pamoja na hisa za ukarimu zinazohusiana na hatua muhimu, si miaka ya utumishi tu. Tunazisasisha kila baada ya miaka miwili."
+        },
+        {
+          "title": "Jifunze kinachojali kweli.",
+          "body": "Bajeti ya kujifunza ya $2,000 kwa mwaka, mafunzo ya ndani ya kila mwezi, na muda kwenye kalenda, si ruhusa tu, wa kuchukua kozi hiyo au kuhudhuria kongamano hilo."
+        },
+        {
+          "title": "Furahisha wateja kama ni pesa yako.",
+          "body": "Kila mwombaji hupata bajeti ya $100 kwa nia njema zaidi ya wajibu. Bila idhini, bila kupandisha ngazi: tatua, kisha andika kilichotokea."
+        },
+        {
+          "title": "Akili ni kila kitu.",
+          "body": "Msaada wa siri na wa kitaalamu wa afya ya akili, bila vikwazo vya bima. Pamoja na siku tatu za “bila mikutano” kwa mwezi, kampuni nzima."
+        },
+        {
+          "title": "Marupurupu ya safari (ilibidi).",
+          "body": "Sisi tunashughulikia viza; timu yetu inapaswa kusafiri bure. Mkopo wa safari wa $4k kwa mwaka, pamoja na VIZA kushughulikia kila viza utakayohitaji, papo hapo, ndani ya kampuni."
+        },
+        {
+          "title": "Likizo ya ukarimu, ya kweli.",
+          "body": "Siku 30 za likizo ya kulipwa, pamoja na sikukuu za nchi yako, pamoja na wiki moja ya kulipwa kati ya Des 24 na Jan 1. Tunafuatilia matumizi na kuwahimiza watu wachukue zaidi, si kidogo."
+        },
+        {
+          "title": "Vifaa, bila maswali.",
+          "body": "Chagua kompyuta yako, kichunguzi na kiti siku ya kwanza. Posho ya kufanya kazi nyumbani kwa mazingira yako. Tunakuamini kujua unachohitaji ili ufanye kazi nzuri."
+        },
+        {
+          "title": "Likizo ya uzazi inayofanya kazi kweli.",
+          "body": "Wiki 20 kwa walezi wakuu, 12 kwa walezi wa pili, zote zikilipwa kikamilifu. Pamoja na kurudi taratibu, ili usirudi kwa kasi kamili siku ya kwanza."
+        }
+      ]
+    },
+    "offices": {
+      "eyebrow": "Tunakofanyia kazi",
+      "title": "Ofisi mbili, bidhaa moja.",
+      "lead": "Tunaajiri karibu na balozi, washirika na masoko tunayohudumia. Kila ofisi ina wahandisi na waendeshaji, hatutenganishi timu zinazojenga na zinazoendesha sakafu.",
+      "cards": [
+        {
+          "photo": "picha · shanghai",
+          "open": "6 wazi",
+          "name": "Shanghai",
+          "addr1": "Lane 1502, Luoshan Road,",
+          "addr2": "Eneo la Majaribio la Biashara Huria la China (Shanghai)",
+          "tz": "GMT+8 · Shughuli za China",
+          "since": "Tangu 2023"
+        },
+        {
+          "photo": "picha · makao makuu Singapore",
+          "open": "12 wazi",
+          "name": "Singapore",
+          "addr1": "60 Barabara ya Paya Lebar, #06-28 Paya Lebar Square,",
+          "addr2": "Singapore 409051",
+          "tz": "GMT+8 · Makao makuu ya Asia-Pasifiki",
+          "since": "Makao makuu · tangu 2021"
+        }
+      ]
+    },
+    "ctaStrip": {
+      "title": "Huoni nafasi yako,<br></br>lakini unataka kujiunga?",
+      "body": "Ikiwa una historia isiyo ya kawaida na unafikiri ungetusaidia kuwasogeza wasafiri wa dunia haraka zaidi, tunataka kukusikia. Tumeajiri madereva wa basi, wafanyakazi wa zamani wa balozi, na mawakili. Hatuna aina maalum.",
+      "lead": "Ombi la jumla",
+      "cta": "Tutumie hadithi yako",
+      "note": "Tunajibu ndani ya siku 7, hata kama ni hapana."
+    },
+    "footer": {
+      "tagline": "VIZA hukusaidia kupanga, kuomba na kufuatilia viza kwa urahisi duniani kote.",
+      "company": "Kampuni",
+      "products": "Bidhaa",
+      "offices": "Ofisi",
+      "careers": "Kazi",
+      "contact": "Wasiliana",
+      "security": "Usalama",
+      "privacy": "Faragha",
+      "terms": "Masharti",
+      "prodVisaReq": "Mahitaji ya Viza",
+      "prodSchengen": "Kikagua Miadi ya Schengen",
+      "prodPhoto": "Kitengeneza Picha ya Viza",
+      "prodHelpline": "Simu ya Dharura ya VIZA",
+      "prodStudent": "Viza ya Mwanafunzi",
+      "officeSg": "Singapore, Makao Makuu",
+      "officeSf": "Shanghai",
+      "copyright": "© VIZA, Haki zote zimehifadhiwa"
+    }
+  },
+  "security": {
+    "hero": {
+      "eyebrow": "Usalama VIZA · imesasishwa Mei 2026",
+      "title": "Faragha. Uwazi.<br></br><em>Salama kwa chaguo-msingi.</em>",
+      "lead": "Wateja kote duniani hutuamini na mamilioni ya nyaraka nyeti: pasipoti, taarifa za benki, picha. Hivi ndivyo hasa tunavyozikusanya, kuzihifadhi, na kuthibitisha kwamba tunafanya vizuri.",
+      "ctaPrimary": "Jinsi tunavyolinda data yako",
+      "ctaVdp": "Ripoti udhaifu"
+    },
+    "clearance": {
+      "republicKey": "Jamhuri ya",
+      "officeKey": "Ofisi inayotoa",
+      "officeVal": "Uaminifu na Usalama",
+      "title": "Kibali cha usalama /<br></br>Data ya wateja",
+      "grid": {
+        "encryption": {
+          "k": "Usimbaji fiche",
+          "v": "AES-256 / TLS 1.3"
+        },
+        "region": {
+          "k": "Eneo",
+          "v": "SG · US · EU"
+        },
+        "audit": {
+          "k": "Mzunguko wa ukaguzi",
+          "v": "Kila robo mwaka"
+        },
+        "retention": {
+          "k": "Uhifadhi",
+          "v": "Siku 90 juu zaidi"
+        }
+      },
+      "referenceKey": "Rejea",
+      "glyph": "IMETHIBITISHWA<br></br>VIZA · 26"
+    },
+    "chips": {
+      "transitLabel": "Wakati wa kusafirishwa",
+      "transitVal": "TLS 1.3 kutoka mwanzo hadi mwisho",
+      "restLabel": "Ikiwa imehifadhiwa",
+      "restVal": "AES-256, imefungwa kwa eneo"
+    },
+    "stats": {
+      "docs": {
+        "value": "2.4M",
+        "label": "Nyaraka zilizoshughulikiwa mwaka 2025, bila uvunjaji wowote wa data ya wateja"
+      },
+      "retention": {
+        "unit": "siku",
+        "label": "Muda mrefu zaidi wa kuhifadhi nyaraka asili baada ya kutolewa"
+      },
+      "pentests": {
+        "label": "Majaribio ya nje ya kuvunja usalama, ripoti zote zimechapishwa ndani ya kampuni"
+      },
+      "ack": {
+        "unit": "saa",
+        "label": "Wastani wa muda wa kukiri udhaifu ulioripotiwa"
+      }
+    },
+    "docs": {
+      "eyebrow": "Tunachokusanya",
+      "title": "Aina tano za nyaraka.<br></br><em>Hakuna zaidi.</em>",
+      "copy1": "Ombi la viza ni suala la makaratasi. Tunakusanya tu kile ambacho ubalozi unaomba waziwazi, na tunaficha utambulisho popote inapowezekana. Kila hati imefungwa kwa ombi moja, husimbwa fiche inapopokelewa, na kufutwa kwa ratiba maalum.",
+      "copy2": "Hatuuzi data yako kamwe. Hatuishiriki na wahusika wengine zaidi ya ubalozi au mshirika anayehusika moja kwa moja na viza yako.",
+      "cards": {
+        "payment": {
+          "name": "Taarifa za malipo",
+          "meta": "hazikusanywi"
+        },
+        "photos": {
+          "name": "Picha za viza",
+          "meta": "zinachakatwa · siku 90 juu zaidi"
+        },
+        "bank": {
+          "name": "Taarifa za benki",
+          "meta": "zimefichwa sehemu · pdf pekee"
+        },
+        "pastVisas": {
+          "name": "Viza za zamani",
+          "meta": "kusoma tu · OCR"
+        },
+        "passport": {
+          "name": "Pasipoti",
+          "meta": "MRZ imetolewa"
+        }
+      }
+    },
+    "features": {
+      "eyebrow": "Udhibiti saba, daima umewashwa",
+      "title": "Jinsi data yako inavyobaki<br></br>yako, kutoka mwanzo hadi <em>mwisho.</em>",
+      "intro": "Hali ya kawaida ya kila baiti VIZA ni “imesimbwa fiche, imewekewa mipaka, na ina muda maalum.” Huu ndio udhibiti saba unaofanya hivyo kuwa kweli: si matarajio, bali kile kilichounganishwa kwenye jukwaa leo.",
+      "cells": {
+        "minimise": {
+          "title": "Kupunguza data na kuficha utambulisho",
+          "body": "Tunakusanya tu kile ubalozi au mshirika anachohitaji kweli kwa ombi fulani, na tunaficha utambulisho popote jukwaa lingine linaporuhusu. Sehemu usizoziona kwenye fomu zetu ni sehemu hatuzihifadhi.",
+          "why": "<strong>Kwa nini:</strong> uvunjaji hauwezi kufichua data ambayo haikukusanywa kamwe."
+        },
+        "payments": {
+          "title": "Hakuna data ya malipo",
+          "body": "Huduma ya VIZA ni bure na hatupokei malipo, kwa hiyo hatuombi, hatuoni wala hatuhifadhi nambari za kadi.",
+          "why": "<strong>Kwa nini:</strong> data ambayo hatuishikilii haiwezi kuibiwa."
+        },
+        "atRest": {
+          "title": "Usimbaji fiche wakati wa kuhifadhi",
+          "body": "Kila hati, ujumbe na sehemu ya metadata kwenye seva za VIZA husimbwa fiche kwa AES-256 kabla ya kugusa diski. Funguo hubadilishwa kiotomatiki na kuhifadhiwa kwenye KMS yenye vifaa maalum ambayo hata timu yetu ya miundombinu haiwezi kuisoma moja kwa moja.",
+          "why": "<strong>Kwa nini:</strong> diski au nakala rudufu zilizoibiwa hubaki zisizosomeka bila funguo."
+        },
+        "inTransit": {
+          "title": "Usimbaji fiche kutoka mwanzo hadi mwisho",
+          "body": "Mawasiliano yote kati ya kifaa chako, seva zetu na balozi washirika hutumia TLS 1.3 yenye uthibitisho mkali. Upakiaji wa nyaraka hutumia njia tofauti iliyosainiwa ili hata maadui wa kiwango cha mtandao wasione unachotuma.",
+          "why": "<strong>Kwa nini:</strong> mitandao hasimu, ikiwemo Wi-Fi ya uwanja wa ndege, haiwezi kusoma ombi lako."
+        },
+        "audits": {
+          "title": "Ukaguzi wa mara kwa mara wa usalama",
+          "body": "Tunafanya jaribio la nje la kuvunja usalama kila robo mwaka, ukaguzi wa kila mwaka wa SOC 2 Type II, na uchanganuzi endelevu wa kiotomatiki wa udhaifu. Kila tatizo hurekodiwa na tarehe ya kurekebisha, na vipengele vilivyochelewa humwita kiongozi wa uhandisi.",
+          "why": "<strong>Kwa nini:</strong> vitisho hubadilika; ulinzi wetu hukaguliwa dhidi yake kwa ratiba."
+        },
+        "access": {
+          "title": "Udhibiti salama wa ufikiaji",
+          "body": "Ufikiaji wa ndani wa data ya wateja umewekewa mipaka ya majukumu, hukaguliwa kila ombi, na hutolewa kwa kuongezwa hadhi kwa wakati husika tu. Washauri huona tu ombi wanalolifanyia kazi. Kila usomaji hurekodiwa kwa miezi 12.",
+          "why": "<strong>Kwa nini:</strong> makosa na matumizi mabaya ya ndani hudhibitiwa, hutambulika na yanaweza kupitiwa."
+        },
+        "education": {
+          "title": "Elimu na uhamasishaji wa watumiaji",
+          "body": "Sehemu ngumu zaidi ya usalama ni ile tusiyoweza kukutolea. Tunatuma miongozo kwa lugha rahisi kuhusu udanganyifu wa barua pepe, udanganyifu wa picha za pasipoti, na SMS bandia za ubalozi mara unapoanza ombi, na kuzionyesha tena ndani ya bidhaa mara kitu kinapoonekana si sawa. Wewe ndiye safu ya mwisho ya ulinzi; tungependa kukuwezesha kuliko kukulaumu.",
+          "why": "<strong>Kwa nini:</strong> mwombaji mwenye taarifa nzuri ndiye udhibiti wa usalama wa bei nafuu na wenye ufanisi zaidi tulionao."
+        }
+      }
+    },
+    "vdp": {
+      "tag": "▲ Kuripoti udhaifu · wazi kwa watafiti wote",
+      "title": "Umegundua kitu?<br></br><em>Tunataka kukisikia.</em>",
+      "p1": "Usalama wa watumiaji na washirika wetu ni kila kitu. Ukiamini umegundua udhaifu halisi unaoathiri huduma za VIZA, tungependa utuambie moja kwa moja, nasi tutafanya kazi nawe kwa heshima na haraka kuurekebisha.",
+      "p2": "Tuma matokeo yako kwa barua pepe kwa <strong>security@viza.it.com</strong>. Tutakiri kupokea ndani ya siku moja ya kazi, hata kama itabainika kuwa tayari inajulikana au iko nje ya wigo.",
+      "meta": {
+        "ack": {
+          "k": "Kukiri ndani ya",
+          "v": "'<' saa 24"
+        },
+        "triage": {
+          "k": "Kupangwa ndani ya",
+          "v": "Siku 3 za kazi"
+        },
+        "lang": {
+          "k": "Lugha",
+          "v": "EN · ID · AR"
+        },
+        "pgp": {
+          "k": "Ufunguo wa PGP",
+          "v": "0xVIZA · 2026"
+        }
+      },
+      "ctaEmail": "Tuma barua pepe kwa security@viza.it.com",
+      "ctaScope": "Soma wigo",
+      "terminal": {
+        "title": "rasimu-ya-ripoti · security@viza.it.com",
+        "l1": "# ripoti ya udhaifu",
+        "typeKey": "aina:",
+        "typeVal": "kupita-uthibitishaji",
+        "urlKey": "url:",
+        "reproKey": "kurudia:",
+        "reproVal": "[hatua 1 hadi 4]",
+        "impactKey": "athari:",
+        "impactVal": "kutekwa kwa akaunti",
+        "pocKey": "poc:",
+        "l7": "# ↳ imesimbwa kwa 0xVIZA",
+        "send": "tuma"
+      }
+    },
+    "report": {
+      "eyebrow": "Kuripoti udhaifu",
+      "title": "Cha kuweka kwenye<br></br>ripoti yako, na <em>kisichofaa.</em>",
+      "intro": "Ripoti nzuri hutuokoa wiki nzima sote wawili. Hii ndiyo muundo unaopangwa haraka zaidi, pamoja na vitu tusingependa kupokea kwenye kikasha chetu.",
+      "include": {
+        "heading": "Tafadhali jumuisha",
+        "sub": "Sehemu tano. Kadiri zilivyo wazi, ndivyo tunavyothibitisha na kurekebisha haraka.",
+        "items": {
+          "type": "<strong>Aina ya tatizo</strong>: k.m. uthibitishaji, udhibiti wa ufikiaji, uingizaji, IDOR, SSRF.",
+          "steps": "<strong>Hatua wazi za kurudia</strong>: zilizohesabiwa, kwa mpangilio, dhidi ya kipindi safi ikiwezekana.",
+          "impact": "<strong>Athari inayowezekana ya usalama</strong>: mshambulizi angeweza kufanya nini na hili, kwa lugha rahisi.",
+          "poc": "<strong>Uthibitisho wa dhana</strong>: picha za skrini au video fupi inapendelewa; kumbukumbu za logi ni ya pili."
+        }
+      },
+      "dontSend": {
+        "heading": "Tafadhali usitume",
+        "sub": "Hivi si salama, havisaidii, au vyote viwili, na tutalazimika kuvifuta tunapovipokea.",
+        "items": {
+          "secrets": "<strong>Nywila au tokeni za uthibitishaji</strong>, zako au za mtu mwingine yeyote. Onyesha njia, si siri.",
+          "malware": "<strong>Sampuli ghafi za programu hasidi au kumbukumbu za wizi.</strong> Eleza ulichokiona; usiambatishe.",
+          "scanners": "<strong>Ripoti kubwa za vichanganuzi vya kiotomatiki</strong> bila tatizo lililochaguliwa kwa mkono na kuthibitishwa.",
+          "customerData": "<strong>Data binafsi au nyaraka za wateja</strong>, hata kama ndizo zilikuwa msingi wa ugunduzi wako.",
+          "socialEng": "<strong>Rekodi za majaribio ya udanganyifu wa kijamii</strong> dhidi ya wafanyakazi au washauri wetu."
+        }
+      }
+    },
+    "scope": {
+      "eyebrow": "Wigo wa mpango",
+      "title": "Kilicho ndani, kilicho nje.",
+      "intro": "Ikiwa huna uhakika kama ripoti iko ndani ya orodha hii, itume hata hivyo, na uulize. Tungependa kupanga na kuendelea kuliko wewe kukaa na tatizo halisi kwa sababu mpaka haukuwa wazi.",
+      "fileRef": "/security/scope.md · v6",
+      "in": {
+        "pill": "Ndani ya wigo",
+        "heading": "Ripoti tutakazopanga kikamilifu",
+        "items": {
+          "web": "Programu za wavuti na API za VIZA kwenye <code>*.viza.com</code>, ikiwemo tovuti ya waombaji, kiweko cha washauri, na mifumo ya washirika.",
+          "infra": "Miundombinu na huduma zinazomilikiwa na VIZA: uthibitishaji, mfumo wa nyaraka, upangaji.",
+          "mobile": "Programu za simu (iOS, Android) zilizochapishwa chini ya akaunti ya msanidi ya VIZA.",
+          "marketing": "Tovuti za masoko na maudhui zinazoonekana kwa umma chini ya vikoa vinavyodhibitiwa na VIZA."
+        }
+      },
+      "out": {
+        "pill": "Nje ya wigo",
+        "heading": "Ripoti ambazo hatuwezi kuzishughulikia chini ya mpango huu",
+        "items": {
+          "devices": "Matatizo yanayotokana na vifaa vya watumiaji vilivyoathirika, viendelezi vya kivinjari, au vitambulisho vilivyoibwa.",
+          "phishing": "Mashambulizi ya udanganyifu wa kijamii au wa barua pepe yanayolenga wafanyakazi, washirika, au washauri wa VIZA.",
+          "thirdParty": "Huduma au miunganisho ya watu wengine isiyoendeshwa moja kwa moja na VIZA (tovuti za balozi, tovuti za wasafirishaji).",
+          "scanners": "Matokeo ya vichanganuzi vya kiotomatiki bila uwezekano uliothibitishwa wa kutumiwa katika ulimwengu halisi.",
+          "headers": "Vichwa vya usalama vilivyokosekana au mapendekezo ya jumla ya mazoea bora bila njia ya kudukua."
+        }
+      }
+    },
+    "pledge": {
+      "eyebrow": "Kuripoti kwa uwajibikaji",
+      "title": "Makubaliano tunayofanya<br></br>sisi kwa sisi.",
+      "intro": "Kuripoti hufanya kazi kwa sababu pande zote hutenda kwa nia njema. Hiki ndicho tunachokuomba, na hiki ndicho unachoweza kutushikilia nacho kwa malipo, kimeandikwa ili kila mtu asilazimike kukisia.",
+      "researcher": {
+        "kicker": "Tunachokuomba",
+        "title": "<em>Ahadi</em> za mtafiti.",
+        "p": "Kwa kuwasilisha ripoti, unakubali kutenda kwa nia njema na kwa roho ya mpango, si herufi zake tu.",
+        "items": {
+          "1": "Tenda kwa nia njema: epuka kukiuka faragha, kuharibu data, au kuvuruga huduma wakati wa utafiti.",
+          "2": "Usitumie tatizo zaidi ya kiwango cha chini kinachohitajika kulithibitisha, na usifikie kamwe data isiyo yako.",
+          "3": "Weka maelezo ya udhaifu kuwa siri hadi tutakapotoa suluhisho na kulithibitisha nawe.",
+          "4": "Usifichue matokeo hadharani bila idhini ya awali iliyoandikwa kutoka kwa timu ya usalama ya VIZA."
+        }
+      },
+      "viza": {
+        "kicker": "Unachoweza kutushikilia nacho",
+        "title": "<em>Ahadi</em> za VIZA.",
+        "p": "Kwa malipo, hatuwapuuzi wanaoripoti, hatubishani kuhusu ukali ili kukwepa suluhisho, na hatuwashtaki watu wanaotusaidia.",
+        "items": {
+          "1": "Tutapitia kila ripoti halali na kujibu ndani ya siku moja ya kazi, bila kujali ukali.",
+          "2": "Tutawasiliana kwa heshima: bila lugha ya kujitetea, bila kusema “inafanya kazi kama ilivyokusudiwa” kuukwepa ukweli.",
+          "3": "Tutachukua hatua zinazofaa za kurekebisha pale inapohitajika, na kukuambia suluhisho linapotolewa.",
+          "4": "Tutakutaja (kwa idhini yako) kwenye orodha yetu ya mabadiliko ya usalama tatizo linapotatuliwa."
+        }
+      }
+    },
+    "legal": {
+      "eyebrow": "Sheria na zawadi",
+      "title": "Hifadhi salama ya kisheria, zawadi,<br></br>na maandishi madogo.",
+      "intro": "Ukifuata sera hii kwa nia njema, tunachukulia utafiti wako kama ulioidhinishwa. Sehemu nyingine ya ukurasa ni sehemu ya kawaida lakini muhimu, imewekwa wazi, haijafichwa.",
+      "cards": {
+        "safeHarbour": {
+          "title": "Hifadhi salama ya kisheria",
+          "body": "Ukifuata sera hii kwa nia njema, VIZA haitaanzisha hatua za kisheria dhidi yako kwa ukiukaji wa bahati mbaya au usiokusudiwa unaohusiana na utafiti wako. Bado unatarajiwa kutii sheria na kanuni zinazotumika."
+        },
+        "rewards": {
+          "title": "Zawadi na bug bounty",
+          "body": "VIZA kwa sasa haiendeshi bug bounty ya umma. Tunatoa ishara ya shukrani kwa hiari kwa matatizo halali yaliyoripotiwa kwa uwajibikaji, yanayotathminiwa kwa athari, upya, na ubora wa ripoti.",
+          "meta": "kwa hiari · kesi kwa kesi"
+        },
+        "updates": {
+          "title": "Masasisho ya mpango",
+          "body": "VIZA inahifadhi haki ya kubadilisha au kusitisha mpango huu wakati wowote. Ikiwa huna uhakika kama utafiti wako unaendana na sera, tafadhali wasiliana nasi kwa security@viza.it.com <em>kabla</em> ya kuendelea.",
+          "meta": "imerekebishwa mwisho · Mei 2026"
+        }
+      }
+    },
+    "cta": {
+      "title": "Umeona kitu kisicho sawa?<br></br>Iambie timu yetu ya usalama.",
+      "body": "Tungependa kusikia kuhusu tatizo dogo mara mbili kuliko kukosa kubwa mara moja. Ripoti huenda moja kwa moja kwa mtu halisi kwenye timu ya usalama, bila tovuti ya tiketi, bila roboti ya kupanga.",
+      "lead": "Moja kwa moja kwa usalama",
+      "small": "Wastani wa jibu ni chini ya saa 24, kila siku ya wiki."
+    },
+    "footer": {
+      "tagline": "VIZA hukusaidia kupanga, kuomba na kufuatilia viza kwa urahisi duniani kote.",
+      "company": "Kampuni",
+      "careers": "Kazi",
+      "contact": "Wasiliana",
+      "security": "Usalama",
+      "privacy": "Faragha",
+      "terms": "Masharti",
+      "products": "Bidhaa",
+      "prodVisaReq": "Mahitaji ya Viza",
+      "prodSchengen": "Kikagua Miadi ya Schengen",
+      "prodPhoto": "Kitengeneza Picha ya Viza",
+      "prodHelpline": "Simu ya Dharura ya VIZA",
+      "prodStudent": "Viza ya Mwanafunzi",
+      "offices": "Ofisi",
+      "officeSg": "Singapore, Makao Makuu",
+      "officeSf": "Shanghai",
+      "copyright": "© VIZA, Haki zote zimehifadhiwa"
+    }
+  },
+  "status": {
+    "crumbHome": "Uwazi",
+    "crumbHere": "Hali ya Mfumo",
+    "hero": {
+      "title": "Hali ya mfumo",
+      "lead": "Upatikanaji wenye ushahidi kwa VIZA na tovuti za viza za serikali tunazofanya nazo kazi. Kila asilimia, upau wa ratiba na tukio hapa chini linatoka kwenye ukaguzi wa majaribio uliorekodiwa."
+    },
+    "console": {
+      "title": "Uaminifu wa VIZA · Moja kwa moja",
+      "live": "Imethibitishwa",
+      "unverified": "Haijathibitishwa",
+      "allOperational": "Mifumo yote inafanya kazi",
+      "degraded": "Baadhi ya mifumo ina ubora uliopungua",
+      "majorOutage": "Mfumo unaofuatiliwa haupatikani",
+      "dataUnavailable": "Data ya ufuatiliaji haipatikani",
+      "lastChecked": "Ukaguzi wa mwisho uliorekodiwa: {time}",
+      "noChecks": "Hakuna ukaguzi uliokamilika uliorekodiwa bado",
+      "kUptime": "Ukaguzi wa siku 90 unaofaulu",
+      "kMonitors": "Vituo vinavyofuatiliwa",
+      "kIncidents": "Tukio linaloendelea"
+    },
+    "subnav": {
+      "current": "Hali ya sasa",
+      "incidents": "Matukio ya zamani",
+      "subscribe": "Jiandikishe",
+      "searchPlaceholder": "Tafuta nchi",
+      "subscribeBtn": "Jiandikishe kupata masasisho"
+    },
+    "platform": {
+      "title": "Jukwaa la VIZA",
+      "realMeta": "Hukaguliwa kila dakika 5 · kituo/vituo {count}",
+      "meta": "Hukaguliwa kila dakika 5",
+      "name": "Jukwaa la maombi la VIZA",
+      "sub": "Huduma za umma za VIZA"
+    },
+    "uptime": {
+      "ago": "Siku 90 zilizopita",
+      "today": "Leo",
+      "pct": "{pct}% ya ukaguzi unafaulu",
+      "noData": "Hakuna ukaguzi uliorekodiwa"
+    },
+    "dayObservation": "{date}: ukaguzi {checks} uliorekodiwa",
+    "dayNoData": "{date}: hakuna data iliyorekodiwa",
+    "dayTitle": "Siku ya {n}",
+    "statusLabels": {
+      "op": "Inafanya kazi",
+      "deg": "Ubora umepungua",
+      "part": "Hitilafu ya sehemu",
+      "maj": "Haipatikani",
+      "none": "Hakuna data ya sasa"
+    },
+    "lastChecked": "Ilikaguliwa {time}",
+    "monitorStale": "Ukaguzi haupo au umepitwa na wakati",
+    "monitoringUnavailable": "API ya hali haina ushahidi mpya. VIZA haitaonyesha upatikanaji uliohifadhiwa au uliotengenezwa kama afya ya sasa ya huduma.",
+    "noSearchResults": "Hakuna nchi inayofuatiliwa inayolingana na utafutaji huu.",
+    "noRecordedIncidents": "Hakuna matukio yaliyotokana na ukaguzi uliorekodiwa katika siku 90 zilizopita.",
+    "incidentCount": "{count, plural, one {tukio #} other {matukio #}}",
+    "incidentRecovered": "Ukaguzi uliorekodiwa unaonyesha kuwa huduma hii imerudi.",
+    "noIssues": "Hakuna matatizo yanayoendelea",
+    "activeIncident": "Tukio linaloendelea",
+    "portalsHead": {
+      "title": "Tovuti za serikali",
+      "lead": "Ombi la majaribio lenye mipaka hukagua kila tovuti iliyosanidiwa kila dakika tano. Historia ya kijivu inamaanisha hakuna uchunguzi uliorekodiwa; haijazwi kamwe na data iliyokadiriwa."
+    },
+    "incidentsHead": {
+      "title": "Matukio ya zamani",
+      "lead": "Matukio hufunguliwa na kutatuliwa kutokana na mabadiliko ya ufuatiliaji yaliyohifadhiwa. Huu ni upatikanaji wa uendeshaji, si hali ya uamuzi wa viza binafsi wa mwombaji."
+    },
+    "tags": {
+      "identified": "Imebainishwa",
+      "investigating": "Inachunguzwa",
+      "resolved": "Imetatuliwa"
+    },
+    "portals": {
+      "AE": {
+        "name": "Falme za Kiarabu",
+        "sub": "GDRFA · tovuti za ICA"
+      },
+      "AM": {
+        "name": "Armenia",
+        "sub": "Tovuti ya e-Visa"
+      },
+      "AU": {
+        "name": "Australia",
+        "sub": "ImmiAccount"
+      },
+      "AZ": {
+        "name": "Azabajani",
+        "sub": "ASAN Visa"
+      },
+      "DE": {
+        "name": "Ujerumani",
+        "sub": "VIDEX · nafasi za ubalozi"
+      },
+      "DK": {
+        "name": "Denmark"
+      },
+      "EG": {
+        "name": "Misri",
+        "sub": "Tovuti ya e-Visa"
+      },
+      "FI": {
+        "name": "Ufini",
+        "sub": "EnterFinland"
+      },
+      "FR": {
+        "name": "Ufaransa",
+        "sub": "France-Visas"
+      },
+      "GB": {
+        "name": "Uingereza",
+        "sub": "UKVCAS · UK Visas",
+        "bannerText": "Baadhi ya aina za maombi zinakabiliwa na hitilafu.",
+        "bannerLink": "Tazama ratiba ya matukio"
+      },
+      "GE": {
+        "name": "Georgia"
+      },
+      "GR": {
+        "name": "Ugiriki",
+        "sub": "AEGEAN · ubalozi"
+      },
+      "HK": {
+        "name": "Hong Kong",
+        "sub": "Immigration eVisa"
+      },
+      "ID": {
+        "name": "Indonesia",
+        "sub": "e-Visa Indonesia"
+      },
+      "IN": {
+        "name": "India",
+        "sub": "Indian Visa Online"
+      },
+      "JO": {
+        "name": "Yordani"
+      },
+      "KE": {
+        "name": "Kenya",
+        "sub": "eCitizen / eVisa"
+      },
+      "KH": {
+        "name": "Kambodia"
+      },
+      "LK": {
+        "name": "Sri Lanka",
+        "sub": "Tovuti ya ETA"
+      },
+      "MA": {
+        "name": "Moroko"
+      },
+      "TH": {
+        "name": "Thailand",
+        "sub": "Thailand e-Visa"
+      }
+    },
+    "incidents": {
+      "count": "<strong>{count}</strong> {count, plural, one {nchi} other {nchi}} zilikabiliwa na matatizo ya utendaji",
+      "events": "{count, plural, one {tukio #} other {matukio #}}",
+      "days": [
+        {
+          "date": "10 Mei 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "10 Mei, 3:05 PM",
+                  "desc": "Tukio hili limetatuliwa. Huduma imerudi katika hali ya kawaida."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "10 Mei, 5:05 PM",
+                  "desc": "Tukio hili limetatuliwa. Huduma imerudi katika hali ya kawaida."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "9 Mei 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "9 Mei, 10:50 PM",
+                  "desc": "Tunachunguza viwango vya juu vya kushindwa."
+                },
+                {
+                  "time": "10 Mei, 12:20 AM",
+                  "desc": "Ukali umepanda kutoka ubora uliopungua hadi hitilafu ya sehemu."
+                },
+                {
+                  "time": "10 Mei, 2:50 AM",
+                  "desc": "Ukali umepanda kutoka hitilafu ya sehemu hadi hitilafu kubwa."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "9 Mei, 3:05 PM",
+                  "desc": "Tunachunguza viwango vya juu vya kushindwa."
+                },
+                {
+                  "time": "9 Mei, 7:20 PM",
+                  "desc": "Ukali umepanda kutoka hitilafu ya sehemu hadi hitilafu kubwa."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "8 Mei 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "8 Mei, 1:05 PM",
+                  "desc": "Tunachunguza viwango vya juu vya kushindwa."
+                },
+                {
+                  "time": "8 Mei, 2:05 PM",
+                  "desc": "Tukio hili limetatuliwa. Huduma imerudi katika hali ya kawaida."
+                },
+                {
+                  "time": "8 Mei, 2:50 PM",
+                  "desc": "Tunachunguza viwango vya juu vya kushindwa."
+                },
+                {
+                  "time": "8 Mei, 7:35 PM",
+                  "desc": "Tukio hili limetatuliwa. Huduma imerudi katika hali ya kawaida."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "5 Mei 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "5 Mei, 1:36 PM",
+                  "desc": "Ukali umepanda kutoka ubora uliopungua hadi hitilafu ya sehemu."
+                },
+                {
+                  "time": "5 Mei, 4:50 PM",
+                  "desc": "Tukio hili limetatuliwa."
+                },
+                {
+                  "time": "5 Mei, 9:20 PM",
+                  "desc": "Tunachunguza viwango vya juu vya kushindwa."
+                },
+                {
+                  "time": "5 Mei, 10:20 PM",
+                  "desc": "Tukio hili limetatuliwa."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "5 Mei, 2:43 PM",
+                  "desc": "Tukio hili limetatuliwa."
+                },
+                {
+                  "time": "5 Mei, 3:35 PM",
+                  "desc": "Tunachunguza viwango vya juu vya kushindwa."
+                },
+                {
+                  "time": "5 Mei, 7:35 PM",
+                  "desc": "Ukali umepanda kutoka hitilafu ya sehemu hadi hitilafu kubwa."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "4 Mei 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "4 Mei, 4:05 PM",
+                  "desc": "Tunachunguza viwango vya juu vya kushindwa."
+                },
+                {
+                  "time": "4 Mei, 5:05 PM",
+                  "desc": "Tukio hili limetatuliwa."
+                },
+                {
+                  "time": "4 Mei, 7:36 PM",
+                  "desc": "Tunachunguza viwango vya juu vya kushindwa."
+                },
+                {
+                  "time": "4 Mei, 8:35 PM",
+                  "desc": "Tukio hili limetatuliwa."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "4 Mei, 12:05 PM",
+                  "desc": "Tukio hili limetatuliwa."
+                },
+                {
+                  "time": "4 Mei, 1:50 PM",
+                  "desc": "Tunachunguza viwango vya juu vya kushindwa."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2 Mei 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "2 Mei, 6:35 PM",
+                  "desc": "Tunachunguza viwango vya juu vya kushindwa."
+                },
+                {
+                  "time": "2 Mei, 7:50 PM",
+                  "desc": "Tukio hili limetatuliwa."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "2 Mei, 9:20 AM",
+                  "desc": "Tunachunguza viwango vya juu vya kushindwa."
+                },
+                {
+                  "time": "2 Mei, 10:20 AM",
+                  "desc": "Tukio hili limetatuliwa."
+                },
+                {
+                  "time": "2 Mei, 8:20 PM",
+                  "desc": "Tunachunguza viwango vya juu vya kushindwa."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "2 Mei, 8:20 PM",
+                  "desc": "Tunachunguza viwango vya juu vya kushindwa."
+                },
+                {
+                  "time": "3 Mei, 12:05 AM",
+                  "desc": "Tukio hili limetatuliwa."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "1 Mei 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "1 Mei, 2:05 PM",
+                  "desc": "Tunachunguza viwango vya juu vya kushindwa."
+                },
+                {
+                  "time": "1 Mei, 3:05 PM",
+                  "desc": "Tukio hili limetatuliwa."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "30 Aprili 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "30 Aprili, 8:20 AM",
+                  "desc": "Tunachunguza viwango vya juu vya kushindwa."
+                },
+                {
+                  "time": "30 Aprili, 9:50 AM",
+                  "desc": "Tukio hili limetatuliwa."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 Aprili, 3:05 PM",
+                  "desc": "Tukio hili limetatuliwa."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 Aprili, 4:51 PM",
+                  "desc": "Tukio hili limetatuliwa."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 Aprili, 1:20 PM",
+                  "desc": "Tunachunguza viwango vya juu vya kushindwa."
+                },
+                {
+                  "time": "30 Aprili, 2:37 PM",
+                  "desc": "Ukali umepanda kutoka ubora uliopungua hadi hitilafu ya sehemu."
+                },
+                {
+                  "time": "30 Aprili, 8:20 PM",
+                  "desc": "Tukio hili limetatuliwa."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 Aprili, 6:50 PM",
+                  "desc": "Tukio hili limetatuliwa."
+                },
+                {
+                  "time": "30 Aprili, 7:50 PM",
+                  "desc": "Tunachunguza viwango vya juu vya kushindwa."
+                },
+                {
+                  "time": "1 Mei, 12:20 AM",
+                  "desc": "Tukio hili limetatuliwa."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "subscribe": {
+      "title": "Kuwa wa kwanza<br></br>kusikia kitu kinapoharibika.",
+      "lead": "Chagua nchi unazojali nasi tutakutumia taarifa moja rahisi tovuti zao, au zetu, zinapoanguka au kurudi mtandaoni.",
+      "emailLabel": "Pata masasisho ya matukio kwa barua pepe",
+      "button": "Jiandikishe",
+      "follow": "Au fuatilia hali kupitia:",
+      "chipEmail": "Muhtasari wa barua pepe",
+      "chipSms": "SMS na WhatsApp",
+      "chipRss": "Mlisho wa RSS",
+      "chipWebhook": "Webhook kwa uendeshaji"
+    },
+    "footer": {
+      "tagline": "VIZA hukusaidia kupanga, kuomba na kufuatilia viza kwa urahisi duniani kote.",
+      "company": "Kampuni",
+      "careers": "Kazi",
+      "contact": "Wasiliana",
+      "security": "Usalama",
+      "systemStatus": "Hali ya mfumo",
+      "privacy": "Faragha",
+      "terms": "Masharti",
+      "products": "Bidhaa",
+      "prodVisaReq": "Mahitaji ya Viza",
+      "prodSchengen": "Kikagua Miadi ya Schengen",
+      "prodPhoto": "Kitengeneza Picha ya Viza",
+      "prodHelpline": "Simu ya Dharura ya VIZA",
+      "copyright": "© VIZA, Haki zote zimehifadhiwa"
+    }
+  },
+  "arrival": {
+    "breadcrumbHome": "Mwanzo",
+    "breadcrumbHub": "Kadi za kuwasili",
+    "hubH1": "Miongozo ya kadi za kuwasili",
+    "hubLead": "Kadi ya kuwasili ni fomu fupi ya serikali unayojaza kabla ya kuingia nchini. Nyingi ni za mtandaoni, bure, na huchukua dakika tano hivi. Miongozo hii inaonyesha nani anahitaji kila moja, wakati wa kuiwasilisha, na jinsi ya kuepuka tovuti bandia zinazotoza ada kwa ajili yake.",
+    "hubWhatTitle": "Kadi ya kuwasili ni nini",
+    "hubWhat": [
+      "Kadi ya kuwasili ni tamko ambalo nchi unayokwenda inaomba mbali na pasipoti yako na viza yoyote. Inaandika wewe ni nani, unawasili vipi na utakaa wapi. Nchi nyingi zimebadilisha kadi ya karatasi iliyotolewa ndani ya ndege na kuweka fomu ya mtandaoni.",
+      "Si viza. Viza hukuruhusu kuomba kuingia. Kadi ya kuwasili huijulisha mamlaka ya mpakani kuhusu safari yako, na bado unahitaji viza pale uraia wako unapoihitaji."
+    ],
+    "hubFreeTitle": "Kadi za kuwasili ni bure",
+    "hubFree": [
+      "Kila kadi katika miongozo hii ni bure kwenye tovuti ya serikali yenyewe. Baadhi ya tovuti hunakili fomu ya serikali na kutoza ada. Huhitaji kamwe kulipa kwa mojawapo yao.",
+      "Anza kila mara kutoka anwani rasmi iliyoorodheshwa katika kila mwongozo. VIZA ni huduma huru na si tovuti ya serikali."
+    ],
+    "hubWhenTitle": "Wakati unapohitaji moja",
+    "hubWhen": [
+      "Kadi nyingi hufunguka siku tatu kabla ya kuwasili na lazima ziwasilishwe ndani ya kipindi hicho. Angalia kila mwongozo kwa kanuni kamili, kwa sababu Visit Japan Web ya Japani haina tarehe ya mwisho iliyowekwa na haihitajiki.",
+      "Wakazi, raia na abiria wa kupita mara nyingi wamesamehewa au wana fomu fupi zaidi. Kila mwongozo unaorodhesha nani amesamehewa, ikiwemo msamaha wa raia wa Singapore kwa MDAC ya Malaysia."
+    ],
+    "hubGuidesTitle": "Miongozo yote",
+    "hubGuidesSub": "Chagua nchi unayokwenda. Kila mwongozo una hatua, makosa ya kawaida na viungo rasmi.",
+    "readGuide": "Soma mwongozo",
+    "cardWhen": "Wakati",
+    "cardsLabel": "Kadi ya kuwasili",
+    "hubVisaTitle": "Unahitaji viza pia",
+    "hubVisaBody": "Kadi ya kuwasili haichukui nafasi ya viza. Angalia ukurasa wa nchi kuona kama pasipoti yako inahitaji moja.",
+    "hubVisaCta": "Tazama kurasa za viza",
+    "glanceTitle": "Kwa muhtasari",
+    "stepsTitle": "Jinsi ya kuijaza, hatua kwa hatua",
+    "mistakesTitle": "Makosa ya kawaida",
+    "feesTitle": "Ada na tovuti bandia",
+    "faqTitle": "Maswali",
+    "sourcesTitle": "Vyanzo",
+    "relatedTitle": "Miongozo mingine ya kadi za kuwasili",
+    "independent": "VIZA ni huduma huru na si tovuti ya serikali.",
+    "officialCta": "Fungua tovuti rasmi",
+    "officialLabel": "Tovuti rasmi",
+    "vizaTitle": "Acha VIZA ikufanyie",
+    "vizaBody": "Anza {name} kwenye akaunti yako ya VIZA. Fomu ya VIZA inakuongoza kupitia maswali yale yale ya tovuti rasmi na kuhifadhi taarifa zako kwa safari zijazo. Unaweza kila mara kutumia tovuti rasmi ya bure badala yake.",
+    "vizaFee": "Ada ya huduma ya VIZA",
+    "vizaFeeFree": "Bure",
+    "vizaCta": "Anza kwenye VIZA",
+    "noVizaTitle": "Tumia tovuti rasmi",
+    "noVizaBody": "VIZA bado haijaza kadi hii. Tumia tovuti rasmi iliyo hapa chini, na usome hatua za mwongozo huu kwanza.",
+    "visaTitle": "Viza ya {country}",
+    "visaBody": "Kadi ya kuwasili ni tofauti na viza. Tazama nani anahitaji viza ya {country}, ada na jinsi ya kuomba.",
+    "visaCta": "Fungua ukurasa wa viza ya {country}",
+    "reviewedTitle": "Imekaguliwa tarehe 25 Novemba 2026",
+    "stepLabel": "Hatua",
+    "cards": {
+      "malaysia-mdac": {
+        "summary": "Kadi ya mtandaoni ya bure kwa wageni wa kigeni. Raia wa Singapore wamesamehewa.",
+        "when": "Ndani ya siku 3 kabla ya kuwasili"
+      },
+      "singapore-sg-arrival-card": {
+        "summary": "Kadi ya mtandaoni ya ICA yenye tamko la afya. Wasilisha kwenye tovuti au programu ya MyICA.",
+        "when": "Ndani ya siku 3 kabla ya kuwasili"
+      },
+      "japan-visit-japan-web": {
+        "summary": "Misimbo ya QR ya bure kwa uhamiaji na forodha. Inapendekezwa, haihitajiki.",
+        "when": "Kabla ya kuruka"
+      },
+      "thailand-tdac": {
+        "summary": "Kadi ya bure kwa kila mgeni wa kigeni, ana viza au la. Ilichukua nafasi ya TM6 ya karatasi.",
+        "when": "Ndani ya siku 3 kabla ya kuwasili"
+      },
+      "korea-e-arrival-card": {
+        "summary": "Inahitajika tangu tarehe 1 Januari 2026. Mwenye K-ETA halali amesamehewa.",
+        "when": "Ndani ya siku 3 kabla ya kuwasili"
+      },
+      "indonesia-all-indonesia": {
+        "summary": "Kadi moja ya uhamiaji, forodha na afya. Bure, na si viza.",
+        "when": "Hadi siku 3 kabla ya kuwasili"
+      }
+    }
+  },
+  "guides": {
+    "breadcrumbHome": "Mwanzo",
+    "breadcrumbHub": "Miongozo",
+    "hubH1": "Miongozo ya viza kwa watu wanaoishi Singapore",
+    "hubLead": "Iwe una pasipoti ya Singapore, China, India au Ufilipino, miongozo hii inajibu swali lilelile: ninahitaji nini ili kuingia nchi hii, na naombea wapi nikiwa Singapore. Kila mmoja unataja vyanzo vyake na tarehe ulipokaguliwa.",
+    "hubGuidesTitle": "Miongozo yote",
+    "hubGuidesSub": "Chagua mada. Kanuni hubadilika, kwa hiyo kila mwongozo unaorodhesha kurasa rasmi za kukagua kabla ya kusafiri.",
+    "readGuide": "Soma mwongozo",
+    "hubMoreTitle": "Zaidi kutoka VIZA",
+    "hubMoreBody": "Unatafuta nchi maalum, kadi ya kuwasili au mabadiliko ya hivi karibuni ya kanuni?",
+    "hubDestinations": "Kurasa za viza",
+    "hubArrival": "Miongozo ya kadi za kuwasili",
+    "hubNews": "Habari za viza",
+    "glanceTitle": "Jibu la haraka",
+    "relatedVisaTitle": "Kurasa za nchi",
+    "relatedVisaSub": "Ada, nyaraka na hatua kwa watu wanaoishi Singapore.",
+    "relatedArrivalTitle": "Miongozo ya kadi za kuwasili",
+    "relatedGuidesTitle": "Miongozo zaidi",
+    "faqTitle": "Maswali",
+    "sourcesTitle": "Vyanzo",
+    "reviewedTitle": "Jinsi tulivyokagua",
+    "published": "Imechapishwa",
+    "updated": "Imesasishwa",
+    "independent": "VIZA ni huduma huru na si tovuti ya serikali."
+  },
+  "ds": {
+    "header": {
+      "home": "Mwanzo wa VIZA",
+      "primary": "Kuu",
+      "language": "Lugha",
+      "signIn": "Ingia",
+      "openMenu": "Fungua menyu",
+      "closeMenu": "Funga menyu",
+      "nav": {
+        "home": "Mwanzo",
+        "destinations": "Nchi",
+        "arrivalCards": "Kadi za kuwasili",
+        "guides": "Miongozo",
+        "news": "Habari",
+        "about": "Kuhusu",
+        "contact": "Wasiliana"
+      }
+    },
+    "footer": {
+      "home": "Mwanzo wa VIZA",
+      "tagline": "Maombi ya viza yanayoandaliwa na AI ya VIZA na kukaguliwa na washauri wetu. Bure kutumia.",
+      "explore": "Gundua",
+      "follow": "Tufuate",
+      "followOn": "Fuata VIZA kwenye {platform}",
+      "links": {
+        "destinations": "Nchi",
+        "arrivalCards": "Kadi za kuwasili",
+        "guides": "Miongozo",
+        "news": "Habari",
+        "about": "Kuhusu",
+        "contact": "Wasiliana",
+        "careers": "Kazi",
+        "security": "Usalama",
+        "status": "Hali ya huduma"
+      },
+      "copyright": "© {year} VIZA. Haki zote zimehifadhiwa.",
+      "office": "Ofisi iliyosajiliwa: 60 Barabara ya Paya Lebar, #06-28 Paya Lebar Square, Singapore 409051",
+      "privacy": "Faragha",
+      "terms": "Masharti",
+      "kelin": "Mradi wa Kelin Studio",
+      "refunds": "Marejesho ya pesa",
+      "business": "Taarifa za biashara"
+    },
+    "form": {
+      "fullName": {
+        "label": "Jina lako",
+        "placeholder": "Jane Tan"
+      },
+      "email": {
+        "label": "Barua pepe"
+      },
+      "phone": {
+        "label": "Simu"
+      },
+      "destination": {
+        "label": "Nchi unayokwenda",
+        "placeholder": "Japani, Schengen, Marekani"
+      },
+      "message": {
+        "label": "Swali lako",
+        "placeholder": "Unakokwenda, pasipoti yako na tarehe zako za safari."
+      },
+      "submit": "Tuma ujumbe",
+      "sending": "Inatuma",
+      "success": "Asante, ujumbe wako umepokelewa. Tutajibu kwa barua pepe.",
+      "error": "Hatukuweza kutuma ujumbe wako. Tafadhali jaribu tena, au tuandikie barua pepe kwa sales@kelin.studio.",
+      "consent": "Kwa kutuma, unakubali <privacy>Sera yetu ya Faragha</privacy> na <terms>Masharti</terms>."
+    },
+    "gallery": {
+      "title": "Nchi",
+      "lede": "Chagua nchi ili uone viza unayohitaji, nyaraka na ada ya serikali.",
+      "view": "Tazama",
+      "passportSummary": "{free} bila viza · {voa} e-Visa au viza ya kuwasili · {req} viza inahitajika",
+      "noResults": "Hakuna nchi zinazolingana na utafutaji wako.",
+      "sorts": {
+        "featured": "Zilizoangaziwa",
+        "open": "Zilizo wazi kwanza",
+        "name": "A hadi Z"
+      }
+    },
+    "dest": {
+      "all": "Nchi zote",
+      "onPage": "Kwenye ukurasa huu",
+      "applyTitle": "Anza ombi",
+      "facts": "Ukweli muhimu"
+    },
+    "article": {
+      "toc": "Kwenye ukurasa huu",
+      "down": "Ruka hadi makala",
+      "faqLede": "Majibu ya haraka kuhusu mada hii."
+    },
+    "legal": {
+      "updated": "Imesasishwa mwisho",
+      "contents": "Yaliyomo"
+    }
+  },
+  "homePage": {
+    "hero": {
+      "browse": "Tazama nchi",
+      "picks": "Nchi"
+    },
+    "types": {
+      "title": "Aina za viza",
+      "lede": "Viza za utalii, biashara, kazi, wanafunzi na makazi ya muda mrefu.",
+      "prev": "Iliyotangulia",
+      "next": "Inayofuata",
+      "items": {
+        "tourist": {
+          "title": "Utalii",
+          "body": "Likizo, kutembelea familia na kukaa kwa muda mfupi."
+        },
+        "business": {
+          "title": "Biashara",
+          "body": "Mikutano, makongamano na ziara za maeneo ya kazi."
+        },
+        "work": {
+          "title": "Kazi",
+          "body": "Vibali vya kazi na viza za ajira."
+        },
+        "student": {
+          "title": "Mwanafunzi",
+          "body": "Viza za masomo kwa shule na vyuo vikuu."
+        },
+        "long": {
+          "title": "Kukaa muda mrefu",
+          "body": "Makazi na viza nyingine za muda mrefu."
+        }
+      }
+    },
+    "steps": {
+      "title": "Inavyofanya kazi",
+      "cta": "Anza ombi lako la bure",
+      "side": {
+        "freeValue": "Bure",
+        "freeLabel": "Huduma ya VIZA",
+        "langLabel": "Lugha: Kiingereza na Kichina",
+        "note": "Unalipa ada ya serikali pekee.",
+        "noteBody": "Inaenda moja kwa moja kwa mamlaka inayotoa viza. VIZA haiongezi ada yake yenyewe."
+      },
+      "items": {
+        "choose": {
+          "title": "Chagua nchi",
+          "body": "Tazama viza unayohitaji, nyaraka za kuandaa na ada ya serikali kabla ya kuanza.",
+          "chips": "Aina ya viza|Nyaraka|Ada ya serikali"
+        },
+        "passport": {
+          "title": "Pakia pasipoti yako",
+          "body": "VIZA husoma taarifa zako kutoka ukurasa wa picha, kwa hiyo kuna kidogo sana cha kuandika.",
+          "chips": "Ukurasa wa picha|Taarifa zimejazwa"
+        },
+        "confirm": {
+          "title": "Thibitisha taarifa zako",
+          "body": "Kagua ambacho VIZA imesoma, ongeza tarehe zako za safari na endelea kwenye akaunti yako ya bure ya VIZA.",
+          "chips": "Tarehe za safari|Akaunti ya bure"
+        },
+        "file": {
+          "title": "VIZA hukagua na kuwasilisha",
+          "body": "Mshauri hukagua kila fomu kabla ya kuwasilishwa, nawe unafuatilia maendeleo kwenye akaunti yako.",
+          "chips": "Ukaguzi wa mshauri|Taarifa za maendeleo"
+        }
+      }
+    },
+    "tiers": {
+      "title": "Bei",
+      "lede": "Njia mbili za kuomba, zote ni bure.",
+      "cta": "Wasiliana nasi",
+      "criteria": "Linganisha",
+      "guided": "Kwa mwongozo",
+      "full": "Huduma kamili",
+      "rows": {
+        "fee": {
+          "label": "Ada ya VIZA",
+          "guided": "Bure",
+          "full": "Bure"
+        },
+        "form": {
+          "label": "Fomu ya ombi",
+          "guided": "Unajibu mwenyewe, ukiongozwa na AI ya VIZA",
+          "full": "Mshauri anaandaa majibu pamoja nawe"
+        },
+        "documents": {
+          "label": "Nyaraka",
+          "guided": "Orodha ya ukaguzi kulingana na hali yako",
+          "full": "Mshauri anakagua nyaraka zako"
+        },
+        "interview": {
+          "label": "Miadi na mahojiano",
+          "guided": "Unaweka miadi na kuhudhuria mwenyewe",
+          "full": "Tunapitia pamoja nawe maswali yanayoweza kuulizwa"
+        },
+        "govFee": {
+          "label": "Ada ya serikali",
+          "guided": "Hulipwa moja kwa moja kwa mamlaka",
+          "full": "Hulipwa moja kwa moja kwa mamlaka"
+        },
+        "bestFor": {
+          "label": "Inafaa kwa",
+          "guided": "Maombi rahisi",
+          "full": "Kesi tata au kukataliwa hapo awali"
+        }
+      }
+    },
+    "why": {
+      "title": "Kwa nini VIZA",
+      "lede": "Hatua wazi, fomu zilizokaguliwa na watu halisi wa kuongea nao.",
+      "items": {
+        "free": {
+          "title": "Huduma ya bure",
+          "body": "Msaada wa VIZA hauna gharama. Unalipa ada ya serikali pekee, moja kwa moja kwa mamlaka."
+        },
+        "checked": {
+          "title": "Fomu zilizokaguliwa",
+          "body": "Mshauri hukagua kila fomu kabla ya kuwasilishwa, hivyo makosa madogo hugunduliwa mapema."
+        },
+        "language": {
+          "title": "Kiingereza na Kichina",
+          "body": "Ongea na VIZA kwa Kiingereza au Kichina, kupitia WhatsApp, WeChat au barua pepe."
+        }
+      },
+      "photos": {
+        "arrival": {
+          "title": "Kadi za kuwasili",
+          "body": "Msaada hatua kwa hatua kwa kadi za bure za kuwasili za Malaysia, Singapore, Japani, Thailand, Korea na Indonesia."
+        },
+        "news": {
+          "title": "Habari",
+          "body": "Mabadiliko ya kanuni za viza na mifumo mipya ya e-visa, yakielezwa kwa maneno rahisi."
+        }
+      }
+    },
+    "guides": {
+      "title": "Miongozo",
+      "cta": "Miongozo yote"
+    },
+    "faq": {
+      "lede": "Majibu ya haraka kuhusu huduma ya viza ya VIZA.",
+      "more": "Maswali zaidi?",
+      "items": {
+        "cost": {
+          "q": "Je, VIZA inatoza ada kwa huduma yake?",
+          "a": "Hapana. Msaada wa VIZA ni bure. Ikiwa nchi inatoza ada ya viza ya serikali, unailipa moja kwa moja kwa serikali hiyo."
+        },
+        "visas": {
+          "q": "VIZA inaweza kusaidia na viza zipi?",
+          "a": "Viza za utalii, biashara, kazi, wanafunzi na makazi ya muda mrefu kwa nchi zilizo kwenye ukurasa huu. Ikiwa yako haijaorodheshwa, tuandikie na mshauri atakuambia kinachowezekana."
+        },
+        "approval": {
+          "q": "Nani anaamua kuhusu viza yangu?",
+          "a": "Mamlaka inayotoa viza hufanya kila uamuzi. VIZA hukagua fomu na nyaraka zako kabla ya kuwasilishwa, ili ombi lako liwe kamili na thabiti."
+        },
+        "tiers": {
+          "q": "Kuna tofauti gani kati ya Kwa mwongozo na Huduma kamili?",
+          "a": "Kwa mwongozo, AI ya VIZA inakuongoza kwenye fomu na orodha ya ukaguzi, nawe unabaki na udhibiti wa kila jibu. Kwa Huduma kamili, mshauri anaandaa majibu pamoja nawe na kukagua nyaraka zako. Zote ni bure."
+        },
+        "language": {
+          "q": "Mnasaidia lugha zipi?",
+          "a": "Kiingereza na Kichina, kupitia WhatsApp, WeChat, simu na barua pepe."
+        }
+      }
+    },
+    "contactCard": {
+      "title": "Ongea na mshauri wa VIZA",
+      "body": "Tunajibu kwa Kiingereza au Kichina.",
+      "cta": "Wasiliana nasi"
+    },
+    "cta": {
+      "title": "Anza ombi lako",
+      "point1": "Taarifa zako hubaki siri",
+      "point2": "Mtu halisi hujibu",
+      "formTitle": "Uliza swali",
+      "formBody": "Tuambie unakokwenda na mshauri wa VIZA atajibu kwa barua pepe."
+    }
+  },
+  "aboutPage": {
+    "h1": "Kuhusu VIZA",
+    "intro": {
+      "title": "VIZA ni nini",
+      "text": "VIZA huandaa, hukagua na kuwasilisha maombi ya viza kwa watu wanaoishi Singapore. AI yetu hufanya kazi ya nyaraka na washauri wetu hupitia kila fomu. Huduma ni bure."
+    },
+    "facts": {
+      "destinations": "Nchi",
+      "guides": "Miongozo ya viza",
+      "arrival": "Miongozo ya kadi za kuwasili",
+      "free": "Bure",
+      "freeLabel": "Huduma ya VIZA"
+    },
+    "tiersTitle": "Kwa mwongozo au Huduma kamili",
+    "tiersLede": "Chagua kiwango cha msaada unachotaka. Zote ni bure.",
+    "free": {
+      "title": "Huduma ya bure",
+      "text": "VIZA haitozi ada kwa msaada wake. Kama nchi ina ada ya viza ya serikali, VIZA huionyesha kabla hujaanza na unailipa moja kwa moja kwa mamlaka inayotoa viza. Hakuna maboresho ya kulipia."
+    },
+    "company": {
+      "title": "Taarifa za kampuni",
+      "office": "Ofisi iliyosajiliwa",
+      "officeValue": "60 Barabara ya Paya Lebar, #06-28 Paya Lebar Square, Singapore 409051",
+      "email": "Barua pepe",
+      "phone": "Simu na WhatsApp",
+      "languages": "Lugha",
+      "languagesValue": "Kiingereza na Kichina"
+    }
+  },
+  "contactPage": {
+    "h1": "Wasiliana",
+    "lines": {
+      "whatsapp": {
+        "title": "Simu na WhatsApp",
+        "body": "Piga simu au tuma ujumbe kwa mshauri."
+      },
+      "wechat": {
+        "body": "Tafuta kitambulisho kwenye WeChat ili utuongeze."
+      },
+      "email": {
+        "title": "Barua pepe",
+        "body": "Inafaa kwa nyaraka na maswali marefu."
+      },
+      "office": {
+        "top": "Singapore",
+        "title": "Ofisi",
+        "body": "60 Barabara ya Paya Lebar, #06-28 Paya Lebar Square, Singapore 409051"
+      }
+    },
+    "message": {
+      "title": "Tuma ujumbe",
+      "text": "Maswali kuhusu viza, nchi unayokwenda au kufanya kazi na VIZA. Tuandikie na mshauri atakujibu."
+    }
+  },
+  "careersPage": {
+    "title": "Kazi",
+    "lede": "VIZA huwasaidia watu walio Singapore kupata viza zao kwa kutumia AI na washauri, na huduma ni bure. Tunaajiri watu wanaopenda kazi makini na yenye manufaa.",
+    "teamsTitle": "Timu",
+    "teams": [
+      {
+        "title": "Uhandisi",
+        "body": "Jenga ukaguzi wa nyaraka, mtiririko wa ombi na zana wanazotumia washauri wetu."
+      },
+      {
+        "title": "Usanifu",
+        "body": "Fanya mchakato unaochosha uwe wazi kwa mtu anayeomba."
+      },
+      {
+        "title": "Uendeshaji",
+        "body": "Hakikisha kila ombi linaendelea na kila sharti linasasishwa."
+      },
+      {
+        "title": "Ushauri",
+        "body": "Wasaidie waombaji katika kesi zinazohitaji mtu, kwa Kiingereza na Kichina."
+      },
+      {
+        "title": "Data",
+        "body": "Geuza vyanzo vya serikali kuwa ukaguzi unaobaini matatizo mapema."
+      },
+      {
+        "title": "Masoko",
+        "body": "Eleza viza kwa lugha rahisi, kupitia miongozo na kurasa ambazo watu wanaweza kuziamini."
+      }
+    ],
+    "applyTitle": "Wasiliana nasi",
+    "applyBody": "Tuambie kukuhusu na timu ungependa kujiunga nayo. Tunasoma kila ujumbe.",
+    "applyCta": "Wasiliana nasi"
+  },
+  "pageCopy": {
+    "product": {
+      "introTitle": "Jinsi VIZA inavyosaidia ombi lako la viza",
+      "introLede": "Gundua huduma zinazopatikana za kuandaa viza, kukagua nyaraka na kufuatilia hali ya ombi. Huduma ya VIZA ni bure. Wigo kamili na upatikanaji huonyeshwa baada ya kuchagua nchi.",
+      "browse": "Tazama nchi"
+    },
+    "events": {
+      "title": "Hakuna matukio bado",
+      "lede": "Kliniki za viza, vikao vya taarifa na matukio ya washirika yatatangazwa hapa.",
+      "contact": "Wasiliana nasi"
+    }
+  },
+  "og": {
+    "band": "VIZA ni bure. Ada za serikali ni tofauti.",
+    "destSubtitle": "Ada na jinsi ya kuomba"
+  }
+}

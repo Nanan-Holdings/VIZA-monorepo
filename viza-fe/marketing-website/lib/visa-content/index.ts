@@ -11,6 +11,8 @@
  */
 import type { VisaContent } from "./types";
 import { contentZhBySlug } from "./zh-CN";
+import { applyOverlay, isNativeZh } from "@/lib/i18n-overlay";
+import { visaOverlay } from "@/lib/i18n-content";
 import { indonesia } from "./indonesia";
 import { egypt } from "./egypt";
 import { australia } from "./australia";
@@ -31,7 +33,7 @@ import { china } from "./china";
 import { southKorea } from "./south-korea";
 import { schengen } from "./schengen";
 
-const CONTENT: Record<string, VisaContent> = {
+export const CONTENT: Record<string, VisaContent> = {
   indonesia,
   egypt,
   australia,
@@ -54,15 +56,19 @@ const CONTENT: Record<string, VisaContent> = {
 };
 
 /**
- * Resolve rich content for a slug, localized by `locale`. zh locales get the
- * Simplified-Chinese twin when available, else fall back to English.
+ * Resolve rich content for a slug in `locale`. Server only: the result is passed to the client page as props.
+ *   en      the English object in code
+ *   zh-*    the hand-written zh-CN twin, else English
+ *   others  English with translations/<locale>/visa/<slug>.json laid over it (English where a string is missing)
  */
-export function contentBySlug(slug: string, locale?: string): VisaContent | undefined {
-  if (locale && locale.toLowerCase().startsWith("zh")) {
+export async function loadVisaContent(slug: string, locale?: string): Promise<VisaContent | undefined> {
+  if (locale && isNativeZh(locale)) {
     const zh = contentZhBySlug(slug);
     if (zh) return zh;
   }
-  return CONTENT[slug];
+  const en = CONTENT[slug];
+  if (!en || !locale) return en;
+  return applyOverlay(en, await visaOverlay(locale, slug));
 }
 
 export type { VisaContent } from "./types";

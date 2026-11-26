@@ -1,0 +1,2150 @@
+{
+  "cta": {
+    "startFreeApplication": "Starta din gratis ansökan"
+  },
+  "nav": {
+    "home": "Hem",
+    "apply": "Ansök",
+    "visas": "Visum",
+    "explore": "Utforska",
+    "events": "Evenemang",
+    "blog": "Nyheter",
+    "careers": "Karriär",
+    "contact": "Kontakt",
+    "signIn": "Logga in",
+    "getStarted": "Kom igång",
+    "yourPassport": "Ditt pass",
+    "searchPlaceholder": "Sök efter land eller visum…",
+    "arrivalCards": "Ankomstkort",
+    "guides": "Guider"
+  },
+  "footer": {
+    "followUs": "Följ oss:",
+    "followOn": "Följ VIZA på {platform}",
+    "product": "Produkter",
+    "company": "Företaget",
+    "legal": "Juridik",
+    "offices": "Kontor",
+    "askAi": "Fråga AI om VIZA",
+    "security": "Säkerhet",
+    "status": "Status",
+    "privacy": "Integritet",
+    "terms": "Villkor",
+    "rights": "Alla rättigheter förbehållna.",
+    "tagline": "VIZA hjälper dig att planera, ansöka om och följa visum smidigt över hela världen.",
+    "careers": "Karriär",
+    "contact": "Kontakt",
+    "copyright": "© VIZA, alla rättigheter förbehållna",
+    "prodMockInterview": "Övningsintervju för USA",
+    "prodVisaReq": "Visumkrav",
+    "prodSchengen": "Bokningskontroll för Schengen",
+    "prodPhoto": "Visumfoto-skaparen",
+    "prodHelpline": "VIZA:s nödlinje",
+    "prodStudent": "Studentvisum",
+    "arrivalCards": "Ankomstkort",
+    "guides": "Guider",
+    "news": "Nyheter"
+  },
+  "pages": {
+    "blog": {
+      "metaTitle": "Visumnyheter och regeländringar | VIZA",
+      "metaDescription": "Visumnyheter från VIZA: regeländringar, nya e-visum- och ETA-system och vad de betyder för dig som bor i Singapore. Uppdateras när reglerna ändras.",
+      "title": "Visumnyheter",
+      "lede": "Regeländringar och policyuppdateringar, förklarade med enkla ord. För råd som håller över tid, läs guiderna.",
+      "readArticle": "Läs artikeln",
+      "featuredLabel": "Senaste nytt",
+      "articlesTitle": "Senaste nytt",
+      "articlesDescription": "Policyuppdateringar och ändrade resregler.",
+      "allPosts": "Alla inlägg",
+      "noMorePosts": "Fler nyheter är på väg.",
+      "emptyTitle": "Inga nyheter publicerade ännu",
+      "emptyBody": "Våra första uppdateringar förbereds. Kom tillbaka snart.",
+      "unavailableTitle": "Nyheterna är tillfälligt otillgängliga",
+      "unavailableBody": "Vi kunde inte ladda de senast publicerade nyheterna. Försök igen om en stund.",
+      "backToBlog": "Tillbaka till nyheter",
+      "by": "Av",
+      "updated": "Uppdaterad",
+      "categoriesLabel": "Nyhetsämnen",
+      "topicLabel": "Ämne",
+      "relatedTitle": "Fler nyheter",
+      "relatedDescription": "Fler visumnyheter från VIZA.",
+      "ctaEyebrow": "Planera tryggt",
+      "ctaTitle": "Redo att starta din ansökan?",
+      "ctaBody": "Berätta vart du vill resa. VIZA guidar dig genom kraven och nästa steg.",
+      "ctaAction": "Starta en ansökan",
+      "categoryMetaTitle": "Nyheter om {category} | VIZA",
+      "categoryMetaDescription": "Läs VIZA:s nyheter om {category}: vad som ändrats, vem det gäller och vad du gör härnäst.",
+      "categoryLede": "Nyheter om {category}.",
+      "visaLinkTitle": "Ansöker du om visum till {country}?",
+      "visaLinkBody": "Se handlingar, statlig avgift och steg för dig som bor i Singapore.",
+      "visaLinkAction": "Visumguide för {country}",
+      "guidesTitle": "Relaterade guider",
+      "guidesBody": "Guider som hålls uppdaterade om det här ämnet."
+    },
+    "home": {
+      "title": "Visumansökan i Singapore: USA, Indien, Vietnam | VIZA",
+      "description": "Ansök om USA-visum (DS-160), e-visum för Indien, Vietnam eller Egypten, eller Schengenvisum för Frankrike. En rådgivare kontrollerar varje formulär.",
+      "heroTitle": "Vart ska du härnäst?",
+      "heroLede": "Bläddra bland visumalternativ för valfritt resmål. Din VIZA-konsult och vår AI sköter pappersarbetet, du bokar resan."
+    },
+    "apply": {
+      "title": "Starta en visumansökan | VIZA",
+      "description": "Ladda upp ditt pass, bekräfta dina uppgifter och lämna över din visumansökan till en VIZA-rådgivare. VIZA:s tjänst är gratis.",
+      "saveBadge": "Sparat · fortsätt när du vill"
+    },
+    "careers": {
+      "title": "Karriär | VIZA",
+      "description": "Jobba med VIZA, den kostnadsfria visumtjänsten från Kelin Studio i Singapore. Se vilka team vi anställer till och hur du hör av dig om en tjänst.",
+      "rightCta": "Se tjänster"
+    },
+    "contact": {
+      "title": "Kontakt: WhatsApp, WeChat, telefon, e-post | VIZA",
+      "description": "Nå VIZA-teamet via WhatsApp, WeChat, telefon eller e-post. Fyra kanaler, fyra skrivbord, och en riktig människa svarar.",
+      "rightCta": "Skriv till oss"
+    },
+    "security": {
+      "title": "Säkerhet och ansvarsfull rapportering | VIZA",
+      "description": "Privat, öppet och säkert som standard. Så skyddar VIZA kunddata, vårt program för rapportering av sårbarheter och skydd för den som rapporterar.",
+      "rightCta": "Rapportera en sårbarhet"
+    },
+    "status": {
+      "title": "Systemstatus | VIZA",
+      "description": "Live-status för VIZA och de statliga visumportaler vi skickar in till.",
+      "navPill": "Alla system fungerar"
+    },
+    "visa": {
+      "applyCta": "Ansök nu",
+      "applicationProcess": "Ansökningsprocess",
+      "documents": "Handlingar",
+      "rejectionReasons": "Skäl till avslag",
+      "entryExit": "In- och utresa",
+      "extension": "Förlängning",
+      "reviews": "Omdömen",
+      "nearby": "Länder i närheten",
+      "sources": "Officiella källor"
+    },
+    "privacy": {
+      "title": "Integritetspolicy | VIZA",
+      "description": "Vad VIZA samlar in när du ansöker om visum, varför, vem som ser det och hur länge vi sparar det, enligt Singapores PDPA."
+    },
+    "terms": {
+      "title": "Villkor | VIZA",
+      "description": "Villkoren för att använda VIZA:s visumtjänst, som drivs av Kelin Studio Pte. Ltd. i Singapore. VIZA:s tjänst är gratis."
+    },
+    "product": {
+      "title": "Så hjälper VIZA dig med visumansökan | VIZA",
+      "description": "Visumförberedelse, granskning av handlingar och ansökningsstatus på ett ställe. VIZA:s tjänst är gratis. Omfattning och tillgänglighet visas för varje resmål."
+    },
+    "events": {
+      "title": "Evenemang | VIZA",
+      "description": "Visumklinikker, informationsträffar och partnerevenemang från VIZA."
+    },
+    "arrivalCards": {
+      "title": "Ankomstkort: MDAC, SG Arrival Card, TDAC | VIZA",
+      "description": "Gratis guider om ankomstkort för Malaysia, Singapore, Japan, Thailand, Korea och Indonesien: vem som behöver ett, när du skickar in och hjälp steg för steg."
+    },
+    "guides": {
+      "title": "Visumguider för dig som bor i Singapore | VIZA",
+      "description": "Enkla guider för dig som bor i Singapore: visumfria länder, Schengenhandlingar, USA-intervju, ETA, e-visum och avslag. Gratis att läsa, ofta kontrollerade."
+    },
+    "about": {
+      "title": "Om VIZA: gratis visumhjälp i Singapore | VIZA",
+      "description": "VIZA förbereder, kontrollerar och lämnar in visumansökningar för folk i Singapore med AI och konsulter. Gratis; statliga avgifter går till myndigheten."
+    },
+    "visaIndex": {
+      "title": "Visumresmål: krav per land | VIZA",
+      "description": "Jämför visumkrav per land, med handlingar och avgifter för varje. VIZA:s hjälp är gratis.",
+      "heroTitle": "Visumresmål"
+    },
+    "refunds": {
+      "title": "Policy för återbetalning | VIZA",
+      "description": "VIZA:s tjänst är gratis, så det finns ingen serviceavgift att betala tillbaka. Så fungerar statliga avgifter och andra aktörers avgifter."
+    },
+    "businessInformation": {
+      "title": "Företagsinformation | VIZA",
+      "description": "VIZA drivs av Kelin Studio Pte. Ltd., ett bolag i Singapore. Registrerad adress, UEN och kontaktuppgifter."
+    }
+  },
+  "common": {
+    "comingSoon": "Kommer snart",
+    "learnMore": "Läs mer",
+    "readMore": "Läs mer",
+    "applyNow": "Ansök nu",
+    "talkToHuman": "Prata med en människa",
+    "viewAll": "Visa alla"
+  },
+  "visa": {
+    "heroTitle": "Visum för {country}",
+    "validity": "Giltighet",
+    "howItWorks": "Så fungerar det",
+    "step1": "Berätta om din resa och ladda upp ditt pass.",
+    "step2": "Vi fyller i och kontrollerar din ansökan mot de senaste reglerna.",
+    "step3": "Vi skickar in den till myndighetens portal och följer beslutet.",
+    "step4": "Ditt beviljade visum kommer via e-post, och vi bevakar det hela vägen.",
+    "documents": "Det här behöver du",
+    "doc1": "Ett pass som är giltigt i minst 6 månader.",
+    "doc2": "Ett nytt foto i passformat.",
+    "doc3": "Dina resedatum och ditt boende.",
+    "doc4": "Om resmålet tar ut en visumavgift, ett betalkort för att betala den direkt till staten.",
+    "nearby": "Resmål i närheten",
+    "startApplication": "Starta din ansökan",
+    "comingSoonTitle": "{country}: kommer snart",
+    "comingSoonBody": "Vi finslipar sista detaljerna för {country}. Skapa ett konto så meddelar vi dig så fort det är live.",
+    "browseDestinations": "Bläddra bland resmål",
+    "notifyMe": "Meddela mig",
+    "back": "Tillbaka till utforska",
+    "tabOverview": "Översikt",
+    "tabProcess": "Ansökningsprocess",
+    "tabDocuments": "Handlingar",
+    "tabRejection": "Skäl till avslag",
+    "tabEntry": "In- och utresa",
+    "tabExtension": "Förlängning",
+    "tabReviews": "Omdömen",
+    "tabNearby": "Länder i närheten",
+    "reviewsTitle": "Omdömen",
+    "nearbyTitle": "Länder i närheten",
+    "nearbySub": "Reser du i regionen? Lägg till ett visum till på resan, så samordnar din VIZA-konsult dem.",
+    "faqTitle": "Vanliga frågor",
+    "editorial": "Den här sidan följer VIZA:s redaktionella policy. Vi utgår från officiella myndighetskällor och uppdaterar varje krav när reglerna ändras.",
+    "editorialLink": "Läs hur vi granskar",
+    "sourcesTitle": "Källor",
+    "priceGovt": "Statlig avgift",
+    "priceFree": "Gratis",
+    "pillAllInclusive": "Allt inkluderat",
+    "priceCta": "Starta ansökan",
+    "onTime": "I tid",
+    "freeService": "Gratis VIZA-tjänst",
+    "freeServiceNote": "VIZA tar inget betalt för sin hjälp",
+    "govFeePaidDirect": "Statlig avgift {fee}, betalas direkt till den myndighet som utfärdar visumet.",
+    "govFeeSetByAuthority": "En eventuell statlig avgift bestäms av den myndighet som utfärdar visumet och betalas direkt till den.",
+    "govFeeSetByAuthorityShort": "Bestäms av myndigheten",
+    "priceService": "VIZA-tjänsten",
+    "pillPaidToAuthority": "Betalas till myndigheten",
+    "priceTotalToViza": "Du betalar VIZA",
+    "breadcrumbVisas": "Visumresmål",
+    "serviceDescription": "VIZA hjälper människor som bor i Singapore att förbereda, granska och skicka in ansökningar om {type} för {country} med AI-stöd och granskning av en människa.",
+    "offerDescription": "VIZA:s serviceavgift. Statliga visumavgifter är separata och betalas direkt till den myndighet som utfärdar visumet.",
+    "dest": {
+      "tabGlance": "I korthet",
+      "tabPassports": "Pass",
+      "tabTypes": "Visumtyper",
+      "tabResidents": "Bosatta",
+      "tabFees": "Avgifter",
+      "tabApply": "Så ansöker du",
+      "tabChecklist": "Handlingar",
+      "tabRejection": "Avslag",
+      "tabTravel": "Innan du reser",
+      "tabRelated": "Relaterat",
+      "glanceTitle": "I korthet",
+      "glanceVisa": "Visum krävs",
+      "glanceGovFee": "Statlig avgift",
+      "glanceVizaFee": "VIZA-avgift",
+      "glanceProcessing": "Handläggningstid",
+      "glanceMaxStay": "Längsta vistelse",
+      "glanceChecked": "Kontrollerad den",
+      "passportsTitle": "Behöver du visum?",
+      "typesTitle": "Visumtyper",
+      "residentsTitle": "Bosatta i Singapore",
+      "feesTitle": "Avgifter och tidsåtgång",
+      "applyTitle": "Så ansöker du",
+      "checklistTitle": "Checklista för handlingar",
+      "travelTitle": "Innan du reser",
+      "colPassport": "Pass",
+      "colEntry": "Inresa",
+      "colNotes": "Anmärkningar",
+      "colItem": "Post",
+      "colAmount": "Belopp",
+      "vizaFeeNote": "VIZA:s hjälp är gratis. Du betalar bara den statliga avgiften, direkt till myndigheten.",
+      "reviewedBy": "Granskad av en VIZA-konsult den {date}.",
+      "relatedTitle": "Relaterade resmål",
+      "relatedSub": "Andra platser som folk lägger till på samma resa, och var du kan läsa mer.",
+      "startTitle": "Starta ansökan",
+      "startBody": "Börja med ditt pass och dina resedatum. VIZA:s hjälp är gratis och du betalar den statliga avgiften direkt till myndigheten.",
+      "startConsultBody": "Berätta för en VIZA-konsult var du bor, vilket pass du har och när du ska resa. VIZA:s hjälp är gratis.",
+      "consultCta": "Prata med en konsult"
+    }
+  },
+  "apply": {
+    "stepOf": "Steg {n} av 3",
+    "back": "Tillbaka",
+    "continue": "Fortsätt",
+    "step1Name": "Ladda upp pass",
+    "step2Name": "Bekräfta uppgifter",
+    "step3Name": "Starta ansökan",
+    "s1Title": "Ladda upp ditt pass",
+    "s1Desc": "Vi läser dina uppgifter automatiskt, så du behöver inte skriva något. Använd sidan med dina personuppgifter (den med ditt foto).",
+    "segUpload": "Ladda upp fil",
+    "segCapture": "Ta ett foto",
+    "dzTitle": "Släpp ditt passfoto här",
+    "dzSub": "Eller klicka för att bläddra. Din fil är krypterad och delas aldrig",
+    "dzBrowse": "Välj fil",
+    "dzUpTo": "Upp till 10 MB",
+    "tip1Title": "Alla fyra hörn synliga",
+    "tip1Sub": "Ta med hela sidan med personuppgifter, inklusive MRZ-raderna längst ner.",
+    "tip2Title": "Ljus, jämn belysning",
+    "tip2Sub": "Undvik skuggor från din hand eller mobilskal.",
+    "tip3Title": "Ingen blänk eller reflexer",
+    "tip3Sub": "Luta passet lite om stämpeln reflekterar.",
+    "errReadFail": "Vi kunde inte läsa passet: {detail}. Försök med ett tydligare foto av sidan med personuppgifter.",
+    "extReading": "Läser dokumentet",
+    "extExtracting": "Hämtar dina uppgifter",
+    "extVerifying": "Kontrollerar äktheten",
+    "stReading": "Läser…",
+    "stExtracting": "Hämtar…",
+    "stVerifying": "Kontrollerar…",
+    "s2Title": "Bekräfta dina uppgifter",
+    "s2Desc": "Vi hämtade dessa direkt från ditt pass. Tryck på ett fält för att ändra det.",
+    "successHigh": "Passet lästes av med hög säkerhet",
+    "warnLow": "Några fält var svåra att läsa. Dubbelkolla varje värde nedan.",
+    "warnMed": "Vi hämtade de flesta av dina uppgifter. Kontrollera de markerade fälten.",
+    "ppDetails": "Passuppgifter",
+    "autoExtracted": "Hämtat automatiskt",
+    "fSurname": "Efternamn",
+    "fGiven": "Förnamn",
+    "fPassport": "Passnummer",
+    "fDob": "Födelsedatum",
+    "fNationality": "Nationalitet",
+    "fExpires": "Går ut",
+    "reachTitle": "Hur når vi dig?",
+    "reachDesc": "Vi skickar ditt visum hit, samt statusuppdateringar som sms till din telefon.",
+    "email": "E-post",
+    "phone": "Telefon",
+    "consent": "Jag bekräftar att uppgifterna ovan stämmer med mitt pass och ger VIZA fullmakt att skicka in den här ansökan för min räkning till migrationsmyndigheterna i {country}.",
+    "s3Title": "Starta din ansökan",
+    "s3Desc": "VIZA:s tjänst är gratis. Logga in på VIZA-portalen så tar vi det härifrån.",
+    "headsUp": "Bra att veta:",
+    "headsUpBody": "om staten {country} tar ut en visumavgift betalar du den direkt till dem. VIZA tar aldrig emot det beloppet och lägger aldrig på något på det.",
+    "yourApp": "Din ansökan",
+    "guaranteedBy": "Garanterad leverans senast",
+    "govFee": "Statlig avgift",
+    "expressUpgrade": "Expressuppgradering",
+    "total": "Totalt",
+    "footEncrypted": "Krypterat från början till slut. VIZA tar ingen avgift av dig för den här ansökan.",
+    "helpOnline": "Priya är online",
+    "helpTap": "Tryck för att chatta med din VIZA-konsult",
+    "totalAmount": "SGD {amount}",
+    "totalFree": "Gratis",
+    "etaStandard": "12 maj 2026, 8:00 SGT",
+    "failTitle": "Vi kunde inte läsa dokumentet",
+    "failNotPassport": "Det här ser inte ut som en passida med personuppgifter. Ladda upp ett foto av sidan med ditt foto och dina personuppgifter.",
+    "failUnreadable": "Inget av de obligatoriska fälten gick att läsa. Ta om fotot i bra ljus, med hela sidan med personuppgifter plan och i fokus.",
+    "tryAgain": "Försök igen",
+    "warnPartial": "Vi kunde inte läsa allt. Fyll i de markerade fälten nedan.",
+    "warnExpired": "Det här passet verkar ha gått ut. De flesta resmål kräver minst 6 månaders giltighet.",
+    "warnMrz": "Den maskinläsbara zonen (de två raderna längst ner) gick inte att läsa. Dubbelkolla varje fält.",
+    "warnBlurry": "Fotot var suddigt. Dubbelkolla varje fält noga.",
+    "fieldRequired": "Obligatoriskt, fyll i",
+    "editField": "Ändra {field}",
+    "emailInvalid": "Ange en giltig e-postadress. Dina visumuppdateringar och inloggningslänk skickas hit.",
+    "phoneInvalid": "Ange ett giltigt telefonnummer.",
+    "consentRequired": "Bekräfta försäkran för att fortsätta.",
+    "continueToStart": "Fortsätt",
+    "startTitle": "Fortsätt i VIZA-portalen",
+    "startSub": "Logga in eller skapa ditt gratis konto. Din ansökan för det här resmålet öppnas direkt.",
+    "vizaService": "VIZA-tjänsten",
+    "govFeeSetByAuthority": "Bestäms av myndigheten",
+    "govFeeNote": "En eventuell statlig visumavgift betalas direkt till den myndighet som utfärdar visumet, inte till VIZA.",
+    "completeBeforeStart": "Slutför de markerade punkterna ovan innan du fortsätter."
+  },
+  "explore": {
+    "help": "Hjälp",
+    "passportLabel": "Pass från {name}",
+    "passportSub": "Visumkrav för {n} resmål · Placering {rank}",
+    "freeLabel": "Visumfritt",
+    "freeNote": "inget pappersarbete",
+    "voaLabel": "E-visum eller VOA",
+    "voaNote": "vi sköter det",
+    "reqLabel": "Visum krävs",
+    "reqNote": "ansökan via ambassad",
+    "fullMap": "Se hela visumkartan",
+    "grid": "Rutnät",
+    "map": "Karta",
+    "mapLegendEvisa": "E-visum och turistvisum",
+    "mapHint": "Håll muspekaren över en markerad prick för att förhandsvisa ett resmål",
+    "sectionTitle": "För pass från {country}",
+    "seeAll": "Se alla {n}",
+    "footnote": "VIZA:s tjänst är gratis. En eventuell statlig visumavgift betalas direkt till den myndighet som utfärdar visumet och varierar mellan länder.",
+    "fastTrack": "Snabbspår",
+    "cardType": "Typ",
+    "cardValid": "Giltigt",
+    "cardFee": "VIZA-tjänsten",
+    "save": "Spara",
+    "startApplication": "Starta ansökan",
+    "catalogueUnavailable": "Inga resmål är öppna för onlineansökningar just nu. Kom tillbaka snart.",
+    "choosePassport": "Välj ditt pass",
+    "searchPassport": "Sök passland…",
+    "visaFree": "{n} visumfria",
+    "ppFoot": "Uppdaterad för maj 2026 · Källa: IATA Timatic",
+    "noMatch": "Inga pass matchar “{q}”",
+    "filters": {
+      "delivery": "Visumleverans",
+      "type": "Visumtyp",
+      "documents": "Handlingar",
+      "dates": "Resedatum"
+    },
+    "filterOpts": {
+      "delivery": [
+        "När som helst",
+        "Inom 24 timmar",
+        "Inom 3 dagar",
+        "Inom 1 vecka",
+        "Inom 1 månad"
+      ],
+      "type": [
+        "Alla typer",
+        "Turist",
+        "Affärer",
+        "Arbete",
+        "Student",
+        "Digital nomad"
+      ],
+      "documents": [
+        "Alla handlingar",
+        "Minimalt (bara pass)",
+        "Standard",
+        "Utförligt paket"
+      ],
+      "dates": [
+        "Välj datum",
+        "Den här veckan",
+        "Den här månaden",
+        "Om 3 månader",
+        "Om 6 månader"
+      ]
+    }
+  },
+  "cities": {
+    "viza-test": "Test av live-kassa",
+    "indonesia": "Bali · Jakarta",
+    "egypt": "Kairo · Giza",
+    "australia": "Sydney · Melbourne",
+    "saudi-arabia": "Riyadh · AlUla",
+    "united-kingdom": "London · Edinburgh",
+    "vietnam": "Hanoi · Hoi An",
+    "malaysia": "KL · Penang",
+    "japan": "Tokyo · Kyoto",
+    "united-states": "New York · LA",
+    "canada": "Toronto · Vancouver",
+    "turkiye": "Istanbul · Kappadokien",
+    "thailand": "Bangkok · Phuket",
+    "united-arab-emirates": "Dubai · Abu Dhabi",
+    "france": "Paris · Nice",
+    "italy": "Rom · Florens",
+    "india": "Delhi · Mumbai"
+  },
+  "validity": {
+    "viza-test": "Endast demo",
+    "indonesia": "90 dagar",
+    "egypt": "90 dagar",
+    "australia": "1 år",
+    "saudi-arabia": "365 dagar",
+    "united-kingdom": "6 månader",
+    "vietnam": "90 dagar",
+    "malaysia": "3 månader",
+    "japan": "90 dagar",
+    "united-states": "10 år",
+    "canada": "10 år",
+    "turkiye": "180 dagar",
+    "thailand": "3 månader",
+    "united-arab-emirates": "60 dagar",
+    "france": "90 dagar",
+    "italy": "90 dagar",
+    "india": "30 dagar"
+  },
+  "passports": {
+    "SG": "Singapore",
+    "JP": "Japan",
+    "KR": "Sydkorea",
+    "DE": "Tyskland",
+    "FR": "Frankrike",
+    "GB": "Storbritannien",
+    "US": "USA",
+    "AU": "Australien",
+    "CA": "Kanada",
+    "AE": "Förenade Arabemiraten",
+    "CN": "Kina",
+    "IN": "Indien",
+    "BR": "Brasilien",
+    "PH": "Filippinerna",
+    "ID": "Indonesien",
+    "MY": "Malaysia",
+    "TH": "Thailand"
+  },
+  "countries": {
+    "viza-test": "VIZA Test",
+    "indonesia": "Indonesien",
+    "egypt": "Egypten",
+    "australia": "Australien",
+    "saudi-arabia": "Saudiarabien",
+    "united-kingdom": "Storbritannien",
+    "vietnam": "Vietnam",
+    "malaysia": "Malaysia",
+    "japan": "Japan",
+    "united-states": "USA",
+    "canada": "Kanada",
+    "turkiye": "Turkiet",
+    "thailand": "Thailand",
+    "united-arab-emirates": "Förenade Arabemiraten",
+    "france": "Frankrike",
+    "italy": "Italien",
+    "india": "Indien",
+    "china": "Kina",
+    "south-korea": "Sydkorea",
+    "schengen": "Schengen"
+  },
+  "visaTypes": {
+    "Test checkout": "Testkassa",
+    "e-Visa": "E-visum",
+    "Standard Visitor": "Standard Visitor-visum",
+    "Visitor 600": "Visitor 600-visum",
+    "Tourist": "Turist",
+    "B1/B2": "B1/B2",
+    "eTA": "eTA",
+    "Schengen": "Schengen",
+    "eVisa": "E-visum",
+    "Visitor visa": "Besöksvisum",
+    "Tourist visa": "Turistvisum"
+  },
+  "careers": {
+    "hero": {
+      "nowHiring": "Vi anställer nu i",
+      "cities": [
+        "Shanghai",
+        "Singapore"
+      ],
+      "openRoles": "28 lediga tjänster",
+      "title": "Hjälp oss få gränser<br></br><em>att försvinna</em>, <u>i det tysta,</u><br></br>i mjukvarans hastighet.",
+      "lead": "Vi gör om månader av visumpapper till timmar av mjukvara, för miljontals människor som bara vill kliva på ett flygplan. Ta med ditt hantverk till ett team som levererar mot verkliga tidsfrister.",
+      "ctaRoles": "Se alla lediga tjänster",
+      "ctaWhy": "Varför vi finns"
+    },
+    "board": {
+      "ariaLabel": "Avgångstavla som listar lediga tjänster hos VIZA",
+      "head": "Lediga tjänster · live",
+      "live": "I tid",
+      "cols": {
+        "req": "Ref.",
+        "role": "Tjänst",
+        "office": "Kontor",
+        "status": "Status"
+      },
+      "rows": [
+        {
+          "role": "Staff Engineer",
+          "sub": "Dokumentflöde",
+          "status": "Ombordstigning"
+        },
+        {
+          "role": "Produktdesigner",
+          "sub": "Flöden för sökande",
+          "status": "Öppen"
+        },
+        {
+          "role": "Ambassadkontakt",
+          "sub": "Samarbeten med myndigheter",
+          "status": "Sista utrop"
+        },
+        {
+          "role": "Kundoperationer",
+          "sub": "Eskaleringar nivå 2",
+          "status": "Öppen"
+        }
+      ],
+      "foot": "+24 tjänster till inom utveckling, drift och design",
+      "browseAll": "Visa alla",
+      "chip1Label": "Vi anställer på",
+      "chip1Value": "4 kontor",
+      "chip2Label": "Snittsvar",
+      "chip2Value": "3.2 dagar till första samtal"
+    },
+    "stats": [
+      {
+        "value": "2.4M",
+        "label": "Visum utfärdade via VIZA förra året"
+      },
+      {
+        "label": "Resmål som stöds med live-hantering"
+      },
+      {
+        "label": "Beviljandegrad för alla visumtyper 2025"
+      },
+      {
+        "label": "Personer i Shanghai och Singapore"
+      }
+    ],
+    "mission": {
+      "eyebrow": "Vår historia",
+      "title": "Större delen av världen<br></br>reser fortfarande med<br></br><em>utskrivna papper.</em>",
+      "kicker1": "Vi startade VIZA 2021 efter att ha suttit en vecka för mycket i telefonkö hos ambassader. Systemet för att flytta människor över gränser är äldre än internet, och människorna som fastnar i det förtjänar bättre.",
+      "kicker2": "I dag levererar ett team på 340 personer på fyra kontor mjukvara, skickar in dokument och driver verksamhet i 194 länder. Vi gör det tråkiga, tröttsamma jobbet så att resor kan kännas som resten av internet: några tryck, sedan är du på väg.",
+      "founderName": "Mira Kohli",
+      "founderRole": "Medgrundare och VD · Singapore",
+      "beliefs": [
+        {
+          "title": "Vi är ett driftsbolag som levererar mjukvara.",
+          "body": "Hälften av VIZA är utvecklare, designers och produktchefer. Den andra hälften är konsulter, driftfolk och dokumentspecialister på plats i länderna. Ingen av halvorna vinner utan den andra."
+        },
+        {
+          "title": "Den sökande är alltid kunden.",
+          "body": "Ambassader, partner och flygbolag spelar roll. Men personen som står i kö klockan 3 på natten och uppdaterar en portal är den vi arbetar för, och den vi mäter oss mot."
+        },
+        {
+          "title": "Fart växer när man är tålmodig med kvaliteten.",
+          "body": "Vi rör oss snabbt när vi levererar och långsamt vid beslut som inte går att ångra. Ett felaktigt visumbeslut kan förstöra ett bröllop, ett jobb, en begravning. Vi håller den ribban även när det saktar ner oss."
+        },
+        {
+          "title": "Avstånd är ett UX-problem, inte ett hinder.",
+          "body": "Våra team sitter i fyra tidszoner. Asynkront skrivande, tydligt ägarskap och en bra dokumentkultur är hur vi byter tid mot förtroende, och hur vi levererar över hela världen utan att slita ut någon."
+        }
+      ]
+    },
+    "values": {
+      "eyebrow": "Vad vi håller oss till",
+      "title": "Fem saker vi tror på, även när det kostar.",
+      "lead": "Värderingar är lätta att skriva ner och svåra att agera på. Det här är de fem som vi faktiskt använder vid rekrytering, vid utvärderingar och vid de sällsynta svåra besluten.",
+      "cards": [
+        {
+          "title": "Säg sanningen, särskilt när det kostar oss.",
+          "body": "Om ett visum inte kommer i tid, säg det i dag, inte dagen före flygningen. Vi förlorar hellre en försäljning än levererar en lögn.",
+          "kicker": "I praktiken → publicerade policyer, granskning av ändringar"
+        },
+        {
+          "title": "Förtjäna fart. Känn dig inte bara upptagen.",
+          "body": "Vi firar beslut och levererat arbete, inte möten och trådar. Poängen är genomströmning mot uppdraget, inte rörelse i din kalender.",
+          "kicker": "I praktiken → kvartalsvis genomgång av genomströmning"
+        },
+        {
+          "title": "Tänk i pass, inte personas.",
+          "body": "Visumregler beror på nationalitet. En “användare” finns inte, men en filippinsk passinnehavare som ansöker till Schengen gör det. Vi bygger för verkliga människor, inte medelvärden.",
+          "kicker": "I praktiken → produktspecifikation med passet först"
+        },
+        {
+          "title": "Skriv ner saker. Beslut framför allt.",
+          "body": "Fyra kontor, fyra tidszoner. Om ett beslut inte är nedskrivet har det inte hänt. Vår wiki är obligatorisk läsning; våra stand-ups är frivilliga.",
+          "kicker": "I praktiken → ADR:er, veckomemo, asynkront först"
+        },
+        {
+          "title": "Håll dig nära kön.",
+          "body": "Varje utvecklare tar ett pass per kvartal på konsultgolvet. Du kan inte designa bort friktion du aldrig känt klockan 11 en söndagskväll.",
+          "kicker": "I praktiken → roterande köpass"
+        },
+        {
+          "title": "Välj den långa versionen.",
+          "body": "Svaret på trettio sekunder är oftast fel. Vi satsar på djup dokumentation, robusta spelböcker och förklaringar som håller, även när den enkla versionen skulle räcka.",
+          "kicker": "I praktiken → introduktionshandbok, publika spelböcker"
+        }
+      ]
+    },
+    "inside": {
+      "eyebrow": "Inuti VIZA",
+      "title": "Så ser det egentligen ut<br></br>att jobba här.",
+      "lead": "Vi har kontor i två städer eftersom vi anställer nära där ansökningar lämnas in. Vi är högljudda om framgångar, tysta om politik och ärliga om hur mycket vi ännu har kvar att bygga.",
+      "photos": [
+        {
+          "label": "foto · huvudkontoret i Singapore, öppet kontorslandskap",
+          "mark": "Paya Lebar Square, SG"
+        },
+        {
+          "label": "foto · konsultgolvet med kön",
+          "mark": "Luoshan Rd, Shanghai"
+        },
+        {
+          "label": "foto · whiteboardpass",
+          "mark": "Teknikkonferens, Bali"
+        },
+        {
+          "label": "foto · driftgolvet i Shanghai",
+          "mark": "Pudong, Shanghai"
+        },
+        {
+          "label": "foto · teammiddag",
+          "mark": "Allmöte, Lissabon"
+        },
+        {
+          "label": "foto · besök hos ambassadpartner",
+          "mark": "Paya Lebar Square, SG"
+        }
+      ],
+      "pull": "“Vi anställer människor som har en åsikt om visum innan de börjar. Vid månad två har du en starkare.”",
+      "pullBy": "Felix Adekunle, teknikchef",
+      "para1": "VIZA är högt i självständighet och högt i sammanhang. Du får en ägare för allt du gör, riktiga budgetar och förväntningen att du förklarar resonemanget bakom ditt arbete för resten av företaget.",
+      "para2": "Om du vill få veta vad du ska göra varje dag är det här fel ställe. Om du har väntat på att någon ska räcka dig ratten finns den här."
+    },
+    "how": {
+      "eyebrow": "Utveckling och drift hos VIZA",
+      "title": "Så rör sig arbetet egentligen.",
+      "lead": "Om du bygger, skickar in eller designar här är det här din vecka. Mindre ceremoni, mer levererat arbete. Mindre Slack, fler beslut nedskrivna.",
+      "cells": [
+        {
+          "title": "Ägarskap från början till slut",
+          "body": "Du designar det, bygger det, levererar det och äger det i produktion. Inga överlämningsköer, inga färdplaner skrivna av folk tre led bort. Om det är ditt är det verkligen ditt."
+        },
+        {
+          "title": "Driftsättning varje dag, som standard",
+          "body": "De flesta team levererar flera gånger om dagen. Återkopplingsslingorna är korta med flit, och en backning på trettio minuter är bättre än ett bråk på tre veckor."
+        },
+        {
+          "title": "Verkliga, stökiga problem",
+          "body": "Det här är inte CRUD. Du jobbar med OCR för dokument, fördröjningskänslig tidsbokning mot över 90 statliga portaler och konsumentflöden som används av miljontals."
+        },
+        {
+          "title": "Ribban är hög, öppet",
+          "body": "Vi parprogrammerar vid designgranskningar. Vi kommenterar rad för rad i PR:er. Vi tror att smak går att lära ut, och vi förväntar oss att folk aktivt hjälper alla runt sig att bli bättre."
+        },
+        {
+          "title": "En riktig utbildningsbudget",
+          "body": "$2,000 per person och år, inga frågor ställda, för konferenser, böcker, kurser, allt som kommer tillbaka till arbetet du gör här."
+        },
+        {
+          "title": "Arkitektur skriven av dig",
+          "body": "RFC:er är öppna för alla. Nya utvecklare har format kärninfrastruktur sin första månad. Har du en bättre plan, skriv ner den, så läser vi den."
+        }
+      ]
+    },
+    "roles": {
+      "eyebrow": "Lediga tjänster · uppdateras varje vecka",
+      "title": "Bli en del av resan.",
+      "lead": "28 lediga tjänster på fyra kontor. Vi anställer inom utveckling, design, drift, konsulter och partnerskap. Nya tjänster dyker upp på måndagar.",
+      "allDepartments": "Alla avdelningar",
+      "deps": {
+        "eng": "Utveckling",
+        "design": "Design",
+        "ops": "Drift",
+        "consult": "Konsulter",
+        "data": "Data och ML",
+        "gtm": "Marknadsföring och GTM"
+      },
+      "showing": "Visar <strong>{count}</strong> tjänster · alla platser · alla team",
+      "anyLocation": "Valfri plats",
+      "groupCount": "{count} lediga",
+      "posSub": "{team} · vi anställer på hantverk och omdöme, inte meriter",
+      "locationLabel": "Plats",
+      "typeLabel": "Typ",
+      "fullTime": "Heltid",
+      "viewRole": "Visa tjänsten",
+      "locations": {
+        "sg": "Singapore",
+        "sf": "Shanghai",
+        "ldn": "Singapore",
+        "dxb": "Shanghai"
+      },
+      "jobs": {
+        "backendPayments": "Senior backendutvecklare, plattform",
+        "staffDocPipeline": "Staff Engineer, dokumentflöde",
+        "iosApplicant": "iOS-utvecklare, app för sökande",
+        "platformInfra": "Plattformsutvecklare, infrastruktur och säkerhet",
+        "frontendConsole": "Frontendutvecklare, konsultkonsol",
+        "emWeb": "Utvecklingschef, webb",
+        "sre": "Site Reliability Engineer",
+        "androidSenior": "Senior Android-utvecklare",
+        "leadEmbassy": "Utvecklingsledare, ambassadintegrationer",
+        "productDesignerApplicant": "Senior produktdesigner, flöde för sökande",
+        "brandDesigner": "Varumärkesdesigner",
+        "designLeadConsultant": "Designansvarig, konsultverktyg",
+        "headOpsMe": "Driftchef, Mellanöstern",
+        "visaOpsSchengen": "Visumdriftsansvarig, Schengen",
+        "logistics": "Logistik- och budansvarig",
+        "processDocQa": "Processingenjör, dokumentkvalitet",
+        "opsAnalyst": "Driftanalytiker, bokningar",
+        "consultSchengen": "Visumkonsult, Schengen",
+        "consultUs": "Visumkonsult, USA B1/B2",
+        "consultUae": "Visumkonsult, uppehållstillstånd i Förenade Arabemiraten",
+        "consultStudent": "Senior konsult, studentvisum",
+        "consultApac": "Konsultledare, Asien och Stillahavsregionen",
+        "consultUk": "Visumkonsult, Storbritannien",
+        "dataScientist": "Senior data scientist, modellering av beviljande",
+        "mlOcr": "ML-ingenjör, OCR och dokument-AI",
+        "perfMarketing": "Chef för prestationsmarknadsföring",
+        "contentLead": "Innehållsansvarig, berättande",
+        "lifecycleCrm": "Chef för livscykel och CRM"
+      }
+    },
+    "fellowship": {
+      "tag": "▲ VIZA Launchpad · program på 12 veckor",
+      "title": "Tolv veckor. Ett produktteam.<br></br><em>Ett tillfälle att leverera något.</em>",
+      "para1": "Launchpad är vårt program för utvecklare, produktchefer och designers tidigt i karriären, människor som annars skulle behöva två år till av “erfarenhet” innan de får göra ett riktigt försök.",
+      "para2": "Du paras ihop med seniora ledare, äger en verklig produktyta från start till lansering och går därifrån med något som miljontals människor kommer att använda. Ger ett erbjudande om heltidsanställning till ~60% av gruppen.",
+      "meta": [
+        {
+          "k": "Längd",
+          "v": "12 veckor"
+        },
+        {
+          "k": "Plats",
+          "v": "På kontoret, valfritt huvudkontor"
+        },
+        {
+          "k": "Stipendium",
+          "v": "Över marknadsnivå"
+        },
+        {
+          "k": "Nästa grupp",
+          "v": "sep 2026"
+        }
+      ],
+      "apply": "Ansök till Launchpad",
+      "readCohort": "Läs om gruppen 2025",
+      "projects": [
+        {
+          "k": "2024 · Utveckling",
+          "title": "Omskrivning av OCR-flödet",
+          "meta1": "Levererat till produktion",
+          "meta2": "3.2× snabbare"
+        },
+        {
+          "k": "2025 · Design",
+          "title": "Ny design av Schengenflödet",
+          "meta1": "14 länder live",
+          "meta2": "↑ 22% konv."
+        },
+        {
+          "k": "2025 · Produkt",
+          "title": "Schemaläggare för ambassadtider",
+          "meta1": "9 ambassader",
+          "meta2": "40k tider/mån"
+        }
+      ]
+    },
+    "benefits": {
+      "eyebrow": "Vi har dig (på riktigt)",
+      "title": "Det tråkiga,<br></br>ordnat på riktigt.",
+      "lead": "Vi ser inte förmåner som en bonus. De är grunden som låter människor göra sitt bästa arbete. Det här får varje VIZA-anställd, på varje kontor, från dag ett.",
+      "items": [
+        {
+          "title": "Omfattande sjukvård, ordnad.",
+          "body": "Full sjukvård, tandvård och synvård från din första dag, för dig, din partner och dina barn. Vi betalar premien, inga lekar med självrisk."
+        },
+        {
+          "title": "Bygg förmögenhet, inte bara lön.",
+          "body": "Grundlön över marknadsnivå på varje marknad vi anställer på, plus ett generöst aktiepaket kopplat till milstolpar, inte bara tjänsteår. Vi förnyar det vartannat år."
+        },
+        {
+          "title": "Lär dig det som faktiskt spelar roll.",
+          "body": "$2,000 per år i utbildningsbudget, månatliga interna genomgångar och tid i kalendern, inte bara tillåtelse, för att gå den kursen eller åka på den konferensen."
+        },
+        {
+          "title": "Gör kunder glada som om det vore dina egna pengar.",
+          "body": "Varje sökande får en budget på $100 för goodwill utöver det vanliga. Inget godkännande, ingen eskalering: ordna det och skriv sedan ner vad som hände."
+        },
+        {
+          "title": "Själen > allt.",
+          "body": "Konfidentiellt, professionellt stöd för psykisk hälsa, utan försäkringshinder. Plus tre “mötesfria” dagar i månaden, för hela företaget."
+        },
+        {
+          "title": "Reseförmåner (vi var tvungna).",
+          "body": "Vi sköter visum; vårt team borde resa på husets bekostnad. $4k per år i resekredit, plus att VIZA ordnar varje visum du någonsin skulle behöva, direkt och internt."
+        },
+        {
+          "title": "Generös, riktig ledighet.",
+          "body": "30 dagars betald semester, plus ditt lands helgdagar, plus en betald ledig vecka mellan 24 dec och 1 jan. Vi följer upp användningen och puffar folk att ta mer, inte mindre."
+        },
+        {
+          "title": "Utrustning, inga frågor.",
+          "body": "Välj din laptop, skärm och stol på dag ett. Ersättning för hemmakontor till din uppsättning. Vi litar på att du vet vad du behöver för att göra ett bra jobb."
+        },
+        {
+          "title": "Föräldraledighet som faktiskt fungerar.",
+          "body": "20 veckor för primär vårdnadshavare, 12 för sekundär, med full lön. Plus en gradvis återgång, så att du inte är tillbaka på full fart dag ett."
+        }
+      ]
+    },
+    "offices": {
+      "eyebrow": "Där vi arbetar",
+      "title": "Två kontor, en produkt.",
+      "lead": "Vi anställer nära ambassader, partner och de marknader vi betjänar. Varje kontor har både utvecklare och driftfolk, vi skiljer inte på teamen som bygger och dem som sköter golvet.",
+      "cards": [
+        {
+          "photo": "foto · Shanghai",
+          "open": "6 lediga",
+          "name": "Shanghai",
+          "addr1": "Lane 1502, Luoshan Road,",
+          "addr2": "Pilotfrihandelszonen China (Shanghai)",
+          "tz": "GMT+8 · verksamhet i Kina",
+          "since": "Sedan 2023"
+        },
+        {
+          "photo": "foto · huvudkontoret i Singapore",
+          "open": "12 lediga",
+          "name": "Singapore",
+          "addr1": "60 Paya Lebar Road, #06-28, Paya Lebar Square,",
+          "addr2": "409051 Singapore",
+          "tz": "GMT+8 · huvudkontor Asien och Stillahavsregionen",
+          "since": "Huvudkontor · sedan 2021"
+        }
+      ]
+    },
+    "ctaStrip": {
+      "title": "Ser du inte din tjänst,<br></br>men vill ändå in?",
+      "body": "Om du har en ovanlig bakgrund och tror att du skulle hjälpa oss att få världens resenärer att röra sig snabbare vill vi höra från dig. Vi har anställt bussförare, tidigare ambassadpersonal och jurister. Vi har ingen särskild typ.",
+      "lead": "Allmän ansökan",
+      "cta": "Berätta din historia",
+      "note": "Vi svarar inom 7 dagar, även om svaret är nej."
+    },
+    "footer": {
+      "tagline": "VIZA hjälper dig att planera, ansöka om och följa visum smidigt över hela världen.",
+      "company": "Företaget",
+      "products": "Produkter",
+      "offices": "Kontor",
+      "careers": "Karriär",
+      "contact": "Kontakt",
+      "security": "Säkerhet",
+      "privacy": "Integritet",
+      "terms": "Villkor",
+      "prodVisaReq": "Visumkrav",
+      "prodSchengen": "Bokningskontroll för Schengen",
+      "prodPhoto": "Visumfoto-skaparen",
+      "prodHelpline": "VIZA:s nödlinje",
+      "prodStudent": "Studentvisum",
+      "officeSg": "Singapore, huvudkontor",
+      "officeSf": "Shanghai",
+      "copyright": "© VIZA, alla rättigheter förbehållna"
+    }
+  },
+  "security": {
+    "hero": {
+      "eyebrow": "Säkerhet hos VIZA · senast uppdaterad maj 2026",
+      "title": "Privat. Öppet.<br></br><em>Säkert som standard.</em>",
+      "lead": "Kunder runt om i världen litar på oss med miljontals känsliga dokument: pass, kontoutdrag, foton. Så här samlar vi in dem, lagrar dem och visar att vi gör det rätt.",
+      "ctaPrimary": "Så skyddar vi dina uppgifter",
+      "ctaVdp": "Rapportera en sårbarhet"
+    },
+    "clearance": {
+      "republicKey": "Republiken",
+      "officeKey": "Utfärdande kontor",
+      "officeVal": "Trygghet och säkerhet",
+      "title": "Säkerhetsgodkännande /<br></br>Kunddata",
+      "grid": {
+        "encryption": {
+          "k": "Kryptering",
+          "v": "AES-256 / TLS 1.3"
+        },
+        "region": {
+          "k": "Region",
+          "v": "SG · US · EU"
+        },
+        "audit": {
+          "k": "Granskningstakt",
+          "v": "Kvartalsvis"
+        },
+        "retention": {
+          "k": "Lagringstid",
+          "v": "Högst 90 dagar"
+        }
+      },
+      "referenceKey": "Referens",
+      "glyph": "GODKÄND<br></br>VIZA · 26"
+    },
+    "chips": {
+      "transitLabel": "Under överföring",
+      "transitVal": "TLS 1.3 från början till slut",
+      "restLabel": "I vila",
+      "restVal": "AES-256, låst till region"
+    },
+    "stats": {
+      "docs": {
+        "value": "2.4M",
+        "label": "Dokument hanterade under 2025, noll dataintrång hos kunder"
+      },
+      "retention": {
+        "unit": "d",
+        "label": "Längsta lagringstid för källdokument efter utfärdande"
+      },
+      "pentests": {
+        "label": "Externa penetrationstester, alla rapporter publicerade internt"
+      },
+      "ack": {
+        "unit": "tim",
+        "label": "Mediantid för att bekräfta en rapporterad sårbarhet"
+      }
+    },
+    "docs": {
+      "eyebrow": "Vad vi samlar in",
+      "title": "Fem dokumenttyper.<br></br><em>Inget mer.</em>",
+      "copy1": "En visumansökan handlar om pappersarbete. Vi samlar bara in det en ambassad uttryckligen ber om, och vi anonymiserar där det går. Varje dokument hör till en enda ansökan, krypteras när det tas emot och raderas enligt ett fast schema.",
+      "copy2": "Vi säljer aldrig dina uppgifter. Vi delar dem aldrig med tredje part utöver det konsulat eller den partner som är direkt inblandad i ditt visum.",
+      "cards": {
+        "payment": {
+          "name": "Betalningsuppgifter",
+          "meta": "samlas inte in"
+        },
+        "photos": {
+          "name": "Visumfoton",
+          "meta": "bearbetas · högst 90 d"
+        },
+        "bank": {
+          "name": "Kontoutdrag",
+          "meta": "maskerade · bara pdf"
+        },
+        "pastVisas": {
+          "name": "Tidigare visum",
+          "meta": "skrivskyddade · OCR"
+        },
+        "passport": {
+          "name": "Pass",
+          "meta": "MRZ utläst"
+        }
+      }
+    },
+    "features": {
+      "eyebrow": "Sju kontroller, alltid på",
+      "title": "Så förblir dina uppgifter<br></br>dina, från början till <em>slut.</em>",
+      "intro": "Standardläget för varje byte hos VIZA är “krypterad, avgränsad och tidsbegränsad”. Det här är de sju kontroller som gör att det stämmer: inga önskemål, utan det som faktiskt är inbyggt i plattformen i dag.",
+      "cells": {
+        "minimise": {
+          "title": "Dataminimering och anonymisering",
+          "body": "Vi samlar bara in det som en ambassad eller partner faktiskt kräver för en viss ansökan, och anonymiserar där resten av plattformen tillåter det. Fälten du inte ser i våra formulär är fält vi inte lagrar.",
+          "why": "<strong>Varför:</strong> ett intrång kan inte avslöja data som aldrig samlades in."
+        },
+        "payments": {
+          "title": "Inga betalningsuppgifter",
+          "body": "VIZA:s tjänst är gratis och vi tar inte emot betalningar, så vi ber aldrig om, ser eller lagrar kortnummer.",
+          "why": "<strong>Varför:</strong> data vi aldrig har kan inte stjälas."
+        },
+        "atRest": {
+          "title": "Kryptering i vila",
+          "body": "Varje dokument, meddelande och metadatafält på VIZA:s servrar krypteras med AES-256 innan det når disken. Nycklarna roteras automatiskt och lagras i en hårdvarustödd KMS som inte ens vårt infrastrukturteam kan läsa direkt.",
+          "why": "<strong>Varför:</strong> stulna diskar eller säkerhetskopior förblir oläsliga utan nycklarna."
+        },
+        "inTransit": {
+          "title": "Kryptering från början till slut",
+          "body": "All trafik mellan din enhet, våra servrar och samarbetande konsulat använder TLS 1.3 med strikt pinning. Dokumentuppladdningar går över en separat, signerad kanal så att inte ens angripare på nätverksnivå kan se vad du skickar.",
+          "why": "<strong>Varför:</strong> fientliga nätverk, även wifi på flygplatser, kan inte läsa din ansökan."
+        },
+        "audits": {
+          "title": "Regelbundna säkerhetsgranskningar",
+          "body": "Vi kör ett externt penetrationstest varje kvartal, en årlig SOC 2 Type II-granskning och kontinuerlig automatisk sårbarhetsskanning. Varje fynd loggas med ett datum för åtgärd, och försenade punkter larmar utvecklingschefen.",
+          "why": "<strong>Varför:</strong> hoten förändras; våra försvar kontrolleras mot dem enligt klockan."
+        },
+        "access": {
+          "title": "Säkra åtkomstkontroller",
+          "body": "Intern åtkomst till kunddata är rollavgränsad, granskas per begäran och ges med tillfällig behörighetshöjning. Konsulter ser bara den ansökan de aktivt arbetar med. Varje läsning loggas i 12 månader.",
+          "why": "<strong>Varför:</strong> misstag och missbruk inifrån hålls avgränsade, går att spåra och kan granskas."
+        },
+        "education": {
+          "title": "Utbildning och medvetenhet för användare",
+          "body": "Den svåraste delen av säkerhet är den del vi inte kan leverera åt dig. Vi skickar enkla guider om nätfiske, bluffar med passfoton och falska ambassad-sms så fort du startar en ansökan, och visar dem igen i produkten i samma stund något ser fel ut. Du är sista försvarslinjen; vi utrustar hellre dig än skyller på dig.",
+          "why": "<strong>Varför:</strong> en välinformerad sökande är vår billigaste och mest effektiva säkerhetskontroll."
+        }
+      }
+    },
+    "vdp": {
+      "tag": "▲ Rapportering av sårbarheter · öppet för alla forskare",
+      "title": "Hittat något?<br></br><em>Vi vill gärna höra om det.</em>",
+      "p1": "Säkerheten för våra användare och partner är allt. Om du tror att du har hittat en verklig sårbarhet som påverkar VIZA:s tjänster vill vi att du berättar det direkt för oss, så arbetar vi respektfullt och snabbt med dig för att åtgärda den.",
+      "p2": "Mejla dina fynd till <strong>security@viza.it.com</strong>. Vi bekräftar mottagandet inom en arbetsdag, även om det visar sig vara redan känt eller utanför omfattningen.",
+      "meta": {
+        "ack": {
+          "k": "Bekräftas inom",
+          "v": "'<' 24 timmar"
+        },
+        "triage": {
+          "k": "Bedöms inom",
+          "v": "3 arbetsdagar"
+        },
+        "lang": {
+          "k": "Språk",
+          "v": "EN · ID · AR"
+        },
+        "pgp": {
+          "k": "PGP-nyckel",
+          "v": "0xVIZA · 2026"
+        }
+      },
+      "ctaEmail": "Mejla security@viza.it.com",
+      "ctaScope": "Läs omfattningen",
+      "terminal": {
+        "title": "utkast-rapport · security@viza.it.com",
+        "l1": "# sårbarhetsrapport",
+        "typeKey": "typ:",
+        "typeVal": "authentication-bypass",
+        "urlKey": "url:",
+        "reproKey": "repro:",
+        "reproVal": "[steg 1-4]",
+        "impactKey": "påverkan:",
+        "impactVal": "kontoövertagande",
+        "pocKey": "poc:",
+        "l7": "# ↳ krypterad till 0xVIZA",
+        "send": "skicka"
+      }
+    },
+    "report": {
+      "eyebrow": "Rapportera en sårbarhet",
+      "title": "Vad du ska ta med i din<br></br>rapport, och <em>vad du inte ska.</em>",
+      "intro": "En bra rapport sparar en vecka åt oss båda. Här är formatet som gör att saker bedöms snabbast, plus sådant vi helst inte vill ha i vår inkorg.",
+      "include": {
+        "heading": "Ta gärna med",
+        "sub": "Fem fält. Ju tydligare de är, desto snabbare kan vi bekräfta och åtgärda.",
+        "items": {
+          "type": "<strong>Typ av problem</strong>: t.ex. autentisering, åtkomstkontroll, injektion, IDOR, SSRF.",
+          "steps": "<strong>Tydliga steg för att återskapa</strong>: numrerade, i ordning, helst mot en ren session.",
+          "impact": "<strong>Möjlig säkerhetspåverkan</strong>: vad en angripare skulle kunna göra med detta, med enkla ord.",
+          "poc": "<strong>Proof of concept</strong>: skärmbilder eller en kort skärminspelning helst; loggar i andra hand."
+        }
+      },
+      "dontSend": {
+        "heading": "Skicka helst inte",
+        "sub": "Det här är osäkert, oanvändbart eller båda, och vi måste radera det när det tas emot.",
+        "items": {
+          "secrets": "<strong>Lösenord eller autentiseringstokens</strong>, dina eller någon annans. Visa vägen, inte hemligheten.",
+          "malware": "<strong>Rå skadlig kod eller stealer-loggar.</strong> Beskriv vad du såg; bifoga det inte.",
+          "scanners": "<strong>Stora automatiska skannerrapporter</strong> utan ett handplockat, påvisat fynd.",
+          "customerData": "<strong>Personuppgifter eller dokument från kunder</strong>, även om de låg till grund för ditt fynd.",
+          "socialEng": "<strong>Inspelningar av försök till social manipulation</strong> mot vår personal eller våra konsulter."
+        }
+      }
+    },
+    "scope": {
+      "eyebrow": "Programmets omfattning",
+      "title": "Vad som ingår och vad som inte gör det.",
+      "intro": "Om du är osäker på om en rapport faller inom den här listan, skicka den ändå och fråga. Vi bedömer och går vidare hellre än att du sitter på ett verkligt problem för att gränsen inte var tydlig.",
+      "fileRef": "/security/scope.md · v6",
+      "in": {
+        "pill": "Ingår",
+        "heading": "Rapporter vi aktivt bedömer",
+        "items": {
+          "web": "VIZA:s webbapplikationer och API:er på <code>*.viza.com</code>, inklusive sökandeportalen, konsultkonsolen och partnerändpunkter.",
+          "infra": "VIZA:s egen infrastruktur och tjänster: inloggning, dokumentflöde, schemaläggning.",
+          "mobile": "Mobilappar (iOS, Android) publicerade under VIZA:s utvecklarkonto.",
+          "marketing": "Publika marknadsförings- och innehållssajter under domäner som VIZA kontrollerar."
+        }
+      },
+      "out": {
+        "pill": "Ingår inte",
+        "heading": "Rapporter vi inte kan hantera inom det här programmet",
+        "items": {
+          "devices": "Problem som beror på komprometterade användarenheter, webbläsartillägg eller stulna inloggningsuppgifter.",
+          "phishing": "Social manipulation eller nätfiske riktat mot VIZA:s anställda, partner eller konsulter.",
+          "thirdParty": "Tredjepartstjänster eller integrationer som VIZA inte driver direkt (konsulatsportaler, budfirmors webbplatser).",
+          "scanners": "Fynd från automatiska skannrar utan påvisad exploaterbarhet i verkligheten.",
+          "headers": "Saknade säkerhetshuvuden eller allmänna rekommendationer om bästa praxis utan en väg att utnyttja."
+        }
+      }
+    },
+    "pledge": {
+      "eyebrow": "Ansvarsfull rapportering",
+      "title": "Överenskommelsen vi gör<br></br>med varandra.",
+      "intro": "Rapportering fungerar eftersom båda sidor agerar i god tro. Här är vad vi ber av dig, och här är vad du kan hålla oss till i gengäld, nedskrivet så att ingen behöver gissa.",
+      "researcher": {
+        "kicker": "Vad vi ber av dig",
+        "title": "Forskarens <em>åtaganden.</em>",
+        "p": "Genom att skicka in en rapport går du med på att agera i god tro och i programmets anda, inte bara efter bokstaven.",
+        "items": {
+          "1": "Agera i god tro: undvik integritetsintrång, dataförstörelse eller avbrott i tjänsten under din forskning.",
+          "2": "Utnyttja inte ett problem mer än det minimum som behövs för att bekräfta det, och kom aldrig åt data som inte är din egen.",
+          "3": "Håll detaljerna om sårbarheten konfidentiella tills vi har levererat en åtgärd och bekräftat den med dig.",
+          "4": "Offentliggör inte fynd utan föregående skriftligt medgivande från VIZA:s säkerhetsteam."
+        }
+      },
+      "viza": {
+        "kicker": "Vad du kan hålla oss till",
+        "title": "VIZA:s <em>åtaganden.</em>",
+        "p": "I gengäld lämnar vi inte rapportörer utan svar, vi argumenterar inte om allvarlighetsgrad för att slippa en åtgärd och vi stämmer inte människor som hjälper oss.",
+        "items": {
+          "1": "Vi granskar varje giltig rapport och svarar inom en arbetsdag, oavsett allvarlighetsgrad.",
+          "2": "Vi kommunicerar respektfullt: inget försvarsspråk, ingen “fungerar som avsett”-bortförklaring.",
+          "3": "Vi vidtar lämpliga åtgärder där det krävs och berättar när åtgärden har levererats.",
+          "4": "Vi nämner dig (med ditt medgivande) i vår säkerhetsändringslogg när problemet är löst."
+        }
+      }
+    },
+    "legal": {
+      "eyebrow": "Juridik och belöningar",
+      "title": "Rättsligt skydd, belöningar<br></br>och det finstilta.",
+      "intro": "Om du följer den här policyn i god tro behandlar vi din forskning som godkänd. Resten av sidan är den tråkiga men viktiga delen: framlagd, inte gömd.",
+      "cards": {
+        "safeHarbour": {
+          "title": "Rättsligt skydd",
+          "body": "Om du följer den här policyn i god tro kommer VIZA inte att inleda rättsliga åtgärder mot dig för oavsiktliga överträdelser kopplade till din forskning. Du förväntas fortfarande följa tillämpliga lagar och regler."
+        },
+        "rewards": {
+          "title": "Belöningar och bug bounty",
+          "body": "VIZA kör för närvarande inget öppet bug bounty-program. Vi erbjuder en diskretionär gest av uppskattning för giltiga, ansvarsfullt rapporterade problem, bedömd utifrån påverkan, nyhetsvärde och rapportens kvalitet.",
+          "meta": "diskretionärt · från fall till fall"
+        },
+        "updates": {
+          "title": "Programuppdateringar",
+          "body": "VIZA förbehåller sig rätten att ändra eller avsluta det här programmet när som helst. Om du är osäker på om din forskning stämmer med policyn, kontakta oss på security@viza.it.com <em>innan</em> du fortsätter.",
+          "meta": "senast reviderad · maj 2026"
+        }
+      }
+    },
+    "cta": {
+      "title": "Ser du något som är fel?<br></br>Berätta för vårt säkerhetsteam.",
+      "body": "Vi hör hellre om ett litet fynd två gånger än missar ett stort en gång. Rapporter går direkt till en riktig människa i säkerhetsteamet: ingen ärendeportal, ingen bedömningsrobot.",
+      "lead": "Direkt till säkerhet",
+      "small": "Mediansvar: under 24 timmar, varje dag i veckan."
+    },
+    "footer": {
+      "tagline": "VIZA hjälper dig att planera, ansöka om och följa visum smidigt över hela världen.",
+      "company": "Företaget",
+      "careers": "Karriär",
+      "contact": "Kontakt",
+      "security": "Säkerhet",
+      "privacy": "Integritet",
+      "terms": "Villkor",
+      "products": "Produkter",
+      "prodVisaReq": "Visumkrav",
+      "prodSchengen": "Bokningskontroll för Schengen",
+      "prodPhoto": "Visumfoto-skaparen",
+      "prodHelpline": "VIZA:s nödlinje",
+      "prodStudent": "Studentvisum",
+      "offices": "Kontor",
+      "officeSg": "Singapore, huvudkontor",
+      "officeSf": "Shanghai",
+      "copyright": "© VIZA, alla rättigheter förbehållna"
+    }
+  },
+  "status": {
+    "crumbHome": "Öppenhet",
+    "crumbHere": "Systemstatus",
+    "hero": {
+      "title": "Systemstatus",
+      "lead": "Tillgänglighet med belägg för VIZA och de statliga visumportaler vi arbetar med. Varje procentsats, tidslinjestapel och incident nedan kommer från en registrerad syntetisk kontroll."
+    },
+    "console": {
+      "title": "VIZA tillförlitlighet · Live",
+      "live": "Verifierad",
+      "unverified": "Overifierad",
+      "allOperational": "Alla system fungerar",
+      "degraded": "Vissa system har nedsatt funktion",
+      "majorOutage": "Ett övervakat system är otillgängligt",
+      "dataUnavailable": "Övervakningsdata saknas",
+      "lastChecked": "Senaste registrerade kontroll: {time}",
+      "noChecks": "Inga slutförda kontroller har registrerats ännu",
+      "kUptime": "Godkända kontroller de senaste 90 dagarna",
+      "kMonitors": "Övervakade slutpunkter",
+      "kIncidents": "Aktiv incident"
+    },
+    "subnav": {
+      "current": "Aktuell status",
+      "incidents": "Tidigare incidenter",
+      "subscribe": "Prenumerera",
+      "searchPlaceholder": "Sök efter länder",
+      "subscribeBtn": "Prenumerera på uppdateringar"
+    },
+    "platform": {
+      "title": "VIZA-plattformen",
+      "realMeta": "Kontrolleras var 5:e minut · {count} slutpunkt(er)",
+      "meta": "Kontrolleras var 5:e minut",
+      "name": "VIZA:s ansökningsplattform",
+      "sub": "Publika VIZA-tjänster"
+    },
+    "uptime": {
+      "ago": "För 90 dagar sedan",
+      "today": "Idag",
+      "pct": "{pct}% av kontrollerna godkända",
+      "noData": "Inga registrerade kontroller"
+    },
+    "dayObservation": "{date}: {checks} registrerad(e) kontroll(er)",
+    "dayNoData": "{date}: inga registrerade data",
+    "dayTitle": "Dag {n}",
+    "statusLabels": {
+      "op": "I drift",
+      "deg": "Nedsatt funktion",
+      "part": "Delvis avbrott",
+      "maj": "Otillgänglig",
+      "none": "Inga aktuella data"
+    },
+    "lastChecked": "Kontrollerad {time}",
+    "monitorStale": "Saknad eller föråldrad kontroll",
+    "monitoringUnavailable": "Status-API:et har inga färska belägg. VIZA visar aldrig cachad eller genererad tillgänglighet som aktuell tjänstehälsa.",
+    "noSearchResults": "Inget övervakat land matchar den här sökningen.",
+    "noRecordedIncidents": "Inga incidenter har härletts från registrerade kontroller de senaste 90 dagarna.",
+    "incidentCount": "{count, plural, one {# incident} other {# incidenter}}",
+    "incidentRecovered": "Registrerade kontroller visar att tjänsten har återhämtat sig.",
+    "noIssues": "Inga aktiva problem",
+    "activeIncident": "Aktiv incident",
+    "portalsHead": {
+      "title": "Statliga portaler",
+      "lead": "En begränsad syntetisk förfrågan kontrollerar varje konfigurerad portal var femte minut. Grå historik betyder att ingen observation registrerades; den fylls aldrig med uppskattade data."
+    },
+    "incidentsHead": {
+      "title": "Tidigare incidenter",
+      "lead": "Incidenter öppnas och löses utifrån sparade övergångar i övervakningen. Det här gäller driftens tillgänglighet, inte status på en sökandes personliga visumbeslut."
+    },
+    "tags": {
+      "identified": "Identifierad",
+      "investigating": "Under utredning",
+      "resolved": "Löst"
+    },
+    "portals": {
+      "AE": {
+        "name": "Förenade Arabemiraten",
+        "sub": "GDRFA · ICA-portaler"
+      },
+      "AM": {
+        "name": "Armenien",
+        "sub": "E-visumportal"
+      },
+      "AU": {
+        "name": "Australien",
+        "sub": "ImmiAccount"
+      },
+      "AZ": {
+        "name": "Azerbajdzjan",
+        "sub": "ASAN Visa"
+      },
+      "DE": {
+        "name": "Tyskland",
+        "sub": "VIDEX · tider på konsulat"
+      },
+      "DK": {
+        "name": "Danmark"
+      },
+      "EG": {
+        "name": "Egypten",
+        "sub": "E-visumportal"
+      },
+      "FI": {
+        "name": "Finland",
+        "sub": "EnterFinland"
+      },
+      "FR": {
+        "name": "Frankrike",
+        "sub": "France-Visas"
+      },
+      "GB": {
+        "name": "Storbritannien",
+        "sub": "UKVCAS · UK Visas",
+        "bannerText": "Vissa ansökningstyper har ett avbrott.",
+        "bannerLink": "Visa tidslinjen för incidenten"
+      },
+      "GE": {
+        "name": "Georgien"
+      },
+      "GR": {
+        "name": "Grekland",
+        "sub": "AEGEAN · konsulärt"
+      },
+      "HK": {
+        "name": "Hongkong",
+        "sub": "Immigration e-visum"
+      },
+      "ID": {
+        "name": "Indonesien",
+        "sub": "e-Visa Indonesia"
+      },
+      "IN": {
+        "name": "Indien",
+        "sub": "Indian Visa Online"
+      },
+      "JO": {
+        "name": "Jordanien"
+      },
+      "KE": {
+        "name": "Kenya",
+        "sub": "eCitizen / eVisa"
+      },
+      "KH": {
+        "name": "Kambodja"
+      },
+      "LK": {
+        "name": "Sri Lanka",
+        "sub": "ETA-portal"
+      },
+      "MA": {
+        "name": "Marocko"
+      },
+      "TH": {
+        "name": "Thailand",
+        "sub": "Thailand e-visum"
+      }
+    },
+    "incidents": {
+      "count": "<strong>{count}</strong> {count, plural, one {land} other {länder}} hade prestandaproblem",
+      "events": "{count, plural, one {# händelse} other {# händelser}}",
+      "days": [
+        {
+          "date": "10 maj 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "10 maj, 3:05 em",
+                  "desc": "Incidenten är löst. Tjänsten fungerar normalt igen."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "10 maj, 5:05 em",
+                  "desc": "Incidenten är löst. Tjänsten fungerar normalt igen."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "9 maj 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "9 maj, 10:50 em",
+                  "desc": "Vi undersöker ett förhöjt antal fel."
+                },
+                {
+                  "time": "10 maj, 12:20 fm",
+                  "desc": "Allvarlighetsgraden ökade från nedsatt funktion till delvis avbrott."
+                },
+                {
+                  "time": "10 maj, 2:50 fm",
+                  "desc": "Allvarlighetsgraden ökade från delvis avbrott till större avbrott."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "9 maj, 3:05 em",
+                  "desc": "Vi undersöker ett förhöjt antal fel."
+                },
+                {
+                  "time": "9 maj, 7:20 em",
+                  "desc": "Allvarlighetsgraden ökade från delvis avbrott till större avbrott."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "8 maj 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "8 maj, 1:05 em",
+                  "desc": "Vi undersöker ett förhöjt antal fel."
+                },
+                {
+                  "time": "8 maj, 2:05 em",
+                  "desc": "Incidenten är löst. Tjänsten fungerar normalt igen."
+                },
+                {
+                  "time": "8 maj, 2:50 em",
+                  "desc": "Vi undersöker ett förhöjt antal fel."
+                },
+                {
+                  "time": "8 maj, 7:35 em",
+                  "desc": "Incidenten är löst. Tjänsten fungerar normalt igen."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "5 maj 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "5 maj, 1:36 em",
+                  "desc": "Allvarlighetsgraden ökade från nedsatt funktion till delvis avbrott."
+                },
+                {
+                  "time": "5 maj, 4:50 em",
+                  "desc": "Incidenten är löst."
+                },
+                {
+                  "time": "5 maj, 9:20 em",
+                  "desc": "Vi undersöker ett förhöjt antal fel."
+                },
+                {
+                  "time": "5 maj, 10:20 em",
+                  "desc": "Incidenten är löst."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "5 maj, 2:43 em",
+                  "desc": "Incidenten är löst."
+                },
+                {
+                  "time": "5 maj, 3:35 em",
+                  "desc": "Vi undersöker ett förhöjt antal fel."
+                },
+                {
+                  "time": "5 maj, 7:35 em",
+                  "desc": "Allvarlighetsgraden ökade från delvis avbrott till större avbrott."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "4 maj 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "4 maj, 4:05 em",
+                  "desc": "Vi undersöker ett förhöjt antal fel."
+                },
+                {
+                  "time": "4 maj, 5:05 em",
+                  "desc": "Incidenten är löst."
+                },
+                {
+                  "time": "4 maj, 7:36 em",
+                  "desc": "Vi undersöker ett förhöjt antal fel."
+                },
+                {
+                  "time": "4 maj, 8:35 em",
+                  "desc": "Incidenten är löst."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "4 maj, 12:05 em",
+                  "desc": "Incidenten är löst."
+                },
+                {
+                  "time": "4 maj, 1:50 em",
+                  "desc": "Vi undersöker ett förhöjt antal fel."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2 maj 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "2 maj, 6:35 em",
+                  "desc": "Vi undersöker ett förhöjt antal fel."
+                },
+                {
+                  "time": "2 maj, 7:50 em",
+                  "desc": "Incidenten är löst."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "2 maj, 9:20 fm",
+                  "desc": "Vi undersöker ett förhöjt antal fel."
+                },
+                {
+                  "time": "2 maj, 10:20 fm",
+                  "desc": "Incidenten är löst."
+                },
+                {
+                  "time": "2 maj, 8:20 em",
+                  "desc": "Vi undersöker ett förhöjt antal fel."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "2 maj, 8:20 em",
+                  "desc": "Vi undersöker ett förhöjt antal fel."
+                },
+                {
+                  "time": "3 maj, 12:05 fm",
+                  "desc": "Incidenten är löst."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "1 maj 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "1 maj, 2:05 em",
+                  "desc": "Vi undersöker ett förhöjt antal fel."
+                },
+                {
+                  "time": "1 maj, 3:05 em",
+                  "desc": "Incidenten är löst."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "30 april 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "30 apr, 8:20 fm",
+                  "desc": "Vi undersöker ett förhöjt antal fel."
+                },
+                {
+                  "time": "30 apr, 9:50 fm",
+                  "desc": "Incidenten är löst."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 apr, 3:05 em",
+                  "desc": "Incidenten är löst."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 apr, 4:51 em",
+                  "desc": "Incidenten är löst."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 apr, 1:20 em",
+                  "desc": "Vi undersöker ett förhöjt antal fel."
+                },
+                {
+                  "time": "30 apr, 2:37 em",
+                  "desc": "Allvarlighetsgraden ökade från nedsatt funktion till delvis avbrott."
+                },
+                {
+                  "time": "30 apr, 8:20 em",
+                  "desc": "Incidenten är löst."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 apr, 6:50 em",
+                  "desc": "Incidenten är löst."
+                },
+                {
+                  "time": "30 apr, 7:50 em",
+                  "desc": "Vi undersöker ett förhöjt antal fel."
+                },
+                {
+                  "time": "1 maj, 12:20 fm",
+                  "desc": "Incidenten är löst."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "subscribe": {
+      "title": "Var först med att få veta<br></br>när något går sönder.",
+      "lead": "Välj de länder du bryr dig om så skickar vi en enda enkel uppdatering när deras portaler, eller våra, går ner eller kommer tillbaka.",
+      "emailLabel": "Få incidentuppdateringar via e-post",
+      "button": "Prenumerera",
+      "follow": "Eller följ statusen via:",
+      "chipEmail": "E-postsammanfattning",
+      "chipSms": "SMS och WhatsApp",
+      "chipRss": "RSS-flöde",
+      "chipWebhook": "Webhook för drift"
+    },
+    "footer": {
+      "tagline": "VIZA hjälper dig att planera, ansöka om och följa visum smidigt över hela världen.",
+      "company": "Företaget",
+      "careers": "Karriär",
+      "contact": "Kontakt",
+      "security": "Säkerhet",
+      "systemStatus": "Systemstatus",
+      "privacy": "Integritet",
+      "terms": "Villkor",
+      "products": "Produkter",
+      "prodVisaReq": "Visumkrav",
+      "prodSchengen": "Bokningskontroll för Schengen",
+      "prodPhoto": "Visumfoto-skaparen",
+      "prodHelpline": "VIZA:s nödlinje",
+      "copyright": "© VIZA, alla rättigheter förbehållna"
+    }
+  },
+  "arrival": {
+    "breadcrumbHome": "Hem",
+    "breadcrumbHub": "Ankomstkort",
+    "hubH1": "Guider om ankomstkort",
+    "hubLead": "Ett ankomstkort är ett kort myndighetsformulär som du fyller i innan du reser in i ett land. De flesta finns online, är gratis och tar ungefär fem minuter. De här guiderna visar vem som behöver vilket, när du ska skicka in det och hur du undviker de falska webbplatser som tar betalt för det.",
+    "hubWhatTitle": "Vad ett ankomstkort är",
+    "hubWhat": [
+      "Ett ankomstkort är en deklaration som ditt resmål kräver utöver pass och eventuellt visum. Den anger vem du är, hur du anländer och var du ska bo. Många länder har ersatt pappersblanketten som delades ut på planet med ett onlineformulär.",
+      "Det är inte ett visum. Ett visum gör att du kan ansöka om att få resa in. Ett ankomstkort berättar för gränsmyndigheten om din resa, och du behöver fortfarande visum där din nationalitet kräver det."
+    ],
+    "hubFreeTitle": "Ankomstkort är gratis",
+    "hubFree": [
+      "Varje kort i de här guiderna är gratis på myndighetens egen webbplats. Vissa webbplatser kopierar myndighetens formulär och tar betalt för det. Du behöver aldrig betala någon av dem.",
+      "Börja alltid från den officiella adress som står i varje guide. VIZA är en oberoende tjänst och inte en myndighetswebbplats."
+    ],
+    "hubWhenTitle": "När du behöver ett",
+    "hubWhen": [
+      "De flesta kort öppnar tre dagar före ankomst och måste skickas in inom det fönstret. Kontrollera varje guide för den exakta regeln, eftersom Japans Visit Japan Web inte har någon fast tidsfrist och inte är obligatoriskt.",
+      "Bosatta, medborgare och transitresenärer är ofta undantagna eller har ett kortare formulär. Varje guide listar vilka som är undantagna, inklusive undantaget för singaporeanska medborgare för Malaysias MDAC."
+    ],
+    "hubGuidesTitle": "Alla guider",
+    "hubGuidesSub": "Välj ditt resmål. Varje guide har stegen, vanliga misstag och de officiella länkarna.",
+    "readGuide": "Läs guiden",
+    "cardWhen": "När",
+    "cardsLabel": "Ankomstkort",
+    "hubVisaTitle": "Behöver du visum också",
+    "hubVisaBody": "Ett ankomstkort ersätter inte ett visum. Titta på resmålssidan för att se om ditt pass kräver ett.",
+    "hubVisaCta": "Bläddra bland visumsidor",
+    "glanceTitle": "I korthet",
+    "stepsTitle": "Så fyller du i det, steg för steg",
+    "mistakesTitle": "Vanliga misstag",
+    "feesTitle": "Avgifter och falska webbplatser",
+    "faqTitle": "Frågor",
+    "sourcesTitle": "Källor",
+    "relatedTitle": "Andra guider om ankomstkort",
+    "independent": "VIZA är en oberoende tjänst och inte en myndighetswebbplats.",
+    "officialCta": "Öppna den officiella webbplatsen",
+    "officialLabel": "Officiell webbplats",
+    "vizaTitle": "Låt VIZA göra det åt dig",
+    "vizaBody": "Starta {name} i ditt VIZA-konto. VIZA:s formulär leder dig genom samma frågor som det officiella och sparar dina uppgifter till kommande resor. Du kan alltid använda den gratis officiella webbplatsen i stället.",
+    "vizaFee": "VIZA:s serviceavgift",
+    "vizaFeeFree": "Gratis",
+    "vizaCta": "Starta hos VIZA",
+    "noVizaTitle": "Använd den officiella webbplatsen",
+    "noVizaBody": "VIZA fyller inte i det här kortet ännu. Använd den officiella webbplatsen nedan och läs stegen i den här guiden först.",
+    "visaTitle": "Visum för {country}",
+    "visaBody": "Ankomstkortet är skilt från visumet. Se vem som behöver visum för {country}, avgifterna och hur du ansöker.",
+    "visaCta": "Öppna visumsidan för {country}",
+    "reviewedTitle": "Kontrollerad den 25 november 2026",
+    "stepLabel": "Steg",
+    "cards": {
+      "malaysia-mdac": {
+        "summary": "Gratis onlinekort för utländska besökare. Singaporeanska medborgare är undantagna.",
+        "when": "Inom 3 dagar före ankomst"
+      },
+      "singapore-sg-arrival-card": {
+        "summary": "ICA:s onlinekort med hälsodeklaration. Skicka in på webbplatsen eller i appen MyICA.",
+        "when": "Inom 3 dagar före ankomst"
+      },
+      "japan-visit-japan-web": {
+        "summary": "Gratis QR-koder för immigration och tull. Rekommenderas, men krävs inte.",
+        "when": "Innan du flyger"
+      },
+      "thailand-tdac": {
+        "summary": "Gratis kort för alla utländska besökare, med eller utan visum. Ersatte pappersblanketten TM6.",
+        "when": "Inom 3 dagar före ankomst"
+      },
+      "korea-e-arrival-card": {
+        "summary": "Krävs sedan 1 januari 2026. Den som har en giltig K-ETA är undantagen.",
+        "when": "Inom 3 dagar före ankomst"
+      },
+      "indonesia-all-indonesia": {
+        "summary": "Ett kort för immigration, tull och hälsa. Gratis, och inte ett visum.",
+        "when": "Upp till 3 dagar före ankomst"
+      }
+    }
+  },
+  "guides": {
+    "breadcrumbHome": "Hem",
+    "breadcrumbHub": "Guider",
+    "hubH1": "Visumguider för dig som bor i Singapore",
+    "hubLead": "Oavsett om du har ett singaporeanskt, kinesiskt, indiskt eller filippinskt pass svarar de här guiderna på samma fråga: vad behöver jag för att resa in i landet, och var ansöker jag från Singapore. Varje guide anger sina källor och datumet då den kontrollerades.",
+    "hubGuidesTitle": "Alla guider",
+    "hubGuidesSub": "Välj ett ämne. Reglerna ändras, så varje guide listar de officiella sidorna att kontrollera innan du reser.",
+    "readGuide": "Läs guiden",
+    "hubMoreTitle": "Mer från VIZA",
+    "hubMoreBody": "Letar du efter ett visst land, ett ankomstkort eller den senaste regeländringen?",
+    "hubDestinations": "Visumsidor",
+    "hubArrival": "Guider om ankomstkort",
+    "hubNews": "Visumnyheter",
+    "glanceTitle": "Snabbt svar",
+    "relatedVisaTitle": "Resmålssidor",
+    "relatedVisaSub": "Avgifter, handlingar och steg för dig som bor i Singapore.",
+    "relatedArrivalTitle": "Guider om ankomstkort",
+    "relatedGuidesTitle": "Fler guider",
+    "faqTitle": "Frågor",
+    "sourcesTitle": "Källor",
+    "reviewedTitle": "Så kontrollerade vi",
+    "published": "Publicerad",
+    "updated": "Uppdaterad",
+    "independent": "VIZA är en oberoende tjänst och inte en myndighetswebbplats."
+  },
+  "ds": {
+    "header": {
+      "home": "VIZA startsida",
+      "primary": "Huvudmeny",
+      "language": "Språk",
+      "signIn": "Logga in",
+      "openMenu": "Öppna menyn",
+      "closeMenu": "Stäng menyn",
+      "nav": {
+        "home": "Hem",
+        "destinations": "Resmål",
+        "arrivalCards": "Ankomstkort",
+        "guides": "Guider",
+        "news": "Nyheter",
+        "about": "Om oss",
+        "contact": "Kontakt"
+      }
+    },
+    "footer": {
+      "home": "VIZA startsida",
+      "tagline": "Visumansökningar förberedda av VIZA:s AI och granskade av våra konsulter. Gratis att använda.",
+      "explore": "Utforska",
+      "follow": "Följ oss",
+      "followOn": "Följ VIZA på {platform}",
+      "links": {
+        "destinations": "Resmål",
+        "arrivalCards": "Ankomstkort",
+        "guides": "Guider",
+        "news": "Nyheter",
+        "about": "Om oss",
+        "contact": "Kontakt",
+        "careers": "Karriär",
+        "security": "Säkerhet",
+        "status": "Status"
+      },
+      "copyright": "© {year} VIZA. Alla rättigheter förbehållna.",
+      "office": "Registrerat kontor: 60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapore 409051",
+      "privacy": "Integritet",
+      "terms": "Villkor",
+      "kelin": "Ett Kelin Studio-bolag",
+      "refunds": "Återbetalningar",
+      "business": "Företagsinformation"
+    },
+    "form": {
+      "fullName": {
+        "label": "Ditt namn",
+        "placeholder": "Jane Tan"
+      },
+      "email": {
+        "label": "E-post"
+      },
+      "phone": {
+        "label": "Telefon"
+      },
+      "destination": {
+        "label": "Resmål",
+        "placeholder": "Japan, Schengen, USA"
+      },
+      "message": {
+        "label": "Din fråga",
+        "placeholder": "Vart du ska, ditt pass och dina resedatum."
+      },
+      "submit": "Skicka meddelande",
+      "sending": "Skickar",
+      "success": "Tack, ditt meddelande har kommit fram. Vi svarar via e-post.",
+      "error": "Vi kunde inte skicka ditt meddelande. Försök igen eller mejla sales@kelin.studio.",
+      "consent": "Genom att skicka godkänner du vår <privacy>integritetspolicy</privacy> och våra <terms>villkor</terms>."
+    },
+    "gallery": {
+      "title": "Resmål",
+      "lede": "Välj ett resmål för att se vilket visum du behöver, handlingarna och den statliga avgiften.",
+      "view": "Visa",
+      "passportSummary": "{free} visumfria · {voa} e-visum eller vid ankomst · {req} kräver visum",
+      "noResults": "Inga resmål matchar din sökning.",
+      "sorts": {
+        "featured": "Utvalda",
+        "open": "Öppna nu först",
+        "name": "A till Ö"
+      }
+    },
+    "dest": {
+      "all": "Alla resmål",
+      "onPage": "På den här sidan",
+      "applyTitle": "Starta ansökan",
+      "facts": "Fakta"
+    },
+    "article": {
+      "toc": "På den här sidan",
+      "down": "Hoppa till artikeln",
+      "faqLede": "Snabba svar om det här ämnet."
+    },
+    "legal": {
+      "updated": "Senast uppdaterad",
+      "contents": "Innehåll"
+    }
+  },
+  "homePage": {
+    "hero": {
+      "browse": "Bläddra bland resmål",
+      "picks": "Resmål"
+    },
+    "types": {
+      "title": "Visumtyper",
+      "lede": "Turist-, affärs-, arbets-, student- och långtidsvisum.",
+      "prev": "Föregående",
+      "next": "Nästa",
+      "items": {
+        "tourist": {
+          "title": "Turist",
+          "body": "Semester, familjebesök och korta vistelser."
+        },
+        "business": {
+          "title": "Affärer",
+          "body": "Möten, konferenser och platsbesök."
+        },
+        "work": {
+          "title": "Arbete",
+          "body": "Arbetstillstånd och visum för anställning."
+        },
+        "student": {
+          "title": "Student",
+          "body": "Studievisum för skolor och universitet."
+        },
+        "long": {
+          "title": "Lång vistelse",
+          "body": "Uppehållstillstånd och andra långtidsvisum."
+        }
+      }
+    },
+    "steps": {
+      "title": "Så fungerar det",
+      "cta": "Starta din gratis ansökan",
+      "side": {
+        "freeValue": "Gratis",
+        "freeLabel": "VIZA-tjänsten",
+        "langLabel": "Språk: engelska och kinesiska",
+        "note": "Du betalar bara den statliga avgiften.",
+        "noteBody": "Den går direkt till den myndighet som utfärdar visumet. VIZA lägger inte på någon egen avgift."
+      },
+      "items": {
+        "choose": {
+          "title": "Välj ett resmål",
+          "body": "Se vilket visum du behöver, vilka handlingar du ska förbereda och den statliga avgiften innan du börjar.",
+          "chips": "Visumtyp|Handlingar|Statlig avgift"
+        },
+        "passport": {
+          "title": "Ladda upp ditt pass",
+          "body": "VIZA läser dina uppgifter från sidan med foto, så du behöver skriva väldigt lite.",
+          "chips": "Fotosidan|Uppgifter ifyllda"
+        },
+        "confirm": {
+          "title": "Bekräfta dina uppgifter",
+          "body": "Kontrollera det VIZA läste, lägg till dina resedatum och fortsätt i ditt gratis VIZA-konto.",
+          "chips": "Resedatum|Gratis konto"
+        },
+        "file": {
+          "title": "VIZA kontrollerar och skickar in",
+          "body": "En rådgivare kontrollerar varje formulär innan det lämnas in, och du följer hur det går i ditt konto.",
+          "chips": "Kontroll av rådgivare|Statusuppdateringar"
+        }
+      }
+    },
+    "tiers": {
+      "title": "Priser",
+      "lede": "Två sätt att ansöka, båda gratis.",
+      "cta": "Kontakta oss",
+      "criteria": "Jämför",
+      "guided": "Guidat",
+      "full": "Fullservice",
+      "rows": {
+        "fee": {
+          "label": "VIZA-avgift",
+          "guided": "Gratis",
+          "full": "Gratis"
+        },
+        "form": {
+          "label": "Ansökningsformulär",
+          "guided": "Du svarar, med VIZA:s AI som guide",
+          "full": "En konsult förbereder svaren tillsammans med dig"
+        },
+        "documents": {
+          "label": "Handlingar",
+          "guided": "En checklista för din situation",
+          "full": "En konsult kontrollerar dina handlingar"
+        },
+        "interview": {
+          "label": "Bokad tid och intervju",
+          "guided": "Du bokar och deltar själv",
+          "full": "Vi går igenom sannolika frågor med dig"
+        },
+        "govFee": {
+          "label": "Statlig avgift",
+          "guided": "Betalas direkt till myndigheten",
+          "full": "Betalas direkt till myndigheten"
+        },
+        "bestFor": {
+          "label": "Passar för",
+          "guided": "Enkla ansökningar",
+          "full": "Komplicerade ärenden eller ett tidigare avslag"
+        }
+      }
+    },
+    "why": {
+      "title": "Varför VIZA",
+      "lede": "Tydliga steg, kontrollerade formulär och riktiga människor att prata med.",
+      "items": {
+        "free": {
+          "title": "Gratis tjänst",
+          "body": "VIZA:s hjälp kostar ingenting. Du betalar bara den statliga avgiften, direkt till myndigheten."
+        },
+        "checked": {
+          "title": "Kontrollerade formulär",
+          "body": "En rådgivare kontrollerar varje formulär innan det lämnas in, så att små misstag upptäcks tidigt."
+        },
+        "language": {
+          "title": "Engelska och kinesiska",
+          "body": "Prata med VIZA på engelska eller kinesiska, via WhatsApp, WeChat eller e-post."
+        }
+      },
+      "photos": {
+        "arrival": {
+          "title": "Ankomstkort",
+          "body": "Steg-för-steg-hjälp med de gratis ankomstkorten för Malaysia, Singapore, Japan, Thailand, Korea och Indonesien."
+        },
+        "news": {
+          "title": "Nyheter",
+          "body": "Ändrade visumregler och nya e-visumsystem, förklarade med enkla ord."
+        }
+      }
+    },
+    "guides": {
+      "title": "Guider",
+      "cta": "Alla guider"
+    },
+    "faq": {
+      "lede": "Snabba svar om VIZA:s visumtjänst.",
+      "more": "Fler frågor?",
+      "items": {
+        "cost": {
+          "q": "Tar VIZA betalt för sin tjänst?",
+          "a": "Nej. VIZA:s hjälp är gratis. Om ett resmål tar ut en statlig visumavgift betalar du den direkt till den staten."
+        },
+        "visas": {
+          "q": "Vilka visum kan VIZA hjälpa till med?",
+          "a": "Turist-, affärs-, arbets-, student- och långtidsvisum för resmålen på den här sidan. Om ditt inte finns med, skriv till oss så berättar en konsult vad som är möjligt."
+        },
+        "approval": {
+          "q": "Vem beslutar om mitt visum?",
+          "a": "Den myndighet som utfärdar visumet fattar alla beslut. VIZA kontrollerar ditt formulär och dina handlingar innan de lämnas in, så att din ansökan är komplett och konsekvent."
+        },
+        "tiers": {
+          "q": "Vad är skillnaden mellan Guidat och Fullservice?",
+          "a": "Med Guidat leder VIZA:s AI dig genom formuläret och checklistan, och du styr varje svar själv. Med Fullservice förbereder en konsult svaren tillsammans med dig och kontrollerar dina handlingar. Båda är gratis."
+        },
+        "language": {
+          "q": "Vilka språk stöder ni?",
+          "a": "Engelska och kinesiska, via WhatsApp, WeChat, telefon och e-post."
+        }
+      }
+    },
+    "contactCard": {
+      "title": "Prata med en VIZA-konsult",
+      "body": "Vi svarar på engelska eller kinesiska.",
+      "cta": "Kontakta oss"
+    },
+    "cta": {
+      "title": "Starta din ansökan",
+      "point1": "Dina uppgifter förblir privata",
+      "point2": "En riktig människa svarar",
+      "formTitle": "Ställ en fråga",
+      "formBody": "Berätta vart du ska så svarar en VIZA-konsult via e-post."
+    }
+  },
+  "aboutPage": {
+    "h1": "Om VIZA",
+    "intro": {
+      "title": "Vad VIZA är",
+      "text": "VIZA förbereder, kontrollerar och skickar in visumansökningar för människor som bor i Singapore. Vår AI sköter pappersarbetet och våra konsulter granskar varje formulär. Tjänsten är gratis."
+    },
+    "facts": {
+      "destinations": "Resmål",
+      "guides": "Visumguider",
+      "arrival": "Guider om ankomstkort",
+      "free": "Gratis",
+      "freeLabel": "VIZA-tjänsten"
+    },
+    "tiersTitle": "Guidat eller Fullservice",
+    "tiersLede": "Välj hur mycket hjälp du vill ha. Båda är gratis.",
+    "free": {
+      "title": "Gratis tjänst",
+      "text": "VIZA tar ingen avgift för sin hjälp. När ett resmål har en statlig visumavgift visar VIZA den innan du börjar, och du betalar den direkt till den myndighet som utfärdar visumet. Det finns inga betalda uppgraderingar."
+    },
+    "company": {
+      "title": "Företagsuppgifter",
+      "office": "Registrerat kontor",
+      "officeValue": "60 Paya Lebar Road, #06-28, Paya Lebar Square, 409051 Singapore",
+      "email": "E-post",
+      "phone": "Telefon och WhatsApp",
+      "languages": "Språk",
+      "languagesValue": "Engelska och kinesiska"
+    }
+  },
+  "contactPage": {
+    "h1": "Kontakt",
+    "lines": {
+      "whatsapp": {
+        "title": "Telefon och WhatsApp",
+        "body": "Ring eller skriv till en konsult."
+      },
+      "wechat": {
+        "body": "Sök efter ID:t i WeChat för att lägga till oss."
+      },
+      "email": {
+        "title": "E-post",
+        "body": "Bäst för handlingar och längre frågor."
+      },
+      "office": {
+        "top": "Singapore",
+        "title": "Kontor",
+        "body": "60 Paya Lebar Road, #06-28, Paya Lebar Square, 409051 Singapore"
+      }
+    },
+    "message": {
+      "title": "Skicka ett meddelande",
+      "text": "Frågor om ett visum, ett resmål eller att jobba med VIZA. Skriv till oss så svarar en konsult."
+    }
+  },
+  "careersPage": {
+    "title": "Karriär",
+    "lede": "VIZA hjälper människor i Singapore att få sitt visum med AI och konsulter, och tjänsten är gratis. Vi anställer människor som gillar noggrant och användbart arbete.",
+    "teamsTitle": "Team",
+    "teams": [
+      {
+        "title": "Utveckling",
+        "body": "Bygg dokumentkontrollerna, ansökningsflödet och verktygen som våra konsulter använder."
+      },
+      {
+        "title": "Design",
+        "body": "Gör en stressig process tydlig för den som ansöker."
+      },
+      {
+        "title": "Drift",
+        "body": "Håll varje ansökan igång och varje krav uppdaterat."
+      },
+      {
+        "title": "Rådgivning",
+        "body": "Hjälp sökande med de ärenden som behöver en människa, på engelska och kinesiska."
+      },
+      {
+        "title": "Data",
+        "body": "Gör om myndighetskällor till kontroller som fångar problem tidigt."
+      },
+      {
+        "title": "Marknadsföring",
+        "body": "Förklara visum enkelt, i guider och sidor som folk kan lita på."
+      }
+    ],
+    "applyTitle": "Hör av dig",
+    "applyBody": "Berätta om dig själv och vilket team du vill gå med i. Vi läser varje meddelande.",
+    "applyCta": "Kontakta oss"
+  },
+  "pageCopy": {
+    "product": {
+      "introTitle": "Så hjälper VIZA dig med din visumansökan",
+      "introLede": "Utforska tillgängliga tjänster för visumförberedelse, granskning av handlingar och ansökningsstatus. VIZA:s tjänst är gratis. Exakt omfattning och tillgänglighet visas när du har valt ett resmål.",
+      "browse": "Bläddra bland resmål"
+    },
+    "events": {
+      "title": "Inga evenemang ännu",
+      "lede": "Kommande visumklinikker, informationsträffar och partnerevenemang meddelas här.",
+      "contact": "Kontakta oss"
+    }
+  },
+  "og": {
+    "band": "VIZA är gratis. Statliga avgifter betalas separat.",
+    "destSubtitle": "Avgifter och hur du ansöker"
+  }
+}

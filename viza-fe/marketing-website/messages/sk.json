@@ -1,0 +1,2150 @@
+{
+  "cta": {
+    "startFreeApplication": "Začnite svoju bezplatnú žiadosť"
+  },
+  "nav": {
+    "home": "Domov",
+    "apply": "Podať žiadosť",
+    "visas": "Víza",
+    "explore": "Objavujte",
+    "events": "Podujatia",
+    "blog": "Novinky",
+    "careers": "Kariéra",
+    "contact": "Kontakt",
+    "signIn": "Prihlásiť sa",
+    "getStarted": "Začať",
+    "yourPassport": "Váš cestovný pas",
+    "searchPlaceholder": "Hľadajte krajinu alebo vízum…",
+    "arrivalCards": "Príchodové karty",
+    "guides": "Sprievodcovia"
+  },
+  "footer": {
+    "followUs": "Sledujte nás:",
+    "followOn": "Sledujte VIZA na {platform}",
+    "product": "Produkty",
+    "company": "Spoločnosť",
+    "legal": "Právne informácie",
+    "offices": "Kancelárie",
+    "askAi": "Opýtajte sa AI o VIZA",
+    "security": "Bezpečnosť",
+    "status": "Stav služby",
+    "privacy": "Ochrana súkromia",
+    "terms": "Podmienky",
+    "rights": "Všetky práva vyhradené.",
+    "tagline": "VIZA vám pomáha plánovať, podávať a sledovať víza po celom svete bez starostí.",
+    "careers": "Kariéra",
+    "contact": "Kontakt",
+    "copyright": "© VIZA, všetky práva vyhradené",
+    "prodMockInterview": "Skúšobný pohovor pre USA",
+    "prodVisaReq": "Vízové požiadavky",
+    "prodSchengen": "Kontrola termínov Schengen",
+    "prodPhoto": "Tvorca fotografií na vízum",
+    "prodHelpline": "Núdzová linka VIZA",
+    "prodStudent": "Študentské vízum",
+    "arrivalCards": "Príchodové karty",
+    "guides": "Sprievodcovia",
+    "news": "Novinky"
+  },
+  "pages": {
+    "blog": {
+      "metaTitle": "Vízové novinky a zmeny pravidiel | VIZA",
+      "metaDescription": "Vízové novinky od VIZA: zmeny pravidiel, nové schémy e-víz a ETA a čo znamenajú pre ľudí žijúcich v Singapure. Aktualizujeme ich pri zmene pravidiel.",
+      "title": "Vízové novinky",
+      "lede": "Zmeny pravidiel a aktualizácie politiky, vysvetlené jednoducho. Rady, ktoré platia stále, nájdete v sprievodcoch.",
+      "readArticle": "Prečítať článok",
+      "featuredLabel": "Najnovšie novinky",
+      "articlesTitle": "Najnovšie novinky",
+      "articlesDescription": "Aktualizácie politiky a zmeny cestovných pravidiel.",
+      "allPosts": "Všetky príspevky",
+      "noMorePosts": "Ďalšie novinky už pripravujeme.",
+      "emptyTitle": "Zatiaľ nie sú zverejnené žiadne novinky",
+      "emptyBody": "Pripravujeme naše prvé aktuality. Pozrite sa sem čoskoro znova.",
+      "unavailableTitle": "Novinky sú dočasne nedostupné",
+      "unavailableBody": "Najnovšie zverejnené novinky sa nepodarilo načítať. Skúste to o chvíľu znova.",
+      "backToBlog": "Späť na novinky",
+      "by": "Autor:",
+      "updated": "Aktualizované",
+      "categoriesLabel": "Témy noviniek",
+      "topicLabel": "Téma",
+      "relatedTitle": "Ďalšie novinky",
+      "relatedDescription": "Ďalšie vízové novinky od VIZA.",
+      "ctaEyebrow": "Plánujte s istotou",
+      "ctaTitle": "Ste pripravení začať žiadosť?",
+      "ctaBody": "Povedzte nám, kam chcete ísť. VIZA vás prevedie požiadavkami a ďalšími krokmi.",
+      "ctaAction": "Začať žiadosť",
+      "categoryMetaTitle": "Novinky: {category} | VIZA",
+      "categoryMetaDescription": "Čítajte novinky VIZA o téme {category}: čo sa zmenilo, koho sa to týka a čo robiť ďalej.",
+      "categoryLede": "Novinky o téme {category}.",
+      "visaLinkTitle": "Žiadate o vízum: {country}?",
+      "visaLinkBody": "Pozrite si doklady, správny poplatok a postup pre ľudí žijúcich v Singapure.",
+      "visaLinkAction": "Sprievodca vízom: {country}",
+      "guidesTitle": "Súvisiaci sprievodcovia",
+      "guidesBody": "Sprievodcovia, ktorí k tejto téme zostávajú aktuálni."
+    },
+    "home": {
+      "title": "Víza v Singapure: USA, India, Vietnam | VIZA",
+      "description": "Požiadajte o vízum do USA (DS-160), e-vízum do Indie, Vietnamu alebo Egypta, alebo schengenské vízum do Francúzska. Poradca skontroluje každý formulár.",
+      "heroTitle": "Kam ďalej?",
+      "heroLede": "Pozrite si možnosti víz pre ktorúkoľvek krajinu. Papierovú prácu vybaví váš konzultant z VIZA a naša AI, vy si zarezervujete cestu."
+    },
+    "apply": {
+      "title": "Začať žiadosť o vízum | VIZA",
+      "description": "Nahrajte pas, potvrďte údaje a odovzdajte žiadosť o vízum poradcovi VIZA. Služba VIZA je zadarmo.",
+      "saveBadge": "Uložené · pokračujte kedykoľvek"
+    },
+    "careers": {
+      "title": "Kariéra | VIZA",
+      "description": "Pracujte na VIZA, bezplatnej vízovej službe od Kelin Studio v Singapure. Pozrite si tímy, do ktorých hľadáme ľudí, a ako sa nám ozvať kvôli pozícii.",
+      "rightCta": "Pozrieť pozície"
+    },
+    "contact": {
+      "title": "Kontakt: WhatsApp, WeChat, telefón, e-mail | VIZA",
+      "description": "Spojte sa s tímom VIZA cez WhatsApp, WeChat, telefón alebo e-mail. Štyri kanály, štyri pulty a odpovie vám skutočný človek.",
+      "rightCta": "Napíšte nám"
+    },
+    "security": {
+      "title": "Bezpečnosť a nahlasovanie zraniteľností | VIZA",
+      "description": "Súkromie, transparentnosť a bezpečnosť od základu. Ako VIZA chráni údaje zákazníkov, náš program nahlasovania zraniteľností a právna ochrana nahlasovateľov.",
+      "rightCta": "Nahlásiť zraniteľnosť"
+    },
+    "status": {
+      "title": "Stav systému | VIZA",
+      "description": "Aktuálny stav VIZA a vládnych vízových portálov, cez ktoré podávame žiadosti.",
+      "navPill": "Všetky systémy fungujú"
+    },
+    "visa": {
+      "applyCta": "Podať žiadosť",
+      "applicationProcess": "Postup podania žiadosti",
+      "documents": "Doklady",
+      "rejectionReasons": "Dôvody zamietnutia",
+      "entryExit": "Vstup a výstup",
+      "extension": "Predĺženie",
+      "reviews": "Hodnotenia",
+      "nearby": "Krajiny v okolí",
+      "sources": "Oficiálne zdroje"
+    },
+    "privacy": {
+      "title": "Zásady ochrany súkromia | VIZA",
+      "description": "Čo VIZA zbiera, keď žiadate o vízum, prečo, kto to vidí a ako dlho to uchovávame, podľa singapurského zákona PDPA."
+    },
+    "terms": {
+      "title": "Všeobecné podmienky | VIZA",
+      "description": "Podmienky používania vízovej služby VIZA, ktorú prevádzkuje Kelin Studio Pte. Ltd. v Singapure. Služba VIZA je zadarmo."
+    },
+    "product": {
+      "title": "Ako VIZA podporuje vašu žiadosť o vízum | VIZA",
+      "description": "Príprava víz, kontrola dokladov a stav žiadosti na jednom mieste. Služba VIZA je zadarmo. Rozsah a dostupnosť sú uvedené pri každej krajine."
+    },
+    "events": {
+      "title": "Podujatia | VIZA",
+      "description": "Vízové poradne, informačné stretnutia a podujatia partnerov od VIZA."
+    },
+    "arrivalCards": {
+      "title": "Príchodové karty: MDAC, SG Arrival Card, TDAC | VIZA",
+      "description": "Bezplatní sprievodcovia príchodovými kartami pre Malajziu, Singapur, Japonsko, Thajsko, Kóreu a Indonéziu: kto ich potrebuje, kedy ich odoslať a ako na ne."
+    },
+    "guides": {
+      "title": "Sprievodcovia vízami pre ľudí v Singapure | VIZA",
+      "description": "Jednoduchí sprievodcovia pre ľudí žijúcich v Singapure: krajiny bez víz, doklady na Schengen, pohovor do USA, ETA, e-vízum a zamietnutia. Čítanie je zadarmo."
+    },
+    "about": {
+      "title": "O VIZA: bezplatná pomoc s vízami v Singapure | VIZA",
+      "description": "VIZA pripravuje, kontroluje a podáva žiadosti o víza pre ľudí v Singapure pomocou AI a konzultantov. Služba je zadarmo, správne poplatky idú úradu."
+    },
+    "visaIndex": {
+      "title": "Cieľové krajiny víz: požiadavky podľa krajiny | VIZA",
+      "description": "Porovnajte vízové požiadavky podľa krajiny, s dokladmi a poplatkami pre každú. Pomoc VIZA je zadarmo.",
+      "heroTitle": "Cieľové krajiny víz"
+    },
+    "refunds": {
+      "title": "Zásady vrátenia peňazí | VIZA",
+      "description": "Služba VIZA je zadarmo, takže nie je čo vracať. Ako fungujú správne poplatky a poplatky iných poskytovateľov."
+    },
+    "businessInformation": {
+      "title": "Informácie o spoločnosti | VIZA",
+      "description": "VIZA prevádzkuje Kelin Studio Pte. Ltd., singapurská spoločnosť. Adresa sídla, UEN a kontaktné údaje."
+    }
+  },
+  "common": {
+    "comingSoon": "Čoskoro",
+    "learnMore": "Zistiť viac",
+    "readMore": "Čítať ďalej",
+    "applyNow": "Podať žiadosť",
+    "talkToHuman": "Porozprávať sa s človekom",
+    "viewAll": "Zobraziť všetko"
+  },
+  "visa": {
+    "heroTitle": "Vízum: {country}",
+    "validity": "Platnosť",
+    "howItWorks": "Ako to funguje",
+    "step1": "Povedzte nám podrobnosti o ceste a nahrajte svoj cestovný pas.",
+    "step2": "Vyplníme a skontrolujeme vašu žiadosť podľa najnovších pravidiel.",
+    "step3": "Podáme ju cez vládny portál a budeme sledovať rozhodnutie.",
+    "step4": "Schválené vízum vám príde e-mailom a celý proces sledujeme od začiatku do konca.",
+    "documents": "Čo budete potrebovať",
+    "doc1": "Cestovný pas platný aspoň 6 mesiacov.",
+    "doc2": "Nedávna fotografia v štýle pasovej fotografie.",
+    "doc3": "Termíny cesty a ubytovanie.",
+    "doc4": "Ak cieľová krajina účtuje poplatok za vízum, platobnú kartu na jeho zaplatenie priamo vláde.",
+    "nearby": "Krajiny v okolí",
+    "startApplication": "Začnite svoju žiadosť",
+    "comingSoonTitle": "{country}: čoskoro",
+    "comingSoonBody": "Dolaďujeme posledné detaily pre krajinu {country}. Vytvorte si účet a dáme vám vedieť hneď, ako bude dostupná.",
+    "browseDestinations": "Prezrieť krajiny",
+    "notifyMe": "Upozorniť ma",
+    "back": "Späť na Objavujte",
+    "tabOverview": "Prehľad",
+    "tabProcess": "Postup podania žiadosti",
+    "tabDocuments": "Doklady",
+    "tabRejection": "Dôvody zamietnutia",
+    "tabEntry": "Vstup a výstup",
+    "tabExtension": "Predĺženie",
+    "tabReviews": "Hodnotenia",
+    "tabNearby": "Krajiny v okolí",
+    "reviewsTitle": "Hodnotenia",
+    "nearbyTitle": "Krajiny v okolí",
+    "nearbySub": "Cestujete po regióne? Pridajte k ceste ďalšie vízum a váš konzultant z VIZA ich vybaví spoločne.",
+    "faqTitle": "Často kladené otázky",
+    "editorial": "Táto stránka sa riadi redakčnou politikou VIZA. Opierame sa o oficiálne vládne zdroje a každú požiadavku aktualizujeme pri zmene pravidiel.",
+    "editorialLink": "Prečítajte si, ako kontrolujeme",
+    "sourcesTitle": "Zdroje",
+    "priceGovt": "Správny poplatok",
+    "priceFree": "Zadarmo",
+    "pillAllInclusive": "Všetko v cene",
+    "priceCta": "Začať žiadosť",
+    "onTime": "Načas",
+    "freeService": "Služba VIZA zadarmo",
+    "freeServiceNote": "VIZA si za svoju pomoc neúčtuje nič",
+    "govFeePaidDirect": "Správny poplatok {fee}, platí sa priamo vydávajúcemu úradu.",
+    "govFeeSetByAuthority": "Prípadný správny poplatok určuje vydávajúci úrad a platí sa priamo jemu.",
+    "govFeeSetByAuthorityShort": "Určuje úrad",
+    "priceService": "Služba VIZA",
+    "pillPaidToAuthority": "Platí sa úradu",
+    "priceTotalToViza": "Platíte spoločnosti VIZA",
+    "breadcrumbVisas": "Cieľové krajiny víz",
+    "serviceDescription": "VIZA pomáha ľuďom žijúcim v Singapure pripraviť, skontrolovať a podať žiadosti: {country}, {type}, s pomocou AI a kontrolou odborníkom.",
+    "offerDescription": "Poplatok za službu VIZA. Správne poplatky za víza sú zvlášť a platia sa priamo vydávajúcemu úradu.",
+    "dest": {
+      "tabGlance": "Prehľad",
+      "tabPassports": "Pasy",
+      "tabTypes": "Typy víz",
+      "tabResidents": "Rezidenti",
+      "tabFees": "Poplatky",
+      "tabApply": "Ako podať žiadosť",
+      "tabChecklist": "Doklady",
+      "tabRejection": "Zamietnutia",
+      "tabTravel": "Pred cestou",
+      "tabRelated": "Súvisiace",
+      "glanceTitle": "Prehľad",
+      "glanceVisa": "Vízum potrebné",
+      "glanceGovFee": "Správny poplatok",
+      "glanceVizaFee": "Poplatok VIZA",
+      "glanceProcessing": "Čas vybavenia",
+      "glanceMaxStay": "Maximálna dĺžka pobytu",
+      "glanceChecked": "Dátum kontroly",
+      "passportsTitle": "Potrebujete vízum?",
+      "typesTitle": "Typy víz",
+      "residentsTitle": "Rezidenti Singapuru",
+      "feesTitle": "Poplatky a lehoty",
+      "applyTitle": "Ako podať žiadosť",
+      "checklistTitle": "Kontrolný zoznam dokladov",
+      "travelTitle": "Pred cestou",
+      "colPassport": "Pas",
+      "colEntry": "Vstup",
+      "colNotes": "Poznámky",
+      "colItem": "Položka",
+      "colAmount": "Suma",
+      "vizaFeeNote": "Pomoc služby VIZA je zadarmo. Platíte iba správny poplatok, priamo úradu.",
+      "reviewedBy": "Skontroloval konzultant VIZA dňa {date}.",
+      "relatedTitle": "Súvisiace krajiny",
+      "relatedSub": "Ďalšie miesta, ktoré ľudia pridávajú k tej istej ceste, a kde si prečítať viac.",
+      "startTitle": "Začať žiadosť",
+      "startBody": "Začnite svojím pasom a termínmi cesty. Pomoc služby VIZA je zadarmo a správny poplatok platíte priamo úradu.",
+      "startConsultBody": "Povedzte konzultantovi z VIZA, kde bývate, aký máte pas a kedy cestujete. Pomoc služby VIZA je zadarmo.",
+      "consultCta": "Porozprávať sa s konzultantom"
+    }
+  },
+  "apply": {
+    "stepOf": "Krok {n} z 3",
+    "back": "Späť",
+    "continue": "Pokračovať",
+    "step1Name": "Nahrať pas",
+    "step2Name": "Potvrdiť údaje",
+    "step3Name": "Začať žiadosť",
+    "s1Title": "Nahrajte svoj cestovný pas",
+    "s1Desc": "Údaje načítame automaticky, nič nemusíte písať. Použite stranu s osobnými údajmi (tú s vašou fotografiou).",
+    "segUpload": "Nahrať súbor",
+    "segCapture": "Odfotiť",
+    "dzTitle": "Presuňte sem fotografiu pasu",
+    "dzSub": "Alebo kliknite a vyberte súbor. Váš súbor je šifrovaný a nikdy sa nezdieľa",
+    "dzBrowse": "Vybrať súbor",
+    "dzUpTo": "Do 10 MB",
+    "tip1Title": "Viditeľné všetky štyri rohy",
+    "tip1Sub": "Zachyťte celú stranu s osobnými údajmi vrátane strojovo čitateľnej zóny (MRZ) dole.",
+    "tip2Title": "Jasné, rovnomerné osvetlenie",
+    "tip2Sub": "Vyhnite sa tieňom od ruky alebo puzdra telefónu.",
+    "tip3Title": "Bez odleskov a odrazov",
+    "tip3Sub": "Mierne naklopte pas, ak sa pečiatka odráža.",
+    "errReadFail": "Tento pas sa nepodarilo prečítať: {detail}. Skúste prosím ostrejšiu fotografiu strany s osobnými údajmi.",
+    "extReading": "Číta sa doklad",
+    "extExtracting": "Získavajú sa vaše údaje",
+    "extVerifying": "Overuje sa pravosť",
+    "stReading": "Číta sa…",
+    "stExtracting": "Získavajú sa údaje…",
+    "stVerifying": "Overuje sa…",
+    "s2Title": "Potvrďte svoje údaje",
+    "s2Desc": "Tieto údaje sme načítali priamo z vášho pasu. Ktorékoľvek pole upravíte klepnutím.",
+    "successHigh": "Pas bol úspešne prečítaný, vysoká istota",
+    "warnLow": "Niektoré polia boli ťažko čitateľné. Skontrolujte prosím každú hodnotu nižšie.",
+    "warnMed": "Väčšinu vašich údajov sme získali. Skontrolujte prosím zvýraznené polia.",
+    "ppDetails": "Údaje z pasu",
+    "autoExtracted": "Načítané automaticky",
+    "fSurname": "Priezvisko",
+    "fGiven": "Meno",
+    "fPassport": "Číslo pasu",
+    "fDob": "Dátum narodenia",
+    "fNationality": "Štátna príslušnosť",
+    "fExpires": "Platnosť do",
+    "reachTitle": "Ako vás môžeme kontaktovať?",
+    "reachDesc": "Vízum vám pošleme sem a stav žiadosti aj SMS správou na váš telefón.",
+    "email": "E-mail",
+    "phone": "Telefón",
+    "consent": "Potvrdzujem, že údaje vyššie zodpovedajú môjmu pasu, a splnomocňujem VIZA podať túto žiadosť v mojom mene imigračným orgánom krajiny {country}.",
+    "s3Title": "Začnite svoju žiadosť",
+    "s3Desc": "Služba VIZA je zadarmo. Prihláste sa do portálu VIZA a ďalej sa postaráme my.",
+    "headsUp": "Pozor:",
+    "headsUpBody": "ak vláda krajiny {country} účtuje poplatok za vízum, platíte ho priamo jej. VIZA túto sumu nikdy nevyberá ani nenavyšuje.",
+    "yourApp": "Vaša žiadosť",
+    "guaranteedBy": "Garantované doručenie do",
+    "govFee": "Správny poplatok",
+    "expressUpgrade": "Expresné vylepšenie",
+    "total": "Spolu",
+    "footEncrypted": "Šifrované od začiatku do konca. VIZA vám za túto žiadosť nič neúčtuje.",
+    "helpOnline": "Priya je online",
+    "helpTap": "Klepnutím začnete chat so svojím konzultantom VIZA",
+    "totalAmount": "SGD {amount}",
+    "totalFree": "Zadarmo",
+    "etaStandard": "12. mája 2026, 8:00 SGT",
+    "failTitle": "Tento doklad sa nepodarilo prečítať",
+    "failNotPassport": "Nevyzerá to ako strana pasu s osobnými údajmi. Nahrajte prosím fotografiu strany s vašou fotografiou a osobnými údajmi.",
+    "failUnreadable": "Nepodarilo sa prečítať žiadne z povinných polí. Odfoťte pas znova pri dobrom svetle, s celou stranou rovno a ostrou.",
+    "tryAgain": "Skúsiť znova",
+    "warnPartial": "Nepodarilo sa prečítať všetko. Doplňte prosím zvýraznené polia nižšie.",
+    "warnExpired": "Tento pas vyzerá ako neplatný. Väčšina krajín vyžaduje platnosť aspoň 6 mesiacov.",
+    "warnMrz": "Strojovo čitateľná zóna (dva riadky dole) bola nečitateľná. Skontrolujte prosím každé pole.",
+    "warnBlurry": "Fotografia bola rozmazaná. Skontrolujte prosím pozorne každé pole.",
+    "fieldRequired": "Povinné, vyplňte",
+    "editField": "Upraviť: {field}",
+    "emailInvalid": "Zadajte platnú e-mailovú adresu, sem príde stav vášho víza a odkaz na prihlásenie.",
+    "phoneInvalid": "Zadajte platné telefónne číslo.",
+    "consentRequired": "Ak chcete pokračovať, potvrďte prosím vyhlásenie.",
+    "continueToStart": "Pokračovať",
+    "startTitle": "Pokračujte na portáli VIZA",
+    "startSub": "Prihláste sa alebo si vytvorte bezplatný účet. Vaša žiadosť pre túto krajinu sa otvorí hneď.",
+    "vizaService": "Služba VIZA",
+    "govFeeSetByAuthority": "Určuje úrad",
+    "govFeeNote": "Prípadný správny poplatok za vízum sa platí priamo vydávajúcemu úradu, nie spoločnosti VIZA.",
+    "completeBeforeStart": "Pred pokračovaním doplňte prosím zvýraznené položky vyššie."
+  },
+  "explore": {
+    "help": "Pomoc",
+    "passportLabel": "Pas: {name}",
+    "passportSub": "Vízové požiadavky v {n} krajinách · Poradie {rank}",
+    "freeLabel": "Bez víz",
+    "freeNote": "bez papierovania",
+    "voaLabel": "e-vízum alebo VOA",
+    "voaNote": "vybavíme my",
+    "reqLabel": "Vízum potrebné",
+    "reqNote": "podanie na veľvyslanectve",
+    "fullMap": "Zobraziť celú vízovú mapu",
+    "grid": "Mriežka",
+    "map": "Mapa",
+    "mapLegendEvisa": "e-víza a návštevnícke víza",
+    "mapHint": "Prejdite myšou na zvýraznený bod a zobrazí sa ukážka krajiny",
+    "sectionTitle": "Pre pasy: {country}",
+    "seeAll": "Zobraziť všetkých {n}",
+    "footnote": "Služba VIZA je zadarmo. Prípadný správny poplatok za vízum sa platí priamo vydávajúcemu úradu a líši sa podľa krajiny.",
+    "fastTrack": "Rýchle vybavenie",
+    "cardType": "Typ",
+    "cardValid": "Platnosť",
+    "cardFee": "Služba VIZA",
+    "save": "Uložiť",
+    "startApplication": "Začať žiadosť",
+    "catalogueUnavailable": "Momentálne nie sú otvorené žiadne krajiny pre online žiadosti. Skúste to prosím čoskoro znova.",
+    "choosePassport": "Vyberte svoj cestovný pas",
+    "searchPassport": "Hľadať krajinu pasu…",
+    "visaFree": "{n} bez víz",
+    "ppFoot": "Aktualizované k máju 2026 · Zdroj: IATA Timatic",
+    "noMatch": "Žiadny pas nezodpovedá hľadaniu „{q}“",
+    "filters": {
+      "delivery": "Doručenie víza",
+      "type": "Typ víza",
+      "documents": "Doklady",
+      "dates": "Termín cesty"
+    },
+    "filterOpts": {
+      "delivery": [
+        "Kedykoľvek",
+        "Do 24 hodín",
+        "Do 3 dní",
+        "Do 1 týždňa",
+        "Do 1 mesiaca"
+      ],
+      "type": [
+        "Všetky typy",
+        "Turistické",
+        "Obchodné",
+        "Pracovné",
+        "Študentské",
+        "Digitálny nomád"
+      ],
+      "documents": [
+        "Akékoľvek doklady",
+        "Minimum (iba pas)",
+        "Štandardné",
+        "Podrobný balík"
+      ],
+      "dates": [
+        "Vybrať termíny",
+        "Tento týždeň",
+        "Tento mesiac",
+        "O 3 mesiace",
+        "O 6 mesiacov"
+      ]
+    }
+  },
+  "cities": {
+    "viza-test": "Test platby naživo",
+    "indonesia": "Bali · Jakarta",
+    "egypt": "Káhira · Gíza",
+    "australia": "Sydney · Melbourne",
+    "saudi-arabia": "Rijád · AlUla",
+    "united-kingdom": "Londýn · Edinburgh",
+    "vietnam": "Hanoj · Hoi An",
+    "malaysia": "Kuala Lumpur · Penang",
+    "japan": "Tokio · Kjóto",
+    "united-states": "New York · Los Angeles",
+    "canada": "Toronto · Vancouver",
+    "turkiye": "Istanbul · Kapadócia",
+    "thailand": "Bangkok · Phuket",
+    "united-arab-emirates": "Dubaj · Abú Zabí",
+    "france": "Paríž · Nice",
+    "italy": "Rím · Florencia",
+    "india": "Dillí · Bombaj"
+  },
+  "validity": {
+    "viza-test": "Iba ukážka",
+    "indonesia": "90 dní",
+    "egypt": "90 dní",
+    "australia": "1 rok",
+    "saudi-arabia": "365 dní",
+    "united-kingdom": "6 mesiacov",
+    "vietnam": "90 dní",
+    "malaysia": "3 mesiace",
+    "japan": "90 dní",
+    "united-states": "10 rokov",
+    "canada": "10 rokov",
+    "turkiye": "180 dní",
+    "thailand": "3 mesiace",
+    "united-arab-emirates": "60 dní",
+    "france": "90 dní",
+    "italy": "90 dní",
+    "india": "30 dní"
+  },
+  "passports": {
+    "SG": "Singapur",
+    "JP": "Japonsko",
+    "KR": "Južná Kórea",
+    "DE": "Nemecko",
+    "FR": "Francúzsko",
+    "GB": "Spojené kráľovstvo",
+    "US": "Spojené štáty",
+    "AU": "Austrália",
+    "CA": "Kanada",
+    "AE": "Spojené arabské emiráty",
+    "CN": "Čína",
+    "IN": "India",
+    "BR": "Brazília",
+    "PH": "Filipíny",
+    "ID": "Indonézia",
+    "MY": "Malajzia",
+    "TH": "Thajsko"
+  },
+  "countries": {
+    "viza-test": "VIZA Test",
+    "indonesia": "Indonézia",
+    "egypt": "Egypt",
+    "australia": "Austrália",
+    "saudi-arabia": "Saudská Arábia",
+    "united-kingdom": "Spojené kráľovstvo",
+    "vietnam": "Vietnam",
+    "malaysia": "Malajzia",
+    "japan": "Japonsko",
+    "united-states": "Spojené štáty",
+    "canada": "Kanada",
+    "turkiye": "Turecko",
+    "thailand": "Thajsko",
+    "united-arab-emirates": "Spojené arabské emiráty",
+    "france": "Francúzsko",
+    "italy": "Taliansko",
+    "india": "India",
+    "china": "Čína",
+    "south-korea": "Južná Kórea",
+    "schengen": "Schengen"
+  },
+  "visaTypes": {
+    "Test checkout": "Test platby",
+    "e-Visa": "e-vízum",
+    "Standard Visitor": "Standard Visitor",
+    "Visitor 600": "Visitor 600",
+    "Tourist": "Turistické",
+    "B1/B2": "B1/B2",
+    "eTA": "eTA",
+    "Schengen": "Schengen",
+    "eVisa": "e-vízum",
+    "Visitor visa": "Návštevnícke vízum",
+    "Tourist visa": "Turistické vízum"
+  },
+  "careers": {
+    "hero": {
+      "nowHiring": "Práve prijímame v",
+      "cities": [
+        "Šanghaj",
+        "Singapur"
+      ],
+      "openRoles": "28 otvorených pozícií",
+      "title": "Pomôžte nám urobiť hranice<br></br><em>neviditeľnými</em>: <u>potichu,</u><br></br>rýchlosťou softvéru.",
+      "lead": "Menime mesiace vízového papierovania na hodiny softvéru, pre milióny ľudí, ktorí chcú len nastúpiť do lietadla. Prineste svoje remeslo do tímu, ktorý dodáva s reálnymi termínmi.",
+      "ctaRoles": "Všetky otvorené pozície",
+      "ctaWhy": "Prečo existujeme"
+    },
+    "board": {
+      "ariaLabel": "Odletová tabuľa s otvorenými pozíciami vo VIZA",
+      "head": "Otvorené pozície · naživo",
+      "live": "Načas",
+      "cols": {
+        "req": "Č.",
+        "role": "Pozícia",
+        "office": "Kancelária",
+        "status": "Stav"
+      },
+      "rows": [
+        {
+          "role": "Staff Engineer",
+          "sub": "Tok dokladov",
+          "status": "Nástup"
+        },
+        {
+          "role": "Product Designer",
+          "sub": "Toky žiadateľov",
+          "status": "Otvorené"
+        },
+        {
+          "role": "Styčný pracovník pre veľvyslanectvá",
+          "sub": "Partnerstvá s vládami",
+          "status": "Posledná výzva"
+        },
+        {
+          "role": "Zákaznícka prevádzka",
+          "sub": "Eskalácie 2. úrovne",
+          "status": "Otvorené"
+        }
+      ],
+      "foot": "+24 ďalších pozícií vo vývoji, prevádzke a dizajne",
+      "browseAll": "Prezrieť všetky",
+      "chip1Label": "Prijímame v",
+      "chip1Value": "4 kanceláriách",
+      "chip2Label": "Priem. odpoveď",
+      "chip2Value": "3.2 dňa do prvého hovoru"
+    },
+    "stats": [
+      {
+        "value": "2.4M",
+        "label": "Víz vydaných cez VIZA minulý rok"
+      },
+      {
+        "label": "Podporovaných krajín so spracovaním naživo"
+      },
+      {
+        "label": "Miera schválenia pri všetkých typoch víz v roku 2025"
+      },
+      {
+        "label": "Ľudí v Šanghaji a Singapure"
+      }
+    ],
+    "mission": {
+      "eyebrow": "Náš príbeh",
+      "title": "Väčšina sveta<br></br>stále cestuje s<br></br><em>papierovými dokladmi.</em>",
+      "kicker1": "VIZA sme založili v roku 2021, keď sme strávili o jeden týždeň čakania na veľvyslanectvách priveľa. Systém presunu ľudí cez hranice je starší ako internet a ľudia, ktorí v ňom uviazli, si zaslúžia lepšie.",
+      "kicker2": "Dnes tím 340 ľudí v štyroch kanceláriách dodáva softvér, podáva doklady a riadi prevádzku v 194 krajinách. Robíme nudnú, vyčerpávajúcu prácu, aby cestovanie fungovalo ako zvyšok internetu: pár klepnutí a ste na ceste.",
+      "founderName": "Mira Kohli",
+      "founderRole": "Spoluzakladateľka a CEO · Singapur",
+      "beliefs": [
+        {
+          "title": "Sme prevádzková spoločnosť, ktorá dodáva softvér.",
+          "body": "Polovica VIZA sú inžinieri, dizajnéri a produktoví manažéri. Druhá polovica sú konzultanti, prevádzka a špecialisti na doklady priamo v krajinách. Ani jedna polovica nevyhrá bez druhej."
+        },
+        {
+          "title": "Žiadateľ je vždy zákazník.",
+          "body": "Veľvyslanectvá, partneri, letecké spoločnosti, všetci sú dôležití. Ale človek, ktorý o 3:00 ráno stojí v rade a obnovuje portál, je ten, pre koho pracujeme a podľa koho sa meriame."
+        },
+        {
+          "title": "Rýchlosť sa násobí, keď ste trpezliví s kvalitou.",
+          "body": "Rýchlo dodávame, pomaly rozhodujeme o nezvratných veciach. Zlé vízové rozhodnutie môže zničiť svadbu, prácu či pohreb. Túto latku držíme, aj keď nás spomaľuje."
+        },
+        {
+          "title": "Vzdialenosť je problém UX, nie obmedzenie.",
+          "body": "Naše tímy sedia v štyroch časových pásmach. Asynchrónne písanie, jasné vlastníctvo a dobrá kultúra dokumentácie sú spôsob, ako vymieňame čas za dôveru, a ako dodávame po celom svete bez vyčerpania ľudí."
+        }
+      ]
+    },
+    "values": {
+      "eyebrow": "Čoho sa držíme",
+      "title": "Päť vecí, v ktoré veríme, aj keď to stojí veľa.",
+      "lead": "Hodnoty sa ľahko zapíšu a ťažko dodržiavajú. Týchto päť naozaj používame pri prijímaní ľudí, pri hodnoteniach a pri zriedkavých ťažkých rozhodnutiach.",
+      "cards": [
+        {
+          "title": "Hovorte pravdu, najmä keď nás to stojí.",
+          "body": "Ak vízum nepríde včas, povedzte to dnes, nie v deň pred letom. Radšej prídeme o predaj, než aby sme dodali lož.",
+          "kicker": "V praxi → zverejnené zásady, audit zmien"
+        },
+        {
+          "title": "Zarábajte tempo. Nebuďte len zaneprázdnení.",
+          "body": "Oslavujeme rozhodnutia a hotovú prácu, nie schôdzky a vlákna. Ide o priepustnosť v prospech poslania, nie o pohyb v kalendári.",
+          "kicker": "V praxi → štvrťročné hodnotenie priepustnosti"
+        },
+        {
+          "title": "Myslite v pasoch, nie v personách.",
+          "body": "Vízové pravidlá závisia od štátnej príslušnosti. „Používateľ“ neexistuje, existuje držiteľ filipínskeho pasu, ktorý žiada o Schengen. Staviame pre skutočných ľudí, nie pre priemery.",
+          "kicker": "V praxi → produktová špecifikácia od pasu"
+        },
+        {
+          "title": "Zapisujte si veci. Hlavne rozhodnutia.",
+          "body": "Štyri kancelárie, štyri časové pásma. Ak rozhodnutie nie je zapísané, nestalo sa. Naša wiki je povinné čítanie, naše standupy sú dobrovoľné.",
+          "kicker": "V praxi → ADR, týždenný memorandum, asynchrónne najprv"
+        },
+        {
+          "title": "Zostaňte blízko frontu.",
+          "body": "Každý inžinier odpracuje jednu zmenu za štvrťrok na poschodí konzultantov. Trenie, ktoré ste nikdy nepocítili v nedeľu o 11 večer, nedokážete vyriešiť dizajnom.",
+          "kicker": "V praxi → rotujúce zmeny vo fronte"
+        },
+        {
+          "title": "Vyberte si dlhú verziu.",
+          "body": "Tridsaťsekundová odpoveď je zvyčajne zlá. Investujeme do hlbokej dokumentácie, spoľahlivých príručiek a vysvetlení, ktoré obstoja, aj keď by stačila jednoduchá verzia.",
+          "kicker": "V praxi → úvodná príručka, verejné príručky"
+        }
+      ]
+    },
+    "inside": {
+      "eyebrow": "Vo VIZA",
+      "title": "Ako vyzerá práca<br></br>u nás naozaj.",
+      "lead": "Máme kancelárie v dvoch mestách, pretože prijímame blízko miest, kde sa žiadosti podávajú. O úspechoch hovoríme nahlas, o politikách potichu a úprimne o tom, koľko toho ešte musíme vybudovať.",
+      "photos": [
+        {
+          "label": "fotografia · centrála v Singapure, otvorená kancelária",
+          "mark": "Paya Lebar Square, SG"
+        },
+        {
+          "label": "fotografia · poschodie konzultantov",
+          "mark": "Luoshan Rd, Šanghaj"
+        },
+        {
+          "label": "fotografia · stretnutie pri tabuli",
+          "mark": "Technický offsite, Bali"
+        },
+        {
+          "label": "fotografia · prevádzka v Šanghaji",
+          "mark": "Pudong, Šanghaj"
+        },
+        {
+          "label": "fotografia · tímová večera",
+          "mark": "Celofiremné stretnutie, Lisabon"
+        },
+        {
+          "label": "fotografia · návšteva partnera z veľvyslanectva",
+          "mark": "Paya Lebar Square, SG"
+        }
+      ],
+      "pull": "„Prijímame ľudí, ktorí majú názor na víza ešte pred nástupom. Do druhého mesiaca budete mať silnejší.“",
+      "pullBy": "Felix Adekunle, VP Engineering",
+      "para1": "VIZA znamená veľkú samostatnosť a veľa kontextu. Za všetko, čo robíte, dostanete vlastníka, skutočné rozpočty a očakávanie, že vysvetlíte dôvody svojej práce zvyšku firmy.",
+      "para2": "Ak chcete, aby vám niekto každý deň hovoril, čo robiť, toto nie je to pravé miesto. Ak ste čakali, kým vám niekto podá volant, je práve tu."
+    },
+    "how": {
+      "eyebrow": "Vývoj a prevádzka vo VIZA",
+      "title": "Ako sa práca naozaj hýbe.",
+      "lead": "Ak tu staviate, podávate alebo navrhujete, takto vyzerá váš týždeň. Menej ceremónií, viac hotovej práce. Menej Slacku, viac zapísaných rozhodnutí.",
+      "cells": [
+        {
+          "title": "Vlastníctvo od začiatku do konca",
+          "body": "Navrhnete to, postavíte, nasadíte a vlastníte v produkcii. Žiadne fronty odovzdávania, žiadne plány písané ľuďmi o tri vrstvy ďalej. Ak je to vaše, je to naozaj vaše."
+        },
+        {
+          "title": "Nasadzovanie každý deň, predvolene",
+          "body": "Väčšina tímov nasadzuje viackrát denne. Spätné väzby sú úmyselne krátke a polhodinové vrátenie zmeny je lepšie než trojtýždňová hádka."
+        },
+        {
+          "title": "Skutočné, neupratané problémy",
+          "body": "Toto nie je CRUD. Budete pracovať na OCR dokladov, plánovaní citlivom na latenciu voči viac než 90 vládnym portálom a spotrebiteľských tokoch, ktoré používajú milióny ľudí."
+        },
+        {
+          "title": "Latka je vysoká, otvorene",
+          "body": "Navrhujeme spolu pri kontrolách dizajnu. Komentujeme priamo v PR. Veríme, že vkus sa dá naučiť, a očakávame, že ľudia aktívne pomáhajú všetkým naokolo zlepšovať sa."
+        },
+        {
+          "title": "Skutočný rozpočet na vzdelávanie",
+          "body": "$2,000 na osobu ročne, bez otázok, na konferencie, knihy, kurzy, čokoľvek, čo sa zúročí v práci, ktorú tu robíte."
+        },
+        {
+          "title": "Architektúra napísaná vami",
+          "body": "RFC sú otvorené pre každého. Noví inžinieri formovali základnú infraštruktúru už v prvom mesiaci. Ak máte silnejší plán, napíšte ho, prečítame si ho."
+        }
+      ]
+    },
+    "roles": {
+      "eyebrow": "Otvorené pozície · aktualizované týždenne",
+      "title": "Staňte sa súčasťou cesty.",
+      "lead": "28 otvorených pozícií v štyroch kanceláriách. Prijímame vo vývoji, dizajne, prevádzke, medzi konzultantmi a v partnerstvách. Nové pozície sa objavujú v pondelok.",
+      "allDepartments": "Všetky oddelenia",
+      "deps": {
+        "eng": "Vývoj",
+        "design": "Dizajn",
+        "ops": "Prevádzka",
+        "consult": "Konzultanti",
+        "data": "Dáta a ML",
+        "gtm": "Marketing a GTM"
+      },
+      "showing": "Zobrazuje sa <strong>{count}</strong> pozícií · všetky miesta · všetky tímy",
+      "anyLocation": "Kdekoľvek",
+      "groupCount": "{count} otvorených",
+      "posSub": "{team} · prijímame podľa remesla a úsudku, nie podľa pôvodu",
+      "locationLabel": "Miesto",
+      "typeLabel": "Typ",
+      "fullTime": "Plný úväzok",
+      "viewRole": "Zobraziť pozíciu",
+      "locations": {
+        "sg": "Singapur",
+        "sf": "Šanghaj",
+        "ldn": "Singapur",
+        "dxb": "Šanghaj"
+      },
+      "jobs": {
+        "backendPayments": "Senior Backend Engineer, platforma",
+        "staffDocPipeline": "Staff Engineer: tok dokladov",
+        "iosApplicant": "iOS Engineer: aplikácia pre žiadateľov",
+        "platformInfra": "Platform Engineer: infraštruktúra a bezpečnosť",
+        "frontendConsole": "Frontend Engineer: konzola konzultantov",
+        "emWeb": "Engineering Manager: web",
+        "sre": "Site Reliability Engineer",
+        "androidSenior": "Senior Android Engineer",
+        "leadEmbassy": "Engineering Lead: integrácie s veľvyslanectvami",
+        "productDesignerApplicant": "Senior Product Designer: tok žiadateľa",
+        "brandDesigner": "Brand Designer",
+        "designLeadConsultant": "Design Lead: nástroje pre konzultantov",
+        "headOpsMe": "Vedúci prevádzky, Blízky východ",
+        "visaOpsSchengen": "Vedúci vízovej prevádzky: Schengen",
+        "logistics": "Manažér logistiky a kuriérov",
+        "processDocQa": "Process Engineer: kontrola kvality dokladov",
+        "opsAnalyst": "Prevádzkový analytik: rezervácie",
+        "consultSchengen": "Vízový konzultant: Schengen",
+        "consultUs": "Vízový konzultant: USA B1/B2",
+        "consultUae": "Vízový konzultant: pobyt v SAE",
+        "consultStudent": "Senior konzultant: študentské víza",
+        "consultApac": "Vedúci konzultantov: Ázia a Tichomorie",
+        "consultUk": "Vízový konzultant: Spojené kráľovstvo",
+        "dataScientist": "Senior Data Scientist: modelovanie schválení",
+        "mlOcr": "ML Engineer: OCR a AI pre doklady",
+        "perfMarketing": "Manažér výkonnostného marketingu",
+        "contentLead": "Vedúci obsahu: storytelling",
+        "lifecycleCrm": "Manažér lifecycle a CRM"
+      }
+    },
+    "fellowship": {
+      "tag": "▲ VIZA Launchpad · 12-týždňový program",
+      "title": "Dvanásť týždňov. Jeden produktový tím.<br></br><em>Jedna šanca dodať niečo skutočné.</em>",
+      "para1": "Launchpad je náš rezidenčný program pre začínajúcich inžinierov, produktových manažérov a dizajnérov, ľudí, ktorí by inak potrebovali ďalšie dva roky „skúseností“, kým dostanú skutočnú šancu.",
+      "para2": "Budete spolupracovať so skúsenými vedúcimi, vlastniť skutočnú časť produktu od začiatku po vydanie a odídete s niečím, čo budú používať milióny ľudí. Približne 60 % skupiny dostane ponuku plného úväzku.",
+      "meta": [
+        {
+          "k": "Trvanie",
+          "v": "12 týždňov"
+        },
+        {
+          "k": "Miesto",
+          "v": "V kancelárii, v ktorejkoľvek centrále"
+        },
+        {
+          "k": "Štipendium",
+          "v": "Nad trhovým priemerom"
+        },
+        {
+          "k": "Ďalšia skupina",
+          "v": "september 2026"
+        }
+      ],
+      "apply": "Prihlásiť sa do Launchpadu",
+      "readCohort": "Prečítať si o skupine z roku 2025",
+      "projects": [
+        {
+          "k": "2024 · Vývoj",
+          "title": "Prepísanie OCR pipeline",
+          "meta1": "Nasadené do produkcie",
+          "meta2": "3.2× rýchlejšie"
+        },
+        {
+          "k": "2025 · Dizajn",
+          "title": "Prepracovanie toku pre Schengen",
+          "meta1": "14 krajín naživo",
+          "meta2": "↑ 22 % konverzie"
+        },
+        {
+          "k": "2025 · Produkt",
+          "title": "Plánovač termínov na veľvyslanectvách",
+          "meta1": "9 veľvyslanectiev",
+          "meta2": "40 tis. termínov/mes."
+        }
+      ]
+    },
+    "benefits": {
+      "eyebrow": "Postaráme sa o vás (naozaj)",
+      "title": "Nudné veci,<br></br>vybavené poriadne.",
+      "lead": "Benefity nepovažujeme za bonus. Sú základom, ktorý ľuďom umožňuje podávať najlepšie výkony. Toto dostane každý zamestnanec VIZA v každej kancelárii hneď prvý deň.",
+      "items": [
+        {
+          "title": "Komplexné zdravotné poistenie, vybavené.",
+          "body": "Plná zdravotná, zubná a očná starostlivosť od prvého dňa, pre vás, vášho partnera a vaše deti. Poistné platíme my, bez hier so spoluúčasťou."
+        },
+        {
+          "title": "Budujte majetok, nie len plat.",
+          "body": "Základ nad trhovým priemerom v každom trhu, kde prijímame, plus štedrý podiel na vlastníctve viazaný na míľniky, nie len na odpracované roky. Obnovujeme ho každé dva roky."
+        },
+        {
+          "title": "Učte sa, na čom naozaj záleží.",
+          "body": "Rozpočet na vzdelávanie $2,000 ročne, mesačné interné školenia a čas v kalendári, nie len povolenie, na ten kurz alebo konferenciu."
+        },
+        {
+          "title": "Potešte zákazníkov, ako keby to boli vaše peniaze.",
+          "body": "Každý žiadateľ dostane rozpočet $100 na ústretovosť navyše. Bez schvaľovania, bez eskalácie: vyriešte to a potom napíšte, čo sa stalo."
+        },
+        {
+          "title": "Myseľ > všetko.",
+          "body": "Dôverná, profesionálna podpora duševného zdravia, bez poistných prekážok. Navyše tri dni mesačne bez schôdzok, v celej firme."
+        },
+        {
+          "title": "Cestovné výhody (museli sme).",
+          "body": "Robíme víza, náš tím má cestovať na náš účet. Cestovný kredit $4k ročne a VIZA vybaví každé vízum, ktoré kedy budete potrebovať, okamžite a interne."
+        },
+        {
+          "title": "Štedrá, skutočná dovolenka.",
+          "body": "30 dní platenej dovolenky, plus sviatky vašej krajiny, plus platený týždeň voľna medzi 24. decembrom a 1. januárom. Sledujeme čerpanie a ľudí povzbudzujeme, aby si brali viac, nie menej."
+        },
+        {
+          "title": "Vybavenie, bez otázok.",
+          "body": "Vyberte si notebook, monitor a stoličku hneď prvý deň. Príspevok na home office pre vaše zázemie. Veríme, že viete, čo potrebujete na dobrú prácu."
+        },
+        {
+          "title": "Rodičovská dovolenka, ktorá naozaj funguje.",
+          "body": "20 týždňov pre hlavných opatrovateľov, 12 pre druhých, plne platených. Plus postupný návrat, aby ste hneď prvý deň nenabehli na plný výkon."
+        }
+      ]
+    },
+    "offices": {
+      "eyebrow": "Kde pracujeme",
+      "title": "Dve kancelárie, jeden produkt.",
+      "lead": "Prijímame blízko veľvyslanectiev, partnerov a trhov, ktorým slúžime. Každá kancelária má inžinierov aj prevádzku, tímy, ktoré budujú, neoddeľujeme od tých, ktoré riadia prevádzku.",
+      "cards": [
+        {
+          "photo": "fotografia · Šanghaj",
+          "open": "6 otvorených",
+          "name": "Šanghaj",
+          "addr1": "Lane 1502, Luoshan Road,",
+          "addr2": "Pilotná zóna voľného obchodu, China (Shanghai)",
+          "tz": "GMT+8 · prevádzka pre Čínu",
+          "since": "Od roku 2023"
+        },
+        {
+          "photo": "fotografia · centrála v Singapure",
+          "open": "12 otvorených",
+          "name": "Singapur",
+          "addr1": "60 Paya Lebar Road, #06-28, Paya Lebar Square,",
+          "addr2": "Singapore 409051",
+          "tz": "GMT+8 · centrála pre Áziu a Tichomorie",
+          "since": "Centrála · od roku 2021"
+        }
+      ]
+    },
+    "ctaStrip": {
+      "title": "Nevidíte svoju pozíciu,<br></br>ale chcete do toho?",
+      "body": "Ak máte nezvyčajné zázemie a myslíte si, že by ste nám pomohli posunúť cestovateľov sveta rýchlejšie, chceme vás počuť. Najímali sme vodičov autobusov, bývalých pracovníkov veľvyslanectiev aj právnikov. Nemáme typ.",
+      "lead": "Všeobecná žiadosť",
+      "cta": "Pošlite nám svoj príbeh",
+      "note": "Odpovedáme do 7 dní, aj keď je to nie."
+    },
+    "footer": {
+      "tagline": "VIZA vám pomáha plánovať, podávať a sledovať víza po celom svete bez starostí.",
+      "company": "Spoločnosť",
+      "products": "Produkty",
+      "offices": "Kancelárie",
+      "careers": "Kariéra",
+      "contact": "Kontakt",
+      "security": "Bezpečnosť",
+      "privacy": "Ochrana súkromia",
+      "terms": "Podmienky",
+      "prodVisaReq": "Vízové požiadavky",
+      "prodSchengen": "Kontrola termínov Schengen",
+      "prodPhoto": "Tvorca fotografií na vízum",
+      "prodHelpline": "Núdzová linka VIZA",
+      "prodStudent": "Študentské vízum",
+      "officeSg": "Singapur: centrála",
+      "officeSf": "Šanghaj",
+      "copyright": "© VIZA, všetky práva vyhradené"
+    }
+  },
+  "security": {
+    "hero": {
+      "eyebrow": "Bezpečnosť vo VIZA · naposledy aktualizované máj 2026",
+      "title": "Súkromné. Transparentné.<br></br><em>Bezpečné predvolene.</em>",
+      "lead": "Zákazníci z celého sveta nám zverujú milióny citlivých dokladov: pasy, bankové výpisy, fotografie. Tu presne vysvetľujeme, ako ich zbierame, ukladáme a ako dokazujeme, že to robíme správne.",
+      "ctaPrimary": "Ako chránime vaše údaje",
+      "ctaVdp": "Nahlásiť zraniteľnosť"
+    },
+    "clearance": {
+      "republicKey": "Republika",
+      "officeKey": "Vydávajúci úrad",
+      "officeVal": "Dôvera a bezpečnosť",
+      "title": "Bezpečnostná previerka /<br></br>Údaje zákazníkov",
+      "grid": {
+        "encryption": {
+          "k": "Šifrovanie",
+          "v": "AES-256 / TLS 1.3"
+        },
+        "region": {
+          "k": "Región",
+          "v": "SG · US · EU"
+        },
+        "audit": {
+          "k": "Frekvencia auditov",
+          "v": "Štvrťročne"
+        },
+        "retention": {
+          "k": "Uchovávanie",
+          "v": "Najviac 90 dní"
+        }
+      },
+      "referenceKey": "Referencia",
+      "glyph": "SCHVÁLENÉ<br></br>VIZA · 26"
+    },
+    "chips": {
+      "transitLabel": "Pri prenose",
+      "transitVal": "Šifrovanie TLS 1.3 od začiatku do konca",
+      "restLabel": "V pokoji",
+      "restVal": "AES-256, viazané na región"
+    },
+    "stats": {
+      "docs": {
+        "value": "2.4M",
+        "label": "Spracovaných dokladov v roku 2025, nulový únik zákazníckych údajov"
+      },
+      "retention": {
+        "unit": "d",
+        "label": "Maximálne uchovávanie zdrojových dokladov po vydaní"
+      },
+      "pentests": {
+        "label": "Externé penetračné testy, všetky správy zverejnené interne"
+      },
+      "ack": {
+        "unit": "hod",
+        "label": "Medián času potvrdenia nahlásenej zraniteľnosti"
+      }
+    },
+    "docs": {
+      "eyebrow": "Čo zbierame",
+      "title": "Päť typov dokladov.<br></br><em>Nič viac.</em>",
+      "copy1": "Žiadosť o vízum je problém papierovania. Zbierame iba to, čo veľvyslanectvo výslovne žiada, a kde sa dá, údaje anonymizujeme. Každý doklad je viazaný na jednu žiadosť, pri prijatí zašifrovaný a vymazaný podľa pevného harmonogramu.",
+      "copy2": "Vaše údaje nikdy nepredávame. Nezdieľame ich s tretími stranami okrem konzulátu alebo partnera, ktorý sa priamo podieľa na vašom víze.",
+      "cards": {
+        "payment": {
+          "name": "Platobné údaje",
+          "meta": "nezbierajú sa"
+        },
+        "photos": {
+          "name": "Fotografie na vízum",
+          "meta": "spracované · najviac 90 dní"
+        },
+        "bank": {
+          "name": "Bankové výpisy",
+          "meta": "zamaskované · iba PDF"
+        },
+        "pastVisas": {
+          "name": "Predchádzajúce víza",
+          "meta": "iba na čítanie · OCR"
+        },
+        "passport": {
+          "name": "Cestovný pas",
+          "meta": "MRZ načítaná"
+        }
+      }
+    },
+    "features": {
+      "eyebrow": "Sedem opatrení, vždy zapnutých",
+      "title": "Ako vaše údaje zostávajú<br></br>vaše, od začiatku do <em>konca.</em>",
+      "intro": "Predvolený stav každého bajtu vo VIZA je „zašifrovaný, ohraničený a časovo obmedzený“. Týchto sedem opatrení to zabezpečuje: nie sú to ašpirácie, ale to, čo je dnes skutočne zabudované do platformy.",
+      "cells": {
+        "minimise": {
+          "title": "Minimalizácia a anonymizácia údajov",
+          "body": "Zbierame iba to, čo veľvyslanectvo alebo partner pre danú žiadosť skutočne vyžaduje, a kde to zvyšok platformy dovolí, údaje anonymizujeme. Polia, ktoré vo formulároch nevidíte, sú polia, ktoré neukladáme.",
+          "why": "<strong>Prečo:</strong> únik nemôže odhaliť údaje, ktoré sa nikdy nezbierali."
+        },
+        "payments": {
+          "title": "Žiadne platobné údaje",
+          "body": "Služba VIZA je zadarmo a neprijímame platby, takže nikdy nežiadame, nevidíme ani neukladáme čísla kariet.",
+          "why": "<strong>Prečo:</strong> údaje, ktoré nikdy nedržíme, sa nedajú ukradnúť."
+        },
+        "atRest": {
+          "title": "Šifrovanie v pokoji",
+          "body": "Každý doklad, správa a metadátové pole na serveroch VIZA je zašifrované pomocou AES-256 skôr, než sa dostane na disk. Kľúče sa rotujú automaticky a ukladajú v hardvérovo podporovanom KMS, ktorý nedokáže priamo čítať ani náš tím infraštruktúry.",
+          "why": "<strong>Prečo:</strong> ukradnuté disky alebo zálohy zostanú bez kľúčov nečitateľné."
+        },
+        "inTransit": {
+          "title": "Šifrovanie od začiatku do konca",
+          "body": "Celá komunikácia medzi vaším zariadením, našimi servermi a partnerskými konzulátmi používa TLS 1.3 so striktným pripínaním. Nahrávanie dokladov využíva samostatný, podpísaný kanál, aby ani útočníci na úrovni siete nevideli, čo posielate.",
+          "why": "<strong>Prečo:</strong> nepriateľské siete, vrátane Wi-Fi na letisku, nemôžu čítať vašu žiadosť."
+        },
+        "audits": {
+          "title": "Pravidelné bezpečnostné audity",
+          "body": "Každý štvrťrok robíme externý penetračný test, každý rok audit SOC 2 Type II a priebežné automatické skenovanie zraniteľností. Každé zistenie sa eviduje s termínom opravy a po termíne upozorňujeme vedúceho vývoja.",
+          "why": "<strong>Prečo:</strong> hrozby sa menia a naša obrana sa proti nim overuje podľa hodín."
+        },
+        "access": {
+          "title": "Zabezpečené riadenie prístupu",
+          "body": "Interný prístup k údajom zákazníkov je viazaný na rolu, auditovaný pri každej požiadavke a udeľovaný s okamžitým navýšením práv. Konzultanti vidia vždy iba žiadosť, na ktorej práve pracujú. Každé čítanie sa eviduje 12 mesiacov.",
+          "why": "<strong>Prečo:</strong> chyby a zneužitie zvnútra sú ohraničené, priraditeľné a preveriteľné."
+        },
+        "education": {
+          "title": "Vzdelávanie a informovanosť používateľov",
+          "body": "Najťažšia časť bezpečnosti je tá, ktorú za vás nedodáme. Hneď po začatí žiadosti vám posielame jednoduché sprievodcov o phishingu, podvodoch s pasovými fotografiami a falošných SMS z veľvyslanectiev a v produkte ich zobrazíme znova, len čo niečo nevyzerá správne. Ste posledná línia obrany, radšej vás vybavíme, než obviníme.",
+          "why": "<strong>Prečo:</strong> dobre informovaný žiadateľ je najlacnejšie a najúčinnejšie bezpečnostné opatrenie, aké máme."
+        }
+      }
+    },
+    "vdp": {
+      "tag": "▲ Nahlasovanie zraniteľností · otvorené pre všetkých výskumníkov",
+      "title": "Našli ste niečo?<br></br><em>Chceme o tom vedieť.</em>",
+      "p1": "Bezpečnosť našich používateľov a partnerov je pre nás všetko. Ak sa domnievate, že ste našli skutočnú zraniteľnosť služieb VIZA, povedzte nám o nej priamo a my s vami budeme slušne a rýchlo pracovať na oprave.",
+      "p2": "Svoje zistenia pošlite na <strong>security@viza.it.com</strong>. Prijatie potvrdíme do jedného pracovného dňa, aj keď sa ukáže, že už je známe alebo mimo rozsahu.",
+      "meta": {
+        "ack": {
+          "k": "Potvrdenie do",
+          "v": "'<' 24 hodín"
+        },
+        "triage": {
+          "k": "Posúdenie do",
+          "v": "3 pracovné dni"
+        },
+        "lang": {
+          "k": "Jazyky",
+          "v": "EN · ID · AR"
+        },
+        "pgp": {
+          "k": "Kľúč PGP",
+          "v": "0xVIZA · 2026"
+        }
+      },
+      "ctaEmail": "Napísať na security@viza.it.com",
+      "ctaScope": "Prečítať rozsah",
+      "terminal": {
+        "title": "koncept-hlásenia · security@viza.it.com",
+        "l1": "# hlásenie zraniteľnosti",
+        "typeKey": "typ:",
+        "typeVal": "authentication-bypass",
+        "urlKey": "url:",
+        "reproKey": "postup:",
+        "reproVal": "[kroky 1-4]",
+        "impactKey": "dopad:",
+        "impactVal": "prevzatie účtu",
+        "pocKey": "poc:",
+        "l7": "# ↳ zašifrované pre 0xVIZA",
+        "send": "odoslať"
+      }
+    },
+    "report": {
+      "eyebrow": "Nahlasovanie zraniteľnosti",
+      "title": "Čo dať do hlásenia<br></br>a <em>čo nie.</em>",
+      "intro": "Dobré hlásenie nám oboma ušetrí týždeň. Tu je formát, ktorý sa posúdi najrýchlejšie, a veci, ktoré by sme v schránke radšej nechceli.",
+      "include": {
+        "heading": "Prosím, uveďte",
+        "sub": "Päť polí. Čím sú jasnejšie, tým rýchlejšie ich vieme potvrdiť a opraviť.",
+        "items": {
+          "type": "<strong>Typ problému</strong>: napr. autentifikácia, riadenie prístupu, injekcia, IDOR, SSRF.",
+          "steps": "<strong>Jasné kroky na reprodukciu</strong>: očíslované, v poradí, ak je to možné v čistej relácii.",
+          "impact": "<strong>Možný bezpečnostný dopad</strong>: čo by mohol útočník s týmto urobiť, jednoduchým jazykom.",
+          "poc": "<strong>Dôkaz konceptu</strong>: najlepšie snímky obrazovky alebo krátky záznam obrazovky, na druhom mieste logy."
+        }
+      },
+      "dontSend": {
+        "heading": "Prosím, neposielajte",
+        "sub": "Je to nebezpečné, nepomôže to, alebo oboje, a po prijatí to budeme musieť vymazať.",
+        "items": {
+          "secrets": "<strong>Heslá alebo autentifikačné tokeny</strong>, vaše ani cudzie. Ukážte vektor, nie tajomstvo.",
+          "malware": "<strong>Surové vzorky malvéru alebo logy stealerov.</strong> Opíšte, čo ste videli, a neprikladajte to.",
+          "scanners": "<strong>Rozsiahle správy automatických skenerov</strong> bez ručne vybraného, preukázaného zistenia.",
+          "customerData": "<strong>Osobné údaje alebo doklady zákazníkov</strong>, aj keď boli základom vášho zistenia.",
+          "socialEng": "<strong>Nahrávky pokusov o sociálne inžinierstvo</strong> voči našim zamestnancom alebo konzultantom."
+        }
+      }
+    },
+    "scope": {
+      "eyebrow": "Rozsah programu",
+      "title": "Čo je v rozsahu a čo nie.",
+      "intro": "Ak si nie ste istí, či hlásenie spadá do tohto zoznamu, pošlite ho aj tak a opýtajte sa. Radšej posúdime a pôjdeme ďalej, než aby ste si skutočný problém nechali len preto, že hranica nebola zjavná.",
+      "fileRef": "/security/scope.md · v6",
+      "in": {
+        "pill": "V rozsahu",
+        "heading": "Hlásenia, ktoré aktívne posúdime",
+        "items": {
+          "web": "Webové aplikácie a API VIZA na <code>*.viza.com</code>, vrátane portálu žiadateľa, konzoly konzultanta a partnerských koncových bodov.",
+          "infra": "Infraštruktúra a služby vo vlastníctve VIZA: autentifikácia, spracovanie dokladov, plánovanie.",
+          "mobile": "Mobilné aplikácie (iOS, Android) zverejnené pod vývojárskym účtom VIZA.",
+          "marketing": "Verejné marketingové a obsahové stránky na doménach ovládaných VIZA."
+        }
+      },
+      "out": {
+        "pill": "Mimo rozsahu",
+        "heading": "Hlásenia, ktoré v tomto programe nevieme riešiť",
+        "items": {
+          "devices": "Problémy vyplývajúce z napadnutých zariadení používateľov, rozšírení prehliadača alebo ukradnutých prihlasovacích údajov.",
+          "phishing": "Útoky sociálnym inžinierstvom alebo phishingom namierené na zamestnancov, partnerov alebo konzultantov VIZA.",
+          "thirdParty": "Služby alebo integrácie tretích strán, ktoré VIZA priamo neprevádzkuje (portály konzulátov, stránky kuriérov).",
+          "scanners": "Zistenia automatických skenerov bez preukázanej, reálnej zneužiteľnosti.",
+          "headers": "Chýbajúce bezpečnostné hlavičky alebo všeobecné odporúčania osvedčených postupov bez cesty k zneužitiu."
+        }
+      }
+    },
+    "pledge": {
+      "eyebrow": "Zodpovedné nahlasovanie",
+      "title": "Dohoda, ktorú medzi sebou<br></br>uzatvárame.",
+      "intro": "Nahlasovanie funguje, pretože obe strany konajú v dobrej viere. Tu je, čo žiadame od vás a čo môžete žiadať od nás, napísané tak, aby nikto nemusel hádať.",
+      "researcher": {
+        "kicker": "Čo žiadame od vás",
+        "title": "<em>Záväzky</em> výskumníka.",
+        "p": "Odoslaním hlásenia súhlasíte, že budete konať v dobrej viere a v duchu programu, nielen podľa jeho litery.",
+        "items": {
+          "1": "Konajte v dobrej viere: pri výskume sa vyhnite porušeniu súkromia, ničeniu údajov či narušeniu služby.",
+          "2": "Problém nezneužívajte nad rámec minima potrebného na jeho potvrdenie a nikdy nepristupujte k údajom, ktoré nie sú vaše.",
+          "3": "Podrobnosti o zraniteľnosti nechajte dôverné, kým nenasadíme opravu a nepotvrdíme ju s vami.",
+          "4": "Zistenia nezverejňujte bez predchádzajúceho písomného súhlasu bezpečnostného tímu VIZA."
+        }
+      },
+      "viza": {
+        "kicker": "Čo môžete žiadať od nás",
+        "title": "<em>Záväzky</em> VIZA.",
+        "p": "Na oplátku hlásateľov neignorujeme, nehádame sa o závažnosti, aby sme sa vyhli oprave, a nežalujeme ľudí, ktorí nám pomáhajú.",
+        "items": {
+          "1": "Posúdime každé platné hlásenie a odpovieme do jedného pracovného dňa bez ohľadu na závažnosť.",
+          "2": "Budeme komunikovať slušne, bez obranného jazyka a bez frázy „funguje tak, ako má“.",
+          "3": "Prijmeme primerané nápravné opatrenia, keď to bude potrebné, a povieme vám, keď bude oprava nasadená.",
+          "4": "S vaším súhlasom vás uvedieme v našom bezpečnostnom zázname zmien, keď bude problém vyriešený."
+        }
+      }
+    },
+    "legal": {
+      "eyebrow": "Právne informácie a odmeny",
+      "title": "Právna ochrana, odmeny<br></br>a drobné písmo.",
+      "intro": "Ak túto politiku dodržíte v dobrej viere, váš výskum považujeme za oprávnený. Zvyšok stránky je nudná, ale dôležitá časť, vyložená, nie ukrytá.",
+      "cards": {
+        "safeHarbour": {
+          "title": "Právna ochrana",
+          "body": "Ak túto politiku dodržíte v dobrej viere, VIZA proti vám nezačne právne kroky za náhodné alebo neúmyselné porušenia súvisiace s vaším výskumom. Stále sa od vás očakáva dodržiavanie platných zákonov a predpisov."
+        },
+        "rewards": {
+          "title": "Odmeny a bug bounty",
+          "body": "VIZA momentálne nevedie verejný program bug bounty. Ponúkame však nezáväzný znak vďaky za platné, zodpovedne nahlásené problémy, posudzovaný podľa dopadu, novosti a kvality hlásenia.",
+          "meta": "nezáväzné · od prípadu k prípadu"
+        },
+        "updates": {
+          "title": "Aktualizácie programu",
+          "body": "VIZA si vyhradzuje právo tento program kedykoľvek zmeniť alebo ukončiť. Ak si nie ste istí, či váš výskum zodpovedá politike, kontaktujte nás na security@viza.it.com <em>pred</em> pokračovaním.",
+          "meta": "naposledy upravené · máj 2026"
+        }
+      }
+    },
+    "cta": {
+      "title": "Vidíte niečo zvláštne?<br></br>Povedzte to nášmu bezpečnostnému tímu.",
+      "body": "Radšej si malé zistenie vypočujeme dvakrát, než aby nám raz ušlo veľké. Hlásenia idú priamo skutočnému človeku v bezpečnostnom tíme, bez tiketového portálu a bez robota na triedenie.",
+      "lead": "Priamo na bezpečnosť",
+      "small": "Medián odpovede: do 24 hodín, každý deň v týždni."
+    },
+    "footer": {
+      "tagline": "VIZA vám pomáha plánovať, podávať a sledovať víza po celom svete bez starostí.",
+      "company": "Spoločnosť",
+      "careers": "Kariéra",
+      "contact": "Kontakt",
+      "security": "Bezpečnosť",
+      "privacy": "Ochrana súkromia",
+      "terms": "Podmienky",
+      "products": "Produkty",
+      "prodVisaReq": "Vízové požiadavky",
+      "prodSchengen": "Kontrola termínov Schengen",
+      "prodPhoto": "Tvorca fotografií na vízum",
+      "prodHelpline": "Núdzová linka VIZA",
+      "prodStudent": "Študentské vízum",
+      "offices": "Kancelárie",
+      "officeSg": "Singapur: centrála",
+      "officeSf": "Šanghaj",
+      "copyright": "© VIZA, všetky práva vyhradené"
+    }
+  },
+  "status": {
+    "crumbHome": "Transparentnosť",
+    "crumbHere": "Stav systému",
+    "hero": {
+      "title": "Stav systému",
+      "lead": "Dostupnosť služby VIZA a vládnych vízových portálov, s ktorými pracujeme, podložená dôkazmi. Každé percento, časová os a incident nižšie pochádza zo zaznamenanej syntetickej kontroly."
+    },
+    "console": {
+      "title": "Spoľahlivosť VIZA · naživo",
+      "live": "Overené",
+      "unverified": "Neoverené",
+      "allOperational": "Všetky systémy fungujú",
+      "degraded": "Niektoré systémy sú zhoršené",
+      "majorOutage": "Sledovaný systém je nedostupný",
+      "dataUnavailable": "Údaje o monitorovaní nie sú dostupné",
+      "lastChecked": "Posledná zaznamenaná kontrola: {time}",
+      "noChecks": "Zatiaľ nebola zaznamenaná žiadna dokončená kontrola",
+      "kUptime": "Úspešné kontroly za 90 dní",
+      "kMonitors": "Sledované koncové body",
+      "kIncidents": "Aktívny incident"
+    },
+    "subnav": {
+      "current": "Aktuálny stav",
+      "incidents": "Minulé incidenty",
+      "subscribe": "Odber",
+      "searchPlaceholder": "Hľadať krajiny",
+      "subscribeBtn": "Odoberať aktualizácie"
+    },
+    "platform": {
+      "title": "Platforma VIZA",
+      "realMeta": "Kontrola každých 5 minút · koncové body: {count}",
+      "meta": "Kontrola každých 5 minút",
+      "name": "Aplikačná platforma VIZA",
+      "sub": "Verejné služby VIZA"
+    },
+    "uptime": {
+      "ago": "Pred 90 dňami",
+      "today": "Dnes",
+      "pct": "Úspešných kontrol: {pct}%",
+      "noData": "Žiadne zaznamenané kontroly"
+    },
+    "dayObservation": "{date}: zaznamenané kontroly: {checks}",
+    "dayNoData": "{date}: žiadne zaznamenané údaje",
+    "dayTitle": "Deň {n}",
+    "statusLabels": {
+      "op": "Funguje",
+      "deg": "Zhoršené",
+      "part": "Čiastočný výpadok",
+      "maj": "Nedostupné",
+      "none": "Žiadne aktuálne údaje"
+    },
+    "lastChecked": "Skontrolované {time}",
+    "monitorStale": "Chýbajúca alebo zastaraná kontrola",
+    "monitoringUnavailable": "Stavové API nemá čerstvé dôkazy. VIZA nebude zobrazovať uložené ani vygenerované údaje o dostupnosti ako aktuálny stav služby.",
+    "noSearchResults": "Žiadna sledovaná krajina nezodpovedá tomuto hľadaniu.",
+    "noRecordedIncidents": "Za posledných 90 dní neboli zo zaznamenaných kontrol odvodené žiadne incidenty.",
+    "incidentCount": "{count, plural, one {# incident} few {# incidenty} many {# incidentu} other {# incidentov}}",
+    "incidentRecovered": "Zaznamenané kontroly ukazujú, že sa táto služba obnovila.",
+    "noIssues": "Žiadne aktívne problémy",
+    "activeIncident": "Aktívny incident",
+    "portalsHead": {
+      "title": "Vládne portály",
+      "lead": "Obmedzená syntetická požiadavka kontroluje každý nastavený portál každých päť minút. Sivá história znamená, že nebolo zaznamenané žiadne pozorovanie, nikdy sa nedopĺňa odhadovanými údajmi."
+    },
+    "incidentsHead": {
+      "title": "Minulé incidenty",
+      "lead": "Incidenty sa otvárajú a uzatvárajú podľa uložených prechodov monitora. Ide o prevádzkovú dostupnosť, nie o stav osobného vízového rozhodnutia žiadateľa."
+    },
+    "tags": {
+      "identified": "Identifikované",
+      "investigating": "Preskúmava sa",
+      "resolved": "Vyriešené"
+    },
+    "portals": {
+      "AE": {
+        "name": "Spojené arabské emiráty",
+        "sub": "portály GDRFA · ICA"
+      },
+      "AM": {
+        "name": "Arménsko",
+        "sub": "portál e-víz"
+      },
+      "AU": {
+        "name": "Austrália",
+        "sub": "ImmiAccount"
+      },
+      "AZ": {
+        "name": "Azerbajdžan",
+        "sub": "ASAN Visa"
+      },
+      "DE": {
+        "name": "Nemecko",
+        "sub": "VIDEX · termíny na konzuláte"
+      },
+      "DK": {
+        "name": "Dánsko"
+      },
+      "EG": {
+        "name": "Egypt",
+        "sub": "portál e-víz"
+      },
+      "FI": {
+        "name": "Fínsko",
+        "sub": "EnterFinland"
+      },
+      "FR": {
+        "name": "Francúzsko",
+        "sub": "France-Visas"
+      },
+      "GB": {
+        "name": "Spojené kráľovstvo",
+        "sub": "UKVCAS · UK Visas",
+        "bannerText": "Niektoré typy žiadostí majú výpadok.",
+        "bannerLink": "Zobraziť časovú os incidentov"
+      },
+      "GE": {
+        "name": "Gruzínsko"
+      },
+      "GR": {
+        "name": "Grécko",
+        "sub": "AEGEAN · konzulárne"
+      },
+      "HK": {
+        "name": "Hongkong",
+        "sub": "Immigration eVisa"
+      },
+      "ID": {
+        "name": "Indonézia",
+        "sub": "e-Visa Indonesia"
+      },
+      "IN": {
+        "name": "India",
+        "sub": "Indian Visa Online"
+      },
+      "JO": {
+        "name": "Jordánsko"
+      },
+      "KE": {
+        "name": "Keňa",
+        "sub": "eCitizen / eVisa"
+      },
+      "KH": {
+        "name": "Kambodža"
+      },
+      "LK": {
+        "name": "Srí Lanka",
+        "sub": "portál ETA"
+      },
+      "MA": {
+        "name": "Maroko"
+      },
+      "TH": {
+        "name": "Thajsko",
+        "sub": "Thailand e-Visa"
+      }
+    },
+    "incidents": {
+      "count": "Problémy s výkonom: <strong>{count}</strong> {count, plural, one {krajina} few {krajiny} many {krajiny} other {krajín}}",
+      "events": "{count, plural, one {# udalosť} few {# udalosti} many {# udalosti} other {# udalostí}}",
+      "days": [
+        {
+          "date": "10. mája 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "10. mája, 3:05 PM",
+                  "desc": "Tento incident bol vyriešený. Služba sa vrátila do normálnej prevádzky."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "10. mája, 5:05 PM",
+                  "desc": "Tento incident bol vyriešený. Služba sa vrátila do normálnej prevádzky."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "9. mája 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "9. mája, 10:50 PM",
+                  "desc": "Preskúmavame zvýšenú mieru porúch."
+                },
+                {
+                  "time": "10. mája, 12:20 AM",
+                  "desc": "Závažnosť sa zvýšila zo zhoršenej služby na čiastočný výpadok."
+                },
+                {
+                  "time": "10. mája, 2:50 AM",
+                  "desc": "Závažnosť sa zvýšila z čiastočného výpadku na zásadný výpadok."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "9. mája, 3:05 PM",
+                  "desc": "Preskúmavame zvýšenú mieru porúch."
+                },
+                {
+                  "time": "9. mája, 7:20 PM",
+                  "desc": "Závažnosť sa zvýšila z čiastočného výpadku na zásadný výpadok."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "8. mája 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "8. mája, 1:05 PM",
+                  "desc": "Preskúmavame zvýšenú mieru porúch."
+                },
+                {
+                  "time": "8. mája, 2:05 PM",
+                  "desc": "Tento incident bol vyriešený. Služba sa vrátila do normálnej prevádzky."
+                },
+                {
+                  "time": "8. mája, 2:50 PM",
+                  "desc": "Preskúmavame zvýšenú mieru porúch."
+                },
+                {
+                  "time": "8. mája, 7:35 PM",
+                  "desc": "Tento incident bol vyriešený. Služba sa vrátila do normálnej prevádzky."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "5. mája 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "5. mája, 1:36 PM",
+                  "desc": "Závažnosť sa zvýšila zo zhoršenej služby na čiastočný výpadok."
+                },
+                {
+                  "time": "5. mája, 4:50 PM",
+                  "desc": "Tento incident bol vyriešený."
+                },
+                {
+                  "time": "5. mája, 9:20 PM",
+                  "desc": "Preskúmavame zvýšenú mieru porúch."
+                },
+                {
+                  "time": "5. mája, 10:20 PM",
+                  "desc": "Tento incident bol vyriešený."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "5. mája, 2:43 PM",
+                  "desc": "Tento incident bol vyriešený."
+                },
+                {
+                  "time": "5. mája, 3:35 PM",
+                  "desc": "Preskúmavame zvýšenú mieru porúch."
+                },
+                {
+                  "time": "5. mája, 7:35 PM",
+                  "desc": "Závažnosť sa zvýšila z čiastočného výpadku na zásadný výpadok."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "4. mája 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "4. mája, 4:05 PM",
+                  "desc": "Preskúmavame zvýšenú mieru porúch."
+                },
+                {
+                  "time": "4. mája, 5:05 PM",
+                  "desc": "Tento incident bol vyriešený."
+                },
+                {
+                  "time": "4. mája, 7:36 PM",
+                  "desc": "Preskúmavame zvýšenú mieru porúch."
+                },
+                {
+                  "time": "4. mája, 8:35 PM",
+                  "desc": "Tento incident bol vyriešený."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "4. mája, 12:05 PM",
+                  "desc": "Tento incident bol vyriešený."
+                },
+                {
+                  "time": "4. mája, 1:50 PM",
+                  "desc": "Preskúmavame zvýšenú mieru porúch."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2. mája 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "2. mája, 6:35 PM",
+                  "desc": "Preskúmavame zvýšenú mieru porúch."
+                },
+                {
+                  "time": "2. mája, 7:50 PM",
+                  "desc": "Tento incident bol vyriešený."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "2. mája, 9:20 AM",
+                  "desc": "Preskúmavame zvýšenú mieru porúch."
+                },
+                {
+                  "time": "2. mája, 10:20 AM",
+                  "desc": "Tento incident bol vyriešený."
+                },
+                {
+                  "time": "2. mája, 8:20 PM",
+                  "desc": "Preskúmavame zvýšenú mieru porúch."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "2. mája, 8:20 PM",
+                  "desc": "Preskúmavame zvýšenú mieru porúch."
+                },
+                {
+                  "time": "3. mája, 12:05 AM",
+                  "desc": "Tento incident bol vyriešený."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "1. mája 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "1. mája, 2:05 PM",
+                  "desc": "Preskúmavame zvýšenú mieru porúch."
+                },
+                {
+                  "time": "1. mája, 3:05 PM",
+                  "desc": "Tento incident bol vyriešený."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "30. apríla 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "30. apr., 8:20 AM",
+                  "desc": "Preskúmavame zvýšenú mieru porúch."
+                },
+                {
+                  "time": "30. apr., 9:50 AM",
+                  "desc": "Tento incident bol vyriešený."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30. apr., 3:05 PM",
+                  "desc": "Tento incident bol vyriešený."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30. apr., 4:51 PM",
+                  "desc": "Tento incident bol vyriešený."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30. apr., 1:20 PM",
+                  "desc": "Preskúmavame zvýšenú mieru porúch."
+                },
+                {
+                  "time": "30. apr., 2:37 PM",
+                  "desc": "Závažnosť sa zvýšila zo zhoršenej služby na čiastočný výpadok."
+                },
+                {
+                  "time": "30. apr., 8:20 PM",
+                  "desc": "Tento incident bol vyriešený."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30. apr., 6:50 PM",
+                  "desc": "Tento incident bol vyriešený."
+                },
+                {
+                  "time": "30. apr., 7:50 PM",
+                  "desc": "Preskúmavame zvýšenú mieru porúch."
+                },
+                {
+                  "time": "1. mája, 12:20 AM",
+                  "desc": "Tento incident bol vyriešený."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "subscribe": {
+      "title": "Dozviete sa ako prví,<br></br>keď sa niečo pokazí.",
+      "lead": "Vyberte krajiny, ktoré vás zaujímajú, a pošleme vám jednu jednoduchú správu, keď ich portály alebo naše vypadnú alebo sa opäť rozbehnú.",
+      "emailLabel": "Dostávajte aktualizácie o incidentoch e-mailom",
+      "button": "Odoberať",
+      "follow": "Alebo sledujte stav cez:",
+      "chipEmail": "E-mailový prehľad",
+      "chipSms": "SMS a WhatsApp",
+      "chipRss": "Kanál RSS",
+      "chipWebhook": "Webhook pre prevádzku"
+    },
+    "footer": {
+      "tagline": "VIZA vám pomáha plánovať, podávať a sledovať víza po celom svete bez starostí.",
+      "company": "Spoločnosť",
+      "careers": "Kariéra",
+      "contact": "Kontakt",
+      "security": "Bezpečnosť",
+      "systemStatus": "Stav systému",
+      "privacy": "Ochrana súkromia",
+      "terms": "Podmienky",
+      "products": "Produkty",
+      "prodVisaReq": "Vízové požiadavky",
+      "prodSchengen": "Kontrola termínov Schengen",
+      "prodPhoto": "Tvorca fotografií na vízum",
+      "prodHelpline": "Núdzová linka VIZA",
+      "copyright": "© VIZA, všetky práva vyhradené"
+    }
+  },
+  "arrival": {
+    "breadcrumbHome": "Domov",
+    "breadcrumbHub": "Príchodové karty",
+    "hubH1": "Sprievodcovia príchodovými kartami",
+    "hubLead": "Príchodová karta je krátky vládny formulár, ktorý vyplníte pred vstupom do krajiny. Väčšina je online, zadarmo a zaberie približne päť minút. Sprievodcovia ukazujú, kto ktorú potrebuje, kedy ju odoslať a ako sa vyhnúť falošným stránkam, ktoré si za ňu účtujú.",
+    "hubWhatTitle": "Čo je príchodová karta",
+    "hubWhat": [
+      "Príchodová karta je vyhlásenie, ktoré cieľová krajina vyžaduje popri pase a prípadnom víze. Zaznamenáva, kto ste, ako prichádzate a kde sa ubytujete. Mnohé krajiny nahradili papierovú kartu, ktorá sa rozdávala v lietadle, online formulárom.",
+      "Nie je to vízum. Vízum vám umožňuje požiadať o vstup. Príchodová karta informuje hraničný orgán o vašej ceste a vízum stále potrebujete tam, kde ho vyžaduje vaša štátna príslušnosť."
+    ],
+    "hubFreeTitle": "Príchodové karty sú zadarmo",
+    "hubFree": [
+      "Každá karta v týchto sprievodcoch je zadarmo na webe samotnej vlády. Niektoré stránky kopírujú vládny formulár a účtujú si za neho poplatok. Žiadnej z nich nikdy nemusíte platiť.",
+      "Vždy začnite z oficiálnej adresy uvedenej v každom sprievodcovi. VIZA je nezávislá služba, nie vládna webová stránka."
+    ],
+    "hubWhenTitle": "Kedy ju potrebujete",
+    "hubWhen": [
+      "Väčšina kariet sa otvára tri dni pred príchodom a treba ich odoslať v tomto okne. Presné pravidlo nájdete v každom sprievodcovi, pretože japonský Visit Japan Web nemá pevný termín a nie je povinný.",
+      "Rezidenti, občania a tranzitní cestujúci sú často oslobodení alebo majú kratší formulár. Každý sprievodca uvádza, kto je oslobodený, vrátane výnimky pre občanov Singapuru pri malajzijskom MDAC."
+    ],
+    "hubGuidesTitle": "Všetci sprievodcovia",
+    "hubGuidesSub": "Vyberte si cieľovú krajinu. Každý sprievodca obsahuje postup, časté chyby a oficiálne odkazy.",
+    "readGuide": "Prečítať sprievodcu",
+    "cardWhen": "Kedy",
+    "cardsLabel": "Príchodová karta",
+    "hubVisaTitle": "Potrebujete aj vízum",
+    "hubVisaBody": "Príchodová karta nenahrádza vízum. Na stránke krajiny si pozrite, či ho váš pas vyžaduje.",
+    "hubVisaCta": "Prezrieť stránky o vízach",
+    "glanceTitle": "Prehľad",
+    "stepsTitle": "Ako ju vyplniť krok za krokom",
+    "mistakesTitle": "Časté chyby",
+    "feesTitle": "Poplatky a falošné stránky",
+    "faqTitle": "Otázky",
+    "sourcesTitle": "Zdroje",
+    "relatedTitle": "Ďalší sprievodcovia príchodovými kartami",
+    "independent": "VIZA je nezávislá služba, nie vládna webová stránka.",
+    "officialCta": "Otvoriť oficiálnu stránku",
+    "officialLabel": "Oficiálna stránka",
+    "vizaTitle": "Nechajte to na VIZA",
+    "vizaBody": "Začnite {name} vo svojom účte VIZA. Formulár VIZA vás prevedie rovnakými otázkami ako oficiálny a uchová vaše údaje pre ďalšie cesty. Vždy môžete použiť aj bezplatnú oficiálnu stránku.",
+    "vizaFee": "Poplatok za službu VIZA",
+    "vizaFeeFree": "Zadarmo",
+    "vizaCta": "Začať vo VIZA",
+    "noVizaTitle": "Použite oficiálnu stránku",
+    "noVizaBody": "VIZA túto kartu zatiaľ nevypĺňa. Použite oficiálnu stránku nižšie a najprv si prečítajte postup v tomto sprievodcovi.",
+    "visaTitle": "Vízum: {country}",
+    "visaBody": "Príchodová karta je oddelená od víza. Pozrite si, kto potrebuje vízum do krajiny {country}, aké sú poplatky a ako podať žiadosť.",
+    "visaCta": "Otvoriť stránku víza: {country}",
+    "reviewedTitle": "Skontrolované 25. novembra 2026",
+    "stepLabel": "Krok",
+    "cards": {
+      "malaysia-mdac": {
+        "summary": "Bezplatná online karta pre zahraničných návštevníkov. Občania Singapuru sú oslobodení.",
+        "when": "Do 3 dní pred príchodom"
+      },
+      "singapore-sg-arrival-card": {
+        "summary": "Online karta ICA so zdravotným vyhlásením. Odošlite ju na webe alebo v aplikácii MyICA.",
+        "when": "Do 3 dní pred príchodom"
+      },
+      "japan-visit-japan-web": {
+        "summary": "Bezplatné QR kódy pre imigračnú a colnú kontrolu. Odporúčané, nie povinné.",
+        "when": "Pred odletom"
+      },
+      "thailand-tdac": {
+        "summary": "Bezplatná karta pre každého zahraničného návštevníka, s vízom či bez neho. Nahradila papierovú TM6.",
+        "when": "Do 3 dní pred príchodom"
+      },
+      "korea-e-arrival-card": {
+        "summary": "Povinná od 1. januára 2026. Držiteľ platného K-ETA je oslobodený.",
+        "when": "Do 3 dní pred príchodom"
+      },
+      "indonesia-all-indonesia": {
+        "summary": "Jedna karta pre imigračnú, colnú a zdravotnú kontrolu. Zadarmo a nie je to vízum.",
+        "when": "Až 3 dni pred príchodom"
+      }
+    }
+  },
+  "guides": {
+    "breadcrumbHome": "Domov",
+    "breadcrumbHub": "Sprievodcovia",
+    "hubH1": "Sprievodcovia vízami pre ľudí žijúcich v Singapure",
+    "hubLead": "Či máte singapurský, čínsky, indický alebo filipínsky pas, tieto sprievodcovia odpovedajú na tú istú otázku: čo potrebujem na vstup do tejto krajiny a kde o vízum požiadam zo Singapuru. Každý uvádza svoje zdroje a dátum kontroly.",
+    "hubGuidesTitle": "Všetci sprievodcovia",
+    "hubGuidesSub": "Vyberte si tému. Pravidlá sa menia, preto každý sprievodca uvádza oficiálne stránky, ktoré si treba pred cestou skontrolovať.",
+    "readGuide": "Prečítať sprievodcu",
+    "hubMoreTitle": "Viac od VIZA",
+    "hubMoreBody": "Hľadáte konkrétnu krajinu, príchodovú kartu alebo najnovšiu zmenu pravidiel?",
+    "hubDestinations": "Stránky o vízach",
+    "hubArrival": "Sprievodcovia príchodovými kartami",
+    "hubNews": "Vízové novinky",
+    "glanceTitle": "Rýchla odpoveď",
+    "relatedVisaTitle": "Stránky krajín",
+    "relatedVisaSub": "Poplatky, doklady a postup pre ľudí žijúcich v Singapure.",
+    "relatedArrivalTitle": "Sprievodcovia príchodovými kartami",
+    "relatedGuidesTitle": "Ďalší sprievodcovia",
+    "faqTitle": "Otázky",
+    "sourcesTitle": "Zdroje",
+    "reviewedTitle": "Ako sme to skontrolovali",
+    "published": "Zverejnené",
+    "updated": "Aktualizované",
+    "independent": "VIZA je nezávislá služba, nie vládna webová stránka."
+  },
+  "ds": {
+    "header": {
+      "home": "Domovská stránka VIZA",
+      "primary": "Hlavné",
+      "language": "Jazyk",
+      "signIn": "Prihlásiť sa",
+      "openMenu": "Otvoriť ponuku",
+      "closeMenu": "Zavrieť ponuku",
+      "nav": {
+        "home": "Domov",
+        "destinations": "Cieľové krajiny",
+        "arrivalCards": "Príchodové karty",
+        "guides": "Sprievodcovia",
+        "news": "Novinky",
+        "about": "O nás",
+        "contact": "Kontakt"
+      }
+    },
+    "footer": {
+      "home": "Domovská stránka VIZA",
+      "tagline": "Žiadosti o víza pripravuje AI služby VIZA a kontrolujú ich naši konzultanti. Používanie je zadarmo.",
+      "explore": "Objavujte",
+      "follow": "Sledujte nás",
+      "followOn": "Sledujte VIZA na {platform}",
+      "links": {
+        "destinations": "Cieľové krajiny",
+        "arrivalCards": "Príchodové karty",
+        "guides": "Sprievodcovia",
+        "news": "Novinky",
+        "about": "O nás",
+        "contact": "Kontakt",
+        "careers": "Kariéra",
+        "security": "Bezpečnosť",
+        "status": "Stav služby"
+      },
+      "copyright": "© {year} VIZA. Všetky práva vyhradené.",
+      "office": "Sídlo spoločnosti: 60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapore 409051",
+      "privacy": "Ochrana súkromia",
+      "terms": "Podmienky",
+      "kelin": "Projekt spoločnosti Kelin Studio",
+      "refunds": "Vrátenie peňazí",
+      "business": "Informácie o spoločnosti"
+    },
+    "form": {
+      "fullName": {
+        "label": "Vaše meno",
+        "placeholder": "Jane Tan"
+      },
+      "email": {
+        "label": "E-mail"
+      },
+      "phone": {
+        "label": "Telefón"
+      },
+      "destination": {
+        "label": "Cieľová krajina",
+        "placeholder": "Japonsko, Schengen, Spojené štáty"
+      },
+      "message": {
+        "label": "Vaša otázka",
+        "placeholder": "Kam cestujete, aký máte pas a kedy cestujete."
+      },
+      "submit": "Odoslať správu",
+      "sending": "Odosiela sa",
+      "success": "Ďakujeme, vaša správa dorazila. Odpovieme e-mailom.",
+      "error": "Správu sa nepodarilo odoslať. Skúste to prosím znova alebo napíšte na sales@kelin.studio.",
+      "consent": "Odoslaním súhlasíte s našimi <privacy>Zásadami ochrany súkromia</privacy> a <terms>Podmienkami</terms>."
+    },
+    "gallery": {
+      "title": "Cieľové krajiny",
+      "lede": "Vyberte si krajinu a zistíte, aké vízum potrebujete, aké doklady a aký správny poplatok.",
+      "view": "Zobraziť",
+      "passportSummary": "{free} bez víz · {voa} e-vízum alebo pri príchode · {req} vyžaduje vízum",
+      "noResults": "Vášmu hľadaniu nezodpovedá žiadna krajina.",
+      "sorts": {
+        "featured": "Odporúčané",
+        "open": "Najprv otvorené",
+        "name": "A až Z"
+      }
+    },
+    "dest": {
+      "all": "Všetky krajiny",
+      "onPage": "Na tejto stránke",
+      "applyTitle": "Začať žiadosť",
+      "facts": "Fakty"
+    },
+    "article": {
+      "toc": "Na tejto stránke",
+      "down": "Prejsť na článok",
+      "faqLede": "Rýchle odpovede k tejto téme."
+    },
+    "legal": {
+      "updated": "Naposledy aktualizované",
+      "contents": "Obsah"
+    }
+  },
+  "homePage": {
+    "hero": {
+      "browse": "Prezrieť krajiny",
+      "picks": "Krajiny"
+    },
+    "types": {
+      "title": "Typy víz",
+      "lede": "Turistické, obchodné, pracovné, študentské a dlhodobé víza.",
+      "prev": "Predchádzajúce",
+      "next": "Ďalšie",
+      "items": {
+        "tourist": {
+          "title": "Turistické",
+          "body": "Dovolenky, návštevy rodiny a krátke pobyty."
+        },
+        "business": {
+          "title": "Obchodné",
+          "body": "Stretnutia, konferencie a návštevy prevádzok."
+        },
+        "work": {
+          "title": "Pracovné",
+          "body": "Pracovné povolenia a víza na zamestnanie."
+        },
+        "student": {
+          "title": "Študentské",
+          "body": "Študentské víza pre školy a univerzity."
+        },
+        "long": {
+          "title": "Dlhodobý pobyt",
+          "body": "Pobytové a iné dlhodobé víza."
+        }
+      }
+    },
+    "steps": {
+      "title": "Ako to funguje",
+      "cta": "Začnite svoju bezplatnú žiadosť",
+      "side": {
+        "freeValue": "Zadarmo",
+        "freeLabel": "Služba VIZA",
+        "langLabel": "Jazyky: angličtina a čínština",
+        "note": "Platíte iba správny poplatok.",
+        "noteBody": "Ide priamo vydávajúcemu úradu. VIZA nepridáva žiadny vlastný poplatok."
+      },
+      "items": {
+        "choose": {
+          "title": "Vyberte krajinu",
+          "body": "Ešte pred začiatkom uvidíte, aké vízum potrebujete, aké doklady pripraviť a aký je správny poplatok.",
+          "chips": "Typ víza|Doklady|Správny poplatok"
+        },
+        "passport": {
+          "title": "Nahrajte svoj pas",
+          "body": "VIZA načíta vaše údaje z fotografie strany s osobnými údajmi, takže píšete len veľmi málo.",
+          "chips": "Strana s fotografiou|Vyplnené údaje"
+        },
+        "confirm": {
+          "title": "Potvrďte svoje údaje",
+          "body": "Skontrolujte, čo VIZA načítala, doplňte termíny cesty a pokračujte vo svojom bezplatnom účte VIZA.",
+          "chips": "Termíny cesty|Bezplatný účet"
+        },
+        "file": {
+          "title": "VIZA skontroluje a podá",
+          "body": "Poradca skontroluje každý formulár pred podaním a priebeh sledujete vo svojom účte.",
+          "chips": "Kontrola poradcom|Priebeh žiadosti"
+        }
+      }
+    },
+    "tiers": {
+      "title": "Ceny",
+      "lede": "Dva spôsoby podania žiadosti, oba zadarmo.",
+      "cta": "Kontaktujte nás",
+      "criteria": "Porovnať",
+      "guided": "S vedením",
+      "full": "Kompletný servis",
+      "rows": {
+        "fee": {
+          "label": "Poplatok VIZA",
+          "guided": "Zadarmo",
+          "full": "Zadarmo"
+        },
+        "form": {
+          "label": "Žiadosť",
+          "guided": "Odpovedáte vy, s AI služby VIZA ako sprievodcom",
+          "full": "Konzultant pripraví odpovede spolu s vami"
+        },
+        "documents": {
+          "label": "Doklady",
+          "guided": "Kontrolný zoznam pre vašu situáciu",
+          "full": "Konzultant skontroluje vaše doklady"
+        },
+        "interview": {
+          "label": "Termín a pohovor",
+          "guided": "Rezervujete si ho a zúčastníte sa sami",
+          "full": "Prejdeme s vami pravdepodobné otázky"
+        },
+        "govFee": {
+          "label": "Správny poplatok",
+          "guided": "Platí sa priamo úradu",
+          "full": "Platí sa priamo úradu"
+        },
+        "bestFor": {
+          "label": "Vhodné pre",
+          "guided": "Jednoduché žiadosti",
+          "full": "Zložité prípady alebo skoršie zamietnutie"
+        }
+      }
+    },
+    "why": {
+      "title": "Prečo VIZA",
+      "lede": "Jasné kroky, skontrolované formuláre a skutoční ľudia, s ktorými sa dá hovoriť.",
+      "items": {
+        "free": {
+          "title": "Služba zadarmo",
+          "body": "Pomoc služby VIZA nestojí nič. Platíte iba správny poplatok, priamo úradu."
+        },
+        "checked": {
+          "title": "Skontrolované formuláre",
+          "body": "Poradca skontroluje každý formulár pred podaním, takže drobné chyby sa zachytia včas."
+        },
+        "language": {
+          "title": "Angličtina a čínština",
+          "body": "S VIZA sa môžete rozprávať po anglicky alebo po čínsky, cez WhatsApp, WeChat alebo e-mail."
+        }
+      },
+      "photos": {
+        "arrival": {
+          "title": "Príchodové karty",
+          "body": "Pomoc krok za krokom s bezplatnými príchodovými kartami pre Malajziu, Singapur, Japonsko, Thajsko, Kóreu a Indonéziu."
+        },
+        "news": {
+          "title": "Novinky",
+          "body": "Zmeny vízových pravidiel a nové schémy e-víz, vysvetlené jednoducho."
+        }
+      }
+    },
+    "guides": {
+      "title": "Sprievodcovia",
+      "cta": "Všetci sprievodcovia"
+    },
+    "faq": {
+      "lede": "Rýchle odpovede o vízovej službe VIZA.",
+      "more": "Máte ďalšie otázky?",
+      "items": {
+        "cost": {
+          "q": "Účtuje si VIZA za svoju službu?",
+          "a": "Nie. Pomoc služby VIZA je zadarmo. Ak cieľová krajina účtuje správny poplatok za vízum, platíte ho priamo tamojšej vláde."
+        },
+        "visas": {
+          "q": "S akými vízami vie VIZA pomôcť?",
+          "a": "Turistické, obchodné, pracovné, študentské a dlhodobé víza pre krajiny na tejto stránke. Ak vaše nie je uvedené, napíšte nám a konzultant vám povie, čo je možné."
+        },
+        "approval": {
+          "q": "Kto o mojom vízume rozhoduje?",
+          "a": "Každé rozhodnutie robí vydávajúci úrad. VIZA skontroluje váš formulár a doklady pred podaním, aby bola žiadosť úplná a konzistentná."
+        },
+        "tiers": {
+          "q": "Aký je rozdiel medzi S vedením a Kompletným servisom?",
+          "a": "Pri možnosti S vedením vás AI služby VIZA prevedie formulárom a kontrolným zoznamom a každú odpoveď máte pod kontrolou. Pri Kompletnom servise konzultant pripraví odpovede spolu s vami a skontroluje vaše doklady. Obe sú zadarmo."
+        },
+        "language": {
+          "q": "Aké jazyky podporujete?",
+          "a": "Angličtinu a čínštinu, cez WhatsApp, WeChat, telefón a e-mail."
+        }
+      }
+    },
+    "contactCard": {
+      "title": "Porozprávajte sa s konzultantom VIZA",
+      "body": "Odpovedáme po anglicky alebo po čínsky.",
+      "cta": "Kontaktujte nás"
+    },
+    "cta": {
+      "title": "Začnite svoju žiadosť",
+      "point1": "Vaše údaje zostanú súkromné",
+      "point2": "Odpovie vám skutočný človek",
+      "formTitle": "Opýtajte sa",
+      "formBody": "Napíšte nám, kam cestujete, a konzultant VIZA vám odpovie e-mailom."
+    }
+  },
+  "aboutPage": {
+    "h1": "O službe VIZA",
+    "intro": {
+      "title": "Čo je VIZA",
+      "text": "VIZA pripravuje, kontroluje a podáva žiadosti o víza pre ľudí žijúcich v Singapure. Papierovú prácu robí naša AI a každý formulár skontrolujú naši konzultanti. Služba je zadarmo."
+    },
+    "facts": {
+      "destinations": "Cieľové krajiny",
+      "guides": "Sprievodcovia vízami",
+      "arrival": "Sprievodcovia príchodovými kartami",
+      "free": "Zadarmo",
+      "freeLabel": "Služba VIZA"
+    },
+    "tiersTitle": "S vedením alebo Kompletný servis",
+    "tiersLede": "Vyberte si, koľko pomoci chcete. Obe možnosti sú zadarmo.",
+    "free": {
+      "title": "Služba zadarmo",
+      "text": "VIZA si za svoju pomoc neúčtuje nič. Ak má cieľová krajina správny poplatok za vízum, VIZA vám ho ukáže ešte pred začiatkom a zaplatíte ho priamo vydávajúcemu úradu. Nie sú žiadne platené vylepšenia."
+    },
+    "company": {
+      "title": "Údaje o spoločnosti",
+      "office": "Sídlo spoločnosti",
+      "officeValue": "60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapur 409051",
+      "email": "E-mail",
+      "phone": "Telefón a WhatsApp",
+      "languages": "Jazyky",
+      "languagesValue": "Angličtina a čínština"
+    }
+  },
+  "contactPage": {
+    "h1": "Kontakt",
+    "lines": {
+      "whatsapp": {
+        "title": "Telefón a WhatsApp",
+        "body": "Zavolajte konzultantovi alebo mu napíšte."
+      },
+      "wechat": {
+        "body": "Vyhľadajte ID vo WeChate a pridajte si nás."
+      },
+      "email": {
+        "title": "E-mail",
+        "body": "Najlepšie na doklady a dlhšie otázky."
+      },
+      "office": {
+        "top": "Singapur",
+        "title": "Kancelária",
+        "body": "60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapur 409051"
+      }
+    },
+    "message": {
+      "title": "Pošlite nám správu",
+      "text": "Otázky o víze, cieľovej krajine alebo spolupráci s VIZA. Napíšte nám a konzultant vám odpovie."
+    }
+  },
+  "careersPage": {
+    "title": "Kariéra",
+    "lede": "VIZA pomáha ľuďom v Singapure získať vízum pomocou AI a konzultantov a služba je zadarmo. Hľadáme ľudí, ktorí majú radi precíznu a užitočnú prácu.",
+    "teamsTitle": "Tímy",
+    "teams": [
+      {
+        "title": "Vývoj",
+        "body": "Budujte kontroly dokladov, postup podania žiadosti a nástroje, ktoré používajú naši konzultanti."
+      },
+      {
+        "title": "Dizajn",
+        "body": "Urobte stresujúci proces prehľadným pre človeka, ktorý žiada o vízum."
+      },
+      {
+        "title": "Prevádzka",
+        "body": "Dbajte na to, aby každá žiadosť napredovala a každá požiadavka bola aktuálna."
+      },
+      {
+        "title": "Poradenstvo",
+        "body": "Pomáhajte žiadateľom v prípadoch, ktoré potrebujú človeka, v angličtine a čínštine."
+      },
+      {
+        "title": "Dáta",
+        "body": "Premieňajte vládne zdroje na kontroly, ktoré včas zachytia problémy."
+      },
+      {
+        "title": "Marketing",
+        "body": "Vysvetľujte víza jednoducho, v sprievodcoch a na stránkach, ktorým ľudia môžu dôverovať."
+      }
+    ],
+    "applyTitle": "Ozvite sa nám",
+    "applyBody": "Napíšte nám o sebe a o tíme, ku ktorému by ste sa chceli pripojiť. Čítame každú správu.",
+    "applyCta": "Kontaktujte nás"
+  },
+  "pageCopy": {
+    "product": {
+      "introTitle": "Ako VIZA podporuje vašu žiadosť o vízum",
+      "introLede": "Pozrite si dostupné služby prípravy víz, kontroly dokladov a sledovania stavu žiadosti. Služba VIZA je zadarmo. Presný rozsah a dostupnosť uvidíte po výbere cieľovej krajiny.",
+      "browse": "Prezrieť krajiny"
+    },
+    "events": {
+      "title": "Zatiaľ žiadne podujatia",
+      "lede": "Budúce vízové poradne, informačné stretnutia a podujatia partnerov oznámime tu.",
+      "contact": "Kontaktujte nás"
+    }
+  },
+  "og": {
+    "band": "VIZA je zadarmo. Správne poplatky sú zvlášť.",
+    "destSubtitle": "Poplatky a postup podania žiadosti"
+  }
+}

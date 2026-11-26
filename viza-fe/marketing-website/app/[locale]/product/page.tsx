@@ -15,20 +15,16 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
 export default async function ProductPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  const zh = locale === "zh-CN";
   const t = await getTranslations({ locale, namespace: "homePage" });
+  const tp = await getTranslations({ locale, namespace: "pageCopy.product" });
   return (
     <>
       <SiteHeader />
       <main className="ds-main">
         <PageIntro
-          title={zh ? "VIZA 如何协助您的签证申请" : "How VIZA supports your visa application"}
-          lede={
-            zh
-              ? "了解可用的签证申请准备、材料核对和申请进度服务。VIZA 的服务免费，具体服务范围和可用性会在您选择目的地后明确显示。"
-              : "Explore available visa preparation, document review, and application-status services. VIZA's service is free. Exact scope and availability are shown after you choose a destination."
-          }
-          actions={<Button href="/visa">{zh ? "浏览目的地" : "Browse destinations"}</Button>}
+          title={tp("introTitle")}
+          lede={tp("introLede")}
+          actions={<Button href="/visa">{tp("browse")}</Button>}
         />
         <div className="ds-container ds-intro-body">
           <FeatureCards

@@ -1,0 +1,2150 @@
+{
+  "cta": {
+    "startFreeApplication": "Kezdje el az ingyenes igénylést"
+  },
+  "nav": {
+    "home": "Főoldal",
+    "apply": "Igénylés",
+    "visas": "Vízumok",
+    "explore": "Felfedezés",
+    "events": "Események",
+    "blog": "Hírek",
+    "careers": "Karrier",
+    "contact": "Kapcsolat",
+    "signIn": "Bejelentkezés",
+    "getStarted": "Kezdés",
+    "yourPassport": "Az Ön útlevele",
+    "searchPlaceholder": "Keressen országot vagy vízumot…",
+    "arrivalCards": "Beutazási kártyák",
+    "guides": "Útmutatók"
+  },
+  "footer": {
+    "followUs": "Kövessen minket:",
+    "followOn": "Kövesse a VIZA-t itt: {platform}",
+    "product": "Termékek",
+    "company": "Cég",
+    "legal": "Jogi információk",
+    "offices": "Irodák",
+    "askAi": "Kérdezze az AI-t a VIZA-ról",
+    "security": "Biztonság",
+    "status": "Állapot",
+    "privacy": "Adatvédelem",
+    "terms": "Feltételek",
+    "rights": "Minden jog fenntartva.",
+    "tagline": "A VIZA segít vízumot tervezni, igényelni és követni a világ bármely pontjára.",
+    "careers": "Karrier",
+    "contact": "Kapcsolat",
+    "copyright": "© VIZA, Minden jog fenntartva",
+    "prodMockInterview": "Amerikai vízuminterjú-próba",
+    "prodVisaReq": "Vízumkövetelmények",
+    "prodSchengen": "Schengen időpontfigyelő",
+    "prodPhoto": "Vízumfotó-készítő",
+    "prodHelpline": "VIZA vészhelyzeti segélyvonal",
+    "prodStudent": "Diákvízum",
+    "arrivalCards": "Beutazási kártyák",
+    "guides": "Útmutatók",
+    "news": "Hírek"
+  },
+  "pages": {
+    "blog": {
+      "metaTitle": "Vízumhírek és szabályváltozások | VIZA",
+      "metaDescription": "VIZA vízumhírek: szabályváltozások, új e-vízum és ETA rendszerek, és mit jelentenek a Szingapúrban élőknek. A szabályok változásakor frissítjük.",
+      "title": "Vízumhírek",
+      "lede": "Szabályváltozások és szabályozási frissítések közérthetően. Tartós érvényű tanácsokért olvassa el az útmutatókat.",
+      "readArticle": "Cikk elolvasása",
+      "featuredLabel": "Legfrissebb hírek",
+      "articlesTitle": "Legfrissebb hírek",
+      "articlesDescription": "Szabályozási frissítések és utazási szabályváltozások.",
+      "allPosts": "Összes bejegyzés",
+      "noMorePosts": "Hamarosan további hírek érkeznek.",
+      "emptyTitle": "Még nincs közzétett hír",
+      "emptyBody": "Az első frissítéseket most készítjük elő. Kérjük, nézzen vissza hamarosan.",
+      "unavailableTitle": "A hírek átmenetileg nem érhetők el",
+      "unavailableBody": "Nem sikerült betölteni a legfrissebb közzétett híreket. Kérjük, próbálja újra egy kis idő múlva.",
+      "backToBlog": "Vissza a hírekhez",
+      "by": "Szerző:",
+      "updated": "Frissítve",
+      "categoriesLabel": "Hírtémák",
+      "topicLabel": "Téma",
+      "relatedTitle": "További hírek",
+      "relatedDescription": "További vízumhírek a VIZA-tól.",
+      "ctaEyebrow": "Tervezzen biztonsággal",
+      "ctaTitle": "Készen áll a kérelme elindítására?",
+      "ctaBody": "Mondja el, hová szeretne utazni. A VIZA végigvezeti a követelményeken és a következő lépéseken.",
+      "ctaAction": "Kérelem indítása",
+      "categoryMetaTitle": "{category} hírek | VIZA",
+      "categoryMetaDescription": "Olvassa el a VIZA híreit erről: {category}. Mi változott, kit érint, és mi a teendő.",
+      "categoryLede": "Hírek erről: {category}.",
+      "visaLinkTitle": "{country} vízumot igényel?",
+      "visaLinkBody": "Nézze meg a dokumentumokat, az állami díjat és a lépéseket Szingapúrban élőknek.",
+      "visaLinkAction": "{country} vízumútmutató",
+      "guidesTitle": "Kapcsolódó útmutatók",
+      "guidesBody": "Ebben a témában mindig naprakész útmutatók."
+    },
+    "home": {
+      "title": "Vízumigénylés Szingapúrban: USA, India, Vietnam | VIZA",
+      "description": "Igényeljen amerikai vízumot (DS-160), indiai, vietnami vagy egyiptomi e-vízumot, vagy francia Schengen-vízumot. Tanácsadó ellenőrzi az űrlapot.",
+      "heroTitle": "Merre tovább?",
+      "heroLede": "Böngésszen a vízumlehetőségek között bármely úti célhoz. A papírmunkát a VIZA tanácsadója és az MI intézi, Ön az utazást foglalja le."
+    },
+    "apply": {
+      "title": "Vízumkérelem indítása | VIZA",
+      "description": "Töltse fel az útlevelét, erősítse meg az adatait, és bízza a vízumkérelmét egy VIZA tanácsadóra. A VIZA szolgáltatása ingyenes.",
+      "saveBadge": "Mentve · bármikor folytathatja"
+    },
+    "careers": {
+      "title": "Karrier | VIZA",
+      "description": "Dolgozzon a VIZA-nál, a Kelin Studio szingapúri ingyenes vízumszolgáltatásánál. Nézze meg, milyen csapatokba keresünk embereket.",
+      "rightCta": "Pozíciók megtekintése"
+    },
+    "contact": {
+      "title": "Kapcsolat: WhatsApp, WeChat, telefon, e-mail | VIZA",
+      "description": "Érje el a VIZA csapatát WhatsAppon, WeChaten, telefonon vagy e-mailben. Négy csatorna, négy asztal, és valódi ember válaszol.",
+      "rightCta": "Írjon nekünk"
+    },
+    "security": {
+      "title": "Biztonság és felelős bejelentés | VIZA",
+      "description": "Alapértelmezetten privát, átlátható és biztonságos. Hogyan védi a VIZA az ügyféladatokat, sebezhetőség-bejelentési programunk és a jogi védelem.",
+      "rightCta": "Sebezhetőség bejelentése"
+    },
+    "status": {
+      "title": "Rendszerállapot | VIZA",
+      "description": "A VIZA és az általunk használt kormányzati vízumportálok élő állapota.",
+      "navPill": "Minden rendszer működik"
+    },
+    "visa": {
+      "applyCta": "Igénylés most",
+      "applicationProcess": "A kérelmezés menete",
+      "documents": "Dokumentumok",
+      "rejectionReasons": "Elutasítási okok",
+      "entryExit": "Be- és kilépés",
+      "extension": "Hosszabbítás",
+      "reviews": "Vélemények",
+      "nearby": "Közeli országok",
+      "sources": "Hivatalos források"
+    },
+    "privacy": {
+      "title": "Adatvédelmi irányelvek | VIZA",
+      "description": "Mit gyűjt a VIZA a vízumkérelem során, miért, ki látja és meddig őrizzük, a szingapúri PDPA szerint."
+    },
+    "terms": {
+      "title": "Általános szerződési feltételek | VIZA",
+      "description": "A VIZA vízumkérelmi szolgáltatásának feltételei, amelyet a Kelin Studio Pte. Ltd. üzemeltet Szingapúrban. A VIZA szolgáltatása ingyenes."
+    },
+    "product": {
+      "title": "Így támogatja a VIZA a vízumkérelmét | VIZA",
+      "description": "Vízum-előkészítés, dokumentumellenőrzés és kérelemkövetés egy helyen. A VIZA szolgáltatása ingyenes. A tartalom úti célonként látható."
+    },
+    "events": {
+      "title": "Események | VIZA",
+      "description": "Vízumtanácsadások, tájékoztató alkalmak és partnerrendezvények a VIZA-tól."
+    },
+    "arrivalCards": {
+      "title": "Beutazási kártyák: MDAC, SG Arrival Card, TDAC | VIZA",
+      "description": "Ingyenes útmutatók a malajziai, szingapúri, japán, thaiföldi, dél-koreai és indonéz beutazási kártyákhoz: kinek kell, mikor kell, és lépésről lépésre."
+    },
+    "guides": {
+      "title": "Vízumútmutatók Szingapúrban élőknek | VIZA",
+      "description": "Közérthető útmutatók Szingapúrban élőknek: vízummentes országok, Schengen, amerikai interjú, ETA, e-vízum és elutasítások. Ingyenes, gyakran ellenőrzött."
+    },
+    "about": {
+      "title": "A VIZA-ról: ingyenes vízumsegítség Szingapúrban | VIZA",
+      "description": "A VIZA MI-vel és tanácsadókkal készíti elő és nyújtja be a szingapúri lakosok vízumkérelmeit. Ingyenes, az állami díjat a hatóságnak fizeti."
+    },
+    "visaIndex": {
+      "title": "Vízum úti célok: követelmények országonként | VIZA",
+      "description": "Hasonlítsa össze a vízumkövetelményeket országonként, dokumentumokkal és díjakkal. A VIZA segítsége ingyenes.",
+      "heroTitle": "Vízum úti célok"
+    },
+    "refunds": {
+      "title": "Visszatérítési szabályzat | VIZA",
+      "description": "A VIZA szolgáltatása ingyenes, ezért nincs visszatérítendő szolgáltatási díj. Hogyan működnek az állami és más szolgáltatók díjai."
+    },
+    "businessInformation": {
+      "title": "Cégadatok | VIZA",
+      "description": "A VIZA-t a Kelin Studio Pte. Ltd., egy szingapúri cég üzemelteti. Székhely, UEN és elérhetőségek."
+    }
+  },
+  "common": {
+    "comingSoon": "Hamarosan",
+    "learnMore": "Tudjon meg többet",
+    "readMore": "Tovább olvasom",
+    "applyNow": "Igénylés most",
+    "talkToHuman": "Beszélgetés ügyintézővel",
+    "viewAll": "Összes megtekintése"
+  },
+  "visa": {
+    "heroTitle": "{country} vízum",
+    "validity": "Érvényesség",
+    "howItWorks": "Hogyan működik",
+    "step1": "Adja meg az utazás adatait, és töltse fel az útlevelét.",
+    "step2": "Kitöltjük és ellenőrizzük a kérelmét a legfrissebb szabályok szerint.",
+    "step3": "Benyújtjuk a kormányzati portálon, és követjük a döntést.",
+    "step4": "A jóváhagyott vízum e-mailben érkezik, és végig figyelemmel kísérjük.",
+    "documents": "Amire szüksége lesz",
+    "doc1": "Legalább 6 hónapig érvényes útlevél.",
+    "doc2": "Friss, útlevélfotó-méretű fénykép.",
+    "doc3": "Az utazás időpontjai és a szállás adatai.",
+    "doc4": "Ha az úti cél vízumdíjat kér, bankkártya, amellyel azt közvetlenül a kormánynak fizeti.",
+    "nearby": "Közeli úti célok",
+    "startApplication": "Kezdje el a kérelmét",
+    "comingSoonTitle": "{country}: hamarosan",
+    "comingSoonBody": "Most végezzük az utolsó simításokat: {country}. Hozzon létre fiókot, és azonnal értesítjük, amint elérhető lesz.",
+    "browseDestinations": "Úti célok böngészése",
+    "notifyMe": "Értesítsenek",
+    "back": "Vissza a felfedezéshez",
+    "tabOverview": "Áttekintés",
+    "tabProcess": "A kérelmezés menete",
+    "tabDocuments": "Dokumentumok",
+    "tabRejection": "Elutasítási okok",
+    "tabEntry": "Be- és kilépés",
+    "tabExtension": "Hosszabbítás",
+    "tabReviews": "Vélemények",
+    "tabNearby": "Közeli országok",
+    "reviewsTitle": "Vélemények",
+    "nearbyTitle": "Közeli országok",
+    "nearbySub": "A régióban utazik? Adjon egy újabb vízumot az utazásához, VIZA tanácsadója pedig egyben intézi őket.",
+    "faqTitle": "Gyakori kérdések",
+    "editorial": "Ez az oldal a VIZA szerkesztési irányelveit követi. Hivatalos kormányzati forrásokra támaszkodunk, és minden követelményt frissítünk, ha a szabályok változnak.",
+    "editorialLink": "Így ellenőrizzük a tartalmat",
+    "sourcesTitle": "Források",
+    "priceGovt": "Állami díj",
+    "priceFree": "Ingyenes",
+    "pillAllInclusive": "Mindent tartalmazó",
+    "priceCta": "Igénylés indítása",
+    "onTime": "Időben",
+    "freeService": "Ingyenes VIZA szolgáltatás",
+    "freeServiceNote": "A VIZA nem számít fel díjat a segítségért",
+    "govFeePaidDirect": "Állami díj: {fee}, közvetlenül a kiállító hatóságnak fizetendő.",
+    "govFeeSetByAuthority": "Az állami díjat a kiállító hatóság határozza meg, és közvetlenül neki kell megfizetni.",
+    "govFeeSetByAuthorityShort": "A hatóság határozza meg",
+    "priceService": "VIZA szolgáltatás",
+    "pillPaidToAuthority": "A hatóságnak fizetendő",
+    "priceTotalToViza": "Ön fizet a VIZA-nak",
+    "breadcrumbVisas": "Vízum úti célok",
+    "serviceDescription": "A VIZA segít a Szingapúrban élőknek előkészíteni, ellenőrizni és benyújtani a(z) {country} {type} kérelmeket MI-támogatással és szakértői átnézéssel.",
+    "offerDescription": "A VIZA szolgáltatási díja. Az állami vízumdíjak külön értendők, és közvetlenül a kiállító hatóságnak fizetendők.",
+    "dest": {
+      "tabGlance": "Dióhéjban",
+      "tabPassports": "Útlevelek",
+      "tabTypes": "Vízumtípusok",
+      "tabResidents": "Lakosok",
+      "tabFees": "Díjak",
+      "tabApply": "Az igénylés menete",
+      "tabChecklist": "Dokumentumok",
+      "tabRejection": "Elutasítások",
+      "tabTravel": "Utazás előtt",
+      "tabRelated": "Kapcsolódó",
+      "glanceTitle": "Dióhéjban",
+      "glanceVisa": "Vízum szükséges",
+      "glanceGovFee": "Állami díj",
+      "glanceVizaFee": "VIZA díj",
+      "glanceProcessing": "Ügyintézési idő",
+      "glanceMaxStay": "Maximális tartózkodás",
+      "glanceChecked": "Ellenőrzés dátuma",
+      "passportsTitle": "Szüksége van vízumra?",
+      "typesTitle": "Vízumtípusok",
+      "residentsTitle": "Szingapúri lakosok",
+      "feesTitle": "Díjak és határidők",
+      "applyTitle": "Az igénylés menete",
+      "checklistTitle": "Dokumentum-ellenőrzőlista",
+      "travelTitle": "Utazás előtt",
+      "colPassport": "Útlevél",
+      "colEntry": "Belépés",
+      "colNotes": "Megjegyzések",
+      "colItem": "Tétel",
+      "colAmount": "Összeg",
+      "vizaFeeNote": "A VIZA segítsége ingyenes. Csak az állami díjat fizeti, közvetlenül a hatóságnak.",
+      "reviewedBy": "Átnézte egy VIZA tanácsadó: {date}.",
+      "relatedTitle": "Kapcsolódó úti célok",
+      "relatedSub": "Más helyek, amelyeket az emberek ugyanahhoz az utazáshoz adnak, és ahol többet olvashat.",
+      "startTitle": "Igénylés indítása",
+      "startBody": "Kezdje az útlevelével és az utazás időpontjaival. A VIZA segítsége ingyenes, az állami díjat Ön közvetlenül a hatóságnak fizeti.",
+      "startConsultBody": "Mondja el egy VIZA tanácsadónak, hol él, milyen útlevele van, és mikor utazik. A VIZA segítsége ingyenes.",
+      "consultCta": "Beszélgetés tanácsadóval"
+    }
+  },
+  "apply": {
+    "stepOf": "{n}. lépés a 3-ból",
+    "back": "Vissza",
+    "continue": "Tovább",
+    "step1Name": "Útlevél feltöltése",
+    "step2Name": "Adatok megerősítése",
+    "step3Name": "Igénylés indítása",
+    "s1Title": "Töltse fel az útlevelét",
+    "s1Desc": "Az adatait automatikusan beolvassuk, nem kell semmit begépelnie. Használja az adatlapot (azt az oldalt, amelyen a fényképe van).",
+    "segUpload": "Fájl feltöltése",
+    "segCapture": "Fénykép készítése",
+    "dzTitle": "Húzza ide az útlevélfotót",
+    "dzSub": "Vagy kattintson a tallózáshoz. A fájlja titkosított, és soha nem osztjuk meg.",
+    "dzBrowse": "Fájl kiválasztása",
+    "dzUpTo": "Legfeljebb 10 MB",
+    "tip1Title": "Mind a négy sarok látszik",
+    "tip1Sub": "Az egész adatlap legyen a képen, az alsó géppel olvasható sorral (MRZ) együtt.",
+    "tip2Title": "Fényes, egyenletes megvilágítás",
+    "tip2Sub": "Kerülje a kezétől vagy a telefontokjától eső árnyékot.",
+    "tip3Title": "Nincs tükröződés vagy fényvisszaverődés",
+    "tip3Sub": "Döntse meg kicsit a lapot, ha a pecsét visszatükröződik.",
+    "errReadFail": "Nem tudtuk beolvasni az útlevelet: {detail}. Kérjük, töltsön fel élesebb fotót az adatlapról.",
+    "extReading": "Dokumentum beolvasása",
+    "extExtracting": "Adatok kinyerése",
+    "extVerifying": "Hitelesség ellenőrzése",
+    "stReading": "Beolvasás…",
+    "stExtracting": "Kinyerés…",
+    "stVerifying": "Ellenőrzés…",
+    "s2Title": "Erősítse meg az adatait",
+    "s2Desc": "Ezeket közvetlenül az útlevelből olvastuk ki. Bármelyik mezőt megérintve szerkesztheti.",
+    "successHigh": "Az útlevél adatait sikeresen kiolvastuk, magas megbízhatósággal",
+    "warnLow": "Néhány mezőt nehéz volt elolvasni, kérjük, ellenőrizze újra az alábbi értékeket.",
+    "warnMed": "Az adatok nagy részét kiolvastuk, kérjük, ellenőrizze a kiemelt mezőket.",
+    "ppDetails": "Útlevéladatok",
+    "autoExtracted": "Automatikusan kiolvasva",
+    "fSurname": "Vezetéknév",
+    "fGiven": "Utónevek",
+    "fPassport": "Útlevélszám",
+    "fDob": "Születési dátum",
+    "fNationality": "Állampolgárság",
+    "fExpires": "Lejár",
+    "reachTitle": "Hogyan érhetjük el Önt?",
+    "reachDesc": "Ide küldjük a vízumot, a telefonjára pedig szöveges állapotértesítéseket.",
+    "email": "E-mail",
+    "phone": "Telefon",
+    "consent": "Megerősítem, hogy a fenti adatok megegyeznek az útlevelemmel, és felhatalmazom a VIZA-t, hogy a nevemben benyújtsa ezt a kérelmet {country} bevándorlási hatóságainál.",
+    "s3Title": "Kezdje el a kérelmét",
+    "s3Desc": "A VIZA szolgáltatása ingyenes. Jelentkezzen be a VIZA portálra, a többit mi intézzük.",
+    "headsUp": "Fontos:",
+    "headsUpBody": "ha {country} kormánya vízumdíjat számít fel, azt Ön közvetlenül nekik fizeti. A VIZA ezt az összeget soha nem szedi be, és nem emeli meg.",
+    "yourApp": "Az Ön kérelme",
+    "guaranteedBy": "Garantált kézbesítés eddig:",
+    "govFee": "Állami díj",
+    "expressUpgrade": "Gyorsított ügyintézés",
+    "total": "Összesen",
+    "footEncrypted": "Végpontok közötti titkosítás. A VIZA nem számít fel díjat ezért a kérelemért.",
+    "helpOnline": "Priya elérhető",
+    "helpTap": "Koppintson, és beszélgessen VIZA tanácsadójával",
+    "totalAmount": "SGD {amount}",
+    "totalFree": "Ingyenes",
+    "etaStandard": "2026. május 12., 8:00 SGT",
+    "failTitle": "Nem tudtuk beolvasni a dokumentumot",
+    "failNotPassport": "Ez nem tűnik útlevél adatlapnak. Kérjük, töltsön fel fényképet arról az oldalról, amelyen a fotója és a személyes adatai vannak.",
+    "failUnreadable": "Egyetlen kötelező mezőt sem sikerült beolvasni. Kérjük, készítsen új fotót jó fényben, az egész adatlap legyen sík és éles.",
+    "tryAgain": "Próbálja újra",
+    "warnPartial": "Nem tudtunk mindent beolvasni, kérjük, töltse ki az alábbi kiemelt mezőket.",
+    "warnExpired": "Ez az útlevél lejártnak tűnik, a legtöbb úti cél legalább 6 hónap érvényességet kér.",
+    "warnMrz": "A géppel olvasható sávot (az alsó két sort) nem lehetett elolvasni, kérjük, ellenőrizze újra az összes mezőt.",
+    "warnBlurry": "A fotó elmosódott volt, kérjük, gondosan ellenőrizze újra az összes mezőt.",
+    "fieldRequired": "Kötelező, kérjük, töltse ki",
+    "editField": "{field} szerkesztése",
+    "emailInvalid": "Adjon meg érvényes e-mail-címet, ide érkeznek a vízumfrissítések és a bejelentkezési hivatkozás.",
+    "phoneInvalid": "Adjon meg érvényes telefonszámot.",
+    "consentRequired": "A folytatáshoz kérjük, erősítse meg a nyilatkozatot.",
+    "continueToStart": "Tovább",
+    "startTitle": "Folytatás a VIZA portálon",
+    "startSub": "Jelentkezzen be, vagy hozzon létre ingyenes fiókot. A kérelme ehhez az úti célhoz azonnal megnyílik.",
+    "vizaService": "VIZA szolgáltatás",
+    "govFeeSetByAuthority": "A hatóság határozza meg",
+    "govFeeNote": "Az állami vízumdíjat közvetlenül a kiállító hatóságnak kell megfizetni, nem a VIZA-nak.",
+    "completeBeforeStart": "A folytatás előtt kérjük, töltse ki a fent kiemelt mezőket."
+  },
+  "explore": {
+    "help": "Súgó",
+    "passportLabel": "{name} útlevél",
+    "passportSub": "Vízumkövetelmények {n} úti célra · Helyezés: {rank}",
+    "freeLabel": "Vízummentes",
+    "freeNote": "papírmunka nélkül",
+    "voaLabel": "e-vízum vagy VOA",
+    "voaNote": "mi intézzük",
+    "reqLabel": "Vízum szükséges",
+    "reqNote": "nagykövetségi benyújtás",
+    "fullMap": "Teljes vízumtérkép megtekintése",
+    "grid": "Rács",
+    "map": "Térkép",
+    "mapLegendEvisa": "e-vízum és látogatói vízum",
+    "mapHint": "Vigye az egeret egy kiemelt pontra az úti cél előnézetéhez",
+    "sectionTitle": "{country} útlevéllel",
+    "seeAll": "Mind megtekintése ({n})",
+    "footnote": "A VIZA szolgáltatása ingyenes. Az állami vízumdíjat közvetlenül a kiállító hatóságnak kell megfizetni, és országonként eltérő.",
+    "fastTrack": "Gyorsított",
+    "cardType": "Típus",
+    "cardValid": "Érvényes",
+    "cardFee": "VIZA szolgáltatás",
+    "save": "Mentés",
+    "startApplication": "Igénylés indítása",
+    "catalogueUnavailable": "Jelenleg egyetlen úti célnál sem nyitott az online igénylés. Kérjük, nézzen vissza hamarosan.",
+    "choosePassport": "Válassza ki az útlevelét",
+    "searchPassport": "Útlevél országának keresése…",
+    "visaFree": "{n} vízummentes",
+    "ppFoot": "Frissítve: 2026. május · Forrás: IATA Timatic",
+    "noMatch": "Nincs találat erre: „{q}”",
+    "filters": {
+      "delivery": "Vízum kézbesítése",
+      "type": "Vízum típusa",
+      "documents": "Dokumentumok",
+      "dates": "Utazás időpontja"
+    },
+    "filterOpts": {
+      "delivery": [
+        "Bármikor",
+        "24 órán belül",
+        "3 napon belül",
+        "1 héten belül",
+        "1 hónapon belül"
+      ],
+      "type": [
+        "Minden típus",
+        "Turista",
+        "Üzleti",
+        "Munka",
+        "Tanulmányi",
+        "Digitális nomád"
+      ],
+      "documents": [
+        "Bármilyen dokumentum",
+        "Minimális (csak útlevél)",
+        "Szokásos",
+        "Részletes csomag"
+      ],
+      "dates": [
+        "Dátumok kiválasztása",
+        "Ezen a héten",
+        "Ebben a hónapban",
+        "3 hónapon belül",
+        "6 hónapon belül"
+      ]
+    }
+  },
+  "cities": {
+    "viza-test": "Élő fizetési teszt",
+    "indonesia": "Bali · Jakarta",
+    "egypt": "Kairó · Gíza",
+    "australia": "Sydney · Melbourne",
+    "saudi-arabia": "Rijád · AlUla",
+    "united-kingdom": "London · Edinburgh",
+    "vietnam": "Hanoi · Hoi An",
+    "malaysia": "KL · Penang",
+    "japan": "Tokió · Kiotó",
+    "united-states": "NYC · LA",
+    "canada": "Toronto · Vancouver",
+    "turkiye": "Isztambul · Kappadókia",
+    "thailand": "Bangkok · Phuket",
+    "united-arab-emirates": "Dubaj · Abu-Dzabi",
+    "france": "Párizs · Nizza",
+    "italy": "Róma · Firenze",
+    "india": "Delhi · Mumbai"
+  },
+  "validity": {
+    "viza-test": "Csak bemutató",
+    "indonesia": "90 nap",
+    "egypt": "90 nap",
+    "australia": "1 év",
+    "saudi-arabia": "365 nap",
+    "united-kingdom": "6 hónap",
+    "vietnam": "90 nap",
+    "malaysia": "3 hónap",
+    "japan": "90 nap",
+    "united-states": "10 év",
+    "canada": "10 év",
+    "turkiye": "180 nap",
+    "thailand": "3 hónap",
+    "united-arab-emirates": "60 nap",
+    "france": "90 nap",
+    "italy": "90 nap",
+    "india": "30 nap"
+  },
+  "passports": {
+    "SG": "Szingapúr",
+    "JP": "Japán",
+    "KR": "Dél-Korea",
+    "DE": "Németország",
+    "FR": "Franciaország",
+    "GB": "Egyesült Királyság",
+    "US": "Egyesült Államok",
+    "AU": "Ausztrália",
+    "CA": "Kanada",
+    "AE": "Egyesült Arab Emírségek",
+    "CN": "Kína",
+    "IN": "India",
+    "BR": "Brazília",
+    "PH": "Fülöp-szigetek",
+    "ID": "Indonézia",
+    "MY": "Malajzia",
+    "TH": "Thaiföld"
+  },
+  "countries": {
+    "viza-test": "VIZA teszt",
+    "indonesia": "Indonézia",
+    "egypt": "Egyiptom",
+    "australia": "Ausztrália",
+    "saudi-arabia": "Szaúd-Arábia",
+    "united-kingdom": "Egyesült Királyság",
+    "vietnam": "Vietnam",
+    "malaysia": "Malajzia",
+    "japan": "Japán",
+    "united-states": "Egyesült Államok",
+    "canada": "Kanada",
+    "turkiye": "Törökország",
+    "thailand": "Thaiföld",
+    "united-arab-emirates": "Egyesült Arab Emírségek",
+    "france": "Franciaország",
+    "italy": "Olaszország",
+    "india": "India",
+    "china": "Kína",
+    "south-korea": "Dél-Korea",
+    "schengen": "Schengen"
+  },
+  "visaTypes": {
+    "Test checkout": "Teszt fizetés",
+    "e-Visa": "e-vízum",
+    "Standard Visitor": "Standard Visitor",
+    "Visitor 600": "Visitor 600",
+    "Tourist": "Turistavízum",
+    "B1/B2": "B1/B2",
+    "eTA": "eTA",
+    "Schengen": "Schengen",
+    "eVisa": "e-vízum",
+    "Visitor visa": "Látogatói vízum",
+    "Tourist visa": "Turistavízum"
+  },
+  "careers": {
+    "hero": {
+      "nowHiring": "Most toborzunk itt:",
+      "cities": [
+        "Sanghaj",
+        "Szingapúr"
+      ],
+      "openRoles": "28 nyitott pozíció",
+      "title": "Segítsen nekünk eltüntetni<br></br><em>a határokat</em>: <u>csendben,</u><br></br>szoftversebességgel.",
+      "lead": "Hónapokig tartó vízumpapírmunkát változtatunk órákig tartó szoftveres folyamattá, olyan emberek millióinak, akik csak fel akarnak szállni egy repülőre. Hozza el a tudását egy csapatba, amely valós határidők ellen szállít.",
+      "ctaRoles": "Összes nyitott pozíció",
+      "ctaWhy": "Miért létezünk"
+    },
+    "board": {
+      "ariaLabel": "Indulási tábla a VIZA nyitott pozícióival",
+      "head": "Nyitott pozíciók · élő",
+      "live": "Időben",
+      "cols": {
+        "req": "Azon.",
+        "role": "Pozíció",
+        "office": "Iroda",
+        "status": "Állapot"
+      },
+      "rows": [
+        {
+          "role": "Staff Engineer",
+          "sub": "Dokumentumfeldolgozás",
+          "status": "Beszállás"
+        },
+        {
+          "role": "Termékdizájner",
+          "sub": "Kérelmezői folyamatok",
+          "status": "Nyitott"
+        },
+        {
+          "role": "Nagykövetségi összekötő",
+          "sub": "Kormányzati partnerségek",
+          "status": "Utolsó hívás"
+        },
+        {
+          "role": "Ügyfélműveletek",
+          "sub": "2. szintű eszkalációk",
+          "status": "Nyitott"
+        }
+      ],
+      "foot": "+24 további pozíció a fejlesztés, működés és dizájn területén",
+      "browseAll": "Összes megtekintése",
+      "chip1Label": "Toborzunk itt:",
+      "chip1Value": "4 iroda",
+      "chip2Label": "Átl. válaszidő",
+      "chip2Value": "3.2 nap az első hívásig"
+    },
+    "stats": [
+      {
+        "value": "2.4M",
+        "label": "A VIZA-n keresztül kiadott vízum tavaly"
+      },
+      {
+        "label": "Támogatott úti cél élő ügyintézéssel"
+      },
+      {
+        "label": "Jóváhagyási arány az összes vízumtípusnál 2025-ben"
+      },
+      {
+        "label": "Munkatárs Sanghajban és Szingapúrban"
+      }
+    ],
+    "mission": {
+      "eyebrow": "A történetünk",
+      "title": "A világ nagy része<br></br>még mindig<br></br><em>nyomtatott papírokkal utazik.</em>",
+      "kicker1": "2021-ben alapítottuk a VIZA-t, miután egyszer túl sok hetet töltöttünk a nagykövetségek várakoztatásában. Az emberek határokon át mozgatásának rendszere régebbi, mint az internet, és az abban elakadt emberek jobbat érdemelnek.",
+      "kicker2": "Ma egy négy irodára kiterjedő, 340 fős csapat szállít szoftvert, nyújt be dokumentumokat és működtet műveleteket 194 országban. Mi végezzük az unalmas, kimerítő munkát, hogy az utazás is olyan lehessen, mint az internet többi része: néhány koppintás, és már úton van.",
+      "founderName": "Mira Kohli",
+      "founderRole": "Társalapító és vezérigazgató · Szingapúr",
+      "beliefs": [
+        {
+          "title": "Mi egy olyan működtető cég vagyunk, amely szoftvert szállít.",
+          "body": "A VIZA fele mérnök, dizájner és termékmenedzser. A másik fele tanácsadó, működési munkatárs és dokumentumszakértő az adott országban. Egyik fél sem győz a másik nélkül."
+        },
+        {
+          "title": "A kérelmező mindig az ügyfél.",
+          "body": "A nagykövetségek, partnerek és légitársaságok mind számítanak. De az az ember, aki hajnali 3-kor a sorban állva frissít egy portált, az, akiért dolgozunk, és akihez magunkat mérjük."
+        },
+        {
+          "title": "A sebesség akkor halmozódik, ha türelmesek vagyunk a minőséggel.",
+          "body": "A szállításban gyorsak vagyunk, a visszafordíthatatlan döntésekben lassúak. Egy rossz vízumdöntés tönkreteheti az esküvőt, az állást, a temetést. Ezt a mércét akkor is tartjuk, ha lelassít minket."
+        },
+        {
+          "title": "A távolság UX-probléma, nem korlát.",
+          "body": "A csapataink négy időzónában ülnek. Az aszinkron írás, a világos felelősség és a jó dokumentációs kultúra révén cseréljük az időt bizalomra, és így szállítunk az egész világon anélkül, hogy bárkit kimerítenénk."
+        }
+      ]
+    },
+    "values": {
+      "eyebrow": "Amihez tartjuk magunkat",
+      "title": "Öt dolog, amiben hiszünk, akkor is, ha drága.",
+      "lead": "Az értékeket könnyű leírni és nehéz követni. Ez az az öt, amelyet valóban használunk a felvételnél, az értékeléseknél és a ritka nehéz döntéseknél.",
+      "cards": [
+        {
+          "title": "Mondjuk el az igazat, főleg ha az nekünk árt.",
+          "body": "Ha egy vízum nem érkezik meg időben, mondjuk meg ma, nem a repülés előtti napon. Inkább veszítünk el egy eladást, mint hogy hazugságot szállítsunk.",
+          "kicker": "A gyakorlatban → közzétett szabályzatok, változások auditja"
+        },
+        {
+          "title": "Szerezzünk lendületet. Ne csak elfoglaltnak érezzük magunkat.",
+          "body": "A döntéseket és a leszállított munkát ünnepeljük, nem az értekezleteket és a beszélgetéseket. A lényeg a küldetéshez mért teljesítmény, nem a naptárhoz mért mozgás.",
+          "kicker": "A gyakorlatban → negyedéves teljesítményértékelés"
+        },
+        {
+          "title": "Útlevelekben gondolkodjunk, ne perszónákban.",
+          "body": "A vízumszabályok állampolgárság szerintiek. „Felhasználó” nem létezik, de létezik egy fülöp-szigeteki útlevéllel rendelkező ember, aki Schengenbe igényel. Valódi embereknek építünk, nem átlagoknak.",
+          "kicker": "A gyakorlatban → útlevél-központú termékleírás"
+        },
+        {
+          "title": "Írjuk le a dolgokat. Főleg a döntéseket.",
+          "body": "Négy iroda, négy időzóna. Ha egy döntés nincs leírva, nem történt meg. A wikink kötelező olvasmány, a napi indító megbeszéléseink nem kötelezők.",
+          "kicker": "A gyakorlatban → ADR-ek, heti összefoglaló, aszinkron elsőbbség"
+        },
+        {
+          "title": "Maradjunk közel a sorhoz.",
+          "body": "Minden mérnök negyedévente egy műszakot tölt a tanácsadói szinten. Nem tervezhet ki olyan súrlódást, amelyet soha nem érzett vasárnap este 11-kor.",
+          "kicker": "A gyakorlatban → rotációs sormunkaműszakok"
+        },
+        {
+          "title": "Válasszuk a hosszú változatot.",
+          "body": "A harmincmásodperces válasz általában téves. Mély dokumentációba, megbízható forgatókönyvekbe és megálló magyarázatokba fektetünk, még akkor is, ha az egyszerű változat is megtenné.",
+          "kicker": "A gyakorlatban → beilleszkedési kézikönyv, nyilvános forgatókönyvek"
+        }
+      ]
+    },
+    "inside": {
+      "eyebrow": "A VIZA-n belül",
+      "title": "Milyen is valójában<br></br>itt dolgozni.",
+      "lead": "Két városban van irodánk, mert ott veszünk fel embereket, ahol a kérelmeket benyújtják. Hangosak vagyunk a sikereknél, csendesek a politikánál, és őszinték abban, mennyit kell még építenünk.",
+      "photos": [
+        {
+          "label": "fotó · szingapúri központ, nyitott iroda",
+          "mark": "Paya Lebar Square, SG"
+        },
+        {
+          "label": "fotó · tanácsadói sor szintje",
+          "mark": "Luoshan Rd, Sanghaj"
+        },
+        {
+          "label": "fotó · táblás ötletelés",
+          "mark": "Technikai csapatkirándulás, Bali"
+        },
+        {
+          "label": "fotó · sanghaji működési szint",
+          "mark": "Pudong, Sanghaj"
+        },
+        {
+          "label": "fotó · csapatvacsora",
+          "mark": "Teljes csapatos találkozó, Lisszabon"
+        },
+        {
+          "label": "fotó · nagykövetségi partnerlátogatás",
+          "mark": "Paya Lebar Square, SG"
+        }
+      ],
+      "pull": "„Olyan embereket veszünk fel, akiknek van véleményük a vízumokról, mielőtt csatlakoznak. A második hónapra erősebb lesz.”",
+      "pullBy": "Felix Adekunle, mérnöki alelnök",
+      "para1": "A VIZA nagy önállóságú és nagy kontextusú hely. Mindenhez lesz felelőse, valódi költségkerete, és elvárás, hogy elmagyarázza a munkája mögötti gondolatmenetet a cég többi részének.",
+      "para2": "Ha azt szeretné, hogy minden nap megmondják, mit csináljon, ez nem a megfelelő hely. Ha arra várt, hogy valaki a kezébe adja a kormányt, itt van."
+    },
+    "how": {
+      "eyebrow": "Fejlesztés és működés a VIZA-nál",
+      "title": "Hogyan halad valójában a munka.",
+      "lead": "Ha itt építkezik, nyújt be vagy tervez, így néz ki a hete. Kevesebb szertartás, több leszállított munka. Kevesebb Slack, több leírt döntés.",
+      "cells": [
+        {
+          "title": "Végponttól végpontig tartó felelősség",
+          "body": "Ön tervezi, építi, szállítja, és működteti élesben. Nincsenek átadási sorok, és nincsenek három szinttel távolabb írt ütemtervek. Ha az Öné, valóban az Öné."
+        },
+        {
+          "title": "Alapértelmezetten napi kiadások",
+          "body": "A legtöbb csapat naponta többször szállít. A visszacsatolási hurkok szándékosan szűkek, és a harmincperces visszafordítást előnyben részesítjük a háromhetes vitával szemben."
+        },
+        {
+          "title": "Valódi, kusza problémák",
+          "body": "Ez nem CRUD. Dokumentum-OCR-en, 90+ kormányzati portálhoz igazodó, késleltetésérzékeny ütemezésen és milliók által használt fogyasztói folyamatokon fog dolgozni."
+        },
+        {
+          "title": "Nyíltan magas a léc",
+          "body": "Párban csináljuk a dizájn-átnézéseket. Sorban kommentelünk a PR-eken. Hisszük, hogy az ízlés tanítható, és elvárjuk, hogy az emberek aktívan segítsenek mindenkinek maguk körül fejlődni."
+        },
+        {
+          "title": "Valódi tanulási keret",
+          "body": "$2,000 fejenként évente, kérdés nélkül, konferenciákra, könyvekre, tanfolyamokra, bármire, ami visszahat az itteni munkájára."
+        },
+        {
+          "title": "Az Ön által írt architektúra",
+          "body": "Az RFC-k mindenki számára nyitottak. Új mérnökök már az első hónapjukban alakították a központi infrastruktúrát. Ha erősebb terve van, írja le, elolvassuk."
+        }
+      ]
+    },
+    "roles": {
+      "eyebrow": "Nyitott pozíciók · hetente frissítve",
+      "title": "Legyen része az útnak.",
+      "lead": "28 nyitott pozíció négy irodában. Fejlesztésben, dizájnban, működésben, tanácsadásban és partnerségekben veszünk fel embereket. Az új pozíciók hétfőn jelennek meg.",
+      "allDepartments": "Minden részleg",
+      "deps": {
+        "eng": "Fejlesztés",
+        "design": "Dizájn",
+        "ops": "Működés",
+        "consult": "Tanácsadók",
+        "data": "Adat és gépi tanulás",
+        "gtm": "Marketing és piacra lépés"
+      },
+      "showing": "Megjelenítve: <strong>{count}</strong> pozíció · minden helyszín · minden csapat",
+      "anyLocation": "Bármely helyszín",
+      "groupCount": "{count} nyitott",
+      "posSub": "{team} · képességek és ítélőképesség alapján veszünk fel, nem hírnév alapján",
+      "locationLabel": "Helyszín",
+      "typeLabel": "Típus",
+      "fullTime": "Teljes munkaidő",
+      "viewRole": "Pozíció megtekintése",
+      "locations": {
+        "sg": "Szingapúr",
+        "sf": "Sanghaj",
+        "ldn": "Szingapúr",
+        "dxb": "Sanghaj"
+      },
+      "jobs": {
+        "backendPayments": "Vezető backend fejlesztő, Platform",
+        "staffDocPipeline": "Staff Engineer, Dokumentumfeldolgozás",
+        "iosApplicant": "iOS fejlesztő, Kérelmezői alkalmazás",
+        "platformInfra": "Platformmérnök, Infrastruktúra és biztonság",
+        "frontendConsole": "Frontend fejlesztő, Tanácsadói konzol",
+        "emWeb": "Fejlesztési vezető, Web",
+        "sre": "Üzemeltetésmegbízhatósági mérnök (SRE)",
+        "androidSenior": "Vezető Android fejlesztő",
+        "leadEmbassy": "Fejlesztési csapatvezető, Nagykövetségi integrációk",
+        "productDesignerApplicant": "Vezető termékdizájner, Kérelmezői folyamat",
+        "brandDesigner": "Arculattervező",
+        "designLeadConsultant": "Dizájnvezető, Tanácsadói eszközök",
+        "headOpsMe": "Működési vezető, Közel-Kelet",
+        "visaOpsSchengen": "Vízumműveleti vezető, Schengen",
+        "logistics": "Logisztikai és futárvezető",
+        "processDocQa": "Folyamatmérnök, Dokumentumminőség-ellenőrzés",
+        "opsAnalyst": "Működési elemző, Foglalások",
+        "consultSchengen": "Vízumtanácsadó, Schengen",
+        "consultUs": "Vízumtanácsadó, USA B1/B2",
+        "consultUae": "Vízumtanácsadó, EAE tartózkodás",
+        "consultStudent": "Vezető tanácsadó, Diákvízumok",
+        "consultApac": "Tanácsadói csapatvezető, Ázsia és a Csendes-óceán térsége",
+        "consultUk": "Vízumtanácsadó, Egyesült Királyság",
+        "dataScientist": "Vezető adatkutató, Jóváhagyási modellezés",
+        "mlOcr": "Gépi tanulási mérnök, OCR és dokumentum-MI",
+        "perfMarketing": "Teljesítménymarketing-menedzser",
+        "contentLead": "Tartalmi vezető, Történetmesélés",
+        "lifecycleCrm": "Életciklus- és CRM-menedzser"
+      }
+    },
+    "fellowship": {
+      "tag": "▲ VIZA Launchpad · 12 hetes program",
+      "title": "Tizenkét hét. Egy termékcsapat.<br></br><em>Egy esély, hogy szállítson valamit.</em>",
+      "para1": "A Launchpad a pályakezdő mérnökök, termékmenedzserek és dizájnerek rezidens programja, azoké, akiknek egyébként még két év „tapasztalatra” lenne szükségük, mielőtt valódi lehetőséget kapnának.",
+      "para2": "Vezető kollégákkal párban dolgozik, egy valódi termékfelület felelőse lesz az indulástól a kiadásig, és olyasmivel távozik, amit emberek milliói fognak használni. A csoport ~60%-a teljes munkaidős ajánlatot kap.",
+      "meta": [
+        {
+          "k": "Időtartam",
+          "v": "12 hét"
+        },
+        {
+          "k": "Helyszín",
+          "v": "Irodában, bármelyik központban"
+        },
+        {
+          "k": "Ösztöndíj",
+          "v": "Piaci szint feletti"
+        },
+        {
+          "k": "Következő csoport",
+          "v": "2026. szeptember"
+        }
+      ],
+      "apply": "Jelentkezés a Launchpadre",
+      "readCohort": "Olvasson a 2025-ös csoportról",
+      "projects": [
+        {
+          "k": "2024 · Fejlesztés",
+          "title": "OCR-folyamat újraírása",
+          "meta1": "Élesbe állítva",
+          "meta2": "3.2× gyorsabb"
+        },
+        {
+          "k": "2025 · Dizájn",
+          "title": "Schengen-folyamat újratervezése",
+          "meta1": "14 ország élő",
+          "meta2": "↑ 22% konv."
+        },
+        {
+          "k": "2025 · Termék",
+          "title": "Nagykövetségi időpont-ütemező",
+          "meta1": "9 nagykövetség",
+          "meta2": "40k időpont/hó"
+        }
+      ]
+    },
+    "benefits": {
+      "eyebrow": "Számíthat ránk (tényleg)",
+      "title": "Az unalmas dolgok,<br></br>rendesen elintézve.",
+      "lead": "Nem gondoljuk, hogy a juttatások extra előnyök. Ez az az alap, amely lehetővé teszi, hogy az emberek a legjobbat nyújtsák. Itt van, mit kap minden VIZA munkatárs, minden irodában, az első naptól.",
+      "items": [
+        {
+          "title": "Átfogó egészségügy, rendezve.",
+          "body": "Teljes orvosi, fogászati és látásellátás az első naptól, Önnek, a párjának és a gyerekeinek. Mi fizetjük a díjat, önrészes trükkök nélkül."
+        },
+        {
+          "title": "Építsen vagyont, ne csak fizetést.",
+          "body": "Piaci szint feletti alapbér minden piacon, ahol felveszünk, plusz bőkezű részvénycsomag, amely mérföldkövekhez kötött, nem csak az eltöltött évekhez. Kétévente frissítjük."
+        },
+        {
+          "title": "Tanuljon azt, ami valóban számít.",
+          "body": "$2,000/év tanulási keret, havi belső tudásmegosztók, és idő a naptárban, nem csak engedély arra, hogy elvégezze azt a tanfolyamot vagy elmenjen arra a konferenciára."
+        },
+        {
+          "title": "Örvendeztesse meg az ügyfeleket, mintha a saját pénze lenne.",
+          "body": "Minden kérelmező kap egy $100 keretet a jóindulat kifejezésére a kötelezőn felül. Jóváhagyás és eszkaláció nélkül: oldja meg, aztán írja le, mi történt."
+        },
+        {
+          "title": "A lélek előbbre való.",
+          "body": "Bizalmas, szakmai mentálhigiénés támogatás, biztosítási akadályok nélkül. Plusz havonta három „megbeszélésmentes” nap, vállalati szinten."
+        },
+        {
+          "title": "Utazási előnyök (muszáj volt).",
+          "body": "Mi vízumokkal foglalkozunk, a csapatunk pedig utazzon a mi költségünkre. $4k/év utazási keret, plusz a VIZA minden vízumot elintéz, amelyre szüksége lehet, azonnal, belsőleg."
+        },
+        {
+          "title": "Bőkezű, valódi szabadság.",
+          "body": "30 nap fizetett szabadság, plusz az Ön országának ünnepnapjai, plusz egy fizetett hét december 24. és január 1. között. Követjük a kivételt, és arra ösztönözzük az embereket, hogy többet vegyenek ki, ne kevesebbet."
+        },
+        {
+          "title": "Felszerelés, kérdés nélkül.",
+          "body": "Az első napon válassza ki a laptopját, monitorját és székét. Otthoni munkavégzési támogatás a beállításához. Megbízunk Önben, hogy tudja, mire van szüksége a jó munkához."
+        },
+        {
+          "title": "Szülői szabadság, amely tényleg működik.",
+          "body": "20 hét az elsődleges gondozóknak, 12 a másodlagosaknak, teljes fizetéssel. Plusz fokozatos visszatérés, hogy ne teljes gőzzel kelljen visszatérnie az első napon."
+        }
+      ]
+    },
+    "offices": {
+      "eyebrow": "Ahol dolgozunk",
+      "title": "Két iroda, egy termék.",
+      "lead": "A nagykövetségek, partnerek és az általunk kiszolgált piacok közelében veszünk fel embereket. Minden irodában vannak mérnökök és működési munkatársak is, nem választjuk szét az építő csapatokat azoktól, akik a szintet működtetik.",
+      "cards": [
+        {
+          "photo": "fotó · Sanghaj",
+          "open": "6 nyitott",
+          "name": "Sanghaj",
+          "addr1": "Luoshan Road 1502. sikátor,",
+          "addr2": "Kína (Sanghaj) Kísérleti Szabadkereskedelmi Övezet",
+          "tz": "GMT+8 · Kínai működés",
+          "since": "2023 óta"
+        },
+        {
+          "photo": "fotó · szingapúri központ",
+          "open": "12 nyitott",
+          "name": "Szingapúr",
+          "addr1": "Paya Lebar Road 60., #06-28, Paya Lebar Square,",
+          "addr2": "Szingapúr 409051",
+          "tz": "GMT+8 · Ázsia-Csendes-óceáni központ",
+          "since": "Központ · 2021 óta"
+        }
+      ]
+    },
+    "ctaStrip": {
+      "title": "Nem látja a saját pozícióját,<br></br>de csatlakozna?",
+      "body": "Ha szokatlan a háttere, és úgy gondolja, segítene nekünk gyorsabban mozgatni a világ utazóit, szívesen hallunk Önről. Vettünk már fel buszsofőrt, volt nagykövetségi munkatársat és ügyvédet. Nincs típusunk.",
+      "lead": "Általános jelentkezés",
+      "cta": "Meséljen a történetéről",
+      "note": "7 napon belül válaszolunk, még akkor is, ha nemleges."
+    },
+    "footer": {
+      "tagline": "A VIZA segít vízumot tervezni, igényelni és követni a világ bármely pontjára.",
+      "company": "Cég",
+      "products": "Termékek",
+      "offices": "Irodák",
+      "careers": "Karrier",
+      "contact": "Kapcsolat",
+      "security": "Biztonság",
+      "privacy": "Adatvédelem",
+      "terms": "Feltételek",
+      "prodVisaReq": "Vízumkövetelmények",
+      "prodSchengen": "Schengen időpontfigyelő",
+      "prodPhoto": "Vízumfotó-készítő",
+      "prodHelpline": "VIZA vészhelyzeti segélyvonal",
+      "prodStudent": "Diákvízum",
+      "officeSg": "Szingapúr, központ",
+      "officeSf": "Sanghaj",
+      "copyright": "© VIZA, Minden jog fenntartva"
+    }
+  },
+  "security": {
+    "hero": {
+      "eyebrow": "Biztonság a VIZA-nál · legutóbb frissítve: 2026. május",
+      "title": "Privát. Átlátható.<br></br><em>Alapból biztonságos.</em>",
+      "lead": "A világ minden tájáról érkező ügyfelek bíznak ránk millió érzékeny dokumentumot: útleveleket, bankszámlakivonatokat, fényképeket. Itt pontosan leírjuk, hogyan gyűjtjük, tároljuk őket, és hogyan bizonyítjuk, hogy jól csináljuk.",
+      "ctaPrimary": "Hogyan védjük az Ön adatait",
+      "ctaVdp": "Sebezhetőség bejelentése"
+    },
+    "clearance": {
+      "republicKey": "Köztársaság:",
+      "officeKey": "Kiállító hivatal",
+      "officeVal": "Bizalom és biztonság",
+      "title": "Biztonsági tanúsítvány /<br></br>Ügyféladatok",
+      "grid": {
+        "encryption": {
+          "k": "Titkosítás",
+          "v": "AES-256 / TLS 1.3"
+        },
+        "region": {
+          "k": "Régió",
+          "v": "SG · US · EU"
+        },
+        "audit": {
+          "k": "Auditok gyakorisága",
+          "v": "Negyedévente"
+        },
+        "retention": {
+          "k": "Megőrzés",
+          "v": "legfeljebb 90 nap"
+        }
+      },
+      "referenceKey": "Hivatkozás",
+      "glyph": "JÓVÁHAGYVA<br></br>VIZA · 26"
+    },
+    "chips": {
+      "transitLabel": "Átvitel közben",
+      "transitVal": "Végpontok közötti TLS 1.3",
+      "restLabel": "Tároláskor",
+      "restVal": "AES-256, régióhoz kötve"
+    },
+    "stats": {
+      "docs": {
+        "value": "2.4M",
+        "label": "Feldolgozott dokumentum 2025-ben, ügyféladat-szivárgás nélkül"
+      },
+      "retention": {
+        "unit": "n",
+        "label": "A forrásdokumentumok maximális megőrzési ideje a kiállítás után"
+      },
+      "pentests": {
+        "label": "Külső behatolási tesztek, az összes jelentést belső használatra közzétettük"
+      },
+      "ack": {
+        "unit": "ó",
+        "label": "Egy bejelentett sebezhetőség visszaigazolásának mediánideje"
+      }
+    },
+    "docs": {
+      "eyebrow": "Mit gyűjtünk",
+      "title": "Öt dokumentumtípus.<br></br><em>Semmi több.</em>",
+      "copy1": "A vízumkérelem papírmunka. Csak azt gyűjtjük, amit a nagykövetség kifejezetten kér, és ahol lehet, anonimizálunk. Minden dokumentum egyetlen kérelemhez kötődik, átvételkor titkosítjuk, és rögzített ütemezés szerint töröljük.",
+      "copy2": "Soha nem adjuk el az adatait. Nem osztjuk meg harmadik féllel, kivéve a vízumügyében közvetlenül érintett konzulátust vagy partnert.",
+      "cards": {
+        "payment": {
+          "name": "Fizetési adatok",
+          "meta": "nem gyűjtjük"
+        },
+        "photos": {
+          "name": "Vízumfotók",
+          "meta": "feldolgozva · legfeljebb 90 nap"
+        },
+        "bank": {
+          "name": "Bankszámlakivonatok",
+          "meta": "maszkolva · csak PDF"
+        },
+        "pastVisas": {
+          "name": "Korábbi vízumok",
+          "meta": "csak olvasható · OCR"
+        },
+        "passport": {
+          "name": "Útlevél",
+          "meta": "MRZ kiolvasva"
+        }
+      }
+    },
+    "features": {
+      "eyebrow": "Hét ellenőrzés, mindig bekapcsolva",
+      "title": "Hogyan marad az adata<br></br>az Öné, végpontig <em>védve.</em>",
+      "intro": "A VIZA-nál minden bájt alapállapota a „titkosított, hatókörhöz kötött és időben korlátozott”. Ezt a hét ellenőrzés biztosítja. Nem törekvések, hanem ami ma ténylegesen be van építve a platformba.",
+      "cells": {
+        "minimise": {
+          "title": "Adatminimalizálás és anonimizálás",
+          "body": "Csak azt gyűjtjük, amit egy nagykövetség vagy partner az adott kérelemhez ténylegesen megkövetel, és ahol a platform többi része engedi, anonimizálunk. Azok a mezők, amelyeket nem lát az űrlapjainkon, olyan mezők, amelyeket nem tárolunk.",
+          "why": "<strong>Miért:</strong> egy adatvédelmi incidens nem fedhet fel olyan adatot, amelyet soha nem gyűjtöttünk."
+        },
+        "payments": {
+          "title": "Nincsenek fizetési adatok",
+          "body": "A VIZA szolgáltatása ingyenes, és nem fogadunk el fizetéseket, ezért kártyaszámot soha nem kérünk, nem látunk és nem tárolunk.",
+          "why": "<strong>Miért:</strong> amit soha nem birtoklunk, azt nem lehet ellopni."
+        },
+        "atRest": {
+          "title": "Titkosítás tároláskor",
+          "body": "A VIZA szervereken minden dokumentum, üzenet és metaadat-mező AES-256 titkosítással védett, mielőtt a lemezre kerül. A kulcsokat automatikusan forgatjuk, és hardveresen védett KMS-ben tároljuk, amelyet még az infrastruktúra-csapatunk sem tud közvetlenül olvasni.",
+          "why": "<strong>Miért:</strong> az ellopott meghajtók vagy biztonsági mentések kulcsok nélkül olvashatatlanok maradnak."
+        },
+        "inTransit": {
+          "title": "Végpontok közötti titkosítás",
+          "body": "Az Ön eszköze, a szervereink és a partner konzulátusok közötti teljes forgalom szigorú rögzítéssel TLS 1.3-at használ. A dokumentumfeltöltések külön, aláírt csatornán mennek, így még a hálózati szintű támadók sem látják, mit küld.",
+          "why": "<strong>Miért:</strong> ellenséges hálózatok, például a repülőtéri Wi-Fi sem olvashatják el a kérelmét."
+        },
+        "audits": {
+          "title": "Rendszeres biztonsági auditok",
+          "body": "Negyedévente külső behatolási tesztet, évente SOC 2 Type II auditot, folyamatosan pedig automatizált sebezhetőségi vizsgálatot futtatunk. Minden megállapítást javítási határidővel naplózunk, a lejárt tételek pedig riasztják a mérnöki vezetőt.",
+          "why": "<strong>Miért:</strong> a fenyegetések változnak, a védelmünket pedig időzítve ellenőrizzük velük szemben."
+        },
+        "access": {
+          "title": "Biztonságos hozzáférés-szabályozás",
+          "body": "Az ügyféladatokhoz való belső hozzáférés szerepkörhöz kötött, kérésenként auditált, és időben korlátozott emeléssel adjuk. A tanácsadók csak azt a kérelmet látják, amelyen éppen dolgoznak. Minden olvasást 12 hónapig naplózunk.",
+          "why": "<strong>Miért:</strong> a belső hibák és visszaélések behatároltak, visszavezethetők és ellenőrizhetők."
+        },
+        "education": {
+          "title": "Felhasználói oktatás és tudatosság",
+          "body": "A biztonság legnehezebb része az, amelyet nem tudunk Ön helyett megoldani. Közérthető útmutatókat küldünk adathalászatról, útlevélfotó-csalásokról és hamis nagykövetségi SMS-ekről, amint elkezdi a kérelmet, és a termékben is újra megjelenítjük őket, ha valami gyanúsnak tűnik. Ön az utolsó védvonal, és inkább felkészítjük, mint hibáztatjuk.",
+          "why": "<strong>Miért:</strong> a jól tájékozott kérelmező a legolcsóbb és leghatékonyabb biztonsági ellenőrzésünk."
+        }
+      }
+    },
+    "vdp": {
+      "tag": "▲ Sebezhetőség-bejelentés · minden kutató számára nyitott",
+      "title": "Talált valamit?<br></br><em>Szeretnénk tudni róla.</em>",
+      "p1": "A felhasználóink és partnereink biztonsága mindennél fontosabb. Ha úgy gondolja, hogy valódi sebezhetőséget talált a VIZA szolgáltatásaiban, szeretnénk, ha közvetlenül szólna nekünk, és tisztelettel, gyorsan együtt dolgozunk a javításon.",
+      "p2": "Küldje el a megállapításait a <strong>security@viza.it.com</strong> címre. Egy munkanapon belül visszaigazoljuk, még akkor is, ha kiderül, hogy már ismert vagy hatókörön kívüli.",
+      "meta": {
+        "ack": {
+          "k": "Visszaigazolás",
+          "v": "'<' 24 óra"
+        },
+        "triage": {
+          "k": "Elbírálás",
+          "v": "3 munkanap"
+        },
+        "lang": {
+          "k": "Nyelvek",
+          "v": "EN · ID · AR"
+        },
+        "pgp": {
+          "k": "PGP-kulcs",
+          "v": "0xVIZA · 2026"
+        }
+      },
+      "ctaEmail": "E-mail: security@viza.it.com",
+      "ctaScope": "A hatókör elolvasása",
+      "terminal": {
+        "title": "draft-report · security@viza.it.com",
+        "l1": "# sebezhetőségi jelentés",
+        "typeKey": "típus:",
+        "typeVal": "authentication-bypass",
+        "urlKey": "url:",
+        "reproKey": "reprodukció:",
+        "reproVal": "[1-4. lépés]",
+        "impactKey": "hatás:",
+        "impactVal": "fiókátvétel",
+        "pocKey": "poc:",
+        "l7": "# ↳ titkosítva ehhez: 0xVIZA",
+        "send": "küldés"
+      }
+    },
+    "report": {
+      "eyebrow": "Sebezhetőség bejelentése",
+      "title": "Mit írjon a<br></br>jelentésbe, és <em>mit ne.</em>",
+      "intro": "Egy jó jelentés mindkettőnknek egy hetet spórol. Itt a formátum, amellyel a leggyorsabban elbíráljuk, és azok a dolgok, amelyeket inkább nem szeretnénk megkapni a postaládánkba.",
+      "include": {
+        "heading": "Kérjük, adja meg",
+        "sub": "Öt mező. Minél világosabbak, annál gyorsabban tudjuk megerősíteni és javítani.",
+        "items": {
+          "type": "<strong>A probléma típusa</strong>, pl. hitelesítés, hozzáférés-szabályozás, injekció, IDOR, SSRF.",
+          "steps": "<strong>Egyértelmű lépések a reprodukáláshoz</strong>, számozva, sorrendben, lehetőleg tiszta munkamenetben.",
+          "impact": "<strong>Lehetséges biztonsági hatás</strong>, hogy egy támadó mit tehetne ezzel, közérthetően.",
+          "poc": "<strong>Bizonyító példa</strong>, lehetőleg képernyőképek vagy rövid képernyőfelvétel, másodsorban naplók."
+        }
+      },
+      "dontSend": {
+        "heading": "Kérjük, ne küldje",
+        "sub": "Ezek veszélyesek, haszontalanok, vagy mindkettő, és átvételkor törölnünk kell őket.",
+        "items": {
+          "secrets": "<strong>Jelszavakat vagy hitelesítési tokeneket</strong>, sem a sajátját, sem másét. A támadási módot mutassa meg, ne a titkot.",
+          "malware": "<strong>Nyers kártevőmintákat vagy lopott adatok naplóit.</strong> Írja le, mit látott, ne csatolja.",
+          "scanners": "<strong>Nagy, automatizált szkennerjelentéseket</strong> kézzel kiválasztott, bemutatott megállapítás nélkül.",
+          "customerData": "<strong>Ügyfelek személyes adatait vagy dokumentumait</strong>, még akkor sem, ha a megállapítása ezeken alapult.",
+          "socialEng": "<strong>Felvételeket social engineering kísérletekről</strong> a munkatársaink vagy tanácsadóink ellen."
+        }
+      }
+    },
+    "scope": {
+      "eyebrow": "A program hatóköre",
+      "title": "Mi tartozik bele, és mi nem.",
+      "intro": "Ha nem biztos benne, hogy egy jelentés beleesik-e ebbe a listába, küldje el, és kérdezzen rá. Inkább elbíráljuk és haladunk tovább, mintsem hogy Ön egy valódi problémát magában tartson, mert a határ nem volt egyértelmű.",
+      "fileRef": "/security/scope.md · v6",
+      "in": {
+        "pill": "Hatókörön belül",
+        "heading": "Jelentések, amelyeket aktívan elbírálunk",
+        "items": {
+          "web": "A VIZA webalkalmazásai és API-jai a <code>*.viza.com</code> alatt, beleértve a kérelmezői portált, a tanácsadói konzolt és a partnervégpontokat.",
+          "infra": "A VIZA tulajdonában lévő infrastruktúra és szolgáltatások: hitelesítés, dokumentumfeldolgozás, ütemezés.",
+          "mobile": "A VIZA fejlesztői fiókja alatt közzétett mobilalkalmazások (iOS, Android).",
+          "marketing": "A VIZA által ellenőrzött domaineken lévő nyilvános marketing- és tartalmi oldalak."
+        }
+      },
+      "out": {
+        "pill": "Hatókörön kívül",
+        "heading": "Jelentések, amelyeket ezen a programon belül nem tudunk kezelni",
+        "items": {
+          "devices": "Feltört felhasználói eszközökből, böngészőbővítményekből vagy ellopott hitelesítő adatokból eredő problémák.",
+          "phishing": "A VIZA munkatársait, partnereit vagy tanácsadóit célzó social engineering vagy adathalász támadások.",
+          "thirdParty": "Harmadik felek szolgáltatásai vagy integrációi, amelyeket nem közvetlenül a VIZA üzemeltet (konzulátusi portálok, futáros oldalak).",
+          "scanners": "Automatizált szkennerek megállapításai bizonyított, valós kihasználhatóság nélkül.",
+          "headers": "Hiányzó biztonsági fejlécek vagy általános ajánlások kihasználási út nélkül."
+        }
+      }
+    },
+    "pledge": {
+      "eyebrow": "Felelős bejelentés",
+      "title": "Az egyezség, amelyet<br></br>egymással kötünk.",
+      "intro": "A bejelentés azért működik, mert mindkét fél jóhiszeműen jár el. Itt van, mit kérünk Öntől, és mit kérhet számon rajtunk cserébe, leírva, hogy senkinek ne kelljen találgatnia.",
+      "researcher": {
+        "kicker": "Amit kérünk Öntől",
+        "title": "A kutatók <em>vállalásai.</em>",
+        "p": "A jelentés beküldésével vállalja, hogy jóhiszeműen, a program szellemében jár el, nem csak a betűje szerint.",
+        "items": {
+          "1": "Járjon el jóhiszeműen: a kutatás közben kerülje az adatvédelmi sérelmet, az adatok megsemmisítését és a szolgáltatás megzavarását.",
+          "2": "Ne használjon ki egy hibát többre, mint ami a megerősítéséhez minimálisan szükséges, és soha ne férjen hozzá olyan adathoz, amely nem a sajátja.",
+          "3": "Tartsa bizalmasan a sebezhetőség részleteit, amíg ki nem adtuk a javítást, és meg nem erősítettük Önnel.",
+          "4": "A VIZA biztonsági csapatának előzetes írásbeli hozzájárulása nélkül ne hozza nyilvánosságra a megállapításait."
+        }
+      },
+      "viza": {
+        "kicker": "Amit számon kérhet rajtunk",
+        "title": "A VIZA <em>vállalásai.</em>",
+        "p": "Cserébe nem tűnünk el a bejelentők elől, nem vitatkozunk a súlyosságról, hogy elkerüljük a javítást, és nem perelünk be senkit, aki segít nekünk.",
+        "items": {
+          "1": "Minden érvényes jelentést átnézünk, és egy munkanapon belül válaszolunk, a súlyosságtól függetlenül.",
+          "2": "Tisztelettel kommunikálunk, védekező stílus és semmitmondó „így működik, ahogy tervezték” válaszok nélkül.",
+          "3": "Ahol szükséges, megtesszük a megfelelő helyreállítási lépéseket, és szólunk, amikor a javítás elkészült.",
+          "4": "Beleegyezésével megnevezzük Önt a biztonsági változásnaplónkban, amikor a probléma megoldódott."
+        }
+      }
+    },
+    "legal": {
+      "eyebrow": "Jogi tudnivalók és jutalmak",
+      "title": "Jogi védelem, jutalmak<br></br>és az apró betűs rész.",
+      "intro": "Ha jóhiszeműen betartja ezt a szabályzatot, a kutatását engedélyezettnek tekintjük. Az oldal többi része az unalmas, de fontos rész, kiírva, nem elrejtve.",
+      "cards": {
+        "safeHarbour": {
+          "title": "Jogi védelem",
+          "body": "Ha jóhiszeműen betartja ezt a szabályzatot, a VIZA nem indít jogi lépéseket Ön ellen a kutatásával kapcsolatos véletlen vagy szándékolatlan jogsértések miatt. Továbbra is elvárjuk, hogy betartsa a vonatkozó jogszabályokat."
+        },
+        "rewards": {
+          "title": "Jutalmak és bug bounty",
+          "body": "A VIZA jelenleg nem működtet nyilvános bug bounty programot. Az érvényes, felelősen bejelentett problémákért mérlegelés alapján elismerést adunk, amelyet a hatás, az újszerűség és a jelentés minősége alapján értékelünk.",
+          "meta": "mérlegelés alapján · eseti döntés"
+        },
+        "updates": {
+          "title": "A program frissítései",
+          "body": "A VIZA fenntartja a jogot, hogy a programot bármikor módosítsa vagy megszüntesse. Ha nem biztos benne, hogy a kutatása megfelel a szabályzatnak, kérjük, írjon a security@viza.it.com címre, <em>mielőtt</em> továbblép.",
+          "meta": "legutóbb módosítva · 2026. május"
+        }
+      }
+    },
+    "cta": {
+      "title": "Valami nem stimmel?<br></br>Szóljon a biztonsági csapatunknak.",
+      "body": "Inkább hallunk kétszer egy kis észrevételről, mint hogy egyszer lemaradjunk egy nagyról. A jelentések közvetlenül a biztonsági csapat egy valódi tagjához kerülnek, jegykezelő portál és automatikus elbíráló robot nélkül.",
+      "lead": "Közvetlenül a biztonsági csapatnak",
+      "small": "Mediánválasz 24 órán belül, a hét minden napján."
+    },
+    "footer": {
+      "tagline": "A VIZA segít vízumot tervezni, igényelni és követni a világ bármely pontjára.",
+      "company": "Cég",
+      "careers": "Karrier",
+      "contact": "Kapcsolat",
+      "security": "Biztonság",
+      "privacy": "Adatvédelem",
+      "terms": "Feltételek",
+      "products": "Termékek",
+      "prodVisaReq": "Vízumkövetelmények",
+      "prodSchengen": "Schengen időpontfigyelő",
+      "prodPhoto": "Vízumfotó-készítő",
+      "prodHelpline": "VIZA vészhelyzeti segélyvonal",
+      "prodStudent": "Diákvízum",
+      "offices": "Irodák",
+      "officeSg": "Szingapúr, központ",
+      "officeSf": "Sanghaj",
+      "copyright": "© VIZA, Minden jog fenntartva"
+    }
+  },
+  "status": {
+    "crumbHome": "Átláthatóság",
+    "crumbHere": "Rendszerállapot",
+    "hero": {
+      "title": "Rendszerállapot",
+      "lead": "Bizonyítékokkal alátámasztott elérhetőség a VIZA-ra és a partner kormányzati vízumportálokra. Minden alábbi százalék, idővonal-sáv és incidens egy rögzített szintetikus ellenőrzésből származik."
+    },
+    "console": {
+      "title": "VIZA megbízhatóság · Élő",
+      "live": "Ellenőrizve",
+      "unverified": "Nem ellenőrzött",
+      "allOperational": "Minden rendszer működik",
+      "degraded": "Néhány rendszer korlátozottan működik",
+      "majorOutage": "Egy figyelt rendszer nem érhető el",
+      "dataUnavailable": "A monitorozási adatok nem érhetők el",
+      "lastChecked": "Legutóbbi rögzített ellenőrzés: {time}",
+      "noChecks": "Még nem rögzítettek lezárt ellenőrzést",
+      "kUptime": "Sikeres ellenőrzések 90 napra",
+      "kMonitors": "Figyelt végpontok",
+      "kIncidents": "Aktív incidens"
+    },
+    "subnav": {
+      "current": "Jelenlegi állapot",
+      "incidents": "Korábbi incidensek",
+      "subscribe": "Feliratkozás",
+      "searchPlaceholder": "Országok keresése",
+      "subscribeBtn": "Feliratkozás a frissítésekre"
+    },
+    "platform": {
+      "title": "VIZA platform",
+      "realMeta": "5 percenként ellenőrizve · {count} végpont",
+      "meta": "5 percenként ellenőrizve",
+      "name": "VIZA kérelmezési platform",
+      "sub": "Nyilvános VIZA szolgáltatások"
+    },
+    "uptime": {
+      "ago": "90 napja",
+      "today": "Ma",
+      "pct": "{pct}% sikeres ellenőrzés",
+      "noData": "Nincs rögzített ellenőrzés"
+    },
+    "dayObservation": "{date}: {checks} rögzített ellenőrzés",
+    "dayNoData": "{date}: nincs rögzített adat",
+    "dayTitle": "{n}. nap",
+    "statusLabels": {
+      "op": "Működik",
+      "deg": "Korlátozottan működik",
+      "part": "Részleges kiesés",
+      "maj": "Nem érhető el",
+      "none": "Nincs aktuális adat"
+    },
+    "lastChecked": "Ellenőrizve: {time}",
+    "monitorStale": "Hiányzó vagy elavult ellenőrzés",
+    "monitoringUnavailable": "Az állapot-API-nak nincs friss bizonyítéka. A VIZA nem jelenít meg gyorsítótárazott vagy generált elérhetőséget a szolgáltatás aktuális állapotaként.",
+    "noSearchResults": "Egyetlen figyelt ország sem felel meg a keresésnek.",
+    "noRecordedIncidents": "Az elmúlt 90 napban a rögzített ellenőrzésekből nem származtattak incidenst.",
+    "incidentCount": "{count, plural, one {# incidens} other {# incidens}}",
+    "incidentRecovered": "A rögzített ellenőrzések szerint ez a szolgáltatás helyreállt.",
+    "noIssues": "Nincs aktív probléma",
+    "activeIncident": "Aktív incidens",
+    "portalsHead": {
+      "title": "Kormányzati portálok",
+      "lead": "Egy korlátozott szintetikus kérés ötpercenként ellenőrzi az egyes beállított portálokat. A szürke előzmény azt jelenti, hogy nem rögzítettek megfigyelést, és soha nem töltjük ki becsült adatokkal."
+    },
+    "incidentsHead": {
+      "title": "Korábbi incidensek",
+      "lead": "Az incidensek a tárolt monitorállapot-váltásokból nyílnak meg és záródnak le. Ez a működési elérhetőséget mutatja, nem a kérelmező személyes vízumügyének állapotát."
+    },
+    "tags": {
+      "identified": "Azonosítva",
+      "investigating": "Vizsgálat alatt",
+      "resolved": "Megoldva"
+    },
+    "portals": {
+      "AE": {
+        "name": "Egyesült Arab Emírségek",
+        "sub": "GDRFA · ICA portálok"
+      },
+      "AM": {
+        "name": "Örményország",
+        "sub": "e-vízum portál"
+      },
+      "AU": {
+        "name": "Ausztrália",
+        "sub": "ImmiAccount"
+      },
+      "AZ": {
+        "name": "Azerbajdzsán",
+        "sub": "ASAN Visa"
+      },
+      "DE": {
+        "name": "Németország",
+        "sub": "VIDEX · konzulátusi időpontok"
+      },
+      "DK": {
+        "name": "Dánia"
+      },
+      "EG": {
+        "name": "Egyiptom",
+        "sub": "e-vízum portál"
+      },
+      "FI": {
+        "name": "Finnország",
+        "sub": "EnterFinland"
+      },
+      "FR": {
+        "name": "Franciaország",
+        "sub": "France-Visas"
+      },
+      "GB": {
+        "name": "Egyesült Királyság",
+        "sub": "UKVCAS · UK Visas",
+        "bannerText": "Egyes kérelemtípusoknál kiesés van.",
+        "bannerLink": "Incidens idővonalának megtekintése"
+      },
+      "GE": {
+        "name": "Grúzia"
+      },
+      "GR": {
+        "name": "Görögország",
+        "sub": "AEGEAN · konzuli"
+      },
+      "HK": {
+        "name": "Hongkong",
+        "sub": "Bevándorlási eVisa"
+      },
+      "ID": {
+        "name": "Indonézia",
+        "sub": "e-Visa Indonesia"
+      },
+      "IN": {
+        "name": "India",
+        "sub": "Indian Visa Online"
+      },
+      "JO": {
+        "name": "Jordánia"
+      },
+      "KE": {
+        "name": "Kenya",
+        "sub": "eCitizen / eVisa"
+      },
+      "KH": {
+        "name": "Kambodzsa"
+      },
+      "LK": {
+        "name": "Srí Lanka",
+        "sub": "ETA portál"
+      },
+      "MA": {
+        "name": "Marokkó"
+      },
+      "TH": {
+        "name": "Thaiföld",
+        "sub": "Thailand e-Visa"
+      }
+    },
+    "incidents": {
+      "count": "<strong>{count}</strong> {count, plural, one {országban} other {országban}} teljesítményproblémák léptek fel",
+      "events": "{count, plural, one {# esemény} other {# esemény}}",
+      "days": [
+        {
+          "date": "2026. május 10.",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "május 10., du. 3:05",
+                  "desc": "Az incidens megoldódott. A szolgáltatás visszatért a normál működéshez."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "május 10., du. 5:05",
+                  "desc": "Az incidens megoldódott. A szolgáltatás visszatért a normál működéshez."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2026. május 9.",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "május 9., du. 10:50",
+                  "desc": "Megnövekedett hibaarányt vizsgálunk."
+                },
+                {
+                  "time": "május 10., éjjel 12:20",
+                  "desc": "A súlyosság nőtt: a korlátozott működésből részleges kiesés lett."
+                },
+                {
+                  "time": "május 10., de. 2:50",
+                  "desc": "A súlyosság nőtt: a részleges kiesésből jelentős kiesés lett."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "május 9., du. 3:05",
+                  "desc": "Megnövekedett hibaarányt vizsgálunk."
+                },
+                {
+                  "time": "május 9., du. 7:20",
+                  "desc": "A súlyosság nőtt: a részleges kiesésből jelentős kiesés lett."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2026. május 8.",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "május 8., du. 1:05",
+                  "desc": "Megnövekedett hibaarányt vizsgálunk."
+                },
+                {
+                  "time": "május 8., du. 2:05",
+                  "desc": "Az incidens megoldódott. A szolgáltatás visszatért a normál működéshez."
+                },
+                {
+                  "time": "május 8., du. 2:50",
+                  "desc": "Megnövekedett hibaarányt vizsgálunk."
+                },
+                {
+                  "time": "május 8., du. 7:35",
+                  "desc": "Az incidens megoldódott. A szolgáltatás visszatért a normál működéshez."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2026. május 5.",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "május 5., du. 1:36",
+                  "desc": "A súlyosság nőtt: a korlátozott működésből részleges kiesés lett."
+                },
+                {
+                  "time": "május 5., du. 4:50",
+                  "desc": "Az incidens megoldódott."
+                },
+                {
+                  "time": "május 5., du. 9:20",
+                  "desc": "Megnövekedett hibaarányt vizsgálunk."
+                },
+                {
+                  "time": "május 5., du. 10:20",
+                  "desc": "Az incidens megoldódott."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "május 5., du. 2:43",
+                  "desc": "Az incidens megoldódott."
+                },
+                {
+                  "time": "május 5., du. 3:35",
+                  "desc": "Megnövekedett hibaarányt vizsgálunk."
+                },
+                {
+                  "time": "május 5., du. 7:35",
+                  "desc": "A súlyosság nőtt: a részleges kiesésből jelentős kiesés lett."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2026. május 4.",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "május 4., du. 4:05",
+                  "desc": "Megnövekedett hibaarányt vizsgálunk."
+                },
+                {
+                  "time": "május 4., du. 5:05",
+                  "desc": "Az incidens megoldódott."
+                },
+                {
+                  "time": "május 4., du. 7:36",
+                  "desc": "Megnövekedett hibaarányt vizsgálunk."
+                },
+                {
+                  "time": "május 4., du. 8:35",
+                  "desc": "Az incidens megoldódott."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "május 4., délben 12:05",
+                  "desc": "Az incidens megoldódott."
+                },
+                {
+                  "time": "május 4., du. 1:50",
+                  "desc": "Megnövekedett hibaarányt vizsgálunk."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2026. május 2.",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "május 2., du. 6:35",
+                  "desc": "Megnövekedett hibaarányt vizsgálunk."
+                },
+                {
+                  "time": "május 2., du. 7:50",
+                  "desc": "Az incidens megoldódott."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "május 2., de. 9:20",
+                  "desc": "Megnövekedett hibaarányt vizsgálunk."
+                },
+                {
+                  "time": "május 2., de. 10:20",
+                  "desc": "Az incidens megoldódott."
+                },
+                {
+                  "time": "május 2., du. 8:20",
+                  "desc": "Megnövekedett hibaarányt vizsgálunk."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "május 2., du. 8:20",
+                  "desc": "Megnövekedett hibaarányt vizsgálunk."
+                },
+                {
+                  "time": "május 3., éjjel 12:05",
+                  "desc": "Az incidens megoldódott."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2026. május 1.",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "május 1., du. 2:05",
+                  "desc": "Megnövekedett hibaarányt vizsgálunk."
+                },
+                {
+                  "time": "május 1., du. 3:05",
+                  "desc": "Az incidens megoldódott."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2026. április 30.",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "április 30., de. 8:20",
+                  "desc": "Megnövekedett hibaarányt vizsgálunk."
+                },
+                {
+                  "time": "április 30., de. 9:50",
+                  "desc": "Az incidens megoldódott."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "április 30., du. 3:05",
+                  "desc": "Az incidens megoldódott."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "április 30., du. 4:51",
+                  "desc": "Az incidens megoldódott."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "április 30., du. 1:20",
+                  "desc": "Megnövekedett hibaarányt vizsgálunk."
+                },
+                {
+                  "time": "április 30., du. 2:37",
+                  "desc": "A súlyosság nőtt: a korlátozott működésből részleges kiesés lett."
+                },
+                {
+                  "time": "április 30., du. 8:20",
+                  "desc": "Az incidens megoldódott."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "április 30., du. 6:50",
+                  "desc": "Az incidens megoldódott."
+                },
+                {
+                  "time": "április 30., du. 7:50",
+                  "desc": "Megnövekedett hibaarányt vizsgálunk."
+                },
+                {
+                  "time": "május 1., éjjel 12:20",
+                  "desc": "Az incidens megoldódott."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "subscribe": {
+      "title": "Legyen Ön az első,<br></br>aki megtudja, ha valami elromlik.",
+      "lead": "Válassza ki az Önt érdeklő országokat, és egyetlen, közérthető frissítést küldünk, amikor azok portáljai vagy a miénk leállnak, illetve újra működnek.",
+      "emailLabel": "Incidensfrissítések e-mailben",
+      "button": "Feliratkozás",
+      "follow": "Vagy kövesse az állapotot itt:",
+      "chipEmail": "E-mailes összefoglaló",
+      "chipSms": "SMS és WhatsApp",
+      "chipRss": "RSS-csatorna",
+      "chipWebhook": "Webhook üzemeltetőknek"
+    },
+    "footer": {
+      "tagline": "A VIZA segít vízumot tervezni, igényelni és követni a világ bármely pontjára.",
+      "company": "Cég",
+      "careers": "Karrier",
+      "contact": "Kapcsolat",
+      "security": "Biztonság",
+      "systemStatus": "Rendszerállapot",
+      "privacy": "Adatvédelem",
+      "terms": "Feltételek",
+      "products": "Termékek",
+      "prodVisaReq": "Vízumkövetelmények",
+      "prodSchengen": "Schengen időpontfigyelő",
+      "prodPhoto": "Vízumfotó-készítő",
+      "prodHelpline": "VIZA vészhelyzeti segélyvonal",
+      "copyright": "© VIZA, Minden jog fenntartva"
+    }
+  },
+  "arrival": {
+    "breadcrumbHome": "Főoldal",
+    "breadcrumbHub": "Beutazási kártyák",
+    "hubH1": "Beutazási kártya útmutatók",
+    "hubLead": "A beutazási kártya egy rövid hatósági űrlap, amelyet az országba lépés előtt kell kitölteni. A legtöbb online, ingyenes, és körülbelül öt percet vesz igénybe. Ezek az útmutatók megmutatják, kinek van rá szüksége, mikor kell beküldeni, és hogyan kerülheti el a hamis oldalakat, amelyek pénzt kérnek érte.",
+    "hubWhatTitle": "Mi az a beutazási kártya",
+    "hubWhat": [
+      "A beutazási kártya olyan nyilatkozat, amelyet az úti cél az útlevél és az esetleges vízum mellett kér. Rögzíti, hogy ki Ön, hogyan érkezik, és hol fog megszállni. Sok ország a repülőgépen kiosztott papírkártyát online űrlapra cserélte.",
+      "Ez nem vízum. A vízum azt teszi lehetővé, hogy belépést kérjen. A beutazási kártya tájékoztatja a határhatóságot az utazásáról, és vízumra akkor is szüksége van, ha az állampolgársága miatt kell."
+    ],
+    "hubFreeTitle": "A beutazási kártyák ingyenesek",
+    "hubFree": [
+      "Az ezekben az útmutatókban szereplő összes kártya ingyenes az állam saját oldalán. Néhány weboldal lemásolja a hatósági űrlapot, és díjat kér érte. Ezek egyikének sem kell fizetnie.",
+      "Mindig az egyes útmutatókban megadott hivatalos címről induljon. A VIZA független szolgáltatás, nem kormányzati weboldal."
+    ],
+    "hubWhenTitle": "Mikor van rá szüksége",
+    "hubWhen": [
+      "A legtöbb kártya az érkezés előtt három nappal nyílik meg, és ezen az időablakon belül kell beküldeni. A pontos szabályt az egyes útmutatókban találja, mert a japán Visit Japan Webnek nincs rögzített határideje, és nem kötelező.",
+      "A lakosok, az állampolgárok és az átszálló utasok gyakran mentesek, vagy rövidebb űrlapot kapnak. Minden útmutató felsorolja, kik a mentesek, többek között a szingapúri állampolgárok mentességét a malajziai MDAC esetében."
+    ],
+    "hubGuidesTitle": "Összes útmutató",
+    "hubGuidesSub": "Válassza ki az úti célját. Minden útmutató tartalmazza a lépéseket, a gyakori hibákat és a hivatalos hivatkozásokat.",
+    "readGuide": "Útmutató elolvasása",
+    "cardWhen": "Mikor",
+    "cardsLabel": "Beutazási kártya",
+    "hubVisaTitle": "Vízum is kell",
+    "hubVisaBody": "A beutazási kártya nem helyettesíti a vízumot. Az úti cél oldalán nézze meg, szüksége van-e az útlevelének vízumra.",
+    "hubVisaCta": "Vízumoldalak böngészése",
+    "glanceTitle": "Dióhéjban",
+    "stepsTitle": "Hogyan töltse ki, lépésről lépésre",
+    "mistakesTitle": "Gyakori hibák",
+    "feesTitle": "Díjak és hamis oldalak",
+    "faqTitle": "Kérdések",
+    "sourcesTitle": "Források",
+    "relatedTitle": "További beutazási kártya útmutatók",
+    "independent": "A VIZA független szolgáltatás, nem kormányzati weboldal.",
+    "officialCta": "A hivatalos oldal megnyitása",
+    "officialLabel": "Hivatalos oldal",
+    "vizaTitle": "Intézze a VIZA-val",
+    "vizaBody": "Indítsa el a(z) {name} kártyát a VIZA-fiókjában. A VIZA űrlapja ugyanazokon a kérdéseken vezeti végig, mint a hivatalos, és megőrzi az adatait a későbbi utakhoz. A hivatalos ingyenes oldalt bármikor használhatja helyette.",
+    "vizaFee": "VIZA szolgáltatási díj",
+    "vizaFeeFree": "Ingyenes",
+    "vizaCta": "Indítás a VIZA-n",
+    "noVizaTitle": "A hivatalos oldal használata",
+    "noVizaBody": "A VIZA ezt a kártyát még nem tölti ki. Használja az alábbi hivatalos oldalt, és előbb olvassa el az útmutató lépéseit.",
+    "visaTitle": "Vízum ide: {country}",
+    "visaBody": "A beutazási kártya a vízumtól független. Nézze meg, kinek kell vízum ide: {country}, mennyi a díj, és hogyan kell igényelni.",
+    "visaCta": "{country} vízumoldal megnyitása",
+    "reviewedTitle": "Ellenőrizve: 2026. november 25.",
+    "stepLabel": "Lépés",
+    "cards": {
+      "malaysia-mdac": {
+        "summary": "Ingyenes online kártya külföldi látogatóknak. A szingapúri állampolgárok mentesek.",
+        "when": "Az érkezés előtti 3 napon belül"
+      },
+      "singapore-sg-arrival-card": {
+        "summary": "Az ICA online kártyája egészségügyi nyilatkozattal. Küldje be a weboldalon vagy a MyICA alkalmazásban.",
+        "when": "Az érkezés előtti 3 napon belül"
+      },
+      "japan-visit-japan-web": {
+        "summary": "Ingyenes QR-kódok a bevándorláshoz és a vámhoz. Ajánlott, nem kötelező.",
+        "when": "Repülés előtt"
+      },
+      "thailand-tdac": {
+        "summary": "Ingyenes kártya minden külföldi látogatónak, vízummentesnek is. Leváltotta a papír TM6-ot.",
+        "when": "Az érkezés előtti 3 napon belül"
+      },
+      "korea-e-arrival-card": {
+        "summary": "2026. január 1. óta kötelező. Az érvényes K-ETA birtokosa mentes.",
+        "when": "Az érkezés előtti 3 napon belül"
+      },
+      "indonesia-all-indonesia": {
+        "summary": "Egy kártya a bevándorláshoz, a vámhoz és az egészségügyi ellenőrzéshez. Ingyenes, és nem vízum.",
+        "when": "Az érkezés előtti legfeljebb 3 napon belül"
+      }
+    }
+  },
+  "guides": {
+    "breadcrumbHome": "Főoldal",
+    "breadcrumbHub": "Útmutatók",
+    "hubH1": "Vízumútmutatók Szingapúrban élőknek",
+    "hubLead": "Akár szingapúri, kínai, indiai vagy fülöp-szigeteki útlevele van, ezek az útmutatók ugyanarra a kérdésre válaszolnak: mire van szükségem a belépéshez, és hol igényeljem Szingapúrból. Mindegyik megnevezi a forrásait és az ellenőrzés dátumát.",
+    "hubGuidesTitle": "Összes útmutató",
+    "hubGuidesSub": "Válasszon témát. A szabályok változnak, ezért minden útmutató felsorolja azokat a hivatalos oldalakat, amelyeket utazás előtt érdemes ellenőrizni.",
+    "readGuide": "Útmutató elolvasása",
+    "hubMoreTitle": "További tartalmak a VIZA-tól",
+    "hubMoreBody": "Egy adott országot, beutazási kártyát vagy a legfrissebb szabályváltozást keresi?",
+    "hubDestinations": "Vízumoldalak",
+    "hubArrival": "Beutazási kártya útmutatók",
+    "hubNews": "Vízumhírek",
+    "glanceTitle": "Gyors válasz",
+    "relatedVisaTitle": "Úti célok oldalai",
+    "relatedVisaSub": "Díjak, dokumentumok és lépések Szingapúrban élőknek.",
+    "relatedArrivalTitle": "Beutazási kártya útmutatók",
+    "relatedGuidesTitle": "További útmutatók",
+    "faqTitle": "Kérdések",
+    "sourcesTitle": "Források",
+    "reviewedTitle": "Hogyan ellenőriztük",
+    "published": "Közzétéve",
+    "updated": "Frissítve",
+    "independent": "A VIZA független szolgáltatás, nem kormányzati weboldal."
+  },
+  "ds": {
+    "header": {
+      "home": "VIZA főoldal",
+      "primary": "Fő",
+      "language": "Nyelv",
+      "signIn": "Bejelentkezés",
+      "openMenu": "Menü megnyitása",
+      "closeMenu": "Menü bezárása",
+      "nav": {
+        "home": "Főoldal",
+        "destinations": "Úti célok",
+        "arrivalCards": "Beutazási kártyák",
+        "guides": "Útmutatók",
+        "news": "Hírek",
+        "about": "Rólunk",
+        "contact": "Kapcsolat"
+      }
+    },
+    "footer": {
+      "home": "VIZA főoldal",
+      "tagline": "A VIZA MI-je előkészíti a vízumkérelmeket, tanácsadóink pedig ellenőrzik azokat. Ingyenesen használható.",
+      "explore": "Felfedezés",
+      "follow": "Kövessen minket",
+      "followOn": "Kövesse a VIZA-t itt: {platform}",
+      "links": {
+        "destinations": "Úti célok",
+        "arrivalCards": "Beutazási kártyák",
+        "guides": "Útmutatók",
+        "news": "Hírek",
+        "about": "Rólunk",
+        "contact": "Kapcsolat",
+        "careers": "Karrier",
+        "security": "Biztonság",
+        "status": "Állapot"
+      },
+      "copyright": "© {year} VIZA. Minden jog fenntartva.",
+      "office": "Székhely: 60 Paya Lebar Road, #06-28 Paya Lebar Square, Szingapúr 409051",
+      "privacy": "Adatvédelem",
+      "terms": "Feltételek",
+      "kelin": "A Kelin Studio vállalkozása",
+      "refunds": "Visszatérítések",
+      "business": "Cégadatok"
+    },
+    "form": {
+      "fullName": {
+        "label": "Az Ön neve",
+        "placeholder": "Jane Tan"
+      },
+      "email": {
+        "label": "E-mail"
+      },
+      "phone": {
+        "label": "Telefon"
+      },
+      "destination": {
+        "label": "Úti cél",
+        "placeholder": "Japán, Schengen, Egyesült Államok"
+      },
+      "message": {
+        "label": "Az Ön kérdése",
+        "placeholder": "Hová utazik, milyen útlevele van, és mikor utazik."
+      },
+      "submit": "Üzenet küldése",
+      "sending": "Küldés folyamatban",
+      "success": "Köszönjük, megkaptuk az üzenetét. E-mailben válaszolunk.",
+      "error": "Nem sikerült elküldeni az üzenetét. Kérjük, próbálja újra, vagy írjon a sales@kelin.studio címre.",
+      "consent": "A küldéssel elfogadja az <privacy>Adatvédelmi irányelveket</privacy> és a <terms>Feltételeket</terms>."
+    },
+    "gallery": {
+      "title": "Úti célok",
+      "lede": "Válasszon úti célt, és megtudja, milyen vízumra van szüksége, milyen dokumentumok kellenek, és mennyi az állami díj.",
+      "view": "Megtekintés",
+      "passportSummary": "{free} vízummentes · {voa} e-vízum vagy érkezéskor · {req} vízum szükséges",
+      "noResults": "Egyetlen úti cél sem felel meg a keresésének.",
+      "sorts": {
+        "featured": "Kiemelt",
+        "open": "Először a nyitottak",
+        "name": "A-tól Z-ig"
+      }
+    },
+    "dest": {
+      "all": "Minden úti cél",
+      "onPage": "Ezen az oldalon",
+      "applyTitle": "Igénylés indítása",
+      "facts": "Tények"
+    },
+    "article": {
+      "toc": "Ezen az oldalon",
+      "down": "Ugrás a cikkre",
+      "faqLede": "Gyors válaszok ebben a témában."
+    },
+    "legal": {
+      "updated": "Utoljára frissítve",
+      "contents": "Tartalom"
+    }
+  },
+  "homePage": {
+    "hero": {
+      "browse": "Úti célok böngészése",
+      "picks": "Úti célok"
+    },
+    "types": {
+      "title": "Vízumtípusok",
+      "lede": "Turista-, üzleti, munka-, tanulmányi és hosszú távú vízumok.",
+      "prev": "Előző",
+      "next": "Következő",
+      "items": {
+        "tourist": {
+          "title": "Turista",
+          "body": "Nyaralás, családlátogatás és rövid tartózkodás."
+        },
+        "business": {
+          "title": "Üzleti",
+          "body": "Megbeszélések, konferenciák és helyszíni látogatások."
+        },
+        "work": {
+          "title": "Munka",
+          "body": "Munkavállalási engedélyek és munkavízumok."
+        },
+        "student": {
+          "title": "Tanulmányi",
+          "body": "Tanulmányi vízumok iskolákhoz és egyetemekhez."
+        },
+        "long": {
+          "title": "Hosszú tartózkodás",
+          "body": "Tartózkodási és egyéb hosszú távú vízumok."
+        }
+      }
+    },
+    "steps": {
+      "title": "Hogyan működik",
+      "cta": "Kezdje el az ingyenes igénylést",
+      "side": {
+        "freeValue": "Ingyenes",
+        "freeLabel": "VIZA szolgáltatás",
+        "langLabel": "Nyelvek: angol és kínai",
+        "note": "Csak az állami díjat fizeti.",
+        "noteBody": "Ez közvetlenül a kiállító hatósághoz kerül. A VIZA nem számít fel saját díjat."
+      },
+      "items": {
+        "choose": {
+          "title": "Válasszon úti célt",
+          "body": "A kezdés előtt megnézheti, milyen vízumra van szüksége, milyen dokumentumokat kell előkészítenie, és mennyi az állami díj.",
+          "chips": "Vízumtípus|Dokumentumok|Állami díj"
+        },
+        "passport": {
+          "title": "Töltse fel az útlevelét",
+          "body": "A VIZA az adatlapról olvassa ki az adatait, így alig kell gépelnie.",
+          "chips": "Adatlap|Kitöltött adatok"
+        },
+        "confirm": {
+          "title": "Erősítse meg az adatait",
+          "body": "Ellenőrizze, mit olvasott ki a VIZA, adja meg az utazás időpontjait, és folytassa az ingyenes VIZA-fiókjában.",
+          "chips": "Utazás időpontjai|Ingyenes fiók"
+        },
+        "file": {
+          "title": "A VIZA ellenőriz és benyújt",
+          "body": "Egy tanácsadó minden űrlapot átnéz a benyújtás előtt, Ön pedig a fiókjában követheti a haladást.",
+          "chips": "Tanácsadói ellenőrzés|Állapotfrissítések"
+        }
+      }
+    },
+    "tiers": {
+      "title": "Árak",
+      "lede": "Kétféleképpen igényelhet, mindkettő ingyenes.",
+      "cta": "Kapcsolat",
+      "criteria": "Összehasonlítás",
+      "guided": "Vezetett",
+      "full": "Teljes körű",
+      "rows": {
+        "fee": {
+          "label": "VIZA díj",
+          "guided": "Ingyenes",
+          "full": "Ingyenes"
+        },
+        "form": {
+          "label": "Kérelmi űrlap",
+          "guided": "Ön válaszol, a VIZA MI-je pedig végigvezeti",
+          "full": "Egy tanácsadó Önnel együtt készíti elő a válaszokat"
+        },
+        "documents": {
+          "label": "Dokumentumok",
+          "guided": "Az Ön helyzetéhez igazított ellenőrzőlista",
+          "full": "Egy tanácsadó átnézi a dokumentumokat"
+        },
+        "interview": {
+          "label": "Időpont és interjú",
+          "guided": "Ön foglal időpontot és részt vesz",
+          "full": "Átvesszük Önnel a várható kérdéseket"
+        },
+        "govFee": {
+          "label": "Állami díj",
+          "guided": "Közvetlenül a hatóságnak fizetendő",
+          "full": "Közvetlenül a hatóságnak fizetendő"
+        },
+        "bestFor": {
+          "label": "Kinek ajánlott",
+          "guided": "Egyszerű kérelmek",
+          "full": "Összetett esetek vagy korábbi elutasítás"
+        }
+      }
+    },
+    "why": {
+      "title": "Miért a VIZA",
+      "lede": "Világos lépések, ellenőrzött űrlapok és valódi emberek, akikkel beszélhet.",
+      "items": {
+        "free": {
+          "title": "Ingyenes szolgáltatás",
+          "body": "A VIZA segítsége nem kerül semmibe. Csak az állami díjat fizeti, közvetlenül a hatóságnak."
+        },
+        "checked": {
+          "title": "Ellenőrzött űrlapok",
+          "body": "Egy tanácsadó minden űrlapot átnéz a benyújtás előtt, így a kis hibák időben kiderülnek."
+        },
+        "language": {
+          "title": "Angolul és kínaiul",
+          "body": "Beszéljen a VIZA-val angolul vagy kínaiul, WhatsAppon, WeChaten vagy e-mailben."
+        }
+      },
+      "photos": {
+        "arrival": {
+          "title": "Beutazási kártyák",
+          "body": "Lépésről lépésre segítség a malajziai, szingapúri, japán, thaiföldi, dél-koreai és indonéz ingyenes beutazási kártyákhoz."
+        },
+        "news": {
+          "title": "Hírek",
+          "body": "Vízumszabály-változások és új e-vízum rendszerek közérthetően."
+        }
+      }
+    },
+    "guides": {
+      "title": "Útmutatók",
+      "cta": "Összes útmutató"
+    },
+    "faq": {
+      "lede": "Gyors válaszok a VIZA vízumszolgáltatásáról.",
+      "more": "További kérdése van?",
+      "items": {
+        "cost": {
+          "q": "Számít fel díjat a VIZA a szolgáltatásáért?",
+          "a": "Nem. A VIZA segítsége ingyenes. Ha egy úti cél állami vízumdíjat kér, azt közvetlenül az adott kormánynak fizeti."
+        },
+        "visas": {
+          "q": "Milyen vízumokhoz tud segíteni a VIZA?",
+          "a": "Turista-, üzleti, munka-, tanulmányi és hosszú távú vízumokhoz az ezen az oldalon szereplő úti céloknál. Ha az Öné nincs a listán, írjon nekünk, és egy tanácsadó megmondja, mi lehetséges."
+        },
+        "approval": {
+          "q": "Ki dönt a vízumomról?",
+          "a": "Minden döntést a kiállító hatóság hoz meg. A VIZA a benyújtás előtt ellenőrzi az űrlapot és a dokumentumokat, hogy a kérelem teljes és következetes legyen."
+        },
+        "tiers": {
+          "q": "Mi a különbség a Vezetett és a Teljes körű között?",
+          "a": "A Vezetett csomagban a VIZA MI-je végigvezeti az űrlapon és az ellenőrzőlistán, Ön pedig minden válasz felett megtartja az irányítást. A Teljes körű csomagban egy tanácsadó Önnel együtt készíti elő a válaszokat, és ellenőrzi a dokumentumokat. Mindkettő ingyenes."
+        },
+        "language": {
+          "q": "Milyen nyelveken tudnak segíteni?",
+          "a": "Angolul és kínaiul, WhatsAppon, WeChaten, telefonon és e-mailben."
+        }
+      }
+    },
+    "contactCard": {
+      "title": "Beszéljen egy VIZA tanácsadóval",
+      "body": "Angolul vagy kínaiul válaszolunk.",
+      "cta": "Kapcsolat"
+    },
+    "cta": {
+      "title": "Kezdje el a kérelmét",
+      "point1": "Az adatai titkosak maradnak",
+      "point2": "Valódi ember válaszol",
+      "formTitle": "Tegyen fel kérdést",
+      "formBody": "Mondja el, hová utazik, és egy VIZA tanácsadó e-mailben válaszol."
+    }
+  },
+  "aboutPage": {
+    "h1": "A VIZA-ról",
+    "intro": {
+      "title": "Mi a VIZA",
+      "text": "A VIZA Szingapúrban élő embereknek készíti elő, ellenőrzi és nyújtja be a vízumkérelmeket. Az MI végzi a papírmunkát, tanácsadóink pedig minden űrlapot átnéznek. A szolgáltatás ingyenes."
+    },
+    "facts": {
+      "destinations": "Úti célok",
+      "guides": "Vízumútmutatók",
+      "arrival": "Beutazási kártya útmutatók",
+      "free": "Ingyenes",
+      "freeLabel": "VIZA szolgáltatás"
+    },
+    "tiersTitle": "Vezetett vagy Teljes körű",
+    "tiersLede": "Válassza ki, mennyi segítségre van szüksége. Mindkettő ingyenes.",
+    "free": {
+      "title": "Ingyenes szolgáltatás",
+      "text": "A VIZA nem számít fel díjat a segítségért. Ha egy úti célnál állami vízumdíj van, a VIZA a kezdés előtt megmutatja, Ön pedig közvetlenül a kiállító hatóságnak fizeti be. Fizetős csomagok nincsenek."
+    },
+    "company": {
+      "title": "Cégadatok",
+      "office": "Székhely",
+      "officeValue": "60 Paya Lebar Road, #06-28 Paya Lebar Square, Szingapúr 409051",
+      "email": "E-mail",
+      "phone": "Telefon és WhatsApp",
+      "languages": "Nyelvek",
+      "languagesValue": "angol és kínai"
+    }
+  },
+  "contactPage": {
+    "h1": "Kapcsolat",
+    "lines": {
+      "whatsapp": {
+        "title": "Telefon és WhatsApp",
+        "body": "Hívjon fel vagy írjon egy tanácsadónak."
+      },
+      "wechat": {
+        "body": "Keresse meg az azonosítót a WeChatben, és adjon hozzá minket."
+      },
+      "email": {
+        "title": "E-mail",
+        "body": "Dokumentumokhoz és hosszabb kérdésekhez a legjobb."
+      },
+      "office": {
+        "top": "Szingapúr",
+        "title": "Iroda",
+        "body": "60 Paya Lebar Road, #06-28 Paya Lebar Square, Szingapúr 409051"
+      }
+    },
+    "message": {
+      "title": "Írjon nekünk",
+      "text": "Kérdése van egy vízumról, egy úti célról vagy a VIZA-val való együttműködésről? Írjon nekünk, és egy tanácsadó válaszol."
+    }
+  },
+  "careersPage": {
+    "title": "Karrier",
+    "lede": "A VIZA MI-vel és tanácsadókkal segít a Szingapúrban élőknek vízumhoz jutni, és a szolgáltatás ingyenes. Olyan embereket keresünk, akik szeretik a gondos, hasznos munkát.",
+    "teamsTitle": "Csapatok",
+    "teams": [
+      {
+        "title": "Fejlesztés",
+        "body": "Elkészítjük a dokumentumellenőrzéseket, a kérelmezési folyamatot és a tanácsadóink eszközeit."
+      },
+      {
+        "title": "Dizájn",
+        "body": "Átláthatóvá tesszük a stresszes folyamatot a kérelmező számára."
+      },
+      {
+        "title": "Működés",
+        "body": "Gondoskodunk róla, hogy minden kérelem haladjon, és minden követelmény naprakész legyen."
+      },
+      {
+        "title": "Tanácsadás",
+        "body": "Segítünk a kérelmezőknek azokban az esetekben, amelyekhez ember kell, angolul és kínaiul."
+      },
+      {
+        "title": "Adatok",
+        "body": "A hivatalos forrásokból olyan ellenőrzéseket készítünk, amelyek időben kiszűrik a problémákat."
+      },
+      {
+        "title": "Marketing",
+        "body": "Közérthetően elmagyarázzuk a vízumokat útmutatókban és megbízható oldalakon."
+      }
+    ],
+    "applyTitle": "Lépjen kapcsolatba velünk",
+    "applyBody": "Meséljen magáról és arról a csapatról, amelyhez csatlakozna. Minden üzenetet elolvasunk.",
+    "applyCta": "Írjon nekünk"
+  },
+  "pageCopy": {
+    "product": {
+      "introTitle": "Így támogatja a VIZA a vízumkérelmét",
+      "introLede": "Fedezze fel az elérhető vízum-előkészítési, dokumentumellenőrzési és kérelemkövetési szolgáltatásokat. A VIZA szolgáltatása ingyenes. A pontos tartalom és az elérhetőség az úti cél kiválasztása után látható.",
+      "browse": "Úti célok böngészése"
+    },
+    "events": {
+      "title": "Még nincsenek események",
+      "lede": "A jövőbeli vízumtanácsadásokat, tájékoztató alkalmakat és partnerrendezvényeket itt hirdetjük meg.",
+      "contact": "Kapcsolat"
+    }
+  },
+  "og": {
+    "band": "A VIZA ingyenes. Az állami díjak külön fizetendők.",
+    "destSubtitle": "Díjak és az igénylés menete"
+  }
+}

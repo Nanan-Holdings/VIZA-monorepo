@@ -1,0 +1,2150 @@
+{
+  "cta": {
+    "startFreeApplication": "Alusta tasuta taotlust"
+  },
+  "nav": {
+    "home": "Avaleht",
+    "apply": "Taotle",
+    "visas": "Viisad",
+    "explore": "Avasta",
+    "events": "Üritused",
+    "blog": "Uudised",
+    "careers": "Karjäär",
+    "contact": "Kontakt",
+    "signIn": "Logi sisse",
+    "getStarted": "Alusta",
+    "yourPassport": "Sinu pass",
+    "searchPlaceholder": "Otsi riiki või viisat…",
+    "arrivalCards": "Saabumiskaardid",
+    "guides": "Juhendid"
+  },
+  "footer": {
+    "followUs": "Jälgi meid:",
+    "followOn": "Jälgi VIZA-t kanalis {platform}",
+    "product": "Tooted",
+    "company": "Ettevõte",
+    "legal": "Õigusteave",
+    "offices": "Kontorid",
+    "askAi": "Küsi tehisintellektilt VIZA kohta",
+    "security": "Turvalisus",
+    "status": "Olek",
+    "privacy": "Privaatsus",
+    "terms": "Tingimused",
+    "rights": "Kõik õigused kaitstud.",
+    "tagline": "VIZA aitab sul viisasid üle maailma sujuvalt planeerida, taotleda ja jälgida.",
+    "careers": "Karjäär",
+    "contact": "Kontakt",
+    "copyright": "© VIZA, kõik õigused kaitstud",
+    "prodMockInterview": "USA proovi-intervjuu",
+    "prodVisaReq": "Viisanõuded",
+    "prodSchengen": "Schengeni kohtumisaja kontroll",
+    "prodPhoto": "Viisafoto looja",
+    "prodHelpline": "VIZA hädaabiliin",
+    "prodStudent": "Õppeviisa",
+    "arrivalCards": "Saabumiskaardid",
+    "guides": "Juhendid",
+    "news": "Uudised"
+  },
+  "pages": {
+    "blog": {
+      "metaTitle": "Viisauudised ja poliitikamuudatused | VIZA",
+      "metaDescription": "VIZA viisauudised: reeglimuudatused, uued e-viisa ja ETA skeemid ning mida need tähendavad Singapuris elavatele. Uuendatud, kui reeglid muutuvad.",
+      "title": "Viisauudised",
+      "lede": "Reeglimuudatused ja poliitikauuendused, selgitatud lihtsate sõnadega. Püsivate nõuannete jaoks loe juhendeid.",
+      "readArticle": "Loe artiklit",
+      "featuredLabel": "Viimased uudised",
+      "articlesTitle": "Viimased uudised",
+      "articlesDescription": "Poliitikauuendused ja reisireeglite muudatused.",
+      "allPosts": "Kõik postitused",
+      "noMorePosts": "Rohkem uudiseid on tulemas.",
+      "emptyTitle": "Uudiseid pole veel avaldatud",
+      "emptyBody": "Meie esimesi uuendusi valmistatakse ette. Vaata varsti uuesti.",
+      "unavailableTitle": "Uudised ei ole ajutiselt saadaval",
+      "unavailableBody": "Viimaseid avaldatud uudiseid ei õnnestunud laadida. Proovi varsti uuesti.",
+      "backToBlog": "Tagasi uudiste juurde",
+      "by": "Autor:",
+      "updated": "Uuendatud",
+      "categoriesLabel": "Uudiste teemad",
+      "topicLabel": "Teema",
+      "relatedTitle": "Veel uudiseid",
+      "relatedDescription": "Veel viisauudiseid VIZA-lt.",
+      "ctaEyebrow": "Planeeri enesekindlalt",
+      "ctaTitle": "Valmis oma taotlust alustama?",
+      "ctaBody": "Anna meile teada, kuhu soovid minna. VIZA juhib sind läbi nõuete ja järgmiste sammude.",
+      "ctaAction": "Alusta taotlust",
+      "categoryMetaTitle": "{category} uudised | VIZA",
+      "categoryMetaDescription": "Loe VIZA uudiseid teemal {category}: mis muutus, keda see puudutab ja mida edasi teha.",
+      "categoryLede": "Uudised teemal {category}.",
+      "visaLinkTitle": "Taotled viisat: {country}?",
+      "visaLinkBody": "Vaata dokumente, riigilõivu ja samme Singapuris elavatele inimestele.",
+      "visaLinkAction": "Viisajuhend: {country}",
+      "guidesTitle": "Seotud juhendid",
+      "guidesBody": "Juhendid, mis püsivad sellel teemal ajakohased."
+    },
+    "home": {
+      "title": "Viisataotlused Singapuris: USA, India, Vietnam | VIZA",
+      "description": "Taotle USA viisat (DS-160), India, Vietnami või Egiptuse e-viisat või Prantsusmaa Schengeni viisat. Nõustaja kontrollib iga vormi enne esitamist.",
+      "heroTitle": "Kuhu edasi?",
+      "heroLede": "Sirvi viisavõimalusi mis tahes sihtkohta. Sinu VIZA konsultant ja meie tehisintellekt tegelevad paberitööga, sina broneerid reisi."
+    },
+    "apply": {
+      "title": "Alusta viisataotlust | VIZA",
+      "description": "Laadi üles pass, kinnita andmed ja anna oma viisataotlus VIZA nõustajale. VIZA teenus on tasuta.",
+      "saveBadge": "Salvestatud · jätka igal ajal"
+    },
+    "careers": {
+      "title": "Karjäär | VIZA",
+      "description": "Tööta VIZA-s, Kelin Studio juhitavas tasuta viisateenuses Singapuris. Vaata meeskondi, kuhu värbame, ja kuidas rolli kohta ühendust võtta.",
+      "rightCta": "Vaata ameteid"
+    },
+    "contact": {
+      "title": "Kontakt: WhatsApp, WeChat, telefon, e-post | VIZA",
+      "description": "Võta VIZA meeskonnaga ühendust WhatsAppis, WeChatis, telefoni või e-posti teel. Neli kanalit, neli lauda ja vastab päris inimene.",
+      "rightCta": "Kirjuta meile"
+    },
+    "security": {
+      "title": "Turvalisus ja vastutustundlik avalikustamine | VIZA",
+      "description": "Vaikimisi privaatne, läbipaistev ja turvaline. Kuidas VIZA kaitseb klientide andmeid, meie haavatavuste avalikustamise programm ja turvasadam.",
+      "rightCta": "Teata haavatavusest"
+    },
+    "status": {
+      "title": "Süsteemi olek | VIZA",
+      "description": "VIZA ja riiklike viisaportaalide, kuhu esitame, reaalajas olek.",
+      "navPill": "Kõik süsteemid töötavad"
+    },
+    "visa": {
+      "applyCta": "Taotle kohe",
+      "applicationProcess": "Taotlemise protsess",
+      "documents": "Dokumendid",
+      "rejectionReasons": "Keeldumise põhjused",
+      "entryExit": "Sisenemine ja väljumine",
+      "extension": "Pikendamine",
+      "reviews": "Arvustused",
+      "nearby": "Lähedased riigid",
+      "sources": "Ametlikud allikad"
+    },
+    "privacy": {
+      "title": "Privaatsuspoliitika | VIZA",
+      "description": "Mida VIZA viisat taotledes kogub, miks, kes seda näeb ja kui kaua me seda hoiame, Singapuri PDPA alusel."
+    },
+    "terms": {
+      "title": "Tingimused | VIZA",
+      "description": "VIZA viisataotlusteenuse kasutustingimused, mida haldab Kelin Studio Pte. Ltd. Singapuris. VIZA teenus on tasuta."
+    },
+    "product": {
+      "title": "Kuidas VIZA sind viisataotlusel toetab | VIZA",
+      "description": "Viisa ettevalmistus, dokumentide ülevaatus ja taotluse olek ühes kohas. VIZA teenus on tasuta. Ulatus ja saadavus näidatakse iga sihtkoha juures."
+    },
+    "events": {
+      "title": "Üritused | VIZA",
+      "description": "VIZA viisakliinikud, infotunnid ja partnerite üritused."
+    },
+    "arrivalCards": {
+      "title": "Saabumiskaardi juhendid: MDAC, SG Arrival Card, TDAC | VIZA",
+      "description": "Tasuta juhendid saabumiskaartide kohta: Malaisia, Singapur, Jaapan, Tai, Korea ja Indoneesia. Kes vajab, millal esitada ja samm-sammuline abi."
+    },
+    "guides": {
+      "title": "Viisajuhendid Singapuris elavatele | VIZA",
+      "description": "Lihtsad juhendid Singapuris elavatele: viisavabad riigid, Schengeni dokumendid, USA intervjuu, ETA, e-viisa ja keeldumised. Tasuta, kontrollitud sageli."
+    },
+    "about": {
+      "title": "VIZA-st: tasuta viisaabi Singapuris | VIZA",
+      "description": "VIZA valmistab ette, kontrollib ja esitab viisataotlusi Singapuris elavatele AI ja konsultantidega. Teenus on tasuta, riigilõivud lähevad asutusele."
+    },
+    "visaIndex": {
+      "title": "Viisade sihtkohad: nõuded riikide kaupa | VIZA",
+      "description": "Võrdle viisanõudeid riikide kaupa, iga riigi dokumentide ja tasudega. VIZA abi on tasuta.",
+      "heroTitle": "Viisade sihtkohad"
+    },
+    "refunds": {
+      "title": "Tagasimaksete poliitika | VIZA",
+      "description": "VIZA teenus on tasuta, seega ei ole teenustasu, mida tagasi maksta. Kuidas toimivad riigilõivud ja teiste teenusepakkujate tasud."
+    },
+    "businessInformation": {
+      "title": "Ettevõtte teave | VIZA",
+      "description": "VIZA-t haldab Kelin Studio Pte. Ltd., Singapuri ettevõte. Registrijärgne aadress, UEN ja kontaktandmed."
+    }
+  },
+  "common": {
+    "comingSoon": "Tulekul",
+    "learnMore": "Loe lähemalt",
+    "readMore": "Loe edasi",
+    "applyNow": "Taotle kohe",
+    "talkToHuman": "Räägi inimesega",
+    "viewAll": "Vaata kõiki"
+  },
+  "visa": {
+    "heroTitle": "{country} viisa",
+    "validity": "Kehtivus",
+    "howItWorks": "Kuidas see töötab",
+    "step1": "Anna meile teada oma reisi andmed ja laadi üles pass.",
+    "step2": "Täidame ja kontrollime sinu taotluse uusimate reeglite järgi.",
+    "step3": "Esitame selle riigi portaali ja jälgime otsust.",
+    "step4": "Sinu kinnitatud viisa saabub e-postiga ning jälgime seda algusest lõpuni.",
+    "documents": "Mida sul vaja on",
+    "doc1": "Pass, mis kehtib vähemalt 6 kuud.",
+    "doc2": "Hiljutine passifoto.",
+    "doc3": "Sinu reisikuupäevad ja majutus.",
+    "doc4": "Kui sihtkoht küsib viisalõivu, maksekaart, millega tasuda see otse riigile.",
+    "nearby": "Lähedased sihtkohad",
+    "startApplication": "Alusta oma taotlust",
+    "comingSoonTitle": "{country}: tulekul",
+    "comingSoonBody": "Viimistleme parajasti sihtkohta {country}. Loo konto ja anname teada, kui see on avatud.",
+    "browseDestinations": "Sirvi sihtkohti",
+    "notifyMe": "Anna mulle teada",
+    "back": "Tagasi avastama",
+    "tabOverview": "Ülevaade",
+    "tabProcess": "Taotlemise protsess",
+    "tabDocuments": "Dokumendid",
+    "tabRejection": "Keeldumise põhjused",
+    "tabEntry": "Sisenemine ja väljumine",
+    "tabExtension": "Pikendamine",
+    "tabReviews": "Arvustused",
+    "tabNearby": "Lähedased riigid",
+    "reviewsTitle": "Arvustused",
+    "nearbyTitle": "Lähedased riigid",
+    "nearbySub": "Reisid piirkonnas? Lisa oma reisile veel üks viisa ja sinu VIZA konsultant korraldab need ühtse paketina.",
+    "faqTitle": "Korduma kippuvad küsimused",
+    "editorial": "See leht järgib VIZA toimetuspoliitikat. Toetume ametlikele riiklikele allikatele ja uuendame iga nõuet, kui reeglid muutuvad.",
+    "editorialLink": "Loe, kuidas me kontrollime",
+    "sourcesTitle": "Allikad",
+    "priceGovt": "Riigilõiv",
+    "priceFree": "Tasuta",
+    "pillAllInclusive": "Kõik hinna sees",
+    "priceCta": "Alusta taotlust",
+    "onTime": "Õigel ajal",
+    "freeService": "Tasuta VIZA teenus",
+    "freeServiceNote": "VIZA ei küsi oma abi eest midagi",
+    "govFeePaidDirect": "Riigilõiv {fee}, tasutakse otse väljastavale asutusele.",
+    "govFeeSetByAuthority": "Riigilõivu määrab väljastav asutus ja see tasutakse otse talle.",
+    "govFeeSetByAuthorityShort": "Määrab asutus",
+    "priceService": "VIZA teenus",
+    "pillPaidToAuthority": "Tasutakse asutusele",
+    "priceTotalToViza": "Maksad VIZA-le",
+    "breadcrumbVisas": "Viisade sihtkohad",
+    "serviceDescription": "VIZA aitab Singapuris elavatel inimestel tehisintellekti juhendamise ja asjatundliku inimkontrolliga ette valmistada, üle vaadata ja esitada taotlusi: {country} {type}.",
+    "offerDescription": "VIZA teenustasu. Riigi viisalõivud on eraldi ja tasutakse otse väljastavale asutusele.",
+    "dest": {
+      "tabGlance": "Ühe pilguga",
+      "tabPassports": "Passid",
+      "tabTypes": "Viisatüübid",
+      "tabResidents": "Elanikud",
+      "tabFees": "Tasud",
+      "tabApply": "Kuidas taotleda",
+      "tabChecklist": "Dokumendid",
+      "tabRejection": "Keeldumised",
+      "tabTravel": "Enne reisi",
+      "tabRelated": "Seotud",
+      "glanceTitle": "Ühe pilguga",
+      "glanceVisa": "Viisa vajalik",
+      "glanceGovFee": "Riigilõiv",
+      "glanceVizaFee": "VIZA tasu",
+      "glanceProcessing": "Menetlusaeg",
+      "glanceMaxStay": "Maksimaalne viibimisaeg",
+      "glanceChecked": "Kontrollimise kuupäev",
+      "passportsTitle": "Kas vajad viisat?",
+      "typesTitle": "Viisatüübid",
+      "residentsTitle": "Singapuri elanikud",
+      "feesTitle": "Tasud ja ajastus",
+      "applyTitle": "Kuidas taotleda",
+      "checklistTitle": "Dokumentide kontrollnimekiri",
+      "travelTitle": "Enne reisi",
+      "colPassport": "Pass",
+      "colEntry": "Sisenemine",
+      "colNotes": "Märkused",
+      "colItem": "Kirje",
+      "colAmount": "Summa",
+      "vizaFeeNote": "VIZA abi on tasuta. Sa tasud ainult riigilõivu, otse asutusele.",
+      "reviewedBy": "VIZA konsultant vaatas üle: {date}.",
+      "relatedTitle": "Seotud sihtkohad",
+      "relatedSub": "Teised kohad, mida inimesed samale reisile lisavad, ja kust rohkem lugeda.",
+      "startTitle": "Alusta taotlust",
+      "startBody": "Alusta oma passi ja reisikuupäevadega. VIZA abi on tasuta ja riigilõivu tasud otse asutusele.",
+      "startConsultBody": "Anna VIZA konsultandile teada, kus sa elad, milline on sinu pass ja reisikuupäevad. VIZA abi on tasuta.",
+      "consultCta": "Räägi konsultandiga"
+    }
+  },
+  "apply": {
+    "stepOf": "Samm {n} 3-st",
+    "back": "Tagasi",
+    "continue": "Jätka",
+    "step1Name": "Laadi pass üles",
+    "step2Name": "Kinnita andmed",
+    "step3Name": "Alusta taotlust",
+    "s1Title": "Laadi oma pass üles",
+    "s1Desc": "Loeme sinu andmed automaatselt, tippida pole vaja. Kasuta andmelehte (see, kus on sinu foto).",
+    "segUpload": "Laadi fail üles",
+    "segCapture": "Tee foto",
+    "dzTitle": "Lohista passi foto siia",
+    "dzSub": "Või klõpsa ja vali fail. Su fail on krüptitud ning seda ei jagata kellegagi",
+    "dzBrowse": "Vali fail",
+    "dzUpTo": "Kuni 10 MB",
+    "tip1Title": "Kõik neli nurka on nähtavad",
+    "tip1Sub": "Kaadrisse peab jääma kogu andmeleht, ka alumine MRZ.",
+    "tip2Title": "Hele ja ühtlane valgus",
+    "tip2Sub": "Väldi oma käe või telefoniümbrise varje.",
+    "tip3Title": "Ei mingit pimestust ega peegeldusi",
+    "tip3Sub": "Kalluta veidi, kui pitsat peegeldub.",
+    "errReadFail": "Seda passi ei õnnestunud lugeda: {detail}. Proovi andmelehest selgemat fotot.",
+    "extReading": "Dokumendi lugemine",
+    "extExtracting": "Andmete väljavõtmine",
+    "extVerifying": "Ehtsuse kontroll",
+    "stReading": "Loen…",
+    "stExtracting": "Võtan andmeid…",
+    "stVerifying": "Kontrollin…",
+    "s2Title": "Kinnita oma andmed",
+    "s2Desc": "Võtsime need otse sinu passist. Puuduta mis tahes välja, et seda muuta.",
+    "successHigh": "Passi andmed loetud: kõrge kindlus",
+    "warnLow": "Mõnda välja oli raske lugeda. Kontrolli iga allolev väärtus üle.",
+    "warnMed": "Lugesime enamiku sinu andmetest. Kontrolli esiletõstetud väljad üle.",
+    "ppDetails": "Passi andmed",
+    "autoExtracted": "Loetud automaatselt",
+    "fSurname": "Perekonnanimi",
+    "fGiven": "Eesnimed",
+    "fPassport": "Passi number",
+    "fDob": "Sünniaeg",
+    "fNationality": "Kodakondsus",
+    "fExpires": "Kehtib kuni",
+    "reachTitle": "Kuidas sinuga ühendust võtta?",
+    "reachDesc": "Saadame viisa siia ning olekuvärskendused tekstisõnumina sinu telefoni.",
+    "email": "E-post",
+    "phone": "Telefon",
+    "consent": "Kinnitan, et ülaltoodud andmed vastavad minu passile, ning volitan VIZA-t esitama selle taotluse minu nimel riigi {country} immigratsiooniasutustele.",
+    "s3Title": "Alusta oma taotlust",
+    "s3Desc": "VIZA teenus on tasuta. Logi sisse VIZA portaali ja edasi juhime meie.",
+    "headsUp": "Pea meeles:",
+    "headsUpBody": "kui riik {country} küsib viisalõivu, tasud selle otse neile. VIZA ei kogu ega suurenda seda summat kunagi.",
+    "yourApp": "Sinu taotlus",
+    "guaranteedBy": "Garanteeritud kohaletoimetamine:",
+    "govFee": "Riigilõiv",
+    "expressUpgrade": "Kiirteenus",
+    "total": "Kokku",
+    "footEncrypted": "Otsast lõpuni krüptitud. VIZA ei küsi selle taotluse eest sinult tasu.",
+    "helpOnline": "Priya on võrgus",
+    "helpTap": "Puuduta, et vestelda oma VIZA konsultandiga",
+    "totalAmount": "SGD {amount}",
+    "totalFree": "Tasuta",
+    "etaStandard": "12. mai 2026, 8:00 SGT",
+    "failTitle": "Seda dokumenti ei õnnestunud lugeda",
+    "failNotPassport": "See ei näi olevat passi andmeleht. Laadi üles foto leheküljest, kus on sinu foto ja isikuandmed.",
+    "failUnreadable": "Ühtegi nõutud välja ei õnnestunud lugeda. Tee foto uuesti heas valguses, kogu andmeleht sirgelt ja teravalt.",
+    "tryAgain": "Proovi uuesti",
+    "warnPartial": "Kõike ei õnnestunud lugeda. Täida allolevad esiletõstetud väljad.",
+    "warnExpired": "See pass näib olevat aegunud. Enamik sihtkohti nõuab vähemalt 6 kuu kehtivust.",
+    "warnMrz": "Masinloetavat riba (kaks rida allosas) ei õnnestunud lugeda. Kontrolli iga väli hoolikalt üle.",
+    "warnBlurry": "Foto oli udune. Kontrolli iga väli hoolikalt üle.",
+    "fieldRequired": "Kohustuslik: täida",
+    "editField": "Muuda: {field}",
+    "emailInvalid": "Sisesta kehtiv e-posti aadress. Viisa uuendused ja sisselogimislink tulevad siia.",
+    "phoneInvalid": "Sisesta kehtiv telefoninumber.",
+    "consentRequired": "Jätkamiseks kinnita deklaratsioon.",
+    "continueToStart": "Jätka",
+    "startTitle": "Jätka VIZA portaalis",
+    "startSub": "Logi sisse või loo tasuta konto. Taotlus selle sihtkoha jaoks avaneb kohe.",
+    "vizaService": "VIZA teenus",
+    "govFeeSetByAuthority": "Määrab asutus",
+    "govFeeNote": "Riigi viisalõiv tasutakse otse väljastavale asutusele, mitte VIZA-le.",
+    "completeBeforeStart": "Enne jätkamist täida ülal esiletõstetud kohad."
+  },
+  "explore": {
+    "help": "Abi",
+    "passportLabel": "{name} pass",
+    "passportSub": "Viisanõuded {n} sihtkohta kohta · Koht {rank}",
+    "freeLabel": "Viisavaba",
+    "freeNote": "paberimajandust pole",
+    "voaLabel": "E-viisa või saabumisviisa",
+    "voaNote": "tegeleme sellega",
+    "reqLabel": "Viisa nõutav",
+    "reqNote": "taotlus saatkonda",
+    "fullMap": "Vaata täielikku viisakaarti",
+    "grid": "Ruudustik",
+    "map": "Kaart",
+    "mapLegendEvisa": "E-viisad ja külastajaviisad",
+    "mapHint": "Liigu kursoriga esiletõstetud punkti kohale, et sihtkohta eelvaadata",
+    "sectionTitle": "{country} passidele",
+    "seeAll": "Vaata kõiki {n}",
+    "footnote": "VIZA teenus on tasuta. Riigi viisalõiv tasutakse otse väljastavale asutusele ja see on riigiti erinev.",
+    "fastTrack": "Kiirtee",
+    "cardType": "Tüüp",
+    "cardValid": "Kehtib",
+    "cardFee": "VIZA teenus",
+    "save": "Salvesta",
+    "startApplication": "Alusta taotlust",
+    "catalogueUnavailable": "Praegu ei ole ükski sihtkoht veebitaotluste jaoks avatud. Vaata varsti uuesti.",
+    "choosePassport": "Vali oma pass",
+    "searchPassport": "Otsi passi riiki…",
+    "visaFree": "{n} viisavaba",
+    "ppFoot": "Uuendatud 2026. aasta mai seisuga · Allikas: IATA Timatic",
+    "noMatch": "Ükski pass ei vasta otsingule „{q}“",
+    "filters": {
+      "delivery": "Viisa kättesaamine",
+      "type": "Viisa tüüp",
+      "documents": "Dokumendid",
+      "dates": "Reisikuupäevad"
+    },
+    "filterOpts": {
+      "delivery": [
+        "Igal ajal",
+        "24 tunni jooksul",
+        "3 päeva jooksul",
+        "1 nädala jooksul",
+        "1 kuu jooksul"
+      ],
+      "type": [
+        "Kõik tüübid",
+        "Turist",
+        "Äri",
+        "Töö",
+        "Üliõpilane",
+        "Digitaalne nomaad"
+      ],
+      "documents": [
+        "Mis tahes dokumendid",
+        "Minimaalne (ainult pass)",
+        "Standardne",
+        "Põhjalik komplekt"
+      ],
+      "dates": [
+        "Vali kuupäevad",
+        "Sel nädalal",
+        "Sel kuul",
+        "3 kuu pärast",
+        "6 kuu pärast"
+      ]
+    }
+  },
+  "cities": {
+    "viza-test": "Reaalajas makse test",
+    "indonesia": "Bali · Jakarta",
+    "egypt": "Kairo · Giza",
+    "australia": "Sydney · Melbourne",
+    "saudi-arabia": "Riyadh · AlUla",
+    "united-kingdom": "London · Edinburgh",
+    "vietnam": "Hanoi · Hoi An",
+    "malaysia": "KL · Penang",
+    "japan": "Tōkyō · Kyōto",
+    "united-states": "NYC · LA",
+    "canada": "Toronto · Vancouver",
+    "turkiye": "Istanbul · Kapadookia",
+    "thailand": "Bangkok · Phuket",
+    "united-arab-emirates": "Dubai · Abu Dhabi",
+    "france": "Pariis · Nice",
+    "italy": "Rooma · Firenze",
+    "india": "Delhi · Mumbai"
+  },
+  "validity": {
+    "viza-test": "Ainult demo",
+    "indonesia": "90 päeva",
+    "egypt": "90 päeva",
+    "australia": "1 aasta",
+    "saudi-arabia": "365 päeva",
+    "united-kingdom": "6 kuud",
+    "vietnam": "90 päeva",
+    "malaysia": "3 kuud",
+    "japan": "90 päeva",
+    "united-states": "10 aastat",
+    "canada": "10 aastat",
+    "turkiye": "180 päeva",
+    "thailand": "3 kuud",
+    "united-arab-emirates": "60 päeva",
+    "france": "90 päeva",
+    "italy": "90 päeva",
+    "india": "30 päeva"
+  },
+  "passports": {
+    "SG": "Singapur",
+    "JP": "Jaapan",
+    "KR": "Lõuna-Korea",
+    "DE": "Saksamaa",
+    "FR": "Prantsusmaa",
+    "GB": "Ühendkuningriik",
+    "US": "Ameerika Ühendriigid",
+    "AU": "Austraalia",
+    "CA": "Kanada",
+    "AE": "Araabia Ühendemiraadid",
+    "CN": "Hiina",
+    "IN": "India",
+    "BR": "Brasiilia",
+    "PH": "Filipiinid",
+    "ID": "Indoneesia",
+    "MY": "Malaisia",
+    "TH": "Tai"
+  },
+  "countries": {
+    "viza-test": "VIZA test",
+    "indonesia": "Indoneesia",
+    "egypt": "Egiptus",
+    "australia": "Austraalia",
+    "saudi-arabia": "Saudi Araabia",
+    "united-kingdom": "Ühendkuningriik",
+    "vietnam": "Vietnam",
+    "malaysia": "Malaisia",
+    "japan": "Jaapan",
+    "united-states": "Ameerika Ühendriigid",
+    "canada": "Kanada",
+    "turkiye": "Türgi",
+    "thailand": "Tai",
+    "united-arab-emirates": "Araabia Ühendemiraadid",
+    "france": "Prantsusmaa",
+    "italy": "Itaalia",
+    "india": "India",
+    "china": "Hiina",
+    "south-korea": "Lõuna-Korea",
+    "schengen": "Schengen"
+  },
+  "visaTypes": {
+    "Test checkout": "Testmakse",
+    "e-Visa": "E-viisa",
+    "Standard Visitor": "Standardne külastajaviisa",
+    "Visitor 600": "Külastaja 600",
+    "Tourist": "Turist",
+    "B1/B2": "B1/B2",
+    "eTA": "eTA",
+    "Schengen": "Schengen",
+    "eVisa": "E-viisa",
+    "Visitor visa": "Külastajaviisa",
+    "Tourist visa": "Turistiviisa"
+  },
+  "careers": {
+    "hero": {
+      "nowHiring": "Värbame praegu:",
+      "cities": [
+        "Šanghai",
+        "Singapur"
+      ],
+      "openRoles": "28 avatud ametikohta",
+      "title": "Aita meil piirid<br></br><em>kaduma panna</em>, <u>vaikselt,</u><br></br>tarkvara kiirusel.",
+      "lead": "Muudame kuude pikkuse viisapaberimajanduse tundide pikkuseks tarkvaraks, miljonite inimeste jaoks, kes tahavad lihtsalt lennukile jõuda. Too oma oskus meeskonda, kes tarnib päris maailma tähtaegade vastu.",
+      "ctaRoles": "Vaata kõiki avatud ametikohti",
+      "ctaWhy": "Miks me olemas oleme"
+    },
+    "board": {
+      "ariaLabel": "Väljumistabloo, kus on loetletud VIZA avatud ametikohad",
+      "head": "Avatud ametikohad · reaalajas",
+      "live": "Õigel ajal",
+      "cols": {
+        "req": "Nr",
+        "role": "Roll",
+        "office": "Kontor",
+        "status": "Olek"
+      },
+      "rows": [
+        {
+          "role": "Staff-insener",
+          "sub": "Dokumendivoog",
+          "status": "Pardaleminek"
+        },
+        {
+          "role": "Tootedisainer",
+          "sub": "Taotlejate voogud",
+          "status": "Avatud"
+        },
+        {
+          "role": "Saatkondade sidusisik",
+          "sub": "Valitsuspartnerlused",
+          "status": "Viimane väljakuulutus"
+        },
+        {
+          "role": "Klienditegevus",
+          "sub": "2. taseme eskaleerimised",
+          "status": "Avatud"
+        }
+      ],
+      "foot": "+24 ametikohta veel inseneerias, operatsioonides ja disainis",
+      "browseAll": "Sirvi kõiki",
+      "chip1Label": "Värbame",
+      "chip1Value": "4 kontoris",
+      "chip2Label": "Keskmine vastus",
+      "chip2Value": "3.2 päeva esimese kõneni"
+    },
+    "stats": [
+      {
+        "value": "2.4M",
+        "label": "Eelmisel aastal VIZA kaudu väljastatud viisat"
+      },
+      {
+        "label": "Sihtkohta, mida toetame reaalajas menetlusega"
+      },
+      {
+        "label": "Kinnitamise määr kõigi viisatüüpide lõikes 2025. aastal"
+      },
+      {
+        "label": "Inimest Šanghais ja Singapuris"
+      }
+    ],
+    "mission": {
+      "eyebrow": "Meie lugu",
+      "title": "Suurem osa maailmast<br></br>reisib endiselt<br></br><em>prinditud paberitega.</em>",
+      "kicker1": "Alustasime VIZA-t 2021. aastal, kui olime veetnud saatkondade ootejärjekorras ühe nädala liiga palju. Süsteem, mis liigutab inimesi üle piiride, on vanem kui internet ja selles kinni olevad inimesed väärivad paremat.",
+      "kicker2": "Täna annab 340-liikmeline meeskond neljas kontoris välja tarkvara, esitab dokumente ja juhib tegevust 194 riigis. Teeme igava, kurnava töö ära, et reisimine tunduks nagu ülejäänud internet: paar puudutust ja oledki teel.",
+      "founderName": "Mira Kohli",
+      "founderRole": "Kaasasutaja ja tegevjuht · Singapur",
+      "beliefs": [
+        {
+          "title": "Oleme operatsioonide ettevõte, mis annab välja tarkvara.",
+          "body": "Pool VIZA-st on insenerid, disainerid ja tootejuhid. Teine pool on konsultandid, operatsioonide ja dokumentide spetsialistid kohapeal. Kumbki pool ei võida ilma teiseta."
+        },
+        {
+          "title": "Taotleja on alati klient.",
+          "body": "Saatkonnad, partnerid, lennufirmad: nad kõik loevad. Aga inimene, kes seisab kell 3 öösel järjekorras ja värskendab portaali, on see, kelle heaks me töötame ja kelle vastu end mõõdame."
+        },
+        {
+          "title": "Kiirus kasvab, kui oled kvaliteedi suhtes kannatlik.",
+          "body": "Liigume kiiresti väljaandmisel, aeglaselt pöördumatute otsuste puhul. Vale viisaotsus võib rikkuda pulmad, töökoha, matused. Hoiame seda latti ka siis, kui see meid aeglustab."
+        },
+        {
+          "title": "Kaugus on UX-i probleem, mitte piirang.",
+          "body": "Meie meeskonnad asuvad neljas ajavööndis. Asünkroonne kirjutamine, selge vastutus ja hea dokumenteerimiskultuur on see, kuidas vahetame aega usalduse vastu ning kuidas tarnime üle maailma kedagi ära kurnamata."
+        }
+      ]
+    },
+    "values": {
+      "eyebrow": "Mida me endalt nõuame",
+      "title": "Viis asja, mida usume ka siis, kui see on kallis.",
+      "lead": "Väärtusi on lihtne kirja panna ja raske nende järgi tegutseda. Need on viis, mida me tegelikult kasutame värbamisel, hindamisel ja harvadel rasketel otsustel.",
+      "cards": [
+        {
+          "title": "Räägi tõtt, eriti kui see meile maksab.",
+          "body": "Kui viisa ei jõua õigeks ajaks, ütle seda täna, mitte päev enne lendu. Pigem kaotame müügi kui tarnime valet.",
+          "kicker": "Praktikas → avaldatud poliitikad, muudatuste audit"
+        },
+        {
+          "title": "Teeni kiirus ära. Ära lihtsalt tunne end hõivatuna.",
+          "body": "Tähistame otsuseid ja valmis tööd, mitte koosolekuid ja jutulõngu. Mõte on läbilaskevõime missiooni suunas, mitte liikumine sinu kalendri vastu.",
+          "kicker": "Praktikas → kvartaalne läbilaskevõime ülevaade"
+        },
+        {
+          "title": "Mõtle passides, mitte personades.",
+          "body": "Viisareeglid on kodakondsuspõhised. „Kasutajat“ ei ole olemas, aga Filipiinide passi omanik, kes taotleb Schengeni viisat, on. Ehitame päris inimestele, mitte keskmistele.",
+          "kicker": "Praktikas → passipõhine toote spetsifikatsioon"
+        },
+        {
+          "title": "Pane asjad kirja. Eriti otsused.",
+          "body": "Neli kontorit, neli ajavööndit. Kui otsust ei ole kirja pandud, siis seda ei juhtunud. Meie wiki on kohustuslik lugemine, meie igapäevakoosolekud on vabatahtlikud.",
+          "kicker": "Praktikas → ADR-id, iganädalane memo, asünkroonne esmalt"
+        },
+        {
+          "title": "Püsi järjekorrale lähedal.",
+          "body": "Iga insener teeb kord kvartalis ühe vahetuse konsultandi korrusel. Hõõrdumist, mida sa pole pühapäeva õhtul kell 11 tundnud, ei saa disainist välja jätta.",
+          "kicker": "Praktikas → rotatsioonilised järjekorravahetused"
+        },
+        {
+          "title": "Vali pikk versioon.",
+          "body": "Kolmekümnesekundiline vastus on tavaliselt vale. Investeerime sügavasse dokumentatsiooni, töökindlatesse töökäikudesse ja selgitustesse, mis peavad vastu, isegi kui lihtne versioon sobiks.",
+          "kicker": "Praktikas → sisseelamise käsiraamat, avalikud töökäigud"
+        }
+      ]
+    },
+    "inside": {
+      "eyebrow": "VIZA seest",
+      "title": "Milline töö siin<br></br>tegelikult välja näeb.",
+      "lead": "Meil on kontorid kahes linnas, sest värbame sealt, kus taotlusi esitatakse. Oleme valjud võitude üle, vaiksed poliitika osas ja ausad selles, kui palju meil on veel ehitada.",
+      "photos": [
+        {
+          "label": "foto · Singapuri peakontor, avatud kontorimaa",
+          "mark": "Paya Lebar Square, SG"
+        },
+        {
+          "label": "foto · konsultandi järjekorrakorrus",
+          "mark": "Luoshan Rd, Šanghai"
+        },
+        {
+          "label": "foto · tahvlisessioon",
+          "mark": "Tehnikameeskonna väljasõit, Bali"
+        },
+        {
+          "label": "foto · Šanghai operatsioonide korrus",
+          "mark": "Pudong, Šanghai"
+        },
+        {
+          "label": "foto · meeskonna õhtusöök",
+          "mark": "Kogu meeskonna kokkutulek, Lissabon"
+        },
+        {
+          "label": "foto · saatkonna partneri külastus",
+          "mark": "Paya Lebar Square, SG"
+        }
+      ],
+      "pull": "„Värbame inimesi, kellel on viisade kohta arvamus juba enne liitumist. Teiseks kuuks on sul tugevam.“",
+      "pullBy": "Felix Adekunle, inseneeria asepresident",
+      "para1": "VIZA-s on suur autonoomia ja palju konteksti. Saad omaniku kõigele, mida teed, päris eelarved ja ootuse, et selgitad oma töö põhjendust ülejäänud ettevõttele.",
+      "para2": "Kui tahad, et sulle öeldaks iga päev, mida teha, siis see ei ole õige koht. Kui oled oodanud, et keegi ulataks sulle rooli, siis see on siin."
+    },
+    "how": {
+      "eyebrow": "Inseneeria ja operatsioonid VIZA-s",
+      "title": "Kuidas töö tegelikult liigub.",
+      "lead": "Kui sa ehitad, esitad või disainid siin, siis selline on sinu nädal. Vähem tseremooniat, rohkem valmis tööd. Vähem Slacki, rohkem kirja pandud otsuseid.",
+      "cells": [
+        {
+          "title": "Otsast lõpuni vastutus",
+          "body": "Sa disainid selle, ehitad, annad välja ja vastutad selle eest toodangus. Ei mingeid üleandmisjärjekordi ega teekaarte, mille on kirjutanud inimesed kolme kihi kaugusel. Kui see on sinu oma, on see tõesti sinu oma."
+        },
+        {
+          "title": "Väljalaske iga päev, vaikimisi",
+          "body": "Enamik meeskondi annab välja mitu korda päevas. Tagasisideahelad on tahtlikult lühikesed ja kolmekümneminutiline tagasipööramine on parem kui kolmenädalane vaidlus."
+        },
+        {
+          "title": "Päris, segased probleemid",
+          "body": "See ei ole CRUD. Töötad dokumentide OCR-i, viivitustundliku ajastamise kallal enam kui 90 riikliku portaali vastu ja tarbijavoogudega, mida kasutavad miljonid."
+        },
+        {
+          "title": "Lati on kõrgel, avalikult",
+          "body": "Teeme disainiülevaateid paaris. Kommenteerime PR-e real. Usume, et maitset saab õppida, ja ootame, et inimesed aitaksid aktiivselt kõigil enda ümber paremaks saada."
+        },
+        {
+          "title": "Päris õppeeelarve",
+          "body": "$2,000 inimese kohta aastas, küsimusi esitamata, konverentsideks, raamatuteks, kursusteks: kõigeks, mis tuleb tagasi tööle, mida siin teed."
+        },
+        {
+          "title": "Sinu kirjutatud arhitektuur",
+          "body": "RFC-d on avatud kõigile. Uued insenerid on kujundanud põhiinfrastruktuuri juba esimesel kuul. Kui sul on tugevam plaan, kirjuta see üles, loeme selle läbi."
+        }
+      ]
+    },
+    "roles": {
+      "eyebrow": "Avatud ametikohad · uuendatud iganädalaselt",
+      "title": "Ole teekonna osa.",
+      "lead": "28 avatud ametikohta neljas kontoris. Värbame inseneeria, disaini, operatsioonide, konsultantide ja partnerluste valdkonda. Uued ametikohad ilmuvad esmaspäeviti.",
+      "allDepartments": "Kõik osakonnad",
+      "deps": {
+        "eng": "Inseneeria",
+        "design": "Disain",
+        "ops": "Operatsioonid",
+        "consult": "Konsultandid",
+        "data": "Andmed ja ML",
+        "gtm": "Turundus ja GTM"
+      },
+      "showing": "Näitan <strong>{count}</strong> ametikohta · kõik asukohad · kõik meeskonnad",
+      "anyLocation": "Mis tahes asukoht",
+      "groupCount": "{count} avatud",
+      "posSub": "{team} · värbame oskuse ja otsustusvõime, mitte tausta järgi",
+      "locationLabel": "Asukoht",
+      "typeLabel": "Tüüp",
+      "fullTime": "Täiskohaga",
+      "viewRole": "Vaata ametikohta",
+      "locations": {
+        "sg": "Singapur",
+        "sf": "Šanghai",
+        "ldn": "Singapur",
+        "dxb": "Šanghai"
+      },
+      "jobs": {
+        "backendPayments": "Vanem taustasüsteemi insener, platvorm",
+        "staffDocPipeline": "Staff-insener: dokumendivoog",
+        "iosApplicant": "iOS-insener: taotleja rakendus",
+        "platformInfra": "Platvormiinsener: infra ja turvalisus",
+        "frontendConsole": "Esiotsa insener: konsultandikonsool",
+        "emWeb": "Inseneeriajuht: veeb",
+        "sre": "Töökindlusinsener (SRE)",
+        "androidSenior": "Vanem Androidi insener",
+        "leadEmbassy": "Inseneeria juht: saatkondade integratsioonid",
+        "productDesignerApplicant": "Vanem tootedisainer: taotleja voog",
+        "brandDesigner": "Brändidisainer",
+        "designLeadConsultant": "Disainijuht: konsultandi tööriistad",
+        "headOpsMe": "Operatsioonide juht, Lähis-Ida",
+        "visaOpsSchengen": "Viisaoperatsioonide juht: Schengen",
+        "logistics": "Logistika ja kulleri juht",
+        "processDocQa": "Protsessiinsener: dokumentide kvaliteedikontroll",
+        "opsAnalyst": "Operatsioonianalüütik: broneeringud",
+        "consultSchengen": "Viisakonsultant: Schengen",
+        "consultUs": "Viisakonsultant: USA B1/B2",
+        "consultUae": "Viisakonsultant: AÜE elamisluba",
+        "consultStudent": "Vanemkonsultant: õppeviisad",
+        "consultApac": "Konsultantide juht: Aasia ja Vaikse ookeani piirkond",
+        "consultUk": "Viisakonsultant: UK",
+        "dataScientist": "Vanem andmeteadlane: kinnitamise modelleerimine",
+        "mlOcr": "ML-insener: OCR ja dokumendi-AI",
+        "perfMarketing": "Tulemusturunduse juht",
+        "contentLead": "Sisujuht: jutuvestmine",
+        "lifecycleCrm": "Elutsükli ja CRM-i juht"
+      }
+    },
+    "fellowship": {
+      "tag": "▲ VIZA Launchpad · 12-nädalane programm",
+      "title": "Kaksteist nädalat. Üks tootemeeskond.<br></br><em>Üks võimalus midagi välja anda.</em>",
+      "para1": "Launchpad on meie elukohaprogramm algajatele inseneridele, tootejuhtidele ja disaineritele, inimestele, kes vajaksid muidu veel kaht aastat „kogemust“, enne kui saavad päris löögi.",
+      "para2": "Töötad koos vanemjuhtidega, vastutad päris tootepinna eest algusest väljalaskeni ja lahkud millegagi, mida kasutavad miljonid inimesed. Täiskohaga pakkumine tehakse umbes 60% rühmast.",
+      "meta": [
+        {
+          "k": "Kestus",
+          "v": "12 nädalat"
+        },
+        {
+          "k": "Asukoht",
+          "v": "Kontoris, mis tahes peakontor"
+        },
+        {
+          "k": "Stipendium",
+          "v": "Üle turu"
+        },
+        {
+          "k": "Järgmine rühm",
+          "v": "sept 2026"
+        }
+      ],
+      "apply": "Taotle Launchpadi",
+      "readCohort": "Loe 2025. aasta rühmast",
+      "projects": [
+        {
+          "k": "2024 · Inseneeria",
+          "title": "OCR-voo ümberkirjutus",
+          "meta1": "Toodangusse antud",
+          "meta2": "3.2× kiirem"
+        },
+        {
+          "k": "2025 · Disain",
+          "title": "Schengeni voo ümberdisain",
+          "meta1": "14 riiki töös",
+          "meta2": "↑ 22% konv."
+        },
+        {
+          "k": "2025 · Toode",
+          "title": "Saatkonna aegade planeerija",
+          "meta1": "9 saatkonda",
+          "meta2": "40k aega kuus"
+        }
+      ]
+    },
+    "benefits": {
+      "eyebrow": "Oleme sinu selja taga (päriselt)",
+      "title": "Igav kraam,<br></br>korralikult tehtud.",
+      "lead": "Me ei pea hüvesid lisaboonuseks. Need on baas, mis laseb inimestel teha oma parimat tööd. Siin on, mida iga VIZA töötaja igas kontoris esimesest päevast saab.",
+      "items": [
+        {
+          "title": "Põhjalik tervisekindlustus, korras.",
+          "body": "Täielik ravi-, hamba- ja nägemiskindlustus esimesest päevast, sulle, su partnerile ja lastele. Me maksame kindlustusmakse, ilma omavastutuse mängudeta."
+        },
+        {
+          "title": "Ehita varandust, mitte ainult palka.",
+          "body": "Üle turu põhipalk igal turul, kus värbame, pluss helde omakapitali toetus, mis on seotud verstapostidega, mitte ainult tööaastatega. Uuendame iga kahe aasta järel."
+        },
+        {
+          "title": "Õpi seda, mis tegelikult loeb.",
+          "body": "$2,000 aastas õppeeelarvet, igakuised sisekoolitused ja aeg kalendris, mitte ainult luba, et võtta see kursus või minna sellele konverentsile."
+        },
+        {
+          "title": "Rõõmusta kliente, nagu oleks see sinu raha.",
+          "body": "Iga taotleja jaoks on $100 eelarve heast tahtest üle ootuste. Ei mingit kinnitust, ei mingit eskaleerimist: paranda see ja kirjuta siis üles, mis juhtus."
+        },
+        {
+          "title": "Meel > kõik.",
+          "body": "Konfidentsiaalne, professionaalne vaimse tervise tugi, ilma kindlustusbürokraatiata. Lisaks kolm „koosolekuvaba“ päeva kuus, kogu ettevõttele."
+        },
+        {
+          "title": "Reisihüved (me pidime).",
+          "body": "Meie asi on viisad, meie meeskond peaks reisima meie kulul. $4k aastas reisikrediiti, pluss VIZA korraldab iga viisa, mida sul kunagi vaja läheb, kohe ja sisemiselt."
+        },
+        {
+          "title": "Helde, päris puhkus.",
+          "body": "30 päeva tasulist puhkust, pluss sinu riigi pühad, pluss tasuline nädal vaba 24. detsembri ja 1. jaanuari vahel. Jälgime kasutust ja julgustame inimesi võtma rohkem, mitte vähem."
+        },
+        {
+          "title": "Varustus, küsimusi esitamata.",
+          "body": "Vali esimesel päeval oma sülearvuti, monitor ja tool. Kodukontori toetus sinu töökoha jaoks. Usaldame, et sa tead, mida hea töö jaoks vaja on."
+        },
+        {
+          "title": "Lapsehoolduspuhkus, mis päriselt toimib.",
+          "body": "20 nädalat põhihooldajale, 12 teisele, täielikult tasutud. Pluss järkjärguline naasmine, et sa ei oleks esimesel päeval täisvõimsusel tagasi."
+        }
+      ]
+    },
+    "offices": {
+      "eyebrow": "Kus me töötame",
+      "title": "Kaks kontorit, üks toode.",
+      "lead": "Värbame saatkondade, partnerite ja meie teenindatavate turgude lähedal. Igas kontoris on nii insenere kui operatsioonide inimesi: me ei lahuta ehitajaid neist, kes korrust juhivad.",
+      "cards": [
+        {
+          "photo": "foto · Šanghai",
+          "open": "6 avatud",
+          "name": "Šanghai",
+          "addr1": "Lane 1502, Luoshan Road,",
+          "addr2": "Hiina (Šanghai) pilootvabakaubandustsoon",
+          "tz": "GMT+8 · Hiina operatsioonid",
+          "since": "Alates 2023"
+        },
+        {
+          "photo": "foto · Singapuri peakontor",
+          "open": "12 avatud",
+          "name": "Singapur",
+          "addr1": "60 Paya Lebar Road, #06-28 Paya Lebar Square",
+          "addr2": "Singapur 409051",
+          "tz": "GMT+8 · Aasia ja Vaikse ookeani piirkonna peakontor",
+          "since": "Peakontor · alates 2021"
+        }
+      ]
+    },
+    "ctaStrip": {
+      "title": "Ei näe oma rolli,<br></br>aga tahad sisse?",
+      "body": "Kui sul on ebatavaline taust ja arvad, et aitaksid meil maailma reisijaid kiiremini liigutada, tahame sinust kuulda. Oleme palganud bussijuhte, endisi saatkonna töötajaid ja juriste. Meil ei ole kindlat tüüpi.",
+      "lead": "Üldine taotlus",
+      "cta": "Saada meile oma lugu",
+      "note": "Vastame 7 päeva jooksul, isegi kui vastus on ei."
+    },
+    "footer": {
+      "tagline": "VIZA aitab sul viisasid üle maailma sujuvalt planeerida, taotleda ja jälgida.",
+      "company": "Ettevõte",
+      "products": "Tooted",
+      "offices": "Kontorid",
+      "careers": "Karjäär",
+      "contact": "Kontakt",
+      "security": "Turvalisus",
+      "privacy": "Privaatsus",
+      "terms": "Tingimused",
+      "prodVisaReq": "Viisanõuded",
+      "prodSchengen": "Schengeni kohtumisaja kontroll",
+      "prodPhoto": "Viisafoto looja",
+      "prodHelpline": "VIZA hädaabiliin",
+      "prodStudent": "Õppeviisa",
+      "officeSg": "Singapur, peakontor",
+      "officeSf": "Šanghai",
+      "copyright": "© VIZA, kõik õigused kaitstud"
+    }
+  },
+  "security": {
+    "hero": {
+      "eyebrow": "Turvalisus VIZA-s · viimati uuendatud mai 2026",
+      "title": "Privaatne. Läbipaistev.<br></br><em>Vaikimisi turvaline.</em>",
+      "lead": "Kliendid üle maailma usaldavad meile miljoneid tundlikke dokumente: passe, pangaväljavõtteid, fotosid. Siin on täpselt kirjas, kuidas me neid kogume, hoiame ja tõestame, et teeme seda õigesti.",
+      "ctaPrimary": "Kuidas me sinu andmeid kaitseme",
+      "ctaVdp": "Teata haavatavusest"
+    },
+    "clearance": {
+      "republicKey": "Vabariik",
+      "officeKey": "Väljastav kontor",
+      "officeVal": "Usaldus ja turvalisus",
+      "title": "Turvakontroll /<br></br>Kliendiandmed",
+      "grid": {
+        "encryption": {
+          "k": "Krüpteerimine",
+          "v": "AES-256 / TLS 1.3"
+        },
+        "region": {
+          "k": "Piirkond",
+          "v": "SG · US · EU"
+        },
+        "audit": {
+          "k": "Auditite sagedus",
+          "v": "Kord kvartalis"
+        },
+        "retention": {
+          "k": "Säilitamine",
+          "v": "Kuni 90 päeva"
+        }
+      },
+      "referenceKey": "Viide",
+      "glyph": "KINNITATUD<br></br>VIZA · 26"
+    },
+    "chips": {
+      "transitLabel": "Edastamisel",
+      "transitVal": "Otsast lõpuni TLS 1.3",
+      "restLabel": "Salvestatuna",
+      "restVal": "AES-256, regiooniga seotud"
+    },
+    "stats": {
+      "docs": {
+        "value": "2.4M",
+        "label": "Dokumenti töödeldud 2025. aastal, null kliendiandmete rikkumist"
+      },
+      "retention": {
+        "unit": "p",
+        "label": "Lähtedokumentide maksimaalne säilitusaeg pärast väljastamist"
+      },
+      "pentests": {
+        "label": "Välised läbistustestid, kõik aruanded avaldatud sisemiselt"
+      },
+      "ack": {
+        "unit": "h",
+        "label": "Teatatud haavatavuse kättesaamise kinnitamise mediaanaeg"
+      }
+    },
+    "docs": {
+      "eyebrow": "Mida me kogume",
+      "title": "Viis dokumenditüüpi.<br></br><em>Rohkem mitte.</em>",
+      "copy1": "Viisataotlus on paberitöö küsimus. Kogume ainult seda, mida saatkond selgesõnaliselt küsib, ja anonümiseerime kõikjal, kus võimalik. Iga dokument on seotud ühe taotlusega, krüpteeritakse kättesaamisel ja kustutatakse kindla ajakava järgi.",
+      "copy2": "Me ei müü kunagi sinu andmeid. Me ei jaga neid kolmandate osapooltega peale konsulaadi või partneri, kes on otseselt seotud sinu viisaga.",
+      "cards": {
+        "payment": {
+          "name": "Makseandmed",
+          "meta": "ei koguta"
+        },
+        "photos": {
+          "name": "Viisafotod",
+          "meta": "töödeldud · kuni 90 p"
+        },
+        "bank": {
+          "name": "Pangaväljavõtted",
+          "meta": "maskeeritud · ainult pdf"
+        },
+        "pastVisas": {
+          "name": "Varasemad viisad",
+          "meta": "ainult lugemiseks · OCR"
+        },
+        "passport": {
+          "name": "Pass",
+          "meta": "MRZ loetud"
+        }
+      }
+    },
+    "features": {
+      "eyebrow": "Seitse kontrolli, alati sees",
+      "title": "Kuidas sinu andmed jäävad<br></br>sinu omaks, otsast <em>lõpuni.</em>",
+      "intro": "Iga VIZA baidi vaikeolek on „krüpteeritud, piiritletud ja ajaliselt piiratud“. Need seitse kontrolli teevad selle tõeks: mitte püüdlused, vaid see, mis on platvormi praegu tegelikult sisse ehitatud.",
+      "cells": {
+        "minimise": {
+          "title": "Andmete minimeerimine ja anonümiseerimine",
+          "body": "Kogume ainult seda, mida saatkond või partner antud taotluse jaoks tegelikult nõuab, ja anonümiseerime kõikjal, kus ülejäänud platvorm seda võimaldab. Väljad, mida meie vormides ei näe, on väljad, mida me ei salvesta.",
+          "why": "<strong>Miks:</strong> rikkumine ei saa paljastada andmeid, mida kunagi ei kogutud."
+        },
+        "payments": {
+          "title": "Makseandmeid ei ole",
+          "body": "VIZA teenus on tasuta ja me ei võta makseid, seega me ei küsi, näe ega salvesta kunagi kaardinumbreid.",
+          "why": "<strong>Miks:</strong> andmeid, mida me ei hoia, ei saa varastada."
+        },
+        "atRest": {
+          "title": "Krüpteerimine salvestatuna",
+          "body": "Iga dokument, sõnum ja metaandmete väli VIZA serverites krüpteeritakse AES-256-ga enne kettale jõudmist. Võtmeid vahetatakse automaatselt ja hoitakse riistvaraga toetatud KMS-is, mida ei saa otse lugeda isegi meie infrastruktuurimeeskond.",
+          "why": "<strong>Miks:</strong> varastatud kettad või varukoopiad jäävad ilma võtmeteta loetamatuks."
+        },
+        "inTransit": {
+          "title": "Otsast lõpuni krüpteerimine",
+          "body": "Kogu liiklus sinu seadme, meie serverite ja partnerkonsulaatide vahel kasutab TLS 1.3 koos range sidumisega. Dokumentide üleslaadimised kasutavad eraldi allkirjastatud kanalit, et isegi võrgutasandi ründajad ei näeks, mida sa saadad.",
+          "why": "<strong>Miks:</strong> vaenulikud võrgud, sh lennujaama Wi-Fi, ei saa sinu taotlust lugeda."
+        },
+        "audits": {
+          "title": "Regulaarsed turvaauditid",
+          "body": "Teeme igas kvartalis välise läbistustesti, igal aastal SOC 2 Type II auditi ja pidevat automaatset haavatavuste skannimist. Iga leid logitakse parandamise tähtajaga ning hilinenud punktid teavitavad inseneeria juhti.",
+          "why": "<strong>Miks:</strong> ohud liiguvad, meie kaitset kontrollitakse nende vastu ajakava järgi."
+        },
+        "access": {
+          "title": "Turvalised juurdepääsukontrollid",
+          "body": "Sisemine juurdepääs kliendiandmetele on rollipõhine, auditeeritud iga päringu kaupa ja antakse õiguste ajutise tõstmisega. Konsultandid näevad alati ainult taotlust, millega nad parasjagu töötavad. Iga lugemine logitakse 12 kuud.",
+          "why": "<strong>Miks:</strong> sisemised vead ja kuritarvitused on piiratud, omistatavad ja üle vaadatavad."
+        },
+        "education": {
+          "title": "Kasutajate harimine ja teadlikkus",
+          "body": "Turvalisuse kõige raskem osa on see, mida me sinu eest ei saa valmis teha. Saadame lihtsad juhendid andmepüügi, passifoto pettuste ja võltssaatkonna SMS-ide kohta kohe, kui alustad taotlust, ning toome need tootes uuesti esile, kui miski tundub kahtlane. Sa oled viimane kaitseliin ning pigem varustame sind kui süüdistame.",
+          "why": "<strong>Miks:</strong> hästi informeeritud taotleja on meie odavaim ja tõhusaim turvakontroll."
+        }
+      }
+    },
+    "vdp": {
+      "tag": "▲ Haavatavuste avalikustamine · avatud kõigile uurijatele",
+      "title": "Leidsid midagi?<br></br><em>Tahame sellest kuulda.</em>",
+      "p1": "Meie kasutajate ja partnerite turvalisus on kõik. Kui usud, et oled leidnud tegeliku haavatavuse, mis mõjutab VIZA teenuseid, anna sellest meile otse teada ning me teeme sinuga lugupidavalt ja kiiresti koostööd selle parandamiseks.",
+      "p2": "Saada oma leiud aadressile <strong>security@viza.it.com</strong>. Kinnitame kättesaamise ühe tööpäeva jooksul, isegi kui selgub, et see on juba teada või väljaspool ulatust.",
+      "meta": {
+        "ack": {
+          "k": "Kinnitatud",
+          "v": "'<' 24 tunni jooksul"
+        },
+        "triage": {
+          "k": "Hinnatud",
+          "v": "3 tööpäeva jooksul"
+        },
+        "lang": {
+          "k": "Keeled",
+          "v": "EN · ID · AR"
+        },
+        "pgp": {
+          "k": "PGP võti",
+          "v": "0xVIZA · 2026"
+        }
+      },
+      "ctaEmail": "Kirjuta: security@viza.it.com",
+      "ctaScope": "Loe ulatust",
+      "terminal": {
+        "title": "aruande-mustand · security@viza.it.com",
+        "l1": "# haavatavuse aruanne",
+        "typeKey": "tüüp:",
+        "typeVal": "autentimise möödahiilimine",
+        "urlKey": "url:",
+        "reproKey": "taasesitus:",
+        "reproVal": "[sammud 1-4]",
+        "impactKey": "mõju:",
+        "impactVal": "konto ülevõtmine",
+        "pocKey": "tõend:",
+        "l7": "# ↳ krüpteeritud võtmega 0xVIZA",
+        "send": "saada"
+      }
+    },
+    "report": {
+      "eyebrow": "Haavatavusest teatamine",
+      "title": "Mida oma aruandesse lisada<br></br>ja <em>mida mitte.</em>",
+      "intro": "Hea aruanne säästab mõlemale poolele nädala. Siin on vorm, mis saab asjad kõige kiiremini hinnatud, ja asjad, mida me pigem oma postkasti ei sooviks.",
+      "include": {
+        "heading": "Palun lisa",
+        "sub": "Viis välja. Mida selgemad need on, seda kiiremini saame kinnitada ja parandada.",
+        "items": {
+          "type": "<strong>Probleemi tüüp</strong>: nt autentimine, juurdepääsukontroll, süstirünnak, IDOR, SSRF.",
+          "steps": "<strong>Selged taasesitamise sammud</strong>: nummerdatud, järjekorras, võimaluse korral puhtas sessioonis.",
+          "impact": "<strong>Võimalik turvamõju</strong>: mida ründaja sellega teha saaks, lihtsas keeles.",
+          "poc": "<strong>Kontseptsiooni tõend</strong>: eelistatult ekraanipildid või lühike ekraanisalvestus, logid teisel kohal."
+        }
+      },
+      "dontSend": {
+        "heading": "Palun ära saada",
+        "sub": "Need on ohtlikud, kasutud või mõlemat, ja peame need kättesaamisel kustutama.",
+        "items": {
+          "secrets": "<strong>Paroole või autentimismärke</strong>, sinu või kellegi teise omi. Näita vektorit, mitte saladust.",
+          "malware": "<strong>Toorseid pahavaranäidiseid või stealer-logisid.</strong> Kirjelda, mida nägid, ära lisa seda.",
+          "scanners": "<strong>Suuri automaatskanneri aruandeid</strong> ilma käsitsi valitud ja demonstreeritud leiuta.",
+          "customerData": "<strong>Klientide isikuandmeid või dokumente</strong>, isegi kui need olid sinu leiu aluseks.",
+          "socialEng": "<strong>Sotsiaalse manipuleerimise katsete salvestusi</strong> meie töötajate või konsultantide vastu."
+        }
+      }
+    },
+    "scope": {
+      "eyebrow": "Programmi ulatus",
+      "title": "Mis on sees, mis väljas.",
+      "intro": "Kui sa ei ole kindel, kas aruanne kuulub sellesse loetellu, saada see ikkagi ja küsi. Pigem hindame ja liigume edasi kui et sa hoiaksid päris probleemi enda käes, sest piir polnud ilmne.",
+      "fileRef": "/security/scope.md · v6",
+      "in": {
+        "pill": "Ulatuses",
+        "heading": "Aruanded, mida aktiivselt hindame",
+        "items": {
+          "web": "VIZA veebirakendused ja API-d aadressil <code>*.viza.com</code>, sh taotlejaportaal, konsultandikonsool ja partnerite lõpp-punktid.",
+          "infra": "VIZA omanduses olev infrastruktuur ja teenused: autentimine, dokumendivoog, ajastamine.",
+          "mobile": "Mobiilirakendused (iOS, Android), mis on avaldatud VIZA arendajakonto all.",
+          "marketing": "Avalikud turundus- ja sisuveebilehed VIZA kontrollitavatel domeenidel."
+        }
+      },
+      "out": {
+        "pill": "Väljaspool ulatust",
+        "heading": "Aruanded, mida me selle programmi raames menetleda ei saa",
+        "items": {
+          "devices": "Probleemid, mis tulenevad ohustatud kasutajaseadmetest, brauserilaiendustest või varastatud mandaatidest.",
+          "phishing": "Sotsiaalse manipuleerimise või andmepüügi rünnakud, mis on suunatud VIZA töötajate, partnerite või konsultantide vastu.",
+          "thirdParty": "Kolmandate osapoolte teenused või integratsioonid, mida VIZA otse ei halda (konsulaadiportaalid, kullerisaidid).",
+          "scanners": "Automaatskannerite leiud ilma demonstreeritud, päriselus ärakasutatava haavatavuseta.",
+          "headers": "Puuduvad turvapäised või üldised parimate tavade soovitused ilma ärakasutamise teeta."
+        }
+      }
+    },
+    "pledge": {
+      "eyebrow": "Vastutustundlik avalikustamine",
+      "title": "Kokkulepe, mille<br></br>me omavahel sõlmime.",
+      "intro": "Avalikustamine toimib, sest mõlemad pooled tegutsevad heas usus. Siin on, mida me sinult palume ja mille eest sa võid meid vastutuse alla võtta, kirja pandud, et keegi ei peaks arvama.",
+      "researcher": {
+        "kicker": "Mida me sinult palume",
+        "title": "Uurija <em>kohustused.</em>",
+        "p": "Aruande esitamisega nõustud tegutsema heas usus ja programmi vaimus, mitte ainult selle tähe järgi.",
+        "items": {
+          "1": "Tegutse heas usus: väldi uurimise ajal privaatsuse rikkumisi, andmete hävitamist või teenuse häirimist.",
+          "2": "Ära kasuta probleemi ära rohkem kui kinnitamiseks minimaalselt vaja ja ära kunagi ava andmeid, mis ei ole sinu omad.",
+          "3": "Hoia haavatavuse üksikasjad konfidentsiaalsena, kuni oleme parenduse välja andnud ja sinuga kinnitanud.",
+          "4": "Ära avalikusta leide avalikult ilma VIZA turvameeskonna eelneva kirjaliku nõusolekuta."
+        }
+      },
+      "viza": {
+        "kicker": "Mille eest sa võid meid vastutuse alla võtta",
+        "title": "VIZA <em>kohustused.</em>",
+        "p": "Vastutasuks me ei kao teataja juurest, ei vaidle tõsiduse üle, et parandusest kõrvale hiilida, ega kaeba inimesi kohtusse, kes meid aitavad.",
+        "items": {
+          "1": "Vaatame üle iga kehtiva aruande ja vastame ühe tööpäeva jooksul, olenemata tõsidusest.",
+          "2": "Suhtleme lugupidavalt: ilma kaitsva keelekasutuseta, ilma „nii oligi mõeldud“ lahtiseletamiseta.",
+          "3": "Võtame vajaduse korral asjakohaseid parandusmeetmeid ja anname sulle teada, kui parandus on välja antud.",
+          "4": "Mainime sind (nõusolekul) oma turvamuudatuste logis, kui probleem on lahendatud."
+        }
+      }
+    },
+    "legal": {
+      "eyebrow": "Õigus ja tasud",
+      "title": "Turvasadam, tasud<br></br>ja väike kiri.",
+      "intro": "Kui järgid seda poliitikat heas usus, käsitleme sinu uurimistööd volitatuna. Ülejäänud leht on igav, kuid oluline osa, välja toodud, mitte peidetud.",
+      "cards": {
+        "safeHarbour": {
+          "title": "Õiguslik turvasadam",
+          "body": "Kui järgid seda poliitikat heas usus, ei algata VIZA sinu vastu õiguslikke samme juhuslike või tahtmatute rikkumiste pärast, mis on seotud sinu uurimistööga. Sinult oodatakse siiski kohaldatavate seaduste ja eeskirjade järgimist."
+        },
+        "rewards": {
+          "title": "Tasud ja vigade preemia",
+          "body": "VIZA ei korralda praegu avalikku vigade preemiaprogrammi. Pakume vabatahtlikku tänutäheks väikest tasu kehtivate ja vastutustundlikult teatatud probleemide eest, hinnatuna mõju, uudsuse ja aruande kvaliteedi põhjal.",
+          "meta": "omal äranägemisel · juhtumipõhiselt"
+        },
+        "updates": {
+          "title": "Programmi uuendused",
+          "body": "VIZA jätab endale õiguse seda programmi igal ajal muuta või lõpetada. Kui sa ei ole kindel, kas sinu uurimistöö vastab poliitikale, võta meiega ühendust aadressil security@viza.it.com <em>enne</em> jätkamist.",
+          "meta": "viimati muudetud · mai 2026"
+        }
+      }
+    },
+    "cta": {
+      "title": "Näed midagi kahtlast?<br></br>Anna teada meie turvameeskonnale.",
+      "body": "Pigem kuuleme väikesest leiust kaks korda kui jätame suure korra märkamata. Aruanded lähevad otse päris inimesele turvameeskonnas: ilma piletiportaalita ja ilma hindamisrobotita.",
+      "lead": "Otse turvameeskonnale",
+      "small": "Mediaanvastus alla 24 tunni, igal nädalapäeval."
+    },
+    "footer": {
+      "tagline": "VIZA aitab sul viisasid üle maailma sujuvalt planeerida, taotleda ja jälgida.",
+      "company": "Ettevõte",
+      "careers": "Karjäär",
+      "contact": "Kontakt",
+      "security": "Turvalisus",
+      "privacy": "Privaatsus",
+      "terms": "Tingimused",
+      "products": "Tooted",
+      "prodVisaReq": "Viisanõuded",
+      "prodSchengen": "Schengeni kohtumisaja kontroll",
+      "prodPhoto": "Viisafoto looja",
+      "prodHelpline": "VIZA hädaabiliin",
+      "prodStudent": "Õppeviisa",
+      "offices": "Kontorid",
+      "officeSg": "Singapur, peakontor",
+      "officeSf": "Šanghai",
+      "copyright": "© VIZA, kõik õigused kaitstud"
+    }
+  },
+  "status": {
+    "crumbHome": "Läbipaistvus",
+    "crumbHere": "Süsteemi olek",
+    "hero": {
+      "title": "Süsteemi olek",
+      "lead": "Tõenditega kinnitatud kättesaadavus VIZA-le ja riiklikele viisaportaalidele, millega töötame. Iga allolev protsent, ajariba ja vahejuhtum pärineb salvestatud sünteetilisest kontrollist."
+    },
+    "console": {
+      "title": "VIZA töökindlus · Reaalajas",
+      "live": "Kontrollitud",
+      "unverified": "Kontrollimata",
+      "allOperational": "Kõik süsteemid töötavad",
+      "degraded": "Mõned süsteemid on häiritud",
+      "majorOutage": "Jälgitav süsteem ei ole saadaval",
+      "dataUnavailable": "Seireandmed ei ole saadaval",
+      "lastChecked": "Viimane salvestatud kontroll: {time}",
+      "noChecks": "Lõpetatud kontrolle pole veel salvestatud",
+      "kUptime": "90 päeva edukad kontrollid",
+      "kMonitors": "Jälgitavad lõpp-punktid",
+      "kIncidents": "Aktiivne vahejuhtum"
+    },
+    "subnav": {
+      "current": "Praegune olek",
+      "incidents": "Varasemad vahejuhtumid",
+      "subscribe": "Telli",
+      "searchPlaceholder": "Otsi riike",
+      "subscribeBtn": "Telli uuendused"
+    },
+    "platform": {
+      "title": "VIZA platvorm",
+      "realMeta": "Kontrollitakse iga 5 minuti järel · {count} lõpp-punkti",
+      "meta": "Kontrollitakse iga 5 minuti järel",
+      "name": "VIZA taotlusplatvorm",
+      "sub": "Avalikud VIZA teenused"
+    },
+    "uptime": {
+      "ago": "90 päeva tagasi",
+      "today": "Täna",
+      "pct": "{pct}% kontrollidest edukad",
+      "noData": "Salvestatud kontrolle pole"
+    },
+    "dayObservation": "{date}: {checks} salvestatud kontrolli",
+    "dayNoData": "{date}: salvestatud andmed puuduvad",
+    "dayTitle": "Päev {n}",
+    "statusLabels": {
+      "op": "Töötab",
+      "deg": "Häiritud",
+      "part": "Osaline katkestus",
+      "maj": "Ei ole saadaval",
+      "none": "Praegused andmed puuduvad"
+    },
+    "lastChecked": "Kontrollitud {time}",
+    "monitorStale": "Puuduv või aegunud kontroll",
+    "monitoringUnavailable": "Oleku API-l ei ole värsket tõendit. VIZA ei kuva vahemällu salvestatud ega genereeritud kättesaadavust praeguse teenuse seisundina.",
+    "noSearchResults": "Ükski jälgitav riik ei vasta sellele otsingule.",
+    "noRecordedIncidents": "Viimase 90 päeva salvestatud kontrollidest ei ole vahejuhtumeid tuletatud.",
+    "incidentCount": "{count, plural, one {# vahejuhtum} other {# vahejuhtumit}}",
+    "incidentRecovered": "Salvestatud kontrollid näitavad, et see teenus taastus.",
+    "noIssues": "Aktiivseid probleeme pole",
+    "activeIncident": "Aktiivne vahejuhtum",
+    "portalsHead": {
+      "title": "Riiklikud portaalid",
+      "lead": "Piiratud sünteetiline päring kontrollib iga seadistatud portaali iga viie minuti järel. Hall ajalugu tähendab, et vaatlust ei salvestatud, seda ei täideta kunagi hinnangulise andmetega."
+    },
+    "incidentsHead": {
+      "title": "Varasemad vahejuhtumid",
+      "lead": "Vahejuhtumid avanevad ja lahenevad püsivalt salvestatud seire üleminekute põhjal. See on tegevuskättesaadavus, mitte taotleja isikliku viisaotsuse olek."
+    },
+    "tags": {
+      "identified": "Tuvastatud",
+      "investigating": "Uurimisel",
+      "resolved": "Lahendatud"
+    },
+    "portals": {
+      "AE": {
+        "name": "Araabia Ühendemiraadid",
+        "sub": "GDRFA · ICA portaalid"
+      },
+      "AM": {
+        "name": "Armeenia",
+        "sub": "E-viisa portaal"
+      },
+      "AU": {
+        "name": "Austraalia",
+        "sub": "ImmiAccount"
+      },
+      "AZ": {
+        "name": "Aserbaidžaan",
+        "sub": "ASAN Visa"
+      },
+      "DE": {
+        "name": "Saksamaa",
+        "sub": "VIDEX · konsulaadi ajad"
+      },
+      "DK": {
+        "name": "Taani"
+      },
+      "EG": {
+        "name": "Egiptus",
+        "sub": "E-viisa portaal"
+      },
+      "FI": {
+        "name": "Soome",
+        "sub": "EnterFinland"
+      },
+      "FR": {
+        "name": "Prantsusmaa",
+        "sub": "France-Visas"
+      },
+      "GB": {
+        "name": "Ühendkuningriik",
+        "sub": "UKVCAS · UK Visas",
+        "bannerText": "Mõned taotlustüübid on katkestuse all.",
+        "bannerLink": "Vaata vahejuhtumi ajajoont"
+      },
+      "GE": {
+        "name": "Gruusia"
+      },
+      "GR": {
+        "name": "Kreeka",
+        "sub": "AEGEAN · konsulaar"
+      },
+      "HK": {
+        "name": "Hongkong",
+        "sub": "Immigration e-viisa"
+      },
+      "ID": {
+        "name": "Indoneesia",
+        "sub": "E-Visa Indonesia"
+      },
+      "IN": {
+        "name": "India",
+        "sub": "Indian Visa Online"
+      },
+      "JO": {
+        "name": "Jordaania"
+      },
+      "KE": {
+        "name": "Keenia",
+        "sub": "eCitizen / e-viisa"
+      },
+      "KH": {
+        "name": "Kambodža"
+      },
+      "LK": {
+        "name": "Sri Lanka",
+        "sub": "ETA portaal"
+      },
+      "MA": {
+        "name": "Maroko"
+      },
+      "TH": {
+        "name": "Tai",
+        "sub": "Tai e-viisa"
+      }
+    },
+    "incidents": {
+      "count": "<strong>{count}</strong> {count, plural, one {riik} other {riiki}} kogesid jõudlusprobleeme",
+      "events": "{count, plural, one {# sündmus} other {# sündmust}}",
+      "days": [
+        {
+          "date": "10. mai 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "10. mai, 3:05 PM",
+                  "desc": "See vahejuhtum on lahendatud. Teenus on naasnud tavapärase töö juurde."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "10. mai, 5:05 PM",
+                  "desc": "See vahejuhtum on lahendatud. Teenus on naasnud tavapärase töö juurde."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "9. mai 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "9. mai, 10:50 PM",
+                  "desc": "Uurime suurenenud tõrkemäära."
+                },
+                {
+                  "time": "10. mai, 12:20 AM",
+                  "desc": "Tõsidus kasvas häiritud töölt osalisele katkestusele."
+                },
+                {
+                  "time": "10. mai, 2:50 AM",
+                  "desc": "Tõsidus kasvas osaliselt katkestuselt suurele katkestusele."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "9. mai, 3:05 PM",
+                  "desc": "Uurime suurenenud tõrkemäära."
+                },
+                {
+                  "time": "9. mai, 7:20 PM",
+                  "desc": "Tõsidus kasvas osaliselt katkestuselt suurele katkestusele."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "8. mai 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "8. mai, 1:05 PM",
+                  "desc": "Uurime suurenenud tõrkemäära."
+                },
+                {
+                  "time": "8. mai, 2:05 PM",
+                  "desc": "See vahejuhtum on lahendatud. Teenus on naasnud tavapärase töö juurde."
+                },
+                {
+                  "time": "8. mai, 2:50 PM",
+                  "desc": "Uurime suurenenud tõrkemäära."
+                },
+                {
+                  "time": "8. mai, 7:35 PM",
+                  "desc": "See vahejuhtum on lahendatud. Teenus on naasnud tavapärase töö juurde."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "5. mai 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "5. mai, 1:36 PM",
+                  "desc": "Tõsidus kasvas häiritud töölt osalisele katkestusele."
+                },
+                {
+                  "time": "5. mai, 4:50 PM",
+                  "desc": "See vahejuhtum on lahendatud."
+                },
+                {
+                  "time": "5. mai, 9:20 PM",
+                  "desc": "Uurime suurenenud tõrkemäära."
+                },
+                {
+                  "time": "5. mai, 10:20 PM",
+                  "desc": "See vahejuhtum on lahendatud."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "5. mai, 2:43 PM",
+                  "desc": "See vahejuhtum on lahendatud."
+                },
+                {
+                  "time": "5. mai, 3:35 PM",
+                  "desc": "Uurime suurenenud tõrkemäära."
+                },
+                {
+                  "time": "5. mai, 7:35 PM",
+                  "desc": "Tõsidus kasvas osaliselt katkestuselt suurele katkestusele."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "4. mai 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "4. mai, 4:05 PM",
+                  "desc": "Uurime suurenenud tõrkemäära."
+                },
+                {
+                  "time": "4. mai, 5:05 PM",
+                  "desc": "See vahejuhtum on lahendatud."
+                },
+                {
+                  "time": "4. mai, 7:36 PM",
+                  "desc": "Uurime suurenenud tõrkemäära."
+                },
+                {
+                  "time": "4. mai, 8:35 PM",
+                  "desc": "See vahejuhtum on lahendatud."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "4. mai, 12:05 PM",
+                  "desc": "See vahejuhtum on lahendatud."
+                },
+                {
+                  "time": "4. mai, 1:50 PM",
+                  "desc": "Uurime suurenenud tõrkemäära."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2. mai 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "2. mai, 6:35 PM",
+                  "desc": "Uurime suurenenud tõrkemäära."
+                },
+                {
+                  "time": "2. mai, 7:50 PM",
+                  "desc": "See vahejuhtum on lahendatud."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "2. mai, 9:20 AM",
+                  "desc": "Uurime suurenenud tõrkemäära."
+                },
+                {
+                  "time": "2. mai, 10:20 AM",
+                  "desc": "See vahejuhtum on lahendatud."
+                },
+                {
+                  "time": "2. mai, 8:20 PM",
+                  "desc": "Uurime suurenenud tõrkemäära."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "2. mai, 8:20 PM",
+                  "desc": "Uurime suurenenud tõrkemäära."
+                },
+                {
+                  "time": "3. mai, 12:05 AM",
+                  "desc": "See vahejuhtum on lahendatud."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "1. mai 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "1. mai, 2:05 PM",
+                  "desc": "Uurime suurenenud tõrkemäära."
+                },
+                {
+                  "time": "1. mai, 3:05 PM",
+                  "desc": "See vahejuhtum on lahendatud."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "30. aprill 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "30. apr, 8:20 AM",
+                  "desc": "Uurime suurenenud tõrkemäära."
+                },
+                {
+                  "time": "30. apr, 9:50 AM",
+                  "desc": "See vahejuhtum on lahendatud."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30. apr, 3:05 PM",
+                  "desc": "See vahejuhtum on lahendatud."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30. apr, 4:51 PM",
+                  "desc": "See vahejuhtum on lahendatud."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30. apr, 1:20 PM",
+                  "desc": "Uurime suurenenud tõrkemäära."
+                },
+                {
+                  "time": "30. apr, 2:37 PM",
+                  "desc": "Tõsidus kasvas häiritud töölt osalisele katkestusele."
+                },
+                {
+                  "time": "30. apr, 8:20 PM",
+                  "desc": "See vahejuhtum on lahendatud."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30. apr, 6:50 PM",
+                  "desc": "See vahejuhtum on lahendatud."
+                },
+                {
+                  "time": "30. apr, 7:50 PM",
+                  "desc": "Uurime suurenenud tõrkemäära."
+                },
+                {
+                  "time": "1. mai, 12:20 AM",
+                  "desc": "See vahejuhtum on lahendatud."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "subscribe": {
+      "title": "Ole esimene,<br></br>kes teada saab, kui midagi katki läheb.",
+      "lead": "Vali riigid, mis sind huvitavad, ja saadame sulle ühe lihtsa uuenduse, kui nende või meie portaalid katki lähevad või taas tööle hakkavad.",
+      "emailLabel": "Saa vahejuhtumite uuendusi e-postiga",
+      "button": "Telli",
+      "follow": "Või jälgi olekut kaudu:",
+      "chipEmail": "E-posti kokkuvõte",
+      "chipSms": "SMS ja WhatsApp",
+      "chipRss": "RSS-voog",
+      "chipWebhook": "Webhook tegevusmeeskonnale"
+    },
+    "footer": {
+      "tagline": "VIZA aitab sul viisasid üle maailma sujuvalt planeerida, taotleda ja jälgida.",
+      "company": "Ettevõte",
+      "careers": "Karjäär",
+      "contact": "Kontakt",
+      "security": "Turvalisus",
+      "systemStatus": "Süsteemi olek",
+      "privacy": "Privaatsus",
+      "terms": "Tingimused",
+      "products": "Tooted",
+      "prodVisaReq": "Viisanõuded",
+      "prodSchengen": "Schengeni kohtumisaja kontroll",
+      "prodPhoto": "Viisafoto looja",
+      "prodHelpline": "VIZA hädaabiliin",
+      "copyright": "© VIZA, kõik õigused kaitstud"
+    }
+  },
+  "arrival": {
+    "breadcrumbHome": "Avaleht",
+    "breadcrumbHub": "Saabumiskaardid",
+    "hubH1": "Saabumiskaardi juhendid",
+    "hubLead": "Saabumiskaart on lühike riiklik vorm, mille täidad enne riiki sisenemist. Enamik neist on veebis, tasuta ja võtavad umbes viis minutit. Need juhendid näitavad, kes iga kaarti vajab, millal see esitada ja kuidas vältida võltsveebilehti, mis selle eest raha küsivad.",
+    "hubWhatTitle": "Mis on saabumiskaart",
+    "hubWhat": [
+      "Saabumiskaart on deklaratsioon, mida sihtkoht nõuab lisaks sinu passile ja viisale. See kirjeldab, kes sa oled, kuidas saabud ja kus peatud. Paljud riigid asendasid lennukis jagatava paberkaardi veebivormiga.",
+      "See ei ole viisa. Viisa annab sulle loa sisenemist taotleda. Saabumiskaart annab piiriasutusele teada sinu reisist ja viisa on sul siiski vaja seal, kus sinu kodakondsus seda nõuab."
+    ],
+    "hubFreeTitle": "Saabumiskaardid on tasuta",
+    "hubFree": [
+      "Iga nendes juhendites kirjeldatud kaart on riigi enda veebilehel tasuta. Mõned veebilehed kopeerivad riigi vormi ja küsivad selle eest tasu. Sa ei pea kunagi ühelegi neist maksma.",
+      "Alusta alati igas juhendis toodud ametlikult aadressilt. VIZA on sõltumatu teenus, mitte valitsuse veebileht."
+    ],
+    "hubWhenTitle": "Millal sul seda vaja on",
+    "hubWhen": [
+      "Enamik kaarte avaneb kolm päeva enne saabumist ja need tuleb esitada selle aja sees. Täpse reegli leiad igast juhendist, sest Jaapani Visit Japan Webil ei ole kindlat tähtaega ja see ei ole kohustuslik.",
+      "Elanikud, kodanikud ja transiitreisijad on sageli vabastatud või täidavad lühema vormi. Iga juhend loetleb vabastatud isikud, sh Singapuri kodanike vabastuse Malaisia MDAC-i puhul."
+    ],
+    "hubGuidesTitle": "Kõik juhendid",
+    "hubGuidesSub": "Vali sihtkoht. Igas juhendis on sammud, tavalised vead ja ametlikud lingid.",
+    "readGuide": "Loe juhendit",
+    "cardWhen": "Millal",
+    "cardsLabel": "Saabumiskaart",
+    "hubVisaTitle": "Kas vajad ka viisat",
+    "hubVisaBody": "Saabumiskaart ei asenda viisat. Vaata sihtkoha lehelt, kas sinu pass vajab seda.",
+    "hubVisaCta": "Sirvi viisalehti",
+    "glanceTitle": "Ühe pilguga",
+    "stepsTitle": "Kuidas seda täita, samm-sammult",
+    "mistakesTitle": "Tavalised vead",
+    "feesTitle": "Tasud ja võltsveebilehed",
+    "faqTitle": "Küsimused",
+    "sourcesTitle": "Allikad",
+    "relatedTitle": "Teised saabumiskaardi juhendid",
+    "independent": "VIZA on sõltumatu teenus, mitte valitsuse veebileht.",
+    "officialCta": "Ava ametlik veebileht",
+    "officialLabel": "Ametlik veebileht",
+    "vizaTitle": "Lase VIZA-l see sinu eest ära teha",
+    "vizaBody": "Alusta kaarti {name} oma VIZA kontol. VIZA vorm juhib sind läbi samade küsimuste nagu ametlik vorm ja hoiab sinu andmeid tulevasteks reisideks. Võid alati kasutada ka tasuta ametlikku veebilehte.",
+    "vizaFee": "VIZA teenustasu",
+    "vizaFeeFree": "Tasuta",
+    "vizaCta": "Alusta VIZA-s",
+    "noVizaTitle": "Kasuta ametlikku veebilehte",
+    "noVizaBody": "VIZA ei täida seda kaarti veel. Kasuta allolevat ametlikku veebilehte ja loe enne selle juhendi samme.",
+    "visaTitle": "Viisa: {country}",
+    "visaBody": "Saabumiskaart on viisast eraldi. Vaata, kes vajab viisat riiki {country}, millised on tasud ja kuidas taotleda.",
+    "visaCta": "Ava viisaleht: {country}",
+    "reviewedTitle": "Kontrollitud 25. novembril 2026",
+    "stepLabel": "Samm",
+    "cards": {
+      "malaysia-mdac": {
+        "summary": "Tasuta veebikaart välisturistidele. Singapuri kodanikud on vabastatud.",
+        "when": "Kuni 3 päeva enne saabumist"
+      },
+      "singapore-sg-arrival-card": {
+        "summary": "ICA veebikaart tervisedeklaratsiooniga. Esita veebilehel või MyICA rakenduses.",
+        "when": "Kuni 3 päeva enne saabumist"
+      },
+      "japan-visit-japan-web": {
+        "summary": "Tasuta QR-koodid immigratsiooni ja tolli jaoks. Soovitatav, mitte kohustuslik.",
+        "when": "Enne lendu"
+      },
+      "thailand-tdac": {
+        "summary": "Tasuta kaart igale välisturistile, olenemata viisavabadusest. Asendas paberist TM6.",
+        "when": "Kuni 3 päeva enne saabumist"
+      },
+      "korea-e-arrival-card": {
+        "summary": "Kohustuslik alates 1. jaanuarist 2026. Kehtiva K-ETA omanik on vabastatud.",
+        "when": "Kuni 3 päeva enne saabumist"
+      },
+      "indonesia-all-indonesia": {
+        "summary": "Üks kaart immigratsiooni, tolli ja tervise jaoks. Tasuta ja ei ole viisa.",
+        "when": "Kuni 3 päeva enne saabumist"
+      }
+    }
+  },
+  "guides": {
+    "breadcrumbHome": "Avaleht",
+    "breadcrumbHub": "Juhendid",
+    "hubH1": "Viisajuhendid Singapuris elavatele inimestele",
+    "hubLead": "Olenemata sellest, kas sul on Singapuri, Hiina, India või Filipiinide pass, vastavad need juhendid samale küsimusele: mida on vaja sellesse riiki sisenemiseks ja kuhu Singapurist taotleda. Igaüks nimetab oma allikad ja kontrollimise kuupäeva.",
+    "hubGuidesTitle": "Kõik juhendid",
+    "hubGuidesSub": "Vali teema. Reeglid muutuvad, seega loetleb iga juhend ametlikud lehed, mida enne reisi kontrollida.",
+    "readGuide": "Loe juhendit",
+    "hubMoreTitle": "Veel VIZA-lt",
+    "hubMoreBody": "Otsid kindlat riiki, saabumiskaarti või viimast reeglimuudatust?",
+    "hubDestinations": "Viisalehed",
+    "hubArrival": "Saabumiskaardi juhendid",
+    "hubNews": "Viisauudised",
+    "glanceTitle": "Kiire vastus",
+    "relatedVisaTitle": "Sihtkohtade lehed",
+    "relatedVisaSub": "Tasud, dokumendid ja sammud Singapuris elavatele inimestele.",
+    "relatedArrivalTitle": "Saabumiskaardi juhendid",
+    "relatedGuidesTitle": "Veel juhendeid",
+    "faqTitle": "Küsimused",
+    "sourcesTitle": "Allikad",
+    "reviewedTitle": "Kuidas me kontrollisime",
+    "published": "Avaldatud",
+    "updated": "Uuendatud",
+    "independent": "VIZA on sõltumatu teenus, mitte valitsuse veebileht."
+  },
+  "ds": {
+    "header": {
+      "home": "VIZA avaleht",
+      "primary": "Peamenüü",
+      "language": "Keel",
+      "signIn": "Logi sisse",
+      "openMenu": "Ava menüü",
+      "closeMenu": "Sulge menüü",
+      "nav": {
+        "home": "Avaleht",
+        "destinations": "Sihtkohad",
+        "arrivalCards": "Saabumiskaardid",
+        "guides": "Juhendid",
+        "news": "Uudised",
+        "about": "Meist",
+        "contact": "Kontakt"
+      }
+    },
+    "footer": {
+      "home": "VIZA avaleht",
+      "tagline": "VIZA tehisintellekti koostatud viisataotlused, mida meie konsultandid kontrollivad. Kasutamine on tasuta.",
+      "explore": "Avasta",
+      "follow": "Jälgi meid",
+      "followOn": "Jälgi VIZA-t kanalis {platform}",
+      "links": {
+        "destinations": "Sihtkohad",
+        "arrivalCards": "Saabumiskaardid",
+        "guides": "Juhendid",
+        "news": "Uudised",
+        "about": "Meist",
+        "contact": "Kontakt",
+        "careers": "Karjäär",
+        "security": "Turvalisus",
+        "status": "Olek"
+      },
+      "copyright": "© {year} VIZA. Kõik õigused kaitstud.",
+      "office": "Registrijärgne asukoht: 60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapur 409051",
+      "privacy": "Privaatsus",
+      "terms": "Tingimused",
+      "kelin": "Kelin Studio ettevõtmine",
+      "refunds": "Tagasimaksed",
+      "business": "Ettevõtte teave"
+    },
+    "form": {
+      "fullName": {
+        "label": "Sinu nimi",
+        "placeholder": "Jane Tan"
+      },
+      "email": {
+        "label": "E-post"
+      },
+      "phone": {
+        "label": "Telefon"
+      },
+      "destination": {
+        "label": "Sihtkoht",
+        "placeholder": "Jaapan, Schengen, Ameerika Ühendriigid"
+      },
+      "message": {
+        "label": "Sinu küsimus",
+        "placeholder": "Kuhu sa lähed, sinu pass ja reisikuupäevad."
+      },
+      "submit": "Saada sõnum",
+      "sending": "Saadan",
+      "success": "Aitäh, sinu sõnum on kätte saadud. Vastame e-postiga.",
+      "error": "Sinu sõnumit ei õnnestunud saata. Proovi uuesti või kirjuta aadressile sales@kelin.studio.",
+      "consent": "Sõnumi saatmisega nõustud meie <privacy>privaatsuspoliitika</privacy> ja <terms>tingimustega</terms>."
+    },
+    "gallery": {
+      "title": "Sihtkohad",
+      "lede": "Vali sihtkoht, et näha vajalikku viisat, dokumente ja riigilõivu.",
+      "view": "Vaata",
+      "passportSummary": "{free} viisavaba · {voa} e-viisa või saabumisviisa · {req} viisa nõutav",
+      "noResults": "Ükski sihtkoht ei vasta sinu otsingule.",
+      "sorts": {
+        "featured": "Esiletõstetud",
+        "open": "Avatud esimesena",
+        "name": "A kuni Z"
+      }
+    },
+    "dest": {
+      "all": "Kõik sihtkohad",
+      "onPage": "Sellel lehel",
+      "applyTitle": "Alusta taotlust",
+      "facts": "Faktid"
+    },
+    "article": {
+      "toc": "Sellel lehel",
+      "down": "Hüppa artikli juurde",
+      "faqLede": "Kiired vastused sellel teemal."
+    },
+    "legal": {
+      "updated": "Viimati uuendatud",
+      "contents": "Sisukord"
+    }
+  },
+  "homePage": {
+    "hero": {
+      "browse": "Sirvi sihtkohti",
+      "picks": "Sihtkohad"
+    },
+    "types": {
+      "title": "Viisatüübid",
+      "lede": "Turisti-, äri-, töö-, õppe- ja pikaajalised viisad.",
+      "prev": "Eelmine",
+      "next": "Järgmine",
+      "items": {
+        "tourist": {
+          "title": "Turist",
+          "body": "Puhkused, perekülastused ja lühiajalised viibimised."
+        },
+        "business": {
+          "title": "Äri",
+          "body": "Kohtumised, konverentsid ja objektikülastused."
+        },
+        "work": {
+          "title": "Töö",
+          "body": "Tööload ja töövisad."
+        },
+        "student": {
+          "title": "Üliõpilane",
+          "body": "Õppeviisad koolidele ja ülikoolidele."
+        },
+        "long": {
+          "title": "Pikaajaline viibimine",
+          "body": "Elamisload ja muud pikaajalised viisad."
+        }
+      }
+    },
+    "steps": {
+      "title": "Kuidas see töötab",
+      "cta": "Alusta tasuta taotlust",
+      "side": {
+        "freeValue": "Tasuta",
+        "freeLabel": "VIZA teenus",
+        "langLabel": "Keeled: inglise ja hiina",
+        "note": "Sa tasud ainult riigilõivu.",
+        "noteBody": "See läheb otse väljastavale asutusele. VIZA ei lisa omaltpoolt tasu."
+      },
+      "items": {
+        "choose": {
+          "title": "Vali sihtkoht",
+          "body": "Vaata enne alustamist vajalikku viisat, ettevalmistatavaid dokumente ja riigilõivu.",
+          "chips": "Viisatüüp|Dokumendid|Riigilõiv"
+        },
+        "passport": {
+          "title": "Laadi pass üles",
+          "body": "VIZA loeb sinu andmed fotolehelt, nii et tippida on väga vähe.",
+          "chips": "Fotoleht|Andmed täidetud"
+        },
+        "confirm": {
+          "title": "Kinnita oma andmed",
+          "body": "Kontrolli, mida VIZA luges, lisa reisikuupäevad ja jätka oma tasuta VIZA kontol.",
+          "chips": "Reisikuupäevad|Tasuta konto"
+        },
+        "file": {
+          "title": "VIZA kontrollib ja esitab",
+          "body": "Nõustaja kontrollib iga vormi enne selle esitamist ja sina jälgid selle edenemist oma kontol.",
+          "chips": "Nõustaja kontroll|Edenemise uuendused"
+        }
+      }
+    },
+    "tiers": {
+      "title": "Hinnad",
+      "lede": "Kaks viisi taotleda, mõlemad tasuta.",
+      "cta": "Kirjuta meile",
+      "criteria": "Võrdle",
+      "guided": "Juhendatud",
+      "full": "Täisteenus",
+      "rows": {
+        "fee": {
+          "label": "VIZA tasu",
+          "guided": "Tasuta",
+          "full": "Tasuta"
+        },
+        "form": {
+          "label": "Taotlusvorm",
+          "guided": "Sina vastad, VIZA tehisintellekt on sinu juhendaja",
+          "full": "Konsultant koostab vastused koos sinuga"
+        },
+        "documents": {
+          "label": "Dokumendid",
+          "guided": "Kontrollnimekiri sinu olukorra jaoks",
+          "full": "Konsultant kontrollib sinu dokumente"
+        },
+        "interview": {
+          "label": "Kohtumisaeg ja intervjuu",
+          "guided": "Sina broneerid ja osaled",
+          "full": "Käime koos sinuga läbi tõenäolised küsimused"
+        },
+        "govFee": {
+          "label": "Riigilõiv",
+          "guided": "Tasutakse otse asutusele",
+          "full": "Tasutakse otse asutusele"
+        },
+        "bestFor": {
+          "label": "Sobib",
+          "guided": "Lihtsatele taotlustele",
+          "full": "Keerulistele juhtumitele või varasema keeldumise korral"
+        }
+      }
+    },
+    "why": {
+      "title": "Miks VIZA",
+      "lede": "Selged sammud, kontrollitud vormid ja päris inimesed, kellega rääkida.",
+      "items": {
+        "free": {
+          "title": "Tasuta teenus",
+          "body": "VIZA abi ei maksa midagi. Sa tasud ainult riigilõivu, otse asutusele."
+        },
+        "checked": {
+          "title": "Kontrollitud vormid",
+          "body": "Nõustaja kontrollib iga vormi enne selle esitamist, nii et väikesed vead püütakse varakult kinni."
+        },
+        "language": {
+          "title": "Inglise ja hiina keel",
+          "body": "Räägi VIZA-ga inglise või hiina keeles, WhatsAppis, WeChatis või e-postiga."
+        }
+      },
+      "photos": {
+        "arrival": {
+          "title": "Saabumiskaardid",
+          "body": "Samm-sammuline abi tasuta saabumiskaartidega: Malaisia, Singapur, Jaapan, Tai, Korea ja Indoneesia."
+        },
+        "news": {
+          "title": "Uudised",
+          "body": "Viisareeglite muudatused ja uued e-viisa skeemid, selgitatud lihtsate sõnadega."
+        }
+      }
+    },
+    "guides": {
+      "title": "Juhendid",
+      "cta": "Kõik juhendid"
+    },
+    "faq": {
+      "lede": "Kiired vastused VIZA viisateenuse kohta.",
+      "more": "Veel küsimusi?",
+      "items": {
+        "cost": {
+          "q": "Kas VIZA küsib oma teenuse eest tasu?",
+          "a": "Ei. VIZA abi on tasuta. Kui sihtkoht küsib riigi viisalõivu, tasud selle otse sellele riigile."
+        },
+        "visas": {
+          "q": "Milliste viisadega VIZA aitab?",
+          "a": "Turisti-, äri-, töö-, õppe- ja pikaajaliste viisadega sellel lehel olevatesse sihtkohtadesse. Kui sinu oma ei ole loetletud, kirjuta meile ja konsultant ütleb, mis on võimalik."
+        },
+        "approval": {
+          "q": "Kes otsustab minu viisa üle?",
+          "a": "Iga otsuse teeb väljastav asutus. VIZA kontrollib sinu vormi ja dokumente enne nende esitamist, et sinu taotlus oleks täielik ja kooskõlaline."
+        },
+        "tiers": {
+          "q": "Mis vahe on Juhendatud ja Täisteenusel?",
+          "a": "Juhendatud teenuse puhul juhib VIZA tehisintellekt sind läbi vormi ja kontrollnimekirja ning kontroll iga vastuse üle jääb sinule. Täisteenuse puhul koostab konsultant vastused koos sinuga ja kontrollib sinu dokumente. Mõlemad on tasuta."
+        },
+        "language": {
+          "q": "Milliseid keeli te toetate?",
+          "a": "Inglise ja hiina keelt, WhatsAppis, WeChatis, telefonil ja e-postiga."
+        }
+      }
+    },
+    "contactCard": {
+      "title": "Räägi VIZA konsultandiga",
+      "body": "Vastame inglise või hiina keeles.",
+      "cta": "Kirjuta meile"
+    },
+    "cta": {
+      "title": "Alusta oma taotlust",
+      "point1": "Sinu andmed jäävad privaatseks",
+      "point2": "Vastab päris inimene",
+      "formTitle": "Esita küsimus",
+      "formBody": "Anna meile teada, kuhu sa lähed, ja VIZA konsultant vastab e-postiga."
+    }
+  },
+  "aboutPage": {
+    "h1": "VIZA-st",
+    "intro": {
+      "title": "Mis on VIZA",
+      "text": "VIZA valmistab ette, kontrollib ja esitab viisataotlusi Singapuris elavatele inimestele. Meie tehisintellekt teeb paberitöö ja meie konsultandid vaatavad iga vormi üle. Teenus on tasuta."
+    },
+    "facts": {
+      "destinations": "Sihtkohad",
+      "guides": "Viisajuhendid",
+      "arrival": "Saabumiskaardi juhendid",
+      "free": "Tasuta",
+      "freeLabel": "VIZA teenus"
+    },
+    "tiersTitle": "Juhendatud või Täisteenus",
+    "tiersLede": "Vali, kui palju abi soovid. Mõlemad on tasuta.",
+    "free": {
+      "title": "Tasuta teenus",
+      "text": "VIZA ei küsi oma abi eest tasu. Kui sihtkohal on riigi viisalõiv, näitab VIZA seda enne alustamist ja sina tasud selle otse väljastavale asutusele. Tasulisi lisavõimalusi ei ole."
+    },
+    "company": {
+      "title": "Ettevõtte andmed",
+      "office": "Registrijärgne asukoht",
+      "officeValue": "60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapur 409051",
+      "email": "E-post",
+      "phone": "Telefon ja WhatsApp",
+      "languages": "Keeled",
+      "languagesValue": "Inglise ja hiina keel"
+    }
+  },
+  "contactPage": {
+    "h1": "Kontakt",
+    "lines": {
+      "whatsapp": {
+        "title": "Telefon ja WhatsApp",
+        "body": "Helista konsultandile või kirjuta talle."
+      },
+      "wechat": {
+        "body": "Otsi WeChatis ID järgi ja lisa meid."
+      },
+      "email": {
+        "title": "E-post",
+        "body": "Sobib kõige paremini dokumentide ja pikemate küsimuste jaoks."
+      },
+      "office": {
+        "top": "Singapur",
+        "title": "Kontor",
+        "body": "60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapur 409051"
+      }
+    },
+    "message": {
+      "title": "Saada sõnum",
+      "text": "Küsimused viisa, sihtkoha või VIZA-ga töötamise kohta. Kirjuta meile ja konsultant vastab."
+    }
+  },
+  "careersPage": {
+    "title": "Karjäär",
+    "lede": "VIZA aitab Singapuris elavatel inimestel tehisintellekti ja konsultantidega viisa saada ning teenus on tasuta. Võtame tööle inimesi, kellele meeldib hoolikas ja kasulik töö.",
+    "teamsTitle": "Meeskonnad",
+    "teams": [
+      {
+        "title": "Inseneeria",
+        "body": "Ehita dokumendikontrolle, taotluse voogu ja tööriistu, mida meie konsultandid kasutavad."
+      },
+      {
+        "title": "Disain",
+        "body": "Tee stressirohke protsess taotlejale selgeks."
+      },
+      {
+        "title": "Operatsioonid",
+        "body": "Hoia iga taotlus liikumas ja iga nõue ajakohasena."
+      },
+      {
+        "title": "Konsulteerimine",
+        "body": "Aita taotlejaid juhtumitega, mis vajavad inimest, inglise ja hiina keeles."
+      },
+      {
+        "title": "Andmed",
+        "body": "Muuda riiklikud allikad kontrollideks, mis püüavad probleemid varakult kinni."
+      },
+      {
+        "title": "Turundus",
+        "body": "Selgita viisasid lihtsalt, juhendites ja lehtedel, mida inimesed usaldavad."
+      }
+    ],
+    "applyTitle": "Võta ühendust",
+    "applyBody": "Räägi meile endast ja meeskonnast, kuhu sooviksid liituda. Loeme iga sõnumi läbi.",
+    "applyCta": "Kirjuta meile"
+  },
+  "pageCopy": {
+    "product": {
+      "introTitle": "Kuidas VIZA sind viisataotlusel toetab",
+      "introLede": "Tutvu viisa ettevalmistuse, dokumentide ülevaatuse ja taotluse oleku teenustega. VIZA teenus on tasuta. Täpne ulatus ja saadavus näidatakse pärast sihtkoha valimist.",
+      "browse": "Sirvi sihtkohti"
+    },
+    "events": {
+      "title": "Üritusi pole veel",
+      "lede": "Tulevastest viisakliinikutest, infotundidest ja partnerite üritustest teatame siin.",
+      "contact": "Kirjuta meile"
+    }
+  },
+  "og": {
+    "band": "VIZA on tasuta. Riigilõivud tasutakse eraldi.",
+    "destSubtitle": "Tasud ja taotlemine"
+  }
+}
