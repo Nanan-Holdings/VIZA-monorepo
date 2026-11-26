@@ -1905,7 +1905,7 @@
       "side": {
         "freeValue": "Ingyenes",
         "freeLabel": "VIZA szolgáltatás",
-        "langLabel": "Nyelvek: angol és kínai",
+        "langLabel": "Nyelvek",
         "note": "Csak az állami díjat fizeti.",
         "noteBody": "Ez közvetlenül a kiállító hatósághoz kerül. A VIZA nem számít fel saját díjat."
       },

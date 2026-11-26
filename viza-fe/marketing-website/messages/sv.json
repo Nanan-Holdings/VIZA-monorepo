@@ -1905,7 +1905,7 @@
       "side": {
         "freeValue": "Gratis",
         "freeLabel": "VIZA-tjänsten",
-        "langLabel": "Språk: engelska och kinesiska",
+        "langLabel": "Språk",
         "note": "Du betalar bara den statliga avgiften.",
         "noteBody": "Den går direkt till den myndighet som utfärdar visumet. VIZA lägger inte på någon egen avgift."
       },

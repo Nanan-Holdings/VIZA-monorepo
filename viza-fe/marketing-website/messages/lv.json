@@ -1905,7 +1905,7 @@
       "side": {
         "freeValue": "Bezmaksas",
         "freeLabel": "VIZA pakalpojums",
-        "langLabel": "Valodas: angļu un ķīniešu",
+        "langLabel": "Valodas",
         "note": "Jūs maksājat tikai valsts nodevu.",
         "noteBody": "Tā tiek maksāta tieši izsniedzējai iestādei. VIZA nepievieno savu maksu."
       },

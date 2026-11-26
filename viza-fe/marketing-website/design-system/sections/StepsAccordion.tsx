@@ -14,11 +14,11 @@ export type Step = { title: string; body: string; image: string; chips?: string[
 export default function StepsAccordion({ side, steps }: { side: ReactNode; steps: Step[] }) {
   const [open, setOpen] = useState(0);
   return (
-    <div className="ds-steps">
-      <aside className="ds-steps-side" data-reveal="">
+    <div className="ds-howto">
+      <aside className="ds-howto-side" data-reveal="">
         {side}
       </aside>
-      <ol className="ds-steps-list">
+      <ol className="ds-howto-list">
         {steps.map((step, i) => {
           const isOpen = i === open;
           const id = `ds-step-${i}`;

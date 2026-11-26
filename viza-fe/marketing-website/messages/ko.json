@@ -1905,7 +1905,7 @@
       "side": {
         "freeValue": "무료",
         "freeLabel": "VIZA 서비스",
-        "langLabel": "지원 언어: 영어, 중국어",
+        "langLabel": "지원 언어",
         "note": "정부 수수료만 내시면 됩니다.",
         "noteBody": "수수료는 발급 기관에 바로 전달됩니다. VIZA는 별도 수수료를 붙이지 않습니다."
       },

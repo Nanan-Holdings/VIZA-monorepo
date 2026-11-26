@@ -1905,7 +1905,7 @@
       "side": {
         "freeValue": "Kostenlos",
         "freeLabel": "VIZA-Service",
-        "langLabel": "Sprachen: Englisch und Chinesisch",
+        "langLabel": "Sprachen",
         "note": "Sie zahlen nur die Behördengebühr.",
         "noteBody": "Sie geht direkt an die ausstellende Behörde. VIZA erhebt keine eigene Gebühr."
       },

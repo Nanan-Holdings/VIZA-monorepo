@@ -1905,7 +1905,7 @@
       "side": {
         "freeValue": "無料",
         "freeLabel": "VIZAのサービス",
-        "langLabel": "対応言語: 英語と中国語",
+        "langLabel": "対応言語",
         "note": "お支払いは政府手数料のみです。",
         "noteBody": "手数料は発行機関へ直接支払われます。VIZA独自の料金は加算されません。"
       },

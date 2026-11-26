@@ -1954,8 +1954,8 @@
       "side": {
         "freeValue": "免费",
         "freeLabel": "VIZA 服务",
-        "langValue": "2",
-        "langLabel": "种语言：中文和英文",
+        "langValue": "60",
+        "langLabel": "种语言",
         "note": "您只需支付政府签证费。",
         "noteBody": "费用直接交给签发机关，VIZA 不另收任何费用。"
       },

@@ -1905,7 +1905,7 @@
       "side": {
         "freeValue": "Besplatno",
         "freeLabel": "Usluga VIZA",
-        "langLabel": "Jezici: engleski i kineski",
+        "langLabel": "Jezici",
         "note": "Plaćate samo državnu pristojbu.",
         "noteBody": "Ide izravno tijelu koje izdaje vizu. VIZA ne dodaje vlastitu naknadu."
       },

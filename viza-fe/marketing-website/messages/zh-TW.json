@@ -1905,7 +1905,7 @@
       "side": {
         "freeValue": "免費",
         "freeLabel": "VIZA 服務",
-        "langLabel": "服務語言：英文與中文",
+        "langLabel": "服務語言",
         "note": "您只需支付政府規費。",
         "noteBody": "規費直接繳給核發機關，VIZA 不另收任何費用。"
       },

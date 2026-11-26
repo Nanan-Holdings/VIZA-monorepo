@@ -1954,8 +1954,8 @@
       "side": {
         "freeValue": "Free",
         "freeLabel": "VIZA service",
-        "langValue": "2",
-        "langLabel": "Languages: English and Chinese",
+        "langValue": "60",
+        "langLabel": "Languages",
         "note": "You pay only the government fee.",
         "noteBody": "It goes directly to the issuing authority. VIZA adds no fee of its own."
       },

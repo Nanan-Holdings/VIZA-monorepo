@@ -1905,7 +1905,7 @@
       "side": {
         "freeValue": "Ilmainen",
         "freeLabel": "VIZA-palvelu",
-        "langLabel": "Kielet: englanti ja kiina",
+        "langLabel": "Kielet",
         "note": "Maksat vain viranomaismaksun.",
         "noteBody": "Se menee suoraan myöntävälle viranomaiselle. VIZA ei lisää omaa maksuaan."
       },

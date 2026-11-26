@@ -1905,7 +1905,7 @@
       "side": {
         "freeValue": "Ücretsiz",
         "freeLabel": "VIZA hizmeti",
-        "langLabel": "Diller: İngilizce ve Çince",
+        "langLabel": "Diller",
         "note": "Yalnızca devlet harcını ödersiniz.",
         "noteBody": "Doğrudan vizeyi veren kuruma gider. VIZA kendi ücretini eklemez."
       },
