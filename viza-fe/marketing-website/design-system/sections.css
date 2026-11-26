@@ -94,9 +94,8 @@
   content: "";
   position: absolute;
   inset: 0;
-  /* The flat shade plus a soft darkening behind the headline, so white copy stays readable over bright
-     frames of the hero film (white beach, sky). */
-  background: var(--ds-overlay-hero), var(--ds-overlay);
+  /* A light shade, as in the Framer original, so the film stays bright (hero-fixes.css adds the scrim). */
+  background: var(--ds-overlay-hero);
 }
 .ds-hero-content {
   /* Framer: copy starts 188px down and 71px in from the frame edge. */

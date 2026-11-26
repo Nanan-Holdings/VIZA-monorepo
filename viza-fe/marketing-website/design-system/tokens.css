@@ -25,7 +25,7 @@
   --ds-positive: #00b906;
   --ds-star: #f98b31;
   --ds-overlay: rgba(0, 0, 0, 0.25);
-  --ds-overlay-hero: linear-gradient(90deg, rgba(0, 0, 0, 0.32) 0%, rgba(0, 0, 0, 0.12) 45%, rgba(0, 0, 0, 0) 70%);
+  --ds-overlay-hero: rgba(0, 0, 0, 0.14);
   --ds-overlay-deep: linear-gradient(180deg, rgba(0, 0, 0, 0.05) 25%, rgba(0, 0, 0, 0.7) 100%);
   --ds-glass: rgba(255, 255, 255, 0.2);
   --ds-error: #b3261e;
