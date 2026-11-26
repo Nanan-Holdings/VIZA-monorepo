@@ -7,6 +7,8 @@
 // lacks, such as Ethiopic, Khmer and Myanmar). Satori has no text shaping engine, so Arabic-script, Indic, Thai, Khmer,
 // Myanmar and Ethiopic cards are only made when OG_SHAPED=1 is set (check the result by eye); without it those locales
 // use the English card, as does any locale whose font is missing.
+// The home card is fixed art with no text, the same in every locale: scripts/og-home.jpg (a destination photo collage,
+// upscaled 4x with Upscayl, darkened, with the white VIZA logo in the centre). Replace that file to change it.
 import satori from "satori";
 import { Resvg } from "@resvg/resvg-js";
 import sharp from "sharp";
@@ -42,6 +44,7 @@ const NON_LATIN = new Set(["zh-CN", "zh-TW", "ja", "ko", "ru", "uk", "bg", "sr",
 const NEEDS_SHAPING = new Set(["ar", "fa", "ur", "ps", "hi", "mr", "ne", "bn", "pa", "gu", "ta", "te", "kn", "ml", "th", "am"]);
 const isCjk = (locale) => NON_LATIN.has(locale);
 
+const HOME_ART = readFileSync(new URL("scripts/og-home.jpg", ROOT));
 const logo = "data:image/svg+xml;base64," + readFileSync(new URL("public/assets/viza-logo-white.svg", ROOT)).toString("base64");
 
 const readMessages = (locale) => JSON.parse(readFileSync(new URL(`messages/${locale}.json`, ROOT), "utf8"));
@@ -139,6 +142,10 @@ for (const locale of ENABLED) {
   for (const key of PAGES) {
     const p = m.pages?.[key];
     if (!p) continue;
+    if (key === "home") {
+      items.push({ key, file: HOME_ART });
+      continue;
+    }
     items.push({ key, title: stripBrand(p.title), subtitle: clip(firstSentence(p.description), 110), img: null });
   }
   if (m.pages?.[BLOG]) {
@@ -175,6 +182,11 @@ for (const locale of ENABLED) {
   manifest[locale] = [];
   mkdirSync(new URL(`public/og/${locale}/`, ROOT), { recursive: true });
   for (const item of items) {
+    if (item.file) {
+      writeFileSync(new URL(`public/og/${locale}/${item.key}.jpg`, ROOT), item.file);
+      manifest[locale].push(item.key);
+      continue;
+    }
     const svg = await satori(card({ ...item, band, cjk }), { width: 1200, height: 630, fonts });
     const png = new Resvg(svg, { fitTo: { mode: "width", value: 1200 } }).render().asPng();
     const jpg = await sharp(png).jpeg({ quality: 82, mozjpeg: true }).toBuffer();
