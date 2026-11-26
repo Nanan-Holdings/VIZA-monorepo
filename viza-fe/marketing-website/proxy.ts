@@ -2,6 +2,7 @@ import createMiddleware from "next-intl/middleware";
 import { NextResponse, type NextRequest } from "next/server";
 import { routing } from "./navigation";
 import { LOCALE_COOKIE, ENABLED_LOCALES, DEFAULT_LOCALE } from "./lib/locales";
+import { isBlockedAgent } from "./lib/bots/policy";
 
 const intlMiddleware = createMiddleware(routing);
 
@@ -18,6 +19,10 @@ const PREFIXED = ENABLED_LOCALES.filter((l) => l !== DEFAULT_LOCALE);
  */
 export default function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  // Scraping libraries, site downloaders and bulk crawlers get no pages (lib/bots/policy.ts).
+  if (isBlockedAgent(request.headers.get("user-agent"))) {
+    return new NextResponse("Automated copying of this site is not permitted.\n", { status: 403, headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" } });
+  }
   // Agents that ask for markdown get the markdown twin of the home page.
   const ua = request.headers.get("user-agent") ?? "";
   const wantsMarkdown = request.headers.get("accept")?.includes("text/markdown") || /ChatGPT-User|Claude-User|Perplexity-User/i.test(ua);

@@ -12,6 +12,8 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { isBlockedAgent } from "@/lib/bots/policy";
+import { SITE_URL } from "@/lib/seo/site";
 
 export const runtime = "nodejs";
 
@@ -22,7 +24,22 @@ const AGENT_BACKEND_URL =
 const MAX_BYTES = 10 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
+/** Origins allowed to call this route: the site itself and local development. */
+function isOwnOrigin(request: NextRequest): boolean {
+  const origin = request.headers.get("origin") ?? request.headers.get("referer") ?? "";
+  try {
+    const host = new URL(origin).host;
+    return host === new URL(SITE_URL).host || host.startsWith("localhost:") || host.startsWith("127.0.0.1:");
+  } catch {
+    return false;
+  }
+}
+
 export async function POST(request: NextRequest) {
+  // Every call costs an OCR request upstream, so only the site's own apply flow may use it.
+  if (isBlockedAgent(request.headers.get("user-agent")) || !isOwnOrigin(request)) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
   let form: FormData;
   try {
     form = await request.formData();
