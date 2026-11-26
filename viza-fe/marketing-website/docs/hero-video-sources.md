@@ -1,6 +1,6 @@
 # Home hero video sources
 
-public/assets/hero/travel-montage-* is cut from these Pexels clips (Pexels License: free commercial use, no attribution required). Montage order: 08, 01, 03, 02, 06, 07, 05, 10, 09, 04; 3.2 s each with 0.8 s crossfades, 24.8 s.
+public/assets/hero/travel-film-* is cut from these Pexels clips (Pexels License: free commercial use, no attribution required). Montage order: 08, 01, 03, 02, 06, 07, 05, 10, 09, 04; 3.2 s each with 0.8 s crossfades, 24.8 s.
 
 | File | Shows | Source page | Creator | Resolution | Duration | FPS |
 |---|---|---|---|---|---|---|
