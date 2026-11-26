@@ -64,7 +64,7 @@ export function DestinationCard({ c, soon, free, compact }: { c: GalleryCountry;
       <div className="ds-dest-media">
         <Photo src={c.image} sizes="(max-width: 809px) 100vw, (max-width: 1199px) 50vw, 421px" />
         <span className="ds-dest-flag" aria-hidden="true">
-          <CircleFlag countryCode={c.flagCode} height={32} />
+          <CircleFlag alt="" countryCode={c.flagCode} height={32} />
         </span>
         {!c.launched && <span className="ds-dest-soon">{soon}</span>}
       </div>
@@ -213,7 +213,7 @@ export default function DestinationGallery({ asPage = false }: { asPage?: boolea
                 }}
               >
                 <span className="ds-pp-flag">
-                  <CircleFlag countryCode={passport.code.toLowerCase()} height={36} />
+                  <CircleFlag alt="" countryCode={passport.code.toLowerCase()} height={36} />
                 </span>
                 <span className="ds-pp-text">
                   <span className="ds-pp-key">{t("nav.yourPassport")}</span>
@@ -246,7 +246,7 @@ export default function DestinationGallery({ asPage = false }: { asPage?: boolea
                             setPpOpen(false);
                           }}
                         >
-                          <CircleFlag countryCode={p.code.toLowerCase()} height={26} />
+                          <CircleFlag alt="" countryCode={p.code.toLowerCase()} height={26} />
                           <span className="ds-pp-name">{t(`passports.${p.code}`)}</span>
                           <span className="ds-caption">{t("explore.visaFree", { n: p.free })}</span>
                           <Check size={14} className="ds-pp-check" />

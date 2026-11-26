@@ -4,28 +4,32 @@
 */
 
 /* ---------- Section head (title left, description and action right) ---------- */
+/* Section heading: the title with its short line underneath on the left, the button or controls on the
+   right, bottom-aligned with the line. The aside wrapper is display: contents so its two children can sit
+   in different grid cells without changing the markup. */
 .ds-head {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  align-items: center;
-  gap: 20px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "title action" "lede action";
+  align-items: end;
+  column-gap: 48px;
+  row-gap: 16px;
 }
 .ds-head > :first-child {
-  grid-column: 1 / span 2;
+  grid-area: title;
 }
 .ds-head-aside {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 24px;
+  display: contents;
 }
-.ds-head-aside .ds-body {
-  max-width: 300px;
+.ds-head-aside > .ds-body {
+  grid-area: lede;
+  max-width: 560px;
+  margin: 0;
 }
-.ds-head-aside:has(.ds-btn) .ds-body,
-.ds-head-aside:has(.ds-seg) .ds-body,
-.ds-head-aside:has(.ds-carousel-nav) .ds-body {
-  flex: 1;
+.ds-head-aside > :not(.ds-body) {
+  grid-area: action;
+  align-self: end;
+  justify-self: end;
 }
 .ds-section--ruled {
   position: relative;
@@ -40,21 +44,15 @@
   background: var(--ds-line);
 }
 
-@media (max-width: 1199.98px) {
+@media (max-width: 809.98px) {
   .ds-head {
-    grid-template-columns: 1fr;
-    align-items: start;
-    gap: 16px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "title" "lede" "action";
+    row-gap: 14px;
   }
-  .ds-head > :first-child {
-    grid-column: auto;
-  }
-  .ds-head-aside {
-    justify-content: space-between;
-    flex-wrap: wrap;
-  }
-  .ds-head-aside .ds-body {
-    max-width: 560px;
+  .ds-head-aside > :not(.ds-body) {
+    justify-self: start;
+    margin-top: 6px;
   }
 }
 
@@ -650,9 +648,6 @@
   }
   .ds-dest-grid.is-collapsed > li:nth-child(n + 7) {
     display: none;
-  }
-  .ds-head-aside .ds-seg {
-    margin-left: auto;
   }
 }
 
