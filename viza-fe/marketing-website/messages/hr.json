@@ -1,0 +1,2150 @@
+{
+  "cta": {
+    "startFreeApplication": "Započnite besplatnu prijavu"
+  },
+  "nav": {
+    "home": "Početna",
+    "apply": "Prijava",
+    "visas": "Vize",
+    "explore": "Istražite",
+    "events": "Događaji",
+    "blog": "Vijesti",
+    "careers": "Karijere",
+    "contact": "Kontakt",
+    "signIn": "Prijava u račun",
+    "getStarted": "Započnite",
+    "yourPassport": "Vaša putovnica",
+    "searchPlaceholder": "Pretražite zemlju ili vizu…",
+    "arrivalCards": "Dolazne kartice",
+    "guides": "Vodiči"
+  },
+  "footer": {
+    "followUs": "Pratite nas:",
+    "followOn": "Pratite VIZA na {platform}",
+    "product": "Proizvodi",
+    "company": "Tvrtka",
+    "legal": "Pravne informacije",
+    "offices": "Uredi",
+    "askAi": "Pitajte AI o VIZA",
+    "security": "Sigurnost",
+    "status": "Status",
+    "privacy": "Privatnost",
+    "terms": "Uvjeti",
+    "rights": "Sva prava pridržana.",
+    "tagline": "VIZA vam pomaže planirati, podnijeti i pratiti vize diljem svijeta, bez muke.",
+    "careers": "Karijere",
+    "contact": "Kontakt",
+    "copyright": "© VIZA, sva prava pridržana",
+    "prodMockInterview": "Probni razgovor za SAD",
+    "prodVisaReq": "Uvjeti za vizu",
+    "prodSchengen": "Provjera termina za Schengen",
+    "prodPhoto": "Izrada fotografije za vizu",
+    "prodHelpline": "VIZA hitna linija",
+    "prodStudent": "Studentska viza",
+    "arrivalCards": "Dolazne kartice",
+    "guides": "Vodiči",
+    "news": "Vijesti"
+  },
+  "pages": {
+    "blog": {
+      "metaTitle": "Vijesti o vizama i promjene pravila | VIZA",
+      "metaDescription": "Vijesti o vizama od VIZA-e: promjene pravila, nove sheme e-viza i ETA te što znače za osobe koje žive u Singapuru. Ažurira se kad se pravila promijene.",
+      "title": "Vijesti o vizama",
+      "lede": "Promjene pravila i novosti o politici, objašnjene jednostavnim riječima. Za savjete koji ostaju točni pročitajte vodiče.",
+      "readArticle": "Pročitajte članak",
+      "featuredLabel": "Najnovije vijesti",
+      "articlesTitle": "Najnovije vijesti",
+      "articlesDescription": "Novosti o politici i promjene pravila putovanja.",
+      "allPosts": "Sve objave",
+      "noMorePosts": "Uskoro stiže još vijesti.",
+      "emptyTitle": "Još nema objavljenih vijesti",
+      "emptyBody": "Pripremamo prve novosti. Svratite ponovno uskoro.",
+      "unavailableTitle": "Vijesti su privremeno nedostupne",
+      "unavailableBody": "Nismo uspjeli učitati najnovije objavljene vijesti. Pokušajte ponovno za nekoliko trenutaka.",
+      "backToBlog": "Natrag na vijesti",
+      "by": "Autor:",
+      "updated": "Ažurirano",
+      "categoriesLabel": "Teme vijesti",
+      "topicLabel": "Tema",
+      "relatedTitle": "Još vijesti",
+      "relatedDescription": "Još vijesti o vizama od VIZA-e.",
+      "ctaEyebrow": "Planirajte bez brige",
+      "ctaTitle": "Spremni započeti prijavu?",
+      "ctaBody": "Recite nam kamo želite ići. VIZA će vas voditi kroz uvjete i sljedeće korake.",
+      "ctaAction": "Započnite prijavu",
+      "categoryMetaTitle": "Vijesti: {category} | VIZA",
+      "categoryMetaDescription": "Pročitajte VIZA vijesti o temi: {category}. Što se promijenilo, koga se tiče i što učiniti dalje.",
+      "categoryLede": "Vijesti o temi: {category}.",
+      "visaLinkTitle": "Prijavljujete se za vizu ({country})?",
+      "visaLinkBody": "Pogledajte dokumente, državnu pristojbu i korake za osobe koje žive u Singapuru.",
+      "visaLinkAction": "Vodič za vizu: {country}",
+      "guidesTitle": "Povezani vodiči",
+      "guidesBody": "Vodiči koji se redovito ažuriraju o ovoj temi."
+    },
+    "home": {
+      "title": "Prijave za vize u Singapuru: SAD, Indija, Vijetnam | VIZA",
+      "description": "Prijavite se za vizu za SAD (DS-160), e-vizu za Indiju, Vijetnam ili Egipat ili schengensku vizu za Francusku. Savjetnik provjerava svaki obrazac.",
+      "heroTitle": "Kamo dalje?",
+      "heroLede": "Pregledajte mogućnosti vize za bilo koje odredište. Vaš VIZA savjetnik i naš AI rješavaju papirologiju, a vi rezervirate putovanje."
+    },
+    "apply": {
+      "title": "Započnite prijavu za vizu | VIZA",
+      "description": "Prenesite putovnicu, potvrdite podatke i prepustite prijavu za vizu VIZA savjetniku. Usluga VIZA je besplatna.",
+      "saveBadge": "Spremljeno · nastavite kad god želite"
+    },
+    "careers": {
+      "title": "Karijere | VIZA",
+      "description": "Radite na VIZA, besplatnoj usluzi za vize koju vodi Kelin Studio u Singapuru. Pogledajte timove za koje zapošljavamo i kako nam se javiti zbog posla.",
+      "rightCta": "Pogledajte poslove"
+    },
+    "contact": {
+      "title": "Kontakt: WhatsApp, WeChat, telefon, e-pošta | VIZA",
+      "description": "Javite se VIZA timu putem WhatsAppa, WeChata, telefona ili e-pošte. Četiri kanala, četiri službe i odgovara stvarna osoba.",
+      "rightCta": "Pišite nam"
+    },
+    "security": {
+      "title": "Sigurnost i odgovorno otkrivanje | VIZA",
+      "description": "Privatno, transparentno i sigurno prema zadanim postavkama. Kako VIZA štiti podatke klijenata, naš program otkrivanja ranjivosti i sigurna luka.",
+      "rightCta": "Prijavite ranjivost"
+    },
+    "status": {
+      "title": "Status sustava | VIZA",
+      "description": "Status VIZA-e i državnih portala za vize na koje podnosimo prijave, uživo.",
+      "navPill": "Svi sustavi rade"
+    },
+    "visa": {
+      "applyCta": "Prijavite se",
+      "applicationProcess": "Postupak prijave",
+      "documents": "Dokumenti",
+      "rejectionReasons": "Razlozi odbijanja",
+      "entryExit": "Ulazak i izlazak",
+      "extension": "Produljenje",
+      "reviews": "Recenzije",
+      "nearby": "Obližnje zemlje",
+      "sources": "Službeni izvori"
+    },
+    "privacy": {
+      "title": "Politika privatnosti | VIZA",
+      "description": "Što VIZA prikuplja kad se prijavljujete za vizu, zašto, tko to vidi i koliko dugo čuvamo, prema singapurskom PDPA-u."
+    },
+    "terms": {
+      "title": "Uvjeti korištenja | VIZA",
+      "description": "Uvjeti korištenja VIZA-ine usluge prijave za vizu, koju u Singapuru vodi Kelin Studio Pte. Ltd. Usluga VIZA je besplatna."
+    },
+    "product": {
+      "title": "Kako VIZA podržava vašu prijavu za vizu | VIZA",
+      "description": "Priprema vize, pregled dokumenata i status prijave na jednom mjestu. Usluga VIZA je besplatna. Opseg i dostupnost prikazuju se za svako odredište."
+    },
+    "events": {
+      "title": "Događaji | VIZA",
+      "description": "Vizne klinike, informativne sesije i partnerski događaji VIZA-e."
+    },
+    "arrivalCards": {
+      "title": "Dolazne kartice: MDAC, SG Arrival Card, TDAC | VIZA",
+      "description": "Besplatni vodiči za dolazne kartice za Maleziju, Singapur, Japan, Tajland, Koreju i Indoneziju: kome trebaju, kada ih predati i pomoć korak po korak."
+    },
+    "guides": {
+      "title": "Vodiči za vize za stanovnike Singapura | VIZA",
+      "description": "Jasni vodiči za osobe koje žive u Singapuru: zemlje bez vize, Schengen, američki razgovor, ETA, e-viza i odbijanja. Besplatni, redovito provjeravani."
+    },
+    "about": {
+      "title": "O VIZA-i: besplatna pomoć s vizama u Singapuru | VIZA",
+      "description": "VIZA priprema, provjerava i podnosi zahtjeve za vize za osobe u Singapuru, uz AI i savjetnike. Usluga je besplatna, a državne pristojbe idu tijelu."
+    },
+    "visaIndex": {
+      "title": "Odredišta za vize: uvjeti po zemljama | VIZA",
+      "description": "Usporedite uvjete za vizu po zemljama, s dokumentima i naknadama za svaku. VIZA-ina pomoć je besplatna.",
+      "heroTitle": "Odredišta za vize"
+    },
+    "refunds": {
+      "title": "Politika povrata | VIZA",
+      "description": "Usluga VIZA je besplatna, pa nema naknade za povrat. Kako funkcioniraju državne pristojbe i naknade drugih pružatelja."
+    },
+    "businessInformation": {
+      "title": "Podaci o poslovanju | VIZA",
+      "description": "VIZA-u vodi Kelin Studio Pte. Ltd., singapurska tvrtka. Registrirana adresa, UEN i kontakt podaci."
+    }
+  },
+  "common": {
+    "comingSoon": "Uskoro",
+    "learnMore": "Saznajte više",
+    "readMore": "Pročitajte više",
+    "applyNow": "Prijavite se",
+    "talkToHuman": "Razgovarajte s osobom",
+    "viewAll": "Prikaži sve"
+  },
+  "visa": {
+    "heroTitle": "Viza: {country}",
+    "validity": "Valjanost",
+    "howItWorks": "Kako to funkcionira",
+    "step1": "Recite nam podatke o putovanju i prenesite putovnicu.",
+    "step2": "Mi ispunjavamo i provjeravamo vašu prijavu prema najnovijim pravilima.",
+    "step3": "Podnosimo je na državni portal i pratimo odluku.",
+    "step4": "Odobrena viza stiže vam e-poštom, a mi je pratimo od početka do kraja.",
+    "documents": "Što će vam trebati",
+    "doc1": "Putovnica valjana najmanje 6 mjeseci.",
+    "doc2": "Nedavna fotografija za putovnicu.",
+    "doc3": "Datumi putovanja i smještaj.",
+    "doc4": "Ako odredište naplaćuje pristojbu za vizu, platna kartica kojom je plaćate izravno državi.",
+    "nearby": "Obližnja odredišta",
+    "startApplication": "Započnite svoju prijavu",
+    "comingSoonTitle": "{country}: uskoro",
+    "comingSoonBody": "Dovršavamo pripreme za odredište: {country}. Otvorite račun i javit ćemo vam čim bude dostupno.",
+    "browseDestinations": "Pregledajte odredišta",
+    "notifyMe": "Obavijesti me",
+    "back": "Natrag na istraživanje",
+    "tabOverview": "Pregled",
+    "tabProcess": "Postupak prijave",
+    "tabDocuments": "Dokumenti",
+    "tabRejection": "Razlozi odbijanja",
+    "tabEntry": "Ulazak i izlazak",
+    "tabExtension": "Produljenje",
+    "tabReviews": "Recenzije",
+    "tabNearby": "Obližnje zemlje",
+    "reviewsTitle": "Recenzije",
+    "nearbyTitle": "Obližnje zemlje",
+    "nearbySub": "Putujete po regiji? Dodajte još jednu vizu svom putovanju, a vaš VIZA savjetnik ih objedinjuje.",
+    "faqTitle": "Često postavljana pitanja",
+    "editorial": "Ova stranica slijedi VIZA-inu uredničku politiku. Oslanjamo se na službene državne izvore i ažuriramo svaki uvjet kad se politika promijeni.",
+    "editorialLink": "Pročitajte kako provjeravamo",
+    "sourcesTitle": "Izvori",
+    "priceGovt": "Državna pristojba",
+    "priceFree": "Besplatno",
+    "pillAllInclusive": "Sve uključeno",
+    "priceCta": "Započnite prijavu",
+    "onTime": "Na vrijeme",
+    "freeService": "Besplatna usluga VIZA",
+    "freeServiceNote": "VIZA ne naplaćuje svoju pomoć",
+    "govFeePaidDirect": "Državna pristojba {fee}, plaća se izravno tijelu koje izdaje vizu.",
+    "govFeeSetByAuthority": "Svaku državnu pristojbu određuje tijelo koje izdaje vizu i plaća se izravno njemu.",
+    "govFeeSetByAuthorityShort": "Određuje tijelo",
+    "priceService": "Usluga VIZA",
+    "pillPaidToAuthority": "Plaća se tijelu",
+    "priceTotalToViza": "Plaćate VIZA-i",
+    "breadcrumbVisas": "Odredišta za vize",
+    "serviceDescription": "VIZA pomaže ljudima koji žive u Singapuru da pripreme, provjere i podnesu prijave ({country}, {type}) uz AI vodstvo i stručni pregled koji obavlja čovjek.",
+    "offerDescription": "Naknada za VIZA uslugu. Državne pristojbe za vizu su zasebne i plaćaju se izravno tijelu koje izdaje vizu.",
+    "dest": {
+      "tabGlance": "Ukratko",
+      "tabPassports": "Putovnice",
+      "tabTypes": "Vrste viza",
+      "tabResidents": "Stanovnici",
+      "tabFees": "Naknade",
+      "tabApply": "Kako se prijaviti",
+      "tabChecklist": "Dokumenti",
+      "tabRejection": "Odbijanja",
+      "tabTravel": "Prije putovanja",
+      "tabRelated": "Povezano",
+      "glanceTitle": "Ukratko",
+      "glanceVisa": "Potrebna viza",
+      "glanceGovFee": "Državna pristojba",
+      "glanceVizaFee": "Naknada VIZA",
+      "glanceProcessing": "Vrijeme obrade",
+      "glanceMaxStay": "Najdulji boravak",
+      "glanceChecked": "Datum provjere",
+      "passportsTitle": "Treba li vam viza?",
+      "typesTitle": "Vrste viza",
+      "residentsTitle": "Stanovnici Singapura",
+      "feesTitle": "Naknade i rokovi",
+      "applyTitle": "Kako se prijaviti",
+      "checklistTitle": "Popis dokumenata",
+      "travelTitle": "Prije putovanja",
+      "colPassport": "Putovnica",
+      "colEntry": "Ulazak",
+      "colNotes": "Napomene",
+      "colItem": "Stavka",
+      "colAmount": "Iznos",
+      "vizaFeeNote": "VIZA-ina pomoć je besplatna. Plaćate samo državnu pristojbu, izravno tijelu.",
+      "reviewedBy": "Provjera VIZA savjetnika, {date}.",
+      "relatedTitle": "Povezana odredišta",
+      "relatedSub": "Druga mjesta koja ljudi dodaju istom putovanju i gdje možete pročitati više.",
+      "startTitle": "Započnite prijavu",
+      "startBody": "Počnite s putovnicom i datumima putovanja. VIZA-ina pomoć je besplatna, a državnu pristojbu plaćate izravno tijelu.",
+      "startConsultBody": "Recite VIZA savjetniku gdje živite, koju putovnicu imate i kada putujete. VIZA-ina pomoć je besplatna.",
+      "consultCta": "Razgovarajte sa savjetnikom"
+    }
+  },
+  "apply": {
+    "stepOf": "Korak {n} od 3",
+    "back": "Natrag",
+    "continue": "Nastavi",
+    "step1Name": "Prenesite putovnicu",
+    "step2Name": "Potvrdite podatke",
+    "step3Name": "Započnite prijavu",
+    "s1Title": "Prenesite svoju putovnicu",
+    "s1Desc": "Podatke ćemo pročitati automatski, bez tipkanja. Upotrijebite stranicu s podacima (onu s vašom fotografijom).",
+    "segUpload": "Prenesi datoteku",
+    "segCapture": "Snimi fotografiju",
+    "dzTitle": "Ovdje ispustite fotografiju putovnice",
+    "dzSub": "Ili kliknite za pregled: vaša je datoteka šifrirana i nikad se ne dijeli",
+    "dzBrowse": "Odaberi datoteku",
+    "dzUpTo": "Do 10 MB",
+    "tip1Title": "Sva četiri kuta su vidljiva",
+    "tip1Sub": "Obuhvatite cijelu stranicu s podacima, uključujući donju MRZ zonu.",
+    "tip2Title": "Svijetlo, ravnomjerno osvjetljenje",
+    "tip2Sub": "Izbjegavajte sjene od ruke ili maske telefona.",
+    "tip3Title": "Bez odsjaja i refleksija",
+    "tip3Sub": "Lagano nagnite ako se pečat odbija.",
+    "errReadFail": "Nismo uspjeli pročitati tu putovnicu: {detail}. Pokušajte s jasnijom fotografijom stranice s podacima.",
+    "extReading": "Čitanje dokumenta",
+    "extExtracting": "Izdvajanje vaših podataka",
+    "extVerifying": "Provjera autentičnosti",
+    "stReading": "Čitanje…",
+    "stExtracting": "Izdvajanje…",
+    "stVerifying": "Provjera…",
+    "s2Title": "Potvrdite svoje podatke",
+    "s2Desc": "Ovo smo preuzeli izravno iz vaše putovnice. Dodirnite bilo koje polje za uređivanje.",
+    "successHigh": "Putovnica je uspješno pročitana, visoka pouzdanost",
+    "warnLow": "Neka je polja bilo teško pročitati. Još jednom provjerite svaku vrijednost ispod.",
+    "warnMed": "Pročitali smo većinu vaših podataka. Provjerite istaknuta polja.",
+    "ppDetails": "Podaci iz putovnice",
+    "autoExtracted": "Automatski pročitano",
+    "fSurname": "Prezime",
+    "fGiven": "Ime",
+    "fPassport": "Broj putovnice",
+    "fDob": "Datum rođenja",
+    "fNationality": "Državljanstvo",
+    "fExpires": "Istječe",
+    "reachTitle": "Kako vas možemo kontaktirati?",
+    "reachDesc": "Ovdje ćemo poslati vašu vizu, a na telefon tekstualne obavijesti o statusu.",
+    "email": "E-pošta",
+    "phone": "Telefon",
+    "consent": "Potvrđujem da gornji podaci odgovaraju mojoj putovnici i ovlašćujem VIZA-u da u moje ime podnese ovu prijavu imigracijskim tijelima: {country}.",
+    "s3Title": "Započnite svoju prijavu",
+    "s3Desc": "Usluga VIZA je besplatna. Prijavite se u VIZA portal, a dalje preuzimamo mi.",
+    "headsUp": "Dobro je znati:",
+    "headsUpBody": "ako vlada ({country}) naplaćuje pristojbu za vizu, plaćate je izravno njoj. VIZA nikad ne naplaćuje niti poskupljuje taj iznos.",
+    "yourApp": "Vaša prijava",
+    "guaranteedBy": "Zajamčena isporuka do",
+    "govFee": "Državna pristojba",
+    "expressUpgrade": "Ekspresna nadogradnja",
+    "total": "Ukupno",
+    "footEncrypted": "Šifrirano od kraja do kraja. VIZA vam ne naplaćuje ovu prijavu.",
+    "helpOnline": "Priya je na mreži",
+    "helpTap": "Dodirnite za razgovor sa svojim VIZA savjetnikom",
+    "totalAmount": "SGD {amount}",
+    "totalFree": "Besplatno",
+    "etaStandard": "12. svibnja 2026., 8:00 SGT",
+    "failTitle": "Nismo uspjeli pročitati taj dokument",
+    "failNotPassport": "Ovo ne izgleda kao stranica s podacima iz putovnice. Prenesite fotografiju stranice s vašom fotografijom i osobnim podacima.",
+    "failUnreadable": "Nijedno obvezno polje nije bilo moguće pročitati. Ponovno snimite fotografiju pri dobrom svjetlu, s cijelom stranicom s podacima ravno i u fokusu.",
+    "tryAgain": "Pokušajte ponovno",
+    "warnPartial": "Nismo uspjeli pročitati sve. Dovršite istaknuta polja ispod.",
+    "warnExpired": "Čini se da je ova putovnica istekla. Većina odredišta traži valjanost od najmanje 6 mjeseci.",
+    "warnMrz": "Strojno čitljiva zona (dva retka pri dnu) nije bila čitljiva. Još jednom provjerite svako polje.",
+    "warnBlurry": "Fotografija je bila mutna. Pažljivo još jednom provjerite svako polje.",
+    "fieldRequired": "Obavezno, ispunite",
+    "editField": "Uredi: {field}",
+    "emailInvalid": "Unesite valjanu adresu e-pošte, ovamo stižu obavijesti o vizi i poveznica za prijavu.",
+    "phoneInvalid": "Unesite valjan broj telefona.",
+    "consentRequired": "Potvrdite izjavu za nastavak.",
+    "continueToStart": "Nastavi",
+    "startTitle": "Nastavite u VIZA portalu",
+    "startSub": "Prijavite se ili otvorite svoj besplatni račun. Prijava za ovo odredište odmah se otvara.",
+    "vizaService": "Usluga VIZA",
+    "govFeeSetByAuthority": "Određuje tijelo",
+    "govFeeNote": "Svaka državna pristojba za vizu plaća se izravno tijelu koje izdaje vizu, a ne VIZA-i.",
+    "completeBeforeStart": "Prije nastavka dovršite istaknute stavke iznad."
+  },
+  "explore": {
+    "help": "Pomoć",
+    "passportLabel": "Putovnica: {name}",
+    "passportSub": "Uvjeti za vizu u {n} odredišta · Rang {rank}",
+    "freeLabel": "Bez vize",
+    "freeNote": "bez papirologije",
+    "voaLabel": "E-viza ili VOA",
+    "voaNote": "mi to rješavamo",
+    "reqLabel": "Viza obvezna",
+    "reqNote": "podnošenje u veleposlanstvu",
+    "fullMap": "Pogledajte cijelu kartu viza",
+    "grid": "Mreža",
+    "map": "Karta",
+    "mapLegendEvisa": "E-vize i posjetničke vize",
+    "mapHint": "Zadržite pokazivač na istaknutoj točki za pregled odredišta",
+    "sectionTitle": "Za putovnice: {country}",
+    "seeAll": "Prikaži svih {n}",
+    "footnote": "Usluga VIZA je besplatna. Svaka državna pristojba za vizu plaća se izravno tijelu koje izdaje vizu i razlikuje se po zemlji.",
+    "fastTrack": "Ubrzano",
+    "cardType": "Vrsta",
+    "cardValid": "Vrijedi",
+    "cardFee": "Usluga VIZA",
+    "save": "Spremi",
+    "startApplication": "Započnite prijavu",
+    "catalogueUnavailable": "Trenutno nijedno odredište nije otvoreno za prijave putem interneta. Svratite ponovno uskoro.",
+    "choosePassport": "Odaberite putovnicu",
+    "searchPassport": "Pretražite zemlju putovnice…",
+    "visaFree": "{n} bez vize",
+    "ppFoot": "Ažurirano za svibanj 2026. · Izvor: IATA Timatic",
+    "noMatch": "Nijedna putovnica ne odgovara upitu “{q}”",
+    "filters": {
+      "delivery": "Isporuka vize",
+      "type": "Vrsta vize",
+      "documents": "Dokumenti",
+      "dates": "Datumi putovanja"
+    },
+    "filterOpts": {
+      "delivery": [
+        "Bilo kada",
+        "U roku od 24 sata",
+        "U roku od 3 dana",
+        "U roku od 1 tjedna",
+        "U roku od 1 mjeseca"
+      ],
+      "type": [
+        "Sve vrste",
+        "Turistička",
+        "Poslovna",
+        "Radna",
+        "Studentska",
+        "Digitalni nomad"
+      ],
+      "documents": [
+        "Bilo koji dokumenti",
+        "Minimalni (samo putovnica)",
+        "Standardni",
+        "Detaljan paket"
+      ],
+      "dates": [
+        "Odaberite datume",
+        "Ovaj tjedan",
+        "Ovaj mjesec",
+        "Za 3 mjeseca",
+        "Za 6 mjeseci"
+      ]
+    }
+  },
+  "cities": {
+    "viza-test": "Probna naplata uživo",
+    "indonesia": "Bali · Jakarta",
+    "egypt": "Kairo · Giza",
+    "australia": "Sydney · Melbourne",
+    "saudi-arabia": "Rijad · AlUla",
+    "united-kingdom": "London · Edinburgh",
+    "vietnam": "Hanoi · Hoi An",
+    "malaysia": "KL · Penang",
+    "japan": "Tokio · Kyoto",
+    "united-states": "New York · LA",
+    "canada": "Toronto · Vancouver",
+    "turkiye": "Istanbul · Kapadokija",
+    "thailand": "Bangkok · Phuket",
+    "united-arab-emirates": "Dubai · Abu Dabi",
+    "france": "Pariz · Nica",
+    "italy": "Rim · Firenca",
+    "india": "Delhi · Mumbai"
+  },
+  "validity": {
+    "viza-test": "Samo demo",
+    "indonesia": "90 dana",
+    "egypt": "90 dana",
+    "australia": "1 godina",
+    "saudi-arabia": "365 dana",
+    "united-kingdom": "6 mjeseci",
+    "vietnam": "90 dana",
+    "malaysia": "3 mjeseca",
+    "japan": "90 dana",
+    "united-states": "10 godina",
+    "canada": "10 godina",
+    "turkiye": "180 dana",
+    "thailand": "3 mjeseca",
+    "united-arab-emirates": "60 dana",
+    "france": "90 dana",
+    "italy": "90 dana",
+    "india": "30 dana"
+  },
+  "passports": {
+    "SG": "Singapur",
+    "JP": "Japan",
+    "KR": "Južna Koreja",
+    "DE": "Njemačka",
+    "FR": "Francuska",
+    "GB": "Ujedinjeno Kraljevstvo",
+    "US": "Sjedinjene Američke Države",
+    "AU": "Australija",
+    "CA": "Kanada",
+    "AE": "Ujedinjeni Arapski Emirati",
+    "CN": "Kina",
+    "IN": "Indija",
+    "BR": "Brazil",
+    "PH": "Filipini",
+    "ID": "Indonezija",
+    "MY": "Malezija",
+    "TH": "Tajland"
+  },
+  "countries": {
+    "viza-test": "VIZA test",
+    "indonesia": "Indonezija",
+    "egypt": "Egipat",
+    "australia": "Australija",
+    "saudi-arabia": "Saudijska Arabija",
+    "united-kingdom": "Ujedinjeno Kraljevstvo",
+    "vietnam": "Vijetnam",
+    "malaysia": "Malezija",
+    "japan": "Japan",
+    "united-states": "Sjedinjene Američke Države",
+    "canada": "Kanada",
+    "turkiye": "Turska",
+    "thailand": "Tajland",
+    "united-arab-emirates": "Ujedinjeni Arapski Emirati",
+    "france": "Francuska",
+    "italy": "Italija",
+    "india": "Indija",
+    "china": "Kina",
+    "south-korea": "Južna Koreja",
+    "schengen": "Schengen"
+  },
+  "visaTypes": {
+    "Test checkout": "Probna naplata",
+    "e-Visa": "E-viza",
+    "Standard Visitor": "Standard Visitor",
+    "Visitor 600": "Visitor 600",
+    "Tourist": "Turistička",
+    "B1/B2": "B1/B2",
+    "eTA": "eTA",
+    "Schengen": "Schengen",
+    "eVisa": "E-viza",
+    "Visitor visa": "Posjetnička viza",
+    "Tourist visa": "Turistička viza"
+  },
+  "careers": {
+    "hero": {
+      "nowHiring": "Trenutno zapošljavamo u",
+      "cities": [
+        "Šangaj",
+        "Singapur"
+      ],
+      "openRoles": "28 otvorenih radnih mjesta",
+      "title": "Pomozite nam da granice<br></br><em>nestanu</em>, <u>tiho,</u><br></br>brzinom softvera.",
+      "lead": "Mjesece viznog papirologije pretvaramo u sate softvera, za milijune ljudi koji samo žele sjesti u zrakoplov. Donesite svoje umijeće u tim koji isporučuje prema stvarnim rokovima.",
+      "ctaRoles": "Pogledajte sva otvorena radna mjesta",
+      "ctaWhy": "Zašto postojimo"
+    },
+    "board": {
+      "ariaLabel": "Ploča odlazaka s otvorenim radnim mjestima u VIZA",
+      "head": "Otvorene pozicije · uživo",
+      "live": "Na vrijeme",
+      "cols": {
+        "req": "Br.",
+        "role": "Uloga",
+        "office": "Ured",
+        "status": "Status"
+      },
+      "rows": [
+        {
+          "role": "Staff Engineer",
+          "sub": "Cjevovod dokumenata",
+          "status": "Ukrcaj"
+        },
+        {
+          "role": "Product Designer",
+          "sub": "Tijekovi prijave",
+          "status": "Otvoreno"
+        },
+        {
+          "role": "Veza s veleposlanstvima",
+          "sub": "Partnerstva s vladama",
+          "status": "Zadnji poziv"
+        },
+        {
+          "role": "Korisnička podrška",
+          "sub": "Eskalacije razine 2",
+          "status": "Otvoreno"
+        }
+      ],
+      "foot": "+24 radna mjesta u inženjerstvu, operacijama i dizajnu",
+      "browseAll": "Pregledaj sve",
+      "chip1Label": "Zapošljavamo u",
+      "chip1Value": "4 ureda",
+      "chip2Label": "Prosj. odgovor",
+      "chip2Value": "3.2 dana do prvog poziva"
+    },
+    "stats": [
+      {
+        "value": "2.4M",
+        "label": "Viza izdanih putem VIZA prošle godine"
+      },
+      {
+        "label": "Odredišta s obradom uživo"
+      },
+      {
+        "label": "Stopa odobrenja za sve vrste viza u 2025."
+      },
+      {
+        "label": "Ljudi u Šangaju i Singapuru"
+      }
+    ],
+    "mission": {
+      "eyebrow": "Naša priča",
+      "title": "Većina svijeta<br></br>i dalje putuje s<br></br><em>tiskanom papirologijom.</em>",
+      "kicker1": "VIZA smo pokrenuli 2021., nakon što smo previše tjedana proveli na čekanju s veleposlanstvima. Sustav za prelazak granica stariji je od interneta, a ljudi zarobljeni u njemu zaslužuju bolje.",
+      "kicker2": "Danas tim od 340 ljudi u četiri ureda isporučuje softver, podnosi dokumente i vodi operacije u 194 zemlje. Radimo dosadan, iscrpljujući posao kako bi putovanje bilo kao ostatak interneta: nekoliko dodira i već ste na putu.",
+      "founderName": "Mira Kohli",
+      "founderRole": "Suosnivačica i CEO · Singapur",
+      "beliefs": [
+        {
+          "title": "Mi smo operativna tvrtka koja isporučuje softver.",
+          "body": "Pola VIZA-e su inženjeri, dizajneri i voditelji proizvoda. Druga polovica su savjetnici, operacije i stručnjaci za dokumente u zemljama. Nijedna polovica ne pobjeđuje bez druge."
+        },
+        {
+          "title": "Podnositelj je uvijek klijent.",
+          "body": "Veleposlanstva, partneri i zrakoplovne tvrtke svi su važni. No osoba koja u 3 ujutro čeka u redu i osvježava portal ona je za koju radimo i prema kojoj se mjerimo."
+        },
+        {
+          "title": "Brzina raste kad ste strpljivi s kvalitetom.",
+          "body": "Brzo isporučujemo, a sporo donosimo nepovratne odluke. Pogrešna odluka o vizi može upropastiti vjenčanje, posao, sprovod. Tu ljestvicu držimo i kad nas usporava."
+        },
+        {
+          "title": "Udaljenost je problem iskustva, a ne ograničenje.",
+          "body": "Naši timovi sjede u četiri vremenske zone. Asinkrono pisanje, jasno vlasništvo i dobra kultura dokumentacije način su na koji vrijeme mijenjamo za povjerenje, i kako isporučujemo diljem svijeta bez iscrpljivanja ikoga."
+        }
+      ]
+    },
+    "values": {
+      "eyebrow": "Čega se držimo",
+      "title": "Pet stvari u koje vjerujemo, čak i kad skupo košta.",
+      "lead": "Vrijednosti je lako zapisati, a teško provoditi. Ovih pet zaista koristimo pri zapošljavanju, ocjenjivanju i rijetkim teškim odlukama.",
+      "cards": [
+        {
+          "title": "Govorite istinu, osobito kad nas košta.",
+          "body": "Ako viza neće stići na vrijeme, recite to danas, a ne dan prije leta. Radije ćemo izgubiti prodaju nego isporučiti laž.",
+          "kicker": "U praksi → objavljene politike, revizija promjena"
+        },
+        {
+          "title": "Zaslužite brzinu. Nemojte se samo osjećati zaposleno.",
+          "body": "Slavimo odluke i isporučen rad, a ne sastanke i rasprave. Cilj je protok prema misiji, a ne kretanje prema vašem kalendaru.",
+          "kicker": "U praksi → tromjesečni pregled protoka"
+        },
+        {
+          "title": "Mislite u putovnicama, a ne personama.",
+          "body": "Pravila viza ovise o državljanstvu. “Korisnik” ne postoji, postoji nositelj filipinske putovnice koji se prijavljuje za Schengen. Gradimo za stvarne ljude, a ne za prosjeke.",
+          "kicker": "U praksi → specifikacija proizvoda od putovnice"
+        },
+        {
+          "title": "Zapisujte stvari. Osobito odluke.",
+          "body": "Četiri ureda, četiri vremenske zone. Ako odluka nije zapisana, nije se dogodila. Naš wiki je obvezna lektira, a naši kratki jutarnji sastanci neobavezni.",
+          "kicker": "U praksi → ADR-ovi, tjedni dopis, prvo asinkrono"
+        },
+        {
+          "title": "Ostanite blizu reda.",
+          "body": "Svaki inženjer jednom tromjesečno odradi smjenu na podu za savjetnike. Ne možete projektirati trenje koje nikad niste osjetili u 11 navečer u nedjelju.",
+          "kicker": "U praksi → rotacijske smjene u redu"
+        },
+        {
+          "title": "Odaberite dugu verziju.",
+          "body": "Odgovor od trideset sekundi obično je pogrešan. Ulažemo u dubinsku dokumentaciju, pouzdane priručnike i objašnjenja koja drže vodu, čak i kad bi laka verzija bila dovoljna.",
+          "kicker": "U praksi → priručnik za uvođenje, javni priručnici"
+        }
+      ]
+    },
+    "inside": {
+      "eyebrow": "Unutar VIZA",
+      "title": "Kako zaista izgleda<br></br>raditi ovdje.",
+      "lead": "Imamo urede u dva grada jer zapošljavamo blizu mjesta gdje se prijave podnose. Glasni smo o uspjesima, tihi o politikanstvu i iskreni o tome koliko toga još moramo izgraditi.",
+      "photos": [
+        {
+          "label": "fotografija · sjedište u Singapuru, otvoreni prostor",
+          "mark": "Paya Lebar Square, SG"
+        },
+        {
+          "label": "fotografija · prostor s redom savjetnika",
+          "mark": "Luoshan Rd, Šangaj"
+        },
+        {
+          "label": "fotografija · sesija na ploči",
+          "mark": "Tehnički izlet, Bali"
+        },
+        {
+          "label": "fotografija · operativni prostor u Šangaju",
+          "mark": "Pudong, Šangaj"
+        },
+        {
+          "label": "fotografija · timska večera",
+          "mark": "Sastanak svih, Lisabon"
+        },
+        {
+          "label": "fotografija · posjet partnera iz veleposlanstva",
+          "mark": "Paya Lebar Square, SG"
+        }
+      ],
+      "pull": "“Zapošljavamo ljude koji imaju mišljenje o vizama prije nego što nam se pridruže. Do drugog mjeseca imat ćete još čvršće.”",
+      "pullBy": "Felix Adekunle, potpredsjednik za inženjerstvo",
+      "para1": "VIZA znači veliku samostalnost i puno konteksta. Dobit ćete vlasnika za sve što radite, stvarne proračune i očekivanje da ćete ostatku tvrtke objasniti razloge iza svog rada.",
+      "para2": "Ako želite da vam se svaki dan govori što raditi, ovo nije pravo mjesto. Ako ste čekali da vam netko preda upravljač, evo ga."
+    },
+    "how": {
+      "eyebrow": "Inženjering i operacije u VIZA",
+      "title": "Kako se posao zaista kreće.",
+      "lead": "Ako ovdje gradite, podnosite ili dizajnirate, ovako izgleda vaš tjedan. Manje ceremonije, više isporučenog rada. Manje Slacka, više zapisanih odluka.",
+      "cells": [
+        {
+          "title": "Vlasništvo od početka do kraja",
+          "body": "Sami dizajnirate, gradite, isporučujete i vodite u produkciji. Bez redova predaje, bez planova koje pišu ljudi tri razine dalje. Ako je vaše, zaista je vaše."
+        },
+        {
+          "title": "Isporuke svaki dan, po zadanom",
+          "body": "Većina timova isporučuje više puta dnevno. Povratne petlje su namjerno kratke, a povlačenje promjene za trideset minuta bolje je od trotjedne rasprave."
+        },
+        {
+          "title": "Pravi, neuredni problemi",
+          "body": "Ovo nije običan CRUD. Radit ćete na OCR-u dokumenata, zakazivanju osjetljivom na kašnjenje prema više od 90 državnih portala i potrošačkim tijekovima koje koriste milijuni."
+        },
+        {
+          "title": "Ljestvica je visoka, otvoreno",
+          "body": "Zajedno pregledavamo dizajn. Komentiramo izravno u PR-ovima. Vjerujemo da se ukus može naučiti i očekujemo da svi aktivno pomažu onima oko sebe da budu bolji."
+        },
+        {
+          "title": "Pravi proračun za učenje",
+          "body": "$2,000 po osobi godišnje, bez pitanja, za konferencije, knjige, tečajeve i sve što se vraća u posao koji ovdje radite."
+        },
+        {
+          "title": "Arhitektura koju pišete vi",
+          "body": "RFC-ovi su otvoreni svima. Novi inženjeri oblikovali su ključnu infrastrukturu već u prvom mjesecu. Ako imate bolji plan, zapišite ga, mi ćemo ga pročitati."
+        }
+      ]
+    },
+    "roles": {
+      "eyebrow": "Otvorena radna mjesta · ažurira se tjedno",
+      "title": "Budite dio putovanja.",
+      "lead": "28 otvorenih radnih mjesta u četiri ureda. Zapošljavamo u inženjerstvu, dizajnu, operacijama, savjetovanju i partnerstvima. Nova radna mjesta pojavljuju se ponedjeljkom.",
+      "allDepartments": "Svi odjeli",
+      "deps": {
+        "eng": "Inženjering",
+        "design": "Dizajn",
+        "ops": "Operacije",
+        "consult": "Savjetnici",
+        "data": "Podaci i ML",
+        "gtm": "Marketing i GTM"
+      },
+      "showing": "Prikazano: <strong>{count}</strong> radnih mjesta · sve lokacije · svi timovi",
+      "anyLocation": "Bilo koja lokacija",
+      "groupCount": "{count} otvoreno",
+      "posSub": "{team} · zapošljavamo prema umijeću i prosudbi, a ne podrijetlu",
+      "locationLabel": "Lokacija",
+      "typeLabel": "Vrsta",
+      "fullTime": "Puno radno vrijeme",
+      "viewRole": "Pogledaj radno mjesto",
+      "locations": {
+        "sg": "Singapur",
+        "sf": "Šangaj",
+        "ldn": "Singapur",
+        "dxb": "Šangaj"
+      },
+      "jobs": {
+        "backendPayments": "Viši backend inženjer, platforma",
+        "staffDocPipeline": "Staff Engineer: cjevovod dokumenata",
+        "iosApplicant": "iOS inženjer: aplikacija za podnositelje",
+        "platformInfra": "Platform Engineer: infrastruktura i sigurnost",
+        "frontendConsole": "Frontend inženjer: konzola za savjetnike",
+        "emWeb": "Voditelj inženjerstva: web",
+        "sre": "Site Reliability Engineer",
+        "androidSenior": "Senior Android inženjer",
+        "leadEmbassy": "Voditelj inženjerstva: integracije s veleposlanstvima",
+        "productDesignerApplicant": "Senior Product Designer: tijek podnositelja",
+        "brandDesigner": "Brand Designer",
+        "designLeadConsultant": "Voditelj dizajna: alati za savjetnike",
+        "headOpsMe": "Voditelj operacija, Bliski istok",
+        "visaOpsSchengen": "Voditelj viznih operacija: Schengen",
+        "logistics": "Voditelj logistike i kurira",
+        "processDocQa": "Procesni inženjer: kontrola kvalitete dokumenata",
+        "opsAnalyst": "Analitičar operacija: rezervacije",
+        "consultSchengen": "Vizni savjetnik: Schengen",
+        "consultUs": "Vizni savjetnik: SAD B1/B2",
+        "consultUae": "Vizni savjetnik: boravak u UAE",
+        "consultStudent": "Viši savjetnik: studentske vize",
+        "consultApac": "Voditelj savjetnika: Azija i Pacifik",
+        "consultUk": "Vizni savjetnik: UK",
+        "dataScientist": "Senior Data Scientist: modeliranje odobrenja",
+        "mlOcr": "ML inženjer: OCR i AI za dokumente",
+        "perfMarketing": "Voditelj performance marketinga",
+        "contentLead": "Voditelj sadržaja: pripovijedanje",
+        "lifecycleCrm": "Voditelj životnog ciklusa i CRM-a"
+      }
+    },
+    "fellowship": {
+      "tag": "▲ VIZA Launchpad · program od 12 tjedana",
+      "title": "Dvanaest tjedana. Jedan produktni tim.<br></br><em>Jedna prilika da nešto isporučite.</em>",
+      "para1": "Launchpad je naš rezidencijalni program za inženjere, voditelje proizvoda i dizajnere na početku karijere, ljude koji bi inače trebali još dvije godine “iskustva” prije prave prilike.",
+      "para2": "Radit ćete uz iskusne voditelje, vlasništvo nad stvarnom površinom proizvoda od starta do izdanja i otići s nečim što će koristiti milijuni ljudi. Ponuda za stalni posao ide za ~60% generacije.",
+      "meta": [
+        {
+          "k": "Trajanje",
+          "v": "12 tjedana"
+        },
+        {
+          "k": "Lokacija",
+          "v": "U uredu, bilo koje sjedište"
+        },
+        {
+          "k": "Stipendija",
+          "v": "Iznad tržišne"
+        },
+        {
+          "k": "Sljedeća generacija",
+          "v": "Rujan 2026."
+        }
+      ],
+      "apply": "Prijavite se na Launchpad",
+      "readCohort": "Pročitajte o generaciji 2025.",
+      "projects": [
+        {
+          "k": "2024 · Inženjering",
+          "title": "Prepravak OCR cjevovoda",
+          "meta1": "Pušteno u produkciju",
+          "meta2": "3.2× brže"
+        },
+        {
+          "k": "2025 · Dizajn",
+          "title": "Redizajn Schengen tijeka",
+          "meta1": "14 zemalja uživo",
+          "meta2": "↑ 22% konv."
+        },
+        {
+          "k": "2025 · Proizvod",
+          "title": "Zakazivač termina u veleposlanstvima",
+          "meta1": "9 veleposlanstava",
+          "meta2": "40k termina/mj."
+        }
+      ]
+    },
+    "benefits": {
+      "eyebrow": "Brinemo o vama (stvarno)",
+      "title": "Dosadne stvari,<br></br>riješene kako treba.",
+      "lead": "Ne mislimo da su beneficije dodatak. One su temelj koji ljudima omogućuje da daju svoj najbolji rad. Evo što svaki VIZA zaposlenik dobiva, u svakom uredu, prvog dana.",
+      "items": [
+        {
+          "title": "Sveobuhvatno zdravstvo, riješeno.",
+          "body": "Potpuna medicinska, stomatološka i optička zaštita od prvog dana, za vas, vašeg partnera i vašu djecu. Mi plaćamo premiju, bez igara s odbitkom."
+        },
+        {
+          "title": "Gradite bogatstvo, ne samo plaću.",
+          "body": "Osnovna plaća iznad tržišne na svakom tržištu na kojem zapošljavamo, plus velikodušan paket dionica vezan uz ključne ciljeve, a ne samo godine staža. Obnavljamo ga svake dvije godine."
+        },
+        {
+          "title": "Učite ono što je zaista važno.",
+          "body": "$2,000 godišnje za učenje, mjesečna interna predavanja i vrijeme u kalendaru, a ne samo dopuštenje, za taj tečaj ili tu konferenciju."
+        },
+        {
+          "title": "Oduševite klijente kao da je vaš novac.",
+          "body": "Svaki podnositelj dobiva proračun od $100 za dobru volju povrh svega. Bez odobrenja, bez eskalacije: riješite to, pa zapišite što se dogodilo."
+        },
+        {
+          "title": "Um prije svega.",
+          "body": "Povjerljiva, stručna podrška za mentalno zdravlje, bez zavrzlama s osiguranjem. Uz to tri dana mjesečno bez sastanaka, za cijelu tvrtku."
+        },
+        {
+          "title": "Putne povlastice (morali smo).",
+          "body": "Mi radimo vize, pa naš tim treba putovati na naš račun. $4k godišnje putnog kredita, plus VIZA rješava svaku vizu koja vam ikad zatreba, odmah i interno."
+        },
+        {
+          "title": "Velikodušan, stvaran godišnji odmor.",
+          "body": "30 dana plaćenog odmora, plus praznici vaše zemlje, plus plaćeni tjedan slobodno između 24. prosinca i 1. siječnja. Pratimo korištenje i potičemo ljude da uzmu više, a ne manje."
+        },
+        {
+          "title": "Oprema, bez pitanja.",
+          "body": "Prvog dana odaberite laptop, monitor i stolac. Dodatak za rad od kuće za vaš kutak. Vjerujemo da znate što vam treba za dobar rad."
+        },
+        {
+          "title": "Roditeljski dopust koji zaista funkcionira.",
+          "body": "20 tjedana za primarnog skrbnika, 12 za sekundarnog, uz punu plaću. Plus postupan povratak, da prvog dana ne budete odmah na punoj snazi."
+        }
+      ]
+    },
+    "offices": {
+      "eyebrow": "Gdje radimo",
+      "title": "Dva ureda, jedan proizvod.",
+      "lead": "Zapošljavamo blizu veleposlanstava, partnera i tržišta kojima služimo. Svaki ured ima i inženjere i operacije: ne odvajamo timove koji grade od onih koji vode pogon.",
+      "cards": [
+        {
+          "photo": "fotografija · Šangaj",
+          "open": "6 otvoreno",
+          "name": "Šangaj",
+          "addr1": "Lane 1502, Luoshan Road,",
+          "addr2": "Pilot slobodna trgovinska zona Kine (Šangaj)",
+          "tz": "GMT+8 · operacije za Kinu",
+          "since": "Od 2023."
+        },
+        {
+          "photo": "fotografija · sjedište u Singapuru",
+          "open": "12 otvoreno",
+          "name": "Singapur",
+          "addr1": "60 Paya Lebar Road, #06-28, Paya Lebar Square,",
+          "addr2": "Singapur 409051",
+          "tz": "GMT+8 · sjedište za Aziju i Pacifik",
+          "since": "Sjedište · od 2021."
+        }
+      ]
+    },
+    "ctaStrip": {
+      "title": "Ne vidite svoju ulogu,<br></br>a želite unutra?",
+      "body": "Ako imate neobično iskustvo i mislite da biste nam pomogli brže prevesti putnike svijeta, želimo čuti od vas. Zaposlili smo vozače autobusa, bivše osoblje veleposlanstava i odvjetnike. Nemamo svoj tip.",
+      "lead": "Opća prijava",
+      "cta": "Pošaljite nam svoju priču",
+      "note": "Odgovaramo u roku od 7 dana, čak i ako je odgovor ne."
+    },
+    "footer": {
+      "tagline": "VIZA vam pomaže planirati, podnijeti i pratiti vize diljem svijeta, bez muke.",
+      "company": "Tvrtka",
+      "products": "Proizvodi",
+      "offices": "Uredi",
+      "careers": "Karijere",
+      "contact": "Kontakt",
+      "security": "Sigurnost",
+      "privacy": "Privatnost",
+      "terms": "Uvjeti",
+      "prodVisaReq": "Uvjeti za vizu",
+      "prodSchengen": "Provjera termina za Schengen",
+      "prodPhoto": "Izrada fotografije za vizu",
+      "prodHelpline": "VIZA hitna linija",
+      "prodStudent": "Studentska viza",
+      "officeSg": "Singapur, sjedište",
+      "officeSf": "Šangaj",
+      "copyright": "© VIZA, sva prava pridržana"
+    }
+  },
+  "security": {
+    "hero": {
+      "eyebrow": "Sigurnost u VIZA · zadnje ažuriranje: svibanj 2026.",
+      "title": "Privatno. Transparentno.<br></br><em>Sigurno po zadanom.</em>",
+      "lead": "Klijenti diljem svijeta povjeravaju nam milijune osjetljivih dokumenata: putovnice, bankovne izvatke, fotografije. Evo točno kako ih prikupljamo, pohranjujemo i dokazujemo da to radimo kako treba.",
+      "ctaPrimary": "Kako štitimo vaše podatke",
+      "ctaVdp": "Prijavite ranjivost"
+    },
+    "clearance": {
+      "republicKey": "Republika",
+      "officeKey": "Izdavatelj",
+      "officeVal": "Povjerenje i sigurnost",
+      "title": "Sigurnosna ovlast /<br></br>Podaci klijenata",
+      "grid": {
+        "encryption": {
+          "k": "Šifriranje",
+          "v": "AES-256 / TLS 1.3"
+        },
+        "region": {
+          "k": "Regija",
+          "v": "SG · SAD · EU"
+        },
+        "audit": {
+          "k": "Učestalost revizija",
+          "v": "Tromjesečno"
+        },
+        "retention": {
+          "k": "Zadržavanje",
+          "v": "Najviše 90 dana"
+        }
+      },
+      "referenceKey": "Referenca",
+      "glyph": "ODOBRENO<br></br>VIZA · 26"
+    },
+    "chips": {
+      "transitLabel": "U prijenosu",
+      "transitVal": "TLS 1.3 od kraja do kraja",
+      "restLabel": "Pohranjeno",
+      "restVal": "AES-256, vezano uz regiju"
+    },
+    "stats": {
+      "docs": {
+        "value": "2.4M",
+        "label": "Dokumenata obrađeno u 2025., nula povreda podataka klijenata"
+      },
+      "retention": {
+        "unit": "d",
+        "label": "Najdulje zadržavanje izvornih dokumenata nakon izdavanja"
+      },
+      "pentests": {
+        "label": "Vanjskih penetracijskih testova, sva izvješća objavljena interno"
+      },
+      "ack": {
+        "unit": "h",
+        "label": "Medijan vremena do potvrde prijavljene ranjivosti"
+      }
+    },
+    "docs": {
+      "eyebrow": "Što prikupljamo",
+      "title": "Pet vrsta dokumenata.<br></br><em>Ništa više.</em>",
+      "copy1": "Prijava za vizu problem je papirologije. Prikupljamo samo ono što veleposlanstvo izričito traži, a anonimiziramo gdje god je moguće. Svaki dokument vezan je uz jednu prijavu, šifriran pri primitku i brisan prema utvrđenom rasporedu.",
+      "copy2": "Nikad ne prodajemo vaše podatke. Ne dijelimo ih s trećim stranama osim s konzulatom ili partnerom izravno uključenim u vašu vizu.",
+      "cards": {
+        "payment": {
+          "name": "Podaci o plaćanju",
+          "meta": "ne prikuplja se"
+        },
+        "photos": {
+          "name": "Fotografije za vizu",
+          "meta": "obrađeno · najviše 90 dana"
+        },
+        "bank": {
+          "name": "Bankovni izvaci",
+          "meta": "maskirano · samo pdf"
+        },
+        "pastVisas": {
+          "name": "Prijašnje vize",
+          "meta": "samo za čitanje · OCR"
+        },
+        "passport": {
+          "name": "Putovnica",
+          "meta": "MRZ izdvojen"
+        }
+      }
+    },
+    "features": {
+      "eyebrow": "Sedam kontrola, uvijek uključenih",
+      "title": "Kako vaši podaci ostaju<br></br>vaši, od kraja do <em>kraja.</em>",
+      "intro": "Zadano stanje svakog bajta u VIZA je “šifrirano, ograničeno i vremenski ograničeno”. Ovih sedam kontrola to omogućuje: nisu težnje, nego ono što je danas stvarno ugrađeno u platformu.",
+      "cells": {
+        "minimise": {
+          "title": "Minimizacija i anonimizacija podataka",
+          "body": "Prikupljamo samo ono što veleposlanstvo ili partner zaista traži za pojedinu prijavu, a anonimiziramo gdje god ostatak platforme to dopušta. Polja koja ne vidite u našim obrascima polja su koja ne pohranjujemo.",
+          "why": "<strong>Zašto:</strong> povreda ne može otkriti podatke koji nikad nisu prikupljeni."
+        },
+        "payments": {
+          "title": "Bez podataka o plaćanju",
+          "body": "Usluga VIZA je besplatna i ne primamo plaćanja, pa nikad ne tražimo, ne vidimo i ne pohranjujemo brojeve kartica.",
+          "why": "<strong>Zašto:</strong> podaci koje nikad ne držimo ne mogu se ukrasti."
+        },
+        "atRest": {
+          "title": "Šifriranje pohranjenih podataka",
+          "body": "Svaki dokument, poruka i polje metapodataka na VIZA poslužiteljima šifrira se AES-256 prije nego što dotakne disk. Ključevi se automatski rotiraju i pohranjuju u KMS potpomognut hardverom koji ni naš infrastrukturni tim ne može izravno čitati.",
+          "why": "<strong>Zašto:</strong> ukradeni diskovi ili sigurnosne kopije ostaju nečitljivi bez ključeva."
+        },
+        "inTransit": {
+          "title": "Šifriranje od kraja do kraja",
+          "body": "Sav promet između vašeg uređaja, naših poslužitelja i partnerskih konzulata koristi TLS 1.3 sa strogim vezivanjem. Prijenosi dokumenata koriste zaseban, potpisan kanal, pa ni napadači na razini mreže ne mogu vidjeti što šaljete.",
+          "why": "<strong>Zašto:</strong> neprijateljske mreže, uključujući Wi-Fi u zračnim lukama, ne mogu čitati vašu prijavu."
+        },
+        "audits": {
+          "title": "Redovite sigurnosne revizije",
+          "body": "Svako tromjesečje provodimo vanjski penetracijski test, godišnju reviziju SOC 2 Type II i neprekidno automatsko skeniranje ranjivosti. Svaki nalaz bilježi se s rokom za ispravak, a zakašnjele stavke dižu uzbunu voditelju inženjerstva.",
+          "why": "<strong>Zašto:</strong> prijetnje se mijenjaju, a naša se obrana provjerava prema njima po rasporedu."
+        },
+        "access": {
+          "title": "Sigurna kontrola pristupa",
+          "body": "Interni pristup podacima klijenata ograničen je ulogom, revidira se za svaki zahtjev i odobrava uz povišenje po potrebi. Savjetnici vide samo prijavu na kojoj aktivno rade. Svako čitanje bilježi se 12 mjeseci.",
+          "why": "<strong>Zašto:</strong> pogreške i zlouporabe iznutra ograničene su, mogu se pripisati i pregledati."
+        },
+        "education": {
+          "title": "Edukacija i osviještenost korisnika",
+          "body": "Najteži dio sigurnosti je dio koji ne možemo isporučiti umjesto vas. Čim započnete prijavu, šaljemo vam jasne vodiče o phishingu, prijevarama s fotografijama putovnica i lažnim SMS-ovima veleposlanstava, a ponovno ih prikazujemo u proizvodu čim nešto djeluje sumnjivo. Vi ste zadnja linija obrane, a radije vas opremamo nego okrivljujemo.",
+          "why": "<strong>Zašto:</strong> dobro informiran podnositelj najjeftinija je i najučinkovitija sigurnosna kontrola koju imamo."
+        }
+      }
+    },
+    "vdp": {
+      "tag": "▲ Otkrivanje ranjivosti · otvoreno svim istraživačima",
+      "title": "Našli ste nešto?<br></br><em>Želimo čuti o tome.</em>",
+      "p1": "Sigurnost naših korisnika i partnera je sve. Ako mislite da ste pronašli stvarnu ranjivost koja utječe na usluge VIZA, želimo da nam to kažete izravno, a mi ćemo s vama surađivati s poštovanjem i brzo kako bismo je ispravili.",
+      "p2": "Pošaljite nalaze e-poštom na <strong>security@viza.it.com</strong>. Potvrdit ćemo primitak u roku od jednog radnog dana, čak i ako se pokaže da je već poznato ili izvan opsega.",
+      "meta": {
+        "ack": {
+          "k": "Potvrda u roku",
+          "v": "'<' 24 sata"
+        },
+        "triage": {
+          "k": "Razvrstavanje u roku",
+          "v": "3 radna dana"
+        },
+        "lang": {
+          "k": "Jezici",
+          "v": "EN · ID · AR"
+        },
+        "pgp": {
+          "k": "PGP ključ",
+          "v": "0xVIZA · 2026"
+        }
+      },
+      "ctaEmail": "Pišite na security@viza.it.com",
+      "ctaScope": "Pročitajte opseg",
+      "terminal": {
+        "title": "nacrt-izvješća · security@viza.it.com",
+        "l1": "# izvješće o ranjivosti",
+        "typeKey": "vrsta:",
+        "typeVal": "zaobilaženje-autentifikacije",
+        "urlKey": "adresa:",
+        "reproKey": "reprodukcija:",
+        "reproVal": "[koraci 1-4]",
+        "impactKey": "utjecaj:",
+        "impactVal": "preuzimanje računa",
+        "pocKey": "dokaz:",
+        "l7": "# ↳ šifrirano za 0xVIZA",
+        "send": "pošalji"
+      }
+    },
+    "report": {
+      "eyebrow": "Prijava ranjivosti",
+      "title": "Što staviti u svoje<br></br>izvješće i <em>što ne.</em>",
+      "intro": "Dobro izvješće obojici štedi tjedan dana. Evo formata zahvaljujući kojem se stvari razvrstavaju najbrže, plus stvari koje zaista ne želimo u svom sandučiću.",
+      "include": {
+        "heading": "Molimo uključite",
+        "sub": "Pet polja. Što su jasnija, to brže možemo potvrditi i ispraviti.",
+        "items": {
+          "type": "<strong>Vrsta problema</strong>: npr. autentifikacija, kontrola pristupa, injekcija, IDOR, SSRF.",
+          "steps": "<strong>Jasni koraci za reprodukciju</strong>: numerirani, redom, ako je moguće na čistoj sesiji.",
+          "impact": "<strong>Mogući sigurnosni utjecaj</strong>: što bi napadač mogao učiniti s ovim, jednostavnim jezikom.",
+          "poc": "<strong>Dokaz koncepta</strong>: poželjne su snimke zaslona ili kratak snimak zaslona u pokretu, zatim zapisnici."
+        }
+      },
+      "dontSend": {
+        "heading": "Molimo ne šaljite",
+        "sub": "Ovo je nesigurno, beskorisno ili oboje, a morat ćemo ga obrisati pri primitku.",
+        "items": {
+          "secrets": "<strong>Lozinke ili autentifikacijske tokene</strong>, svoje ili tuđe. Pokažite put, a ne tajnu.",
+          "malware": "<strong>Sirove uzorke zlonamjernog softvera ili zapisnike kradljivaca.</strong> Opišite što ste vidjeli, ne prilažite.",
+          "scanners": "<strong>Velika automatska izvješća skenera</strong> bez ručno odabranog, dokazanog nalaza.",
+          "customerData": "<strong>Osobne podatke ili dokumente klijenata</strong>, čak i ako su bili osnova vašeg nalaza.",
+          "socialEng": "<strong>Snimke pokušaja društvenog inženjeringa</strong> prema našem osoblju ili savjetnicima."
+        }
+      }
+    },
+    "scope": {
+      "eyebrow": "Opseg programa",
+      "title": "Što je unutra, što vani.",
+      "intro": "Ako niste sigurni spada li izvješće na ovaj popis, svejedno ga pošaljite i pitajte. Radije ćemo razvrstati i krenuti dalje nego da šutite o stvarnom problemu jer granica nije bila očita.",
+      "fileRef": "/security/scope.md · v6",
+      "in": {
+        "pill": "U opsegu",
+        "heading": "Izvješća koja aktivno razvrstavamo",
+        "items": {
+          "web": "VIZA web aplikacije i API-ji na <code>*.viza.com</code>, uključujući portal za podnositelje, konzolu za savjetnike i partnerske krajnje točke.",
+          "infra": "Infrastruktura i usluge u vlasništvu VIZA: autentifikacija, cjevovod dokumenata, zakazivanje.",
+          "mobile": "Mobilne aplikacije (iOS, Android) objavljene pod VIZA razvojnim računom.",
+          "marketing": "Javne marketinške i sadržajne stranice na domenama pod kontrolom VIZA."
+        }
+      },
+      "out": {
+        "pill": "Izvan opsega",
+        "heading": "Izvješća po kojima ne možemo postupiti u ovom programu",
+        "items": {
+          "devices": "Problemi koji proizlaze iz ugroženih korisničkih uređaja, proširenja preglednika ili ukradenih vjerodajnica.",
+          "phishing": "Napadi društvenim inženjeringom ili phishingom usmjereni na zaposlenike, partnere ili savjetnike VIZA.",
+          "thirdParty": "Usluge trećih strana ili integracije kojima VIZA izravno ne upravlja (portali konzulata, stranice kurira).",
+          "scanners": "Nalazi automatskih skenera bez dokazane iskoristivosti u stvarnom svijetu.",
+          "headers": "Nedostajuća sigurnosna zaglavlja ili opće preporuke najbolje prakse bez puta iskorištavanja."
+        }
+      }
+    },
+    "pledge": {
+      "eyebrow": "Odgovorno otkrivanje",
+      "title": "Dogovor koji sklapamo<br></br>jedni s drugima.",
+      "intro": "Otkrivanje funkcionira jer obje strane djeluju u dobroj vjeri. Evo što tražimo od vas i na što nas zauzvrat možete držati, zapisano da nitko ne mora nagađati.",
+      "researcher": {
+        "kicker": "Što tražimo od vas",
+        "title": "Obveze <em>istraživača.</em>",
+        "p": "Slanjem izvješća pristajete djelovati u dobroj vjeri i u duhu programa, a ne samo prema slovu.",
+        "items": {
+          "1": "Djelujte u dobroj vjeri: izbjegavajte povrede privatnosti, uništavanje podataka ili prekid usluge tijekom istraživanja.",
+          "2": "Ne iskorištavajte problem više nego što je nužno za potvrdu i nikad ne pristupajte podacima koji nisu vaši.",
+          "3": "Pojedinosti o ranjivosti držite povjerljivima dok ne isporučimo ispravak i potvrdimo ga s vama.",
+          "4": "Ne objavljujte nalaze javno bez prethodnog pisanog pristanka VIZA sigurnosnog tima."
+        }
+      },
+      "viza": {
+        "kicker": "Na što nas možete držati",
+        "title": "Obveze <em>VIZA-e.</em>",
+        "p": "Zauzvrat, ne ignoriramo prijavitelje, ne raspravljamo o ozbiljnosti da bismo izbjegli ispravak i ne tužimo ljude koji nam pomažu.",
+        "items": {
+          "1": "Pregledat ćemo svako valjano izvješće i odgovoriti u roku od jednog radnog dana, bez obzira na ozbiljnost.",
+          "2": "Komunicirat ćemo s poštovanjem, bez obrambenog jezika i bez izlika “radi kako je zamišljeno”.",
+          "3": "Poduzet ćemo odgovarajuće mjere otklanjanja kad je potrebno i javiti vam kad je ispravak isporučen.",
+          "4": "Navest ćemo vas (uz pristanak) u našem sigurnosnom dnevniku promjena kad se problem riješi."
+        }
+      }
+    },
+    "legal": {
+      "eyebrow": "Pravo i nagrade",
+      "title": "Sigurna luka, nagrade<br></br>i sitni tisak.",
+      "intro": "Ako ovu politiku slijedite u dobroj vjeri, vaše istraživanje smatramo ovlaštenim. Ostatak stranice je dosadan, ali važan dio, izložen, a ne skriven.",
+      "cards": {
+        "safeHarbour": {
+          "title": "Pravna sigurna luka",
+          "body": "Ako ovu politiku slijedite u dobroj vjeri, VIZA neće pokrenuti pravne mjere protiv vas zbog slučajnih ili nenamjernih povreda povezanih s vašim istraživanjem. I dalje se od vas očekuje poštivanje primjenjivih zakona i propisa."
+        },
+        "rewards": {
+          "title": "Nagrade i program nagrada za greške",
+          "body": "VIZA trenutno ne vodi javni program nagrada za greške. Nudimo diskrecijski znak zahvalnosti za valjane, odgovorno prijavljene probleme, procijenjen prema utjecaju, novosti i kvaliteti izvješća.",
+          "meta": "diskrecijski · od slučaja do slučaja"
+        },
+        "updates": {
+          "title": "Izmjene programa",
+          "body": "VIZA zadržava pravo izmjene ili prekida ovog programa u bilo kojem trenutku. Ako niste sigurni je li vaše istraživanje u skladu s politikom, javite nam se na security@viza.it.com <em>prije</em> nego što nastavite.",
+          "meta": "zadnja izmjena · svibanj 2026."
+        }
+      }
+    },
+    "cta": {
+      "title": "Vidite nešto čudno?<br></br>Javite našem sigurnosnom timu.",
+      "body": "Radije ćemo dvaput čuti za mali nalaz nego jednom propustiti veliki. Izvješća idu ravno stvarnoj osobi u sigurnosnom timu, bez portala za prijave i bez robota za razvrstavanje.",
+      "lead": "Izravno sigurnosti",
+      "small": "Medijan odgovora: manje od 24 sata, svaki dan u tjednu."
+    },
+    "footer": {
+      "tagline": "VIZA vam pomaže planirati, podnijeti i pratiti vize diljem svijeta, bez muke.",
+      "company": "Tvrtka",
+      "careers": "Karijere",
+      "contact": "Kontakt",
+      "security": "Sigurnost",
+      "privacy": "Privatnost",
+      "terms": "Uvjeti",
+      "products": "Proizvodi",
+      "prodVisaReq": "Uvjeti za vizu",
+      "prodSchengen": "Provjera termina za Schengen",
+      "prodPhoto": "Izrada fotografije za vizu",
+      "prodHelpline": "VIZA hitna linija",
+      "prodStudent": "Studentska viza",
+      "offices": "Uredi",
+      "officeSg": "Singapur, sjedište",
+      "officeSf": "Šangaj",
+      "copyright": "© VIZA, sva prava pridržana"
+    }
+  },
+  "status": {
+    "crumbHome": "Transparentnost",
+    "crumbHere": "Status sustava",
+    "hero": {
+      "title": "Status sustava",
+      "lead": "Dostupnost potkrijepljena dokazima za VIZA i državne portale za vize s kojima radimo. Svaki postotak, traka vremenske crte i incident ispod potječe iz zabilježene sintetičke provjere."
+    },
+    "console": {
+      "title": "VIZA pouzdanost · uživo",
+      "live": "Provjereno",
+      "unverified": "Neprovjereno",
+      "allOperational": "Svi sustavi rade",
+      "degraded": "Neki su sustavi oslabljeni",
+      "majorOutage": "Nadzirani sustav nije dostupan",
+      "dataUnavailable": "Podaci o nadzoru nisu dostupni",
+      "lastChecked": "Zadnja zabilježena provjera: {time}",
+      "noChecks": "Još nije zabilježena nijedna dovršena provjera",
+      "kUptime": "Provjere uspješne u 90 dana",
+      "kMonitors": "Nadzirane krajnje točke",
+      "kIncidents": "Aktivni incident"
+    },
+    "subnav": {
+      "current": "Trenutni status",
+      "incidents": "Prošli incidenti",
+      "subscribe": "Pretplata",
+      "searchPlaceholder": "Pretražite zemlje",
+      "subscribeBtn": "Pretplatite se na obavijesti"
+    },
+    "platform": {
+      "title": "VIZA platforma",
+      "realMeta": "Provjera svakih 5 minuta · krajnjih točaka: {count}",
+      "meta": "Provjera svakih 5 minuta",
+      "name": "VIZA platforma za prijave",
+      "sub": "Javne VIZA usluge"
+    },
+    "uptime": {
+      "ago": "Prije 90 dana",
+      "today": "Danas",
+      "pct": "{pct}% provjera uspješno",
+      "noData": "Nema zabilježenih provjera"
+    },
+    "dayObservation": "{date}: zabilježenih provjera: {checks}",
+    "dayNoData": "{date}: nema zabilježenih podataka",
+    "dayTitle": "Dan {n}",
+    "statusLabels": {
+      "op": "Radi",
+      "deg": "Oslabljeno",
+      "part": "Djelomičan ispad",
+      "maj": "Nedostupno",
+      "none": "Nema trenutnih podataka"
+    },
+    "lastChecked": "Provjereno {time}",
+    "monitorStale": "Provjera nedostaje ili je zastarjela",
+    "monitoringUnavailable": "API statusa nema svježih dokaza. VIZA neće prikazivati spremljenu ili generiranu dostupnost kao trenutno zdravlje usluge.",
+    "noSearchResults": "Nijedna nadzirana zemlja ne odgovara ovom pretraživanju.",
+    "noRecordedIncidents": "U zadnjih 90 dana iz zabilježenih provjera nije izveden nijedan incident.",
+    "incidentCount": "{count, plural, one {# incident} few {# incidenta} other {# incidenata}}",
+    "incidentRecovered": "Zabilježene provjere pokazuju da se ova usluga oporavila.",
+    "noIssues": "Nema aktivnih problema",
+    "activeIncident": "Aktivni incident",
+    "portalsHead": {
+      "title": "Državni portali",
+      "lead": "Ograničen sintetički zahtjev provjerava svaki konfigurirani portal svakih pet minuta. Siva povijest znači da nije zabilježeno opažanje, a nikad se ne popunjava procijenjenim podacima."
+    },
+    "incidentsHead": {
+      "title": "Prošli incidenti",
+      "lead": "Incidenti se otvaraju i zatvaraju prema pohranjenim prijelazima nadzora. Ovo je operativna dostupnost, a ne status osobne odluke o vizi podnositelja."
+    },
+    "tags": {
+      "identified": "Utvrđeno",
+      "investigating": "U istrazi",
+      "resolved": "Riješeno"
+    },
+    "portals": {
+      "AE": {
+        "name": "Ujedinjeni Arapski Emirati",
+        "sub": "GDRFA · ICA portali"
+      },
+      "AM": {
+        "name": "Armenija",
+        "sub": "Portal za e-vize"
+      },
+      "AU": {
+        "name": "Australija",
+        "sub": "ImmiAccount"
+      },
+      "AZ": {
+        "name": "Azerbajdžan",
+        "sub": "ASAN Visa"
+      },
+      "DE": {
+        "name": "Njemačka",
+        "sub": "VIDEX · termini u konzulatu"
+      },
+      "DK": {
+        "name": "Danska"
+      },
+      "EG": {
+        "name": "Egipat",
+        "sub": "Portal za e-vize"
+      },
+      "FI": {
+        "name": "Finska",
+        "sub": "EnterFinland"
+      },
+      "FR": {
+        "name": "Francuska",
+        "sub": "France-Visas"
+      },
+      "GB": {
+        "name": "Ujedinjeno Kraljevstvo",
+        "sub": "UKVCAS · UK Visas",
+        "bannerText": "Neke vrste prijava suočene su s ispadom.",
+        "bannerLink": "Pogledajte vremensku crtu incidenta"
+      },
+      "GE": {
+        "name": "Gruzija"
+      },
+      "GR": {
+        "name": "Grčka",
+        "sub": "AEGEAN · konzularno"
+      },
+      "HK": {
+        "name": "Hong Kong",
+        "sub": "Imigracijska e-viza"
+      },
+      "ID": {
+        "name": "Indonezija",
+        "sub": "e-Visa Indonesia"
+      },
+      "IN": {
+        "name": "Indija",
+        "sub": "Indian Visa Online"
+      },
+      "JO": {
+        "name": "Jordan"
+      },
+      "KE": {
+        "name": "Kenija",
+        "sub": "eCitizen / e-viza"
+      },
+      "KH": {
+        "name": "Kambodža"
+      },
+      "LK": {
+        "name": "Šri Lanka",
+        "sub": "ETA portal"
+      },
+      "MA": {
+        "name": "Maroko"
+      },
+      "TH": {
+        "name": "Tajland",
+        "sub": "Tajlandska e-viza"
+      }
+    },
+    "incidents": {
+      "count": "<strong>{count}</strong> {count, plural, one {zemlja je imala} few {zemlje su imale} other {zemalja je imalo}} probleme s performansama",
+      "events": "{count, plural, one {# događaj} few {# događaja} other {# događaja}}",
+      "days": [
+        {
+          "date": "10. svibnja 2026.",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "10. svibnja, 3:05 PM",
+                  "desc": "Ovaj je incident riješen. Usluga se vratila u uobičajeni rad."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "10. svibnja, 5:05 PM",
+                  "desc": "Ovaj je incident riješen. Usluga se vratila u uobičajeni rad."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "9. svibnja 2026.",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "9. svibnja, 10:50 PM",
+                  "desc": "Istražujemo povećanu stopu pogrešaka."
+                },
+                {
+                  "time": "10. svibnja, 12:20 AM",
+                  "desc": "Ozbiljnost je porasla s smanjene kvalitete na djelomični ispad."
+                },
+                {
+                  "time": "10. svibnja, 2:50 AM",
+                  "desc": "Ozbiljnost je porasla s djelomičnog ispada na veliki ispad."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "9. svibnja, 3:05 PM",
+                  "desc": "Istražujemo povećanu stopu pogrešaka."
+                },
+                {
+                  "time": "9. svibnja, 7:20 PM",
+                  "desc": "Ozbiljnost je porasla s djelomičnog ispada na veliki ispad."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "8. svibnja 2026.",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "8. svibnja, 1:05 PM",
+                  "desc": "Istražujemo povećanu stopu pogrešaka."
+                },
+                {
+                  "time": "8. svibnja, 2:05 PM",
+                  "desc": "Ovaj je incident riješen. Usluga se vratila u uobičajeni rad."
+                },
+                {
+                  "time": "8. svibnja, 2:50 PM",
+                  "desc": "Istražujemo povećanu stopu pogrešaka."
+                },
+                {
+                  "time": "8. svibnja, 7:35 PM",
+                  "desc": "Ovaj je incident riješen. Usluga se vratila u uobičajeni rad."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "5. svibnja 2026.",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "5. svibnja, 1:36 PM",
+                  "desc": "Ozbiljnost je porasla s smanjene kvalitete na djelomični ispad."
+                },
+                {
+                  "time": "5. svibnja, 4:50 PM",
+                  "desc": "Ovaj je incident riješen."
+                },
+                {
+                  "time": "5. svibnja, 9:20 PM",
+                  "desc": "Istražujemo povećanu stopu pogrešaka."
+                },
+                {
+                  "time": "5. svibnja, 10:20 PM",
+                  "desc": "Ovaj je incident riješen."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "5. svibnja, 2:43 PM",
+                  "desc": "Ovaj je incident riješen."
+                },
+                {
+                  "time": "5. svibnja, 3:35 PM",
+                  "desc": "Istražujemo povećanu stopu pogrešaka."
+                },
+                {
+                  "time": "5. svibnja, 7:35 PM",
+                  "desc": "Ozbiljnost je porasla s djelomičnog ispada na veliki ispad."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "4. svibnja 2026.",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "4. svibnja, 4:05 PM",
+                  "desc": "Istražujemo povećanu stopu pogrešaka."
+                },
+                {
+                  "time": "4. svibnja, 5:05 PM",
+                  "desc": "Ovaj je incident riješen."
+                },
+                {
+                  "time": "4. svibnja, 7:36 PM",
+                  "desc": "Istražujemo povećanu stopu pogrešaka."
+                },
+                {
+                  "time": "4. svibnja, 8:35 PM",
+                  "desc": "Ovaj je incident riješen."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "4. svibnja, 12:05 PM",
+                  "desc": "Ovaj je incident riješen."
+                },
+                {
+                  "time": "4. svibnja, 1:50 PM",
+                  "desc": "Istražujemo povećanu stopu pogrešaka."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2. svibnja 2026.",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "2. svibnja, 6:35 PM",
+                  "desc": "Istražujemo povećanu stopu pogrešaka."
+                },
+                {
+                  "time": "2. svibnja, 7:50 PM",
+                  "desc": "Ovaj je incident riješen."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "2. svibnja, 9:20 AM",
+                  "desc": "Istražujemo povećanu stopu pogrešaka."
+                },
+                {
+                  "time": "2. svibnja, 10:20 AM",
+                  "desc": "Ovaj je incident riješen."
+                },
+                {
+                  "time": "2. svibnja, 8:20 PM",
+                  "desc": "Istražujemo povećanu stopu pogrešaka."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "2. svibnja, 8:20 PM",
+                  "desc": "Istražujemo povećanu stopu pogrešaka."
+                },
+                {
+                  "time": "3. svibnja, 12:05 AM",
+                  "desc": "Ovaj je incident riješen."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "1. svibnja 2026.",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "1. svibnja, 2:05 PM",
+                  "desc": "Istražujemo povećanu stopu pogrešaka."
+                },
+                {
+                  "time": "1. svibnja, 3:05 PM",
+                  "desc": "Ovaj je incident riješen."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "30. travnja 2026.",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "30. travnja, 8:20 AM",
+                  "desc": "Istražujemo povećanu stopu pogrešaka."
+                },
+                {
+                  "time": "30. travnja, 9:50 AM",
+                  "desc": "Ovaj je incident riješen."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30. travnja, 3:05 PM",
+                  "desc": "Ovaj je incident riješen."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30. travnja, 4:51 PM",
+                  "desc": "Ovaj je incident riješen."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30. travnja, 1:20 PM",
+                  "desc": "Istražujemo povećanu stopu pogrešaka."
+                },
+                {
+                  "time": "30. travnja, 2:37 PM",
+                  "desc": "Ozbiljnost je porasla s smanjene kvalitete na djelomični ispad."
+                },
+                {
+                  "time": "30. travnja, 8:20 PM",
+                  "desc": "Ovaj je incident riješen."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30. travnja, 6:50 PM",
+                  "desc": "Ovaj je incident riješen."
+                },
+                {
+                  "time": "30. travnja, 7:50 PM",
+                  "desc": "Istražujemo povećanu stopu pogrešaka."
+                },
+                {
+                  "time": "1. svibnja, 12:20 AM",
+                  "desc": "Ovaj je incident riješen."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "subscribe": {
+      "title": "Budite prvi<br></br>koji će saznati da nešto ne radi.",
+      "lead": "Odaberite zemlje koje vas zanimaju, a mi ćemo vam poslati jednu jednostavnu obavijest kad njihovi portali, ili naši, prestanu raditi ili se vrate.",
+      "emailLabel": "Primajte obavijesti o incidentima e-poštom",
+      "button": "Pretplati se",
+      "follow": "Ili pratite status putem:",
+      "chipEmail": "Sažetak e-poštom",
+      "chipSms": "SMS i WhatsApp",
+      "chipRss": "RSS izvor",
+      "chipWebhook": "Webhook za operacije"
+    },
+    "footer": {
+      "tagline": "VIZA vam pomaže planirati, podnijeti i pratiti vize diljem svijeta, bez muke.",
+      "company": "Tvrtka",
+      "careers": "Karijere",
+      "contact": "Kontakt",
+      "security": "Sigurnost",
+      "systemStatus": "Status sustava",
+      "privacy": "Privatnost",
+      "terms": "Uvjeti",
+      "products": "Proizvodi",
+      "prodVisaReq": "Uvjeti za vizu",
+      "prodSchengen": "Provjera termina za Schengen",
+      "prodPhoto": "Izrada fotografije za vizu",
+      "prodHelpline": "VIZA hitna linija",
+      "copyright": "© VIZA, sva prava pridržana"
+    }
+  },
+  "arrival": {
+    "breadcrumbHome": "Početna",
+    "breadcrumbHub": "Dolazne kartice",
+    "hubH1": "Vodiči za dolazne kartice",
+    "hubLead": "Dolazna kartica je kratak državni obrazac koji ispunjavate prije ulaska u zemlju. Većina ih je na internetu, besplatna i traje oko pet minuta. Ovi vodiči pokazuju kome treba koja, kada je predati i kako izbjeći lažne stranice koje je naplaćuju.",
+    "hubWhatTitle": "Što je dolazna kartica",
+    "hubWhat": [
+      "Dolazna kartica je izjava koju odredište traži uz putovnicu i eventualnu vizu. Bilježi tko ste, kako dolazite i gdje ćete odsjesti. Mnoge su zemlje papirnatu karticu iz zrakoplova zamijenile internetskim obrascem.",
+      "Nije viza. Viza vam omogućuje da zatražite ulazak. Dolazna kartica obavještava graničnu službu o vašem putovanju, a viza vam i dalje treba ako je vaše državljanstvo zahtijeva."
+    ],
+    "hubFreeTitle": "Dolazne kartice su besplatne",
+    "hubFree": [
+      "Svaka kartica u ovim vodičima besplatna je na samoj državnoj stranici. Neke web-stranice kopiraju državni obrazac i naplaćuju ga. Nikad ne trebate platiti nijednu od njih.",
+      "Uvijek krenite od službene adrese navedene u svakom vodiču. VIZA je neovisna usluga, a ne web-stranica državnog tijela."
+    ],
+    "hubWhenTitle": "Kada vam treba",
+    "hubWhen": [
+      "Većina kartica otvara se tri dana prije dolaska i mora se predati unutar tog razdoblja. Provjerite točno pravilo u svakom vodiču, jer Visit Japan Web za Japan nema fiksni rok i nije obavezan.",
+      "Stanovnici, državljani i putnici u tranzitu često su izuzeti ili imaju kraći obrazac. Svaki vodič navodi tko je izuzet, uključujući izuzeće za singapurske državljane kod malezijskog MDAC-a."
+    ],
+    "hubGuidesTitle": "Svi vodiči",
+    "hubGuidesSub": "Odaberite odredište. Svaki vodič ima korake, česte pogreške i službene poveznice.",
+    "readGuide": "Pročitajte vodič",
+    "cardWhen": "Kada",
+    "cardsLabel": "Dolazna kartica",
+    "hubVisaTitle": "Treba li vam i viza",
+    "hubVisaBody": "Dolazna kartica ne zamjenjuje vizu. Na stranici odredišta provjerite treba li je vaša putovnica.",
+    "hubVisaCta": "Pregledajte stranice o vizama",
+    "glanceTitle": "Ukratko",
+    "stepsTitle": "Kako je ispuniti, korak po korak",
+    "mistakesTitle": "Česte pogreške",
+    "feesTitle": "Naknade i lažne stranice",
+    "faqTitle": "Pitanja",
+    "sourcesTitle": "Izvori",
+    "relatedTitle": "Ostali vodiči za dolazne kartice",
+    "independent": "VIZA je neovisna usluga, a ne web-stranica državnog tijela.",
+    "officialCta": "Otvorite službenu stranicu",
+    "officialLabel": "Službena stranica",
+    "vizaTitle": "Prepustite VIZA-i",
+    "vizaBody": "Započnite {name} u svom VIZA računu. VIZA-in obrazac vodi vas kroz ista pitanja kao službeni i čuva vaše podatke za buduća putovanja. Uvijek možete umjesto toga upotrijebiti besplatnu službenu stranicu.",
+    "vizaFee": "Naknada za VIZA uslugu",
+    "vizaFeeFree": "Besplatno",
+    "vizaCta": "Započnite na VIZA",
+    "noVizaTitle": "Upotrijebite službenu stranicu",
+    "noVizaBody": "VIZA još ne ispunjava ovu karticu. Upotrijebite službenu stranicu ispod i najprije pročitajte korake u ovom vodiču.",
+    "visaTitle": "Viza za: {country}",
+    "visaBody": "Dolazna kartica odvojena je od vize. Pogledajte kome treba viza ({country}), naknade i kako se prijaviti.",
+    "visaCta": "Otvorite stranicu o vizi ({country})",
+    "reviewedTitle": "Provjereno 25. studenoga 2026.",
+    "stepLabel": "Korak",
+    "cards": {
+      "malaysia-mdac": {
+        "summary": "Besplatna internetska kartica za strane posjetitelje. Singapurski državljani su izuzeti.",
+        "when": "Unutar 3 dana prije dolaska"
+      },
+      "singapore-sg-arrival-card": {
+        "summary": "Internetska kartica tijela ICA sa zdravstvenom izjavom. Predaje se na web-stranici ili u aplikaciji MyICA.",
+        "when": "Unutar 3 dana prije dolaska"
+      },
+      "japan-visit-japan-web": {
+        "summary": "Besplatni QR kodovi za imigraciju i carinu. Preporučeno, nije obavezno.",
+        "when": "Prije leta"
+      },
+      "thailand-tdac": {
+        "summary": "Besplatna kartica za svakog stranog posjetitelja, s vizom ili bez nje. Zamijenila je papirnati TM6.",
+        "when": "Unutar 3 dana prije dolaska"
+      },
+      "korea-e-arrival-card": {
+        "summary": "Obavezna od 1. siječnja 2026. Valjani nositelj K-ETA je izuzet.",
+        "when": "Unutar 3 dana prije dolaska"
+      },
+      "indonesia-all-indonesia": {
+        "summary": "Jedna kartica za imigraciju, carinu i zdravstvo. Besplatna, a nije viza.",
+        "when": "Do 3 dana prije dolaska"
+      }
+    }
+  },
+  "guides": {
+    "breadcrumbHome": "Početna",
+    "breadcrumbHub": "Vodiči",
+    "hubH1": "Vodiči za vize za osobe koje žive u Singapuru",
+    "hubLead": "Imate li singapursku, kinesku, indijsku ili filipinsku putovnicu, ovi vodiči odgovaraju na isto pitanje: što mi treba za ulazak u tu zemlju i gdje se prijaviti iz Singapura. Svaki navodi svoje izvore i datum provjere.",
+    "hubGuidesTitle": "Svi vodiči",
+    "hubGuidesSub": "Odaberite temu. Pravila se mijenjaju, pa svaki vodič navodi službene stranice koje treba provjeriti prije putovanja.",
+    "readGuide": "Pročitajte vodič",
+    "hubMoreTitle": "Još od VIZA-e",
+    "hubMoreBody": "Tražite određenu zemlju, dolaznu karticu ili najnoviju promjenu pravila?",
+    "hubDestinations": "Stranice o vizama",
+    "hubArrival": "Vodiči za dolazne kartice",
+    "hubNews": "Vijesti o vizama",
+    "glanceTitle": "Kratak odgovor",
+    "relatedVisaTitle": "Stranice odredišta",
+    "relatedVisaSub": "Naknade, dokumenti i koraci za osobe koje žive u Singapuru.",
+    "relatedArrivalTitle": "Vodiči za dolazne kartice",
+    "relatedGuidesTitle": "Još vodiča",
+    "faqTitle": "Pitanja",
+    "sourcesTitle": "Izvori",
+    "reviewedTitle": "Kako smo provjerili",
+    "published": "Objavljeno",
+    "updated": "Ažurirano",
+    "independent": "VIZA je neovisna usluga, a ne web-stranica državnog tijela."
+  },
+  "ds": {
+    "header": {
+      "home": "VIZA početna",
+      "primary": "Glavni izbornik",
+      "language": "Jezik",
+      "signIn": "Prijava u račun",
+      "openMenu": "Otvori izbornik",
+      "closeMenu": "Zatvori izbornik",
+      "nav": {
+        "home": "Početna",
+        "destinations": "Odredišta",
+        "arrivalCards": "Dolazne kartice",
+        "guides": "Vodiči",
+        "news": "Vijesti",
+        "about": "O nama",
+        "contact": "Kontakt"
+      }
+    },
+    "footer": {
+      "home": "VIZA početna",
+      "tagline": "Zahtjeve za vize priprema VIZA-in AI, a provjeravaju ih naši savjetnici. Besplatno za korištenje.",
+      "explore": "Istražite",
+      "follow": "Pratite nas",
+      "followOn": "Pratite VIZA na {platform}",
+      "links": {
+        "destinations": "Odredišta",
+        "arrivalCards": "Dolazne kartice",
+        "guides": "Vodiči",
+        "news": "Vijesti",
+        "about": "O nama",
+        "contact": "Kontakt",
+        "careers": "Karijere",
+        "security": "Sigurnost",
+        "status": "Status"
+      },
+      "copyright": "© {year} VIZA. Sva prava pridržana.",
+      "office": "Registrirano sjedište: 60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapur 409051",
+      "privacy": "Privatnost",
+      "terms": "Uvjeti",
+      "kelin": "Pothvat tvrtke Kelin Studio",
+      "refunds": "Povrati",
+      "business": "Podaci o poslovanju"
+    },
+    "form": {
+      "fullName": {
+        "label": "Vaše ime",
+        "placeholder": "Jane Tan"
+      },
+      "email": {
+        "label": "E-pošta"
+      },
+      "phone": {
+        "label": "Telefon"
+      },
+      "destination": {
+        "label": "Odredište",
+        "placeholder": "Japan, Schengen, Sjedinjene Američke Države"
+      },
+      "message": {
+        "label": "Vaše pitanje",
+        "placeholder": "Kamo idete, vaša putovnica i datumi putovanja."
+      },
+      "submit": "Pošaljite poruku",
+      "sending": "Slanje",
+      "success": "Hvala, vaša poruka je stigla. Odgovorit ćemo e-poštom.",
+      "error": "Poruku nismo mogli poslati. Pokušajte ponovno ili pišite na sales@kelin.studio.",
+      "consent": "Slanjem prihvaćate našu <privacy>Politiku privatnosti</privacy> i <terms>Uvjete</terms>."
+    },
+    "gallery": {
+      "title": "Odredišta",
+      "lede": "Odaberite odredište i pogledajte koja vam je viza potrebna, dokumente i državnu pristojbu.",
+      "view": "Pogledaj",
+      "passportSummary": "{free} bez vize · {voa} e-viza ili po dolasku · {req} viza obvezna",
+      "noResults": "Nijedno odredište ne odgovara vašem pretraživanju.",
+      "sorts": {
+        "featured": "Istaknuto",
+        "open": "Prvo otvorena",
+        "name": "A do Ž"
+      }
+    },
+    "dest": {
+      "all": "Sva odredišta",
+      "onPage": "Na ovoj stranici",
+      "applyTitle": "Započnite prijavu",
+      "facts": "Činjenice"
+    },
+    "article": {
+      "toc": "Na ovoj stranici",
+      "down": "Prijeđi na članak",
+      "faqLede": "Kratki odgovori na ovu temu."
+    },
+    "legal": {
+      "updated": "Zadnje ažuriranje",
+      "contents": "Sadržaj"
+    }
+  },
+  "homePage": {
+    "hero": {
+      "browse": "Pregledajte odredišta",
+      "picks": "Odredišta"
+    },
+    "types": {
+      "title": "Vrste viza",
+      "lede": "Turističke, poslovne, radne, studentske i dugoročne vize.",
+      "prev": "Prethodno",
+      "next": "Sljedeće",
+      "items": {
+        "tourist": {
+          "title": "Turistička",
+          "body": "Odmori, posjeti obitelji i kratki boravci."
+        },
+        "business": {
+          "title": "Poslovna",
+          "body": "Sastanci, konferencije i posjeti lokacijama."
+        },
+        "work": {
+          "title": "Radna",
+          "body": "Radne dozvole i vize za zapošljavanje."
+        },
+        "student": {
+          "title": "Studentska",
+          "body": "Vize za studij u školama i na sveučilištima."
+        },
+        "long": {
+          "title": "Dugi boravak",
+          "body": "Boravišne i druge dugoročne vize."
+        }
+      }
+    },
+    "steps": {
+      "title": "Kako to funkcionira",
+      "cta": "Započnite besplatnu prijavu",
+      "side": {
+        "freeValue": "Besplatno",
+        "freeLabel": "Usluga VIZA",
+        "langLabel": "Jezici",
+        "note": "Plaćate samo državnu pristojbu.",
+        "noteBody": "Ide izravno tijelu koje izdaje vizu. VIZA ne dodaje vlastitu naknadu."
+      },
+      "items": {
+        "choose": {
+          "title": "Odaberite odredište",
+          "body": "Prije početka pogledajte koja vam je viza potrebna, dokumente za pripremu i državnu pristojbu.",
+          "chips": "Vrsta vize|Dokumenti|Državna pristojba"
+        },
+        "passport": {
+          "title": "Prenesite putovnicu",
+          "body": "VIZA čita vaše podatke sa stranice s fotografijom, pa je tipkanja vrlo malo.",
+          "chips": "Stranica s fotografijom|Podaci ispunjeni"
+        },
+        "confirm": {
+          "title": "Potvrdite svoje podatke",
+          "body": "Provjerite što je VIZA pročitala, dodajte datume putovanja i nastavite u svom besplatnom VIZA računu.",
+          "chips": "Datumi putovanja|Besplatan račun"
+        },
+        "file": {
+          "title": "VIZA provjerava i podnosi",
+          "body": "Savjetnik provjerava svaki obrazac prije podnošenja, a napredak pratite u svom računu.",
+          "chips": "Provjera savjetnika|Obavijesti o napretku"
+        }
+      }
+    },
+    "tiers": {
+      "title": "Cijene",
+      "lede": "Dva načina prijave, oba besplatna.",
+      "cta": "Kontaktirajte nas",
+      "criteria": "Usporedba",
+      "guided": "Uz vodstvo",
+      "full": "Potpuna usluga",
+      "rows": {
+        "fee": {
+          "label": "Naknada VIZA",
+          "guided": "Besplatno",
+          "full": "Besplatno"
+        },
+        "form": {
+          "label": "Obrazac za prijavu",
+          "guided": "Vi odgovarate, a VIZA-in AI vas vodi",
+          "full": "Savjetnik s vama priprema odgovore"
+        },
+        "documents": {
+          "label": "Dokumenti",
+          "guided": "Popis za provjeru prilagođen vašoj situaciji",
+          "full": "Savjetnik provjerava vaše dokumente"
+        },
+        "interview": {
+          "label": "Termin i razgovor",
+          "guided": "Vi rezervirate i dolazite",
+          "full": "S vama prolazimo vjerojatna pitanja"
+        },
+        "govFee": {
+          "label": "Državna pristojba",
+          "guided": "Plaća se izravno tijelu",
+          "full": "Plaća se izravno tijelu"
+        },
+        "bestFor": {
+          "label": "Dobro za",
+          "guided": "Jednostavne prijave",
+          "full": "Složene slučajeve ili prijašnje odbijanje"
+        }
+      }
+    },
+    "why": {
+      "title": "Zašto VIZA",
+      "lede": "Jasni koraci, provjereni obrasci i stvarni ljudi s kojima možete razgovarati.",
+      "items": {
+        "free": {
+          "title": "Besplatna usluga",
+          "body": "VIZA-ina pomoć ne košta ništa. Plaćate samo državnu pristojbu, izravno tijelu."
+        },
+        "checked": {
+          "title": "Provjereni obrasci",
+          "body": "Savjetnik provjerava svaki obrazac prije podnošenja, pa se male pogreške uhvate rano."
+        },
+        "language": {
+          "title": "Engleski i kineski",
+          "body": "Razgovarajte s VIZA-om na engleskom ili kineskom, putem WhatsAppa, WeChata ili e-pošte."
+        }
+      },
+      "photos": {
+        "arrival": {
+          "title": "Dolazne kartice",
+          "body": "Pomoć korak po korak uz besplatne dolazne kartice za Maleziju, Singapur, Japan, Tajland, Koreju i Indoneziju."
+        },
+        "news": {
+          "title": "Vijesti",
+          "body": "Promjene pravila za vize i nove sheme e-viza, objašnjene jednostavnim riječima."
+        }
+      }
+    },
+    "guides": {
+      "title": "Vodiči",
+      "cta": "Svi vodiči"
+    },
+    "faq": {
+      "lede": "Kratki odgovori o VIZA-inoj usluzi za vize.",
+      "more": "Još pitanja?",
+      "items": {
+        "cost": {
+          "q": "Naplaćuje li VIZA svoju uslugu?",
+          "a": "Ne. VIZA-ina pomoć je besplatna. Ako odredište naplaćuje državnu pristojbu za vizu, plaćate je izravno toj državi."
+        },
+        "visas": {
+          "q": "S kojim vizama VIZA može pomoći?",
+          "a": "Turističke, poslovne, radne, studentske i dugoročne vize za odredišta na ovoj stranici. Ako vaše nije navedeno, pišite nam, a savjetnik će vam reći što je moguće."
+        },
+        "approval": {
+          "q": "Tko odlučuje o mojoj vizi?",
+          "a": "Svaku odluku donosi tijelo koje izdaje vizu. VIZA provjerava vaš obrazac i dokumente prije podnošenja, kako bi vaša prijava bila potpuna i dosljedna."
+        },
+        "tiers": {
+          "q": "Koja je razlika između Uz vodstvo i Potpune usluge?",
+          "a": "Uz vodstvo, VIZA-in AI vodi vas kroz obrazac i popis za provjeru, a vi zadržavate kontrolu nad svakim odgovorom. U Potpunoj usluzi savjetnik s vama priprema odgovore i provjerava vaše dokumente. Oba načina su besplatna."
+        },
+        "language": {
+          "q": "Koje jezike podržavate?",
+          "a": "Engleski i kineski, putem WhatsAppa, WeChata, telefona i e-pošte."
+        }
+      }
+    },
+    "contactCard": {
+      "title": "Razgovarajte s VIZA savjetnikom",
+      "body": "Odgovaramo na engleskom ili kineskom.",
+      "cta": "Kontaktirajte nas"
+    },
+    "cta": {
+      "title": "Započnite svoju prijavu",
+      "point1": "Vaši podaci ostaju privatni",
+      "point2": "Odgovara stvarna osoba",
+      "formTitle": "Postavite pitanje",
+      "formBody": "Recite nam kamo idete, a VIZA savjetnik odgovorit će vam e-poštom."
+    }
+  },
+  "aboutPage": {
+    "h1": "O VIZA-i",
+    "intro": {
+      "title": "Što je VIZA",
+      "text": "VIZA priprema, provjerava i podnosi zahtjeve za vize za osobe koje žive u Singapuru. Naš AI obavlja papirologiju, a naši savjetnici pregledavaju svaki obrazac. Usluga je besplatna."
+    },
+    "facts": {
+      "destinations": "Odredišta",
+      "guides": "Vodiči za vize",
+      "arrival": "Vodiči za dolazne kartice",
+      "free": "Besplatno",
+      "freeLabel": "VIZA usluga"
+    },
+    "tiersTitle": "Uz vodstvo ili Potpuna usluga",
+    "tiersLede": "Odaberite koliko pomoći želite. Oba načina su besplatna.",
+    "free": {
+      "title": "Besplatna usluga",
+      "text": "VIZA ne naplaćuje svoju pomoć. Kad odredište ima državnu pristojbu za vizu, VIZA je prikaže prije početka, a vi je plaćate izravno tijelu koje izdaje vizu. Nema plaćenih nadogradnji."
+    },
+    "company": {
+      "title": "Podaci o tvrtki",
+      "office": "Registrirano sjedište",
+      "officeValue": "60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapur 409051",
+      "email": "E-pošta",
+      "phone": "Telefon i WhatsApp",
+      "languages": "Jezici",
+      "languagesValue": "Engleski i kineski"
+    }
+  },
+  "contactPage": {
+    "h1": "Kontakt",
+    "lines": {
+      "whatsapp": {
+        "title": "Telefon i WhatsApp",
+        "body": "Nazovite ili pošaljite poruku savjetniku."
+      },
+      "wechat": {
+        "body": "Potražite ID u aplikaciji WeChat i dodajte nas."
+      },
+      "email": {
+        "title": "E-pošta",
+        "body": "Najbolje za dokumente i dulja pitanja."
+      },
+      "office": {
+        "top": "Singapur",
+        "title": "Ured",
+        "body": "60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapur 409051"
+      }
+    },
+    "message": {
+      "title": "Pošaljite poruku",
+      "text": "Pitanja o vizi, odredištu ili suradnji s VIZA-om. Pišite nam, a savjetnik će vam odgovoriti."
+    }
+  },
+  "careersPage": {
+    "title": "Karijere",
+    "lede": "VIZA pomaže ljudima u Singapuru da dobiju vizu uz AI i savjetnike, a usluga je besplatna. Zapošljavamo ljude koji vole pažljiv i koristan rad.",
+    "teamsTitle": "Timovi",
+    "teams": [
+      {
+        "title": "Inženjering",
+        "body": "Gradite provjere dokumenata, tijek prijave i alate koje koriste naši savjetnici."
+      },
+      {
+        "title": "Dizajn",
+        "body": "Učinite stresan postupak jasnim za osobu koja se prijavljuje."
+      },
+      {
+        "title": "Operacije",
+        "body": "Pazite da svaka prijava napreduje, a svaki uvjet bude ažuran."
+      },
+      {
+        "title": "Savjetovanje",
+        "body": "Pomažite podnositeljima u slučajevima u kojima treba osoba, na engleskom i kineskom."
+      },
+      {
+        "title": "Podaci",
+        "body": "Pretvarajte državne izvore u provjere koje rano hvataju probleme."
+      },
+      {
+        "title": "Marketing",
+        "body": "Objašnjavajte vize jednostavno, u vodičima i stranicama kojima se može vjerovati."
+      }
+    ],
+    "applyTitle": "Javite nam se",
+    "applyBody": "Recite nam nešto o sebi i timu kojem biste se željeli pridružiti. Čitamo svaku poruku.",
+    "applyCta": "Kontaktirajte nas"
+  },
+  "pageCopy": {
+    "product": {
+      "introTitle": "Kako VIZA podržava vašu prijavu za vizu",
+      "introLede": "Pogledajte dostupne usluge pripreme vize, pregleda dokumenata i praćenja statusa prijave. Usluga VIZA je besplatna. Točan opseg i dostupnost prikazuju se nakon odabira odredišta.",
+      "browse": "Pregledajte odredišta"
+    },
+    "events": {
+      "title": "Još nema događaja",
+      "lede": "Buduće vizne klinike, informativne sesije i partnerske događaje najavit ćemo ovdje.",
+      "contact": "Kontaktirajte nas"
+    }
+  },
+  "og": {
+    "band": "VIZA je besplatna. Državne pristojbe plaćaju se zasebno.",
+    "destSubtitle": "Naknade i kako se prijaviti"
+  }
+}

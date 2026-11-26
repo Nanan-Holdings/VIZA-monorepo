@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { staticPageMetadata } from "@/lib/seo/page-meta";
 import { COUNTRIES, visaHref } from "@/lib/countries";
-import { GUIDES } from "@/lib/guides";
+import { localizedGuides } from "@/lib/guides";
 import HowItWorks from "@/components/HowItWorks";
 import SiteHeader from "@/design-system/sections/SiteHeader";
 import SiteFooter from "@/design-system/sections/SiteFooter";
@@ -32,7 +32,6 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   setRequestLocale(locale);
   const t = await getTranslations("homePage");
   const tAll = await getTranslations();
-  const zh = locale.startsWith("zh");
 
   const picks = PICKS.map((slug) => {
     const c = COUNTRIES.find((x) => x.slug === slug)!;
@@ -45,12 +44,12 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   });
 
   const usedPhotos = new Set<string>();
-  const guides = GUIDES.slice(0, 3).map((g) => ({
+  const guides = (await localizedGuides(locale)).slice(0, 3).map((g) => ({
     href: `/guides/${g.slug}`,
     image: guideImage(g.visa, usedPhotos),
-    meta: zh ? g.tag.zh : g.tag.en,
-    title: zh ? g.name.zh : g.name.en,
-    body: zh ? g.summary.zh : g.summary.en,
+    meta: g.tag,
+    title: g.name,
+    body: g.summary,
   }));
 
   const tiers = homeTiers(t);
@@ -62,7 +61,13 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         <PhotoHero
           title={tAll("pages.home.heroTitle")}
           lede={tAll("pages.home.heroLede")}
-          image="/assets/heroes/canada.jpg"
+          image="/assets/hero/travel-film-poster.jpg"
+          video={{
+            webm: "/assets/hero/travel-film-1080.webm",
+            mp4: "/assets/hero/travel-film-1080.mp4",
+            mobileMp4: "/assets/hero/travel-film-720.mp4",
+            poster: "/assets/hero/travel-film-poster.jpg",
+          }}
           primary={{ label: tAll("cta.startFreeApplication"), href: "/apply" }}
           secondary={{ label: t("hero.browse"), href: "#destinations" }}
           aside={<HeroPicks label={t("hero.picks")} picks={picks} />}

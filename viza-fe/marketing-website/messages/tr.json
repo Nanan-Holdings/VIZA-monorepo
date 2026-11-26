@@ -1,0 +1,2150 @@
+{
+  "cta": {
+    "startFreeApplication": "Ücretsiz başvurunuzu başlatın"
+  },
+  "nav": {
+    "home": "Ana sayfa",
+    "apply": "Başvuru",
+    "visas": "Vizeler",
+    "explore": "Keşfet",
+    "events": "Etkinlikler",
+    "blog": "Haberler",
+    "careers": "Kariyer",
+    "contact": "İletişim",
+    "signIn": "Giriş yap",
+    "getStarted": "Başlayın",
+    "yourPassport": "Pasaportunuz",
+    "searchPlaceholder": "Ülke veya vize arayın…",
+    "arrivalCards": "Varış kartları",
+    "guides": "Rehberler"
+  },
+  "footer": {
+    "followUs": "Bizi takip edin:",
+    "followOn": "VIZA'yı {platform} üzerinde takip edin",
+    "product": "Ürünler",
+    "company": "Şirket",
+    "legal": "Yasal",
+    "offices": "Ofisler",
+    "askAi": "VIZA hakkında yapay zekaya sorun",
+    "security": "Güvenlik",
+    "status": "Durum",
+    "privacy": "Gizlilik",
+    "terms": "Şartlar",
+    "rights": "Tüm hakları saklıdır.",
+    "tagline": "VIZA, dünya genelinde vizelerinizi sorunsuzca planlamanıza, başvurmanıza ve takip etmenize yardım eder.",
+    "careers": "Kariyer",
+    "contact": "İletişim",
+    "copyright": "© VIZA, Tüm hakları saklıdır",
+    "prodMockInterview": "ABD Deneme Mülakatı",
+    "prodVisaReq": "Vize Şartları",
+    "prodSchengen": "Schengen Randevu Denetleyicisi",
+    "prodPhoto": "Vize Fotoğrafı Oluşturucu",
+    "prodHelpline": "VIZA Acil Yardım Hattı",
+    "prodStudent": "Öğrenci Vizesi",
+    "arrivalCards": "Varış kartları",
+    "guides": "Rehberler",
+    "news": "Haberler"
+  },
+  "pages": {
+    "blog": {
+      "metaTitle": "Vize Haberleri ve Politika Güncellemeleri | VIZA",
+      "metaDescription": "VIZA'dan vize haberleri: kural değişiklikleri, yeni e-vize ve ETA uygulamaları ve bunların Singapur'da yaşayanlar için anlamı. Kurallar değiştikçe güncellenir.",
+      "title": "Vize haberleri",
+      "lede": "Kural değişiklikleri ve politika güncellemeleri, sade bir dille anlatılır. Geçerliliğini koruyan tavsiyeler için rehberleri okuyun.",
+      "readArticle": "Yazıyı okuyun",
+      "featuredLabel": "Son haberler",
+      "articlesTitle": "Son haberler",
+      "articlesDescription": "Politika güncellemeleri ve seyahat kuralı değişiklikleri.",
+      "allPosts": "Tüm yazılar",
+      "noMorePosts": "Daha fazla haber yolda.",
+      "emptyTitle": "Henüz yayınlanmış haber yok",
+      "emptyBody": "İlk güncellemelerimiz hazırlanıyor. Lütfen yakında tekrar bakın.",
+      "unavailableTitle": "Haberler geçici olarak kullanılamıyor",
+      "unavailableBody": "Yayınlanan son haberler yüklenemedi. Lütfen birazdan tekrar deneyin.",
+      "backToBlog": "Haberlere dön",
+      "by": "Yazan",
+      "updated": "Güncelleme",
+      "categoriesLabel": "Haber konuları",
+      "topicLabel": "Konu",
+      "relatedTitle": "Daha fazla haber",
+      "relatedDescription": "VIZA'dan daha fazla vize haberi.",
+      "ctaEyebrow": "Güvenle planlayın",
+      "ctaTitle": "Başvurunuzu başlatmaya hazır mısınız?",
+      "ctaBody": "Nereye gitmek istediğinizi söyleyin. VIZA sizi şartlar ve sonraki adımlar boyunca yönlendirir.",
+      "ctaAction": "Başvuru başlat",
+      "categoryMetaTitle": "{category} Haberleri | VIZA",
+      "categoryMetaDescription": "{category} hakkındaki VIZA haberlerini okuyun: ne değişti, kimleri etkiliyor ve sonra ne yapmalı.",
+      "categoryLede": "{category} hakkında haberler.",
+      "visaLinkTitle": "{country} vizesi için mi başvuruyorsunuz?",
+      "visaLinkBody": "Singapur'da yaşayanlar için belgeleri, devlet harcını ve adımları görün.",
+      "visaLinkAction": "{country} vize rehberi",
+      "guidesTitle": "İlgili rehberler",
+      "guidesBody": "Bu konuda güncel kalan rehberler."
+    },
+    "home": {
+      "title": "Singapur'da Vize Başvurusu: ABD, Hindistan, Vietnam | VIZA",
+      "description": "ABD vizesi (DS-160), Hindistan, Vietnam veya Mısır e-vizesi ya da Fransa Schengen vizesi için başvurun. Bir danışman her formu gönderilmeden önce kontrol eder.",
+      "heroTitle": "Sırada neresi var?",
+      "heroLede": "Her varış noktası için vize seçeneklerine göz atın. VIZA danışmanınız ve yapay zekamız evrak işini halleder, siz seyahatinizi ayarlarsınız."
+    },
+    "apply": {
+      "title": "Vize Başvurusu Başlat | VIZA",
+      "description": "Pasaportunuzu yükleyin, bilgilerinizi onaylayın ve vize başvurunuzu bir VIZA danışmanına teslim edin. VIZA'nın hizmeti ücretsizdir.",
+      "saveBadge": "Kaydedildi · istediğiniz zaman devam edin"
+    },
+    "careers": {
+      "title": "Kariyer | VIZA",
+      "description": "Singapur'da Kelin Studio'nun işlettiği ücretsiz vize hizmeti VIZA'da çalışın. İşe aldığımız ekipleri ve bir pozisyon için bize nasıl ulaşacağınızı görün.",
+      "rightCta": "Pozisyonları görün"
+    },
+    "contact": {
+      "title": "İletişim: WhatsApp, WeChat, Telefon, E-posta | VIZA",
+      "description": "VIZA ekibine WhatsApp, WeChat, telefon veya e-posta ile ulaşın. Dört kanal, dört masa ve gerçek bir kişi yanıt verir.",
+      "rightCta": "Bize yazın"
+    },
+    "security": {
+      "title": "Güvenlik ve Sorumlu Bildirim | VIZA",
+      "description": "Varsayılan olarak gizli, şeffaf ve güvenli. VIZA müşteri verilerini nasıl korur, güvenlik açığı bildirim programımız ve güvenli liman.",
+      "rightCta": "Güvenlik açığı bildirin"
+    },
+    "status": {
+      "title": "Sistem Durumu | VIZA",
+      "description": "VIZA'nın ve başvuru yaptığımız devlet vize portallarının canlı durumu.",
+      "navPill": "Tüm sistemler çalışıyor"
+    },
+    "visa": {
+      "applyCta": "Hemen başvurun",
+      "applicationProcess": "Başvuru süreci",
+      "documents": "Belgeler",
+      "rejectionReasons": "Ret nedenleri",
+      "entryExit": "Giriş ve çıkış",
+      "extension": "Uzatma",
+      "reviews": "Yorumlar",
+      "nearby": "Yakındaki ülkeler",
+      "sources": "Resmi kaynaklar"
+    },
+    "privacy": {
+      "title": "Gizlilik Politikası | VIZA",
+      "description": "Singapur'un PDPA'sı kapsamında, vize başvurusu yaparken VIZA'nın neleri topladığı, neden topladığı, kimlerin gördüğü ve ne kadar süre sakladığı."
+    },
+    "terms": {
+      "title": "Şartlar ve Koşullar | VIZA",
+      "description": "Singapur'da Kelin Studio Pte. Ltd. tarafından işletilen VIZA vize başvuru hizmetini kullanma şartları. VIZA'nın hizmeti ücretsizdir."
+    },
+    "product": {
+      "title": "VIZA Vize Başvurunuzu Nasıl Destekler | VIZA",
+      "description": "Vize hazırlığı, belge incelemesi ve başvuru durumu tek yerde. VIZA'nın hizmeti ücretsizdir. Kapsam ve uygunluk her varış noktası için gösterilir."
+    },
+    "events": {
+      "title": "Etkinlikler | VIZA",
+      "description": "VIZA'dan vize klinikleri, bilgilendirme oturumları ve iş ortağı etkinlikleri."
+    },
+    "arrivalCards": {
+      "title": "Varış Kartı Rehberleri: MDAC, SG Arrival Card, TDAC | VIZA",
+      "description": "Malezya, Singapur, Japonya, Tayland, Kore ve Endonezya varış kartları için ücretsiz rehberler: kimin gerektiği, ne zaman gönderileceği ve adım adım yardım."
+    },
+    "guides": {
+      "title": "Singapur'da Yaşayanlar için Vize Rehberleri | VIZA",
+      "description": "Singapur'da yaşayanlar için sade rehberler: vizesiz ülkeler, Schengen belgeleri, ABD mülakatı, ETA, e-vize ve retler. Okumak ücretsiz, sık kontrol edilir."
+    },
+    "about": {
+      "title": "VIZA Hakkında: Singapur'da Ücretsiz Vize Yardımı | VIZA",
+      "description": "VIZA, Singapur'daki kişilerin vize başvurularını yapay zeka ve danışmanlarla hazırlar, kontrol eder, gönderir. Hizmet ücretsiz, devlet harçları kuruma gider."
+    },
+    "visaIndex": {
+      "title": "Vize Varış Noktaları: Ülkeye Göre Şartlar | VIZA",
+      "description": "Vize şartlarını ülkeye göre karşılaştırın, her biri için belgeler ve harçlarla birlikte. VIZA'nın yardımı ücretsizdir.",
+      "heroTitle": "Vize varış noktaları"
+    },
+    "refunds": {
+      "title": "İade Politikası | VIZA",
+      "description": "VIZA'nın hizmeti ücretsizdir, yani iade edilecek bir hizmet bedeli yoktur. Devlet harçları ve diğer sağlayıcıların ücretleri nasıl işler."
+    },
+    "businessInformation": {
+      "title": "İşletme Bilgileri | VIZA",
+      "description": "VIZA, bir Singapur şirketi olan Kelin Studio Pte. Ltd. tarafından işletilir. Kayıtlı adres, UEN ve iletişim bilgileri."
+    }
+  },
+  "common": {
+    "comingSoon": "Yakında",
+    "learnMore": "Daha fazla bilgi",
+    "readMore": "Devamını okuyun",
+    "applyNow": "Hemen başvurun",
+    "talkToHuman": "Bir kişiyle konuşun",
+    "viewAll": "Tümünü gör"
+  },
+  "visa": {
+    "heroTitle": "{country} vizesi",
+    "validity": "Geçerlilik",
+    "howItWorks": "Nasıl işler",
+    "step1": "Seyahat bilgilerinizi bize söyleyin ve pasaportunuzu yükleyin.",
+    "step2": "Başvurunuzu en güncel kurallara göre tamamlar ve kontrol ederiz.",
+    "step3": "Devletin portalına göndeririz ve kararı takip ederiz.",
+    "step4": "Onaylanan vizeniz e-posta ile gelir, baştan sona izleriz.",
+    "documents": "Neler gerekir",
+    "doc1": "En az 6 ay geçerli bir pasaport.",
+    "doc2": "Yakın zamanda çekilmiş pasaport tipi bir fotoğraf.",
+    "doc3": "Seyahat tarihleriniz ve konaklamanız.",
+    "doc4": "Varış noktası vize harcı alıyorsa, harcı doğrudan devlete ödemek için bir ödeme kartı.",
+    "nearby": "Yakındaki varış noktaları",
+    "startApplication": "Başvurunuzu başlatın",
+    "comingSoonTitle": "{country}: yakında",
+    "comingSoonBody": "{country} için son rötuşları yapıyoruz. Bir hesap oluşturun, yayına girdiği anda size haber verelim.",
+    "browseDestinations": "Varış noktalarına göz atın",
+    "notifyMe": "Bana haber ver",
+    "back": "Keşfet'e dön",
+    "tabOverview": "Genel bakış",
+    "tabProcess": "Başvuru süreci",
+    "tabDocuments": "Belgeler",
+    "tabRejection": "Ret nedenleri",
+    "tabEntry": "Giriş ve çıkış",
+    "tabExtension": "Uzatma",
+    "tabReviews": "Yorumlar",
+    "tabNearby": "Yakındaki ülkeler",
+    "reviewsTitle": "Yorumlar",
+    "nearbyTitle": "Yakındaki ülkeler",
+    "nearbySub": "Bölgede mi geziyorsunuz? Seyahatinize başka bir vize ekleyin, VIZA danışmanınız bunları birlikte yürütür.",
+    "faqTitle": "Sık sorulan sorular",
+    "editorial": "Bu sayfa VIZA'nın editoryal politikasına uyar. Resmi devlet kaynaklarına dayanırız ve politika değiştiğinde her şartı güncelleriz.",
+    "editorialLink": "Nasıl incelediğimizi okuyun",
+    "sourcesTitle": "Kaynaklar",
+    "priceGovt": "Devlet harcı",
+    "priceFree": "Ücretsiz",
+    "pillAllInclusive": "Her şey dahil",
+    "priceCta": "Başvuruyu başlat",
+    "onTime": "Zamanında",
+    "freeService": "Ücretsiz VIZA hizmeti",
+    "freeServiceNote": "VIZA yardımı için hiçbir ücret almaz",
+    "govFeePaidDirect": "Devlet harcı {fee}, doğrudan vizeyi veren kuruma ödenir.",
+    "govFeeSetByAuthority": "Devlet harcı varsa, vizeyi veren kurum belirler ve doğrudan ona ödenir.",
+    "govFeeSetByAuthorityShort": "Kurum belirler",
+    "priceService": "VIZA hizmeti",
+    "pillPaidToAuthority": "Kuruma ödenir",
+    "priceTotalToViza": "VIZA'ya ödediğiniz",
+    "breadcrumbVisas": "Vize varış noktaları",
+    "serviceDescription": "VIZA, Singapur'da yaşayan kişilerin {country} {type} başvurularını yapay zeka desteği ve uzman insan incelemesiyle hazırlamasına, gözden geçirmesine ve göndermesine yardım eder.",
+    "offerDescription": "VIZA hizmet bedeli. Devlet vize harçları ayrıdır ve doğrudan vizeyi veren kuruma ödenir.",
+    "dest": {
+      "tabGlance": "Bir bakışta",
+      "tabPassports": "Pasaportlar",
+      "tabTypes": "Vize türleri",
+      "tabResidents": "Yaşayanlar",
+      "tabFees": "Harçlar",
+      "tabApply": "Nasıl başvurulur",
+      "tabChecklist": "Belgeler",
+      "tabRejection": "Retler",
+      "tabTravel": "Seyahatten önce",
+      "tabRelated": "İlgili",
+      "glanceTitle": "Bir bakışta",
+      "glanceVisa": "Vize gerekli mi",
+      "glanceGovFee": "Devlet harcı",
+      "glanceVizaFee": "VIZA ücreti",
+      "glanceProcessing": "İşlem süresi",
+      "glanceMaxStay": "Azami kalış",
+      "glanceChecked": "Kontrol tarihi",
+      "passportsTitle": "Vize gerekli mi?",
+      "typesTitle": "Vize türleri",
+      "residentsTitle": "Singapur'da yaşayanlar",
+      "feesTitle": "Harçlar ve süre",
+      "applyTitle": "Nasıl başvurulur",
+      "checklistTitle": "Belge kontrol listesi",
+      "travelTitle": "Seyahatten önce",
+      "colPassport": "Pasaport",
+      "colEntry": "Giriş",
+      "colNotes": "Notlar",
+      "colItem": "Kalem",
+      "colAmount": "Tutar",
+      "vizaFeeNote": "VIZA'nın yardımı ücretsizdir. Yalnızca devlet harcını, doğrudan kuruma ödersiniz.",
+      "reviewedBy": "{date} tarihinde bir VIZA danışmanı tarafından incelendi.",
+      "relatedTitle": "İlgili varış noktaları",
+      "relatedSub": "İnsanların aynı seyahate eklediği diğer yerler ve daha fazlasını okuyabileceğiniz yerler.",
+      "startTitle": "Başvuruyu başlat",
+      "startBody": "Pasaportunuz ve seyahat tarihlerinizle başlayın. VIZA'nın yardımı ücretsizdir ve devlet harcını doğrudan kuruma ödersiniz.",
+      "startConsultBody": "Bir VIZA danışmanına nerede yaşadığınızı, pasaportunuzu ve seyahat tarihlerinizi söyleyin. VIZA'nın yardımı ücretsizdir.",
+      "consultCta": "Bir danışmanla konuşun"
+    }
+  },
+  "apply": {
+    "stepOf": "Adım {n} / 3",
+    "back": "Geri",
+    "continue": "Devam",
+    "step1Name": "Pasaportu yükle",
+    "step2Name": "Bilgileri onayla",
+    "step3Name": "Başvuruyu başlat",
+    "s1Title": "Pasaportunuzu yükleyin",
+    "s1Desc": "Bilgilerinizi otomatik okuruz, yazmanız gerekmez. Fotoğrafınızın bulunduğu bilgi sayfasını kullanın.",
+    "segUpload": "Dosya yükle",
+    "segCapture": "Fotoğraf çek",
+    "dzTitle": "Pasaport fotoğrafınızı buraya bırakın",
+    "dzSub": "Ya da göz atmak için tıklayın. Dosyanız şifrelenir ve hiç paylaşılmaz",
+    "dzBrowse": "Dosya seç",
+    "dzUpTo": "En fazla 10 MB",
+    "tip1Title": "Dört köşe de görünsün",
+    "tip1Sub": "Alttaki MRZ dahil bilgi sayfasının tamamını kadraja alın.",
+    "tip2Title": "Parlak ve eşit aydınlatma",
+    "tip2Sub": "Elinizin veya telefon kılıfınızın gölgesinden kaçının.",
+    "tip3Title": "Parlama veya yansıma olmasın",
+    "tip3Sub": "Mührünüz yansıyorsa telefonu hafifçe eğin.",
+    "errReadFail": "Bu pasaport okunamadı: {detail}. Lütfen bilgi sayfasının daha net bir fotoğrafını deneyin.",
+    "extReading": "Belge okunuyor",
+    "extExtracting": "Bilgileriniz çıkarılıyor",
+    "extVerifying": "Gerçeklik doğrulanıyor",
+    "stReading": "Okunuyor…",
+    "stExtracting": "Çıkarılıyor…",
+    "stVerifying": "Doğrulanıyor…",
+    "s2Title": "Bilgilerinizi onaylayın",
+    "s2Desc": "Bunları doğrudan pasaportunuzdan aldık. Düzenlemek için herhangi bir alana dokunun.",
+    "successHigh": "Pasaport başarıyla okundu, yüksek güven",
+    "warnLow": "Bazı alanlar zor okundu. Lütfen aşağıdaki her değeri tekrar kontrol edin.",
+    "warnMed": "Bilgilerinizin çoğunu çıkardık. Lütfen vurgulanan alanları kontrol edin.",
+    "ppDetails": "Pasaport bilgileri",
+    "autoExtracted": "Otomatik okundu",
+    "fSurname": "Soyadı",
+    "fGiven": "Adı",
+    "fPassport": "Pasaport numarası",
+    "fDob": "Doğum tarihi",
+    "fNationality": "Uyruk",
+    "fExpires": "Son geçerlilik",
+    "reachTitle": "Size nasıl ulaşalım?",
+    "reachDesc": "Vizenizi buraya göndeririz, durum güncellemelerini de telefonunuza mesaj olarak ileteceğiz.",
+    "email": "E-posta",
+    "phone": "Telefon",
+    "consent": "Yukarıdaki bilgilerin pasaportumla uyuştuğunu onaylıyorum ve VIZA'nın bu başvuruyu benim adıma {country} göç makamlarına göndermesine izin veriyorum.",
+    "s3Title": "Başvurunuzu başlatın",
+    "s3Desc": "VIZA'nın hizmeti ücretsizdir. VIZA portalında giriş yapın, gerisini biz hallederiz.",
+    "headsUp": "Dikkat:",
+    "headsUpBody": "{country} hükümeti vize harcı alıyorsa, bunu doğrudan ona ödersiniz. VIZA bu tutarı asla toplamaz veya üzerine ek koymaz.",
+    "yourApp": "Başvurunuz",
+    "guaranteedBy": "Garantili teslim tarihi",
+    "govFee": "Devlet harcı",
+    "expressUpgrade": "Ekspres yükseltme",
+    "total": "Toplam",
+    "footEncrypted": "Uçtan uca şifrelidir. VIZA bu başvuru için sizden ücret almaz.",
+    "helpOnline": "Priya çevrimiçi",
+    "helpTap": "VIZA danışmanınızla sohbet etmek için dokunun",
+    "totalAmount": "SGD {amount}",
+    "totalFree": "Ücretsiz",
+    "etaStandard": "12 Mayıs 2026, 8:00 SGT",
+    "failTitle": "Bu belgeyi okuyamadık",
+    "failNotPassport": "Bu bir pasaport bilgi sayfasına benzemiyor. Lütfen fotoğrafınızın ve kişisel bilgilerinizin bulunduğu sayfanın fotoğrafını yükleyin.",
+    "failUnreadable": "Gerekli alanların hiçbiri okunamadı. Lütfen fotoğrafı iyi ışıkta, bilgi sayfası düz ve net olacak şekilde yeniden çekin.",
+    "tryAgain": "Tekrar deneyin",
+    "warnPartial": "Her şeyi okuyamadık. Lütfen aşağıdaki vurgulanan alanları tamamlayın.",
+    "warnExpired": "Bu pasaportun süresi dolmuş görünüyor. Çoğu varış noktası en az 6 ay geçerlilik ister.",
+    "warnMrz": "Makine tarafından okunabilir alan (alttaki iki satır) okunamadı. Lütfen her alanı tekrar kontrol edin.",
+    "warnBlurry": "Fotoğraf bulanıktı. Lütfen her alanı dikkatle tekrar kontrol edin.",
+    "fieldRequired": "Zorunlu, lütfen doldurun",
+    "editField": "{field} alanını düzenle",
+    "emailInvalid": "Geçerli bir e-posta adresi girin. Vize güncellemeleriniz ve giriş bağlantınız buraya gelir.",
+    "phoneInvalid": "Geçerli bir telefon numarası girin.",
+    "consentRequired": "Devam etmek için lütfen beyanı onaylayın.",
+    "continueToStart": "Devam",
+    "startTitle": "VIZA portalında devam edin",
+    "startSub": "Giriş yapın veya ücretsiz hesabınızı oluşturun. Bu varış noktası için başvurunuz hemen açılır.",
+    "vizaService": "VIZA hizmeti",
+    "govFeeSetByAuthority": "Kurum belirler",
+    "govFeeNote": "Devlet vize harcı varsa vizeyi veren kuruma ödenir, VIZA'ya değil.",
+    "completeBeforeStart": "Devam etmeden önce lütfen yukarıdaki vurgulanan öğeleri tamamlayın."
+  },
+  "explore": {
+    "help": "Yardım",
+    "passportLabel": "{name} pasaportu",
+    "passportSub": "{n} varış noktası için vize şartları · Sıra {rank}",
+    "freeLabel": "Vizesiz",
+    "freeNote": "evrak yok",
+    "voaLabel": "e-Vize veya VOA",
+    "voaNote": "biz hallediyoruz",
+    "reqLabel": "Vize gerekli",
+    "reqNote": "büyükelçilik başvurusu",
+    "fullMap": "Tam vize haritasını görün",
+    "grid": "Liste",
+    "map": "Harita",
+    "mapLegendEvisa": "e-Vize ve ziyaretçi vizeleri",
+    "mapHint": "Önizleme için vurgulu bir noktanın üzerine gelin",
+    "sectionTitle": "{country} pasaportları için",
+    "seeAll": "Tümünü gör ({n})",
+    "footnote": "VIZA'nın hizmeti ücretsizdir. Devlet vize harcı varsa doğrudan vizeyi veren kuruma ödenir ve ülkeye göre değişir.",
+    "fastTrack": "Hızlı yol",
+    "cardType": "Tür",
+    "cardValid": "Geçerlilik",
+    "cardFee": "VIZA hizmeti",
+    "save": "Kaydet",
+    "startApplication": "Başvuruyu başlat",
+    "catalogueUnavailable": "Şu anda online başvuruya açık varış noktası yok. Lütfen yakında tekrar bakın.",
+    "choosePassport": "Pasaportunuzu seçin",
+    "searchPassport": "Pasaport ülkesi arayın…",
+    "visaFree": "{n} vizesiz",
+    "ppFoot": "Mayıs 2026 için güncellendi · Kaynak: IATA Timatic",
+    "noMatch": "“{q}” ile eşleşen pasaport yok",
+    "filters": {
+      "delivery": "Vize teslimi",
+      "type": "Vize türü",
+      "documents": "Belgeler",
+      "dates": "Seyahat tarihleri"
+    },
+    "filterOpts": {
+      "delivery": [
+        "Herhangi bir zaman",
+        "24 saat içinde",
+        "3 gün içinde",
+        "1 hafta içinde",
+        "1 ay içinde"
+      ],
+      "type": [
+        "Tüm türler",
+        "Turist",
+        "İş",
+        "Çalışma",
+        "Öğrenci",
+        "Dijital göçebe"
+      ],
+      "documents": [
+        "Herhangi bir belge",
+        "Asgari (yalnızca pasaport)",
+        "Standart",
+        "Ayrıntılı dosya"
+      ],
+      "dates": [
+        "Tarih seçin",
+        "Bu hafta",
+        "Bu ay",
+        "3 ay içinde",
+        "6 ay içinde"
+      ]
+    }
+  },
+  "cities": {
+    "viza-test": "Canlı ödeme testi",
+    "indonesia": "Bali · Cakarta",
+    "egypt": "Kahire · Giza",
+    "australia": "Sidney · Melbourne",
+    "saudi-arabia": "Riyad · AlUla",
+    "united-kingdom": "Londra · Edinburgh",
+    "vietnam": "Hanoi · Hoi An",
+    "malaysia": "KL · Penang",
+    "japan": "Tokyo · Kyoto",
+    "united-states": "New York · Los Angeles",
+    "canada": "Toronto · Vancouver",
+    "turkiye": "İstanbul · Kapadokya",
+    "thailand": "Bangkok · Phuket",
+    "united-arab-emirates": "Dubai · Abu Dabi",
+    "france": "Paris · Nice",
+    "italy": "Roma · Floransa",
+    "india": "Delhi · Mumbai"
+  },
+  "validity": {
+    "viza-test": "Yalnızca demo",
+    "indonesia": "90 gün",
+    "egypt": "90 gün",
+    "australia": "1 yıl",
+    "saudi-arabia": "365 gün",
+    "united-kingdom": "6 ay",
+    "vietnam": "90 gün",
+    "malaysia": "3 ay",
+    "japan": "90 gün",
+    "united-states": "10 yıl",
+    "canada": "10 yıl",
+    "turkiye": "180 gün",
+    "thailand": "3 ay",
+    "united-arab-emirates": "60 gün",
+    "france": "90 gün",
+    "italy": "90 gün",
+    "india": "30 gün"
+  },
+  "passports": {
+    "SG": "Singapur",
+    "JP": "Japonya",
+    "KR": "Güney Kore",
+    "DE": "Almanya",
+    "FR": "Fransa",
+    "GB": "Birleşik Krallık",
+    "US": "Amerika Birleşik Devletleri",
+    "AU": "Avustralya",
+    "CA": "Kanada",
+    "AE": "Birleşik Arap Emirlikleri",
+    "CN": "Çin",
+    "IN": "Hindistan",
+    "BR": "Brezilya",
+    "PH": "Filipinler",
+    "ID": "Endonezya",
+    "MY": "Malezya",
+    "TH": "Tayland"
+  },
+  "countries": {
+    "viza-test": "VIZA Test",
+    "indonesia": "Endonezya",
+    "egypt": "Mısır",
+    "australia": "Avustralya",
+    "saudi-arabia": "Suudi Arabistan",
+    "united-kingdom": "Birleşik Krallık",
+    "vietnam": "Vietnam",
+    "malaysia": "Malezya",
+    "japan": "Japonya",
+    "united-states": "Amerika Birleşik Devletleri",
+    "canada": "Kanada",
+    "turkiye": "Türkiye",
+    "thailand": "Tayland",
+    "united-arab-emirates": "Birleşik Arap Emirlikleri",
+    "france": "Fransa",
+    "italy": "İtalya",
+    "india": "Hindistan",
+    "china": "Çin",
+    "south-korea": "Güney Kore",
+    "schengen": "Schengen"
+  },
+  "visaTypes": {
+    "Test checkout": "Test ödemesi",
+    "e-Visa": "e-Vize",
+    "Standard Visitor": "Standard Visitor",
+    "Visitor 600": "Visitor 600",
+    "Tourist": "Turist",
+    "B1/B2": "B1/B2",
+    "eTA": "eTA",
+    "Schengen": "Schengen",
+    "eVisa": "e-Vize",
+    "Visitor visa": "Ziyaretçi vizesi",
+    "Tourist visa": "Turist vizesi"
+  },
+  "careers": {
+    "hero": {
+      "nowHiring": "Şu anda işe alım yapılan şehirler:",
+      "cities": [
+        "Şanghay",
+        "Singapur"
+      ],
+      "openRoles": "28 açık pozisyon",
+      "title": "Sınırların <em>kaybolmasına</em> yardım edin:<br></br><u>sessizce,</u><br></br>yazılım hızında.",
+      "lead": "Aylarca süren vize evrak işini, sadece uçağa binmek isteyen milyonlarca insan için saatlik bir yazılıma çeviriyoruz. Zanaatınızı, gerçek dünya teslim tarihlerine karşı üretim yapan bir ekibe getirin.",
+      "ctaRoles": "Tüm açık pozisyonlara bakın",
+      "ctaWhy": "Neden varız"
+    },
+    "board": {
+      "ariaLabel": "VIZA'daki açık pozisyonları listeleyen kalkış panosu",
+      "head": "Açık pozisyonlar · canlı",
+      "live": "Zamanında",
+      "cols": {
+        "req": "No.",
+        "role": "Pozisyon",
+        "office": "Ofis",
+        "status": "Durum"
+      },
+      "rows": [
+        {
+          "role": "Kıdemli Mühendis",
+          "sub": "Belge hattı",
+          "status": "Biniş"
+        },
+        {
+          "role": "Ürün Tasarımcısı",
+          "sub": "Başvuru sahibi akışları",
+          "status": "Açık"
+        },
+        {
+          "role": "Büyükelçilik Bağlantı Görevlisi",
+          "sub": "Devlet ortaklıkları",
+          "status": "Son çağrı"
+        },
+        {
+          "role": "Müşteri Operasyonları",
+          "sub": "2. kademe yükseltmeler",
+          "status": "Açık"
+        }
+      ],
+      "foot": "Mühendislik, operasyon ve tasarımda +24 pozisyon daha",
+      "browseAll": "Tümüne göz atın",
+      "chip1Label": "İşe alım yapılan yer",
+      "chip1Value": "4 ofis",
+      "chip2Label": "Ort. yanıt",
+      "chip2Value": "İlk görüşmeye 3.2 gün"
+    },
+    "stats": [
+      {
+        "value": "2.4M",
+        "label": "Geçen yıl VIZA aracılığıyla verilen vizeler"
+      },
+      {
+        "label": "Canlı işlemle desteklenen varış noktaları"
+      },
+      {
+        "label": "2025'te tüm vize türlerinde onay oranı"
+      },
+      {
+        "label": "Şanghay ve Singapur'daki insanlar"
+      }
+    ],
+    "mission": {
+      "eyebrow": "Hikayemiz",
+      "title": "Dünyanın çoğu<br></br>hâlâ <em>basılı evrakla</em><br></br>seyahat ediyor.",
+      "kicker1": "VIZA'yı 2021'de, büyükelçiliklerle telefonda bekleyerek geçirdiğimiz fazla bir hafta sonrasında kurduk. İnsanları sınırlardan geçiren sistem internetten daha eski ve içinde sıkışan insanlar daha iyisini hak ediyor.",
+      "kicker2": "Bugün dört ofiste 340 kişilik bir ekip yazılım üretiyor, belge dosyalıyor ve 194 ülkede operasyon yürütüyor. Seyahat, internetin geri kalanı gibi hissettirsin diye sıkıcı ve yorucu işi biz yapıyoruz: birkaç dokunuş, sonra yoldasınız.",
+      "founderName": "Mira Kohli",
+      "founderRole": "Kurucu ortak ve CEO · Singapur",
+      "beliefs": [
+        {
+          "title": "Biz, yazılım üreten bir operasyon şirketiyiz.",
+          "body": "VIZA'nın yarısı mühendisler, tasarımcılar ve ürün yöneticileri. Diğer yarısı ülkelerdeki danışmanlar, operasyon ve belge uzmanları. Biri olmadan diğeri kazanamaz."
+        },
+        {
+          "title": "Müşteri her zaman başvuru sahibidir.",
+          "body": "Büyükelçilikler, iş ortakları, havayolları, hepsi önemli. Ama gece 3'te kuyrukta bir portalı yenileyen kişi, için çalıştığımız ve kendimizi ölçtüğümüz kişidir."
+        },
+        {
+          "title": "Kaliteye sabırlı olunca hız birikir.",
+          "body": "Ürün çıkarmada hızlı, geri alınamaz kararlarda yavaş hareket ederiz. Yanlış bir vize kararı bir düğünü, bir işi, bir cenazeyi mahvedebilir. Bu çıtayı bizi yavaşlatsa bile koruruz."
+        },
+        {
+          "title": "Mesafe bir kısıt değil, bir kullanıcı deneyimi sorunudur.",
+          "body": "Ekiplerimiz dört saat diliminde. Asenkron yazı, net sahiplik ve iyi bir doküman kültürü, zamanı güvenle takas etme yolumuz ve kimseyi yormadan dünya çapında üretim yapma biçimimiz."
+        }
+      ]
+    },
+    "values": {
+      "eyebrow": "Kendimizden beklediklerimiz",
+      "title": "Pahalıya mal olsa bile inandığımız beş şey.",
+      "lead": "Değerleri yazmak kolay, uygulamak zor. Bunlar, işe alımda, değerlendirmelerde ve nadir zor kararlarda gerçekten kullandığımız beş değer.",
+      "cards": [
+        {
+          "title": "Doğruyu söyleyin, özellikle bize pahalıya mal olduğunda.",
+          "body": "Bir vize zamanında çıkmayacaksa bunu bugün söyleyin, uçuştan bir gün önce değil. Bir yalan üretmektense bir satışı kaybetmeyi tercih ederiz.",
+          "kicker": "Uygulamada → yayınlanmış politikalar, değişiklik denetimi"
+        },
+        {
+          "title": "Hızı hak edin. Sadece meşgul hissetmeyin.",
+          "body": "Toplantıları ve yazışmaları değil, kararları ve teslim edilen işi kutlarız. Amaç, takvime karşı hareket değil, misyon karşısında verimliliktir.",
+          "kicker": "Uygulamada → üç aylık verimlilik değerlendirmesi"
+        },
+        {
+          "title": "Persona değil, pasaport düşünün.",
+          "body": "Vize kuralları uyruğa özgüdür. “Kullanıcı” diye biri yoktur, Schengen'e başvuran bir Filipin pasaport sahibi vardır. Ortalamalar için değil, gerçek insanlar için üretiriz.",
+          "kicker": "Uygulamada → önce pasaport yaklaşımlı ürün şartnamesi"
+        },
+        {
+          "title": "Yazıya dökün. Özellikle kararları.",
+          "body": "Dört ofis, dört saat dilimi. Bir karar yazılmadıysa, olmamıştır. Wiki'miz zorunlu okuma, günlük toplantılarımız isteğe bağlı.",
+          "kicker": "Uygulamada → ADR'ler, haftalık not, önce asenkron"
+        },
+        {
+          "title": "Kuyruğa yakın durun.",
+          "body": "Her mühendis üç ayda bir danışman katında bir vardiya yapar. Bir Pazar gecesi saat 11'de hissetmediğiniz sürtünmeyi tasarımdan çıkaramazsınız.",
+          "kicker": "Uygulamada → dönüşümlü kuyruk vardiyaları"
+        },
+        {
+          "title": "Uzun versiyonu seçin.",
+          "body": "Otuz saniyelik yanıt çoğunlukla yanlıştır. Kolay versiyon işe yarayacak olsa bile derin dokümantasyona, sağlam el kitaplarına ve sağlam açıklamalara yatırım yaparız.",
+          "kicker": "Uygulamada → uyum el kitabı, herkese açık el kitapları"
+        }
+      ]
+    },
+    "inside": {
+      "eyebrow": "VIZA'nın içi",
+      "title": "Burada çalışmak<br></br>gerçekte nasıl görünür.",
+      "lead": "İki şehirde ofislerimiz var çünkü başvuruların yapıldığı yere yakın işe alım yapıyoruz. Kazanımlar konusunda gürültülü, siyaset konusunda sessiz, ne kadar çok şey inşa etmemiz gerektiği konusunda dürüstüz.",
+      "photos": [
+        {
+          "label": "fotoğraf · singapur genel merkez, açık ofis",
+          "mark": "Paya Lebar Square, SG"
+        },
+        {
+          "label": "fotoğraf · danışman kuyruğu katı",
+          "mark": "Luoshan Yolu, Şanghay"
+        },
+        {
+          "label": "fotoğraf · beyaz tahta oturumu",
+          "mark": "Teknoloji toplantısı, Bali"
+        },
+        {
+          "label": "fotoğraf · şanghay operasyon katı",
+          "mark": "Pudong, Şanghay"
+        },
+        {
+          "label": "fotoğraf · ekip yemeği",
+          "mark": "Genel toplantı, Lizbon"
+        },
+        {
+          "label": "fotoğraf · büyükelçilik ortağı ziyareti",
+          "mark": "Paya Lebar Square, SG"
+        }
+      ],
+      "pull": "“Katılmadan önce vizeler hakkında fikri olan insanları işe alırız. İkinci ayın sonunda daha güçlü bir fikriniz olacak.”",
+      "pullBy": "Felix Adekunle, Mühendislik Başkan Yardımcısı",
+      "para1": "VIZA yüksek özerklik ve yüksek bağlam demektir. Yaptığınız her şey için bir sahip, gerçek bütçeler ve çalışmanızın arkasındaki gerekçeyi şirketin geri kalanına anlatma beklentisi alırsınız.",
+      "para2": "Her gün ne yapacağınızın söylenmesini istiyorsanız burası doğru yer değil. Birinin size direksiyonu vermesini bekliyorduysanız, tam burada."
+    },
+    "how": {
+      "eyebrow": "VIZA'da mühendislik ve operasyon",
+      "title": "İş gerçekte nasıl ilerler.",
+      "lead": "Burada üretiyor, dosyalıyor veya tasarlıyorsanız, haftanız böyle görünür. Daha az tören, daha çok teslim edilen iş. Daha az Slack, daha çok yazıya dökülen karar.",
+      "cells": [
+        {
+          "title": "Baştan sona sahiplik",
+          "body": "Tasarlar, üretir, yayınlar ve canlıda sahiplenirsiniz. Devir kuyrukları yok, üç kat uzaktaki insanların yazdığı yol haritaları yok. Sizinse, gerçekten sizin."
+        },
+        {
+          "title": "Varsayılan olarak her gün yayın",
+          "body": "Çoğu ekip günde birkaç kez yayın yapar. Geri bildirim döngüleri tasarım gereği sıkıdır ve otuz dakikalık bir geri alma, üç haftalık bir tartışmaya tercih edilir."
+        },
+        {
+          "title": "Gerçek, karmaşık sorunlar",
+          "body": "Bu basit bir CRUD işi değil. Belge OCR'ı, 90'dan fazla devlet portalına karşı gecikmeye duyarlı zamanlama ve milyonlarca kişinin kullandığı tüketici akışları üzerinde çalışırsınız."
+        },
+        {
+          "title": "Çıta yüksek, ve bu açıkça söylenir",
+          "body": "Tasarım incelemelerinde birlikte çalışırız. PR'lara satır içi yorum yazarız. Zevkin öğretilebilir olduğuna inanırız ve herkesin çevresindekilerin gelişmesine aktif olarak yardım etmesini bekleriz."
+        },
+        {
+          "title": "Gerçek bir öğrenme bütçesi",
+          "body": "Kişi başı yılda $2,000, soru sorulmadan; konferanslar, kitaplar, kurslar için, yani burada yaptığınız işe geri dönen her şey için."
+        },
+        {
+          "title": "Mimari sizin yazdığınız",
+          "body": "RFC'ler herkese açıktır. Yeni mühendisler ilk aylarında temel altyapıyı şekillendirdi. Daha güçlü bir planınız varsa yazın, okuruz."
+        }
+      ]
+    },
+    "roles": {
+      "eyebrow": "Açık pozisyonlar · haftalık güncellenir",
+      "title": "Yolculuğun bir parçası olun.",
+      "lead": "Dört ofiste 28 açık pozisyon. Mühendislik, tasarım, operasyon, danışmanlık ve ortaklıklarda işe alım yapıyoruz. Yeni pozisyonlar Pazartesi günleri görünür.",
+      "allDepartments": "Tüm departmanlar",
+      "deps": {
+        "eng": "Mühendislik",
+        "design": "Tasarım",
+        "ops": "Operasyon",
+        "consult": "Danışmanlar",
+        "data": "Veri ve ML",
+        "gtm": "Pazarlama ve GTM"
+      },
+      "showing": "<strong>{count}</strong> pozisyon gösteriliyor · tüm konumlar · tüm ekipler",
+      "anyLocation": "Herhangi bir konum",
+      "groupCount": "{count} açık",
+      "posSub": "{team} · soy ağacına değil, zanaata ve muhakemeye göre işe alıyoruz",
+      "locationLabel": "Konum",
+      "typeLabel": "Tür",
+      "fullTime": "Tam zamanlı",
+      "viewRole": "Pozisyonu görüntüleyin",
+      "locations": {
+        "sg": "Singapur",
+        "sf": "Şanghay",
+        "ldn": "Singapur",
+        "dxb": "Şanghay"
+      },
+      "jobs": {
+        "backendPayments": "Kıdemli Backend Mühendisi, Platform",
+        "staffDocPipeline": "Kıdemli Mühendis: Belge Hattı",
+        "iosApplicant": "iOS Mühendisi: Başvuru Sahibi Uygulaması",
+        "platformInfra": "Platform Mühendisi: Altyapı ve Güvenlik",
+        "frontendConsole": "Frontend Mühendisi: Danışman Konsolu",
+        "emWeb": "Mühendislik Yöneticisi: Web",
+        "sre": "Site Güvenilirlik Mühendisi",
+        "androidSenior": "Kıdemli Android Mühendisi",
+        "leadEmbassy": "Mühendislik Lideri: Büyükelçilik Entegrasyonları",
+        "productDesignerApplicant": "Kıdemli Ürün Tasarımcısı: Başvuru Sahibi Akışı",
+        "brandDesigner": "Marka Tasarımcısı",
+        "designLeadConsultant": "Tasarım Lideri: Danışman Araçları",
+        "headOpsMe": "Operasyon Başkanı, Orta Doğu",
+        "visaOpsSchengen": "Vize Operasyonları Lideri: Schengen",
+        "logistics": "Lojistik ve Kurye Yöneticisi",
+        "processDocQa": "Süreç Mühendisi: Belge Kalite Kontrol",
+        "opsAnalyst": "Operasyon Analisti: Rezervasyonlar",
+        "consultSchengen": "Vize Danışmanı: Schengen",
+        "consultUs": "Vize Danışmanı: ABD B1/B2",
+        "consultUae": "Vize Danışmanı: BAE Oturumu",
+        "consultStudent": "Kıdemli Danışman: Öğrenci Vizeleri",
+        "consultApac": "Danışman Lideri: Asya-Pasifik",
+        "consultUk": "Vize Danışmanı: Birleşik Krallık",
+        "dataScientist": "Kıdemli Veri Bilimcisi: Onay Modelleme",
+        "mlOcr": "ML Mühendisi: OCR ve Belge Yapay Zekası",
+        "perfMarketing": "Performans Pazarlama Yöneticisi",
+        "contentLead": "İçerik Lideri: Hikaye Anlatımı",
+        "lifecycleCrm": "Yaşam Döngüsü ve CRM Yöneticisi"
+      }
+    },
+    "fellowship": {
+      "tag": "▲ VIZA Launchpad · 12 haftalık program",
+      "title": "On iki hafta. Bir ürün ekibi.<br></br><em>Bir şey yayınlamak için bir şans.</em>",
+      "para1": "Launchpad, kariyerinin başındaki mühendisler, ürün yöneticileri ve tasarımcılar için rezidans programımız; yani gerçek bir şans bulmadan önce iki yıl daha “deneyim” kazanmaları gerekecek insanlar için.",
+      "para2": "Kıdemli liderlerle çalışacak, gerçek bir ürün yüzeyini başlangıçtan yayına kadar sahiplenecek ve milyonlarca kişinin kullanacağı bir şeyle ayrılacaksınız. Grubun yaklaşık %60'ına tam zamanlı teklif yapılır.",
+      "meta": [
+        {
+          "k": "Süre",
+          "v": "12 hafta"
+        },
+        {
+          "k": "Konum",
+          "v": "Ofiste, herhangi bir genel merkez"
+        },
+        {
+          "k": "Burs",
+          "v": "Piyasanın üzerinde"
+        },
+        {
+          "k": "Sonraki grup",
+          "v": "Eyl 2026"
+        }
+      ],
+      "apply": "Launchpad'e başvurun",
+      "readCohort": "2025 grubu hakkında okuyun",
+      "projects": [
+        {
+          "k": "2024 · Mühendislik",
+          "title": "OCR hattının yeniden yazımı",
+          "meta1": "Canlıya alındı",
+          "meta2": "3.2× daha hızlı"
+        },
+        {
+          "k": "2025 · Tasarım",
+          "title": "Schengen akışı yeniden tasarımı",
+          "meta1": "14 ülke yayında",
+          "meta2": "↑ %22 dönüşüm"
+        },
+        {
+          "k": "2025 · Ürün",
+          "title": "Büyükelçilik randevu planlayıcısı",
+          "meta1": "9 büyükelçilik",
+          "meta2": "ayda 40k randevu"
+        }
+      ]
+    },
+    "benefits": {
+      "eyebrow": "Arkanızdayız (gerçekten)",
+      "title": "Sıkıcı işler,<br></br>düzgünce halledildi.",
+      "lead": "Yan hakları bir ayrıcalık olarak görmüyoruz. İnsanların en iyi işlerini yapmasını sağlayan temel güvencedir. Her VIZA çalışanının, her ofiste, ilk günden aldıkları şunlar.",
+      "items": [
+        {
+          "title": "Kapsamlı sağlık, halledilmiş.",
+          "body": "İlk gününüzden itibaren tam tıbbi, diş ve göz sigortası; sizin, eşinizin ve çocuklarınız için. Primi biz öderiz, muafiyet oyunları yok."
+        },
+        {
+          "title": "Sadece maaş değil, servet biriktirin.",
+          "body": "İşe aldığımız her piyasada piyasanın üzerinde temel maaş, ayrıca yalnızca çalışılan yıllara değil kilometre taşlarına bağlı cömert bir hisse hibesi. Her iki yılda bir yeniliyoruz."
+        },
+        {
+          "title": "Gerçekten önemli olanı öğrenin.",
+          "body": "Yılda $2,000 öğrenme bütçesi, aylık iç eğitimler ve takvimde zaman, yani yalnızca izin değil, o kursa katılmak veya o konferansa gitmek için."
+        },
+        {
+          "title": "Müşterileri kendi paranızmış gibi memnun edin.",
+          "body": "Her başvuru sahibi için beklentinin ötesinde iyi niyet için $100 bütçe. Onay yok, yükseltme yok: düzeltin, sonra ne olduğunu yazın."
+        },
+        {
+          "title": "Zihin > her şey.",
+          "body": "Gizli, profesyonel ruh sağlığı desteği, sigorta engeli yok. Ayrıca şirket genelinde ayda üç “toplantısız” gün."
+        },
+        {
+          "title": "Seyahat avantajları (yapmak zorundaydık).",
+          "body": "Vize işi yapıyoruz, ekibimiz de bizden seyahat etmeli. Yılda $4k seyahat kredisi, ayrıca ihtiyaç duyacağınız her vizeyi VIZA halleder: anında, şirket içinde."
+        },
+        {
+          "title": "Cömert, gerçek izin.",
+          "body": "30 gün ücretli izin, artı ülkenizin tatilleri, artı 24 Aralık ile 1 Ocak arasında ücretli bir hafta tatil. Kullanımı takip eder, insanları daha az değil daha çok izin almaya teşvik ederiz."
+        },
+        {
+          "title": "Ekipman, soru yok.",
+          "body": "İlk gün dizüstü bilgisayarınızı, monitörünüzü ve sandalyenizi seçin. Kurulumunuz için evden çalışma desteği. İyi iş yapmak için neye ihtiyacınız olduğunu bildiğinize güveniyoruz."
+        },
+        {
+          "title": "Gerçekten işleyen ebeveyn izni.",
+          "body": "Birincil bakım verenler için 20 hafta, ikincil için 12 hafta, tamamen ücretli. Ayrıca kademeli dönüş, böylece ilk gün tam tempoya dönmezsiniz."
+        }
+      ]
+    },
+    "offices": {
+      "eyebrow": "Nerede çalışıyoruz",
+      "title": "İki ofis, bir ürün.",
+      "lead": "Büyükelçiliklere, iş ortaklarına ve hizmet verdiğimiz pazarlara yakın işe alım yapıyoruz. Her ofiste hem mühendisler hem operasyon var; üreten ekiplerle sahayı yöneten ekipleri ayırmıyoruz.",
+      "cards": [
+        {
+          "photo": "fotoğraf · şanghay",
+          "open": "6 açık",
+          "name": "Şanghay",
+          "addr1": "Lane 1502, Luoshan Road,",
+          "addr2": "Çin (Şanghay) Pilot Serbest Ticaret Bölgesi",
+          "tz": "GMT+8 · Çin operasyonları",
+          "since": "2023'ten beri"
+        },
+        {
+          "photo": "fotoğraf · singapur genel merkez",
+          "open": "12 açık",
+          "name": "Singapur",
+          "addr1": "60 Paya Lebar Yolu, #06-28 Paya Lebar Square,",
+          "addr2": "Singapur 409051",
+          "tz": "GMT+8 · Asya-Pasifik genel merkezi",
+          "since": "Genel merkez · 2021'den beri"
+        }
+      ]
+    },
+    "ctaStrip": {
+      "title": "Rolünüzü görmüyor ama<br></br>aramıza katılmak mı istiyorsunuz?",
+      "body": "Alışılmadık bir geçmişiniz varsa ve dünya yolcularını daha hızlı hareket ettirmemize yardım edeceğinizi düşünüyorsanız, sizden haber almak isteriz. Otobüs şoförlerini, eski büyükelçilik personelini ve avukatları işe aldık. Belirli bir tipimiz yok.",
+      "lead": "Genel başvuru",
+      "cta": "Hikayenizi bize gönderin",
+      "note": "Hayır olsa bile 7 gün içinde yanıt veririz."
+    },
+    "footer": {
+      "tagline": "VIZA, dünya genelinde vizelerinizi sorunsuzca planlamanıza, başvurmanıza ve takip etmenize yardım eder.",
+      "company": "Şirket",
+      "products": "Ürünler",
+      "offices": "Ofisler",
+      "careers": "Kariyer",
+      "contact": "İletişim",
+      "security": "Güvenlik",
+      "privacy": "Gizlilik",
+      "terms": "Şartlar",
+      "prodVisaReq": "Vize Şartları",
+      "prodSchengen": "Schengen Randevu Denetleyicisi",
+      "prodPhoto": "Vize Fotoğrafı Oluşturucu",
+      "prodHelpline": "VIZA Acil Yardım Hattı",
+      "prodStudent": "Öğrenci Vizesi",
+      "officeSg": "Singapur, Genel Merkez",
+      "officeSf": "Şanghay",
+      "copyright": "© VIZA, Tüm hakları saklıdır"
+    }
+  },
+  "security": {
+    "hero": {
+      "eyebrow": "VIZA'da güvenlik · son güncelleme Mayıs 2026",
+      "title": "Gizli. Şeffaf.<br></br><em>Varsayılan olarak güvenli.</em>",
+      "lead": "Dünyanın dört bir yanındaki müşteriler bize milyonlarca hassas belge emanet ediyor: pasaportlar, banka ekstreleri, fotoğraflar. Bunları nasıl topladığımızı, nasıl sakladığımızı ve doğru yaptığımızı nasıl kanıtladığımızı tam olarak burada anlatıyoruz.",
+      "ctaPrimary": "Verilerinizi nasıl koruyoruz",
+      "ctaVdp": "Güvenlik açığı bildirin"
+    },
+    "clearance": {
+      "republicKey": "Cumhuriyeti",
+      "officeKey": "Düzenleyen birim",
+      "officeVal": "Güven ve Emniyet",
+      "title": "Güvenlik izni /<br></br>Müşteri verisi",
+      "grid": {
+        "encryption": {
+          "k": "Şifreleme",
+          "v": "AES-256 / TLS 1.3"
+        },
+        "region": {
+          "k": "Bölge",
+          "v": "SG · US · EU"
+        },
+        "audit": {
+          "k": "Denetim sıklığı",
+          "v": "Üç ayda bir"
+        },
+        "retention": {
+          "k": "Saklama",
+          "v": "En fazla 90 gün"
+        }
+      },
+      "referenceKey": "Referans",
+      "glyph": "ONAYLANDI<br></br>VIZA · 26"
+    },
+    "chips": {
+      "transitLabel": "Aktarım sırasında",
+      "transitVal": "Uçtan uca TLS 1.3",
+      "restLabel": "Beklerken",
+      "restVal": "AES-256, bölgeye sabitlenmiş"
+    },
+    "stats": {
+      "docs": {
+        "value": "2.4M",
+        "label": "2025'te işlenen belge, sıfır müşteri verisi ihlali"
+      },
+      "retention": {
+        "unit": "gün",
+        "label": "Kaynak belgelerin düzenlemeden sonra azami saklama süresi"
+      },
+      "pentests": {
+        "label": "Harici sızma testleri, tüm raporlar şirket içinde yayınlanır"
+      },
+      "ack": {
+        "unit": "sa",
+        "label": "Bildirilen bir güvenlik açığının ortanca onaylanma süresi"
+      }
+    },
+    "docs": {
+      "eyebrow": "Ne topluyoruz",
+      "title": "Beş belge türü.<br></br><em>Fazlası yok.</em>",
+      "copy1": "Vize başvurusu bir evrak işidir. Yalnızca bir büyükelçiliğin açıkça istediklerini topluyoruz ve mümkün olan her yerde anonimleştiriyoruz. Her belge tek bir başvuruya bağlıdır, alındığı anda şifrelenir ve belirli bir takvime göre silinir.",
+      "copy2": "Verilerinizi asla satmayız. Vizenizle doğrudan ilgili konsolosluk veya iş ortağı dışındaki üçüncü taraflarla da paylaşmayız.",
+      "cards": {
+        "payment": {
+          "name": "Ödeme bilgileri",
+          "meta": "toplanmaz"
+        },
+        "photos": {
+          "name": "Vize fotoğrafları",
+          "meta": "işlenir · en fazla 90 gün"
+        },
+        "bank": {
+          "name": "Banka ekstreleri",
+          "meta": "maskelenir · yalnızca pdf"
+        },
+        "pastVisas": {
+          "name": "Eski vizeler",
+          "meta": "salt okunur · OCR"
+        },
+        "passport": {
+          "name": "Pasaport",
+          "meta": "MRZ çıkarılır"
+        }
+      }
+    },
+    "features": {
+      "eyebrow": "Her zaman açık yedi kontrol",
+      "title": "Verileriniz baştan sona<br></br>nasıl size ait <em>kalır.</em>",
+      "intro": "VIZA'daki her baytın varsayılan hali “şifreli, kapsamı belirli ve süreli”dir. Bunu sağlayan yedi kontrol, hedef değil, bugün platformda gerçekten çalışan şeylerdir.",
+      "cells": {
+        "minimise": {
+          "title": "Veri azaltma ve anonimleştirme",
+          "body": "Yalnızca bir büyükelçiliğin veya iş ortağının belirli bir başvuru için gerçekten istediklerini topluyoruz ve platformun izin verdiği her yerde geri kalanını anonimleştiriyoruz. Formlarımızda görmediğiniz alanlar, saklamadığımız alanlardır.",
+          "why": "<strong>Neden:</strong> hiç toplanmamış bir veri, bir ihlalde ortaya çıkamaz."
+        },
+        "payments": {
+          "title": "Ödeme verisi yok",
+          "body": "VIZA'nın hizmeti ücretsizdir ve ödeme almayız, bu yüzden kart numaralarını asla istemeyiz, görmeyiz ve saklamayız.",
+          "why": "<strong>Neden:</strong> hiç elimizde olmayan veri çalınamaz."
+        },
+        "atRest": {
+          "title": "Bekleme halinde şifreleme",
+          "body": "VIZA sunucularındaki her belge, mesaj ve meta veri alanı, diske yazılmadan önce AES-256 ile şifrelenir. Anahtarlar otomatik olarak yenilenir ve altyapı ekibimizin bile doğrudan okuyamadığı, donanım destekli bir KMS içinde saklanır.",
+          "why": "<strong>Neden:</strong> çalınan diskler veya yedekler, anahtarlar olmadan okunamaz kalır."
+        },
+        "inTransit": {
+          "title": "Uçtan uca şifreleme",
+          "body": "Cihazınız, sunucularımız ve iş ortağı konsolosluklar arasındaki tüm trafik, sıkı sabitlemeyle TLS 1.3 kullanır. Belge yüklemeleri ayrı, imzalı bir kanaldan yapılır, böylece ağ düzeyindeki saldırganlar bile ne gönderdiğinizi göremez.",
+          "why": "<strong>Neden:</strong> havalimanı Wi-Fi'ı dahil düşmanca ağlar başvurunuzu okuyamaz."
+        },
+        "audits": {
+          "title": "Düzenli güvenlik denetimleri",
+          "body": "Her çeyrekte harici bir sızma testi, yılda bir SOC 2 Type II denetimi ve sürekli otomatik güvenlik açığı taraması yapıyoruz. Her bulgu bir düzeltme tarihiyle kaydedilir ve geciken maddeler mühendislik lideri için uyarı üretir.",
+          "why": "<strong>Neden:</strong> tehditler değişir, savunmalarımız onlara karşı belirli bir takvimle denenir."
+        },
+        "access": {
+          "title": "Güvenli erişim kontrolleri",
+          "body": "Müşteri verilerine iç erişim role göre sınırlandırılır, istek bazında denetlenir ve tam zamanında yetki yükseltmesiyle verilir. Danışmanlar yalnızca üzerinde çalıştıkları başvuruyu görür. Her okuma 12 ay boyunca kaydedilir.",
+          "why": "<strong>Neden:</strong> içeriden gelen hatalar ve kötüye kullanım sınırlı kalır, kime ait olduğu bellidir ve gözden geçirilebilir."
+        },
+        "education": {
+          "title": "Kullanıcı eğitimi ve farkındalık",
+          "body": "Güvenliğin en zor kısmı, sizin yerinize yapamayacağımız kısımdır. Başvuruya başladığınız anda oltalama, pasaport fotoğrafı dolandırıcılıkları ve sahte büyükelçilik SMS'leri hakkında sade bir dille yazılmış rehberler gönderiyoruz. Bir şey ters göründüğünde de bunları ürünün içinde yeniden gösteriyoruz. Son savunma hattı sizsiniz, sizi suçlamak yerine donatmayı tercih ederiz.",
+          "why": "<strong>Neden:</strong> iyi bilgilendirilmiş bir başvuru sahibi, elimizdeki en ucuz ve en etkili güvenlik kontrolüdür."
+        }
+      }
+    },
+    "vdp": {
+      "tag": "▲ Güvenlik açığı bildirimi · tüm araştırmacılara açık",
+      "title": "Bir şey mi buldunuz?<br></br><em>Bunu duymak istiyoruz.</em>",
+      "p1": "Kullanıcılarımızın ve iş ortaklarımızın güvenliği her şeyden önemlidir. VIZA hizmetlerini etkileyen gerçek bir güvenlik açığı bulduğunuzu düşünüyorsanız, bunu doğrudan bize bildirmenizi isteriz. Onu düzeltmek için sizinle saygıyla ve hızla çalışırız.",
+      "p2": "Bulgularınızı <strong>security@viza.it.com</strong> adresine e-posta ile gönderin. Zaten bilinen veya kapsam dışı çıksa bile, aldığımızı bir iş günü içinde onaylarız.",
+      "meta": {
+        "ack": {
+          "k": "Onay süresi",
+          "v": "'<' 24 saat"
+        },
+        "triage": {
+          "k": "Değerlendirme süresi",
+          "v": "3 iş günü"
+        },
+        "lang": {
+          "k": "Diller",
+          "v": "EN · ID · AR"
+        },
+        "pgp": {
+          "k": "PGP anahtarı",
+          "v": "0xVIZA · 2026"
+        }
+      },
+      "ctaEmail": "security@viza.it.com adresine yazın",
+      "ctaScope": "Kapsamı okuyun",
+      "terminal": {
+        "title": "rapor-taslağı · security@viza.it.com",
+        "l1": "# güvenlik açığı raporu",
+        "typeKey": "tür:",
+        "typeVal": "kimlik-doğrulama-atlatma",
+        "urlKey": "url:",
+        "reproKey": "tekrar:",
+        "reproVal": "[adım 1-4]",
+        "impactKey": "etki:",
+        "impactVal": "hesap ele geçirme",
+        "pocKey": "kanıt:",
+        "l7": "# ↳ 0xVIZA için şifrelendi",
+        "send": "gönder"
+      }
+    },
+    "report": {
+      "eyebrow": "Güvenlik açığı bildirme",
+      "title": "Raporunuza nelerin girmesi<br></br>ve <em>nelerin girmemesi gerektiği.</em>",
+      "intro": "İyi bir rapor ikimizi de bir haftalık zahmetten kurtarır. İşte en hızlı değerlendirilen biçim ve gelen kutumuzda görmeyi hiç istemeyeceğimiz şeyler.",
+      "include": {
+        "heading": "Lütfen şunları ekleyin",
+        "sub": "Beş alan. Ne kadar net olurlarsa, o kadar hızlı doğrular ve düzeltiriz.",
+        "items": {
+          "type": "<strong>Sorun türü</strong>: örneğin kimlik doğrulama, erişim kontrolü, enjeksiyon, IDOR, SSRF.",
+          "steps": "<strong>Net tekrar adımları</strong>: numaralı, sırayla, mümkünse temiz bir oturumda.",
+          "impact": "<strong>Olası güvenlik etkisi</strong>: bir saldırganın bununla neler yapabileceği, sade bir dille.",
+          "poc": "<strong>Kanıt örneği</strong>: ekran görüntüleri veya kısa bir ekran kaydı tercih edilir, günlükler ikinci sırada."
+        }
+      },
+      "dontSend": {
+        "heading": "Lütfen göndermeyin",
+        "sub": "Bunlar güvenli değil, işe yaramaz ya da ikisi birden. Alır almaz silmek zorunda kalırız.",
+        "items": {
+          "secrets": "<strong>Parolalar veya kimlik doğrulama jetonları</strong>, sizin ya da bir başkasının. Sırrı değil, yöntemi gösterin.",
+          "malware": "<strong>Ham kötü amaçlı yazılım örnekleri veya stealer günlükleri.</strong> Ne gördüğünüzü anlatın, eklemeyin.",
+          "scanners": "<strong>Elle seçilmiş, gösterilmiş bir bulgu içermeyen büyük otomatik tarayıcı raporları.</strong>",
+          "customerData": "<strong>Müşterilerin kişisel verileri veya belgeleri</strong>, bulgunuzun dayanağı olsalar bile.",
+          "socialEng": "<strong>Personelimize veya danışmanlarımıza yönelik sosyal mühendislik girişimlerinin kayıtları.</strong>"
+        }
+      }
+    },
+    "scope": {
+      "eyebrow": "Program kapsamı",
+      "title": "Neler kapsamda, neler dışında.",
+      "intro": "Bir raporun bu listeye girip girmediğinden emin değilseniz, yine de gönderin ve sorun. Sınır belli değil diye gerçek bir sorunu saklamanızdansa, değerlendirip devam etmeyi tercih ederiz.",
+      "fileRef": "/security/scope.md · v6",
+      "in": {
+        "pill": "Kapsamda",
+        "heading": "Aktif olarak değerlendireceğimiz raporlar",
+        "items": {
+          "web": "<code>*.viza.com</code> adresindeki VIZA web uygulamaları ve API'leri, başvuru sahibi portalı, danışman konsolu ve iş ortağı uç noktaları dahil.",
+          "infra": "VIZA'nın sahip olduğu altyapı ve hizmetler: kimlik doğrulama, belge hattı, zamanlama.",
+          "mobile": "VIZA geliştirici hesabı altında yayınlanan mobil uygulamalar (iOS, Android).",
+          "marketing": "VIZA'nın kontrol ettiği alan adlarındaki, herkese açık pazarlama ve içerik siteleri."
+        }
+      },
+      "out": {
+        "pill": "Kapsam dışı",
+        "heading": "Bu program kapsamında işleme alamayacağımız raporlar",
+        "items": {
+          "devices": "Ele geçirilmiş kullanıcı cihazlarından, tarayıcı eklentilerinden veya çalınmış kimlik bilgilerinden kaynaklanan sorunlar.",
+          "phishing": "VIZA çalışanlarını, iş ortaklarını veya danışmanlarını hedefleyen sosyal mühendislik veya oltalama saldırıları.",
+          "thirdParty": "VIZA'nın doğrudan işletmediği üçüncü taraf hizmetler veya entegrasyonlar (konsolosluk portalları, kurye siteleri).",
+          "scanners": "Gerçek dünyada istismar edilebilirliği gösterilmemiş otomatik tarayıcı bulguları.",
+          "headers": "İstismar yolu olmayan eksik güvenlik başlıkları veya genel en iyi uygulama önerileri."
+        }
+      }
+    },
+    "pledge": {
+      "eyebrow": "Sorumlu bildirim",
+      "title": "Birbirimize<br></br>verdiğimiz söz.",
+      "intro": "Bildirim, iki taraf da iyi niyetle davrandığı için işler. Sizden ne istediğimizi ve karşılığında bizden neleri bekleyebileceğinizi, kimse tahmin yürütmesin diye yazıya döktük.",
+      "researcher": {
+        "kicker": "Sizden beklediklerimiz",
+        "title": "Araştırmacı <em>taahhütleri.</em>",
+        "p": "Bir rapor göndererek iyi niyetle ve programın yalnızca lafzına değil ruhuna uygun davranmayı kabul edersiniz.",
+        "items": {
+          "1": "İyi niyetle davranın: araştırma yaparken gizlilik ihlallerinden, veri tahribatından veya hizmet kesintisinden kaçının.",
+          "2": "Bir sorunu doğrulamak için gerekenin ötesinde istismar etmeyin ve size ait olmayan verilere asla erişmeyin.",
+          "3": "Biz bir düzeltme yayınlayıp sizinle doğrulayana kadar güvenlik açığı ayrıntılarını gizli tutun.",
+          "4": "VIZA güvenlik ekibinin önceden yazılı onayı olmadan bulguları herkese açık olarak ifşa etmeyin."
+        }
+      },
+      "viza": {
+        "kicker": "Bizden bekleyebilecekleriniz",
+        "title": "VIZA <em>taahhütleri.</em>",
+        "p": "Karşılığında, bildirenleri yanıtsız bırakmayız, düzeltmekten kaçınmak için önem derecesini tartışmayız ve bize yardım eden kişilere dava açmayız.",
+        "items": {
+          "1": "Önem derecesi ne olursa olsun, geçerli her raporu inceler ve bir iş günü içinde yanıt veririz.",
+          "2": "Saygılı bir dille iletişim kurarız: savunmacı ifadeler yok, “tasarlandığı gibi çalışıyor” savuşturması yok.",
+          "3": "Gerektiğinde uygun düzeltme adımlarını atar ve düzeltme yayınlandığında size haber veririz.",
+          "4": "Sorun çözüldüğünde, onayınızla, güvenlik değişiklik günlüğümüzde sizi anarız."
+        }
+      }
+    },
+    "legal": {
+      "eyebrow": "Yasal ve ödüller",
+      "title": "Güvenli liman, ödüller<br></br>ve küçük harfler.",
+      "intro": "Bu politikaya iyi niyetle uyarsanız, araştırmanızı yetkili sayarız. Sayfanın geri kalanı sıkıcı ama önemli kısım, saklanmıyor, açıkça yazılıyor.",
+      "cards": {
+        "safeHarbour": {
+          "title": "Yasal güvenli liman",
+          "body": "Bu politikaya iyi niyetle uyarsanız, VIZA araştırmanızla ilgili kazara veya kasıtsız ihlaller nedeniyle size karşı yasal işlem başlatmaz. Geçerli yasa ve yönetmeliklere uymanız yine beklenir."
+        },
+        "rewards": {
+          "title": "Ödüller ve hata ödül programı",
+          "body": "VIZA şu anda herkese açık bir hata ödül programı yürütmüyor. Geçerli ve sorumlu şekilde bildirilen sorunlar için, etkisine, yeniliğine ve raporun kalitesine göre değerlendirilen, takdire bağlı bir teşekkür sunuyoruz.",
+          "meta": "takdire bağlı · duruma göre"
+        },
+        "updates": {
+          "title": "Program güncellemeleri",
+          "body": "VIZA bu programı istediği zaman değiştirme veya sona erdirme hakkını saklı tutar. Araştırmanızın politikayla uyumlu olup olmadığından emin değilseniz, devam etmeden <em>önce</em> security@viza.it.com adresinden bize ulaşın.",
+          "meta": "son revizyon · Mayıs 2026"
+        }
+      }
+    },
+    "cta": {
+      "title": "Bir şey ters mi görünüyor?<br></br>Güvenlik ekibimize söyleyin.",
+      "body": "Küçük bir bulguyu iki kez duymayı, büyük birini bir kez kaçırmaya tercih ederiz. Raporlar doğrudan güvenlik ekibindeki gerçek bir kişiye gider: bilet portalı yok, değerlendirme robotu yok.",
+      "lead": "Doğrudan güvenliğe",
+      "small": "Ortanca yanıt süresi 24 saatin altında, haftanın her günü."
+    },
+    "footer": {
+      "tagline": "VIZA, dünya genelinde vizelerinizi sorunsuzca planlamanıza, başvurmanıza ve takip etmenize yardım eder.",
+      "company": "Şirket",
+      "careers": "Kariyer",
+      "contact": "İletişim",
+      "security": "Güvenlik",
+      "privacy": "Gizlilik",
+      "terms": "Şartlar",
+      "products": "Ürünler",
+      "prodVisaReq": "Vize Şartları",
+      "prodSchengen": "Schengen Randevu Denetleyicisi",
+      "prodPhoto": "Vize Fotoğrafı Oluşturucu",
+      "prodHelpline": "VIZA Acil Yardım Hattı",
+      "prodStudent": "Öğrenci Vizesi",
+      "offices": "Ofisler",
+      "officeSg": "Singapur, Genel Merkez",
+      "officeSf": "Şanghay",
+      "copyright": "© VIZA, Tüm hakları saklıdır"
+    }
+  },
+  "status": {
+    "crumbHome": "Şeffaflık",
+    "crumbHere": "Sistem Durumu",
+    "hero": {
+      "title": "Sistem durumu",
+      "lead": "VIZA'nın ve birlikte çalıştığımız devlet vize portallarının kanıta dayalı erişilebilirliği. Aşağıdaki her yüzde, zaman çizelgesi çubuğu ve olay, kaydedilmiş bir sentetik kontrolden gelir."
+    },
+    "console": {
+      "title": "VIZA Güvenilirlik · Canlı",
+      "live": "Doğrulandı",
+      "unverified": "Doğrulanmadı",
+      "allOperational": "Tüm sistemler çalışıyor",
+      "degraded": "Bazı sistemlerde yavaşlama var",
+      "majorOutage": "İzlenen bir sistem kullanılamıyor",
+      "dataUnavailable": "İzleme verisi kullanılamıyor",
+      "lastChecked": "Son kaydedilen kontrol: {time}",
+      "noChecks": "Henüz tamamlanmış bir kontrol kaydedilmedi",
+      "kUptime": "Son 90 günde başarılı kontroller",
+      "kMonitors": "İzlenen uç noktalar",
+      "kIncidents": "Aktif olay"
+    },
+    "subnav": {
+      "current": "Güncel durum",
+      "incidents": "Geçmiş olaylar",
+      "subscribe": "Abone ol",
+      "searchPlaceholder": "Ülke arayın",
+      "subscribeBtn": "Güncellemelere abone ol"
+    },
+    "platform": {
+      "title": "VIZA platformu",
+      "realMeta": "Her 5 dakikada bir kontrol edilir · {count} uç nokta",
+      "meta": "Her 5 dakikada bir kontrol edilir",
+      "name": "VIZA başvuru platformu",
+      "sub": "Herkese açık VIZA hizmetleri"
+    },
+    "uptime": {
+      "ago": "90 gün önce",
+      "today": "Bugün",
+      "pct": "{pct}% kontrol başarılı",
+      "noData": "Kayıtlı kontrol yok"
+    },
+    "dayObservation": "{date}: {checks} kayıtlı kontrol",
+    "dayNoData": "{date}: kayıtlı veri yok",
+    "dayTitle": "{n}. gün",
+    "statusLabels": {
+      "op": "Çalışıyor",
+      "deg": "Yavaşlama",
+      "part": "Kısmi kesinti",
+      "maj": "Kullanılamıyor",
+      "none": "Güncel veri yok"
+    },
+    "lastChecked": "Kontrol: {time}",
+    "monitorStale": "Eksik veya eski kontrol",
+    "monitoringUnavailable": "Durum API'sinde güncel kanıt yok. VIZA, önbellekteki veya üretilmiş erişilebilirliği güncel hizmet sağlığı olarak göstermez.",
+    "noSearchResults": "Bu aramayla eşleşen izlenen ülke yok.",
+    "noRecordedIncidents": "Son 90 günde kayıtlı kontrollerden türetilmiş bir olay yok.",
+    "incidentCount": "{count, plural, one {# olay} other {# olay}}",
+    "incidentRecovered": "Kayıtlı kontroller bu hizmetin düzeldiğini gösteriyor.",
+    "noIssues": "Aktif sorun yok",
+    "activeIncident": "Aktif olay",
+    "portalsHead": {
+      "title": "Devlet portalları",
+      "lead": "Sınırlı kapsamlı bir sentetik istek, yapılandırılmış her portalı beş dakikada bir kontrol eder. Gri geçmiş, gözlem kaydedilmediği anlamına gelir; tahmini verilerle asla doldurulmaz."
+    },
+    "incidentsHead": {
+      "title": "Geçmiş olaylar",
+      "lead": "Olaylar, kalıcı olarak kaydedilen izleme geçişlerinden açılır ve kapanır. Bu, operasyonel erişilebilirliktir, bir başvuru sahibinin kişisel vize karar durumu değildir."
+    },
+    "tags": {
+      "identified": "Tespit edildi",
+      "investigating": "İnceleniyor",
+      "resolved": "Çözüldü"
+    },
+    "portals": {
+      "AE": {
+        "name": "Birleşik Arap Emirlikleri",
+        "sub": "GDRFA · ICA portalları"
+      },
+      "AM": {
+        "name": "Ermenistan",
+        "sub": "e-Vize portalı"
+      },
+      "AU": {
+        "name": "Avustralya",
+        "sub": "ImmiAccount"
+      },
+      "AZ": {
+        "name": "Azerbaycan",
+        "sub": "ASAN Visa"
+      },
+      "DE": {
+        "name": "Almanya",
+        "sub": "VIDEX · konsolosluk randevuları"
+      },
+      "DK": {
+        "name": "Danimarka"
+      },
+      "EG": {
+        "name": "Mısır",
+        "sub": "e-Vize Portalı"
+      },
+      "FI": {
+        "name": "Finlandiya",
+        "sub": "EnterFinland"
+      },
+      "FR": {
+        "name": "Fransa",
+        "sub": "France-Visas"
+      },
+      "GB": {
+        "name": "Birleşik Krallık",
+        "sub": "UKVCAS · UK Visas",
+        "bannerText": "Bazı başvuru türlerinde kesinti yaşanıyor.",
+        "bannerLink": "Olay zaman çizelgesini görüntüleyin"
+      },
+      "GE": {
+        "name": "Gürcistan"
+      },
+      "GR": {
+        "name": "Yunanistan",
+        "sub": "AEGEAN · konsolosluk"
+      },
+      "HK": {
+        "name": "Hong Kong",
+        "sub": "Immigration eVisa"
+      },
+      "ID": {
+        "name": "Endonezya",
+        "sub": "e-Visa Indonesia"
+      },
+      "IN": {
+        "name": "Hindistan",
+        "sub": "Indian Visa Online"
+      },
+      "JO": {
+        "name": "Ürdün"
+      },
+      "KE": {
+        "name": "Kenya",
+        "sub": "eCitizen / eVisa"
+      },
+      "KH": {
+        "name": "Kamboçya"
+      },
+      "LK": {
+        "name": "Sri Lanka",
+        "sub": "ETA portalı"
+      },
+      "MA": {
+        "name": "Fas"
+      },
+      "TH": {
+        "name": "Tayland",
+        "sub": "Tayland e-Vize"
+      }
+    },
+    "incidents": {
+      "count": "<strong>{count}</strong> {count, plural, one {ülkede} other {ülkede}} performans sorunları yaşandı",
+      "events": "{count, plural, one {# olay} other {# olay}}",
+      "days": [
+        {
+          "date": "10 Mayıs 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "10 Mayıs, 3:05 ÖS",
+                  "desc": "Bu olay çözüldü. Hizmet normal işleyişine döndü."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "10 Mayıs, 5:05 ÖS",
+                  "desc": "Bu olay çözüldü. Hizmet normal işleyişine döndü."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "9 Mayıs 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "9 Mayıs, 10:50 ÖS",
+                  "desc": "Artan hata oranlarını inceliyoruz."
+                },
+                {
+                  "time": "10 Mayıs, 12:20 ÖÖ",
+                  "desc": "Önem derecesi yavaşlamadan kısmi kesintiye yükseldi."
+                },
+                {
+                  "time": "10 Mayıs, 2:50 ÖÖ",
+                  "desc": "Önem derecesi kısmi kesintiden büyük kesintiye yükseldi."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "9 Mayıs, 3:05 ÖS",
+                  "desc": "Artan hata oranlarını inceliyoruz."
+                },
+                {
+                  "time": "9 Mayıs, 7:20 ÖS",
+                  "desc": "Önem derecesi kısmi kesintiden büyük kesintiye yükseldi."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "8 Mayıs 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "8 Mayıs, 1:05 ÖS",
+                  "desc": "Artan hata oranlarını inceliyoruz."
+                },
+                {
+                  "time": "8 Mayıs, 2:05 ÖS",
+                  "desc": "Bu olay çözüldü. Hizmet normal işleyişine döndü."
+                },
+                {
+                  "time": "8 Mayıs, 2:50 ÖS",
+                  "desc": "Artan hata oranlarını inceliyoruz."
+                },
+                {
+                  "time": "8 Mayıs, 7:35 ÖS",
+                  "desc": "Bu olay çözüldü. Hizmet normal işleyişine döndü."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "5 Mayıs 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "5 Mayıs, 1:36 ÖS",
+                  "desc": "Önem derecesi yavaşlamadan kısmi kesintiye yükseldi."
+                },
+                {
+                  "time": "5 Mayıs, 4:50 ÖS",
+                  "desc": "Bu olay çözüldü."
+                },
+                {
+                  "time": "5 Mayıs, 9:20 ÖS",
+                  "desc": "Artan hata oranlarını inceliyoruz."
+                },
+                {
+                  "time": "5 Mayıs, 10:20 ÖS",
+                  "desc": "Bu olay çözüldü."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "5 Mayıs, 2:43 ÖS",
+                  "desc": "Bu olay çözüldü."
+                },
+                {
+                  "time": "5 Mayıs, 3:35 ÖS",
+                  "desc": "Artan hata oranlarını inceliyoruz."
+                },
+                {
+                  "time": "5 Mayıs, 7:35 ÖS",
+                  "desc": "Önem derecesi kısmi kesintiden büyük kesintiye yükseldi."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "4 Mayıs 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "4 Mayıs, 4:05 ÖS",
+                  "desc": "Artan hata oranlarını inceliyoruz."
+                },
+                {
+                  "time": "4 Mayıs, 5:05 ÖS",
+                  "desc": "Bu olay çözüldü."
+                },
+                {
+                  "time": "4 Mayıs, 7:36 ÖS",
+                  "desc": "Artan hata oranlarını inceliyoruz."
+                },
+                {
+                  "time": "4 Mayıs, 8:35 ÖS",
+                  "desc": "Bu olay çözüldü."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "4 Mayıs, 12:05 ÖS",
+                  "desc": "Bu olay çözüldü."
+                },
+                {
+                  "time": "4 Mayıs, 1:50 ÖS",
+                  "desc": "Artan hata oranlarını inceliyoruz."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2 Mayıs 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "2 Mayıs, 6:35 ÖS",
+                  "desc": "Artan hata oranlarını inceliyoruz."
+                },
+                {
+                  "time": "2 Mayıs, 7:50 ÖS",
+                  "desc": "Bu olay çözüldü."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "2 Mayıs, 9:20 ÖÖ",
+                  "desc": "Artan hata oranlarını inceliyoruz."
+                },
+                {
+                  "time": "2 Mayıs, 10:20 ÖÖ",
+                  "desc": "Bu olay çözüldü."
+                },
+                {
+                  "time": "2 Mayıs, 8:20 ÖS",
+                  "desc": "Artan hata oranlarını inceliyoruz."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "2 Mayıs, 8:20 ÖS",
+                  "desc": "Artan hata oranlarını inceliyoruz."
+                },
+                {
+                  "time": "3 Mayıs, 12:05 ÖÖ",
+                  "desc": "Bu olay çözüldü."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "1 Mayıs 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "1 Mayıs, 2:05 ÖS",
+                  "desc": "Artan hata oranlarını inceliyoruz."
+                },
+                {
+                  "time": "1 Mayıs, 3:05 ÖS",
+                  "desc": "Bu olay çözüldü."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "30 Nisan 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "30 Nis, 8:20 ÖÖ",
+                  "desc": "Artan hata oranlarını inceliyoruz."
+                },
+                {
+                  "time": "30 Nis, 9:50 ÖÖ",
+                  "desc": "Bu olay çözüldü."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 Nis, 3:05 ÖS",
+                  "desc": "Bu olay çözüldü."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 Nis, 4:51 ÖS",
+                  "desc": "Bu olay çözüldü."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 Nis, 1:20 ÖS",
+                  "desc": "Artan hata oranlarını inceliyoruz."
+                },
+                {
+                  "time": "30 Nis, 2:37 ÖS",
+                  "desc": "Önem derecesi yavaşlamadan kısmi kesintiye yükseldi."
+                },
+                {
+                  "time": "30 Nis, 8:20 ÖS",
+                  "desc": "Bu olay çözüldü."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 Nis, 6:50 ÖS",
+                  "desc": "Bu olay çözüldü."
+                },
+                {
+                  "time": "30 Nis, 7:50 ÖS",
+                  "desc": "Artan hata oranlarını inceliyoruz."
+                },
+                {
+                  "time": "1 Mayıs, 12:20 ÖÖ",
+                  "desc": "Bu olay çözüldü."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "subscribe": {
+      "title": "Bir şey bozulduğunda<br></br>ilk siz duyun.",
+      "lead": "İlgilendiğiniz ülkeleri seçin; portalları veya bizimkiler çöktüğünde ya da yeniden çalıştığında size sade bir dille tek bir güncelleme gönderelim.",
+      "emailLabel": "Olay güncellemelerini e-posta ile alın",
+      "button": "Abone ol",
+      "follow": "Ya da durumu şuradan takip edin:",
+      "chipEmail": "E-posta özeti",
+      "chipSms": "SMS ve WhatsApp",
+      "chipRss": "RSS beslemesi",
+      "chipWebhook": "Operasyon için webhook"
+    },
+    "footer": {
+      "tagline": "VIZA, dünya genelinde vizelerinizi sorunsuzca planlamanıza, başvurmanıza ve takip etmenize yardım eder.",
+      "company": "Şirket",
+      "careers": "Kariyer",
+      "contact": "İletişim",
+      "security": "Güvenlik",
+      "systemStatus": "Sistem durumu",
+      "privacy": "Gizlilik",
+      "terms": "Şartlar",
+      "products": "Ürünler",
+      "prodVisaReq": "Vize Şartları",
+      "prodSchengen": "Schengen Randevu Denetleyicisi",
+      "prodPhoto": "Vize Fotoğrafı Oluşturucu",
+      "prodHelpline": "VIZA Acil Yardım Hattı",
+      "copyright": "© VIZA, Tüm hakları saklıdır"
+    }
+  },
+  "arrival": {
+    "breadcrumbHome": "Ana sayfa",
+    "breadcrumbHub": "Varış kartları",
+    "hubH1": "Varış kartı rehberleri",
+    "hubLead": "Varış kartı, bir ülkeye girmeden önce doldurduğunuz kısa bir devlet formudur. Çoğu online, ücretsiz ve yaklaşık beş dakika sürer. Bu rehberler kimin hangisine ihtiyacı olduğunu, ne zaman gönderileceğini ve bunun için ücret isteyen sahte sitelerden nasıl kaçınılacağını gösterir.",
+    "hubWhatTitle": "Varış kartı nedir",
+    "hubWhat": [
+      "Varış kartı, pasaportunuz ve varsa vizenizin yanı sıra varış noktanızın istediği bir beyandır. Kim olduğunuzu, nasıl geldiğinizi ve nerede kalacağınızı kaydeder. Birçok ülke, uçakta dağıtılan kağıt kartın yerine online bir form getirdi.",
+      "Vize değildir. Vize, girmek için başvuru yapmanızı sağlar. Varış kartı ise sınır makamına seyahatinizi bildirir ve uyruğunuz vize gerektiriyorsa vizeye yine ihtiyacınız vardır."
+    ],
+    "hubFreeTitle": "Varış kartları ücretsizdir",
+    "hubFree": [
+      "Bu rehberlerdeki her kart, devletin kendi sitesinde ücretsizdir. Bazı web siteleri devlet formunu kopyalayıp ücret alır. Bunlardan birine ödeme yapmanız gerekmez.",
+      "Her zaman her rehberde listelenen resmi adresten başlayın. VIZA bağımsız bir hizmettir, bir devlet web sitesi değildir."
+    ],
+    "hubWhenTitle": "Ne zaman gerekir",
+    "hubWhen": [
+      "Çoğu kart varıştan üç gün önce açılır ve bu süre içinde gönderilmesi gerekir. Kesin kural için her rehbere bakın, çünkü Japonya'nın Visit Japan Web'inde sabit bir son tarih yoktur ve zorunlu değildir.",
+      "Oturum sahipleri, vatandaşlar ve transit yolcular çoğunlukla muaftır veya daha kısa bir form doldurur. Her rehber, Malezya'nın MDAC'ı için Singapur vatandaşı muafiyeti dahil, kimlerin muaf olduğunu listeler."
+    ],
+    "hubGuidesTitle": "Tüm rehberler",
+    "hubGuidesSub": "Varış noktanızı seçin. Her rehberde adımlar, sık yapılan hatalar ve resmi bağlantılar yer alır.",
+    "readGuide": "Rehberi okuyun",
+    "cardWhen": "Ne zaman",
+    "cardsLabel": "Varış kartı",
+    "hubVisaTitle": "Vize de mi gerekiyor",
+    "hubVisaBody": "Varış kartı vizenin yerini tutmaz. Pasaportunuzun vize gerektirip gerektirmediğini görmek için varış noktası sayfasına bakın.",
+    "hubVisaCta": "Vize sayfalarına göz atın",
+    "glanceTitle": "Bir bakışta",
+    "stepsTitle": "Adım adım nasıl doldurulur",
+    "mistakesTitle": "Sık yapılan hatalar",
+    "feesTitle": "Ücretler ve sahte siteler",
+    "faqTitle": "Sorular",
+    "sourcesTitle": "Kaynaklar",
+    "relatedTitle": "Diğer varış kartı rehberleri",
+    "independent": "VIZA bağımsız bir hizmettir, bir devlet web sitesi değildir.",
+    "officialCta": "Resmi siteyi açın",
+    "officialLabel": "Resmi site",
+    "vizaTitle": "VIZA sizin yerinize yapsın",
+    "vizaBody": "{name} işlemini VIZA hesabınızda başlatın. VIZA'nın formu resmi formla aynı soruları adım adım sorar ve bilgilerinizi sonraki seyahatler için saklar. İsterseniz her zaman ücretsiz resmi siteyi de kullanabilirsiniz.",
+    "vizaFee": "VIZA hizmet bedeli",
+    "vizaFeeFree": "Ücretsiz",
+    "vizaCta": "VIZA'da başlayın",
+    "noVizaTitle": "Resmi siteyi kullanın",
+    "noVizaBody": "VIZA bu kartı henüz doldurmuyor. Aşağıdaki resmi siteyi kullanın ve önce bu rehberdeki adımları okuyun.",
+    "visaTitle": "{country} vizesi",
+    "visaBody": "Varış kartı vizeden ayrıdır. {country} için kimin vizeye ihtiyacı olduğunu, harçları ve nasıl başvurulacağını görün.",
+    "visaCta": "{country} vize sayfasını açın",
+    "reviewedTitle": "25 Kasım 2026 tarihinde kontrol edildi",
+    "stepLabel": "Adım",
+    "cards": {
+      "malaysia-mdac": {
+        "summary": "Yabancı ziyaretçiler için ücretsiz online kart. Singapur vatandaşları muaftır.",
+        "when": "Varıştan önceki 3 gün içinde"
+      },
+      "singapore-sg-arrival-card": {
+        "summary": "ICA'nın sağlık beyanı içeren online kartı. Web sitesinden veya MyICA uygulamasından gönderin.",
+        "when": "Varıştan önceki 3 gün içinde"
+      },
+      "japan-visit-japan-web": {
+        "summary": "Göç ve gümrük için ücretsiz QR kodları. Önerilir, zorunlu değildir.",
+        "when": "Uçmadan önce"
+      },
+      "thailand-tdac": {
+        "summary": "Vizeli veya vizesiz her yabancı ziyaretçi için ücretsiz kart. Kağıt TM6'nın yerini aldı.",
+        "when": "Varıştan önceki 3 gün içinde"
+      },
+      "korea-e-arrival-card": {
+        "summary": "1 Ocak 2026'dan beri zorunludur. Geçerli bir K-ETA sahibi muaftır.",
+        "when": "Varıştan önceki 3 gün içinde"
+      },
+      "indonesia-all-indonesia": {
+        "summary": "Göç, gümrük ve sağlık için tek kart. Ücretsizdir ve vize değildir.",
+        "when": "Varıştan en fazla 3 gün önce"
+      }
+    }
+  },
+  "guides": {
+    "breadcrumbHome": "Ana sayfa",
+    "breadcrumbHub": "Rehberler",
+    "hubH1": "Singapur'da yaşayanlar için vize rehberleri",
+    "hubLead": "Singapur, Çin, Hindistan veya Filipin pasaportunuz olsun, bu rehberler aynı soruyu yanıtlar: bu ülkeye girmek için neye ihtiyacım var ve Singapur'dan nereye başvururum. Her biri kaynaklarını ve kontrol edildiği tarihi belirtir.",
+    "hubGuidesTitle": "Tüm rehberler",
+    "hubGuidesSub": "Bir konu seçin. Kurallar değişir, bu yüzden her rehber seyahatten önce bakmanız gereken resmi sayfaları listeler.",
+    "readGuide": "Rehberi okuyun",
+    "hubMoreTitle": "VIZA'dan daha fazlası",
+    "hubMoreBody": "Belirli bir ülkeyi, bir varış kartını ya da son kural değişikliğini mi arıyorsunuz?",
+    "hubDestinations": "Vize sayfaları",
+    "hubArrival": "Varış kartı rehberleri",
+    "hubNews": "Vize haberleri",
+    "glanceTitle": "Kısa yanıt",
+    "relatedVisaTitle": "Varış noktası sayfaları",
+    "relatedVisaSub": "Singapur'da yaşayanlar için harçlar, belgeler ve adımlar.",
+    "relatedArrivalTitle": "Varış kartı rehberleri",
+    "relatedGuidesTitle": "Diğer rehberler",
+    "faqTitle": "Sorular",
+    "sourcesTitle": "Kaynaklar",
+    "reviewedTitle": "Nasıl kontrol ettik",
+    "published": "Yayınlanma",
+    "updated": "Güncelleme",
+    "independent": "VIZA bağımsız bir hizmettir, bir devlet web sitesi değildir."
+  },
+  "ds": {
+    "header": {
+      "home": "VIZA ana sayfa",
+      "primary": "Ana menü",
+      "language": "Dil",
+      "signIn": "Giriş yap",
+      "openMenu": "Menüyü aç",
+      "closeMenu": "Menüyü kapat",
+      "nav": {
+        "home": "Ana sayfa",
+        "destinations": "Varış noktaları",
+        "arrivalCards": "Varış kartları",
+        "guides": "Rehberler",
+        "news": "Haberler",
+        "about": "Hakkımızda",
+        "contact": "İletişim"
+      }
+    },
+    "footer": {
+      "home": "VIZA ana sayfa",
+      "tagline": "VIZA'nın yapay zekasının hazırladığı ve danışmanlarımızın kontrol ettiği vize başvuruları. Kullanımı ücretsiz.",
+      "explore": "Keşfet",
+      "follow": "Bizi takip edin",
+      "followOn": "VIZA'yı {platform} üzerinde takip edin",
+      "links": {
+        "destinations": "Varış noktaları",
+        "arrivalCards": "Varış kartları",
+        "guides": "Rehberler",
+        "news": "Haberler",
+        "about": "Hakkımızda",
+        "contact": "İletişim",
+        "careers": "Kariyer",
+        "security": "Güvenlik",
+        "status": "Durum"
+      },
+      "copyright": "© {year} VIZA. Tüm hakları saklıdır.",
+      "office": "Kayıtlı ofis: 60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapur 409051",
+      "privacy": "Gizlilik",
+      "terms": "Şartlar",
+      "kelin": "Bir Kelin Studio girişimi",
+      "refunds": "İadeler",
+      "business": "İşletme bilgileri"
+    },
+    "form": {
+      "fullName": {
+        "label": "Adınız",
+        "placeholder": "Jane Tan"
+      },
+      "email": {
+        "label": "E-posta"
+      },
+      "phone": {
+        "label": "Telefon"
+      },
+      "destination": {
+        "label": "Varış noktası",
+        "placeholder": "Japonya, Schengen, Amerika Birleşik Devletleri"
+      },
+      "message": {
+        "label": "Sorunuz",
+        "placeholder": "Nereye gittiğiniz, pasaportunuz ve seyahat tarihleriniz."
+      },
+      "submit": "Mesaj gönder",
+      "sending": "Gönderiliyor",
+      "success": "Teşekkürler, mesajınız bize ulaştı. E-posta ile yanıtlayacağız.",
+      "error": "Mesajınız gönderilemedi. Lütfen tekrar deneyin veya sales@kelin.studio adresine e-posta gönderin.",
+      "consent": "Göndererek <privacy>Gizlilik Politikamızı</privacy> ve <terms>Şartlarımızı</terms> kabul etmiş olursunuz."
+    },
+    "gallery": {
+      "title": "Varış noktaları",
+      "lede": "Gereken vizeyi, belgeleri ve devlet harcını görmek için bir varış noktası seçin.",
+      "view": "Görüntüle",
+      "passportSummary": "{free} vizesiz · {voa} e-Vize veya varışta · {req} vize gerekli",
+      "noResults": "Aramanızla eşleşen varış noktası yok.",
+      "sorts": {
+        "featured": "Öne çıkanlar",
+        "open": "Önce açık olanlar",
+        "name": "A'dan Z'ye"
+      }
+    },
+    "dest": {
+      "all": "Tüm varış noktaları",
+      "onPage": "Bu sayfada",
+      "applyTitle": "Başvuruyu başlat",
+      "facts": "Bilgiler"
+    },
+    "article": {
+      "toc": "Bu sayfada",
+      "down": "Yazıya geçin",
+      "faqLede": "Bu konuda kısa yanıtlar."
+    },
+    "legal": {
+      "updated": "Son güncelleme",
+      "contents": "İçindekiler"
+    }
+  },
+  "homePage": {
+    "hero": {
+      "browse": "Varış noktalarına göz atın",
+      "picks": "Varış noktaları"
+    },
+    "types": {
+      "title": "Vize türleri",
+      "lede": "Turist, iş, çalışma, öğrenci ve uzun süreli vizeler.",
+      "prev": "Önceki",
+      "next": "Sonraki",
+      "items": {
+        "tourist": {
+          "title": "Turist",
+          "body": "Tatiller, aile ziyaretleri ve kısa kalışlar."
+        },
+        "business": {
+          "title": "İş",
+          "body": "Toplantılar, konferanslar ve saha ziyaretleri."
+        },
+        "work": {
+          "title": "Çalışma",
+          "body": "Çalışma izinleri ve iş vizeleri."
+        },
+        "student": {
+          "title": "Öğrenci",
+          "body": "Okullar ve üniversiteler için eğitim vizeleri."
+        },
+        "long": {
+          "title": "Uzun kalış",
+          "body": "Oturum ve diğer uzun süreli vizeler."
+        }
+      }
+    },
+    "steps": {
+      "title": "Nasıl işler",
+      "cta": "Ücretsiz başvurunuzu başlatın",
+      "side": {
+        "freeValue": "Ücretsiz",
+        "freeLabel": "VIZA hizmeti",
+        "langLabel": "Diller",
+        "note": "Yalnızca devlet harcını ödersiniz.",
+        "noteBody": "Doğrudan vizeyi veren kuruma gider. VIZA kendi ücretini eklemez."
+      },
+      "items": {
+        "choose": {
+          "title": "Bir varış noktası seçin",
+          "body": "Başlamadan önce gereken vizeyi, hazırlanacak belgeleri ve devlet harcını görün.",
+          "chips": "Vize türü|Belgeler|Devlet harcı"
+        },
+        "passport": {
+          "title": "Pasaportunuzu yükleyin",
+          "body": "VIZA bilgilerinizi fotoğraf sayfasından okur, yani yazmanız gereken çok az şey kalır.",
+          "chips": "Fotoğraf sayfası|Bilgiler dolduruldu"
+        },
+        "confirm": {
+          "title": "Bilgilerinizi onaylayın",
+          "body": "VIZA'nın okuduklarını kontrol edin, seyahat tarihlerinizi ekleyin ve ücretsiz VIZA hesabınızda devam edin.",
+          "chips": "Seyahat tarihleri|Ücretsiz hesap"
+        },
+        "file": {
+          "title": "VIZA kontrol eder ve başvurur",
+          "body": "Bir danışman her formu gönderilmeden önce kontrol eder, ilerlemeyi hesabınızdan takip edersiniz.",
+          "chips": "Danışman kontrolü|İlerleme güncellemeleri"
+        }
+      }
+    },
+    "tiers": {
+      "title": "Fiyatlandırma",
+      "lede": "Başvurmanın iki yolu, ikisi de ücretsiz.",
+      "cta": "Bize yazın",
+      "criteria": "Karşılaştır",
+      "guided": "Rehberli",
+      "full": "Tam hizmet",
+      "rows": {
+        "fee": {
+          "label": "VIZA ücreti",
+          "guided": "Ücretsiz",
+          "full": "Ücretsiz"
+        },
+        "form": {
+          "label": "Başvuru formu",
+          "guided": "Siz yanıtlarsınız, VIZA'nın yapay zekası size rehberlik eder",
+          "full": "Bir danışman yanıtları sizinle birlikte hazırlar"
+        },
+        "documents": {
+          "label": "Belgeler",
+          "guided": "Durumunuza göre bir kontrol listesi",
+          "full": "Bir danışman belgelerinizi kontrol eder"
+        },
+        "interview": {
+          "label": "Randevu ve mülakat",
+          "guided": "Siz ayarlar ve katılırsınız",
+          "full": "Olası soruları sizinle birlikte gözden geçiririz"
+        },
+        "govFee": {
+          "label": "Devlet harcı",
+          "guided": "Doğrudan kuruma ödenir",
+          "full": "Doğrudan kuruma ödenir"
+        },
+        "bestFor": {
+          "label": "Uygun olduğu durum",
+          "guided": "Basit başvurular",
+          "full": "Karmaşık durumlar veya geçmişte ret"
+        }
+      }
+    },
+    "why": {
+      "title": "Neden VIZA",
+      "lede": "Net adımlar, kontrol edilmiş formlar ve konuşabileceğiniz gerçek insanlar.",
+      "items": {
+        "free": {
+          "title": "Ücretsiz hizmet",
+          "body": "VIZA'nın yardımı hiçbir şeye mal olmaz. Yalnızca devlet harcını doğrudan kuruma ödersiniz."
+        },
+        "checked": {
+          "title": "Kontrol edilmiş formlar",
+          "body": "Bir danışman her formu gönderilmeden önce kontrol eder, böylece küçük hatalar erkenden yakalanır."
+        },
+        "language": {
+          "title": "İngilizce ve Çince",
+          "body": "VIZA ile İngilizce veya Çince, WhatsApp, WeChat veya e-posta üzerinden konuşun."
+        }
+      },
+      "photos": {
+        "arrival": {
+          "title": "Varış kartları",
+          "body": "Malezya, Singapur, Japonya, Tayland, Kore ve Endonezya için ücretsiz varış kartlarında adım adım yardım."
+        },
+        "news": {
+          "title": "Haberler",
+          "body": "Vize kuralı değişiklikleri ve yeni e-vize uygulamaları, sade bir dille anlatılır."
+        }
+      }
+    },
+    "guides": {
+      "title": "Rehberler",
+      "cta": "Tüm rehberler"
+    },
+    "faq": {
+      "lede": "VIZA'nın vize hizmeti hakkında kısa yanıtlar.",
+      "more": "Başka sorunuz mu var?",
+      "items": {
+        "cost": {
+          "q": "VIZA hizmeti için ücret alır mı?",
+          "a": "Hayır. VIZA'nın yardımı ücretsizdir. Bir varış noktası devlet vize harcı alıyorsa, bunu doğrudan o devlete ödersiniz."
+        },
+        "visas": {
+          "q": "VIZA hangi vizelerde yardımcı olabilir?",
+          "a": "Bu sayfadaki varış noktaları için turist, iş, çalışma, öğrenci ve uzun süreli vizeler. Sizinki listede yoksa bize yazın, bir danışman nelerin mümkün olduğunu söylesin."
+        },
+        "approval": {
+          "q": "Vizem hakkında kim karar verir?",
+          "a": "Her kararı vizeyi veren kurum verir. VIZA, formunuzu ve belgelerinizi gönderilmeden önce kontrol eder, böylece başvurunuz eksiksiz ve tutarlı olur."
+        },
+        "tiers": {
+          "q": "Rehberli ile Tam hizmet arasındaki fark nedir?",
+          "a": "Rehberli seçeneğinde VIZA'nın yapay zekası sizi form ve kontrol listesi boyunca yönlendirir, her yanıtın kontrolü sizde kalır. Tam hizmette bir danışman yanıtları sizinle birlikte hazırlar ve belgelerinizi kontrol eder. İkisi de ücretsizdir."
+        },
+        "language": {
+          "q": "Hangi dilleri destekliyorsunuz?",
+          "a": "İngilizce ve Çince, WhatsApp, WeChat, telefon ve e-posta üzerinden."
+        }
+      }
+    },
+    "contactCard": {
+      "title": "Bir VIZA danışmanıyla konuşun",
+      "body": "İngilizce veya Çince yanıt veriyoruz.",
+      "cta": "Bize yazın"
+    },
+    "cta": {
+      "title": "Başvurunuzu başlatın",
+      "point1": "Bilgileriniz gizli kalır",
+      "point2": "Gerçek bir kişi yanıt verir",
+      "formTitle": "Bir soru sorun",
+      "formBody": "Nereye gideceğinizi söyleyin, bir VIZA danışmanı e-posta ile yanıtlasın."
+    }
+  },
+  "aboutPage": {
+    "h1": "VIZA hakkında",
+    "intro": {
+      "title": "VIZA nedir",
+      "text": "VIZA, Singapur'da yaşayan kişiler için vize başvurularını hazırlar, kontrol eder ve gönderir. Evrak işini yapay zekamız yapar, her formu danışmanlarımız inceler. Hizmet ücretsizdir."
+    },
+    "facts": {
+      "destinations": "Varış noktaları",
+      "guides": "Vize rehberleri",
+      "arrival": "Varış kartı rehberleri",
+      "free": "Ücretsiz",
+      "freeLabel": "VIZA hizmeti"
+    },
+    "tiersTitle": "Rehberli veya Tam hizmet",
+    "tiersLede": "Ne kadar yardım istediğinizi seçin. İkisi de ücretsizdir.",
+    "free": {
+      "title": "Ücretsiz hizmet",
+      "text": "VIZA yardımı için ücret almaz. Bir varış noktasında devlet vize harcı varsa, VIZA başlamadan önce bunu gösterir ve harcı doğrudan vizeyi veren kuruma ödersiniz. Ücretli yükseltme yoktur."
+    },
+    "company": {
+      "title": "Şirket bilgileri",
+      "office": "Kayıtlı ofis",
+      "officeValue": "60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapur 409051",
+      "email": "E-posta",
+      "phone": "Telefon ve WhatsApp",
+      "languages": "Diller",
+      "languagesValue": "İngilizce ve Çince"
+    }
+  },
+  "contactPage": {
+    "h1": "İletişim",
+    "lines": {
+      "whatsapp": {
+        "title": "Telefon ve WhatsApp",
+        "body": "Bir danışmanı arayın veya ona mesaj yazın."
+      },
+      "wechat": {
+        "body": "Bizi eklemek için WeChat'te kimliği aratın."
+      },
+      "email": {
+        "title": "E-posta",
+        "body": "Belgeler ve uzun sorular için en uygunu."
+      },
+      "office": {
+        "top": "Singapur",
+        "title": "Ofis",
+        "body": "60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapur 409051"
+      }
+    },
+    "message": {
+      "title": "Mesaj gönderin",
+      "text": "Bir vize, bir varış noktası veya VIZA ile çalışma hakkında sorular. Bize yazın, bir danışman yanıtlasın."
+    }
+  },
+  "careersPage": {
+    "title": "Kariyer",
+    "lede": "VIZA, Singapur'daki insanların yapay zeka ve danışmanlarla vizelerini almasına yardım eder ve hizmet ücretsizdir. Titiz ve işe yarar bir işi sevenleri işe alıyoruz.",
+    "teamsTitle": "Ekipler",
+    "teams": [
+      {
+        "title": "Mühendislik",
+        "body": "Belge kontrollerini, başvuru akışını ve danışmanlarımızın kullandığı araçları geliştirin."
+      },
+      {
+        "title": "Tasarım",
+        "body": "Stresli bir süreci, başvuran kişi için net ve anlaşılır hale getirin."
+      },
+      {
+        "title": "Operasyon",
+        "body": "Her başvurunun ilerlemesini ve her şartın güncel kalmasını sağlayın."
+      },
+      {
+        "title": "Danışmanlık",
+        "body": "Bir kişiye ihtiyaç duyan başvurularda başvuru sahiplerine İngilizce ve Çince yardım edin."
+      },
+      {
+        "title": "Veri",
+        "body": "Devlet kaynaklarını, sorunları erkenden yakalayan kontrollere dönüştürün."
+      },
+      {
+        "title": "Pazarlama",
+        "body": "Vizeleri sade bir dille, güvenilir rehberlerde ve sayfalarda anlatın."
+      }
+    ],
+    "applyTitle": "Bize ulaşın",
+    "applyBody": "Kendinizden ve katılmak istediğiniz ekipten bahsedin. Her notu okuyoruz.",
+    "applyCta": "Bize yazın"
+  },
+  "pageCopy": {
+    "product": {
+      "introTitle": "VIZA vize başvurunuzu nasıl destekler",
+      "introLede": "Mevcut vize hazırlığı, belge inceleme ve başvuru durumu hizmetlerine göz atın. VIZA'nın hizmeti ücretsizdir. Kapsam ve uygunluk, bir varış noktası seçtikten sonra gösterilir.",
+      "browse": "Varış noktalarına göz atın"
+    },
+    "events": {
+      "title": "Henüz etkinlik yok",
+      "lede": "Gelecekteki vize klinikleri, bilgilendirme oturumları ve iş ortağı etkinlikleri burada duyurulacak.",
+      "contact": "Bize yazın"
+    }
+  },
+  "og": {
+    "band": "VIZA ücretsizdir. Devlet harçları ayrıdır.",
+    "destSubtitle": "Harçlar ve nasıl başvurulur"
+  }
+}

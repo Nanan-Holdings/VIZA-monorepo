@@ -7,7 +7,7 @@ import ArticleCards from "@/design-system/sections/ArticleCards";
 import Button from "@/design-system/ui/Button";
 import { guideImage } from "@/lib/site-content";
 import { locales } from "@/i18n";
-import { GUIDES } from "@/lib/guides";
+import { localizedGuides } from "@/lib/guides";
 import { LOCALE_HTML_LANG, buildLocalePath, isLocale } from "@/lib/locales";
 import { staticPageMetadata } from "@/lib/seo/page-meta";
 import { SITE_URL } from "@/lib/seo/site";
@@ -24,7 +24,7 @@ export default async function GuidesHub({ params }: { params: Promise<{ locale: 
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations({ locale, namespace: "guides" });
-  const zh = locale === "zh-CN";
+  const guides = await localizedGuides(locale);
   const inLanguage = isLocale(locale) ? LOCALE_HTML_LANG[locale] : "en";
   const hubUrl = `${SITE_URL}${buildLocalePath(locale, "/guides")}`;
   const jsonLd = [
@@ -44,23 +44,23 @@ export default async function GuidesHub({ params }: { params: Promise<{ locale: 
       url: hubUrl,
       mainEntity: {
         "@type": "ItemList",
-        itemListElement: GUIDES.map((g, i) => ({
+        itemListElement: guides.map((g, i) => ({
           "@type": "ListItem",
           position: i + 1,
           url: `${SITE_URL}${buildLocalePath(locale, `/guides/${g.slug}`)}`,
-          name: zh ? g.name.zh : g.name.en,
+          name: g.name,
         })),
       },
     },
   ];
 
   const used = new Set<string>();
-  const items = GUIDES.map((g) => ({
+  const items = guides.map((g) => ({
     href: `/guides/${g.slug}`,
     image: guideImage(g.visa, used),
-    meta: zh ? g.tag.zh : g.tag.en,
-    title: zh ? g.name.zh : g.name.en,
-    body: zh ? g.summary.zh : g.summary.en,
+    meta: g.tag,
+    title: g.name,
+    body: g.summary,
     more: t("readGuide"),
   }));
 

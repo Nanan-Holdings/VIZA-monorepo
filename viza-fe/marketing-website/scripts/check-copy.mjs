@@ -15,7 +15,8 @@ import { join, relative } from "node:path";
 import { execSync } from "node:child_process";
 import { COUNTRIES, isPublished } from "../lib/countries.ts";
 import { ENABLED_LOCALES } from "../lib/locales.ts";
-import { destinationDescription, destinationTitle, TITLE_MAX, DESCRIPTION_MAX } from "../lib/seo/titles.ts";
+import { destinationDescription, destinationTitle, SEO_SOURCE, TITLE_MAX, DESCRIPTION_MAX } from "../lib/seo/titles.ts";
+import { applyOverlay } from "../lib/i18n-overlay.ts";
 
 const ROOT = new URL("../", import.meta.url).pathname;
 const hits = [];
@@ -61,6 +62,12 @@ const flatten = (obj, prefix = "") =>
     typeof v === "string" ? [[`${prefix}${k}`, v]] : v && typeof v === "object" ? flatten(v, `${prefix}${k}.`) : [],
   );
 
+const readJson = (rel) => (existsSync(join(ROOT, rel)) ? JSON.parse(readFileSync(join(ROOT, rel), "utf8")) : null);
+/** Machine-translated locales (everything except en and the hand-written zh-CN) must have no em or en dash anywhere. */
+const machineTranslated = (locale) => locale !== "en" && locale !== "zh-CN";
+/** Translated destination wording for a machine-translated locale; null for en and zh-CN. */
+const seoCopy = (locale) => (machineTranslated(locale) ? applyOverlay(SEO_SOURCE, readJson(`translations/${locale}/seo.json`)) : null);
+
 const messages = {};
 for (const locale of ENABLED_LOCALES) {
   const file = join(ROOT, "messages", `${locale}.json`);
@@ -71,7 +78,7 @@ for (const locale of ENABLED_LOCALES) {
   messages[locale] = JSON.parse(readFileSync(file, "utf8"));
   for (const [key, value] of flatten(messages[locale])) {
     for (const c of CLAIMS) if (claimHit(c, value)) hits.push(`messages/${locale}.json ${key} ${c.why}`);
-    if ((key.startsWith("pages.") || key.startsWith("visa.")) && DASH.test(value)) {
+    if ((key.startsWith("pages.") || key.startsWith("visa.") || machineTranslated(locale)) && DASH.test(value)) {
       hits.push(`messages/${locale}.json ${key} em or en dash: ${value.slice(0, 70)}`);
     }
   }
@@ -80,7 +87,7 @@ for (const locale of ENABLED_LOCALES) {
 // ---- Added or changed lines (needs git history; skipped quietly without it) -------------------------------
 try {
   const base = execSync("git merge-base HEAD origin/main", { cwd: ROOT, stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
-  const diff = execSync(`git diff -U0 ${base} -- messages lib/visa-content public/llms.txt public/index.md`, { cwd: ROOT, maxBuffer: 64 * 1024 * 1024 }).toString();
+  const diff = execSync(`git diff -U0 ${base} -- messages lib/visa-content translations public/llms.txt public/index.md`, { cwd: ROOT, maxBuffer: 64 * 1024 * 1024 }).toString();
   let file = "";
   for (const line of diff.split("\n")) {
     if (line.startsWith("+++ b/")) file = line.slice(6);
@@ -101,7 +108,7 @@ for (const locale of ENABLED_LOCALES) {
   if (m.pages?.blog) rows.push({ id: `${locale} pages.blog`, title: m.pages.blog.metaTitle, description: m.pages.blog.metaDescription });
   for (const c of COUNTRIES.filter(isPublished)) {
     const name = m.countries?.[c.slug] ?? c.name;
-    rows.push({ id: `${locale} /visa/${c.slug}`, title: destinationTitle(c, name, locale), description: destinationDescription(c, name, locale) });
+    rows.push({ id: `${locale} /visa/${c.slug}`, title: destinationTitle(c, name, locale, seoCopy(locale)), description: destinationDescription(c, name, locale, seoCopy(locale)) });
   }
   const titles = new Map();
   const descriptions = new Map();
@@ -120,24 +127,49 @@ for (const locale of ENABLED_LOCALES) {
   }
 }
 
-// ---- Evergreen guides (lib/guides/<locale>/*.ts) --------------------------------------------------------
+// ---- Evergreen guides and arrival cards ---------------------------------------------------------------
+// en and zh-CN are files (lib/guides/<locale>/*.ts, lib/arrival-cards/<locale>/*.ts). Every other enabled locale is the
+// English file with translations/<locale>/<kind>/<slug>.json laid over it, and is checked the same way.
+const guideFiles = (kind, locale) => {
+  const base = kind === "guides" ? "lib/guides" : "lib/arrival-cards";
+  const native = join(ROOT, base, machineTranslated(locale) ? "en" : locale);
+  return readdirSync(native).filter((f) => f.endsWith(".ts")).map((f) => ({
+    file: join(native, f),
+    slug: f.replace(/\.ts$/, ""),
+    overlay: machineTranslated(locale) ? readJson(`translations/${locale}/${kind === "guides" ? "guides" : "arrival"}/${f.replace(/\.ts$/, "")}.json`) : null,
+  }));
+};
 for (const locale of ENABLED_LOCALES) {
-  const dir = join(ROOT, "lib/guides", locale);
-  if (!existsSync(dir)) continue;
-  const seen = new Set();
-  for (const file of readdirSync(dir).filter((f) => f.endsWith(".ts"))) {
-    const guide = (await import(join(dir, file))).default;
-    const id = `${locale} guide ${file.replace(/\.ts$/, "")}`;
-    if (chars(guide.title) > TITLE_MAX) hits.push(`${id} title is ${chars(guide.title)} characters (max ${TITLE_MAX})`);
-    if (chars(guide.description) > DESCRIPTION_MAX) hits.push(`${id} description is ${chars(guide.description)} characters (max ${DESCRIPTION_MAX})`);
-    if (seen.has(guide.title)) hits.push(`${id} duplicates a guide title`);
-    seen.add(guide.title);
-    const text = JSON.stringify(guide);
-    for (const c of CLAIMS) if (claimHit(c, text)) hits.push(`${id} ${c.why}`);
-    for (const m of text.matchAll(/\]\((\/[^)\s]*)\)/g)) {
-      const href = m[1];
-      const ok = /^\/(visa\/[a-z-]+|arrival-cards\/[a-z-]+|guides\/[a-z-]+|contact|blog)$/.test(href);
-      if (!ok) hits.push(`${id} links to an unknown path ${href}`);
+  for (const kind of ["guides", "arrival"]) {
+    const seen = new Set();
+    for (const { file, slug, overlay } of guideFiles(kind, locale)) {
+      const guide = applyOverlay((await import(file)).default, overlay);
+      const id = `${locale} ${kind} ${slug}`;
+      if (chars(guide.title) > TITLE_MAX) hits.push(`${id} title is ${chars(guide.title)} characters (max ${TITLE_MAX})`);
+      if (chars(guide.description) > DESCRIPTION_MAX) hits.push(`${id} description is ${chars(guide.description)} characters (max ${DESCRIPTION_MAX})`);
+      if (seen.has(guide.title)) hits.push(`${id} duplicates a title`);
+      seen.add(guide.title);
+      const text = JSON.stringify(guide);
+      if (overlay && DASH.test(JSON.stringify(overlay))) hits.push(`${id} translation has an em or en dash`);
+      for (const c of CLAIMS) if (claimHit(c, text)) hits.push(`${id} ${c.why}`);
+      if (kind === "guides") {
+        for (const m of text.matchAll(/\]\((\/[^)\s]*)\)/g)) {
+          const href = m[1];
+          const ok = /^\/(visa\/[a-z-]+|arrival-cards\/[a-z-]+|guides\/[a-z-]+|contact|blog)$/.test(href);
+          if (!ok) hits.push(`${id} links to an unknown path ${href}`);
+        }
+      }
+    }
+  }
+}
+// Translated destinations and legal text: no dashes.
+for (const locale of ENABLED_LOCALES.filter(machineTranslated)) {
+  for (const unit of ["visa", "legal", "meta", "seo"]) {
+    const dir = join(ROOT, "translations", locale);
+    const files = unit === "visa" ? (existsSync(join(dir, "visa")) ? readdirSync(join(dir, "visa")).map((f) => `visa/${f}`) : []) : [`${unit}.json`];
+    for (const f of files.filter((x) => x.endsWith(".json") && !x.endsWith(".src.json"))) {
+      const data = readJson(`translations/${locale}/${f}`);
+      if (data && DASH.test(JSON.stringify(data))) hits.push(`translations/${locale}/${f} has an em or en dash`);
     }
   }
 }

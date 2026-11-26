@@ -1,0 +1,2150 @@
+{
+  "cta": {
+    "startFreeApplication": "開始免費申請"
+  },
+  "nav": {
+    "home": "首頁",
+    "apply": "申請",
+    "visas": "簽證",
+    "explore": "探索",
+    "events": "活動",
+    "blog": "最新消息",
+    "careers": "工作機會",
+    "contact": "聯絡我們",
+    "signIn": "登入",
+    "getStarted": "開始使用",
+    "yourPassport": "您的護照",
+    "searchPlaceholder": "搜尋國家或簽證…",
+    "arrivalCards": "入境卡",
+    "guides": "指南"
+  },
+  "footer": {
+    "followUs": "追蹤我們：",
+    "followOn": "在 {platform} 追蹤 VIZA",
+    "product": "產品",
+    "company": "公司",
+    "legal": "法律資訊",
+    "offices": "辦公室",
+    "askAi": "問 AI 關於 VIZA 的事",
+    "security": "資訊安全",
+    "status": "系統狀態",
+    "privacy": "隱私權",
+    "terms": "條款",
+    "rights": "版權所有。",
+    "tagline": "VIZA 協助您順利規劃、申請並追蹤世界各地的簽證。",
+    "careers": "工作機會",
+    "contact": "聯絡我們",
+    "copyright": "© VIZA，版權所有",
+    "prodMockInterview": "美國簽證模擬面談",
+    "prodVisaReq": "簽證規定",
+    "prodSchengen": "申根預約查詢",
+    "prodPhoto": "簽證照片製作",
+    "prodHelpline": "VIZA 緊急求助專線",
+    "prodStudent": "學生簽證",
+    "arrivalCards": "入境卡",
+    "guides": "指南",
+    "news": "最新消息"
+  },
+  "pages": {
+    "blog": {
+      "metaTitle": "簽證新聞與政策更新 | VIZA",
+      "metaDescription": "VIZA 簽證新聞：規定變動、新的電子簽證與 ETA 制度，以及對新加坡居民的影響。規定一有變動就更新。",
+      "title": "簽證新聞",
+      "lede": "用淺白的文字說明規定變動與政策更新。想看長期適用的建議，請閱讀指南。",
+      "readArticle": "閱讀文章",
+      "featuredLabel": "最新消息",
+      "articlesTitle": "最新消息",
+      "articlesDescription": "政策更新與旅遊規定變動。",
+      "allPosts": "所有文章",
+      "noMorePosts": "更多消息即將推出。",
+      "emptyTitle": "尚未發布任何消息",
+      "emptyBody": "第一批更新正在準備中，請稍後再回來看看。",
+      "unavailableTitle": "最新消息暫時無法顯示",
+      "unavailableBody": "無法載入最新發布的消息，請稍後再試。",
+      "backToBlog": "回到最新消息",
+      "by": "作者",
+      "updated": "更新日期",
+      "categoriesLabel": "新聞主題",
+      "topicLabel": "主題",
+      "relatedTitle": "更多消息",
+      "relatedDescription": "更多 VIZA 簽證新聞。",
+      "ctaEyebrow": "安心規劃",
+      "ctaTitle": "準備好開始申請了嗎？",
+      "ctaBody": "告訴我們您想去哪裡。VIZA 會帶您了解相關規定與下一步。",
+      "ctaAction": "開始申請",
+      "categoryMetaTitle": "{category}新聞 | VIZA",
+      "categoryMetaDescription": "閱讀 VIZA 關於{category}的新聞：哪些地方變了、影響哪些人，以及接下來該怎麼做。",
+      "categoryLede": "關於{category}的新聞。",
+      "visaLinkTitle": "要申請{country}簽證嗎？",
+      "visaLinkBody": "查看給新加坡居民的文件、政府規費與申請步驟。",
+      "visaLinkAction": "{country}簽證指南",
+      "guidesTitle": "相關指南",
+      "guidesBody": "持續更新這個主題的指南。"
+    },
+    "home": {
+      "title": "在新加坡申請簽證：美國、印度、越南 | VIZA",
+      "description": "申請美國簽證（DS-160）、印度、越南或埃及電子簽證，或法國申根簽證。每份表格在遞交前都由顧問檢查。",
+      "heroTitle": "下一站去哪裡？",
+      "heroLede": "瀏覽任何目的地的簽證選項。VIZA 顧問和我們的 AI 處理文書作業，您只管訂好行程。"
+    },
+    "apply": {
+      "title": "開始申請簽證 | VIZA",
+      "description": "上傳護照、確認資料，把簽證申請交給 VIZA 顧問。VIZA 的服務免費。",
+      "saveBadge": "已儲存 · 隨時可以繼續"
+    },
+    "careers": {
+      "title": "工作機會 | VIZA",
+      "description": "加入 VIZA，Kelin Studio 在新加坡經營的免費簽證服務。看看我們招募的團隊，以及如何洽詢職缺。",
+      "rightCta": "查看職缺"
+    },
+    "contact": {
+      "title": "聯絡我們：WhatsApp、WeChat、電話、電子郵件 | VIZA",
+      "description": "透過 WhatsApp、WeChat、電話或電子郵件聯絡 VIZA 團隊。四種管道、四個服務窗口，由真人回覆。",
+      "rightCta": "寫信給我們"
+    },
+    "security": {
+      "title": "資訊安全與漏洞通報 | VIZA",
+      "description": "預設即保密、透明且安全。了解 VIZA 如何保護客戶資料、我們的漏洞揭露計畫與安全港原則。",
+      "rightCta": "通報漏洞"
+    },
+    "status": {
+      "title": "系統狀態 | VIZA",
+      "description": "VIZA 及我們遞件所用政府簽證平台的即時狀態。",
+      "navPill": "所有系統運作正常"
+    },
+    "visa": {
+      "applyCta": "立即申請",
+      "applicationProcess": "申請流程",
+      "documents": "文件",
+      "rejectionReasons": "拒簽原因",
+      "entryExit": "入境與出境",
+      "extension": "延期",
+      "reviews": "評價",
+      "nearby": "鄰近國家",
+      "sources": "官方資料來源"
+    },
+    "privacy": {
+      "title": "隱私權政策 | VIZA",
+      "description": "依新加坡 PDPA，說明您申請簽證時 VIZA 收集哪些資料、原因、誰能看到，以及保存多久。"
+    },
+    "terms": {
+      "title": "服務條款 | VIZA",
+      "description": "使用 VIZA 簽證申請服務的條款，由新加坡 Kelin Studio Pte. Ltd. 營運。VIZA 的服務免費。"
+    },
+    "product": {
+      "title": "VIZA 如何協助您申請簽證 | VIZA",
+      "description": "簽證準備、文件審閱與申請進度，集中在同一處。VIZA 的服務免費。各目的地會顯示服務範圍與是否提供。"
+    },
+    "events": {
+      "title": "活動 | VIZA",
+      "description": "VIZA 的簽證諮詢會、說明會與合作夥伴活動。"
+    },
+    "arrivalCards": {
+      "title": "入境卡指南：MDAC、SG Arrival Card、TDAC | VIZA",
+      "description": "馬來西亞、新加坡、日本、泰國、韓國與印尼的免費入境卡指南：誰需要填、何時送出，並有逐步教學。"
+    },
+    "guides": {
+      "title": "給新加坡居民的簽證指南 | VIZA",
+      "description": "給新加坡居民的淺白指南：免簽國家、申根文件、美國面談、ETA、電子簽證與拒簽。免費閱讀，定期查核。"
+    },
+    "about": {
+      "title": "關於 VIZA：新加坡免費簽證協助 | VIZA",
+      "description": "VIZA 結合 AI 與顧問，為新加坡居民準備、檢查並遞交簽證申請。服務免費，政府規費繳給核發機關。"
+    },
+    "visaIndex": {
+      "title": "簽證目的地：各國簽證規定 | VIZA",
+      "description": "比較各國簽證規定，以及每個國家所需的文件與費用。VIZA 的協助免費。",
+      "heroTitle": "簽證目的地"
+    },
+    "refunds": {
+      "title": "退款政策 | VIZA",
+      "description": "VIZA 的服務免費，所以沒有服務費需要退還。在此說明政府規費與其他業者費用的處理方式。"
+    },
+    "businessInformation": {
+      "title": "公司資訊 | VIZA",
+      "description": "VIZA 由新加坡公司 Kelin Studio Pte. Ltd. 營運。內含註冊地址、UEN 與聯絡方式。"
+    }
+  },
+  "common": {
+    "comingSoon": "即將推出",
+    "learnMore": "了解更多",
+    "readMore": "閱讀更多",
+    "applyNow": "立即申請",
+    "talkToHuman": "與真人顧問聊聊",
+    "viewAll": "查看全部"
+  },
+  "visa": {
+    "heroTitle": "{country}簽證",
+    "validity": "效期",
+    "howItWorks": "申請流程",
+    "step1": "告訴我們您的行程，並上傳護照。",
+    "step2": "我們依最新規定填寫並檢查您的申請。",
+    "step3": "我們向政府平台遞件，並追蹤審核結果。",
+    "step4": "核准的簽證會以電子郵件寄給您，我們全程追蹤。",
+    "documents": "您需要準備",
+    "doc1": "效期至少 6 個月的護照。",
+    "doc2": "近期的護照規格照片。",
+    "doc3": "您的旅行日期與住宿資訊。",
+    "doc4": "若目的地收取簽證規費，需準備一張付款卡，直接繳給政府。",
+    "nearby": "鄰近目的地",
+    "startApplication": "開始您的申請",
+    "comingSoonTitle": "{country}：即將推出",
+    "comingSoonBody": "{country}的服務正在做最後準備。建立帳號，上線時我們會第一時間通知您。",
+    "browseDestinations": "瀏覽目的地",
+    "notifyMe": "通知我",
+    "back": "回到探索",
+    "tabOverview": "概覽",
+    "tabProcess": "申請流程",
+    "tabDocuments": "文件",
+    "tabRejection": "拒簽原因",
+    "tabEntry": "入境與出境",
+    "tabExtension": "延期",
+    "tabReviews": "評價",
+    "tabNearby": "鄰近國家",
+    "reviewsTitle": "評價",
+    "nearbyTitle": "鄰近國家",
+    "nearbySub": "要在這一區多國旅行嗎？在行程中再加一個簽證，您的 VIZA 顧問會一併處理。",
+    "faqTitle": "常見問題",
+    "editorial": "本頁遵循 VIZA 的編輯政策。我們以政府官方資料為依據，政策變動時會更新每項規定。",
+    "editorialLink": "了解我們如何審閱",
+    "sourcesTitle": "資料來源",
+    "priceGovt": "政府規費",
+    "priceFree": "免費",
+    "pillAllInclusive": "全包價",
+    "priceCta": "開始申請",
+    "onTime": "準時",
+    "freeService": "免費 VIZA 服務",
+    "freeServiceNote": "VIZA 提供協助不收任何費用",
+    "govFeePaidDirect": "政府規費 {fee}，直接繳給核發機關。",
+    "govFeeSetByAuthority": "政府規費由核發機關訂定，並直接繳給該機關。",
+    "govFeeSetByAuthorityShort": "由核發機關訂定",
+    "priceService": "VIZA 服務",
+    "pillPaidToAuthority": "繳給核發機關",
+    "priceTotalToViza": "您付給 VIZA",
+    "breadcrumbVisas": "簽證目的地",
+    "serviceDescription": "VIZA 結合 AI 指引與專人審閱，協助住在新加坡的人準備、檢查並遞交{country}{type}申請。",
+    "offerDescription": "VIZA 服務費。政府簽證規費另計，直接繳給核發機關。",
+    "dest": {
+      "tabGlance": "重點一覽",
+      "tabPassports": "護照",
+      "tabTypes": "簽證類型",
+      "tabResidents": "居民",
+      "tabFees": "費用",
+      "tabApply": "申請方式",
+      "tabChecklist": "文件",
+      "tabRejection": "拒簽",
+      "tabTravel": "出發前",
+      "tabRelated": "相關內容",
+      "glanceTitle": "重點一覽",
+      "glanceVisa": "是否需要簽證",
+      "glanceGovFee": "政府規費",
+      "glanceVizaFee": "VIZA 費用",
+      "glanceProcessing": "審理時間",
+      "glanceMaxStay": "最長停留",
+      "glanceChecked": "查核日期",
+      "passportsTitle": "您需要簽證嗎？",
+      "typesTitle": "簽證類型",
+      "residentsTitle": "新加坡居民",
+      "feesTitle": "費用與時程",
+      "applyTitle": "申請方式",
+      "checklistTitle": "文件清單",
+      "travelTitle": "出發前須知",
+      "colPassport": "護照",
+      "colEntry": "入境方式",
+      "colNotes": "備註",
+      "colItem": "項目",
+      "colAmount": "金額",
+      "vizaFeeNote": "VIZA 的協助免費。您只需支付政府規費，直接繳給核發機關。",
+      "reviewedBy": "由 VIZA 顧問於 {date} 審閱。",
+      "relatedTitle": "相關目的地",
+      "relatedSub": "旅客常一起排入行程的其他地方，以及延伸閱讀。",
+      "startTitle": "開始申請",
+      "startBody": "先準備好護照與旅行日期。VIZA 的協助免費，政府規費由您直接繳給核發機關。",
+      "startConsultBody": "告訴 VIZA 顧問您的居住地、護照與旅行日期。VIZA 的協助免費。",
+      "consultCta": "諮詢顧問"
+    }
+  },
+  "apply": {
+    "stepOf": "第 {n} 步，共 3 步",
+    "back": "返回",
+    "continue": "繼續",
+    "step1Name": "上傳護照",
+    "step2Name": "確認資料",
+    "step3Name": "開始申請",
+    "s1Title": "上傳您的護照",
+    "s1Desc": "我們會自動讀取您的資料，不必手動輸入。請使用資料頁（有您照片的那一頁）。",
+    "segUpload": "上傳檔案",
+    "segCapture": "拍照",
+    "dzTitle": "將護照照片拖曳到這裡",
+    "dzSub": "或點選瀏覽檔案，您的檔案會加密，絕不分享",
+    "dzBrowse": "選擇檔案",
+    "dzUpTo": "最大 10 MB",
+    "tip1Title": "四個角都要入鏡",
+    "tip1Sub": "拍下整個資料頁，包含底部的機讀區（MRZ）。",
+    "tip2Title": "光線明亮均勻",
+    "tip2Sub": "避免手或手機殼的陰影。",
+    "tip3Title": "不要反光",
+    "tip3Sub": "若印章反光，請稍微傾斜角度。",
+    "errReadFail": "無法讀取這本護照：{detail}。請改用更清晰的資料頁照片。",
+    "extReading": "正在讀取文件",
+    "extExtracting": "正在擷取您的資料",
+    "extVerifying": "正在驗證真偽",
+    "stReading": "讀取中…",
+    "stExtracting": "擷取中…",
+    "stVerifying": "驗證中…",
+    "s2Title": "確認您的資料",
+    "s2Desc": "以下資料直接取自您的護照。點一下任一欄位即可修改。",
+    "successHigh": "護照資料擷取成功，可信度高",
+    "warnLow": "部分欄位不易辨識，請逐一核對下方的每個值。",
+    "warnMed": "我們已擷取大部分資料，請核對標示的欄位。",
+    "ppDetails": "護照資料",
+    "autoExtracted": "自動擷取",
+    "fSurname": "姓",
+    "fGiven": "名",
+    "fPassport": "護照號碼",
+    "fDob": "出生日期",
+    "fNationality": "國籍",
+    "fExpires": "效期截止",
+    "reachTitle": "我們要如何聯絡您？",
+    "reachDesc": "我們會把簽證寄到這裡，並以簡訊將進度通知傳到您的手機。",
+    "email": "電子郵件",
+    "phone": "電話",
+    "consent": "我確認以上資料與我的護照相符，並授權 VIZA 代我向{country}移民機關遞交這份申請。",
+    "s3Title": "開始您的申請",
+    "s3Desc": "VIZA 的服務免費。登入 VIZA 平台，接下來交給我們。",
+    "headsUp": "提醒您：",
+    "headsUpBody": "如果{country}政府收取簽證規費，由您直接繳給對方。VIZA 絕不代收，也不加價。",
+    "yourApp": "您的申請",
+    "guaranteedBy": "保證送達時間",
+    "govFee": "政府規費",
+    "expressUpgrade": "加急升級",
+    "total": "合計",
+    "footEncrypted": "端對端加密。VIZA 不向您收取這份申請的費用。",
+    "helpOnline": "顧問 Priya 目前在線上",
+    "helpTap": "點一下，與您的 VIZA 顧問聊天",
+    "totalAmount": "SGD {amount}",
+    "totalFree": "免費",
+    "etaStandard": "2026 年 5 月 12 日上午 8:00（新加坡時間）",
+    "failTitle": "無法讀取這份文件",
+    "failNotPassport": "這看起來不像護照資料頁。請上傳有您照片和個人資料的那一頁。",
+    "failUnreadable": "必要欄位都無法讀取。請在光線充足處重拍，讓整個資料頁平放並清楚對焦。",
+    "tryAgain": "再試一次",
+    "warnPartial": "有些資料無法讀取，請填寫下方標示的欄位。",
+    "warnExpired": "這本護照似乎已過期。大多數目的地要求護照至少還有 6 個月效期。",
+    "warnMrz": "機讀區（底部的兩行字）無法辨識，請逐一核對每個欄位。",
+    "warnBlurry": "照片模糊，請仔細核對每個欄位。",
+    "fieldRequired": "必填，請填寫",
+    "editField": "修改{field}",
+    "emailInvalid": "請輸入有效的電子郵件地址，簽證進度與登入連結都會寄到這裡。",
+    "phoneInvalid": "請輸入有效的電話號碼。",
+    "consentRequired": "請確認聲明後再繼續。",
+    "continueToStart": "繼續",
+    "startTitle": "前往 VIZA 平台繼續",
+    "startSub": "登入或建立免費帳號。這個目的地的申請會立即開啟。",
+    "vizaService": "VIZA 服務",
+    "govFeeSetByAuthority": "由核發機關訂定",
+    "govFeeNote": "政府簽證規費直接繳給核發機關，不是繳給 VIZA。",
+    "completeBeforeStart": "請先完成上方標示的項目再繼續。"
+  },
+  "explore": {
+    "help": "說明",
+    "passportLabel": "{name}護照",
+    "passportSub": "{n} 個目的地的簽證規定 · 排名第 {rank}",
+    "freeLabel": "免簽證",
+    "freeNote": "不用辦手續",
+    "voaLabel": "電子簽證或落地簽證",
+    "voaNote": "交給我們處理",
+    "reqLabel": "需要簽證",
+    "reqNote": "向大使館申請",
+    "fullMap": "查看完整簽證地圖",
+    "grid": "格狀",
+    "map": "地圖",
+    "mapLegendEvisa": "電子簽證與訪客簽證",
+    "mapHint": "將游標移到亮點上，即可預覽目的地",
+    "sectionTitle": "{country}護照適用",
+    "seeAll": "查看全部 {n} 個",
+    "footnote": "VIZA 的服務免費。政府簽證規費由您直接繳給核發機關，金額依國家而不同。",
+    "fastTrack": "快速辦理",
+    "cardType": "類型",
+    "cardValid": "效期",
+    "cardFee": "VIZA 服務",
+    "save": "收藏",
+    "startApplication": "開始申請",
+    "catalogueUnavailable": "目前沒有開放線上申請的目的地，請稍後再回來看看。",
+    "choosePassport": "選擇您的護照",
+    "searchPassport": "搜尋護照國家…",
+    "visaFree": "{n} 個免簽",
+    "ppFoot": "2026 年 5 月更新 · 資料來源：IATA Timatic",
+    "noMatch": "沒有符合「{q}」的護照",
+    "filters": {
+      "delivery": "取得簽證時間",
+      "type": "簽證類型",
+      "documents": "文件",
+      "dates": "旅行日期"
+    },
+    "filterOpts": {
+      "delivery": [
+        "不限時間",
+        "24 小時內",
+        "3 天內",
+        "1 週內",
+        "1 個月內"
+      ],
+      "type": [
+        "所有類型",
+        "觀光",
+        "商務",
+        "工作",
+        "學生",
+        "數位遊牧"
+      ],
+      "documents": [
+        "不限文件",
+        "最少（只需護照）",
+        "標準",
+        "完整文件包"
+      ],
+      "dates": [
+        "選擇日期",
+        "本週",
+        "本月",
+        "3 個月內",
+        "6 個月內"
+      ]
+    }
+  },
+  "cities": {
+    "viza-test": "結帳實測",
+    "indonesia": "峇里島 · 雅加達",
+    "egypt": "開羅 · 吉薩",
+    "australia": "雪梨 · 墨爾本",
+    "saudi-arabia": "利雅德 · 歐拉",
+    "united-kingdom": "倫敦 · 愛丁堡",
+    "vietnam": "河內 · 會安",
+    "malaysia": "吉隆坡 · 檳城",
+    "japan": "東京 · 京都",
+    "united-states": "紐約 · 洛杉磯",
+    "canada": "多倫多 · 溫哥華",
+    "turkiye": "伊斯坦堡 · 卡帕多奇亞",
+    "thailand": "曼谷 · 普吉島",
+    "united-arab-emirates": "杜拜 · 阿布達比",
+    "france": "巴黎 · 尼斯",
+    "italy": "羅馬 · 佛羅倫斯",
+    "india": "德里 · 孟買"
+  },
+  "validity": {
+    "viza-test": "僅供示範",
+    "indonesia": "90 天",
+    "egypt": "90 天",
+    "australia": "1 年",
+    "saudi-arabia": "365 天",
+    "united-kingdom": "6 個月",
+    "vietnam": "90 天",
+    "malaysia": "3 個月",
+    "japan": "90 天",
+    "united-states": "10 年",
+    "canada": "10 年",
+    "turkiye": "180 天",
+    "thailand": "3 個月",
+    "united-arab-emirates": "60 天",
+    "france": "90 天",
+    "italy": "90 天",
+    "india": "30 天"
+  },
+  "passports": {
+    "SG": "新加坡",
+    "JP": "日本",
+    "KR": "南韓",
+    "DE": "德國",
+    "FR": "法國",
+    "GB": "英國",
+    "US": "美國",
+    "AU": "澳洲",
+    "CA": "加拿大",
+    "AE": "阿拉伯聯合大公國",
+    "CN": "中國",
+    "IN": "印度",
+    "BR": "巴西",
+    "PH": "菲律賓",
+    "ID": "印尼",
+    "MY": "馬來西亞",
+    "TH": "泰國"
+  },
+  "countries": {
+    "viza-test": "VIZA 測試",
+    "indonesia": "印尼",
+    "egypt": "埃及",
+    "australia": "澳洲",
+    "saudi-arabia": "沙烏地阿拉伯",
+    "united-kingdom": "英國",
+    "vietnam": "越南",
+    "malaysia": "馬來西亞",
+    "japan": "日本",
+    "united-states": "美國",
+    "canada": "加拿大",
+    "turkiye": "土耳其",
+    "thailand": "泰國",
+    "united-arab-emirates": "阿拉伯聯合大公國",
+    "france": "法國",
+    "italy": "義大利",
+    "india": "印度",
+    "china": "中國",
+    "south-korea": "南韓",
+    "schengen": "申根"
+  },
+  "visaTypes": {
+    "Test checkout": "結帳測試",
+    "e-Visa": "電子簽證",
+    "Standard Visitor": "標準訪客簽證",
+    "Visitor 600": "訪客簽證 600",
+    "Tourist": "觀光",
+    "B1/B2": "B1/B2",
+    "eTA": "eTA",
+    "Schengen": "申根",
+    "eVisa": "電子簽證",
+    "Visitor visa": "訪客簽證",
+    "Tourist visa": "觀光簽證"
+  },
+  "careers": {
+    "hero": {
+      "nowHiring": "目前招募地點",
+      "cities": [
+        "上海",
+        "新加坡"
+      ],
+      "openRoles": "28 個職缺",
+      "title": "和我們一起讓國界<br></br><em>消失</em>，<u>悄悄地，</u><br></br>以軟體的速度。",
+      "lead": "我們把耗時數月的簽證文書，變成幾小時就能完成的軟體流程，服務數百萬只想順利登機的人。帶著您的專業，加入一個要趕上真實世界期限的團隊。",
+      "ctaRoles": "查看所有職缺",
+      "ctaWhy": "我們為何存在"
+    },
+    "board": {
+      "ariaLabel": "列出 VIZA 職缺的航班看板",
+      "head": "職缺 · 即時",
+      "live": "準時",
+      "cols": {
+        "req": "編號",
+        "role": "職位",
+        "office": "辦公室",
+        "status": "狀態"
+      },
+      "rows": [
+        {
+          "role": "資深主任工程師",
+          "sub": "文件處理流程",
+          "status": "登機中"
+        },
+        {
+          "role": "產品設計師",
+          "sub": "申請人流程",
+          "status": "開放中"
+        },
+        {
+          "role": "大使館聯絡專員",
+          "sub": "政府合作",
+          "status": "最後登機"
+        },
+        {
+          "role": "客戶營運",
+          "sub": "第 2 線問題升級處理",
+          "status": "開放中"
+        }
+      ],
+      "foot": "另有 +24 個工程、營運與設計職缺",
+      "browseAll": "瀏覽全部",
+      "chip1Label": "招募據點",
+      "chip1Value": "4 間辦公室",
+      "chip2Label": "平均回覆",
+      "chip2Value": "3.2 天內首次通話"
+    },
+    "stats": [
+      {
+        "value": "2.4M",
+        "label": "去年透過 VIZA 核發的簽證"
+      },
+      {
+        "label": "提供即時辦理的目的地"
+      },
+      {
+        "label": "2025 年所有簽證類型的核准率"
+      },
+      {
+        "label": "上海與新加坡的團隊成員"
+      }
+    ],
+    "mission": {
+      "eyebrow": "我們的故事",
+      "title": "世界上大多數人<br></br>出國時仍帶著<br></br><em>紙本文件。</em>",
+      "kicker1": "我們在 2021 年創立 VIZA，因為受夠了一次又一次在大使館電話線上等好幾週。讓人跨越國界的制度比網際網路還老，困在其中的人值得更好的對待。",
+      "kicker2": "如今，橫跨四間辦公室、340 人的團隊，在 194 個國家開發軟體、遞交文件並經營營運。我們承擔枯燥又累人的工作，讓旅行像網路上的其他事一樣：點幾下，就能出發。",
+      "founderName": "米拉．柯利",
+      "founderRole": "共同創辦人暨執行長 · 新加坡",
+      "beliefs": [
+        {
+          "title": "我們是一家會開發軟體的營運公司。",
+          "body": "VIZA 有一半是工程師、設計師和產品經理，另一半是各國當地的顧問、營運人員與文件專員。少了任何一半，另一半都無法成功。"
+        },
+        {
+          "title": "申請人永遠是我們的客戶。",
+          "body": "大使館、合作夥伴、航空公司都很重要。但凌晨 3 點還在排隊、不停重新整理網頁的那個人，才是我們服務的對象，也是我們衡量自己的標準。"
+        },
+        {
+          "title": "對品質有耐心，速度才會累積。",
+          "body": "我們出貨很快，面對無法挽回的決定則放慢腳步。一個錯誤的簽證決定，可能毀掉一場婚禮、一份工作、一場喪禮。即使會拖慢速度，我們也守住這個標準。"
+        },
+        {
+          "title": "距離是使用體驗的問題，不是限制。",
+          "body": "我們的團隊分布在四個時區。非同步的書面溝通、清楚的權責與良好的文件文化，是我們用時間換取信任的方式，也讓我們能跨越全球出貨而不把任何人累垮。"
+        }
+      ]
+    },
+    "values": {
+      "eyebrow": "我們對自己的要求",
+      "title": "五件我們相信的事，即使代價很高。",
+      "lead": "價值觀寫下來容易，做到很難。以下五項是我們在招募、考核，以及少數艱難決定時真正會用上的。",
+      "cards": [
+        {
+          "title": "說實話，尤其是要付出代價的時候。",
+          "body": "如果簽證來不及下來，今天就說，不要等到出發前一天。我們寧可少做一筆生意，也不交付謊言。",
+          "kicker": "實際做法 → 公開政策、變更稽核"
+        },
+        {
+          "title": "要有真正的進度，而不只是覺得很忙。",
+          "body": "我們讚賞的是決定和完成的工作，而不是會議和討論串。重點是朝使命推進的產出，不是行事曆上的忙碌。",
+          "kicker": "實際做法 → 每季產出檢討"
+        },
+        {
+          "title": "從護照思考，而不是從人物誌思考。",
+          "body": "簽證規定因國籍而異。「使用者」並不存在，存在的是一位申請申根簽證的菲律賓護照持有人。我們為真實的人打造產品，不是為平均值。",
+          "kicker": "實際做法 → 以護照為先的產品規格"
+        },
+        {
+          "title": "把事情寫下來，尤其是決定。",
+          "body": "四間辦公室、四個時區。沒寫下來的決定，就等於沒發生。我們的 wiki 是必讀，站立會議則是選擇性參加。",
+          "kicker": "實際做法 → ADR、每週備忘錄、非同步優先"
+        },
+        {
+          "title": "貼近待辦佇列。",
+          "body": "每位工程師每季都要到顧問現場值一次班。您沒在週日晚上 11 點親身感受過的摩擦，是設計不掉的。",
+          "kicker": "實際做法 → 輪值佇列班表"
+        },
+        {
+          "title": "選擇完整的做法。",
+          "body": "三十秒給出的答案通常是錯的。我們投資在深入的文件、穩健的作業手冊，以及經得起考驗的說明，即使簡單版本就夠用。",
+          "kicker": "實際做法 → 新人手冊、公開作業手冊"
+        }
+      ]
+    },
+    "inside": {
+      "eyebrow": "走進 VIZA",
+      "title": "在這裡工作<br></br>實際上是什麼樣子。",
+      "lead": "我們在兩座城市設有辦公室，因為我們在申請遞交地附近招募人才。我們大聲慶祝成果，不搞辦公室政治，也坦白承認還有多少東西要打造。",
+      "photos": [
+        {
+          "label": "照片 · 新加坡總部，開放式辦公區",
+          "mark": "新加坡巴耶利峇廣場"
+        },
+        {
+          "label": "照片 · 顧問服務區",
+          "mark": "上海羅山路"
+        },
+        {
+          "label": "照片 · 白板討論",
+          "mark": "峇里島技術外訓"
+        },
+        {
+          "label": "照片 · 上海營運辦公區",
+          "mark": "上海浦東"
+        },
+        {
+          "label": "照片 · 團隊聚餐",
+          "mark": "里斯本全員大會"
+        },
+        {
+          "label": "照片 · 大使館合作夥伴來訪",
+          "mark": "新加坡巴耶利峇廣場"
+        }
+      ],
+      "pull": "「我們招募的人在加入前就對簽證有自己的看法。到了第二個月，你的看法會更堅定。」",
+      "pullBy": "工程副總裁 菲力克斯．阿德昆勒",
+      "para1": "VIZA 給予高度自主，也要求充分掌握脈絡。您做的每件事都有明確負責人、真正的預算，也會被期待向全公司說明工作背後的理由。",
+      "para2": "如果您希望每天有人告訴您該做什麼，這裡不適合您。如果您一直在等有人把方向盤交給您，就在這裡。"
+    },
+    "how": {
+      "eyebrow": "VIZA 的工程與營運",
+      "title": "工作實際上如何推進。",
+      "lead": "如果您在這裡開發、遞件或設計，您的一週大概是這樣：少一點儀式，多一點完成的工作；少一點 Slack，多一點寫下來的決定。",
+      "cells": [
+        {
+          "title": "端到端負責",
+          "body": "您設計、開發、上線，並在正式環境中負責到底。沒有交接佇列，也沒有隔了三層的人寫的路線圖。是您的，就真的是您的。"
+        },
+        {
+          "title": "預設每天部署",
+          "body": "大多數團隊一天上線好幾次。回饋循環刻意設計得很緊湊，我們寧可花三十分鐘回滾，也不要爭論三週。"
+        },
+        {
+          "title": "真實又棘手的問題",
+          "body": "這不是單純的增刪改查。您會處理文件 OCR、對接 90 多個政府平台且對延遲敏感的排程，以及數百萬人使用的消費者流程。"
+        },
+        {
+          "title": "標準很高，而且公開",
+          "body": "我們一起做設計審查，在 PR 上逐行留言。我們相信品味可以教，也期待每個人主動幫助身邊的人進步。"
+        },
+        {
+          "title": "真正的學習預算",
+          "body": "每人每年 $2,000，不問理由，可用於研討會、書籍、課程，任何能回饋到工作上的學習都可以。"
+        },
+        {
+          "title": "由您撰寫的架構",
+          "body": "RFC 對所有人開放。新進工程師在第一個月就參與塑造核心基礎架構。如果您有更好的計畫，就寫下來，我們會讀。"
+        }
+      ]
+    },
+    "roles": {
+      "eyebrow": "職缺 · 每週更新",
+      "title": "加入這段旅程。",
+      "lead": "四間辦公室共 28 個職缺。我們招募工程、設計、營運、顧問與合作夥伴開發人才。新職缺每週一上架。",
+      "allDepartments": "所有部門",
+      "deps": {
+        "eng": "工程",
+        "design": "設計",
+        "ops": "營運",
+        "consult": "顧問",
+        "data": "資料與機器學習",
+        "gtm": "行銷與市場拓展"
+      },
+      "showing": "顯示 <strong>{count}</strong> 個職缺 · 所有地點 · 所有團隊",
+      "anyLocation": "不限地點",
+      "groupCount": "{count} 個職缺",
+      "posSub": "{team} · 我們看重專業與判斷力，而非學經歷",
+      "locationLabel": "地點",
+      "typeLabel": "類型",
+      "fullTime": "全職",
+      "viewRole": "查看職缺",
+      "locations": {
+        "sg": "新加坡",
+        "sf": "上海",
+        "ldn": "新加坡",
+        "dxb": "上海"
+      },
+      "jobs": {
+        "backendPayments": "資深後端工程師，平台",
+        "staffDocPipeline": "資深主任工程師：文件處理流程",
+        "iosApplicant": "iOS 工程師：申請人 App",
+        "platformInfra": "平台工程師：基礎架構與資安",
+        "frontendConsole": "前端工程師：顧問控制台",
+        "emWeb": "工程經理：網頁",
+        "sre": "網站可靠性工程師",
+        "androidSenior": "資深 Android 應用程式工程師",
+        "leadEmbassy": "工程主管：大使館系統整合",
+        "productDesignerApplicant": "資深產品設計師：申請人流程",
+        "brandDesigner": "品牌設計師",
+        "designLeadConsultant": "設計主管：顧問工具",
+        "headOpsMe": "中東營運主管",
+        "visaOpsSchengen": "簽證營運主管：申根",
+        "logistics": "物流與快遞經理",
+        "processDocQa": "流程工程師：文件品質管理",
+        "opsAnalyst": "營運分析師：預約",
+        "consultSchengen": "簽證顧問：申根",
+        "consultUs": "簽證顧問：美國 B1/B2",
+        "consultUae": "簽證顧問：阿聯居留",
+        "consultStudent": "資深顧問：學生簽證",
+        "consultApac": "顧問主管：亞太區",
+        "consultUk": "簽證顧問：英國",
+        "dataScientist": "資深資料科學家：核准預測模型",
+        "mlOcr": "機器學習工程師：OCR 與文件 AI",
+        "perfMarketing": "成效行銷經理",
+        "contentLead": "內容主管：品牌敘事",
+        "lifecycleCrm": "生命週期與 CRM 經理"
+      }
+    },
+    "fellowship": {
+      "tag": "▲ VIZA Launchpad 培育計畫 · 為期 12 週的駐點計畫",
+      "title": "十二週，一個產品團隊。<br></br><em>一次機會，做出成品。</em>",
+      "para1": "Launchpad 是我們為職涯初期的工程師、產品經理與設計師開設的駐點計畫，給那些原本還要多累積兩年「經驗」才有機會真正出手的人。",
+      "para2": "您會與資深主管搭檔，從啟動到上線負責一個真實的產品區塊，結束時帶走一項數百萬人會使用的成果。約 60% 的學員會獲得全職錄取。",
+      "meta": [
+        {
+          "k": "期間",
+          "v": "12 週"
+        },
+        {
+          "k": "地點",
+          "v": "進辦公室，任一總部皆可"
+        },
+        {
+          "k": "津貼",
+          "v": "高於市場行情"
+        },
+        {
+          "k": "下一梯次",
+          "v": "2026 年 9 月"
+        }
+      ],
+      "apply": "申請加入 Launchpad 新秀培育計畫",
+      "readCohort": "了解 2025 年梯次",
+      "projects": [
+        {
+          "k": "2024 · 工程",
+          "title": "OCR 流程重寫",
+          "meta1": "已上線正式環境",
+          "meta2": "快 3.2×"
+        },
+        {
+          "k": "2025 · 設計",
+          "title": "申根流程改版",
+          "meta1": "14 國已上線",
+          "meta2": "轉換率 ↑ 22%"
+        },
+        {
+          "k": "2025 · 產品",
+          "title": "大使館時段排程器",
+          "meta1": "9 個大使館",
+          "meta2": "每月 40k 個時段"
+        }
+      ]
+    },
+    "benefits": {
+      "eyebrow": "我們照顧您（說真的）",
+      "title": "那些瑣事，<br></br>我們好好處理。",
+      "lead": "我們不認為福利是額外好處，而是讓人能發揮最佳表現的基本條件。以下是每位 VIZA 員工在每個辦公室、從第一天起都享有的。",
+      "items": [
+        {
+          "title": "完整的健康保障，一次搞定。",
+          "body": "從到職第一天起，提供您、伴侶與子女完整的醫療、牙科與眼科保障。保費由我們支付，沒有自付額的花招。"
+        },
+        {
+          "title": "累積財富，不只是薪水。",
+          "body": "在每個招募市場都提供高於行情的底薪，加上與里程碑掛鉤的優渥股權，而不只看年資。每兩年更新一次。"
+        },
+        {
+          "title": "學真正重要的東西。",
+          "body": "每年 $2,000 學習預算、每月內部分享會，而且在行事曆上給您時間，而不只是允許，去上那門課或參加那場研討會。"
+        },
+        {
+          "title": "像花自己的錢一樣讓客戶滿意。",
+          "body": "每位申請人都有 $100 的額外善意預算。不需核准、不必上報，先解決問題，再寫下經過。"
+        },
+        {
+          "title": "心理健康 > 一切。",
+          "body": "保密且專業的心理健康支持，不必跟保險周旋。另外全公司每月有三天「無會議日」。"
+        },
+        {
+          "title": "旅行福利（不給說不過去）。",
+          "body": "我們做簽證，團隊出國當然要公司請客。每年 $4k 旅遊額度，而且您需要的任何簽證都由 VIZA 內部立即處理。"
+        },
+        {
+          "title": "充足又實在的休假。",
+          "body": "30 天特休，加上您所在國家的國定假日，再加上 12 月 24 日至 1 月 1 日的一週帶薪假。我們追蹤休假情況，鼓勵大家多休，而不是少休。"
+        },
+        {
+          "title": "設備隨您挑。",
+          "body": "第一天就自選筆電、螢幕和椅子，另有居家辦公設備津貼。我們相信您知道自己需要什麼才能把工作做好。"
+        },
+        {
+          "title": "真正可行的育嬰假。",
+          "body": "主要照顧者 20 週、次要照顧者 12 週，全額給薪。另有分階段復工，讓您不必第一天就全速運轉。"
+        }
+      ]
+    },
+    "offices": {
+      "eyebrow": "我們的辦公地點",
+      "title": "兩間辦公室，一個產品。",
+      "lead": "我們在大使館、合作夥伴與服務市場附近招募人才。每間辦公室都同時有工程與營運人員，我們不把打造產品的團隊和現場運作的團隊分開。",
+      "cards": [
+        {
+          "photo": "照片 · 上海",
+          "open": "6 個職缺",
+          "name": "上海",
+          "addr1": "羅山路 1502 弄，",
+          "addr2": "中國（上海）自由貿易試驗區",
+          "tz": "GMT+8 · 中國營運",
+          "since": "自 2023 年起"
+        },
+        {
+          "photo": "照片 · 新加坡總部",
+          "open": "12 個職缺",
+          "name": "新加坡",
+          "addr1": "巴耶利峇路 60 號，巴耶利峇廣場 #06-28，",
+          "addr2": "新加坡 409051",
+          "tz": "GMT+8 · 亞太區總部",
+          "since": "總部 · 自 2021 年起"
+        }
+      ]
+    },
+    "ctaStrip": {
+      "title": "沒看到適合的職缺，<br></br>但想加入？",
+      "body": "如果您背景特別，並認為能幫我們讓全球旅客走得更快，我們很想聽聽您的故事。我們錄用過公車司機、前大使館職員和律師。我們沒有固定的人才樣貌。",
+      "lead": "一般應徵",
+      "cta": "告訴我們您的故事",
+      "note": "我們會在 7 天內回覆，即使結果是婉拒。"
+    },
+    "footer": {
+      "tagline": "VIZA 協助您順利規劃、申請並追蹤世界各地的簽證。",
+      "company": "公司",
+      "products": "產品",
+      "offices": "辦公室",
+      "careers": "工作機會",
+      "contact": "聯絡我們",
+      "security": "資訊安全",
+      "privacy": "隱私權",
+      "terms": "條款",
+      "prodVisaReq": "簽證規定",
+      "prodSchengen": "申根預約查詢",
+      "prodPhoto": "簽證照片製作",
+      "prodHelpline": "VIZA 緊急求助專線",
+      "prodStudent": "學生簽證",
+      "officeSg": "新加坡，總部",
+      "officeSf": "上海",
+      "copyright": "© VIZA，版權所有"
+    }
+  },
+  "security": {
+    "hero": {
+      "eyebrow": "VIZA 資訊安全 · 最後更新於 2026 年 5 月",
+      "title": "保密。透明。<br></br><em>預設即安全。</em>",
+      "lead": "世界各地的客戶把數百萬份敏感文件交給我們，包括護照、銀行對帳單和照片。以下清楚說明我們如何收集、儲存這些文件，以及如何證明我們做得正確。",
+      "ctaPrimary": "我們如何保護您的資料",
+      "ctaVdp": "通報漏洞"
+    },
+    "clearance": {
+      "republicKey": "國別",
+      "officeKey": "核發單位",
+      "officeVal": "信任與安全",
+      "title": "安全許可 /<br></br>客戶資料",
+      "grid": {
+        "encryption": {
+          "k": "加密",
+          "v": "AES-256 / TLS 1.3"
+        },
+        "region": {
+          "k": "資料區域",
+          "v": "新加坡 · 美國 · 歐盟"
+        },
+        "audit": {
+          "k": "稽核頻率",
+          "v": "每季"
+        },
+        "retention": {
+          "k": "保存期限",
+          "v": "最多 90 天"
+        }
+      },
+      "referenceKey": "參考編號",
+      "glyph": "已核可<br></br>VIZA · 26"
+    },
+    "chips": {
+      "transitLabel": "傳輸中",
+      "transitVal": "端對端 TLS 1.3",
+      "restLabel": "儲存時",
+      "restVal": "AES-256，固定資料區域"
+    },
+    "stats": {
+      "docs": {
+        "value": "2.4M",
+        "label": "2025 年處理的文件數，客戶資料外洩零件"
+      },
+      "retention": {
+        "unit": "天",
+        "label": "簽證核發後原始文件的最長保存期限"
+      },
+      "pentests": {
+        "label": "外部滲透測試，所有報告皆於內部公開"
+      },
+      "ack": {
+        "unit": "小時",
+        "label": "通報漏洞後確認收到的時間中位數"
+      }
+    },
+    "docs": {
+      "eyebrow": "我們收集什麼",
+      "title": "五種文件。<br></br><em>僅此而已。</em>",
+      "copy1": "簽證申請本質上是文書問題。我們只收集大使館明確要求的資料，並盡可能匿名化。每份文件只對應一件申請案，收到即加密，並按固定時程清除。",
+      "copy2": "我們絕不販售您的資料，除了直接處理您簽證的領事館或合作夥伴之外，也絕不與第三方分享。",
+      "cards": {
+        "payment": {
+          "name": "付款資訊",
+          "meta": "不收集"
+        },
+        "photos": {
+          "name": "簽證照片",
+          "meta": "處理後保存 · 最多 90 天"
+        },
+        "bank": {
+          "name": "銀行對帳單",
+          "meta": "遮蔽處理 · 僅限 PDF"
+        },
+        "pastVisas": {
+          "name": "過往簽證",
+          "meta": "唯讀 · OCR"
+        },
+        "passport": {
+          "name": "護照",
+          "meta": "擷取 MRZ"
+        }
+      }
+    },
+    "features": {
+      "eyebrow": "七項防護，全天啟用",
+      "title": "讓您的資料<br></br>從頭到<em>尾</em>都屬於您。",
+      "intro": "在 VIZA，每個位元組的預設狀態都是「已加密、限定範圍、有時效」。以下七項防護讓這成為事實，它們不是願景，而是目前已實際建置在平台中的機制。",
+      "cells": {
+        "minimise": {
+          "title": "資料最小化與匿名化",
+          "body": "我們只收集大使館或合作夥伴對特定申請真正要求的資料，其餘只要平台允許就匿名化。表格裡沒有的欄位，我們就不儲存。",
+          "why": "<strong>原因：</strong>從未收集的資料，就不可能因外洩而曝光。"
+        },
+        "payments": {
+          "title": "不處理付款資料",
+          "body": "VIZA 的服務免費，我們不收款，所以從不要求、查看或儲存信用卡號碼。",
+          "why": "<strong>原因：</strong>我們從未持有的資料，就不可能被竊取。"
+        },
+        "atRest": {
+          "title": "儲存加密",
+          "body": "VIZA 伺服器上的每份文件、訊息與中繼資料欄位，在寫入磁碟前都以 AES-256 加密。金鑰會自動輪替，並存放在硬體支援的 KMS 中，連我們的基礎架構團隊都無法直接讀取。",
+          "why": "<strong>原因：</strong>即使硬碟或備份遭竊，沒有金鑰也無法讀取。"
+        },
+        "inTransit": {
+          "title": "端對端加密",
+          "body": "您的裝置、我們的伺服器與合作領事館之間的所有流量，都使用 TLS 1.3 並嚴格綁定憑證。文件上傳走另一條經簽章的通道，即使是網路層的攻擊者也看不到您傳送的內容。",
+          "why": "<strong>原因：</strong>有風險的網路，包括機場 Wi-Fi，都讀不到您的申請。"
+        },
+        "audits": {
+          "title": "定期資安稽核",
+          "body": "我們每季進行外部滲透測試，每年接受 SOC 2 Type II 稽核，並持續自動掃描漏洞。每項發現都會記錄修復期限，逾期項目會通知工程主管。",
+          "why": "<strong>原因：</strong>威脅不斷變化，我們的防護也按時接受檢驗。"
+        },
+        "access": {
+          "title": "安全的存取控管",
+          "body": "內部對客戶資料的存取依角色限定、每次請求都受稽核，並採即時提權授權。顧問只能看到自己正在處理的申請案。每次讀取都會記錄並保存 12 個月。",
+          "why": "<strong>原因：</strong>內部失誤與濫用都能受到控制、追溯責任並接受審查。"
+        },
+        "education": {
+          "title": "使用者教育與意識",
+          "body": "資安最難的部分，是我們無法替您完成的那一塊。您一開始申請，我們就會寄送淺顯易懂的指南，說明網路釣魚、護照照片詐騙和假冒大使館的簡訊；一旦發現異常，也會立即在產品中再次提醒。您是最後一道防線，我們寧可讓您做好準備，也不願事後怪您。",
+          "why": "<strong>原因：</strong>資訊充足的申請人，是我們成本最低、效果最好的資安防護。"
+        }
+      }
+    },
+    "vdp": {
+      "tag": "▲ 漏洞揭露 · 歡迎所有研究人員",
+      "title": "發現了什麼嗎？<br></br><em>我們想知道。</em>",
+      "p1": "使用者與合作夥伴的安全對我們至關重要。如果您認為發現了影響 VIZA 服務的真實漏洞，請直接告訴我們，我們會以尊重的態度與您合作，盡快修復。",
+      "p2": "請將發現寄至 <strong>security@viza.it.com</strong>。我們會在一個工作天內確認收到，即使該問題已知或不在範圍內。",
+      "meta": {
+        "ack": {
+          "k": "確認收到",
+          "v": "'<' 24 小時"
+        },
+        "triage": {
+          "k": "完成分級",
+          "v": "3 個工作天"
+        },
+        "lang": {
+          "k": "語言",
+          "v": "英文 · 印尼文 · 阿拉伯文"
+        },
+        "pgp": {
+          "k": "PGP 金鑰",
+          "v": "0xVIZA · 2026"
+        }
+      },
+      "ctaEmail": "寄信至 security@viza.it.com",
+      "ctaScope": "閱讀範圍說明",
+      "terminal": {
+        "title": "報告草稿 · security@viza.it.com",
+        "l1": "# 漏洞通報",
+        "typeKey": "類型：",
+        "typeVal": "繞過身分驗證",
+        "urlKey": "網址：",
+        "reproKey": "重現：",
+        "reproVal": "[步驟 1 至 4]",
+        "impactKey": "影響：",
+        "impactVal": "帳號遭接管",
+        "pocKey": "概念驗證：",
+        "l7": "# ↳ 已使用金鑰 0xVIZA 加密完成",
+        "send": "送出"
+      }
+    },
+    "report": {
+      "eyebrow": "通報漏洞",
+      "title": "報告裡該寫什麼，<br></br>以及<em>不該寫什麼。</em>",
+      "intro": "一份好報告能為雙方省下一週。以下是最快完成分級的格式，還有我們真的不希望收到的東西。",
+      "include": {
+        "heading": "請包含",
+        "sub": "五個欄位。寫得越清楚，我們就能越快確認並修復。",
+        "items": {
+          "type": "<strong>問題類型</strong>：例如身分驗證、存取控制、注入、IDOR、SSRF。",
+          "steps": "<strong>清楚的重現步驟</strong>：依序編號，盡可能在乾淨的工作階段中進行。",
+          "impact": "<strong>可能的安全影響</strong>：用淺白的語言說明攻擊者能藉此做什麼。",
+          "poc": "<strong>概念驗證</strong>：最好附上截圖或簡短的螢幕錄影，其次才是日誌。"
+        }
+      },
+      "dontSend": {
+        "heading": "請不要寄送",
+        "sub": "這些內容不安全、沒幫助，或兩者皆是，我們收到後必須刪除。",
+        "items": {
+          "secrets": "<strong>密碼或驗證權杖</strong>，無論是您的還是別人的。請展示攻擊途徑，而不是機密本身。",
+          "malware": "<strong>原始惡意程式樣本或竊密日誌。</strong>請描述您看到的內容，不要附上檔案。",
+          "scanners": "<strong>大型自動化掃描報告</strong>，卻沒有經過挑選並實際驗證的發現。",
+          "customerData": "<strong>客戶的個人資料或文件</strong>，即使那是您發現問題的依據。",
+          "socialEng": "<strong>針對我們員工或顧問的社交工程攻擊錄音錄影。</strong>"
+        }
+      }
+    },
+    "scope": {
+      "eyebrow": "計畫範圍",
+      "title": "哪些在範圍內，哪些不在。",
+      "intro": "如果不確定報告是否在此清單內，還是請寄來並提問。我們寧可分級後繼續處理，也不希望您因為界線不明而擱置一個真實的問題。",
+      "fileRef": "/資安/範圍說明.md · 第 6 版",
+      "in": {
+        "pill": "範圍內",
+        "heading": "我們會主動分級處理的報告",
+        "items": {
+          "web": "<code>*.viza.com</code> 下的 VIZA 網頁應用程式與 API，包括申請人平台、顧問控制台與合作夥伴端點。",
+          "infra": "VIZA 自有的基礎架構與服務：身分驗證、文件處理流程、排程。",
+          "mobile": "以 VIZA 開發者帳號發布的行動應用程式（iOS、Android）。",
+          "marketing": "VIZA 所控管網域下的公開行銷與內容網站。"
+        }
+      },
+      "out": {
+        "pill": "範圍外",
+        "heading": "本計畫無法處理的報告",
+        "items": {
+          "devices": "因使用者裝置遭入侵、瀏覽器擴充功能或帳密遭竊而造成的問題。",
+          "phishing": "針對 VIZA 員工、合作夥伴或顧問的社交工程或網路釣魚攻擊。",
+          "thirdParty": "非由 VIZA 直接營運的第三方服務或整合（領事館平台、快遞網站）。",
+          "scanners": "未能證明在真實環境中可被利用的自動化掃描結果。",
+          "headers": "缺少安全標頭，或沒有實際攻擊路徑的一般最佳實務建議。"
+        }
+      }
+    },
+    "pledge": {
+      "eyebrow": "負責任的揭露",
+      "title": "我們彼此之間的<br></br>約定。",
+      "intro": "揭露機制之所以有效，是因為雙方都秉持善意。以下是我們對您的請求，以及您可以要求我們做到的事，白紙黑字寫清楚，誰都不必猜。",
+      "researcher": {
+        "kicker": "我們對您的請求",
+        "title": "研究人員<em>承諾。</em>",
+        "p": "提交報告即表示您同意秉持善意，遵守本計畫的精神，而不只是字面規定。",
+        "items": {
+          "1": "秉持善意：研究期間避免侵犯隱私、破壞資料或干擾服務。",
+          "2": "利用漏洞時不超過確認問題所需的最低限度，絕不存取不屬於您的資料。",
+          "3": "在我們完成修復並與您確認之前，對漏洞細節保密。",
+          "4": "未經 VIZA 資安團隊事先書面同意，不公開揭露發現。"
+        }
+      },
+      "viza": {
+        "kicker": "您可以要求我們做到的事",
+        "title": "VIZA <em>承諾。</em>",
+        "p": "作為回報，我們不會對通報者已讀不回，不會為了逃避修復而爭論嚴重程度，也不會控告幫助我們的人。",
+        "items": {
+          "1": "無論嚴重程度，我們都會審閱每份有效報告，並在一個工作天內回覆。",
+          "2": "我們會以尊重的態度溝通，不用防衛性的語言，也不會用「設計如此」敷衍了事。",
+          "3": "必要時我們會採取適當的修補措施，並在修復上線時通知您。",
+          "4": "問題解決後，我們會（經您同意）在資安更新紀錄中註明您的貢獻。"
+        }
+      }
+    },
+    "legal": {
+      "eyebrow": "法律與獎勵",
+      "title": "安全港、漏洞獎金，<br></br>以及細則。",
+      "intro": "只要您秉持善意遵守本政策，我們就視您的研究為已獲授權。本頁其餘內容雖然枯燥但很重要，我們攤開來寫，不藏起來。",
+      "cards": {
+        "safeHarbour": {
+          "title": "法律安全港",
+          "body": "只要您秉持善意遵守本政策，VIZA 不會因您研究過程中意外或非故意的違規而對您提起法律行動。您仍須遵守適用的法律與法規。"
+        },
+        "rewards": {
+          "title": "獎勵與漏洞獎金",
+          "body": "VIZA 目前沒有公開的漏洞獎金計畫。對於有效且以負責任方式通報的問題，我們會酌情致贈謝禮，依影響程度、新穎性與報告品質評估。",
+          "meta": "酌情 · 個案評估"
+        },
+        "updates": {
+          "title": "計畫更新",
+          "body": "VIZA 保留隨時修改或終止本計畫的權利。若不確定您的研究是否符合本政策，請在進行<em>之前</em>先寄信至 security@viza.it.com 與我們聯絡。",
+          "meta": "最後修訂 · 2026 年 5 月"
+        }
+      }
+    },
+    "cta": {
+      "title": "發現不對勁？<br></br>告訴我們的資安團隊。",
+      "body": "我們寧可聽到同一個小問題兩次，也不想漏掉一次大問題。報告會直接送到資安團隊的真人手上，沒有工單系統，也沒有分級機器人。",
+      "lead": "直通資安團隊",
+      "small": "回覆時間中位數：24 小時內，一週七天皆是。"
+    },
+    "footer": {
+      "tagline": "VIZA 協助您順利規劃、申請並追蹤世界各地的簽證。",
+      "company": "公司",
+      "careers": "工作機會",
+      "contact": "聯絡我們",
+      "security": "資訊安全",
+      "privacy": "隱私權",
+      "terms": "條款",
+      "products": "產品",
+      "prodVisaReq": "簽證規定",
+      "prodSchengen": "申根預約查詢",
+      "prodPhoto": "簽證照片製作",
+      "prodHelpline": "VIZA 緊急求助專線",
+      "prodStudent": "學生簽證",
+      "offices": "辦公室",
+      "officeSg": "新加坡，總部",
+      "officeSf": "上海",
+      "copyright": "© VIZA，版權所有"
+    }
+  },
+  "status": {
+    "crumbHome": "透明度",
+    "crumbHere": "系統狀態",
+    "hero": {
+      "title": "系統狀態",
+      "lead": "VIZA 及合作政府簽證平台的可用性，全部有據可查。以下每個百分比、時間軸長條和事件，都來自已記錄的模擬檢測。"
+    },
+    "console": {
+      "title": "VIZA 可靠性 · 即時",
+      "live": "已驗證",
+      "unverified": "未驗證",
+      "allOperational": "所有系統運作正常",
+      "degraded": "部分系統效能下降",
+      "majorOutage": "有受監控的系統無法使用",
+      "dataUnavailable": "無法取得監控資料",
+      "lastChecked": "最近一次記錄的檢測：{time}",
+      "noChecks": "尚未記錄任何完成的檢測",
+      "kUptime": "90 天內檢測通過率",
+      "kMonitors": "受監控的端點",
+      "kIncidents": "進行中的事件"
+    },
+    "subnav": {
+      "current": "目前狀態",
+      "incidents": "過往事件",
+      "subscribe": "訂閱",
+      "searchPlaceholder": "搜尋國家",
+      "subscribeBtn": "訂閱更新通知"
+    },
+    "platform": {
+      "title": "VIZA 平台",
+      "realMeta": "每 5 分鐘檢測一次 · {count} 個端點",
+      "meta": "每 5 分鐘檢測一次",
+      "name": "VIZA 申請平台",
+      "sub": "VIZA 公開服務"
+    },
+    "uptime": {
+      "ago": "90 天前",
+      "today": "今天",
+      "pct": "檢測通過率 {pct}%",
+      "noData": "沒有檢測記錄"
+    },
+    "dayObservation": "{date}：{checks} 次檢測記錄",
+    "dayNoData": "{date}：沒有記錄資料",
+    "dayTitle": "第 {n} 天",
+    "statusLabels": {
+      "op": "運作正常",
+      "deg": "效能下降",
+      "part": "部分中斷",
+      "maj": "無法使用",
+      "none": "目前沒有資料"
+    },
+    "lastChecked": "檢測時間 {time}",
+    "monitorStale": "檢測缺漏或過時",
+    "monitoringUnavailable": "狀態 API 沒有最新的檢測證據。VIZA 不會把快取或產生的可用性資料當成目前的服務狀態顯示。",
+    "noSearchResults": "沒有符合搜尋條件的受監控國家。",
+    "noRecordedIncidents": "過去 90 天內，已記錄的檢測中沒有推導出任何事件。",
+    "incidentCount": "{count, plural, one {# 起事件} other {# 起事件}}",
+    "incidentRecovered": "檢測記錄顯示這項服務已經恢復。",
+    "noIssues": "沒有進行中的問題",
+    "activeIncident": "進行中的事件",
+    "portalsHead": {
+      "title": "政府平台",
+      "lead": "我們每五分鐘對每個已設定的平台發送一次有限度的模擬請求。灰色歷史代表當時沒有記錄觀測結果，絕不會用估計資料填補。"
+    },
+    "incidentsHead": {
+      "title": "過往事件",
+      "lead": "事件依據保存的監控狀態變化而開啟與結案。這是系統運作可用性，不是申請人個人的簽證審核狀態。"
+    },
+    "tags": {
+      "identified": "已確認原因",
+      "investigating": "調查中",
+      "resolved": "已解決"
+    },
+    "portals": {
+      "AE": {
+        "name": "阿拉伯聯合大公國",
+        "sub": "GDRFA · ICA 平台"
+      },
+      "AM": {
+        "name": "亞美尼亞",
+        "sub": "電子簽證平台"
+      },
+      "AU": {
+        "name": "澳洲",
+        "sub": "澳洲移民局線上申請帳戶 ImmiAccount"
+      },
+      "AZ": {
+        "name": "亞塞拜然",
+        "sub": "ASAN Visa 電子簽證"
+      },
+      "DE": {
+        "name": "德國",
+        "sub": "VIDEX · 領事館預約時段"
+      },
+      "DK": {
+        "name": "丹麥"
+      },
+      "EG": {
+        "name": "埃及",
+        "sub": "電子簽證平台"
+      },
+      "FI": {
+        "name": "芬蘭",
+        "sub": "芬蘭移民局的線上申請服務 EnterFinland"
+      },
+      "FR": {
+        "name": "法國",
+        "sub": "法國政府的簽證線上申請網站 France-Visas"
+      },
+      "GB": {
+        "name": "英國",
+        "sub": "UKVCAS · 英國簽證",
+        "bannerText": "部分申請類型目前發生中斷。",
+        "bannerLink": "查看事件時間軸"
+      },
+      "GE": {
+        "name": "喬治亞"
+      },
+      "GR": {
+        "name": "希臘",
+        "sub": "AEGEAN · 領事服務"
+      },
+      "HK": {
+        "name": "香港",
+        "sub": "香港入境處 eVisa"
+      },
+      "ID": {
+        "name": "印尼",
+        "sub": "印尼電子簽證"
+      },
+      "IN": {
+        "name": "印度",
+        "sub": "印度線上簽證系統"
+      },
+      "JO": {
+        "name": "約旦"
+      },
+      "KE": {
+        "name": "肯亞",
+        "sub": "肯亞 eCitizen 電子簽證平台"
+      },
+      "KH": {
+        "name": "柬埔寨"
+      },
+      "LK": {
+        "name": "斯里蘭卡",
+        "sub": "ETA 平台"
+      },
+      "MA": {
+        "name": "摩洛哥"
+      },
+      "TH": {
+        "name": "泰國",
+        "sub": "泰國電子簽證"
+      }
+    },
+    "incidents": {
+      "count": "<strong>{count}</strong> 個{count, plural, one {國家} other {國家}}出現效能問題",
+      "events": "{count, plural, one {# 則事件記錄} other {# 則事件記錄}}",
+      "days": [
+        {
+          "date": "2026 年 5 月 10 日",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "5 月 10 日下午 3:05",
+                  "desc": "此事件已解決，服務已恢復正常運作。"
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "5 月 10 日下午 5:05",
+                  "desc": "此事件已解決，服務已恢復正常運作。"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2026 年 5 月 9 日",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "5 月 9 日下午 10:50",
+                  "desc": "我們正在調查失敗率升高的問題。"
+                },
+                {
+                  "time": "5 月 10 日上午 12:20",
+                  "desc": "嚴重程度由效能下降升級為部分中斷。"
+                },
+                {
+                  "time": "5 月 10 日上午 2:50",
+                  "desc": "嚴重程度由部分中斷升級為重大中斷。"
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "5 月 9 日下午 3:05",
+                  "desc": "我們正在調查失敗率升高的問題。"
+                },
+                {
+                  "time": "5 月 9 日下午 7:20",
+                  "desc": "嚴重程度由部分中斷升級為重大中斷。"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2026 年 5 月 8 日",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "5 月 8 日下午 1:05",
+                  "desc": "我們正在調查失敗率升高的問題。"
+                },
+                {
+                  "time": "5 月 8 日下午 2:05",
+                  "desc": "此事件已解決，服務已恢復正常運作。"
+                },
+                {
+                  "time": "5 月 8 日下午 2:50",
+                  "desc": "我們正在調查失敗率升高的問題。"
+                },
+                {
+                  "time": "5 月 8 日下午 7:35",
+                  "desc": "此事件已解決，服務已恢復正常運作。"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2026 年 5 月 5 日",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "5 月 5 日下午 1:36",
+                  "desc": "嚴重程度由效能下降升級為部分中斷。"
+                },
+                {
+                  "time": "5 月 5 日下午 4:50",
+                  "desc": "此事件已解決。"
+                },
+                {
+                  "time": "5 月 5 日下午 9:20",
+                  "desc": "我們正在調查失敗率升高的問題。"
+                },
+                {
+                  "time": "5 月 5 日下午 10:20",
+                  "desc": "此事件已解決。"
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "5 月 5 日下午 2:43",
+                  "desc": "此事件已解決。"
+                },
+                {
+                  "time": "5 月 5 日下午 3:35",
+                  "desc": "我們正在調查失敗率升高的問題。"
+                },
+                {
+                  "time": "5 月 5 日下午 7:35",
+                  "desc": "嚴重程度由部分中斷升級為重大中斷。"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2026 年 5 月 4 日",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "5 月 4 日下午 4:05",
+                  "desc": "我們正在調查失敗率升高的問題。"
+                },
+                {
+                  "time": "5 月 4 日下午 5:05",
+                  "desc": "此事件已解決。"
+                },
+                {
+                  "time": "5 月 4 日下午 7:36",
+                  "desc": "我們正在調查失敗率升高的問題。"
+                },
+                {
+                  "time": "5 月 4 日下午 8:35",
+                  "desc": "此事件已解決。"
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "5 月 4 日下午 12:05",
+                  "desc": "此事件已解決。"
+                },
+                {
+                  "time": "5 月 4 日下午 1:50",
+                  "desc": "我們正在調查失敗率升高的問題。"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2026 年 5 月 2 日",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "5 月 2 日下午 6:35",
+                  "desc": "我們正在調查失敗率升高的問題。"
+                },
+                {
+                  "time": "5 月 2 日下午 7:50",
+                  "desc": "此事件已解決。"
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "5 月 2 日上午 9:20",
+                  "desc": "我們正在調查失敗率升高的問題。"
+                },
+                {
+                  "time": "5 月 2 日上午 10:20",
+                  "desc": "此事件已解決。"
+                },
+                {
+                  "time": "5 月 2 日下午 8:20",
+                  "desc": "我們正在調查失敗率升高的問題。"
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "5 月 2 日下午 8:20",
+                  "desc": "我們正在調查失敗率升高的問題。"
+                },
+                {
+                  "time": "5 月 3 日上午 12:05",
+                  "desc": "此事件已解決。"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2026 年 5 月 1 日",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "5 月 1 日下午 2:05",
+                  "desc": "我們正在調查失敗率升高的問題。"
+                },
+                {
+                  "time": "5 月 1 日下午 3:05",
+                  "desc": "此事件已解決。"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2026 年 4 月 30 日",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "4 月 30 日上午 8:20",
+                  "desc": "我們正在調查失敗率升高的問題。"
+                },
+                {
+                  "time": "4 月 30 日上午 9:50",
+                  "desc": "此事件已解決。"
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "4 月 30 日下午 3:05",
+                  "desc": "此事件已解決。"
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "4 月 30 日下午 4:51",
+                  "desc": "此事件已解決。"
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "4 月 30 日下午 1:20",
+                  "desc": "我們正在調查失敗率升高的問題。"
+                },
+                {
+                  "time": "4 月 30 日下午 2:37",
+                  "desc": "嚴重程度由效能下降升級為部分中斷。"
+                },
+                {
+                  "time": "4 月 30 日下午 8:20",
+                  "desc": "此事件已解決。"
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "4 月 30 日下午 6:50",
+                  "desc": "此事件已解決。"
+                },
+                {
+                  "time": "4 月 30 日下午 7:50",
+                  "desc": "我們正在調查失敗率升高的問題。"
+                },
+                {
+                  "time": "5 月 1 日上午 12:20",
+                  "desc": "此事件已解決。"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "subscribe": {
+      "title": "系統一出狀況，<br></br>您第一個知道。",
+      "lead": "選擇您關心的國家，當它們的平台或我們的平台中斷或恢復上線時，我們會寄給您一則簡單易懂的更新。",
+      "emailLabel": "以電子郵件接收事件更新",
+      "button": "訂閱",
+      "follow": "或透過以下方式追蹤狀態：",
+      "chipEmail": "電子郵件摘要",
+      "chipSms": "簡訊與 WhatsApp",
+      "chipRss": "RSS 訂閱",
+      "chipWebhook": "給維運團隊使用的 Webhook"
+    },
+    "footer": {
+      "tagline": "VIZA 協助您順利規劃、申請並追蹤世界各地的簽證。",
+      "company": "公司",
+      "careers": "工作機會",
+      "contact": "聯絡我們",
+      "security": "資訊安全",
+      "systemStatus": "系統狀態",
+      "privacy": "隱私權",
+      "terms": "條款",
+      "products": "產品",
+      "prodVisaReq": "簽證規定",
+      "prodSchengen": "申根預約查詢",
+      "prodPhoto": "簽證照片製作",
+      "prodHelpline": "VIZA 緊急求助專線",
+      "copyright": "© VIZA，版權所有"
+    }
+  },
+  "arrival": {
+    "breadcrumbHome": "首頁",
+    "breadcrumbHub": "入境卡",
+    "hubH1": "入境卡指南",
+    "hubLead": "入境卡是入境某個國家前要填寫的簡短政府表格。大多數可線上填寫、免費，約五分鐘就能完成。這些指南說明誰需要填哪一張、何時送出，以及如何避開收費的假網站。",
+    "hubWhatTitle": "什麼是入境卡",
+    "hubWhat": [
+      "入境卡是目的地在護照和簽證之外要求的申報。它記錄您的身分、抵達方式與住宿地點。許多國家已把機上發的紙本卡改成線上表格。",
+      "入境卡不是簽證。簽證讓您可以申請入境；入境卡則是向邊境機關說明您的行程。若您的國籍需要簽證，仍然必須辦理。"
+    ],
+    "hubFreeTitle": "入境卡免費",
+    "hubFree": [
+      "這些指南裡的每一張入境卡，在政府官方網站上都是免費的。有些網站會仿製政府表格並收費，您完全不需要付錢給它們。",
+      "請一律從各指南列出的官方網址開始。VIZA 是獨立的服務，並非政府網站。"
+    ],
+    "hubWhenTitle": "什麼時候需要",
+    "hubWhen": [
+      "大多數入境卡在抵達前三天開放，必須在這段期間內送出。確切規定請看各篇指南，例如日本的 Visit Japan Web 沒有固定期限，也不是必填。",
+      "居民、公民和過境旅客通常可以免填，或只需填較短的表格。每篇指南都列出免填對象，包括新加坡公民免填馬來西亞 MDAC 的規定。"
+    ],
+    "hubGuidesTitle": "所有指南",
+    "hubGuidesSub": "選擇您的目的地。每篇指南都有步驟、常見錯誤與官方連結。",
+    "readGuide": "閱讀指南",
+    "cardWhen": "時間",
+    "cardsLabel": "入境卡",
+    "hubVisaTitle": "也需要簽證嗎",
+    "hubVisaBody": "入境卡不能取代簽證。請到目的地頁面，查看您的護照是否需要簽證。",
+    "hubVisaCta": "瀏覽簽證頁面",
+    "glanceTitle": "重點一覽",
+    "stepsTitle": "逐步填寫教學",
+    "mistakesTitle": "常見錯誤",
+    "feesTitle": "費用與假網站",
+    "faqTitle": "常見問題",
+    "sourcesTitle": "資料來源",
+    "relatedTitle": "其他入境卡指南",
+    "independent": "VIZA 是獨立的服務，並非政府網站。",
+    "officialCta": "開啟官方網站",
+    "officialLabel": "官方網站",
+    "vizaTitle": "交給 VIZA 幫您填",
+    "vizaBody": "在您的 VIZA 帳號中開始填寫 {name}。VIZA 的表格會帶您回答與官方表格相同的問題，並保存您的資料供下次旅行使用。您也隨時可以改用免費的官方網站。",
+    "vizaFee": "VIZA 服務費",
+    "vizaFeeFree": "免費",
+    "vizaCta": "在 VIZA 開始",
+    "noVizaTitle": "請使用官方網站",
+    "noVizaBody": "VIZA 目前還不能代填這張入境卡。請使用下方的官方網站，並先閱讀本指南的步驟。",
+    "visaTitle": "{country}簽證",
+    "visaBody": "入境卡和簽證是分開的。查看哪些人需要{country}簽證、費用與申請方式。",
+    "visaCta": "開啟{country}簽證頁面",
+    "reviewedTitle": "查核日期：2026 年 11 月 25 日",
+    "stepLabel": "步驟",
+    "cards": {
+      "malaysia-mdac": {
+        "summary": "給外國旅客的免費線上入境卡。新加坡公民免填。",
+        "when": "抵達前 3 天內"
+      },
+      "singapore-sg-arrival-card": {
+        "summary": "ICA 的線上入境卡，含健康申報。可在網站或 MyICA app 送出。",
+        "when": "抵達前 3 天內"
+      },
+      "japan-visit-japan-web": {
+        "summary": "免費取得入境審查與海關用的 QR code。建議使用，但非必要。",
+        "when": "搭機前"
+      },
+      "thailand-tdac": {
+        "summary": "所有外國旅客都要填的免費入境卡，不論是否免簽。已取代紙本 TM6。",
+        "when": "抵達前 3 天內"
+      },
+      "korea-e-arrival-card": {
+        "summary": "自 2026 年 1 月 1 日起必填。持有效 K-ETA 者免填。",
+        "when": "抵達前 3 天內"
+      },
+      "indonesia-all-indonesia": {
+        "summary": "一張卡涵蓋入境、海關與健康申報。免費，而且不是簽證。",
+        "when": "最早可於抵達前 3 天填寫"
+      }
+    }
+  },
+  "guides": {
+    "breadcrumbHome": "首頁",
+    "breadcrumbHub": "指南",
+    "hubH1": "給新加坡居民的簽證指南",
+    "hubLead": "無論您持新加坡、中國、印度或菲律賓護照，這些指南都在回答同一個問題：入境這個國家需要什麼，以及在新加坡要去哪裡申請。每篇指南都註明資料來源與查核日期。",
+    "hubGuidesTitle": "所有指南",
+    "hubGuidesSub": "選一個主題。規定會變動，所以每篇指南都列出出發前應查看的官方網頁。",
+    "readGuide": "閱讀指南",
+    "hubMoreTitle": "VIZA 的更多內容",
+    "hubMoreBody": "想找特定國家、入境卡或最新的規定變動？",
+    "hubDestinations": "簽證頁面",
+    "hubArrival": "入境卡指南",
+    "hubNews": "簽證新聞",
+    "glanceTitle": "快速解答",
+    "relatedVisaTitle": "目的地頁面",
+    "relatedVisaSub": "給新加坡居民的費用、文件與步驟說明。",
+    "relatedArrivalTitle": "入境卡指南",
+    "relatedGuidesTitle": "更多指南",
+    "faqTitle": "常見問題",
+    "sourcesTitle": "資料來源",
+    "reviewedTitle": "我們如何查核",
+    "published": "發布日期",
+    "updated": "更新日期",
+    "independent": "VIZA 是獨立的服務，並非政府網站。"
+  },
+  "ds": {
+    "header": {
+      "home": "VIZA 首頁",
+      "primary": "主選單",
+      "language": "語言",
+      "signIn": "登入",
+      "openMenu": "開啟選單",
+      "closeMenu": "關閉選單",
+      "nav": {
+        "home": "首頁",
+        "destinations": "目的地",
+        "arrivalCards": "入境卡",
+        "guides": "指南",
+        "news": "最新消息",
+        "about": "關於我們",
+        "contact": "聯絡我們"
+      }
+    },
+    "footer": {
+      "home": "VIZA 首頁",
+      "tagline": "簽證申請由 VIZA 的 AI 準備，再由顧問檢查。免費使用。",
+      "explore": "探索",
+      "follow": "追蹤我們",
+      "followOn": "在 {platform} 追蹤 VIZA",
+      "links": {
+        "destinations": "目的地",
+        "arrivalCards": "入境卡",
+        "guides": "指南",
+        "news": "最新消息",
+        "about": "關於我們",
+        "contact": "聯絡我們",
+        "careers": "工作機會",
+        "security": "資訊安全",
+        "status": "系統狀態"
+      },
+      "copyright": "© {year} VIZA。版權所有。",
+      "office": "註冊地址：新加坡巴耶利峇路（Paya Lebar Road）60 號，巴耶利峇廣場 #06-28，郵遞區號 409051",
+      "privacy": "隱私權",
+      "terms": "條款",
+      "kelin": "Kelin Studio 旗下事業",
+      "refunds": "退款",
+      "business": "公司資訊"
+    },
+    "form": {
+      "fullName": {
+        "label": "您的姓名",
+        "placeholder": "陳美玲"
+      },
+      "email": {
+        "label": "電子郵件"
+      },
+      "phone": {
+        "label": "電話"
+      },
+      "destination": {
+        "label": "目的地",
+        "placeholder": "日本、申根、美國"
+      },
+      "message": {
+        "label": "您的問題",
+        "placeholder": "您要去哪裡、持哪國護照，以及出發日期。"
+      },
+      "submit": "傳送訊息",
+      "sending": "傳送中",
+      "success": "謝謝，我們已收到您的訊息，會以電子郵件回覆。",
+      "error": "訊息無法送出。請再試一次，或寄信至 sales@kelin.studio。",
+      "consent": "送出即表示您同意我們的<privacy>隱私權政策</privacy>與<terms>條款</terms>。"
+    },
+    "gallery": {
+      "title": "目的地",
+      "lede": "選一個目的地，查看您需要的簽證、文件與政府規費。",
+      "view": "查看",
+      "passportSummary": "{free} 個免簽 · {voa} 個電子簽證或落地簽證 · {req} 個需簽證",
+      "noResults": "沒有符合搜尋條件的目的地。",
+      "sorts": {
+        "featured": "精選",
+        "open": "可申請的優先",
+        "name": "依名稱排序"
+      }
+    },
+    "dest": {
+      "all": "所有目的地",
+      "onPage": "本頁內容",
+      "applyTitle": "開始申請",
+      "facts": "重點資訊"
+    },
+    "article": {
+      "toc": "本頁內容",
+      "down": "跳到文章",
+      "faqLede": "這個主題的快速解答。"
+    },
+    "legal": {
+      "updated": "最後更新",
+      "contents": "目錄"
+    }
+  },
+  "homePage": {
+    "hero": {
+      "browse": "瀏覽目的地",
+      "picks": "目的地"
+    },
+    "types": {
+      "title": "簽證類型",
+      "lede": "觀光、商務、工作、學生與長期簽證。",
+      "prev": "上一個",
+      "next": "下一個",
+      "items": {
+        "tourist": {
+          "title": "觀光",
+          "body": "度假、探親與短期停留。"
+        },
+        "business": {
+          "title": "商務",
+          "body": "會議、研討會與實地參訪。"
+        },
+        "work": {
+          "title": "工作",
+          "body": "工作許可與工作簽證。"
+        },
+        "student": {
+          "title": "學生",
+          "body": "就讀中小學與大學的留學簽證。"
+        },
+        "long": {
+          "title": "長期停留",
+          "body": "居留及其他長期簽證。"
+        }
+      }
+    },
+    "steps": {
+      "title": "申請流程",
+      "cta": "開始免費申請",
+      "side": {
+        "freeValue": "免費",
+        "freeLabel": "VIZA 服務",
+        "langLabel": "服務語言",
+        "note": "您只需支付政府規費。",
+        "noteBody": "規費直接繳給核發機關，VIZA 不另收任何費用。"
+      },
+      "items": {
+        "choose": {
+          "title": "選擇目的地",
+          "body": "開始前先看清楚需要的簽證、要準備的文件和政府規費。",
+          "chips": "簽證類型|文件|政府規費"
+        },
+        "passport": {
+          "title": "上傳護照",
+          "body": "VIZA 會從照片頁讀取您的資料，幾乎不用打字。",
+          "chips": "照片頁|自動填入資料"
+        },
+        "confirm": {
+          "title": "確認資料",
+          "body": "核對 VIZA 讀到的資料，加上旅行日期，然後在您的免費 VIZA 帳號中繼續。",
+          "chips": "旅行日期|免費帳號"
+        },
+        "file": {
+          "title": "VIZA 檢查並遞件",
+          "body": "每份表格在遞交前都由顧問檢查，您可以在帳號中追蹤進度。",
+          "chips": "顧問檢查|進度更新"
+        }
+      }
+    },
+    "tiers": {
+      "title": "收費方案",
+      "lede": "兩種申請方式，都免費。",
+      "cta": "聯絡我們",
+      "criteria": "比較",
+      "guided": "自助引導",
+      "full": "全程代辦",
+      "rows": {
+        "fee": {
+          "label": "VIZA 費用",
+          "guided": "免費",
+          "full": "免費"
+        },
+        "form": {
+          "label": "申請表",
+          "guided": "由您作答，VIZA 的 AI 從旁引導",
+          "full": "顧問和您一起準備答案"
+        },
+        "documents": {
+          "label": "文件",
+          "guided": "依您的情況列出文件清單",
+          "full": "顧問檢查您的文件"
+        },
+        "interview": {
+          "label": "預約與面談",
+          "guided": "由您自行預約並出席",
+          "full": "我們陪您演練可能被問到的問題"
+        },
+        "govFee": {
+          "label": "政府規費",
+          "guided": "直接繳給核發機關",
+          "full": "直接繳給核發機關"
+        },
+        "bestFor": {
+          "label": "適合",
+          "guided": "情況單純的申請",
+          "full": "情況複雜或曾被拒簽"
+        }
+      }
+    },
+    "why": {
+      "title": "為什麼選 VIZA",
+      "lede": "步驟清楚、表格有人檢查，還有真人可以諮詢。",
+      "items": {
+        "free": {
+          "title": "免費服務",
+          "body": "VIZA 的協助完全免費。您只需支付政府規費，直接繳給核發機關。"
+        },
+        "checked": {
+          "title": "表格有人檢查",
+          "body": "每份表格在遞交前都由顧問檢查，小錯誤能及早發現。"
+        },
+        "language": {
+          "title": "英文與中文",
+          "body": "可透過 WhatsApp、WeChat 或電子郵件，用英文或中文與 VIZA 聯繫。"
+        }
+      },
+      "photos": {
+        "arrival": {
+          "title": "入境卡",
+          "body": "逐步協助您填寫馬來西亞、新加坡、日本、泰國、韓國與印尼的免費入境卡。"
+        },
+        "news": {
+          "title": "最新消息",
+          "body": "用淺白的文字說明簽證規定變動與新的電子簽證制度。"
+        }
+      }
+    },
+    "guides": {
+      "title": "指南",
+      "cta": "所有指南"
+    },
+    "faq": {
+      "lede": "關於 VIZA 簽證服務的快速解答。",
+      "more": "還有其他問題？",
+      "items": {
+        "cost": {
+          "q": "VIZA 的服務要收費嗎？",
+          "a": "不用。VIZA 的協助免費。若目的地收取政府簽證規費，由您直接繳給該國政府。"
+        },
+        "visas": {
+          "q": "VIZA 可以協助哪些簽證？",
+          "a": "本頁所列目的地的觀光、商務、工作、學生與長期簽證。若您要的簽證不在其中，寫信給我們，顧問會告訴您可行的做法。"
+        },
+        "approval": {
+          "q": "誰決定我的簽證能不能過？",
+          "a": "所有決定都由核發機關做出。VIZA 會在遞交前檢查您的表格與文件，讓申請內容完整且前後一致。"
+        },
+        "tiers": {
+          "q": "自助引導和全程代辦有什麼不同？",
+          "a": "選擇自助引導，VIZA 的 AI 會帶您完成表格與文件清單，每個答案都由您決定。選擇全程代辦，顧問會和您一起準備答案並檢查文件。兩者都免費。"
+        },
+        "language": {
+          "q": "你們提供哪些語言的服務？",
+          "a": "英文與中文，可透過 WhatsApp、WeChat、電話與電子郵件聯繫。"
+        }
+      }
+    },
+    "contactCard": {
+      "title": "與 VIZA 顧問聊聊",
+      "body": "我們以英文或中文回覆。",
+      "cta": "聯絡我們"
+    },
+    "cta": {
+      "title": "開始您的申請",
+      "point1": "您的資料保密",
+      "point2": "由真人回覆",
+      "formTitle": "提出問題",
+      "formBody": "告訴我們您要去哪裡，VIZA 顧問會以電子郵件回覆。"
+    }
+  },
+  "aboutPage": {
+    "h1": "關於 VIZA",
+    "intro": {
+      "title": "VIZA 是什麼",
+      "text": "VIZA 為住在新加坡的人準備、檢查並遞交簽證申請。我們的 AI 處理文書作業，顧問會審閱每一份表格。這項服務免費。"
+    },
+    "facts": {
+      "destinations": "目的地",
+      "guides": "簽證指南",
+      "arrival": "入境卡指南",
+      "free": "免費",
+      "freeLabel": "VIZA 服務"
+    },
+    "tiersTitle": "自助引導或全程代辦",
+    "tiersLede": "依您需要的協助程度選擇，兩種都免費。",
+    "free": {
+      "title": "免費服務",
+      "text": "VIZA 提供協助不收費。若目的地有政府簽證規費，VIZA 會在您開始前列出，由您直接繳給核發機關。沒有任何付費升級方案。"
+    },
+    "company": {
+      "title": "公司資料",
+      "office": "註冊地址",
+      "officeValue": "新加坡巴耶利峇路（Paya Lebar Road）60 號，巴耶利峇廣場 #06-28，郵遞區號 409051",
+      "email": "電子郵件",
+      "phone": "電話與 WhatsApp",
+      "languages": "服務語言",
+      "languagesValue": "英文與中文"
+    }
+  },
+  "contactPage": {
+    "h1": "聯絡我們",
+    "lines": {
+      "whatsapp": {
+        "title": "電話與 WhatsApp",
+        "body": "來電或傳訊息給顧問。"
+      },
+      "wechat": {
+        "body": "在 WeChat 搜尋此 ID 即可加我們好友。"
+      },
+      "email": {
+        "title": "電子郵件",
+        "body": "適合寄送文件或詢問較複雜的問題。"
+      },
+      "office": {
+        "top": "新加坡",
+        "title": "辦公室",
+        "body": "新加坡巴耶利峇路（Paya Lebar Road）60 號，巴耶利峇廣場 #06-28，郵遞區號 409051"
+      }
+    },
+    "message": {
+      "title": "傳送訊息",
+      "text": "想詢問簽證、目的地或與 VIZA 合作的事？寫信給我們，顧問會回覆您。"
+    }
+  },
+  "careersPage": {
+    "title": "工作機會",
+    "lede": "VIZA 結合 AI 與顧問，協助在新加坡的人取得簽證，而且服務免費。我們尋找喜歡細心、實用工作的夥伴。",
+    "teamsTitle": "團隊",
+    "teams": [
+      {
+        "title": "工程",
+        "body": "打造文件檢查、申請流程，以及顧問使用的工具。"
+      },
+      {
+        "title": "設計",
+        "body": "讓申請人覺得一段令人緊張的流程變得清楚好懂。"
+      },
+      {
+        "title": "營運",
+        "body": "讓每件申請案持續推進，並讓每項規定保持最新。"
+      },
+      {
+        "title": "顧問",
+        "body": "以英文和中文，協助需要真人處理的申請案。"
+      },
+      {
+        "title": "資料",
+        "body": "把政府資料來源轉成檢查規則，及早發現問題。"
+      },
+      {
+        "title": "行銷",
+        "body": "用值得信賴的指南和頁面，淺白地說明簽證。"
+      }
+    ],
+    "applyTitle": "與我們聯絡",
+    "applyBody": "告訴我們您的背景，以及想加入的團隊。每一則訊息我們都會讀。",
+    "applyCta": "聯絡我們"
+  },
+  "pageCopy": {
+    "product": {
+      "introTitle": "VIZA 如何協助您申請簽證",
+      "introLede": "看看我們提供的簽證準備、文件審閱與申請進度服務。VIZA 的服務免費。選好目的地後，會顯示確切的服務範圍與是否提供。",
+      "browse": "瀏覽目的地"
+    },
+    "events": {
+      "title": "目前尚無活動",
+      "lede": "日後的簽證諮詢會、說明會與合作夥伴活動，都會在這裡公布。",
+      "contact": "聯絡我們"
+    }
+  },
+  "og": {
+    "band": "VIZA 免費，政府規費另計。",
+    "destSubtitle": "費用與申請方式"
+  }
+}

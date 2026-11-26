@@ -1,0 +1,2150 @@
+{
+  "cta": {
+    "startFreeApplication": "Sāciet bezmaksas pieteikumu"
+  },
+  "nav": {
+    "home": "Sākums",
+    "apply": "Pieteikties",
+    "visas": "Vīzas",
+    "explore": "Izpētīt",
+    "events": "Pasākumi",
+    "blog": "Jaunumi",
+    "careers": "Karjera",
+    "contact": "Kontakti",
+    "signIn": "Pieteikties kontā",
+    "getStarted": "Sākt",
+    "yourPassport": "Jūsu pase",
+    "searchPlaceholder": "Meklēt valsti vai vīzu…",
+    "arrivalCards": "Ierašanās kartes",
+    "guides": "Ceļveži"
+  },
+  "footer": {
+    "followUs": "Sekojiet mums:",
+    "followOn": "Sekojiet VIZA platformā {platform}",
+    "product": "Produkti",
+    "company": "Uzņēmums",
+    "legal": "Juridiskā informācija",
+    "offices": "Biroji",
+    "askAi": "Jautāt MI par VIZA",
+    "security": "Drošība",
+    "status": "Statuss",
+    "privacy": "Privātums",
+    "terms": "Noteikumi",
+    "rights": "Visas tiesības aizsargātas.",
+    "tagline": "VIZA palīdz plānot, pieteikt un izsekot vīzas visā pasaulē bez liekām raizēm.",
+    "careers": "Karjera",
+    "contact": "Kontakti",
+    "copyright": "© VIZA, visas tiesības aizsargātas",
+    "prodMockInterview": "ASV mēģinājuma intervija",
+    "prodVisaReq": "Vīzu prasības",
+    "prodSchengen": "Šengenas pierakstu pārbaude",
+    "prodPhoto": "Vīzas foto veidotājs",
+    "prodHelpline": "VIZA ārkārtas palīdzības tālrunis",
+    "prodStudent": "Studenta vīza",
+    "arrivalCards": "Ierašanās kartes",
+    "guides": "Ceļveži",
+    "news": "Jaunumi"
+  },
+  "pages": {
+    "blog": {
+      "metaTitle": "Vīzu jaunumi un politikas izmaiņas | VIZA",
+      "metaDescription": "VIZA vīzu jaunumi: noteikumu izmaiņas, jaunas e-vīzu un ETA shēmas un ko tās nozīmē Singapūrā dzīvojošajiem. Atjaunināts, kad noteikumi mainās.",
+      "title": "Vīzu jaunumi",
+      "lede": "Noteikumu izmaiņas un politikas atjauninājumi, izskaidroti vienkāršiem vārdiem. Padomiem, kas paliek spēkā, lasiet ceļvežus.",
+      "readArticle": "Lasīt rakstu",
+      "featuredLabel": "Jaunākie jaunumi",
+      "articlesTitle": "Jaunākie jaunumi",
+      "articlesDescription": "Politikas atjauninājumi un ceļošanas noteikumu izmaiņas.",
+      "allPosts": "Visi raksti",
+      "noMorePosts": "Vairāk jaunumu drīz būs.",
+      "emptyTitle": "Jaunumi vēl nav publicēti",
+      "emptyBody": "Mūsu pirmie atjauninājumi tiek gatavoti. Lūdzu, pārbaudiet drīz vēlreiz.",
+      "unavailableTitle": "Jaunumi īslaicīgi nav pieejami",
+      "unavailableBody": "Mēs nevarējām ielādēt jaunākos publicētos jaunumus. Lūdzu, mēģiniet drīz vēlreiz.",
+      "backToBlog": "Atpakaļ uz jaunumiem",
+      "by": "Autors:",
+      "updated": "Atjaunināts",
+      "categoriesLabel": "Jaunumu tēmas",
+      "topicLabel": "Tēma",
+      "relatedTitle": "Vairāk jaunumu",
+      "relatedDescription": "Vairāk vīzu jaunumu no VIZA.",
+      "ctaEyebrow": "Plānojiet droši",
+      "ctaTitle": "Gatavi sākt pieteikumu?",
+      "ctaBody": "Pastāstiet, kurp vēlaties doties. VIZA izvadīs jūs cauri prasībām un nākamajiem soļiem.",
+      "ctaAction": "Sākt pieteikumu",
+      "categoryMetaTitle": "Jaunumi: {category} | VIZA",
+      "categoryMetaDescription": "Lasiet VIZA jaunumus par tēmu {category}: kas mainījies, ko tas ietekmē un ko darīt tālāk.",
+      "categoryLede": "Jaunumi par tēmu {category}.",
+      "visaLinkTitle": "Pieteicaties vīzai uz: {country}?",
+      "visaLinkBody": "Skatiet dokumentus, valsts nodevu un soļus Singapūrā dzīvojošajiem.",
+      "visaLinkAction": "Vīzas ceļvedis: {country}",
+      "guidesTitle": "Saistītie ceļveži",
+      "guidesBody": "Ceļveži, kas par šo tēmu tiek atjaunināti."
+    },
+    "home": {
+      "title": "Vīzu pieteikumi Singapūrā: ASV, Indija, Vjetnama | VIZA",
+      "description": "Pieteikties ASV vīzai (DS-160), Indijas, Vjetnamas vai Ēģiptes e-vīzai vai Francijas Šengenas vīzai. Konsultants pārbauda katru veidlapu pirms iesniegšanas.",
+      "heroTitle": "Kurp tālāk?",
+      "heroLede": "Skatiet vīzu iespējas jebkuram galamērķim. Jūsu VIZA konsultants un mūsu MI nokārto papīra darbu, jūs rezervējat braucienu."
+    },
+    "apply": {
+      "title": "Sākt vīzas pieteikumu | VIZA",
+      "description": "Augšupielādējiet pasi, apstipriniet datus un nododiet vīzas pieteikumu VIZA konsultantam. VIZA pakalpojums ir bezmaksas.",
+      "saveBadge": "Saglabāts · turpiniet jebkurā laikā"
+    },
+    "careers": {
+      "title": "Karjera | VIZA",
+      "description": "Strādājiet pie VIZA, bezmaksas vīzu pakalpojuma, ko Singapūrā vada Kelin Studio. Skatiet komandas, kurās pieņemam darbiniekus, un kā sazināties par amatu.",
+      "rightCta": "Skatīt amatus"
+    },
+    "contact": {
+      "title": "Kontakti: WhatsApp, WeChat, tālrunis, e-pasts | VIZA",
+      "description": "Sazinieties ar VIZA komandu pa WhatsApp, WeChat, tālruni vai e-pastu. Četri kanāli, četri galdi, un atbild īsts cilvēks.",
+      "rightCta": "Rakstiet mums"
+    },
+    "security": {
+      "title": "Drošība un atbildīga atklāšana | VIZA",
+      "description": "Privāts, caurskatāms un drošs pēc noklusējuma. Kā VIZA aizsargā klientu datus, mūsu ievainojamību atklāšanas programma un drošā osta.",
+      "rightCta": "Ziņot par ievainojamību"
+    },
+    "status": {
+      "title": "Sistēmas statuss | VIZA",
+      "description": "VIZA un valdību vīzu portālu, kuriem iesniedzam pieteikumus, statuss reāllaikā.",
+      "navPill": "Visas sistēmas darbojas"
+    },
+    "visa": {
+      "applyCta": "Pieteikties tagad",
+      "applicationProcess": "Pieteikuma process",
+      "documents": "Dokumenti",
+      "rejectionReasons": "Atteikuma iemesli",
+      "entryExit": "Ieceļošana un izceļošana",
+      "extension": "Pagarinājums",
+      "reviews": "Atsauksmes",
+      "nearby": "Tuvākās valstis",
+      "sources": "Oficiālie avoti"
+    },
+    "privacy": {
+      "title": "Privātuma politika | VIZA",
+      "description": "Ko VIZA vāc, kad pieteicaties vīzai, kāpēc, kas to redz un cik ilgi to glabājam, saskaņā ar Singapūras PDPA."
+    },
+    "terms": {
+      "title": "Noteikumi un nosacījumi | VIZA",
+      "description": "Noteikumi VIZA vīzu pieteikumu pakalpojuma lietošanai, ko Singapūrā nodrošina Kelin Studio Pte. Ltd. VIZA pakalpojums ir bezmaksas."
+    },
+    "product": {
+      "title": "Kā VIZA palīdz ar vīzas pieteikumu | VIZA",
+      "description": "Vīzas sagatavošana, dokumentu pārbaude un pieteikuma statuss vienuviet. VIZA pakalpojums ir bezmaksas. Apjoms un pieejamība tiek rādīti katram galamērķim."
+    },
+    "events": {
+      "title": "Pasākumi | VIZA",
+      "description": "VIZA vīzu konsultācijas, informatīvās sesijas un partneru pasākumi."
+    },
+    "arrivalCards": {
+      "title": "Ierašanās karšu ceļveži: MDAC, SG Arrival Card, TDAC | VIZA",
+      "description": "Bezmaksas ceļveži ierašanās kartēm Malaizijai, Singapūrai, Japānai, Taizemei, Korejai un Indonēzijai: kam vajadzīga, kad iesniegt, palīdzība soli pa solim."
+    },
+    "guides": {
+      "title": "Vīzu ceļveži Singapūrā dzīvojošajiem | VIZA",
+      "description": "Skaidri ceļveži Singapūrā dzīvojošajiem: bezvīzu valstis, Šengenas dokumenti, ASV intervija, ETA, e-vīza un atteikumi. Lasāmi bez maksas, bieži pārbaudīti."
+    },
+    "about": {
+      "title": "Par VIZA: bezmaksas vīzu palīdzība Singapūrā | VIZA",
+      "description": "VIZA sagatavo, pārbauda un iesniedz vīzu pieteikumus Singapūrā dzīvojošajiem, ar MI un konsultantiem. Pakalpojums ir bezmaksas; valsts nodevas maksā iestādei."
+    },
+    "visaIndex": {
+      "title": "Vīzu galamērķi: prasības pa valstīm | VIZA",
+      "description": "Salīdziniet vīzu prasības pa valstīm, ar dokumentiem un nodevām katrai. VIZA palīdzība ir bezmaksas.",
+      "heroTitle": "Vīzu galamērķi"
+    },
+    "refunds": {
+      "title": "Atmaksu politika | VIZA",
+      "description": "VIZA pakalpojums ir bezmaksas, tāpēc nav pakalpojuma maksas, ko atmaksāt. Kā darbojas valsts nodevas un citu sniedzēju maksas."
+    },
+    "businessInformation": {
+      "title": "Informācija par uzņēmumu | VIZA",
+      "description": "VIZA pārvalda Kelin Studio Pte. Ltd., Singapūras uzņēmums. Juridiskā adrese, UEN un kontaktinformācija."
+    }
+  },
+  "common": {
+    "comingSoon": "Drīzumā",
+    "learnMore": "Uzzināt vairāk",
+    "readMore": "Lasīt vairāk",
+    "applyNow": "Pieteikties tagad",
+    "talkToHuman": "Runāt ar cilvēku",
+    "viewAll": "Skatīt visu"
+  },
+  "visa": {
+    "heroTitle": "Vīza: {country}",
+    "validity": "Derīgums",
+    "howItWorks": "Kā tas darbojas",
+    "step1": "Pastāstiet par sava brauciena datiem un augšupielādējiet pasi.",
+    "step2": "Mēs aizpildām un pārbaudām jūsu pieteikumu pēc jaunākajiem noteikumiem.",
+    "step3": "Mēs iesniedzam to valdības portālā un sekojam lēmumam.",
+    "step4": "Jūsu apstiprinātā vīza nonāk e-pastā, un mēs to uzraugām līdz galam.",
+    "documents": "Kas jums būs vajadzīgs",
+    "doc1": "Pase, kas derīga vismaz 6 mēnešus.",
+    "doc2": "Nesena pases tipa fotogrāfija.",
+    "doc3": "Jūsu ceļojuma datumi un naktsmītne.",
+    "doc4": "Ja galamērķis ņem vīzas nodevu, maksājumu karte, ar kuru to samaksāt tieši valdībai.",
+    "nearby": "Tuvumā esoši galamērķi",
+    "startApplication": "Sāciet savu pieteikumu",
+    "comingSoonTitle": "{country}: drīzumā",
+    "comingSoonBody": "Mēs pabeidzam pēdējos darbus: {country}. Izveidojiet kontu, un mēs paziņosim, tiklīdz tas būs pieejams.",
+    "browseDestinations": "Skatīt galamērķus",
+    "notifyMe": "Paziņot man",
+    "back": "Atpakaļ uz izpēti",
+    "tabOverview": "Pārskats",
+    "tabProcess": "Pieteikuma process",
+    "tabDocuments": "Dokumenti",
+    "tabRejection": "Atteikuma iemesli",
+    "tabEntry": "Ieceļošana un izceļošana",
+    "tabExtension": "Pagarinājums",
+    "tabReviews": "Atsauksmes",
+    "tabNearby": "Tuvākās valstis",
+    "reviewsTitle": "Atsauksmes",
+    "nearbyTitle": "Tuvākās valstis",
+    "nearbySub": "Ceļojat pa reģionu? Pievienojiet savam braucienam vēl vienu vīzu, un jūsu VIZA konsultants tās apvienos.",
+    "faqTitle": "Biežāk uzdotie jautājumi",
+    "editorial": "Šī lapa seko VIZA redakcionālajai politikai. Mēs balstāmies uz oficiāliem valdības avotiem un atjauninām katru prasību, kad mainās politika.",
+    "editorialLink": "Lasīt, kā mēs pārbaudām",
+    "sourcesTitle": "Avoti",
+    "priceGovt": "Valsts nodeva",
+    "priceFree": "Bezmaksas",
+    "pillAllInclusive": "Viss iekļauts",
+    "priceCta": "Sākt pieteikumu",
+    "onTime": "Laikā",
+    "freeService": "Bezmaksas VIZA pakalpojums",
+    "freeServiceNote": "VIZA par savu palīdzību neprasa neko",
+    "govFeePaidDirect": "Valsts nodeva {fee}, maksā tieši izsniedzējai iestādei.",
+    "govFeeSetByAuthority": "Jebkuru valsts nodevu nosaka izsniedzēja iestāde, un tā tiek maksāta tieši tai.",
+    "govFeeSetByAuthorityShort": "Nosaka iestāde",
+    "priceService": "VIZA pakalpojums",
+    "pillPaidToAuthority": "Maksā iestādei",
+    "priceTotalToViza": "Jūs maksājat VIZA",
+    "breadcrumbVisas": "Vīzu galamērķi",
+    "serviceDescription": "VIZA palīdz Singapūrā dzīvojošajiem sagatavot, pārskatīt un iesniegt pieteikumus ({country}, {type}) ar MI atbalstu un cilvēka eksperta pārbaudi.",
+    "offerDescription": "VIZA pakalpojuma maksa. Valsts vīzu nodevas ir atsevišķas, un tās maksā tieši izsniedzējai iestādei.",
+    "dest": {
+      "tabGlance": "Īsumā",
+      "tabPassports": "Pases",
+      "tabTypes": "Vīzu veidi",
+      "tabResidents": "Iedzīvotāji",
+      "tabFees": "Nodevas",
+      "tabApply": "Kā pieteikties",
+      "tabChecklist": "Dokumenti",
+      "tabRejection": "Atteikumi",
+      "tabTravel": "Pirms ceļojuma",
+      "tabRelated": "Saistītie",
+      "glanceTitle": "Īsumā",
+      "glanceVisa": "Nepieciešama vīza",
+      "glanceGovFee": "Valsts nodeva",
+      "glanceVizaFee": "VIZA maksa",
+      "glanceProcessing": "Apstrādes laiks",
+      "glanceMaxStay": "Maksimālais uzturēšanās laiks",
+      "glanceChecked": "Pārbaudes datums",
+      "passportsTitle": "Vai jums vajadzīga vīza?",
+      "typesTitle": "Vīzu veidi",
+      "residentsTitle": "Singapūras iedzīvotāji",
+      "feesTitle": "Nodevas un termiņi",
+      "applyTitle": "Kā pieteikties",
+      "checklistTitle": "Dokumentu kontrolsaraksts",
+      "travelTitle": "Pirms ceļojuma",
+      "colPassport": "Pase",
+      "colEntry": "Ieceļošana",
+      "colNotes": "Piezīmes",
+      "colItem": "Pozīcija",
+      "colAmount": "Summa",
+      "vizaFeeNote": "VIZA palīdzība ir bezmaksas. Jūs maksājat tikai valsts nodevu, tieši iestādei.",
+      "reviewedBy": "VIZA konsultants pārbaudīja {date}.",
+      "relatedTitle": "Saistītie galamērķi",
+      "relatedSub": "Citas vietas, ko cilvēki pievieno tam pašam braucienam, un kur lasīt vairāk.",
+      "startTitle": "Sākt pieteikumu",
+      "startBody": "Sāciet ar savu pasi un ceļojuma datumiem. VIZA palīdzība ir bezmaksas, un valsts nodevu jūs maksājat tieši iestādei.",
+      "startConsultBody": "Pastāstiet VIZA konsultantam, kur dzīvojat, par savu pasi un ceļojuma datumiem. VIZA palīdzība ir bezmaksas.",
+      "consultCta": "Runāt ar konsultantu"
+    }
+  },
+  "apply": {
+    "stepOf": "{n}. solis no 3",
+    "back": "Atpakaļ",
+    "continue": "Turpināt",
+    "step1Name": "Augšupielādēt pasi",
+    "step2Name": "Apstiprināt datus",
+    "step3Name": "Sākt pieteikumu",
+    "s1Title": "Augšupielādējiet pasi",
+    "s1Desc": "Mēs nolasīsim jūsu datus automātiski, rakstīt nav jāpiepūlas. Izmantojiet datu lapu (to, kurā ir jūsu foto).",
+    "segUpload": "Augšupielādēt failu",
+    "segCapture": "Uzņemt foto",
+    "dzTitle": "Ievelciet pases foto šeit",
+    "dzSub": "Vai noklikšķiniet, lai izvēlētos: jūsu fails ir šifrēts un netiek nodots tālāk",
+    "dzBrowse": "Izvēlēties failu",
+    "dzUpTo": "Līdz 10 MB",
+    "tip1Title": "Visi četri stūri redzami",
+    "tip1Sub": "Iekadrējiet visu datu lapu, tostarp apakšējo MRZ.",
+    "tip2Title": "Spilgts, vienmērīgs apgaismojums",
+    "tip2Sub": "Izvairieties no ēnām no rokas vai telefona vāciņa.",
+    "tip3Title": "Bez atspīdumiem",
+    "tip3Sub": "Nedaudz sasveriet, ja zīmogs spīd.",
+    "errReadFail": "Neizdevās nolasīt šo pasi: {detail}. Lūdzu, mēģiniet ar skaidrāku datu lapas foto.",
+    "extReading": "Dokumenta nolasīšana",
+    "extExtracting": "Datu izgūšana",
+    "extVerifying": "Autentiskuma pārbaude",
+    "stReading": "Nolasa…",
+    "stExtracting": "Izgūst…",
+    "stVerifying": "Pārbauda…",
+    "s2Title": "Apstipriniet savus datus",
+    "s2Desc": "Mēs tos paņēmām tieši no jūsu pases. Pieskarieties jebkuram laukam, lai labotu.",
+    "successHigh": "Pase veiksmīgi nolasīta, augsta ticamība",
+    "warnLow": "Dažus laukus bija grūti nolasīt. Lūdzu, vēlreiz pārbaudiet katru vērtību zemāk.",
+    "warnMed": "Mēs nolasījām lielāko daļu jūsu datu. Lūdzu, pārbaudiet iezīmētos laukus.",
+    "ppDetails": "Pases dati",
+    "autoExtracted": "Nolasīts automātiski",
+    "fSurname": "Uzvārds",
+    "fGiven": "Vārds",
+    "fPassport": "Pases numurs",
+    "fDob": "Dzimšanas datums",
+    "fNationality": "Pilsonība",
+    "fExpires": "Derīga līdz",
+    "reachTitle": "Kā ar jums sazināties?",
+    "reachDesc": "Mēs nosūtīsim jūsu vīzu šeit, kā arī statusa atjauninājumus uz jūsu tālruni.",
+    "email": "E-pasts",
+    "phone": "Tālrunis",
+    "consent": "Apstiprinu, ka iepriekš norādītie dati atbilst manai pasei, un pilnvaroju VIZA iesniegt šo pieteikumu manā vārdā imigrācijas iestādēm: {country}.",
+    "s3Title": "Sāciet savu pieteikumu",
+    "s3Desc": "VIZA pakalpojums ir bezmaksas. Piesakieties VIZA portālā, un mēs darbu pārņemsim.",
+    "headsUp": "Ņemiet vērā:",
+    "headsUpBody": "ja valdība ({country}) ņem vīzas nodevu, jūs to maksājat tieši tai. VIZA šo summu nekad neiekasē un neuzcenojas.",
+    "yourApp": "Jūsu pieteikums",
+    "guaranteedBy": "Garantēta piegāde līdz",
+    "govFee": "Valsts nodeva",
+    "expressUpgrade": "Ekspress uzlabojums",
+    "total": "Kopā",
+    "footEncrypted": "Šifrēts no gala līdz galam. VIZA par šo pieteikumu jums neprasa maksu.",
+    "helpOnline": "Priya ir tiešsaistē",
+    "helpTap": "Pieskarieties, lai tērzētu ar savu VIZA konsultantu",
+    "totalAmount": "SGD {amount}",
+    "totalFree": "Bezmaksas",
+    "etaStandard": "2026. gada 12. maijs, 8:00 SGT",
+    "failTitle": "Mēs nevarējām nolasīt šo dokumentu",
+    "failNotPassport": "Šķiet, ka tā nav pases datu lapa. Lūdzu, augšupielādējiet lapas foto ar jūsu attēlu un personas datiem.",
+    "failUnreadable": "Neviens no obligātajiem laukiem netika nolasīts. Lūdzu, uzņemiet foto vēlreiz labā apgaismojumā, ar visu datu lapu plakaniski un asu.",
+    "tryAgain": "Mēģināt vēlreiz",
+    "warnPartial": "Mēs nevarējām nolasīt visu. Lūdzu, aizpildiet iezīmētos laukus zemāk.",
+    "warnExpired": "Šķiet, ka šīs pases derīguma termiņš ir beidzies. Lielākajai daļai galamērķu pasei jābūt derīgai vismaz 6 mēnešus.",
+    "warnMrz": "Mašīnlasāmā zona (divas rindas apakšā) netika nolasīta. Lūdzu, vēlreiz pārbaudiet katru lauku.",
+    "warnBlurry": "Foto bija izplūdis. Lūdzu, rūpīgi pārbaudiet katru lauku vēlreiz.",
+    "fieldRequired": "Obligāts lauks, lūdzu, aizpildiet",
+    "editField": "Labot: {field}",
+    "emailInvalid": "Ievadiet derīgu e-pasta adresi, jo uz to nonāks vīzas atjauninājumi un pieteikšanās saite.",
+    "phoneInvalid": "Ievadiet derīgu tālruņa numuru.",
+    "consentRequired": "Lūdzu, apstipriniet deklarāciju, lai turpinātu.",
+    "continueToStart": "Turpināt",
+    "startTitle": "Turpiniet VIZA portālā",
+    "startSub": "Piesakieties vai izveidojiet bezmaksas kontu. Jūsu pieteikums šim galamērķim atveras uzreiz.",
+    "vizaService": "VIZA pakalpojums",
+    "govFeeSetByAuthority": "Nosaka iestāde",
+    "govFeeNote": "Jebkura valsts vīzas nodeva tiek maksāta tieši izsniedzējai iestādei, nevis VIZA.",
+    "completeBeforeStart": "Lūdzu, pirms turpināšanas aizpildiet augstāk iezīmētos laukus."
+  },
+  "explore": {
+    "help": "Palīdzība",
+    "passportLabel": "{name} pase",
+    "passportSub": "Vīzu prasības {n} galamērķiem · Vieta {rank}",
+    "freeLabel": "Bez vīzas",
+    "freeNote": "bez papīru jukas",
+    "voaLabel": "E-vīza vai vīza ierodoties",
+    "voaNote": "mēs to nokārtojam",
+    "reqLabel": "Vīza nepieciešama",
+    "reqNote": "iesniegšana vēstniecībā",
+    "fullMap": "Skatīt pilnu vīzu karti",
+    "grid": "Režģis",
+    "map": "Karte",
+    "mapLegendEvisa": "E-vīzas un viesu vīzas",
+    "mapHint": "Uzvediet kursoru uz iezīmēta punkta, lai priekšskatītu galamērķi",
+    "sectionTitle": "{country} pasēm",
+    "seeAll": "Skatīt visus {n}",
+    "footnote": "VIZA pakalpojums ir bezmaksas. Jebkura valsts vīzas nodeva tiek maksāta tieši izsniedzējai iestādei un atšķiras pa valstīm.",
+    "fastTrack": "Paātrināti",
+    "cardType": "Veids",
+    "cardValid": "Derīga",
+    "cardFee": "VIZA pakalpojums",
+    "save": "Saglabāt",
+    "startApplication": "Sākt pieteikumu",
+    "catalogueUnavailable": "Pašlaik nav neviena galamērķa, kam var pieteikties tiešsaistē. Lūdzu, pārbaudiet drīz vēlreiz.",
+    "choosePassport": "Izvēlieties savu pasi",
+    "searchPassport": "Meklēt pases valsti…",
+    "visaFree": "{n} bez vīzas",
+    "ppFoot": "Atjaunināts 2026. gada maijam · Avots: IATA Timatic",
+    "noMatch": "Nav pasu, kas atbilstu “{q}”",
+    "filters": {
+      "delivery": "Vīzas izsniegšana",
+      "type": "Vīzas veids",
+      "documents": "Dokumenti",
+      "dates": "Ceļojuma datumi"
+    },
+    "filterOpts": {
+      "delivery": [
+        "Jebkurā laikā",
+        "24 stundu laikā",
+        "3 dienu laikā",
+        "1 nedēļas laikā",
+        "1 mēneša laikā"
+      ],
+      "type": [
+        "Visi veidi",
+        "Tūrisma",
+        "Komandējuma",
+        "Darba",
+        "Studenta",
+        "Digitālā nomada"
+      ],
+      "documents": [
+        "Jebkuri dokumenti",
+        "Minimāli (tikai pase)",
+        "Standarta",
+        "Plaša pakete"
+      ],
+      "dates": [
+        "Izvēlēties datumus",
+        "Šonedēļ",
+        "Šomēnes",
+        "3 mēnešu laikā",
+        "6 mēnešu laikā"
+      ]
+    }
+  },
+  "cities": {
+    "viza-test": "Dzīvā norēķina pārbaude",
+    "indonesia": "Bali · Džakarta",
+    "egypt": "Kaira · Gīza",
+    "australia": "Sidneja · Melburna",
+    "saudi-arabia": "Rijāda · AlUla",
+    "united-kingdom": "Londona · Edinburga",
+    "vietnam": "Hanoja · Hoi An",
+    "malaysia": "KL · Penanga",
+    "japan": "Tokija · Kioto",
+    "united-states": "NYC · LA",
+    "canada": "Toronto · Vankūvera",
+    "turkiye": "Stambula · Kapadokija",
+    "thailand": "Bangkoka · Puketa",
+    "united-arab-emirates": "Dubaija · Abū Dabī",
+    "france": "Parīze · Nica",
+    "italy": "Roma · Florence",
+    "india": "Deli · Mumbaja"
+  },
+  "validity": {
+    "viza-test": "Tikai demonstrācija",
+    "indonesia": "90 dienas",
+    "egypt": "90 dienas",
+    "australia": "1 gads",
+    "saudi-arabia": "365 dienas",
+    "united-kingdom": "6 mēneši",
+    "vietnam": "90 dienas",
+    "malaysia": "3 mēneši",
+    "japan": "90 dienas",
+    "united-states": "10 gadi",
+    "canada": "10 gadi",
+    "turkiye": "180 dienas",
+    "thailand": "3 mēneši",
+    "united-arab-emirates": "60 dienas",
+    "france": "90 dienas",
+    "italy": "90 dienas",
+    "india": "30 dienas"
+  },
+  "passports": {
+    "SG": "Singapūra",
+    "JP": "Japāna",
+    "KR": "Dienvidkoreja",
+    "DE": "Vācija",
+    "FR": "Francija",
+    "GB": "Lielbritānija",
+    "US": "Amerikas Savienotās Valstis",
+    "AU": "Austrālija",
+    "CA": "Kanāda",
+    "AE": "Apvienotie Arābu Emirāti",
+    "CN": "Ķīna",
+    "IN": "Indija",
+    "BR": "Brazīlija",
+    "PH": "Filipīnas",
+    "ID": "Indonēzija",
+    "MY": "Malaizija",
+    "TH": "Taizeme"
+  },
+  "countries": {
+    "viza-test": "VIZA tests",
+    "indonesia": "Indonēzija",
+    "egypt": "Ēģipte",
+    "australia": "Austrālija",
+    "saudi-arabia": "Saūda Arābija",
+    "united-kingdom": "Apvienotā Karaliste",
+    "vietnam": "Vjetnama",
+    "malaysia": "Malaizija",
+    "japan": "Japāna",
+    "united-states": "Amerikas Savienotās Valstis",
+    "canada": "Kanāda",
+    "turkiye": "Turcija",
+    "thailand": "Taizeme",
+    "united-arab-emirates": "Apvienotie Arābu Emirāti",
+    "france": "Francija",
+    "italy": "Itālija",
+    "india": "Indija",
+    "china": "Ķīna",
+    "south-korea": "Dienvidkoreja",
+    "schengen": "Šengena"
+  },
+  "visaTypes": {
+    "Test checkout": "Testa norēķins",
+    "e-Visa": "E-vīza",
+    "Standard Visitor": "Standard Visitor",
+    "Visitor 600": "Visitor 600",
+    "Tourist": "Tūrisma",
+    "B1/B2": "B1/B2",
+    "eTA": "eTA",
+    "Schengen": "Šengena",
+    "eVisa": "E-vīza",
+    "Visitor visa": "Viesa vīza",
+    "Tourist visa": "Tūrisma vīza"
+  },
+  "careers": {
+    "hero": {
+      "nowHiring": "Pašlaik pieņemam darbā:",
+      "cities": [
+        "Šanhajā",
+        "Singapūrā"
+      ],
+      "openRoles": "28 atvērti amati",
+      "title": "Palīdziet mums likt robežām<br></br><em>izzust</em>: <u>klusi,</u><br></br>programmatūras ātrumā.",
+      "lead": "Mēs pārvēršam mēnešiem ilgu vīzu papīru darbu stundās ilgā programmatūrā miljoniem cilvēku, kas vienkārši vēlas uzkāpt lidmašīnā. Atnesiet savu meistarību komandai, kas piegādā pret reālās pasaules termiņiem.",
+      "ctaRoles": "Skatīt visus atvērtos amatus",
+      "ctaWhy": "Kāpēc mēs pastāvam"
+    },
+    "board": {
+      "ariaLabel": "Atiešanas tablo ar atvērtajiem amatiem VIZA",
+      "head": "Atvērtie amati · tiešraidē",
+      "live": "Laikā",
+      "cols": {
+        "req": "Nr.",
+        "role": "Amats",
+        "office": "Birojs",
+        "status": "Statuss"
+      },
+      "rows": [
+        {
+          "role": "Vadošais inženieris",
+          "sub": "Dokumentu plūsma",
+          "status": "Iekāpšana"
+        },
+        {
+          "role": "Produktu dizainers",
+          "sub": "Pieteikuma iesniedzēju plūsmas",
+          "status": "Atvērts"
+        },
+        {
+          "role": "Sadarbība ar vēstniecībām",
+          "sub": "Partnerības ar valdībām",
+          "status": "Pēdējais izsaukums"
+        },
+        {
+          "role": "Klientu operācijas",
+          "sub": "2. līmeņa eskalācijas",
+          "status": "Atvērts"
+        }
+      ],
+      "foot": "+24 citi amati inženierijā, operācijās un dizainā",
+      "browseAll": "Skatīt visus",
+      "chip1Label": "Pieņemam darbā",
+      "chip1Value": "4 birojos",
+      "chip2Label": "Vid. atbilde",
+      "chip2Value": "3.2 dienas līdz pirmajam zvanam"
+    },
+    "stats": [
+      {
+        "value": "2.4M",
+        "label": "Pērn ar VIZA izsniegtās vīzas"
+      },
+      {
+        "label": "Galamērķi ar apstrādi reāllaikā"
+      },
+      {
+        "label": "Apstiprināšanas līmenis visiem vīzu veidiem 2025. gadā"
+      },
+      {
+        "label": "Cilvēki Šanhajā un Singapūrā"
+      }
+    ],
+    "mission": {
+      "eyebrow": "Mūsu stāsts",
+      "title": "Lielākā daļa pasaules<br></br>joprojām ceļo ar<br></br><em>drukātiem papīriem.</em>",
+      "kicker1": "Mēs izveidojām VIZA 2021. gadā pēc tam, kad pārāk daudz nedēļu pavadījām gaidīšanā pie vēstniecībām. Sistēma cilvēku pārvietošanai pāri robežām ir vecāka par internetu, un cilvēki, kas tajā iestrēguši, ir pelnījuši labāk.",
+      "kicker2": "Šodien 340 cilvēku komanda četros birojos izlaiž programmatūru, iesniedz dokumentus un vada operācijas 194 valstīs. Mēs veicam garlaicīgo, nogurdinošo darbu, lai ceļošana justos kā pārējais internets: dažas pieskaršanās, un jūs jau esat ceļā.",
+      "founderName": "Mira Kohli",
+      "founderRole": "Līdzdibinātāja un izpilddirektore · Singapūra",
+      "beliefs": [
+        {
+          "title": "Mēs esam operāciju uzņēmums, kas izlaiž programmatūru.",
+          "body": "Puse VIZA ir inženieri, dizaineri un produktu vadītāji. Otra puse ir konsultanti, operāciju un dokumentu speciālisti uz vietas. Neviena puse nevar uzvarēt bez otras."
+        },
+        {
+          "title": "Pieteikuma iesniedzējs vienmēr ir klients.",
+          "body": "Vēstniecības, partneri, aviokompānijas: tie visi ir svarīgi. Bet cilvēks, kas pulksten 3 naktī stāv rindā un atsvaidzina portālu, ir tas, kura labā mēs strādājam un pret kuru mērām sevi."
+        },
+        {
+          "title": "Ātrums pieaug, kad esat pacietīgs pret kvalitāti.",
+          "body": "Mēs strauji izlaižam, bet lēni pieņemam neatgriezeniskus lēmumus. Nepareizs vīzas lēmums var sagraut kāzas, darbu, bēres. Mēs ievērojam šo latiņu pat tad, kad tas mūs palēnina."
+        },
+        {
+          "title": "Attālums ir UX problēma, nevis ierobežojums.",
+          "body": "Mūsu komandas atrodas četrās laika joslās. Asinhrona rakstīšana, skaidra atbildība un laba dokumentācijas kultūra ir veids, kā mēs mainām laiku pret uzticību un izlaižam darbu pa visu pasauli, nevienu nenoguldot."
+        }
+      ]
+    },
+    "values": {
+      "eyebrow": "Ko mēs sev pieprasām",
+      "title": "Pieci uzskati, pat ja tie izmaksā dārgi.",
+      "lead": "Vērtības ir viegli pierakstīt un grūti īstenot. Šīs ir piecas, ko mēs patiešām izmantojam pieņemot darbā, vērtēšanā un retajos grūtajos lēmumos.",
+      "cards": [
+        {
+          "title": "Sakiet patiesību, īpaši, kad tas mums izmaksā.",
+          "body": "Ja vīza laikā netiks izsniegta, sakiet to šodien, nevis dienu pirms lidojuma. Mēs labāk zaudēsim pārdošanu, nekā izlaidīsim melus.",
+          "kicker": "Praksē → publicēta politika, izmaiņu audits"
+        },
+        {
+          "title": "Nopelniet ātrumu. Nepaliciet tikai aizņemti.",
+          "body": "Mēs svinam lēmumus un izlaisto darbu, nevis sapulces un pavedienus. Mērķis ir caurlaidspēja pret misiju, nevis kustība pret jūsu kalendāru.",
+          "kicker": "Praksē → ceturkšņa caurlaidspējas pārskats"
+        },
+        {
+          "title": "Domājiet pasēs, nevis personās.",
+          "body": "Vīzu noteikumi ir atkarīgi no pilsonības. “Lietotājs” neeksistē, bet Filipīnu pases īpašnieks, kas piesakās Šengenai, eksistē. Mēs veidojam īstiem cilvēkiem, nevis vidējām vērtībām.",
+          "kicker": "Praksē → produkta specifikācija, sākot ar pasi"
+        },
+        {
+          "title": "Pierakstiet lietas. Īpaši lēmumus.",
+          "body": "Četri biroji, četras laika joslas. Ja lēmums nav pierakstīts, tas nav noticis. Mūsu wiki ir obligāta lasāmviela; mūsu rīta sapulces ir izvēles.",
+          "kicker": "Praksē → ADR, iknedēļas memo, vispirms asinhroni"
+        },
+        {
+          "title": "Esiet tuvu rindai.",
+          "body": "Katrs inženieris reizi ceturksnī nostrādā maiņu konsultantu stāvā. Jūs nevarat novērst berzi, ko nekad neesat just svētdienas vakarā pulksten 11.",
+          "kicker": "Praksē → rotējošas rindas maiņas"
+        },
+        {
+          "title": "Izvēlieties garo versiju.",
+          "body": "Trīsdesmit sekunžu atbilde parasti ir nepareiza. Mēs ieguldām dziļā dokumentācijā, stabilās rokasgrāmatās un skaidrojumos, kas iztur pārbaudi, pat ja pietiktu ar vieglo versiju.",
+          "kicker": "Praksē → iepazīšanās rokasgrāmata, publiskas rokasgrāmatas"
+        }
+      ]
+    },
+    "inside": {
+      "eyebrow": "VIZA iekšienē",
+      "title": "Kā patiesībā<br></br>izskatās šeit strādāt.",
+      "lead": "Mums ir biroji divās pilsētās, jo pieņemam darbā tuvu vietām, kur tiek iesniegti pieteikumi. Mēs skaļi priecājamies par uzvarām, klusējam par politiku un esam godīgi par to, cik daudz mums vēl jāuzbūvē.",
+      "photos": [
+        {
+          "label": "foto · Singapūras galvenā mītne, atvērtā telpa",
+          "mark": "Paya Lebar Square, Singapūra"
+        },
+        {
+          "label": "foto · konsultantu rindas stāvs",
+          "mark": "Luoshan Rd, Šanhaja"
+        },
+        {
+          "label": "foto · baltās tāfeles sesija",
+          "mark": "Tehnoloģiju izbraukums, Bali"
+        },
+        {
+          "label": "foto · Šanhajas operāciju stāvs",
+          "mark": "Pudong, Šanhaja"
+        },
+        {
+          "label": "foto · komandas vakariņas",
+          "mark": "Visu sapulce, Lisabona"
+        },
+        {
+          "label": "foto · vēstniecības partnera vizīte",
+          "mark": "Paya Lebar Square, Singapūra"
+        }
+      ],
+      "pull": "“Mēs pieņemam darbā cilvēkus, kuriem pirms pievienošanās jau ir viedoklis par vīzām. Līdz otrajam mēnesim jums tas būs stiprāks.”",
+      "pullBy": "Felix Adekunle, inženierijas viceprezidents",
+      "para1": "VIZA ir augsta autonomija un augsts konteksts. Jūs saņemsiet īpašnieku visam, ko darāt, reālus budžetus un cerību, ka paskaidrosiet sava darba pamatojumu pārējam uzņēmumam.",
+      "para2": "Ja vēlaties, lai jums katru dienu saka, ko darīt, šī nav piemērota vieta. Ja esat gaidījis, kad kāds jums iedos stūri, tas ir šeit."
+    },
+    "how": {
+      "eyebrow": "Inženierija un operācijas VIZA",
+      "title": "Kā darbs patiesībā virzās.",
+      "lead": "Ja šeit veidojat, iesniedzat vai projektējat, šādi izskatās jūsu nedēļa. Mazāk ceremoniju, vairāk izlaista darba. Mazāk Slack, vairāk pierakstītu lēmumu.",
+      "cells": [
+        {
+          "title": "Atbildība no gala līdz galam",
+          "body": "Jūs to projektējat, veidojat, izlaižat un uzturat produkcijā. Nav nodošanas rindu, nav ceļvežu, ko rakstījuši cilvēki trīs līmeņus tālāk. Ja tas ir jūsu, tas tiešām ir jūsu."
+        },
+        {
+          "title": "Izlaides katru dienu, pēc noklusējuma",
+          "body": "Lielākā daļa komandu izlaiž vairākas reizes dienā. Atgriezeniskās saites cilpas ir ciešas pēc dizaina, un trīsdesmit minūšu atcelšana ir vēlamāka par trīs nedēļu strīdu."
+        },
+        {
+          "title": "Reālas, juceklīgas problēmas",
+          "body": "Šī nav CRUD. Jūs strādāsit pie dokumentu OCR, kavēšanās jutīgas plānošanas pret vairāk nekā 90 valdību portāliem un patērētāju plūsmām, ko izmanto miljoni."
+        },
+        {
+          "title": "Latiņa ir augsta, atklāti",
+          "body": "Mēs strādājam pāros pie dizaina pārskatiem. Mēs komentējam PR rindās. Mēs uzskatām, ka gaumi var iemācīt, un gaidām, ka cilvēki aktīvi palīdz visiem apkārt kļūt labākiem."
+        },
+        {
+          "title": "Īsts mācību budžets",
+          "body": "$2,000 uz cilvēku gadā, bez jautājumiem, konferencēm, grāmatām, kursiem: jebkam, kas atgriežas darbā, ko veicat šeit."
+        },
+        {
+          "title": "Arhitektūra, ko rakstāt jūs",
+          "body": "RFC ir atvērti ikvienam. Jauni inženieri ir veidojuši pamata infrastruktūru jau pirmajā mēnesī. Ja jums ir labāks plāns, uzrakstiet to, mēs izlasīsim."
+        }
+      ]
+    },
+    "roles": {
+      "eyebrow": "Atvērtie amati · atjaunina katru nedēļu",
+      "title": "Esiet daļa no ceļojuma.",
+      "lead": "28 atvērti amati četros birojos. Mēs pieņemam darbā inženierijā, dizainā, operācijās, konsultantos un partnerībās. Jauni amati parādās pirmdienās.",
+      "allDepartments": "Visas nodaļas",
+      "deps": {
+        "eng": "Inženierija",
+        "design": "Dizains",
+        "ops": "Operācijas",
+        "consult": "Konsultanti",
+        "data": "Dati un ML",
+        "gtm": "Mārketings un GTM"
+      },
+      "showing": "Rāda amatus: <strong>{count}</strong> · visas atrašanās vietas · visas komandas",
+      "anyLocation": "Jebkura atrašanās vieta",
+      "groupCount": "Atvērti: {count}",
+      "posSub": "{team} · mēs pieņemam darbā pēc meistarības un spriestspējas, nevis izcelsmes",
+      "locationLabel": "Atrašanās vieta",
+      "typeLabel": "Veids",
+      "fullTime": "Pilna laika",
+      "viewRole": "Skatīt amatu",
+      "locations": {
+        "sg": "Singapūra",
+        "sf": "Šanhaja",
+        "ldn": "Singapūra",
+        "dxb": "Šanhaja"
+      },
+      "jobs": {
+        "backendPayments": "Vecākais aizmugures inženieris, platforma",
+        "staffDocPipeline": "Vadošais inženieris: dokumentu plūsma",
+        "iosApplicant": "iOS inženieris: pieteikuma iesniedzēja lietotne",
+        "platformInfra": "Platformas inženieris: infrastruktūra un drošība",
+        "frontendConsole": "Priekšgala inženieris: konsultantu konsole",
+        "emWeb": "Inženierijas vadītājs: tīmeklis",
+        "sre": "Vietnes uzticamības inženieris",
+        "androidSenior": "Vecākais Android inženieris",
+        "leadEmbassy": "Inženierijas vadītājs: integrācijas ar vēstniecībām",
+        "productDesignerApplicant": "Vecākais produktu dizainers: pieteikuma iesniedzēja plūsma",
+        "brandDesigner": "Zīmola dizainers",
+        "designLeadConsultant": "Dizaina vadītājs: konsultantu rīki",
+        "headOpsMe": "Operāciju vadītājs, Tuvie Austrumi",
+        "visaOpsSchengen": "Vīzu operāciju vadītājs: Šengena",
+        "logistics": "Loģistikas un kurjeru vadītājs",
+        "processDocQa": "Procesu inženieris: dokumentu kvalitātes kontrole",
+        "opsAnalyst": "Operāciju analītiķis: rezervācijas",
+        "consultSchengen": "Vīzu konsultants: Šengena",
+        "consultUs": "Vīzu konsultants: ASV B1/B2",
+        "consultUae": "Vīzu konsultants: AAE uzturēšanās atļauja",
+        "consultStudent": "Vecākais konsultants: studenta vīzas",
+        "consultApac": "Konsultantu vadītājs: Āzijas un Klusā okeāna reģions",
+        "consultUk": "Vīzu konsultants: Apvienotā Karaliste",
+        "dataScientist": "Vecākais datu zinātnieks: apstiprināšanas modelēšana",
+        "mlOcr": "ML inženieris: OCR un dokumentu MI",
+        "perfMarketing": "Veiktspējas mārketinga vadītājs",
+        "contentLead": "Satura vadītājs: stāstu stāstīšana",
+        "lifecycleCrm": "Dzīves cikla un CRM vadītājs"
+      }
+    },
+    "fellowship": {
+      "tag": "▲ VIZA Launchpad · 12 nedēļu programma",
+      "title": "Divpadsmit nedēļas. Viena produktu komanda.<br></br><em>Viena iespēja kaut ko izlaist.</em>",
+      "para1": "Launchpad ir mūsu rezidentu programma karjeras sākumā esošiem inženieriem, produktu vadītājiem un dizaineriem: cilvēkiem, kuriem citādi vajadzētu vēl divus gadus “pieredzes”, pirms saņemt īstu iespēju.",
+      "para2": "Jūs strādāsit pārī ar vecākajiem vadītājiem, būsit atbildīgs par īstu produkta virsmu no starta līdz izlaidei un aiziesit ar kaut ko tādu, ko izmantos miljoniem cilvēku. Pilna laika piedāvājums ~60% kohortas.",
+      "meta": [
+        {
+          "k": "Ilgums",
+          "v": "12 nedēļas"
+        },
+        {
+          "k": "Atrašanās vieta",
+          "v": "Birojā, jebkurā galvenajā mītnē"
+        },
+        {
+          "k": "Stipendija",
+          "v": "Virs tirgus līmeņa"
+        },
+        {
+          "k": "Nākamā kohorta",
+          "v": "2026. gada septembris"
+        }
+      ],
+      "apply": "Pieteikties Launchpad",
+      "readCohort": "Lasīt par 2025. gada kohortu",
+      "projects": [
+        {
+          "k": "2024 · Inženierija",
+          "title": "OCR plūsmas pārrakstīšana",
+          "meta1": "Izlaists produkcijā",
+          "meta2": "3.2× ātrāk"
+        },
+        {
+          "k": "2025 · Dizains",
+          "title": "Šengenas plūsmas pārveide",
+          "meta1": "14 valstis darbojas",
+          "meta2": "↑ 22% konv."
+        },
+        {
+          "k": "2025 · Produkts",
+          "title": "Vēstniecību laiku plānotājs",
+          "meta1": "9 vēstniecības",
+          "meta2": "40k laiki/mēn."
+        }
+      ]
+    },
+    "benefits": {
+      "eyebrow": "Mēs jūs atbalstām (patiešām)",
+      "title": "Garlaicīgās lietas,<br></br>nokārtotas kārtīgi.",
+      "lead": "Mēs neuzskatām pabalstus par priekšrocību. Tie ir pamats, kas ļauj cilvēkiem strādāt vislabāk. Lūk, ko saņem katrs VIZA darbinieks katrā birojā no pirmās dienas.",
+      "items": [
+        {
+          "title": "Visaptveroša veselības aprūpe, sakārtota.",
+          "body": "Pilna medicīniskā, zobārstniecības un redzes aprūpe no pirmās dienas: jums, jūsu partnerim un bērniem. Mēs maksājam prēmiju, bez atskaitījumu spēlēm."
+        },
+        {
+          "title": "Veidojiet bagātību, ne tikai algu.",
+          "body": "Virs tirgus līmeņa pamatalga katrā tirgū, kurā pieņemam darbā, plus devīgs kapitāla piešķīrums, kas saistīts ar atskaites punktiem, nevis tikai nostrādātajiem gadiem. Mēs to atjaunojam ik pēc diviem gadiem."
+        },
+        {
+          "title": "Mācieties to, kas patiešām ir svarīgi.",
+          "body": "$2,000/gadā mācību budžets, ikmēneša iekšējas apmācības un laiks kalendārā, nevis tikai atļauja, lai apmeklētu kursu vai konferenci."
+        },
+        {
+          "title": "Iepriecinājiet klientus, it kā tā būtu jūsu nauda.",
+          "body": "Katram pieteikuma iesniedzējam ir $100 budžets labā griba pāri prasītajam. Bez apstiprinājuma, bez eskalācijas: salabojiet, tad uzrakstiet, kas notika."
+        },
+        {
+          "title": "Prāts pāri visam.",
+          "body": "Konfidenciāls, profesionāls garīgās veselības atbalsts bez apdrošināšanas šķēršļiem. Plus trīs “bez sapulču” dienas mēnesī visam uzņēmumam."
+        },
+        {
+          "title": "Ceļojumu priekšrocības (mums nācās).",
+          "body": "Mēs nodarbojamies ar vīzām; mūsu komandai jāceļo uz mūsu rēķina. $4k/gadā ceļojumu kredīts, plus VIZA nokārto katru vīzu, kas jums kādreiz būs vajadzīga: uzreiz, iekšēji."
+        },
+        {
+          "title": "Devīgs, īsts atvaļinājums.",
+          "body": "30 dienas apmaksāta atvaļinājuma, plus jūsu valsts svētku dienas, plus apmaksāta brīvdienu nedēļa no 24. decembra līdz 1. janvārim. Mēs sekojam izmantošanai un mudinām cilvēkus ņemt vairāk, nevis mazāk."
+        },
+        {
+          "title": "Aprīkojums, bez jautājumiem.",
+          "body": "Izvēlieties klēpjdatoru, monitoru un krēslu pirmajā dienā. Stipendija darbam no mājām jūsu iekārtošanai. Mēs uzticamies, ka jūs zināt, kas vajadzīgs labam darbam."
+        },
+        {
+          "title": "Vecāku atvaļinājums, kas patiešām darbojas.",
+          "body": "20 nedēļas galvenajiem aprūpētājiem, 12 otrajiem, pilnībā apmaksāts. Plus pakāpeniska atgriešanās, lai pirmajā dienā nebūtu jāstrādā ar pilnu jaudu."
+        }
+      ]
+    },
+    "offices": {
+      "eyebrow": "Kur mēs strādājam",
+      "title": "Divi biroji, viens produkts.",
+      "lead": "Mēs pieņemam darbā tuvu vēstniecībām, partneriem un tirgiem, kurus apkalpojam. Katrā birojā ir gan inženieri, gan operāciju darbinieki: mēs neatdalām komandas, kas būvē, no tām, kas vada darba stāvu.",
+      "cards": [
+        {
+          "photo": "foto · Šanhaja",
+          "open": "6 atvērti",
+          "name": "Šanhaja",
+          "addr1": "Luoshan Road 1502. josla,",
+          "addr2": "Ķīnas (Šanhajas) pilotbrīvās tirdzniecības zona",
+          "tz": "GMT+8 · Ķīnas operācijas",
+          "since": "Kopš 2023"
+        },
+        {
+          "photo": "foto · Singapūras galvenā mītne",
+          "open": "12 atvērti",
+          "name": "Singapūra",
+          "addr1": "Paya Lebar Road 60, #06-28 Paya Lebar Square,",
+          "addr2": "Singapūra 409051",
+          "tz": "GMT+8 · Āzijas un Klusā okeāna reģiona galvenā mītne",
+          "since": "Galvenā mītne · kopš 2021"
+        }
+      ]
+    },
+    "ctaStrip": {
+      "title": "Neredzat savu amatu,<br></br>bet vēlaties iekšā?",
+      "body": "Ja jums ir neparasta pieredze un domājat, ka varētu palīdzēt mums ātrāk pārvietot pasaules ceļotājus, mēs vēlamies dzirdēt no jums. Esam pieņēmuši darbā autobusu vadītājus, bijušos vēstniecību darbiniekus un juristus. Mums nav konkrēta tipa.",
+      "lead": "Vispārējs pieteikums",
+      "cta": "Atsūtiet mums savu stāstu",
+      "note": "Mēs atbildam 7 dienu laikā, pat ja tas ir nē."
+    },
+    "footer": {
+      "tagline": "VIZA palīdz plānot, pieteikt un izsekot vīzas visā pasaulē bez liekām raizēm.",
+      "company": "Uzņēmums",
+      "products": "Produkti",
+      "offices": "Biroji",
+      "careers": "Karjera",
+      "contact": "Kontakti",
+      "security": "Drošība",
+      "privacy": "Privātums",
+      "terms": "Noteikumi",
+      "prodVisaReq": "Vīzu prasības",
+      "prodSchengen": "Šengenas pierakstu pārbaude",
+      "prodPhoto": "Vīzas foto veidotājs",
+      "prodHelpline": "VIZA ārkārtas palīdzības tālrunis",
+      "prodStudent": "Studenta vīza",
+      "officeSg": "Singapūra, galvenā mītne",
+      "officeSf": "Šanhaja",
+      "copyright": "© VIZA, visas tiesības aizsargātas"
+    }
+  },
+  "security": {
+    "hero": {
+      "eyebrow": "Drošība VIZA · pēdējoreiz atjaunināts 2026. gada maijā",
+      "title": "Privāti. Caurskatāmi.<br></br><em>Droši pēc noklusējuma.</em>",
+      "lead": "Klienti visā pasaulē uzticas mums miljoniem sensitīvu dokumentu: pases, bankas izrakstus, fotogrāfijas. Lūk, precīzi, kā mēs tos vācam, glabājam un pierādām, ka darām to pareizi.",
+      "ctaPrimary": "Kā mēs aizsargājam jūsu datus",
+      "ctaVdp": "Ziņot par ievainojamību"
+    },
+    "clearance": {
+      "republicKey": "Republika",
+      "officeKey": "Izsniedzošais birojs",
+      "officeVal": "Uzticēšanās un drošība",
+      "title": "Drošības atļauja /<br></br>Klientu dati",
+      "grid": {
+        "encryption": {
+          "k": "Šifrēšana",
+          "v": "AES-256 / TLS 1.3"
+        },
+        "region": {
+          "k": "Reģions",
+          "v": "SG · US · EU"
+        },
+        "audit": {
+          "k": "Auditu biežums",
+          "v": "Reizi ceturksnī"
+        },
+        "retention": {
+          "k": "Glabāšana",
+          "v": "Ne vairāk kā 90 dienas"
+        }
+      },
+      "referenceKey": "Atsauce",
+      "glyph": "ATĻAUTS<br></br>VIZA · 26"
+    },
+    "chips": {
+      "transitLabel": "Pārsūtīšanas laikā",
+      "transitVal": "Pilna TLS 1.3 šifrēšana",
+      "restLabel": "Glabāšanas laikā",
+      "restVal": "AES-256, piesaistīts reģionam"
+    },
+    "stats": {
+      "docs": {
+        "value": "2.4M",
+        "label": "Dokumenti, kas apstrādāti 2025. gadā, bez klientu datu noplūdēm"
+      },
+      "retention": {
+        "unit": "d",
+        "label": "Maksimālais avota dokumentu glabāšanas laiks pēc izsniegšanas"
+      },
+      "pentests": {
+        "label": "Ārējie iespiešanās testi, visi ziņojumi publicēti iekšēji"
+      },
+      "ack": {
+        "unit": "st",
+        "label": "Vidējais laiks, līdz apstiprinām saņemšanu ziņojumam par ievainojamību"
+      }
+    },
+    "docs": {
+      "eyebrow": "Ko mēs vācam",
+      "title": "Pieci dokumentu veidi.<br></br><em>Nekas vairāk.</em>",
+      "copy1": "Vīzas pieteikums ir papīru jautājums. Mēs vācam tikai to, ko vēstniecība skaidri pieprasa, un, kur vien iespējams, anonimizējam. Katrs dokuments ir piesaistīts vienam pieteikumam, tiek šifrēts saņemšanas brīdī un dzēsts pēc noteikta grafika.",
+      "copy2": "Mēs nekad nepārdodam jūsu datus. Mēs nekad nedalāmies ar tiem ar trešajām pusēm, izņemot konsulātu vai partneri, kas tieši iesaistīts jūsu vīzā.",
+      "cards": {
+        "payment": {
+          "name": "Maksājumu informācija",
+          "meta": "netiek vākta"
+        },
+        "photos": {
+          "name": "Vīzas fotogrāfijas",
+          "meta": "apstrādātas · ne vairāk kā 90 d"
+        },
+        "bank": {
+          "name": "Bankas izraksti",
+          "meta": "maskēti · tikai pdf"
+        },
+        "pastVisas": {
+          "name": "Iepriekšējās vīzas",
+          "meta": "tikai lasāmas · OCR"
+        },
+        "passport": {
+          "name": "Pase",
+          "meta": "MRZ izgūta"
+        }
+      }
+    },
+    "features": {
+      "eyebrow": "Septiņas kontroles, vienmēr ieslēgtas",
+      "title": "Kā jūsu dati paliek<br></br>jūsu, no gala līdz <em>galam.</em>",
+      "intro": "Katra VIZA baita noklusējuma stāvoklis ir “šifrēts, norobežots un ierobežots laikā”. Šīs ir septiņas kontroles, kas to nodrošina: nevis centieni, bet tas, kas šodien patiešām ir iebūvēts platformā.",
+      "cells": {
+        "minimise": {
+          "title": "Datu minimizēšana un anonimizēšana",
+          "body": "Mēs vācam tikai to, ko vēstniecība vai partneris konkrētam pieteikumam patiešām pieprasa, un anonimizējam visur, kur platforma to ļauj. Lauki, kurus neredzat mūsu veidlapās, ir lauki, ko mēs neglabājam.",
+          "why": "<strong>Kāpēc:</strong> noplūde nevar atklāt datus, kas nekad nav savākti."
+        },
+        "payments": {
+          "title": "Nav maksājumu datu",
+          "body": "VIZA pakalpojums ir bezmaksas, un mēs nepieņemam maksājumus, tāpēc nekad neprasām, neredzam un neglabājam karšu numurus.",
+          "why": "<strong>Kāpēc:</strong> datus, ko mēs nekad neturam, nevar nozagt."
+        },
+        "atRest": {
+          "title": "Šifrēšana glabāšanas laikā",
+          "body": "Katrs dokuments, ziņa un metadatu lauks VIZA serveros tiek šifrēts ar AES-256, pirms nonāk uz diska. Atslēgas tiek rotētas automātiski un glabātas aparatūras KMS, ko pat mūsu infrastruktūras komanda nevar tieši nolasīt.",
+          "why": "<strong>Kāpēc:</strong> nozagti diski vai dublējumi bez atslēgām paliek nenolasāmi."
+        },
+        "inTransit": {
+          "title": "Šifrēšana no gala līdz galam",
+          "body": "Visa datplūsma starp jūsu ierīci, mūsu serveriem un partneru konsulātiem izmanto TLS 1.3 ar stingru piesaisti. Dokumentu augšupielādei tiek izmantots atsevišķs, parakstīts kanāls, lai pat tīkla līmeņa uzbrucēji nevarētu redzēt, ko sūtāt.",
+          "why": "<strong>Kāpēc:</strong> naidīgi tīkli, tostarp lidostas Wi-Fi, nevar nolasīt jūsu pieteikumu."
+        },
+        "audits": {
+          "title": "Regulāri drošības auditi",
+          "body": "Mēs katru ceturksni veicam ārēju iespiešanās testu, reizi gadā SOC 2 Type II auditu un nepārtrauktu automatizētu ievainojamību skenēšanu. Katrs konstatējums tiek reģistrēts ar labošanas termiņu, un nokavētie punkti izsauc inženierijas vadītāju.",
+          "why": "<strong>Kāpēc:</strong> draudi mainās; mūsu aizsardzība tiek pārbaudīta pret tiem pēc grafika."
+        },
+        "access": {
+          "title": "Drošas piekļuves kontroles",
+          "body": "Iekšējā piekļuve klientu datiem ir ierobežota pēc lomas, tiek auditēta katram pieprasījumam un piešķirta ar īslaicīgu paaugstināšanu. Konsultanti vienmēr redz tikai to pieteikumu, pie kura aktīvi strādā. Katra nolasīšana tiek reģistrēta 12 mēnešus.",
+          "why": "<strong>Kāpēc:</strong> iekšēji pārkāpumi un ļaunprātīga izmantošana tiek ierobežota, piešķirta konkrētai personai un ir pārskatāma."
+        },
+        "education": {
+          "title": "Lietotāju izglītošana un informētība",
+          "body": "Vissarežģītākā drošības daļa ir tā, ko mēs nevaram nodrošināt jūsu vietā. Mēs nosūtām vienkāršus ceļvežus par pikšķerēšanu, pasu foto krāpšanu un viltus vēstniecību SMS brīdī, kad sākat pieteikumu, un parādām tos atkal produktā, līdzko kaut kas šķiet aizdomīgs. Jūs esat pēdējā aizsardzības līnija; mēs labāk jūs apbruņosim, nekā vainosim.",
+          "why": "<strong>Kāpēc:</strong> labi informēts pieteikuma iesniedzējs ir lētākā un efektīvākā drošības kontrole, kāda mums ir."
+        }
+      }
+    },
+    "vdp": {
+      "tag": "▲ Ievainojamību atklāšana · atvērta visiem pētniekiem",
+      "title": "Kaut ko atradāt?<br></br><em>Mēs vēlamies par to uzzināt.</em>",
+      "p1": "Mūsu lietotāju un partneru drošība ir viss. Ja uzskatāt, ka esat atklājis īstu ievainojamību, kas ietekmē VIZA pakalpojumus, vēlamies, lai jūs par to pastāstītu mums tieši, un mēs ar jums strādāsim cieņpilni un ātri, lai to novērstu.",
+      "p2": "Nosūtiet savus konstatējumus uz <strong>security@viza.it.com</strong>. Mēs apstiprināsim saņemšanu vienas darbdienas laikā, pat ja izrādīsies, ka tas jau ir zināms vai ārpus apjoma.",
+      "meta": {
+        "ack": {
+          "k": "Apstiprināts",
+          "v": "'<' 24 stundās"
+        },
+        "triage": {
+          "k": "Izvērtēts",
+          "v": "3 darbdienās"
+        },
+        "lang": {
+          "k": "Valodas",
+          "v": "EN · ID · AR"
+        },
+        "pgp": {
+          "k": "PGP atslēga",
+          "v": "0xVIZA · 2026"
+        }
+      },
+      "ctaEmail": "Rakstīt uz security@viza.it.com",
+      "ctaScope": "Lasīt apjomu",
+      "terminal": {
+        "title": "ziņojuma melnraksts · security@viza.it.com",
+        "l1": "# ziņojums par ievainojamību",
+        "typeKey": "veids:",
+        "typeVal": "autentifikācijas apiešana",
+        "urlKey": "url:",
+        "reproKey": "atkārtošana:",
+        "reproVal": "[soļi 1-4]",
+        "impactKey": "ietekme:",
+        "impactVal": "konta pārņemšana",
+        "pocKey": "poc:",
+        "l7": "# ↳ šifrēts uz 0xVIZA",
+        "send": "sūtīt"
+      }
+    },
+    "report": {
+      "eyebrow": "Ziņošana par ievainojamību",
+      "title": "Ko iekļaut savā<br></br>ziņojumā un <em>ko neiekļaut.</em>",
+      "intro": "Labs ziņojums mums abiem ietaupa nedēļu. Šeit ir formāts, kas ļauj izvērtēt visātrāk, kā arī lietas, ko mēs labāk nesaņemtu savā pastkastē.",
+      "include": {
+        "heading": "Lūdzu, iekļaujiet",
+        "sub": "Pieci lauki. Jo skaidrāki tie ir, jo ātrāk varam apstiprināt un novērst.",
+        "items": {
+          "type": "<strong>Problēmas veids</strong>: piemēram, autentifikācija, piekļuves kontrole, injekcija, IDOR, SSRF.",
+          "steps": "<strong>Skaidri atkārtošanas soļi</strong>: numurēti, secībā, ja iespējams, tīrā sesijā.",
+          "impact": "<strong>Iespējamā drošības ietekme</strong>: ko uzbrucējs ar to varētu izdarīt, vienkāršiem vārdiem.",
+          "poc": "<strong>Koncepcijas pierādījums</strong>: vēlams ekrānuzņēmumi vai īss ekrāna ieraksts; žurnāli otrajā vietā."
+        }
+      },
+      "dontSend": {
+        "heading": "Lūdzu, nesūtiet",
+        "sub": "Tas ir nedrošs, nederīgs vai abi, un mums tas būs jādzēš pēc saņemšanas.",
+        "items": {
+          "secrets": "<strong>Paroles vai autentifikācijas pilnvaras</strong>, jūsu vai jebkura cita. Parādiet vektoru, nevis noslēpumu.",
+          "malware": "<strong>Neapstrādātus ļaunprogrammatūras paraugus vai zagļu žurnālus.</strong> Aprakstiet redzēto, nepievienojiet to.",
+          "scanners": "<strong>Lielus automatizētu skeneru pārskatus</strong> bez rūpīgi izraudzīta, pierādīta konstatējuma.",
+          "customerData": "<strong>Klientu personas datus vai dokumentus</strong>, pat ja tie bija jūsu atklājuma pamatā.",
+          "socialEng": "<strong>Sociālās inženierijas mēģinājumu ierakstus</strong> pret mūsu darbiniekiem vai konsultantiem."
+        }
+      }
+    },
+    "scope": {
+      "eyebrow": "Programmas apjoms",
+      "title": "Kas ir iekšā, kas ārpus.",
+      "intro": "Ja neesat pārliecināts, vai ziņojums iekļaujas šajā sarakstā, tik un tā nosūtiet to un pajautājiet. Mēs labāk izvērtēsim un ejam tālāk, nekā jūs noklusētu īstu problēmu tāpēc, ka robeža nebija skaidra.",
+      "fileRef": "/security/scope.md · v6",
+      "in": {
+        "pill": "Iekļauts",
+        "heading": "Ziņojumi, ko aktīvi izvērtēsim",
+        "items": {
+          "web": "VIZA tīmekļa lietojumprogrammas un API vietnē <code>*.viza.com</code>, tostarp pieteikuma iesniedzēja portāls, konsultantu konsole un partneru galapunkti.",
+          "infra": "VIZA piederošā infrastruktūra un pakalpojumi: autentifikācija, dokumentu plūsma, plānošana.",
+          "mobile": "Mobilās lietotnes (iOS, Android), kas publicētas ar VIZA izstrādātāja kontu.",
+          "marketing": "Publiski pieejamās mārketinga un satura vietnes VIZA kontrolētos domēnos."
+        }
+      },
+      "out": {
+        "pill": "Ārpus apjoma",
+        "heading": "Ziņojumi, ko šajā programmā nevaram apstrādāt",
+        "items": {
+          "devices": "Problēmas, ko izraisījušas kompromitētas lietotāju ierīces, pārlūka paplašinājumi vai nozagti akreditācijas dati.",
+          "phishing": "Sociālās inženierijas vai pikšķerēšanas uzbrukumi pret VIZA darbiniekiem, partneriem vai konsultantiem.",
+          "thirdParty": "Trešo pušu pakalpojumi vai integrācijas, ko VIZA tieši neuztur (konsulātu portāli, kurjeru vietnes).",
+          "scanners": "Automatizētu skeneru konstatējumi bez pierādītas, reālas izmantojamības.",
+          "headers": "Trūkstošas drošības galvenes vai vispārīgi labākās prakses ieteikumi bez izmantošanas ceļa."
+        }
+      }
+    },
+    "pledge": {
+      "eyebrow": "Atbildīga atklāšana",
+      "title": "Vienošanās, ko slēdzam<br></br>cits ar citu.",
+      "intro": "Atklāšana darbojas, jo abas puses rīkojas godprātīgi. Lūk, ko lūdzam no jums un ko jūs varat prasīt no mums pretī: uzrakstīts, lai nevienam nav jāmin.",
+      "researcher": {
+        "kicker": "Ko mēs lūdzam no jums",
+        "title": "Pētnieka <em>saistības.</em>",
+        "p": "Iesniedzot ziņojumu, jūs piekrītat rīkoties godprātīgi un programmas garā, nevis tikai pēc burta.",
+        "items": {
+          "1": "Rīkojieties godprātīgi: izvairieties no privātuma pārkāpumiem, datu iznīcināšanas vai pakalpojuma traucējumiem pētījuma laikā.",
+          "2": "Neizmantojiet problēmu vairāk, nekā nepieciešams tās apstiprināšanai, un nekad nepiekļūstiet datiem, kas nav jūsu pašu.",
+          "3": "Saglabājiet ievainojamības detaļas konfidenciālas, līdz esam izlaiduši labojumu un apstiprinājuši to ar jums.",
+          "4": "Nepublicējiet konstatējumus bez iepriekšējas VIZA drošības komandas rakstiskas piekrišanas."
+        }
+      },
+      "viza": {
+        "kicker": "Ko jūs varat prasīt no mums",
+        "title": "VIZA <em>saistības.</em>",
+        "p": "Pretī mēs neignorējam ziņotājus, nestrīdamies par nopietnību, lai izvairītos no labošanas, un neceļam prasības pret cilvēkiem, kas mums palīdz.",
+        "items": {
+          "1": "Mēs izskatīsim katru derīgu ziņojumu un atbildēsim vienas darbdienas laikā neatkarīgi no nopietnības.",
+          "2": "Mēs sazināsimies cieņpilni: bez aizsargājošas valodas, bez “tā ir paredzēts” atrunām.",
+          "3": "Mēs veiksim nepieciešamos novēršanas pasākumus, kur tas vajadzīgs, un paziņosim, kad labojums ir izlaists.",
+          "4": "Mēs pieminēsim jūs (ar piekrišanu) savā drošības izmaiņu žurnālā, kad problēma būs atrisināta."
+        }
+      }
+    },
+    "legal": {
+      "eyebrow": "Juridiskā daļa un atlīdzība",
+      "title": "Drošā osta, atlīdzības<br></br>un sīkais drukājums.",
+      "intro": "Ja jūs godprātīgi ievērojat šo politiku, mēs jūsu pētījumu uzskatām par atļautu. Pārējā lapas daļa ir garlaicīgā, bet svarīgā: izklāstīta, nevis paslēpta.",
+      "cards": {
+        "safeHarbour": {
+          "title": "Juridiskā drošā osta",
+          "body": "Ja jūs godprātīgi ievērojat šo politiku, VIZA neierosinās tiesvedību pret jums par nejaušiem vai neapzinātiem pārkāpumiem, kas saistīti ar jūsu pētījumu. No jums joprojām tiek gaidīts, ka ievērosiet piemērojamos likumus un noteikumus."
+        },
+        "rewards": {
+          "title": "Atlīdzības un kļūdu medības",
+          "body": "VIZA pašlaik nerīko publiskas kļūdu medības. Mēs piedāvājam brīvi izvēlētu pateicības žestu par derīgām, atbildīgi ziņotām problēmām, ko vērtējam pēc ietekmes, jaunuma un ziņojuma kvalitātes.",
+          "meta": "pēc izvēles · katrs gadījums atsevišķi"
+        },
+        "updates": {
+          "title": "Programmas atjauninājumi",
+          "body": "VIZA patur tiesības jebkurā laikā mainīt vai pārtraukt šo programmu. Ja neesat pārliecināts, vai jūsu pētījums atbilst politikai, lūdzu, sazinieties ar mums uz security@viza.it.com <em>pirms</em> turpināt.",
+          "meta": "pēdējoreiz pārskatīts · 2026. gada maijā"
+        }
+      }
+    },
+    "cta": {
+      "title": "Pamanījāt kaut ko nepareizu?<br></br>Pastāstiet mūsu drošības komandai.",
+      "body": "Mēs labāk dzirdēsim par nelielu atradumu divreiz, nekā reizi palaidīsim garām lielu. Ziņojumi nonāk tieši pie īsta cilvēka drošības komandā: bez biļešu portāla, bez izvērtēšanas robota.",
+      "lead": "Tieši drošības komandai",
+      "small": "Vidējā atbildes laiks: mazāk par 24 stundām, katru nedēļas dienu."
+    },
+    "footer": {
+      "tagline": "VIZA palīdz plānot, pieteikt un izsekot vīzas visā pasaulē bez liekām raizēm.",
+      "company": "Uzņēmums",
+      "careers": "Karjera",
+      "contact": "Kontakti",
+      "security": "Drošība",
+      "privacy": "Privātums",
+      "terms": "Noteikumi",
+      "products": "Produkti",
+      "prodVisaReq": "Vīzu prasības",
+      "prodSchengen": "Šengenas pierakstu pārbaude",
+      "prodPhoto": "Vīzas foto veidotājs",
+      "prodHelpline": "VIZA ārkārtas palīdzības tālrunis",
+      "prodStudent": "Studenta vīza",
+      "offices": "Biroji",
+      "officeSg": "Singapūra, galvenā mītne",
+      "officeSf": "Šanhaja",
+      "copyright": "© VIZA, visas tiesības aizsargātas"
+    }
+  },
+  "status": {
+    "crumbHome": "Caurskatāmība",
+    "crumbHere": "Sistēmas statuss",
+    "hero": {
+      "title": "Sistēmas statuss",
+      "lead": "Ar pierādījumiem pamatota pieejamība VIZA un valdību vīzu portāliem, ar kuriem strādājam. Katrs procents, laika joslas stabiņš un incidents zemāk nāk no reģistrētas sintētiskas pārbaudes."
+    },
+    "console": {
+      "title": "VIZA uzticamība · Tiešraidē",
+      "live": "Pārbaudīts",
+      "unverified": "Nepārbaudīts",
+      "allOperational": "Visas sistēmas darbojas",
+      "degraded": "Dažu sistēmu darbība ir pasliktināta",
+      "majorOutage": "Uzraudzīta sistēma nav pieejama",
+      "dataUnavailable": "Uzraudzības dati nav pieejami",
+      "lastChecked": "Pēdējā reģistrētā pārbaude: {time}",
+      "noChecks": "Vēl nav reģistrēta neviena pabeigta pārbaude",
+      "kUptime": "90 dienu veiksmīgās pārbaudes",
+      "kMonitors": "Uzraudzītie galapunkti",
+      "kIncidents": "Aktīvs incidents"
+    },
+    "subnav": {
+      "current": "Pašreizējais statuss",
+      "incidents": "Iepriekšējie incidenti",
+      "subscribe": "Abonēt",
+      "searchPlaceholder": "Meklēt valstis",
+      "subscribeBtn": "Abonēt atjauninājumus"
+    },
+    "platform": {
+      "title": "VIZA platforma",
+      "realMeta": "Pārbauda ik pēc 5 minūtēm · galapunkti: {count}",
+      "meta": "Pārbauda ik pēc 5 minūtēm",
+      "name": "VIZA pieteikumu platforma",
+      "sub": "Publiskie VIZA pakalpojumi"
+    },
+    "uptime": {
+      "ago": "Pirms 90 dienām",
+      "today": "Šodien",
+      "pct": "{pct}% pārbaužu veiksmīgas",
+      "noData": "Nav reģistrētu pārbaužu"
+    },
+    "dayObservation": "{date}: reģistrētas pārbaudes: {checks}",
+    "dayNoData": "{date}: nav reģistrētu datu",
+    "dayTitle": "{n}. diena",
+    "statusLabels": {
+      "op": "Darbojas",
+      "deg": "Pasliktināta darbība",
+      "part": "Daļējs pārtraukums",
+      "maj": "Nav pieejams",
+      "none": "Nav pašreizējo datu"
+    },
+    "lastChecked": "Pārbaudīts {time}",
+    "monitorStale": "Trūkstoša vai novecojusi pārbaude",
+    "monitoringUnavailable": "Statusa API nav svaigu pierādījumu. VIZA nerādīs kešotu vai ģenerētu pieejamību kā pašreizējo pakalpojuma stāvokli.",
+    "noSearchResults": "Neviena uzraudzīta valsts neatbilst šim meklējumam.",
+    "noRecordedIncidents": "Pēdējo 90 dienu laikā no reģistrētajām pārbaudēm nav izsecināts neviens incidents.",
+    "incidentCount": "{count, plural, zero {# incidentu} one {# incidents} other {# incidenti}}",
+    "incidentRecovered": "Reģistrētās pārbaudes rāda, ka šis pakalpojums ir atkopies.",
+    "noIssues": "Nav aktīvu problēmu",
+    "activeIncident": "Aktīvs incidents",
+    "portalsHead": {
+      "title": "Valdību portāli",
+      "lead": "Ierobežots sintētisks pieprasījums pārbauda katru konfigurēto portālu ik pēc piecām minūtēm. Pelēka vēsture nozīmē, ka novērojums netika reģistrēts; tā nekad netiek aizpildīta ar aprēķinātiem datiem."
+    },
+    "incidentsHead": {
+      "title": "Iepriekšējie incidenti",
+      "lead": "Incidenti tiek atvērti un atrisināti pēc saglabātām uzraudzības pārejām. Tā ir darbības pieejamība, nevis pieteicēja personīgā vīzas lēmuma statuss."
+    },
+    "tags": {
+      "identified": "Noteikts",
+      "investigating": "Izmeklē",
+      "resolved": "Atrisināts"
+    },
+    "portals": {
+      "AE": {
+        "name": "Apvienotie Arābu Emirāti",
+        "sub": "GDRFA · ICA portāli"
+      },
+      "AM": {
+        "name": "Armēnija",
+        "sub": "E-vīzu portāls"
+      },
+      "AU": {
+        "name": "Austrālija",
+        "sub": "ImmiAccount"
+      },
+      "AZ": {
+        "name": "Azerbaidžāna",
+        "sub": "ASAN Visa"
+      },
+      "DE": {
+        "name": "Vācija",
+        "sub": "VIDEX · konsulāta laiki"
+      },
+      "DK": {
+        "name": "Dānija"
+      },
+      "EG": {
+        "name": "Ēģipte",
+        "sub": "E-vīzu portāls"
+      },
+      "FI": {
+        "name": "Somija",
+        "sub": "EnterFinland"
+      },
+      "FR": {
+        "name": "Francija",
+        "sub": "France-Visas"
+      },
+      "GB": {
+        "name": "Apvienotā Karaliste",
+        "sub": "UKVCAS · UK Visas",
+        "bannerText": "Dažiem pieteikumu veidiem ir pārtraukums.",
+        "bannerLink": "Skatīt incidentu laika skalu"
+      },
+      "GE": {
+        "name": "Gruzija"
+      },
+      "GR": {
+        "name": "Grieķija",
+        "sub": "AEGEAN · konsulārie"
+      },
+      "HK": {
+        "name": "Honkonga",
+        "sub": "Imigrācijas e-vīza"
+      },
+      "ID": {
+        "name": "Indonēzija",
+        "sub": "Indonēzijas e-vīza"
+      },
+      "IN": {
+        "name": "Indija",
+        "sub": "Indian Visa Online"
+      },
+      "JO": {
+        "name": "Jordānija"
+      },
+      "KE": {
+        "name": "Kenija",
+        "sub": "eCitizen / e-vīza"
+      },
+      "KH": {
+        "name": "Kambodža"
+      },
+      "LK": {
+        "name": "Šrilanka",
+        "sub": "ETA portāls"
+      },
+      "MA": {
+        "name": "Maroka"
+      },
+      "TH": {
+        "name": "Taizeme",
+        "sub": "Taizemes e-vīza"
+      }
+    },
+    "incidents": {
+      "count": "Veiktspējas problēmas: <strong>{count}</strong> {count, plural, zero {valstīs} one {valstī} other {valstīs}}",
+      "events": "{count, plural, zero {# notikumu} one {# notikums} other {# notikumi}}",
+      "days": [
+        {
+          "date": "2026. gada 10. maijs",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "10. maijs, 3:05 PM",
+                  "desc": "Šis incidents ir atrisināts. Pakalpojums ir atgriezies normālā darbībā."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "10. maijs, 5:05 PM",
+                  "desc": "Šis incidents ir atrisināts. Pakalpojums ir atgriezies normālā darbībā."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2026. gada 9. maijs",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "9. maijs, 10:50 PM",
+                  "desc": "Mēs izmeklējam paaugstinātu kļūmju līmeni."
+                },
+                {
+                  "time": "10. maijs, 12:20 AM",
+                  "desc": "Nopietnība pieaugusi no pasliktinātas darbības līdz daļējam pārtraukumam."
+                },
+                {
+                  "time": "10. maijs, 2:50 AM",
+                  "desc": "Nopietnība pieaugusi no daļēja pārtraukuma līdz lielam pārtraukumam."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "9. maijs, 3:05 PM",
+                  "desc": "Mēs izmeklējam paaugstinātu kļūmju līmeni."
+                },
+                {
+                  "time": "9. maijs, 7:20 PM",
+                  "desc": "Nopietnība pieaugusi no daļēja pārtraukuma līdz lielam pārtraukumam."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2026. gada 8. maijs",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "8. maijs, 1:05 PM",
+                  "desc": "Mēs izmeklējam paaugstinātu kļūmju līmeni."
+                },
+                {
+                  "time": "8. maijs, 2:05 PM",
+                  "desc": "Šis incidents ir atrisināts. Pakalpojums ir atgriezies normālā darbībā."
+                },
+                {
+                  "time": "8. maijs, 2:50 PM",
+                  "desc": "Mēs izmeklējam paaugstinātu kļūmju līmeni."
+                },
+                {
+                  "time": "8. maijs, 7:35 PM",
+                  "desc": "Šis incidents ir atrisināts. Pakalpojums ir atgriezies normālā darbībā."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2026. gada 5. maijs",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "5. maijs, 1:36 PM",
+                  "desc": "Nopietnība pieaugusi no pasliktinātas darbības līdz daļējam pārtraukumam."
+                },
+                {
+                  "time": "5. maijs, 4:50 PM",
+                  "desc": "Šis incidents ir atrisināts."
+                },
+                {
+                  "time": "5. maijs, 9:20 PM",
+                  "desc": "Mēs izmeklējam paaugstinātu kļūmju līmeni."
+                },
+                {
+                  "time": "5. maijs, 10:20 PM",
+                  "desc": "Šis incidents ir atrisināts."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "5. maijs, 2:43 PM",
+                  "desc": "Šis incidents ir atrisināts."
+                },
+                {
+                  "time": "5. maijs, 3:35 PM",
+                  "desc": "Mēs izmeklējam paaugstinātu kļūmju līmeni."
+                },
+                {
+                  "time": "5. maijs, 7:35 PM",
+                  "desc": "Nopietnība pieaugusi no daļēja pārtraukuma līdz lielam pārtraukumam."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2026. gada 4. maijs",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "4. maijs, 4:05 PM",
+                  "desc": "Mēs izmeklējam paaugstinātu kļūmju līmeni."
+                },
+                {
+                  "time": "4. maijs, 5:05 PM",
+                  "desc": "Šis incidents ir atrisināts."
+                },
+                {
+                  "time": "4. maijs, 7:36 PM",
+                  "desc": "Mēs izmeklējam paaugstinātu kļūmju līmeni."
+                },
+                {
+                  "time": "4. maijs, 8:35 PM",
+                  "desc": "Šis incidents ir atrisināts."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "4. maijs, 12:05 PM",
+                  "desc": "Šis incidents ir atrisināts."
+                },
+                {
+                  "time": "4. maijs, 1:50 PM",
+                  "desc": "Mēs izmeklējam paaugstinātu kļūmju līmeni."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2026. gada 2. maijs",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "2. maijs, 6:35 PM",
+                  "desc": "Mēs izmeklējam paaugstinātu kļūmju līmeni."
+                },
+                {
+                  "time": "2. maijs, 7:50 PM",
+                  "desc": "Šis incidents ir atrisināts."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "2. maijs, 9:20 AM",
+                  "desc": "Mēs izmeklējam paaugstinātu kļūmju līmeni."
+                },
+                {
+                  "time": "2. maijs, 10:20 AM",
+                  "desc": "Šis incidents ir atrisināts."
+                },
+                {
+                  "time": "2. maijs, 8:20 PM",
+                  "desc": "Mēs izmeklējam paaugstinātu kļūmju līmeni."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "2. maijs, 8:20 PM",
+                  "desc": "Mēs izmeklējam paaugstinātu kļūmju līmeni."
+                },
+                {
+                  "time": "3. maijs, 12:05 AM",
+                  "desc": "Šis incidents ir atrisināts."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2026. gada 1. maijs",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "1. maijs, 2:05 PM",
+                  "desc": "Mēs izmeklējam paaugstinātu kļūmju līmeni."
+                },
+                {
+                  "time": "1. maijs, 3:05 PM",
+                  "desc": "Šis incidents ir atrisināts."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2026. gada 30. aprīlis",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "30. aprīlis, 8:20 AM",
+                  "desc": "Mēs izmeklējam paaugstinātu kļūmju līmeni."
+                },
+                {
+                  "time": "30. aprīlis, 9:50 AM",
+                  "desc": "Šis incidents ir atrisināts."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30. aprīlis, 3:05 PM",
+                  "desc": "Šis incidents ir atrisināts."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30. aprīlis, 4:51 PM",
+                  "desc": "Šis incidents ir atrisināts."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30. aprīlis, 1:20 PM",
+                  "desc": "Mēs izmeklējam paaugstinātu kļūmju līmeni."
+                },
+                {
+                  "time": "30. aprīlis, 2:37 PM",
+                  "desc": "Nopietnība pieaugusi no pasliktinātas darbības līdz daļējam pārtraukumam."
+                },
+                {
+                  "time": "30. aprīlis, 8:20 PM",
+                  "desc": "Šis incidents ir atrisināts."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30. aprīlis, 6:50 PM",
+                  "desc": "Šis incidents ir atrisināts."
+                },
+                {
+                  "time": "30. aprīlis, 7:50 PM",
+                  "desc": "Mēs izmeklējam paaugstinātu kļūmju līmeni."
+                },
+                {
+                  "time": "1. maijs, 12:20 AM",
+                  "desc": "Šis incidents ir atrisināts."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "subscribe": {
+      "title": "Uzziniet pirmie,<br></br>kad kaut kas salūzt.",
+      "lead": "Izvēlieties valstis, kas jūs interesē, un mēs nosūtīsim vienu vienkāršu ziņu, kad to portāli vai mūsējie pārstāj darboties vai atkal sāk.",
+      "emailLabel": "Saņemt incidentu atjauninājumus pa e-pastu",
+      "button": "Abonēt",
+      "follow": "Vai sekojiet statusam šeit:",
+      "chipEmail": "E-pasta kopsavilkums",
+      "chipSms": "SMS un WhatsApp",
+      "chipRss": "RSS plūsma",
+      "chipWebhook": "Webhook operācijām"
+    },
+    "footer": {
+      "tagline": "VIZA palīdz plānot, pieteikt un izsekot vīzas visā pasaulē bez liekām raizēm.",
+      "company": "Uzņēmums",
+      "careers": "Karjera",
+      "contact": "Kontakti",
+      "security": "Drošība",
+      "systemStatus": "Sistēmas statuss",
+      "privacy": "Privātums",
+      "terms": "Noteikumi",
+      "products": "Produkti",
+      "prodVisaReq": "Vīzu prasības",
+      "prodSchengen": "Šengenas pierakstu pārbaude",
+      "prodPhoto": "Vīzas foto veidotājs",
+      "prodHelpline": "VIZA ārkārtas palīdzības tālrunis",
+      "copyright": "© VIZA, visas tiesības aizsargātas"
+    }
+  },
+  "arrival": {
+    "breadcrumbHome": "Sākums",
+    "breadcrumbHub": "Ierašanās kartes",
+    "hubH1": "Ierašanās karšu ceļveži",
+    "hubLead": "Ierašanās karte ir īsa valdības veidlapa, ko aizpilda pirms ieceļošanas valstī. Lielākā daļa ir tiešsaistē, bezmaksas un aizņem apmēram piecas minūtes. Šie ceļveži parāda, kam katra vajadzīga, kad to iesniegt un kā izvairīties no viltus vietnēm, kas par to ņem naudu.",
+    "hubWhatTitle": "Kas ir ierašanās karte",
+    "hubWhat": [
+      "Ierašanās karte ir deklarācija, ko galamērķis prasa papildus pasei un jebkurai vīzai. Tajā norāda, kas jūs esat, kā ierodaties un kur apmetīsieties. Daudzas valstis lidmašīnā izdalīto papīra karti ir aizstājušas ar tiešsaistes veidlapu.",
+      "Tā nav vīza. Vīza ļauj pieteikties ieceļošanai. Ierašanās karte informē robežas iestādi par jūsu braucienu, un vīza joprojām ir vajadzīga, ja to prasa jūsu pilsonība."
+    ],
+    "hubFreeTitle": "Ierašanās kartes ir bezmaksas",
+    "hubFree": [
+      "Katra šajos ceļvežos minētā karte ir bezmaksas pašas valdības vietnē. Dažas vietnes nokopē valdības veidlapu un par to ņem maksu. Jums nekad nav jāmaksā nevienai no tām.",
+      "Vienmēr sāciet no oficiālās adreses, kas norādīta katrā ceļvedī. VIZA ir neatkarīgs pakalpojums, nevis valdības vietne."
+    ],
+    "hubWhenTitle": "Kad tā vajadzīga",
+    "hubWhen": [
+      "Lielākā daļa karšu atveras trīs dienas pirms ierašanās, un tās jāiesniedz šajā laika logā. Precīzu noteikumu skatiet katrā ceļvedī, jo Japānas Visit Japan Web nav fiksēta termiņa un nav obligāta.",
+      "Iedzīvotāji, pilsoņi un tranzīta pasažieri bieži ir atbrīvoti vai aizpilda īsāku veidlapu. Katrā ceļvedī norādīts, kas ir atbrīvots, tostarp Singapūras pilsoņu atbrīvojums no Malaizijas MDAC."
+    ],
+    "hubGuidesTitle": "Visi ceļveži",
+    "hubGuidesSub": "Izvēlieties savu galamērķi. Katrā ceļvedī ir soļi, biežākās kļūdas un oficiālās saites.",
+    "readGuide": "Lasīt ceļvedi",
+    "cardWhen": "Kad",
+    "cardsLabel": "Ierašanās karte",
+    "hubVisaTitle": "Vajadzīga arī vīza",
+    "hubVisaBody": "Ierašanās karte neaizstāj vīzu. Galamērķa lapā pārbaudiet, vai jūsu pasei tā ir vajadzīga.",
+    "hubVisaCta": "Skatīt vīzu lapas",
+    "glanceTitle": "Īsumā",
+    "stepsTitle": "Kā to aizpildīt, soli pa solim",
+    "mistakesTitle": "Biežākās kļūdas",
+    "feesTitle": "Nodevas un viltus vietnes",
+    "faqTitle": "Jautājumi",
+    "sourcesTitle": "Avoti",
+    "relatedTitle": "Citi ierašanās karšu ceļveži",
+    "independent": "VIZA ir neatkarīgs pakalpojums, nevis valdības vietne.",
+    "officialCta": "Atvērt oficiālo vietni",
+    "officialLabel": "Oficiālā vietne",
+    "vizaTitle": "Lai VIZA to izdara jūsu vietā",
+    "vizaBody": "Sāciet {name} savā VIZA kontā. VIZA veidlapa jūs izvada cauri tiem pašiem jautājumiem kā oficiālā un saglabā jūsu datus nākamajiem braucieniem. Vienmēr varat izmantot arī bezmaksas oficiālo vietni.",
+    "vizaFee": "VIZA pakalpojuma maksa",
+    "vizaFeeFree": "Bezmaksas",
+    "vizaCta": "Sākt VIZA",
+    "noVizaTitle": "Izmantojiet oficiālo vietni",
+    "noVizaBody": "VIZA šo karti pagaidām neaizpilda. Izmantojiet tālāk norādīto oficiālo vietni un vispirms izlasiet šī ceļveža soļus.",
+    "visaTitle": "Vīza: {country}",
+    "visaBody": "Ierašanās karte ir atsevišķa no vīzas. Uzziniet, kam vajadzīga vīza uz: {country}, kādas ir nodevas un kā pieteikties.",
+    "visaCta": "Atvērt vīzas lapu: {country}",
+    "reviewedTitle": "Pārbaudīts 2026. gada 25. novembrī",
+    "stepLabel": "Solis",
+    "cards": {
+      "malaysia-mdac": {
+        "summary": "Bezmaksas tiešsaistes karte ārvalstu apmeklētājiem. Singapūras pilsoņi ir atbrīvoti.",
+        "when": "3 dienu laikā pirms ierašanās"
+      },
+      "singapore-sg-arrival-card": {
+        "summary": "ICA tiešsaistes karte ar veselības deklarāciju. Iesniedziet vietnē vai lietotnē MyICA.",
+        "when": "3 dienu laikā pirms ierašanās"
+      },
+      "japan-visit-japan-web": {
+        "summary": "Bezmaksas QR kodi imigrācijai un muitai. Ieteicams, nav obligāts.",
+        "when": "Pirms lidojuma"
+      },
+      "thailand-tdac": {
+        "summary": "Bezmaksas karte katram ārvalstu apmeklētājam, ar vīzu vai bez tās. Aizstāja papīra TM6.",
+        "when": "3 dienu laikā pirms ierašanās"
+      },
+      "korea-e-arrival-card": {
+        "summary": "Obligāta kopš 2026. gada 1. janvāra. Derīgas K-ETA īpašnieks ir atbrīvots.",
+        "when": "3 dienu laikā pirms ierašanās"
+      },
+      "indonesia-all-indonesia": {
+        "summary": "Viena karte imigrācijai, muitai un veselībai. Bezmaksas, un tā nav vīza.",
+        "when": "Līdz 3 dienām pirms ierašanās"
+      }
+    }
+  },
+  "guides": {
+    "breadcrumbHome": "Sākums",
+    "breadcrumbHub": "Ceļveži",
+    "hubH1": "Vīzu ceļveži Singapūrā dzīvojošajiem",
+    "hubLead": "Neatkarīgi no tā, vai jums ir Singapūras, Ķīnas, Indijas vai Filipīnu pase, šie ceļveži atbild uz vienu un to pašu jautājumu: kas vajadzīgs, lai ieceļotu šajā valstī, un kur pieteikties no Singapūras. Katrs ceļvedis min savus avotus un pārbaudes datumu.",
+    "hubGuidesTitle": "Visi ceļveži",
+    "hubGuidesSub": "Izvēlieties tēmu. Noteikumi mainās, tāpēc katrs ceļvedis norāda oficiālās lapas, ko pārbaudīt pirms ceļojuma.",
+    "readGuide": "Lasīt ceļvedi",
+    "hubMoreTitle": "Vairāk no VIZA",
+    "hubMoreBody": "Meklējat konkrētu valsti, ierašanās karti vai jaunākās noteikumu izmaiņas?",
+    "hubDestinations": "Vīzu lapas",
+    "hubArrival": "Ierašanās karšu ceļveži",
+    "hubNews": "Vīzu jaunumi",
+    "glanceTitle": "Īsā atbilde",
+    "relatedVisaTitle": "Galamērķu lapas",
+    "relatedVisaSub": "Nodevas, dokumenti un soļi Singapūrā dzīvojošajiem.",
+    "relatedArrivalTitle": "Ierašanās karšu ceļveži",
+    "relatedGuidesTitle": "Vairāk ceļvežu",
+    "faqTitle": "Jautājumi",
+    "sourcesTitle": "Avoti",
+    "reviewedTitle": "Kā mēs pārbaudījām",
+    "published": "Publicēts",
+    "updated": "Atjaunināts",
+    "independent": "VIZA ir neatkarīgs pakalpojums, nevis valdības vietne."
+  },
+  "ds": {
+    "header": {
+      "home": "VIZA sākums",
+      "primary": "Galvenā",
+      "language": "Valoda",
+      "signIn": "Pieteikties kontā",
+      "openMenu": "Atvērt izvēlni",
+      "closeMenu": "Aizvērt izvēlni",
+      "nav": {
+        "home": "Sākums",
+        "destinations": "Galamērķi",
+        "arrivalCards": "Ierašanās kartes",
+        "guides": "Ceļveži",
+        "news": "Jaunumi",
+        "about": "Par mums",
+        "contact": "Kontakti"
+      }
+    },
+    "footer": {
+      "home": "VIZA sākums",
+      "tagline": "Vīzu pieteikumus sagatavo VIZA MI, un tos pārbauda mūsu konsultanti. Lietošana ir bezmaksas.",
+      "explore": "Izpētīt",
+      "follow": "Sekojiet mums",
+      "followOn": "Sekojiet VIZA platformā {platform}",
+      "links": {
+        "destinations": "Galamērķi",
+        "arrivalCards": "Ierašanās kartes",
+        "guides": "Ceļveži",
+        "news": "Jaunumi",
+        "about": "Par mums",
+        "contact": "Kontakti",
+        "careers": "Karjera",
+        "security": "Drošība",
+        "status": "Statuss"
+      },
+      "copyright": "© {year} VIZA. Visas tiesības aizsargātas.",
+      "office": "Juridiskā adrese: 60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapūra 409051",
+      "privacy": "Privātums",
+      "terms": "Noteikumi",
+      "kelin": "Kelin Studio uzņēmums",
+      "refunds": "Atmaksas",
+      "business": "Informācija par uzņēmumu"
+    },
+    "form": {
+      "fullName": {
+        "label": "Jūsu vārds",
+        "placeholder": "Jane Tan"
+      },
+      "email": {
+        "label": "E-pasts"
+      },
+      "phone": {
+        "label": "Tālrunis"
+      },
+      "destination": {
+        "label": "Galamērķis",
+        "placeholder": "Japāna, Šengena, Amerikas Savienotās Valstis"
+      },
+      "message": {
+        "label": "Jūsu jautājums",
+        "placeholder": "Kurp dodaties, jūsu pase un ceļojuma datumi."
+      },
+      "submit": "Nosūtīt ziņu",
+      "sending": "Sūta",
+      "success": "Paldies, jūsu ziņa ir saņemta. Atbildēsim pa e-pastu.",
+      "error": "Neizdevās nosūtīt ziņu. Lūdzu, mēģiniet vēlreiz vai rakstiet uz sales@kelin.studio.",
+      "consent": "Nosūtot jūs piekrītat mūsu <privacy>privātuma politikai</privacy> un <terms>noteikumiem</terms>."
+    },
+    "gallery": {
+      "title": "Galamērķi",
+      "lede": "Izvēlieties galamērķi, lai redzētu nepieciešamo vīzu, dokumentus un valsts nodevu.",
+      "view": "Skatīt",
+      "passportSummary": "{free} bez vīzas · {voa} e-vīza vai ierodoties · {req} vīza nepieciešama",
+      "noResults": "Nav galamērķu, kas atbilstu jūsu meklējumam.",
+      "sorts": {
+        "featured": "Ieteiktie",
+        "open": "Vispirms pieejamie",
+        "name": "No A līdz Z"
+      }
+    },
+    "dest": {
+      "all": "Visi galamērķi",
+      "onPage": "Šajā lapā",
+      "applyTitle": "Sākt pieteikumu",
+      "facts": "Fakti"
+    },
+    "article": {
+      "toc": "Šajā lapā",
+      "down": "Pāriet uz rakstu",
+      "faqLede": "Īsas atbildes par šo tēmu."
+    },
+    "legal": {
+      "updated": "Pēdējoreiz atjaunināts",
+      "contents": "Saturs"
+    }
+  },
+  "homePage": {
+    "hero": {
+      "browse": "Skatīt galamērķus",
+      "picks": "Galamērķi"
+    },
+    "types": {
+      "title": "Vīzu veidi",
+      "lede": "Tūrisma, komandējuma, darba, studenta un ilgtermiņa vīzas.",
+      "prev": "Iepriekšējā",
+      "next": "Nākamā",
+      "items": {
+        "tourist": {
+          "title": "Tūrisma",
+          "body": "Atvaļinājumi, ģimenes apmeklējumi un īsas uzturēšanās."
+        },
+        "business": {
+          "title": "Komandējuma",
+          "body": "Sanāksmes, konferences un objektu apmeklējumi."
+        },
+        "work": {
+          "title": "Darba",
+          "body": "Darba atļaujas un darba vīzas."
+        },
+        "student": {
+          "title": "Studenta",
+          "body": "Studiju vīzas skolām un universitātēm."
+        },
+        "long": {
+          "title": "Ilgtermiņa uzturēšanās",
+          "body": "Uzturēšanās atļaujas un citas ilgtermiņa vīzas."
+        }
+      }
+    },
+    "steps": {
+      "title": "Kā tas darbojas",
+      "cta": "Sāciet bezmaksas pieteikumu",
+      "side": {
+        "freeValue": "Bezmaksas",
+        "freeLabel": "VIZA pakalpojums",
+        "langLabel": "Valodas",
+        "note": "Jūs maksājat tikai valsts nodevu.",
+        "noteBody": "Tā tiek maksāta tieši izsniedzējai iestādei. VIZA nepievieno savu maksu."
+      },
+      "items": {
+        "choose": {
+          "title": "Izvēlieties galamērķi",
+          "body": "Pirms sākšanas redziet nepieciešamo vīzu, sagatavojamos dokumentus un valsts nodevu.",
+          "chips": "Vīzas veids|Dokumenti|Valsts nodeva"
+        },
+        "passport": {
+          "title": "Augšupielādējiet pasi",
+          "body": "VIZA nolasa jūsu datus no fotolapas, tāpēc rakstīt jāpiepūlas ļoti maz.",
+          "chips": "Fotolapa|Dati aizpildīti"
+        },
+        "confirm": {
+          "title": "Apstipriniet savus datus",
+          "body": "Pārbaudiet, ko VIZA nolasīja, pievienojiet ceļojuma datumus un turpiniet savā bezmaksas VIZA kontā.",
+          "chips": "Ceļojuma datumi|Bezmaksas konts"
+        },
+        "file": {
+          "title": "VIZA pārbauda un iesniedz",
+          "body": "Konsultants pārbauda katru veidlapu pirms iesniegšanas, un jūs sekojat tās gaitai savā kontā.",
+          "chips": "Konsultanta pārbaude|Gaitas atjauninājumi"
+        }
+      }
+    },
+    "tiers": {
+      "title": "Cenas",
+      "lede": "Divi veidi, kā pieteikties, abi bezmaksas.",
+      "cta": "Sazināties ar mums",
+      "criteria": "Salīdzināt",
+      "guided": "Ar atbalstu",
+      "full": "Pilns serviss",
+      "rows": {
+        "fee": {
+          "label": "VIZA maksa",
+          "guided": "Bezmaksas",
+          "full": "Bezmaksas"
+        },
+        "form": {
+          "label": "Pieteikuma veidlapa",
+          "guided": "Jūs atbildat, un VIZA MI ir jūsu pavadonis",
+          "full": "Konsultants sagatavo atbildes kopā ar jums"
+        },
+        "documents": {
+          "label": "Dokumenti",
+          "guided": "Kontrolsaraksts jūsu situācijai",
+          "full": "Konsultants pārbauda jūsu dokumentus"
+        },
+        "interview": {
+          "label": "Pieraksts un intervija",
+          "guided": "Jūs pierakstāties un ierodaties",
+          "full": "Kopā ar jums izejam cauri iespējamiem jautājumiem"
+        },
+        "govFee": {
+          "label": "Valsts nodeva",
+          "guided": "Maksā tieši iestādei",
+          "full": "Maksā tieši iestādei"
+        },
+        "bestFor": {
+          "label": "Piemērots",
+          "guided": "Vienkāršiem pieteikumiem",
+          "full": "Sarežģītiem gadījumiem vai iepriekšējam atteikumam"
+        }
+      }
+    },
+    "why": {
+      "title": "Kāpēc VIZA",
+      "lede": "Skaidri soļi, pārbaudītas veidlapas un īsti cilvēki, ar kuriem parunāt.",
+      "items": {
+        "free": {
+          "title": "Bezmaksas pakalpojums",
+          "body": "VIZA palīdzība neko nemaksā. Jūs maksājat tikai valsts nodevu, tieši iestādei."
+        },
+        "checked": {
+          "title": "Pārbaudītas veidlapas",
+          "body": "Konsultants pārbauda katru veidlapu pirms iesniegšanas, tāpēc nelielas kļūdas tiek pamanītas savlaicīgi."
+        },
+        "language": {
+          "title": "Angļu un ķīniešu valoda",
+          "body": "Runājiet ar VIZA angļu vai ķīniešu valodā, WhatsApp, WeChat vai e-pastā."
+        }
+      },
+      "photos": {
+        "arrival": {
+          "title": "Ierašanās kartes",
+          "body": "Palīdzība soli pa solim ar bezmaksas ierašanās kartēm Malaizijai, Singapūrai, Japānai, Taizemei, Korejai un Indonēzijai."
+        },
+        "news": {
+          "title": "Jaunumi",
+          "body": "Vīzu noteikumu izmaiņas un jaunas e-vīzu shēmas, izskaidrotas vienkāršiem vārdiem."
+        }
+      }
+    },
+    "guides": {
+      "title": "Ceļveži",
+      "cta": "Visi ceļveži"
+    },
+    "faq": {
+      "lede": "Īsas atbildes par VIZA vīzu pakalpojumu.",
+      "more": "Vēl jautājumi?",
+      "items": {
+        "cost": {
+          "q": "Vai VIZA par pakalpojumu ņem maksu?",
+          "a": "Nē. VIZA palīdzība ir bezmaksas. Ja galamērķis prasa valsts vīzas nodevu, jūs to maksājat tieši šai valdībai."
+        },
+        "visas": {
+          "q": "Ar kurām vīzām VIZA var palīdzēt?",
+          "a": "Tūrisma, komandējuma, darba, studenta un ilgtermiņa vīzām šajā lapā redzamajiem galamērķiem. Ja jūsu galamērķa nav sarakstā, uzrakstiet mums, un konsultants pateiks, kas ir iespējams."
+        },
+        "approval": {
+          "q": "Kas lemj par manu vīzu?",
+          "a": "Katru lēmumu pieņem izsniedzēja iestāde. VIZA pārbauda jūsu veidlapu un dokumentus pirms iesniegšanas, lai pieteikums būtu pilnīgs un konsekvents."
+        },
+        "tiers": {
+          "q": "Kāda ir atšķirība starp Ar atbalstu un Pilnu servisu?",
+          "a": "Ar atbalstu VIZA MI pavada jūs cauri veidlapai un kontrolsarakstam, un katra atbilde paliek jūsu rokās. Ar pilnu servisu konsultants sagatavo atbildes kopā ar jums un pārbauda jūsu dokumentus. Abi ir bezmaksas."
+        },
+        "language": {
+          "q": "Kuras valodas jūs atbalstāt?",
+          "a": "Angļu un ķīniešu, WhatsApp, WeChat, pa tālruni un e-pastā."
+        }
+      }
+    },
+    "contactCard": {
+      "title": "Runājiet ar VIZA konsultantu",
+      "body": "Atbildam angļu vai ķīniešu valodā.",
+      "cta": "Sazināties ar mums"
+    },
+    "cta": {
+      "title": "Sāciet savu pieteikumu",
+      "point1": "Jūsu dati paliek privāti",
+      "point2": "Atbild īsts cilvēks",
+      "formTitle": "Uzdodiet jautājumu",
+      "formBody": "Pastāstiet, kurp dodaties, un VIZA konsultants atbildēs pa e-pastu."
+    }
+  },
+  "aboutPage": {
+    "h1": "Par VIZA",
+    "intro": {
+      "title": "Kas ir VIZA",
+      "text": "VIZA sagatavo, pārbauda un iesniedz vīzu pieteikumus Singapūrā dzīvojošajiem. Mūsu MI paveic papīra darbu, un konsultanti pārskata katru veidlapu. Pakalpojums ir bezmaksas."
+    },
+    "facts": {
+      "destinations": "Galamērķi",
+      "guides": "Vīzu ceļveži",
+      "arrival": "Ierašanās karšu ceļveži",
+      "free": "Bezmaksas",
+      "freeLabel": "VIZA pakalpojums"
+    },
+    "tiersTitle": "Ar atbalstu vai pilns serviss",
+    "tiersLede": "Izvēlieties, cik lielu palīdzību vēlaties. Abi varianti ir bezmaksas.",
+    "free": {
+      "title": "Bezmaksas pakalpojums",
+      "text": "VIZA par savu palīdzību neprasa maksu. Ja galamērķim ir valsts vīzas nodeva, VIZA to parāda pirms sākšanas, un jūs to maksājat tieši izsniedzējai iestādei. Maksas uzlabojumu nav."
+    },
+    "company": {
+      "title": "Uzņēmuma dati",
+      "office": "Juridiskā adrese",
+      "officeValue": "60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapūra 409051",
+      "email": "E-pasts",
+      "phone": "Tālrunis un WhatsApp",
+      "languages": "Valodas",
+      "languagesValue": "Angļu un ķīniešu"
+    }
+  },
+  "contactPage": {
+    "h1": "Kontakti",
+    "lines": {
+      "whatsapp": {
+        "title": "Tālrunis un WhatsApp",
+        "body": "Zvaniet vai rakstiet konsultantam."
+      },
+      "wechat": {
+        "body": "Meklējiet ID lietotnē WeChat, lai mūs pievienotu."
+      },
+      "email": {
+        "title": "E-pasts",
+        "body": "Vislabāk piemērots dokumentiem un garākiem jautājumiem."
+      },
+      "office": {
+        "top": "Singapūra",
+        "title": "Birojs",
+        "body": "60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapūra 409051"
+      }
+    },
+    "message": {
+      "title": "Nosūtiet ziņu",
+      "text": "Jautājumi par vīzu, galamērķi vai sadarbību ar VIZA. Uzrakstiet mums, un konsultants atbildēs."
+    }
+  },
+  "careersPage": {
+    "title": "Karjera",
+    "lede": "VIZA palīdz cilvēkiem Singapūrā saņemt vīzu ar MI un konsultantu palīdzību, un pakalpojums ir bezmaksas. Mēs pieņemam darbā cilvēkus, kam patīk rūpīgs, noderīgs darbs.",
+    "teamsTitle": "Komandas",
+    "teams": [
+      {
+        "title": "Inženierija",
+        "body": "Veidojiet dokumentu pārbaudes, pieteikuma plūsmu un rīkus, ko izmanto mūsu konsultanti."
+      },
+      {
+        "title": "Dizains",
+        "body": "Padariet saspringto procesu skaidru tam, kas piesakās."
+      },
+      {
+        "title": "Operācijas",
+        "body": "Uzturiet katru pieteikumu kustībā un katru prasību aktuālu."
+      },
+      {
+        "title": "Konsultācijas",
+        "body": "Palīdziet pieteikumu iesniedzējiem gadījumos, kam vajadzīgs cilvēks, angļu un ķīniešu valodā."
+      },
+      {
+        "title": "Dati",
+        "body": "Pārvērtiet valsts avotus pārbaudēs, kas problēmas pamana savlaicīgi."
+      },
+      {
+        "title": "Mārketings",
+        "body": "Skaidrojiet vīzas vienkārši, ceļvežos un lapās, kam cilvēki var uzticēties."
+      }
+    ],
+    "applyTitle": "Sazinieties ar mums",
+    "applyBody": "Pastāstiet par sevi un komandu, kurai vēlaties pievienoties. Mēs izlasām katru ziņu.",
+    "applyCta": "Sazināties ar mums"
+  },
+  "pageCopy": {
+    "product": {
+      "introTitle": "Kā VIZA palīdz ar jūsu vīzas pieteikumu",
+      "introLede": "Iepazīstiet pieejamos vīzu sagatavošanas, dokumentu pārbaudes un pieteikuma statusa pakalpojumus. VIZA pakalpojums ir bezmaksas. Precīzs apjoms un pieejamība tiek rādīti pēc galamērķa izvēles.",
+      "browse": "Skatīt galamērķus"
+    },
+    "events": {
+      "title": "Pasākumu vēl nav",
+      "lede": "Nākamās vīzu konsultācijas, informatīvās sesijas un partneru pasākumi tiks paziņoti šeit.",
+      "contact": "Sazināties ar mums"
+    }
+  },
+  "og": {
+    "band": "VIZA ir bezmaksas. Valsts nodevas ir atsevišķi.",
+    "destSubtitle": "Nodevas un kā pieteikties"
+  }
+}

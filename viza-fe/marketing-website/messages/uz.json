@@ -1,0 +1,2150 @@
+{
+  "cta": {
+    "startFreeApplication": "Bepul arizangizni boshlang"
+  },
+  "nav": {
+    "home": "Bosh sahifa",
+    "apply": "Ariza",
+    "visas": "Vizalar",
+    "explore": "Kashf eting",
+    "events": "Tadbirlar",
+    "blog": "Yangiliklar",
+    "careers": "Karyera",
+    "contact": "Aloqa",
+    "signIn": "Kirish",
+    "getStarted": "Boshlash",
+    "yourPassport": "Sizning pasportingiz",
+    "searchPlaceholder": "Davlat yoki vizani qidiring…",
+    "arrivalCards": "Kelish kartalari",
+    "guides": "Qo‘llanmalar"
+  },
+  "footer": {
+    "followUs": "Bizni kuzating:",
+    "followOn": "VIZA’ni {platform} da kuzating",
+    "product": "Mahsulotlar",
+    "company": "Kompaniya",
+    "legal": "Huquqiy",
+    "offices": "Ofislar",
+    "askAi": "VIZA haqida AI’dan so‘rang",
+    "security": "Xavfsizlik",
+    "status": "Holat",
+    "privacy": "Maxfiylik",
+    "terms": "Shartlar",
+    "rights": "Barcha huquqlar himoyalangan.",
+    "tagline": "VIZA butun dunyo bo‘ylab vizalarni rejalashtirish, topshirish va kuzatishda sizga qulaylik yaratadi.",
+    "careers": "Karyera",
+    "contact": "Aloqa",
+    "copyright": "© VIZA, Barcha huquqlar himoyalangan",
+    "prodMockInterview": "AQSh sinov suhbati",
+    "prodVisaReq": "Viza talablari",
+    "prodSchengen": "Shengen qabul tekshiruvchisi",
+    "prodPhoto": "Viza surati yaratuvchisi",
+    "prodHelpline": "VIZA favqulodda yordam liniyasi",
+    "prodStudent": "Talaba vizasi",
+    "arrivalCards": "Kelish kartalari",
+    "guides": "Qo‘llanmalar",
+    "news": "Yangiliklar"
+  },
+  "pages": {
+    "blog": {
+      "metaTitle": "Viza yangiliklari va siyosat | VIZA",
+      "metaDescription": "VIZA viza yangiliklari: qoida o‘zgarishlari, yangi elektron viza va ETA tizimlari, ular Singapurda yashovchilarga qanday ta’sir qilishi.",
+      "title": "Viza yangiliklari",
+      "lede": "Qoida o‘zgarishlari va siyosat yangiliklari oddiy so‘zlar bilan. Doimiy to‘g‘ri maslahatlar uchun qo‘llanmalarni o‘qing.",
+      "readArticle": "Maqolani o‘qish",
+      "featuredLabel": "So‘nggi yangiliklar",
+      "articlesTitle": "So‘nggi yangiliklar",
+      "articlesDescription": "Siyosat yangiliklari va sayohat qoidalari o‘zgarishlari.",
+      "allPosts": "Barcha yozuvlar",
+      "noMorePosts": "Yangi yangiliklar yo‘lda.",
+      "emptyTitle": "Hali yangilik e’lon qilinmagan",
+      "emptyBody": "Birinchi yangiliklarimiz tayyorlanmoqda. Iltimos, tez orada qayta tekshiring.",
+      "unavailableTitle": "Yangiliklar vaqtincha mavjud emas",
+      "unavailableBody": "So‘nggi e’lon qilingan yangiliklarni yuklab bo‘lmadi. Iltimos, birozdan keyin qayta urinib ko‘ring.",
+      "backToBlog": "Yangiliklarga qaytish",
+      "by": "Muallif:",
+      "updated": "Yangilangan",
+      "categoriesLabel": "Yangilik mavzulari",
+      "topicLabel": "Mavzu",
+      "relatedTitle": "Yana yangiliklar",
+      "relatedDescription": "VIZA’dan yana viza yangiliklari.",
+      "ctaEyebrow": "Ishonch bilan rejalashtiring",
+      "ctaTitle": "Arizangizni boshlashga tayyormisiz?",
+      "ctaBody": "Qayerga bormoqchi ekaningizni ayting. VIZA sizni talablar va keyingi qadamlar bo‘ylab yetaklaydi.",
+      "ctaAction": "Arizani boshlash",
+      "categoryMetaTitle": "{category} yangiliklari | VIZA",
+      "categoryMetaDescription": "{category} haqida VIZA yangiliklarini o‘qing: nima o‘zgardi, kimga ta’sir qiladi va keyin nima qilish kerak.",
+      "categoryLede": "{category} haqida yangiliklar.",
+      "visaLinkTitle": "{country} vizasiga ariza topshiryapsizmi?",
+      "visaLinkBody": "Singapurda yashovchilar uchun hujjatlar, davlat to‘lovi va qadamlarni ko‘ring.",
+      "visaLinkAction": "{country} viza qo‘llanmasi",
+      "guidesTitle": "Aloqador qo‘llanmalar",
+      "guidesBody": "Shu mavzu bo‘yicha dolzarb turadigan qo‘llanmalar."
+    },
+    "home": {
+      "title": "Singapurda viza: AQSh, Hindiston, Vetnam | VIZA",
+      "description": "AQSh vizasi (DS-160), Hindiston, Vetnam yoki Misr elektron vizasi, Fransiya Shengen vizasiga ariza bering. Maslahatchi har bir shaklni tekshiradi.",
+      "heroTitle": "Keyingi manzil qayer?",
+      "heroLede": "Istalgan yo‘nalish uchun viza variantlarini ko‘ring. VIZA maslahatchingiz va sun’iy intellektimiz hujjatlarni hal qiladi, siz esa safarni band qilasiz."
+    },
+    "apply": {
+      "title": "Viza arizasini boshlash | VIZA",
+      "description": "Pasportingizni yuklang, ma’lumotlarni tasdiqlang va viza arizangizni VIZA maslahatchisiga topshiring. VIZA xizmati bepul.",
+      "saveBadge": "Saqlandi · istalgan payt davom eting"
+    },
+    "careers": {
+      "title": "Karyera | VIZA",
+      "description": "Kelin Studio Singapurda olib boradigan bepul viza xizmati VIZA’da ishlang. Biz ishga oladigan jamoalar va lavozim bo‘yicha bog‘lanish yo‘lini ko‘ring.",
+      "rightCta": "Lavozimlarni ko‘rish"
+    },
+    "contact": {
+      "title": "Aloqa: WhatsApp, WeChat, telefon, pochta | VIZA",
+      "description": "VIZA jamoasiga WhatsApp, WeChat, telefon yoki elektron pochta orqali yozing. To‘rt kanal, to‘rt stol va haqiqiy inson javob beradi.",
+      "rightCta": "Bizga yozing"
+    },
+    "security": {
+      "title": "Xavfsizlik va mas’uliyatli xabar berish | VIZA",
+      "description": "Sukut bo‘yicha maxfiy, shaffof va xavfsiz. VIZA mijoz ma’lumotlarini qanday himoya qiladi, zaiflik haqida xabar berish dasturimiz va xavfsiz panoh.",
+      "rightCta": "Zaiflik haqida xabar berish"
+    },
+    "status": {
+      "title": "Tizim holati | VIZA",
+      "description": "VIZA va biz ariza topshiradigan davlat viza portallarining jonli holati.",
+      "navPill": "Barcha tizimlar ishlayapti"
+    },
+    "visa": {
+      "applyCta": "Ariza topshirish",
+      "applicationProcess": "Ariza jarayoni",
+      "documents": "Hujjatlar",
+      "rejectionReasons": "Rad etish sabablari",
+      "entryExit": "Kirish va chiqish",
+      "extension": "Uzaytirish",
+      "reviews": "Sharhlar",
+      "nearby": "Yaqin davlatlar",
+      "sources": "Rasmiy manbalar"
+    },
+    "privacy": {
+      "title": "Maxfiylik siyosati | VIZA",
+      "description": "Viza uchun ariza berganingizda VIZA nimalarni yig‘adi, nima uchun, kim ko‘radi va qancha saqlaydi, Singapur PDPA qonuni bo‘yicha."
+    },
+    "terms": {
+      "title": "Shartlar va qoidalar | VIZA",
+      "description": "Singapurdagi Kelin Studio Pte. Ltd. boshqaradigan VIZA viza ariza xizmatidan foydalanish shartlari. VIZA xizmati bepul."
+    },
+    "product": {
+      "title": "VIZA viza arizangizda qanday yordam beradi | VIZA",
+      "description": "Viza tayyorlash, hujjatlarni ko‘rib chiqish va ariza holati bir joyda. VIZA xizmati bepul. Doira va mavjudlik har bir yo‘nalish uchun ko‘rsatiladi."
+    },
+    "events": {
+      "title": "Tadbirlar | VIZA",
+      "description": "VIZA’dan viza klinikalari, axborot sessiyalari va hamkor tadbirlari."
+    },
+    "arrivalCards": {
+      "title": "Kelish kartalari: MDAC, SG Arrival Card, TDAC | VIZA",
+      "description": "Malayziya, Singapur, Yaponiya, Tailand, Koreya va Indoneziya kelish kartalari bo‘yicha bepul qo‘llanmalar: kimga kerak, qachon topshiriladi, qadamlar."
+    },
+    "guides": {
+      "title": "Singapurda yashovchilar uchun viza qo‘llanmalari | VIZA",
+      "description": "Singapurda yashovchilar uchun qo‘llanmalar: vizasiz davlatlar, Shengen hujjatlari, AQSh suhbati, ETA, elektron viza, rad etishlar. O‘qish bepul."
+    },
+    "about": {
+      "title": "VIZA haqida: Singapurda bepul viza yordami | VIZA",
+      "description": "VIZA Singapurdagi odamlar uchun viza arizalarini AI va maslahatchilar bilan tayyorlaydi, tekshiradi, topshiradi. Xizmat bepul, davlat to‘lovlari organga boradi."
+    },
+    "visaIndex": {
+      "title": "Viza yo‘nalishlari: davlatlar bo‘yicha talablar | VIZA",
+      "description": "Davlatlar bo‘yicha viza talablarini hujjatlar va to‘lovlar bilan taqqoslang. VIZA yordami bepul.",
+      "heroTitle": "Viza yo‘nalishlari"
+    },
+    "refunds": {
+      "title": "Qaytarish siyosati | VIZA",
+      "description": "VIZA xizmati bepul, shuning uchun qaytariladigan xizmat haqi yo‘q. Davlat to‘lovlari va boshqa provayderlar to‘lovlari qanday ishlaydi."
+    },
+    "businessInformation": {
+      "title": "Biznes ma’lumotlari | VIZA",
+      "description": "VIZA Singapur kompaniyasi Kelin Studio Pte. Ltd. tomonidan boshqariladi. Ro‘yxatdan o‘tgan manzil, UEN va aloqa ma’lumotlari."
+    }
+  },
+  "common": {
+    "comingSoon": "Tez orada",
+    "learnMore": "Batafsil",
+    "readMore": "Ko‘proq o‘qish",
+    "applyNow": "Ariza topshirish",
+    "talkToHuman": "Inson bilan gaplashing",
+    "viewAll": "Barchasini ko‘rish"
+  },
+  "visa": {
+    "heroTitle": "{country} vizasi",
+    "validity": "Amal qilish muddati",
+    "howItWorks": "Qanday ishlaydi",
+    "step1": "Safar tafsilotlarini ayting va pasportingizni yuklang.",
+    "step2": "Arizangizni to‘ldiramiz va so‘nggi qoidalarga muvofiqligini tekshiramiz.",
+    "step3": "Davlat portaliga topshiramiz va qarorni kuzatamiz.",
+    "step4": "Tasdiqlangan vizangiz elektron pochtaga keladi, biz esa uni oxirigacha kuzatib boramiz.",
+    "documents": "Sizga nimalar kerak",
+    "doc1": "Kamida 6 oy amal qiladigan pasport.",
+    "doc2": "Pasport formatidagi yaqinda olingan surat.",
+    "doc3": "Safar sanalari va turar joy.",
+    "doc4": "Yo‘nalish viza uchun to‘lov olsa, uni to‘g‘ridan-to‘g‘ri davlatga to‘lash uchun to‘lov kartasi.",
+    "nearby": "Yaqin yo‘nalishlar",
+    "startApplication": "Arizangizni boshlang",
+    "comingSoonTitle": "{country}: tez orada",
+    "comingSoonBody": "{country} uchun so‘nggi ishlarni yakunlayapmiz. Hisob yarating, ishga tushishi bilan sizga xabar beramiz.",
+    "browseDestinations": "Yo‘nalishlarni ko‘rish",
+    "notifyMe": "Menga xabar bering",
+    "back": "Kashf etishga qaytish",
+    "tabOverview": "Umumiy ma’lumot",
+    "tabProcess": "Ariza jarayoni",
+    "tabDocuments": "Hujjatlar",
+    "tabRejection": "Rad etish sabablari",
+    "tabEntry": "Kirish va chiqish",
+    "tabExtension": "Uzaytirish",
+    "tabReviews": "Sharhlar",
+    "tabNearby": "Yaqin davlatlar",
+    "reviewsTitle": "Sharhlar",
+    "nearbyTitle": "Yaqin davlatlar",
+    "nearbySub": "Mintaqa bo‘ylab sayohat qilyapsizmi? Safaringizga yana bir viza qo‘shing, VIZA maslahatchingiz ularni birlashtiradi.",
+    "faqTitle": "Ko‘p so‘raladigan savollar",
+    "editorial": "Bu sahifa VIZA tahririyat siyosatiga amal qiladi. Biz rasmiy davlat manbalariga tayanamiz va siyosat o‘zgarganda har bir talabni yangilaymiz.",
+    "editorialLink": "Qanday tekshirishimizni o‘qing",
+    "sourcesTitle": "Manbalar",
+    "priceGovt": "Davlat to‘lovi",
+    "priceFree": "Bepul",
+    "pillAllInclusive": "Hammasi kiritilgan",
+    "priceCta": "Arizani boshlash",
+    "onTime": "O‘z vaqtida",
+    "freeService": "Bepul VIZA xizmati",
+    "freeServiceNote": "VIZA o‘z yordami uchun hech narsa olmaydi",
+    "govFeePaidDirect": "Davlat to‘lovi {fee}, bergan organga to‘g‘ridan-to‘g‘ri to‘lanadi.",
+    "govFeeSetByAuthority": "Har qanday davlat to‘lovini bergan organ belgilaydi va unga to‘g‘ridan-to‘g‘ri to‘lanadi.",
+    "govFeeSetByAuthorityShort": "Organ belgilaydi",
+    "priceService": "VIZA xizmati",
+    "pillPaidToAuthority": "Organga to‘lanadi",
+    "priceTotalToViza": "Siz VIZA’ga to‘laysiz",
+    "breadcrumbVisas": "Viza yo‘nalishlari",
+    "serviceDescription": "VIZA Singapurda yashovchilarga {country} {type} arizalarini sun’iy intellekt yordami va inson mutaxassislari tekshiruvi bilan tayyorlash, ko‘rib chiqish va topshirishda yordam beradi.",
+    "offerDescription": "VIZA xizmat haqi. Davlat viza to‘lovlari alohida bo‘lib, bergan organga to‘g‘ridan-to‘g‘ri to‘lanadi.",
+    "dest": {
+      "tabGlance": "Qisqacha",
+      "tabPassports": "Pasportlar",
+      "tabTypes": "Viza turlari",
+      "tabResidents": "Rezidentlar",
+      "tabFees": "To‘lovlar",
+      "tabApply": "Qanday topshiriladi",
+      "tabChecklist": "Hujjatlar",
+      "tabRejection": "Rad etishlar",
+      "tabTravel": "Sayohatdan oldin",
+      "tabRelated": "Aloqador",
+      "glanceTitle": "Qisqacha",
+      "glanceVisa": "Viza kerakmi",
+      "glanceGovFee": "Davlat to‘lovi",
+      "glanceVizaFee": "VIZA to‘lovi",
+      "glanceProcessing": "Ko‘rib chiqish muddati",
+      "glanceMaxStay": "Maksimal turish muddati",
+      "glanceChecked": "Tekshirilgan sana",
+      "passportsTitle": "Viza kerakmi?",
+      "typesTitle": "Viza turlari",
+      "residentsTitle": "Singapur rezidentlari",
+      "feesTitle": "To‘lovlar va muddatlar",
+      "applyTitle": "Qanday topshiriladi",
+      "checklistTitle": "Hujjatlar ro‘yxati",
+      "travelTitle": "Sayohatdan oldin",
+      "colPassport": "Pasport",
+      "colEntry": "Kirish",
+      "colNotes": "Izohlar",
+      "colItem": "Band",
+      "colAmount": "Miqdor",
+      "vizaFeeNote": "VIZA yordami bepul. Siz faqat davlat to‘lovini to‘laysiz, uni to‘g‘ridan-to‘g‘ri organga.",
+      "reviewedBy": "VIZA maslahatchisi {date} sanasida ko‘rib chiqqan.",
+      "relatedTitle": "Aloqador yo‘nalishlar",
+      "relatedSub": "Odamlar bir safarga qo‘shadigan boshqa joylar va ko‘proq o‘qish uchun havolalar.",
+      "startTitle": "Arizani boshlash",
+      "startBody": "Pasportingiz va safar sanalaridan boshlang. VIZA yordami bepul, davlat to‘lovini esa to‘g‘ridan-to‘g‘ri organga to‘laysiz.",
+      "startConsultBody": "VIZA maslahatchisiga qayerda yashashingiz, pasportingiz va safar sanalaringizni ayting. VIZA yordami bepul.",
+      "consultCta": "Maslahatchi bilan gaplashing"
+    }
+  },
+  "apply": {
+    "stepOf": "3 qadamdan {n}-qadam",
+    "back": "Orqaga",
+    "continue": "Davom etish",
+    "step1Name": "Pasportni yuklash",
+    "step2Name": "Ma’lumotlarni tasdiqlash",
+    "step3Name": "Arizani boshlash",
+    "s1Title": "Pasportingizni yuklang",
+    "s1Desc": "Ma’lumotlaringizni avtomatik o‘qiymiz, yozish shart emas. Suratingiz bor sahifadan foydalaning.",
+    "segUpload": "Fayl yuklash",
+    "segCapture": "Suratga olish",
+    "dzTitle": "Pasport suratini shu yerga tashlang",
+    "dzSub": "Yoki tanlash uchun bosing, faylingiz shifrlanadi va hech kimga berilmaydi",
+    "dzBrowse": "Fayl tanlash",
+    "dzUpTo": "10 MB gacha",
+    "tip1Title": "To‘rt burchak ham ko‘rinsin",
+    "tip1Sub": "Pastdagi MRZ qatorlari bilan birga butun ma’lumotlar sahifasini kadrga oling.",
+    "tip2Title": "Yorug‘, bir tekis yoritish",
+    "tip2Sub": "Qo‘lingiz yoki telefon g‘ilofidan tushadigan soyalardan saqlaning.",
+    "tip3Title": "Yaltirash va aks bo‘lmasin",
+    "tip3Sub": "Muhr aks etsa, biroz qiyshaytiring.",
+    "errReadFail": "Bu pasportni o‘qib bo‘lmadi: {detail}. Iltimos, ma’lumotlar sahifasining aniqroq suratini yuklang.",
+    "extReading": "Hujjat o‘qilmoqda",
+    "extExtracting": "Ma’lumotlaringiz ajratilmoqda",
+    "extVerifying": "Haqiqiyligi tekshirilmoqda",
+    "stReading": "O‘qilmoqda…",
+    "stExtracting": "Ajratilmoqda…",
+    "stVerifying": "Tekshirilmoqda…",
+    "s2Title": "Ma’lumotlaringizni tasdiqlang",
+    "s2Desc": "Buni to‘g‘ridan-to‘g‘ri pasportingizdan oldik. Tahrirlash uchun istalgan maydonni bosing.",
+    "successHigh": "Pasport muvaffaqiyatli o‘qildi, ishonchlilik yuqori",
+    "warnLow": "Ayrim maydonlarni o‘qish qiyin bo‘ldi. Iltimos, quyidagi har bir qiymatni qayta tekshiring.",
+    "warnMed": "Ma’lumotlaringizning ko‘pini ajratdik. Iltimos, belgilangan maydonlarni tekshiring.",
+    "ppDetails": "Pasport ma’lumotlari",
+    "autoExtracted": "Avtomatik ajratilgan",
+    "fSurname": "Familiya",
+    "fGiven": "Ism",
+    "fPassport": "Pasport raqami",
+    "fDob": "Tug‘ilgan sana",
+    "fNationality": "Fuqarolik",
+    "fExpires": "Amal qilish muddati",
+    "reachTitle": "Siz bilan qanday bog‘lanamiz?",
+    "reachDesc": "Vizangizni shu yerga yuboramiz, holat yangiliklarini esa telefoningizga matn orqali.",
+    "email": "Elektron pochta",
+    "phone": "Telefon",
+    "consent": "Yuqoridagi ma’lumotlar pasportimga mos kelishini tasdiqlayman va VIZA’ga bu arizani mening nomimdan {country} immigratsiya organlariga topshirishga ruxsat beraman.",
+    "s3Title": "Arizangizni boshlang",
+    "s3Desc": "VIZA xizmati bepul. VIZA portaliga kiring, qolganini biz o‘z zimmamizga olamiz.",
+    "headsUp": "Eslatma:",
+    "headsUpBody": "{country} hukumati viza uchun to‘lov olsa, uni ularga to‘g‘ridan-to‘g‘ri to‘laysiz. VIZA bu summani hech qachon yig‘maydi va ustiga qo‘shmaydi.",
+    "yourApp": "Sizning arizangiz",
+    "guaranteedBy": "Kafolatlangan yetkazish muddati",
+    "govFee": "Davlat to‘lovi",
+    "expressUpgrade": "Tezkor xizmat",
+    "total": "Jami",
+    "footEncrypted": "Boshidan oxirigacha shifrlangan. VIZA bu ariza uchun sizdan haq olmaydi.",
+    "helpOnline": "Priya onlayn",
+    "helpTap": "VIZA maslahatchingiz bilan suhbatlashish uchun bosing",
+    "totalAmount": "SGD {amount}",
+    "totalFree": "Bepul",
+    "etaStandard": "2026-yil 12-may, SGT bo‘yicha ertalab 8:00",
+    "failTitle": "Bu hujjatni o‘qib bo‘lmadi",
+    "failNotPassport": "Bu pasportning ma’lumotlar sahifasiga o‘xshamaydi. Iltimos, suratingiz va shaxsiy ma’lumotlaringiz bor sahifaning suratini yuklang.",
+    "failUnreadable": "Kerakli maydonlarning birortasini o‘qib bo‘lmadi. Iltimos, yaxshi yorug‘likda, butun ma’lumotlar sahifasi tekis va aniq holda qayta suratga oling.",
+    "tryAgain": "Qayta urinish",
+    "warnPartial": "Hammasini o‘qib bo‘lmadi. Iltimos, quyida belgilangan maydonlarni to‘ldiring.",
+    "warnExpired": "Bu pasportning muddati o‘tgan ko‘rinadi. Ko‘p yo‘nalishlar kamida 6 oy amal qilishini talab qiladi.",
+    "warnMrz": "Mashina o‘qiydigan zona (pastdagi ikki qator) o‘qilmadi. Iltimos, har bir maydonni qayta tekshiring.",
+    "warnBlurry": "Surat xira chiqdi. Iltimos, har bir maydonni diqqat bilan qayta tekshiring.",
+    "fieldRequired": "Majburiy, iltimos to‘ldiring",
+    "editField": "{field} ni tahrirlash",
+    "emailInvalid": "To‘g‘ri elektron pochta manzilini kiriting, viza yangiliklari va kirish havolasi shu yerga yuboriladi.",
+    "phoneInvalid": "To‘g‘ri telefon raqamini kiriting.",
+    "consentRequired": "Davom etish uchun iltimos, deklaratsiyani tasdiqlang.",
+    "continueToStart": "Davom etish",
+    "startTitle": "VIZA portalida davom eting",
+    "startSub": "Kiring yoki bepul hisob yarating. Shu yo‘nalish bo‘yicha arizangiz darhol ochiladi.",
+    "vizaService": "VIZA xizmati",
+    "govFeeSetByAuthority": "Organ belgilaydi",
+    "govFeeNote": "Har qanday davlat viza to‘lovi VIZA’ga emas, bergan organga to‘g‘ridan-to‘g‘ri to‘lanadi.",
+    "completeBeforeStart": "Davom etishdan oldin iltimos, yuqorida belgilangan bandlarni to‘ldiring."
+  },
+  "explore": {
+    "help": "Yordam",
+    "passportLabel": "{name} pasporti",
+    "passportSub": "{n} ta yo‘nalish bo‘yicha viza talablari · Reyting {rank}",
+    "freeLabel": "Vizasiz",
+    "freeNote": "hujjatbozliksiz",
+    "voaLabel": "Elektron viza yoki VOA",
+    "voaNote": "biz hal qilamiz",
+    "reqLabel": "Viza kerak",
+    "reqNote": "elchixonaga topshiriladi",
+    "fullMap": "To‘liq viza xaritasini ko‘rish",
+    "grid": "Katakcha",
+    "map": "Xarita",
+    "mapLegendEvisa": "Elektron viza va mehmon vizalari",
+    "mapHint": "Yo‘nalishni ko‘rish uchun belgilangan nuqta ustiga olib boring",
+    "sectionTitle": "{country} pasportlari uchun",
+    "seeAll": "Barcha {n} tasini ko‘rish",
+    "footnote": "VIZA xizmati bepul. Har qanday davlat viza to‘lovi bergan organga to‘g‘ridan-to‘g‘ri to‘lanadi va davlatga qarab farq qiladi.",
+    "fastTrack": "Tezlashtirilgan",
+    "cardType": "Turi",
+    "cardValid": "Muddati",
+    "cardFee": "VIZA xizmati",
+    "save": "Saqlash",
+    "startApplication": "Arizani boshlash",
+    "catalogueUnavailable": "Hozir onlayn ariza uchun ochiq yo‘nalishlar yo‘q. Iltimos, tez orada qayta tekshiring.",
+    "choosePassport": "Pasportingizni tanlang",
+    "searchPassport": "Pasport davlatini qidiring…",
+    "visaFree": "{n} ta vizasiz",
+    "ppFoot": "2026-yil may holatiga yangilangan · Manba: IATA Timatic",
+    "noMatch": "“{q}” ga mos pasport topilmadi",
+    "filters": {
+      "delivery": "Viza olish muddati",
+      "type": "Viza turi",
+      "documents": "Hujjatlar",
+      "dates": "Safar sanalari"
+    },
+    "filterOpts": {
+      "delivery": [
+        "Istalgan vaqt",
+        "24 soat ichida",
+        "3 kun ichida",
+        "1 hafta ichida",
+        "1 oy ichida"
+      ],
+      "type": [
+        "Barcha turlar",
+        "Turistik",
+        "Biznes",
+        "Ish",
+        "Talaba",
+        "Raqamli ko‘chmanchi"
+      ],
+      "documents": [
+        "Istalgan hujjatlar",
+        "Minimal (faqat pasport)",
+        "Standart",
+        "To‘liq to‘plam"
+      ],
+      "dates": [
+        "Sanalarni tanlang",
+        "Shu hafta",
+        "Shu oy",
+        "3 oydan keyin",
+        "6 oydan keyin"
+      ]
+    }
+  },
+  "cities": {
+    "viza-test": "Jonli to‘lov sinovi",
+    "indonesia": "Bali · Jakarta",
+    "egypt": "Qohira · Giza",
+    "australia": "Sidney · Melburn",
+    "saudi-arabia": "Ar-Riyod · Al-Ula",
+    "united-kingdom": "London · Edinburg",
+    "vietnam": "Xanoy · Xoy An",
+    "malaysia": "KL · Penang",
+    "japan": "Tokio · Kioto",
+    "united-states": "Nyu-York · Los-Anjeles",
+    "canada": "Toronto · Vankuver",
+    "turkiye": "Istanbul · Kappadokiya",
+    "thailand": "Bangkok · Phuket",
+    "united-arab-emirates": "Dubay · Abu-Dabi",
+    "france": "Parij · Nitssa",
+    "italy": "Rim · Florensiya",
+    "india": "Dehli · Mumbay"
+  },
+  "validity": {
+    "viza-test": "Faqat namuna",
+    "indonesia": "90 kun",
+    "egypt": "90 kun",
+    "australia": "1 yil",
+    "saudi-arabia": "365 kun",
+    "united-kingdom": "6 oy",
+    "vietnam": "90 kun",
+    "malaysia": "3 oy",
+    "japan": "90 kun",
+    "united-states": "10 yil",
+    "canada": "10 yil",
+    "turkiye": "180 kun",
+    "thailand": "3 oy",
+    "united-arab-emirates": "60 kun",
+    "france": "90 kun",
+    "italy": "90 kun",
+    "india": "30 kun"
+  },
+  "passports": {
+    "SG": "Singapur",
+    "JP": "Yaponiya",
+    "KR": "Janubiy Koreya",
+    "DE": "Germaniya",
+    "FR": "Fransiya",
+    "GB": "Buyuk Britaniya",
+    "US": "Amerika Qo‘shma Shtatlari",
+    "AU": "Avstraliya",
+    "CA": "Kanada",
+    "AE": "Birlashgan Arab Amirliklari",
+    "CN": "Xitoy",
+    "IN": "Hindiston",
+    "BR": "Braziliya",
+    "PH": "Filippin",
+    "ID": "Indoneziya",
+    "MY": "Malayziya",
+    "TH": "Tailand"
+  },
+  "countries": {
+    "viza-test": "VIZA Test",
+    "indonesia": "Indoneziya",
+    "egypt": "Misr",
+    "australia": "Avstraliya",
+    "saudi-arabia": "Saudiya Arabistoni",
+    "united-kingdom": "Buyuk Britaniya",
+    "vietnam": "Vetnam",
+    "malaysia": "Malayziya",
+    "japan": "Yaponiya",
+    "united-states": "Amerika Qo‘shma Shtatlari",
+    "canada": "Kanada",
+    "turkiye": "Turkiya",
+    "thailand": "Tailand",
+    "united-arab-emirates": "Birlashgan Arab Amirliklari",
+    "france": "Fransiya",
+    "italy": "Italiya",
+    "india": "Hindiston",
+    "china": "Xitoy",
+    "south-korea": "Janubiy Koreya",
+    "schengen": "Shengen"
+  },
+  "visaTypes": {
+    "Test checkout": "Sinov to‘lovi",
+    "e-Visa": "Elektron viza",
+    "Standard Visitor": "Standard Visitor",
+    "Visitor 600": "Visitor 600",
+    "Tourist": "Turistik",
+    "B1/B2": "B1/B2",
+    "eTA": "eTA",
+    "Schengen": "Shengen",
+    "eVisa": "Elektron viza",
+    "Visitor visa": "Mehmon vizasi",
+    "Tourist visa": "Turistik viza"
+  },
+  "careers": {
+    "hero": {
+      "nowHiring": "Hozir ishga olamiz:",
+      "cities": [
+        "Shanxay",
+        "Singapur"
+      ],
+      "openRoles": "28 ta ochiq lavozim",
+      "title": "Chegaralarni jimgina<br></br><em>yo‘q qilishga</em> yordam bering: <u>dastur</u><br></br>tezligida.",
+      "lead": "Biz oylar davom etadigan viza hujjatbozligini soatlik dasturga aylantiryapmiz, shunchaki samolyotga chiqishni istagan millionlab odamlar uchun. Mahoratingizni real muddatlar bo‘yicha ish qiladigan jamoaga olib keling.",
+      "ctaRoles": "Barcha ochiq lavozimlar",
+      "ctaWhy": "Nega mavjudmiz"
+    },
+    "board": {
+      "ariaLabel": "VIZA’dagi ochiq lavozimlar ro‘yxati bo‘lgan jo‘nash taxtasi",
+      "head": "Ochiq lavozimlar · jonli",
+      "live": "O‘z vaqtida",
+      "cols": {
+        "req": "Raqam",
+        "role": "Lavozim",
+        "office": "Ofis",
+        "status": "Holat"
+      },
+      "rows": [
+        {
+          "role": "Staff muhandis",
+          "sub": "Hujjatlar konveyeri",
+          "status": "Chiqish"
+        },
+        {
+          "role": "Mahsulot dizayneri",
+          "sub": "Ariza beruvchi oqimlari",
+          "status": "Ochiq"
+        },
+        {
+          "role": "Elchixona bilan aloqa mutaxassisi",
+          "sub": "Davlat hamkorliklari",
+          "status": "So‘nggi chaqiruv"
+        },
+        {
+          "role": "Mijozlar operatsiyalari",
+          "sub": "2-bosqich murojaatlari",
+          "status": "Ochiq"
+        }
+      ],
+      "foot": "+24 ta yana lavozim: muhandislik, operatsiyalar va dizaynda",
+      "browseAll": "Barchasini ko‘rish",
+      "chip1Label": "Ishga olish joylari",
+      "chip1Value": "4 ta ofis",
+      "chip2Label": "O‘rtacha javob",
+      "chip2Value": "birinchi qo‘ng‘iroqqacha 3.2 kun"
+    },
+    "stats": [
+      {
+        "value": "2.4M",
+        "label": "O‘tgan yili VIZA orqali berilgan vizalar"
+      },
+      {
+        "label": "Jonli ko‘rib chiqish qo‘llab-quvvatlanadigan yo‘nalishlar"
+      },
+      {
+        "label": "2025-yilda barcha viza turlari bo‘yicha tasdiqlanish ulushi"
+      },
+      {
+        "label": "Shanxay va Singapurdagi odamlar"
+      }
+    ],
+    "mission": {
+      "eyebrow": "Bizning hikoyamiz",
+      "title": "Dunyoning ko‘p qismi<br></br>hamon bosma<br></br><em>hujjatlar bilan sayohat qiladi.</em>",
+      "kicker1": "VIZA’ni 2021-yilda elchixonalar bilan telefonda kutib haftalab vaqt o‘tkazgandan keyin boshladik. Odamlarni chegaradan o‘tkazish tizimi internetdan ham eski, unga tushib qolgan odamlar esa ko‘proq narsaga loyiq.",
+      "kicker2": "Bugun to‘rtta ofisdagi 340 kishilik jamoa dastur yaratadi, hujjatlarni topshiradi va 194 ta davlatda operatsiyalarni yuritadi. Sayohat internetning qolgan qismiga o‘xshab, bir necha bosish bilan yo‘lga chiqish bo‘lishi uchun biz zerikarli va charchatuvchi ishni qilamiz.",
+      "founderName": "Mira Kohli",
+      "founderRole": "Hammuassis va bosh direktor · Singapur",
+      "beliefs": [
+        {
+          "title": "Biz dastur yaratadigan operatsion kompaniyamiz.",
+          "body": "VIZA’ning yarmi muhandislar, dizaynerlar va mahsulot menejerlari. Qolgan yarmi davlatlardagi maslahatchilar, operatsiyalar va hujjat mutaxassislari. Biri ikkinchisisiz yutmaydi."
+        },
+        {
+          "title": "Ariza beruvchi doim mijoz.",
+          "body": "Elchixonalar, hamkorlar, aviakompaniyalar, hammasi muhim. Lekin tun soat 3 da navbatda portalni yangilab turgan odam biz ishlaydigan va o‘zimizni o‘lchaydigan insondir."
+        },
+        {
+          "title": "Sifatga sabr qilsangiz, tezlik ortadi.",
+          "body": "Biz ishga tushirishda tez, qaytarib bo‘lmas qarorlarda sekin harakat qilamiz. Noto‘g‘ri viza qarori to‘yni, ishni, janozani buzishi mumkin. Bu darajani sekinlashtirsa ham saqlaymiz."
+        },
+        {
+          "title": "Masofa cheklov emas, foydalanuvchi tajribasi masalasi.",
+          "body": "Jamoalarimiz to‘rtta vaqt mintaqasida. Asinxron yozish, aniq mas’uliyat va yaxshi hujjatlash madaniyati vaqtni ishonchga almashtirish usulimiz, hamda hech kimni charchatmay butun dunyoga ish chiqarish yo‘limiz."
+        }
+      ]
+    },
+    "values": {
+      "eyebrow": "O‘zimizga qo‘yadigan talablar",
+      "title": "Qimmatga tushsa ham ishonadigan beshta narsa.",
+      "lead": "Qadriyatlarni yozish oson, amal qilish qiyin. Bular ishga olishda, baholashda va kamdan-kam og‘ir qarorlarda biz haqiqatan ishlatadigan beshtasi.",
+      "cards": [
+        {
+          "title": "Haqiqatni ayting, ayniqsa u bizga qimmatga tushsa.",
+          "body": "Viza o‘z vaqtida chiqmasa, parvozdan bir kun oldin emas, bugun ayting. Yolg‘on yetkazgandan ko‘ra savdoni yo‘qotganimiz afzal.",
+          "kicker": "Amalda → e’lon qilingan siyosatlar, o‘zgarishlar auditi"
+        },
+        {
+          "title": "Tezlikni qozoning. Shunchaki band bo‘lmang.",
+          "body": "Biz yig‘ilish va yozishmalarni emas, qarorlar va tayyor ishni nishonlaymiz. Gap maqsadga erishish unumdorligida, taqvimingizdagi harakatda emas.",
+          "kicker": "Amalda → choraklik unumdorlik tahlili"
+        },
+        {
+          "title": "Persona emas, pasport bo‘yicha o‘ylang.",
+          "body": "Viza qoidalari fuqarolikka qarab farqlanadi. “Foydalanuvchi” degan narsa yo‘q, Shengenga ariza beradigan Filippin pasporti egasi bor. Biz o‘rtacha ko‘rsatkich uchun emas, haqiqiy odamlar uchun quramiz.",
+          "kicker": "Amalda → pasportdan boshlanadigan mahsulot spetsifikatsiyasi"
+        },
+        {
+          "title": "Yozib qo‘ying. Ayniqsa qarorlarni.",
+          "body": "To‘rtta ofis, to‘rtta vaqt mintaqasi. Qaror yozilmagan bo‘lsa, u bo‘lmagan. Vikimiz majburiy o‘qish, kunlik yig‘ilishlarimiz ixtiyoriy.",
+          "kicker": "Amalda → ADR, haftalik memo, avval asinxron"
+        },
+        {
+          "title": "Navbatga yaqin bo‘ling.",
+          "body": "Har bir muhandis chorakda bir marta maslahatchilar qavatida bir smena ishlaydi. Yakshanba kuni kechqurun 11pm da his qilmagan ishqalanishni loyihadan olib tashlay olmaysiz.",
+          "kicker": "Amalda → navbat smenalari almashinuvi"
+        },
+        {
+          "title": "Uzunroq yo‘lni tanlang.",
+          "body": "O‘ttiz soniyalik javob odatda noto‘g‘ri. Oson variant yetarli bo‘lsa ham, biz chuqur hujjatlash, puxta yo‘riqnomalar va chidamli tushuntirishlarga sarmoya kiritamiz.",
+          "kicker": "Amalda → ishga kirish qo‘llanmasi, ochiq yo‘riqnomalar"
+        }
+      ]
+    },
+    "inside": {
+      "eyebrow": "VIZA ichida",
+      "title": "Bu yerda ishlash<br></br>aslida qanday ko‘rinadi.",
+      "lead": "Arizalar topshiriladigan joylarga yaqin ishga olganimiz uchun ikki shaharda ofislarimiz bor. Yutuqlar haqida baland, siyosat haqida past ovozda gapiramiz va hali qurishimiz kerak bo‘lgan narsa haqida halol bo‘lamiz.",
+      "photos": [
+        {
+          "label": "surat · Singapur bosh ofisi, ochiq maydon",
+          "mark": "Paya Lebar Square, SG"
+        },
+        {
+          "label": "surat · maslahatchilar navbat qavati",
+          "mark": "Luoshan Rd, Shanxay"
+        },
+        {
+          "label": "surat · doska atrofidagi sessiya",
+          "mark": "Texnik chiqish, Bali"
+        },
+        {
+          "label": "surat · Shanxay operatsiyalar qavati",
+          "mark": "Pudun, Shanxay"
+        },
+        {
+          "label": "surat · jamoa kechki ovqati",
+          "mark": "Umumiy yig‘ilish, Lissabon"
+        },
+        {
+          "label": "surat · elchixona hamkori tashrifi",
+          "mark": "Paya Lebar Square, SG"
+        }
+      ],
+      "pull": "“Biz qo‘shilishidan oldin vizalar haqida fikri bor odamlarni ishga olamiz. Ikkinchi oyga borib, sizning fikringiz yanada kuchliroq bo‘ladi.”",
+      "pullBy": "Felix Adekunle, muhandislik bo‘yicha vitse-prezident",
+      "para1": "VIZA’da mustaqillik va xabardorlik yuqori. Qilgan har bir ishingiz uchun egasi, haqiqiy byudjetlar va ishingiz ortidagi mulohazani kompaniyaning qolgan qismiga tushuntirish kutiladi.",
+      "para2": "Har kuni nima qilish aytilishini istasangiz, bu to‘g‘ri joy emas. Kimdir rulni qo‘lingizga berishini kutgan bo‘lsangiz, u aynan shu yerda."
+    },
+    "how": {
+      "eyebrow": "VIZA’da muhandislik va operatsiyalar",
+      "title": "Ish aslida qanday harakatlanadi.",
+      "lead": "Bu yerda qursangiz, topshirsangiz yoki dizayn qilsangiz, haftangiz shunday o‘tadi. Marosim kam, tayyor ish ko‘p. Slack kam, yozilgan qarorlar ko‘p.",
+      "cells": [
+        {
+          "title": "Boshidan oxirigacha mas’uliyat",
+          "body": "Siz loyihalaysiz, qurasiz, ishga tushirasiz va ishlab chiqarishda javobgar bo‘lasiz. Topshirish navbatlari yo‘q, uch qatlam narida yozilgan yo‘l xaritalari yo‘q. Sizniki bo‘lsa, haqiqatan sizniki."
+        },
+        {
+          "title": "Sukut bo‘yicha har kuni joylashtirish",
+          "body": "Ko‘pchilik jamoalar kuniga bir necha marta chiqaradi. Fikr-mulohaza sikllari ataylab qisqa, o‘ttiz daqiqalik qaytarish uch haftalik bahsdan afzal."
+        },
+        {
+          "title": "Haqiqiy, chigal muammolar",
+          "body": "Bu oddiy CRUD emas. Hujjat OCR, 90 dan ortiq davlat portallariga kechikishga sezgir rejalashtirish va millionlab odamlar foydalanadigan iste’molchi oqimlari ustida ishlaysiz."
+        },
+        {
+          "title": "Daraja ochiq-oydin yuqori",
+          "body": "Dizayn ko‘rib chiqishlarini birga qilamiz. PR’larga qatorida izoh yozamiz. Didni o‘rgatish mumkin deb ishonamiz va atrofdagilarning yaxshilanishiga faol yordam berishingizni kutamiz."
+        },
+        {
+          "title": "Haqiqiy o‘qish byudjeti",
+          "body": "Yiliga har bir kishiga $2,000, savolsiz, konferensiyalar, kitoblar, kurslar uchun, bu yerdagi ishingizga qaytib samara beradigan istalgan narsa uchun."
+        },
+        {
+          "title": "Siz yozgan arxitektura",
+          "body": "RFC’lar hamma uchun ochiq. Yangi muhandislar birinchi oyidayoq asosiy infratuzilmani shakllantirgan. Kuchliroq rejangiz bo‘lsa, yozib bering, o‘qiymiz."
+        }
+      ]
+    },
+    "roles": {
+      "eyebrow": "Ochiq lavozimlar · har hafta yangilanadi",
+      "title": "Safarning bir qismi bo‘ling.",
+      "lead": "To‘rtta ofisda 28 ta ochiq lavozim. Muhandislik, dizayn, operatsiyalar, maslahatchilar va hamkorlik bo‘yicha ishga olamiz. Yangi lavozimlar dushanba kunlari chiqadi.",
+      "allDepartments": "Barcha bo‘limlar",
+      "deps": {
+        "eng": "Muhandislik",
+        "design": "Dizayn",
+        "ops": "Operatsiyalar",
+        "consult": "Maslahatchilar",
+        "data": "Ma’lumotlar va ML",
+        "gtm": "Marketing va GTM"
+      },
+      "showing": "<strong>{count}</strong> ta lavozim ko‘rsatilmoqda · barcha joylar · barcha jamoalar",
+      "anyLocation": "Istalgan joy",
+      "groupCount": "{count} ta ochiq",
+      "posSub": "{team} · biz mahorat va mulohazaga qarab ishga olamiz, obro‘ga emas",
+      "locationLabel": "Joy",
+      "typeLabel": "Turi",
+      "fullTime": "To‘liq stavka",
+      "viewRole": "Lavozimni ko‘rish",
+      "locations": {
+        "sg": "Singapur",
+        "sf": "Shanxay",
+        "ldn": "Singapur",
+        "dxb": "Shanxay"
+      },
+      "jobs": {
+        "backendPayments": "Katta backend muhandisi, platforma",
+        "staffDocPipeline": "Staff muhandis: hujjatlar konveyeri",
+        "iosApplicant": "iOS muhandisi: ariza beruvchi ilovasi",
+        "platformInfra": "Platforma muhandisi: infratuzilma va xavfsizlik",
+        "frontendConsole": "Frontend muhandisi: maslahatchi konsoli",
+        "emWeb": "Muhandislik menejeri: veb",
+        "sre": "Ishonchlilik muhandisi (SRE)",
+        "androidSenior": "Katta Android muhandisi",
+        "leadEmbassy": "Muhandislik rahbari: elchixona integratsiyalari",
+        "productDesignerApplicant": "Katta mahsulot dizayneri: ariza beruvchi oqimi",
+        "brandDesigner": "Brend dizayneri",
+        "designLeadConsultant": "Dizayn rahbari: maslahatchi vositalari",
+        "headOpsMe": "Operatsiyalar rahbari, Yaqin Sharq",
+        "visaOpsSchengen": "Viza operatsiyalari rahbari: Shengen",
+        "logistics": "Logistika va kuryerlik menejeri",
+        "processDocQa": "Jarayon muhandisi: hujjatlar sifat nazorati",
+        "opsAnalyst": "Operatsiyalar tahlilchisi: bronlar",
+        "consultSchengen": "Viza maslahatchisi: Shengen",
+        "consultUs": "Viza maslahatchisi: AQSh B1/B2",
+        "consultUae": "Viza maslahatchisi: BAA rezidentligi",
+        "consultStudent": "Katta maslahatchi: talaba vizalari",
+        "consultApac": "Maslahatchilar rahbari: Osiyo-Tinch okeani",
+        "consultUk": "Viza maslahatchisi: Buyuk Britaniya",
+        "dataScientist": "Katta ma’lumotlar olimi: tasdiqlanish modellashtirish",
+        "mlOcr": "ML muhandisi: OCR va hujjat AI",
+        "perfMarketing": "Samaradorlik marketingi menejeri",
+        "contentLead": "Kontent rahbari: hikoyalar",
+        "lifecycleCrm": "Hayotiy sikl va CRM menejeri"
+      }
+    },
+    "fellowship": {
+      "tag": "▲ VIZA Launchpad · 12 haftalik dastur",
+      "title": "O‘n ikki hafta. Bitta mahsulot jamoasi.<br></br><em>Nimadir chiqarish uchun bitta imkoniyat.</em>",
+      "para1": "Launchpad boshlang‘ich darajadagi muhandislar, mahsulot menejerlari va dizaynerlar uchun rezidentlik dasturimiz: haqiqiy imkoniyat olishdan oldin yana ikki yillik “tajriba” kerak bo‘ladigan odamlar uchun.",
+      "para2": "Katta rahbarlar bilan juft ishlaysiz, boshidan chiqarilishigacha haqiqiy mahsulot qismiga egalik qilasiz va millionlab odamlar foydalanadigan narsa bilan chiqib ketasiz. Guruhning taxminan 60% iga to‘liq stavkali taklif beriladi.",
+      "meta": [
+        {
+          "k": "Davomiyligi",
+          "v": "12 hafta"
+        },
+        {
+          "k": "Joy",
+          "v": "Ofisda, istalgan bosh ofis"
+        },
+        {
+          "k": "Stipendiya",
+          "v": "Bozordan yuqori"
+        },
+        {
+          "k": "Keyingi guruh",
+          "v": "2026-yil sentabr"
+        }
+      ],
+      "apply": "Launchpad’ga ariza berish",
+      "readCohort": "2025 guruhi haqida o‘qing",
+      "projects": [
+        {
+          "k": "2024 · Muhandislik",
+          "title": "OCR konveyerini qayta yozish",
+          "meta1": "Ishlab chiqarishga chiqarildi",
+          "meta2": "3.2× tezroq"
+        },
+        {
+          "k": "2025 · Dizayn",
+          "title": "Shengen oqimini qayta loyihalash",
+          "meta1": "14 ta davlatda ishlamoqda",
+          "meta2": "↑ 22% konversiya"
+        },
+        {
+          "k": "2025 · Mahsulot",
+          "title": "Elchixona navbati rejalashtiruvchisi",
+          "meta1": "9 ta elchixona",
+          "meta2": "oyiga 40k navbat"
+        }
+      ]
+    },
+    "benefits": {
+      "eyebrow": "Biz sizning yoningizdamiz (chindan)",
+      "title": "Zerikarli narsalar<br></br>to‘g‘ri hal qilingan.",
+      "lead": "Biz imtiyozlarni bonus deb hisoblamaymiz. Ular odamlarga eng yaxshi ishlash imkonini beradigan asos. Mana har bir VIZA xodimi har bir ofisda birinchi kunidan oladigan narsalar.",
+      "items": [
+        {
+          "title": "To‘liq sog‘liq sug‘urtasi, hal qilingan.",
+          "body": "Birinchi kundan to‘liq tibbiy, tish va ko‘rish sug‘urtasi: o‘zingiz, juftingiz va bolalaringiz uchun. Mukofotni biz to‘laymiz, franshiza o‘yinlarisiz."
+        },
+        {
+          "title": "Faqat maosh emas, boylik quring.",
+          "body": "Ishga olinadigan har bir bozorda bozordan yuqori asosiy maosh, hamda ishlagan yillarga emas, marralarga bog‘liq saxiy aksiya ulushi. Ikki yilda bir yangilaymiz."
+        },
+        {
+          "title": "Haqiqatan muhim narsani o‘rganing.",
+          "body": "Yiliga $2,000 o‘qish byudjeti, oylik ichki o‘rgatish sessiyalari va taqvimda vaqt, faqat ruxsat emas, o‘sha kursni olish yoki konferensiyaga borish uchun."
+        },
+        {
+          "title": "Mijozlarni o‘z pulingizdek xursand qiling.",
+          "body": "Har bir ariza beruvchi uchun xayrixohlik uchun $100 byudjet bor. Tasdiqsiz, ko‘tarishsiz: hal qiling, keyin nima bo‘lganini yozib qo‘ying."
+        },
+        {
+          "title": "Ruhiy holat > hamma narsa.",
+          "body": "Maxfiy, professional ruhiy salomatlik yordami, sug‘urta to‘siqlarisiz. Hamda kompaniya bo‘ylab oyiga uch “yig‘ilishsiz” kun."
+        },
+        {
+          "title": "Sayohat imtiyozlari (majbur edik).",
+          "body": "Biz vizalar bilan shug‘ullanamiz, jamoamiz esa bepul sayohat qilishi kerak. Yiliga $4k sayohat krediti, hamda VIZA kerak bo‘ladigan har qanday vizani darhol, ichkarida hal qiladi."
+        },
+        {
+          "title": "Saxiy, haqiqiy ta’til.",
+          "body": "30 kunlik pullik ta’til, mamlakatingiz bayramlari, hamda 24-dekabrdan 1-yanvargacha pullik bir hafta dam. Foydalanishni kuzatamiz va odamlarni kamroq emas, ko‘proq dam olishga undaymiz."
+        },
+        {
+          "title": "Jihozlar, savolsiz.",
+          "body": "Birinchi kuni noutbuk, monitor va stulingizni tanlang. Uyda ishlash uchun jihozlanish stipendiyasi. Yaxshi ishlash uchun nima kerakligini o‘zingiz bilishingizga ishonamiz."
+        },
+        {
+          "title": "Haqiqatan ishlaydigan ota-onalik ta’tili.",
+          "body": "Asosiy g‘amxo‘rlar uchun 20 hafta, ikkinchi ota-ona uchun 12 hafta, to‘liq haq to‘lanadi. Hamda bosqichma-bosqich qaytish, shunda birinchi kuni to‘liq tezlikda ishlamaysiz."
+        }
+      ]
+    },
+    "offices": {
+      "eyebrow": "Qayerda ishlaymiz",
+      "title": "Ikki ofis, bitta mahsulot.",
+      "lead": "Elchixonalar, hamkorlar va xizmat ko‘rsatadigan bozorlarimizga yaqin ishga olamiz. Har bir ofisda muhandislar ham, operatsiyalar ham bor: yaratadigan jamoani maydonni yuritadigan jamoadan ajratmaymiz.",
+      "cards": [
+        {
+          "photo": "surat · Shanxay",
+          "open": "6 ta ochiq",
+          "name": "Shanxay",
+          "addr1": "Lane 1502, Luoshan Road,",
+          "addr2": "Xitoy (Shanxay) tajriba erkin savdo zonasi",
+          "tz": "GMT+8 · Xitoy operatsiyalari",
+          "since": "2023-yildan"
+        },
+        {
+          "photo": "surat · Singapur bosh ofisi",
+          "open": "12 ta ochiq",
+          "name": "Singapur",
+          "addr1": "Paya Lebar Road 60, #06-28 Paya Lebar Square,",
+          "addr2": "Singapur 409051",
+          "tz": "GMT+8 · Osiyo-Tinch okeani bosh ofisi",
+          "since": "Bosh ofis · 2021-yildan"
+        }
+      ]
+    },
+    "ctaStrip": {
+      "title": "Lavozimingizni topmadingizmi,<br></br>lekin qo‘shilmoqchimisiz?",
+      "body": "Noodatiy tajribangiz bo‘lsa va dunyo sayohatchilarini tezroq harakatlantirishimizga yordam bera olaman desangiz, sizdan eshitishni istaymiz. Biz avtobus haydovchilarini, sobiq elchixona xodimlarini va huquqshunoslarni ishga olganmiz. Bizda bir xil tur yo‘q.",
+      "lead": "Umumiy ariza",
+      "cta": "Hikoyangizni yuboring",
+      "note": "Rad javobi bo‘lsa ham, 7 kun ichida javob beramiz."
+    },
+    "footer": {
+      "tagline": "VIZA butun dunyo bo‘ylab vizalarni rejalashtirish, topshirish va kuzatishda sizga qulaylik yaratadi.",
+      "company": "Kompaniya",
+      "products": "Mahsulotlar",
+      "offices": "Ofislar",
+      "careers": "Karyera",
+      "contact": "Aloqa",
+      "security": "Xavfsizlik",
+      "privacy": "Maxfiylik",
+      "terms": "Shartlar",
+      "prodVisaReq": "Viza talablari",
+      "prodSchengen": "Shengen qabul tekshiruvchisi",
+      "prodPhoto": "Viza surati yaratuvchisi",
+      "prodHelpline": "VIZA favqulodda yordam liniyasi",
+      "prodStudent": "Talaba vizasi",
+      "officeSg": "Singapur, bosh ofis",
+      "officeSf": "Shanxay",
+      "copyright": "© VIZA, Barcha huquqlar himoyalangan"
+    }
+  },
+  "security": {
+    "hero": {
+      "eyebrow": "VIZA’da xavfsizlik · oxirgi yangilanish 2026-yil may",
+      "title": "Maxfiy. Shaffof.<br></br><em>Sukut bo‘yicha xavfsiz.</em>",
+      "lead": "Dunyo bo‘ylab mijozlar bizga millionlab nozik hujjatlarni ishonib topshiradi: pasportlar, bank ko‘chirmalari, suratlar. Ularni qanday yig‘ishimiz, saqlashimiz va to‘g‘ri qilayotganimizni qanday isbotlashimiz mana shu yerda.",
+      "ctaPrimary": "Ma’lumotlaringizni qanday himoya qilamiz",
+      "ctaVdp": "Zaiflik haqida xabar berish"
+    },
+    "clearance": {
+      "republicKey": "Respublikasi",
+      "officeKey": "Bergan ofis",
+      "officeVal": "Ishonch va xavfsizlik",
+      "title": "Xavfsizlik ruxsati /<br></br>Mijoz ma’lumotlari",
+      "grid": {
+        "encryption": {
+          "k": "Shifrlash",
+          "v": "AES-256 / TLS 1.3"
+        },
+        "region": {
+          "k": "Hudud",
+          "v": "SG · US · EU"
+        },
+        "audit": {
+          "k": "Audit davriyligi",
+          "v": "Har chorakda"
+        },
+        "retention": {
+          "k": "Saqlash muddati",
+          "v": "Eng ko‘pi 90 kun"
+        }
+      },
+      "referenceKey": "Havola",
+      "glyph": "TASDIQLANDI<br></br>VIZA · 26"
+    },
+    "chips": {
+      "transitLabel": "Uzatishda",
+      "transitVal": "Boshidan oxirigacha TLS 1.3",
+      "restLabel": "Saqlashda",
+      "restVal": "AES-256, hududga bog‘langan"
+    },
+    "stats": {
+      "docs": {
+        "value": "2.4M",
+        "label": "2025-yilda qayta ishlangan hujjatlar, mijoz ma’lumotlari buzilishi nol"
+      },
+      "retention": {
+        "unit": "kun",
+        "label": "Berilgandan keyin manba hujjatlarini saqlashning eng uzoq muddati"
+      },
+      "pentests": {
+        "label": "Tashqi penetratsion testlar, barcha hisobotlar ichkarida e’lon qilingan"
+      },
+      "ack": {
+        "unit": "soat",
+        "label": "Xabar qilingan zaiflikni tasdiqlashning o‘rtacha vaqti"
+      }
+    },
+    "docs": {
+      "eyebrow": "Nimalarni yig‘amiz",
+      "title": "Beshta hujjat turi.<br></br><em>Boshqa hech narsa.</em>",
+      "copy1": "Viza arizasi hujjatlar masalasidir. Biz faqat elchixona aniq so‘ragan narsani yig‘amiz va imkon bo‘lgan joyda anonimlashtiramiz. Har bir hujjat bitta arizaga bog‘lanadi, qabul qilinganda shifrlanadi va belgilangan jadval bo‘yicha o‘chiriladi.",
+      "copy2": "Ma’lumotlaringizni hech qachon sotmaymiz. Vizangizga bevosita aloqador konsulxona yoki hamkordan boshqa uchinchi tomonlarga bermaymiz.",
+      "cards": {
+        "payment": {
+          "name": "To‘lov ma’lumotlari",
+          "meta": "yig‘ilmaydi"
+        },
+        "photos": {
+          "name": "Viza suratlari",
+          "meta": "qayta ishlanadi · eng ko‘pi 90 kun"
+        },
+        "bank": {
+          "name": "Bank ko‘chirmalari",
+          "meta": "yashirilgan · faqat pdf"
+        },
+        "pastVisas": {
+          "name": "Oldingi vizalar",
+          "meta": "faqat o‘qish · OCR"
+        },
+        "passport": {
+          "name": "Pasport",
+          "meta": "MRZ ajratib olinadi"
+        }
+      }
+    },
+    "features": {
+      "eyebrow": "Yetti nazorat, doim yoqilgan",
+      "title": "Ma’lumotlaringiz qanday<br></br>sizniki bo‘lib qoladi, boshidan <em>oxirigacha.</em>",
+      "intro": "VIZA’dagi har bir baytning odatiy holati “shifrlangan, doirasi cheklangan va vaqt bilan chegaralangan”. Buni ta’minlaydigan yetti nazorat bor: bular intilish emas, bugun platformaga haqiqatan o‘rnatilgan narsalar.",
+      "cells": {
+        "minimise": {
+          "title": "Ma’lumotlarni kamaytirish va anonimlashtirish",
+          "body": "Muayyan ariza uchun elchixona yoki hamkor haqiqatan talab qiladigan narsanigina yig‘amiz va platformaning qolgan qismi imkon bergan joyda anonimlashtiramiz. Shakllarimizda ko‘rmaydigan maydonlar biz saqlamaydigan maydonlardir.",
+          "why": "<strong>Nima uchun:</strong> hech qachon yig‘ilmagan ma’lumotni buzilish ochib bera olmaydi."
+        },
+        "payments": {
+          "title": "To‘lov ma’lumotlari yo‘q",
+          "body": "VIZA xizmati bepul va biz to‘lov qabul qilmaymiz, shuning uchun karta raqamlarini so‘ramaymiz, ko‘rmaymiz va saqlamaymiz.",
+          "why": "<strong>Nima uchun:</strong> biz hech qachon saqlamaydigan ma’lumotni o‘g‘irlab bo‘lmaydi."
+        },
+        "atRest": {
+          "title": "Saqlashdagi shifrlash",
+          "body": "VIZA serverlaridagi har bir hujjat, xabar va metama’lumot maydoni diskka tushishidan oldin AES-256 bilan shifrlanadi. Kalitlar avtomatik almashtiriladi va hatto infratuzilma jamoamiz ham to‘g‘ridan-to‘g‘ri o‘qiy olmaydigan apparat asosidagi KMS’da saqlanadi.",
+          "why": "<strong>Nima uchun:</strong> o‘g‘irlangan disklar yoki zaxira nusxalar kalitlarsiz o‘qib bo‘lmaydigan bo‘lib qoladi."
+        },
+        "inTransit": {
+          "title": "Boshidan oxirigacha shifrlash",
+          "body": "Qurilmangiz, serverlarimiz va hamkor konsulxonalar o‘rtasidagi barcha trafik qat’iy pinning bilan TLS 1.3 dan foydalanadi. Hujjat yuklash alohida, imzolangan kanaldan o‘tadi, shunda tarmoq darajasidagi dushmanlar ham nima yuborayotganingizni ko‘ra olmaydi.",
+          "why": "<strong>Nima uchun:</strong> dushman tarmoqlar, jumladan aeroport Wi-Fi’i arizangizni o‘qiy olmaydi."
+        },
+        "audits": {
+          "title": "Muntazam xavfsizlik auditlari",
+          "body": "Har chorakda tashqi penetratsion test, yillik SOC 2 Type II auditi va uzluksiz avtomatik zaiflik skanerlashni o‘tkazamiz. Har bir topilma tuzatish muddati bilan qayd etiladi, muddati o‘tganlari esa muhandislik rahbarini chaqiradi.",
+          "why": "<strong>Nima uchun:</strong> tahdidlar o‘zgaradi, himoyamiz esa ularga qarshi jadval bo‘yicha tekshiriladi."
+        },
+        "access": {
+          "title": "Xavfsiz kirish nazorati",
+          "body": "Mijoz ma’lumotlariga ichki kirish rol bo‘yicha cheklangan, har bir so‘rov bo‘yicha audit qilinadi va aynan kerak paytda ruxsat oshirish bilan beriladi. Maslahatchilar faqat o‘zlari ishlayotgan arizani ko‘radi. Har bir o‘qish 12 oy saqlanadi.",
+          "why": "<strong>Nima uchun:</strong> ichki xatolar va suiiste’molning oqibati cheklanadi, egasi aniqlanadi va qayta ko‘rib chiqiladi."
+        },
+        "education": {
+          "title": "Foydalanuvchilarni o‘qitish va xabardor qilish",
+          "body": "Xavfsizlikning eng qiyin qismi biz siz uchun bajara olmaydigan qismdir. Ariza boshlaganingiz zahoti fishing, pasport surati firibgarliklari va soxta elchixona SMS’lari haqida oddiy tilda qo‘llanmalar yuboramiz va nimadir shubhali ko‘ringanda ularni mahsulot ichida yana ko‘rsatamiz. Siz oxirgi himoya chizig‘isiz, biz sizni ayblashdan ko‘ra qurollantirishni afzal ko‘ramiz.",
+          "why": "<strong>Nima uchun:</strong> yaxshi xabardor ariza beruvchi bizdagi eng arzon va eng samarali xavfsizlik nazoratidir."
+        }
+      }
+    },
+    "vdp": {
+      "tag": "▲ Zaiflik haqida xabar berish · barcha tadqiqotchilar uchun ochiq",
+      "title": "Nimadir topdingizmi?<br></br><em>Bu haqda eshitishni istaymiz.</em>",
+      "p1": "Foydalanuvchilarimiz va hamkorlarimiz xavfsizligi biz uchun hamma narsa. VIZA xizmatlariga ta’sir qiladigan haqiqiy zaiflikni aniqladim deb hisoblasangiz, bu haqda bevosita bizga aytishingizni istaymiz, biz esa hurmat bilan va tez tuzatish uchun siz bilan ishlaymiz.",
+      "p2": "Topilmalaringizni <strong>security@viza.it.com</strong> manziliga yuboring. Allaqachon ma’lum yoki doiradan tashqari bo‘lib chiqsa ham, qabul qilinganini bir ish kuni ichida tasdiqlaymiz.",
+      "meta": {
+        "ack": {
+          "k": "Tasdiqlash muddati",
+          "v": "'<' 24 soat"
+        },
+        "triage": {
+          "k": "Saralash muddati",
+          "v": "3 ish kuni"
+        },
+        "lang": {
+          "k": "Tillar",
+          "v": "EN · ID · AR"
+        },
+        "pgp": {
+          "k": "PGP kaliti",
+          "v": "0xVIZA · 2026"
+        }
+      },
+      "ctaEmail": "security@viza.it.com ga yozing",
+      "ctaScope": "Doirani o‘qing",
+      "terminal": {
+        "title": "hisobot-qoralama · security@viza.it.com",
+        "l1": "# zaiflik hisoboti",
+        "typeKey": "turi:",
+        "typeVal": "autentifikatsiyani aylanib o‘tish",
+        "urlKey": "url:",
+        "reproKey": "takrorlash:",
+        "reproVal": "[1-4 qadamlar]",
+        "impactKey": "ta’siri:",
+        "impactVal": "hisobni egallab olish",
+        "pocKey": "isbot:",
+        "l7": "# ↳ 0xVIZA ga shifrlangan",
+        "send": "yuborish"
+      }
+    },
+    "report": {
+      "eyebrow": "Zaiflik haqida xabar berish",
+      "title": "Hisobotingizga nimalarni yozish kerak<br></br>va <em>nimalarni yozmaslik kerak.</em>",
+      "intro": "Yaxshi hisobot ikkalamizning bir haftamizni tejaydi. Mana eng tez saralanadigan format, hamda pochtamizga umuman kelmasligini istaydigan narsalar.",
+      "include": {
+        "heading": "Iltimos, kiriting",
+        "sub": "Beshta maydon. Ular qanchalik aniq bo‘lsa, shuncha tez tasdiqlab, tuzata olamiz.",
+        "items": {
+          "type": "<strong>Muammo turi</strong>: masalan, autentifikatsiya, kirish nazorati, injeksiya, IDOR, SSRF.",
+          "steps": "<strong>Takrorlashning aniq qadamlari</strong>: raqamlangan, tartib bilan, imkon bo‘lsa toza seansda.",
+          "impact": "<strong>Xavfsizlikka ehtimoliy ta’siri</strong>: hujumchi buning bilan nima qila olishi, oddiy tilda.",
+          "poc": "<strong>Isbot (proof of concept)</strong>: skrinshotlar yoki qisqa ekran yozuvi afzal, loglar ikkinchi o‘rinda."
+        }
+      },
+      "dontSend": {
+        "heading": "Iltimos, yubormang",
+        "sub": "Bular xavfli, foydasiz yoki ikkalasi ham, biz ularni qabul qilishimiz bilan o‘chirishga majbur bo‘lamiz.",
+        "items": {
+          "secrets": "<strong>Parollar yoki autentifikatsiya tokenlari</strong>, o‘zingizniki yoki boshqaning. Yo‘nalishni ko‘rsating, sirni emas.",
+          "malware": "<strong>Xom zararli dastur namunalari yoki stealer loglari.</strong> Ko‘rganingizni tasvirlang, biriktirmang.",
+          "scanners": "<strong>Qo‘lda tanlangan, isbotlangan topilmasiz katta avtomatik skaner hisobotlari.</strong>",
+          "customerData": "<strong>Mijozlarning shaxsiy ma’lumotlari yoki hujjatlari</strong>, hatto ular topilmangiz asosi bo‘lgan bo‘lsa ham.",
+          "socialEng": "<strong>Xodimlarimiz yoki maslahatchilarimizga qarshi ijtimoiy muhandislik urinishlari yozuvlari.</strong>"
+        }
+      }
+    },
+    "scope": {
+      "eyebrow": "Dastur doirasi",
+      "title": "Nima kiradi, nima kirmaydi.",
+      "intro": "Hisobot shu ro‘yxatga kirishiga ishonchingiz komil bo‘lmasa, baribir yuboring va so‘rang. Chegara aniq bo‘lmagani uchun haqiqiy muammoni ushlab turishingizdan ko‘ra, saralab, davom etganimiz yaxshi.",
+      "fileRef": "/security/scope.md · v6",
+      "in": {
+        "pill": "Doiraga kiradi",
+        "heading": "Faol saralaydigan hisobotlar",
+        "items": {
+          "web": "<code>*.viza.com</code> dagi VIZA veb-ilovalari va API’lari, jumladan ariza beruvchi portali, maslahatchi konsoli va hamkor endpointlari.",
+          "infra": "VIZA’ga tegishli infratuzilma va xizmatlar: autentifikatsiya, hujjatlar konveyeri, rejalashtirish.",
+          "mobile": "VIZA dasturchi hisobi ostida e’lon qilingan mobil ilovalar (iOS, Android).",
+          "marketing": "VIZA nazoratidagi domenlardagi ommaviy marketing va kontent saytlari."
+        }
+      },
+      "out": {
+        "pill": "Doiradan tashqari",
+        "heading": "Bu dastur doirasida ko‘ra olmaydigan hisobotlar",
+        "items": {
+          "devices": "Buzilgan foydalanuvchi qurilmalari, brauzer kengaytmalari yoki o‘g‘irlangan hisob ma’lumotlaridan kelib chiqqan muammolar.",
+          "phishing": "VIZA xodimlari, hamkorlari yoki maslahatchilariga qaratilgan ijtimoiy muhandislik yoki fishing hujumlari.",
+          "thirdParty": "VIZA bevosita boshqarmaydigan uchinchi tomon xizmatlari yoki integratsiyalari (konsulxona portallari, kuryer saytlari).",
+          "scanners": "Haqiqiy hayotda foydalanilishi isbotlanmagan avtomatik skaner topilmalari.",
+          "headers": "Ekspluatatsiya yo‘lisiz yetishmayotgan xavfsizlik sarlavhalari yoki umumiy eng yaxshi amaliyot tavsiyalari."
+        }
+      }
+    },
+    "pledge": {
+      "eyebrow": "Mas’uliyatli xabar berish",
+      "title": "Bir-birimiz bilan<br></br>qilgan kelishuv.",
+      "intro": "Xabar berish ikki tomon ham vijdonan harakat qilgani uchun ishlaydi. Mana sizdan nimani so‘rashimiz va evaziga bizdan nimani talab qila olishingiz, yozib qo‘yilgan, hech kim taxmin qilmasligi uchun.",
+      "researcher": {
+        "kicker": "Sizdan nimani so‘raymiz",
+        "title": "Tadqiqotchi <em>majburiyatlari.</em>",
+        "p": "Hisobot yuborib, vijdonan va dasturning faqat harfiga emas, ruhiga muvofiq harakat qilishga rozilik bildirasiz.",
+        "items": {
+          "1": "Vijdonan harakat qiling: tadqiqot paytida maxfiylikni buzishdan, ma’lumotni yo‘q qilishdan yoki xizmatni to‘xtatishdan saqlaning.",
+          "2": "Muammoni tasdiqlash uchun zarur minimumdan ortiq ekspluatatsiya qilmang va hech qachon o‘zingizniki bo‘lmagan ma’lumotga kirmang.",
+          "3": "Biz tuzatishni chiqarib, siz bilan tasdiqlamagunimizcha zaiflik tafsilotlarini maxfiy saqlang.",
+          "4": "VIZA xavfsizlik jamoasining oldindan yozma roziligisiz topilmalarni ommaga oshkor qilmang."
+        }
+      },
+      "viza": {
+        "kicker": "Bizdan nimani talab qila olasiz",
+        "title": "VIZA <em>majburiyatlari.</em>",
+        "p": "Evaziga biz xabar beruvchilarni e’tiborsiz qoldirmaymiz, tuzatishdan qochish uchun jiddiylik haqida bahslashmaymiz va bizga yordam beradigan odamlarni sudga bermaymiz.",
+        "items": {
+          "1": "Jiddiylik darajasidan qat’i nazar, har bir yaroqli hisobotni ko‘rib chiqamiz va bir ish kuni ichida javob beramiz.",
+          "2": "Hurmat bilan muloqot qilamiz: himoyalanuvchi so‘zlarsiz, “shunday mo‘ljallangan” deb qutulishsiz.",
+          "3": "Kerak bo‘lsa tegishli tuzatish choralarini ko‘ramiz va tuzatish chiqqanda sizga aytamiz.",
+          "4": "Muammo hal bo‘lganda sizni (roziligingiz bilan) xavfsizlik o‘zgarishlar jurnalida tilga olamiz."
+        }
+      }
+    },
+    "legal": {
+      "eyebrow": "Huquqiy masalalar va mukofotlar",
+      "title": "Xavfsiz panoh, mukofotlar<br></br>va mayda yozuv.",
+      "intro": "Bu siyosatga vijdonan amal qilsangiz, tadqiqotingizni ruxsat etilgan deb hisoblaymiz. Sahifaning qolgan qismi zerikarli, lekin muhim joyi: yashirilmagan, ochiq yozilgan.",
+      "cards": {
+        "safeHarbour": {
+          "title": "Huquqiy xavfsiz panoh",
+          "body": "Bu siyosatga vijdonan amal qilsangiz, VIZA tadqiqotingiz bilan bog‘liq tasodifiy yoki qasddan bo‘lmagan buzilishlar uchun sizga qarshi huquqiy chora boshlamaydi. Amaldagi qonun va qoidalarga rioya qilishingiz hamon kutiladi."
+        },
+        "rewards": {
+          "title": "Mukofotlar va bug bounty",
+          "body": "VIZA hozircha ochiq bug bounty o‘tkazmaydi. Yaroqli, mas’uliyat bilan xabar qilingan muammolar uchun o‘z ixtiyorimizcha minnatdorchilik belgisi beramiz, u ta’sir, yangilik va hisobot sifatiga qarab baholanadi.",
+          "meta": "ixtiyoriy · har bir holat alohida"
+        },
+        "updates": {
+          "title": "Dastur yangilanishlari",
+          "body": "VIZA bu dasturni istalgan vaqtda o‘zgartirish yoki tugatish huquqini saqlab qoladi. Tadqiqotingiz siyosatga mos kelishiga ishonchingiz komil bo‘lmasa, davom etishdan <em>oldin</em> security@viza.it.com manziliga murojaat qiling.",
+          "meta": "oxirgi tahrir · 2026-yil may"
+        }
+      }
+    },
+    "cta": {
+      "title": "Nimadir noto‘g‘ri ko‘rinyaptimi?<br></br>Xavfsizlik jamoamizga ayting.",
+      "body": "Kichik topilma haqida ikki marta eshitganimiz katta topilmani bir marta o‘tkazib yuborishdan yaxshi. Hisobotlar to‘g‘ridan-to‘g‘ri xavfsizlik jamoasidagi haqiqiy odamga boradi: chipta portali yo‘q, saralovchi robot yo‘q.",
+      "lead": "Bevosita xavfsizlikka",
+      "small": "O‘rtacha javob muddati: 24 soatdan kam, haftaning har kuni."
+    },
+    "footer": {
+      "tagline": "VIZA butun dunyo bo‘ylab vizalarni rejalashtirish, topshirish va kuzatishda sizga qulaylik yaratadi.",
+      "company": "Kompaniya",
+      "careers": "Karyera",
+      "contact": "Aloqa",
+      "security": "Xavfsizlik",
+      "privacy": "Maxfiylik",
+      "terms": "Shartlar",
+      "products": "Mahsulotlar",
+      "prodVisaReq": "Viza talablari",
+      "prodSchengen": "Shengen qabul tekshiruvchisi",
+      "prodPhoto": "Viza surati yaratuvchisi",
+      "prodHelpline": "VIZA favqulodda yordam liniyasi",
+      "prodStudent": "Talaba vizasi",
+      "offices": "Ofislar",
+      "officeSg": "Singapur, bosh ofis",
+      "officeSf": "Shanxay",
+      "copyright": "© VIZA, Barcha huquqlar himoyalangan"
+    }
+  },
+  "status": {
+    "crumbHome": "Shaffoflik",
+    "crumbHere": "Tizim holati",
+    "hero": {
+      "title": "Tizim holati",
+      "lead": "VIZA va biz ishlaydigan davlat viza portallarining dalillarga asoslangan mavjudligi. Quyidagi har bir foiz, vaqt chizig‘i va voqea qayd etilgan sintetik tekshiruvdan olinadi."
+    },
+    "console": {
+      "title": "VIZA ishonchliligi · Jonli",
+      "live": "Tasdiqlangan",
+      "unverified": "Tasdiqlanmagan",
+      "allOperational": "Barcha tizimlar ishlayapti",
+      "degraded": "Ayrim tizimlar sekinlashgan",
+      "majorOutage": "Kuzatilayotgan tizim mavjud emas",
+      "dataUnavailable": "Monitoring ma’lumotlari mavjud emas",
+      "lastChecked": "Oxirgi qayd etilgan tekshiruv: {time}",
+      "noChecks": "Hali yakunlangan tekshiruvlar qayd etilmagan",
+      "kUptime": "90 kunlik tekshiruvlardan o‘tganlari",
+      "kMonitors": "Kuzatilayotgan endpointlar",
+      "kIncidents": "Faol voqea"
+    },
+    "subnav": {
+      "current": "Joriy holat",
+      "incidents": "O‘tgan voqealar",
+      "subscribe": "Obuna",
+      "searchPlaceholder": "Davlatlarni qidiring",
+      "subscribeBtn": "Yangilanishlarga obuna bo‘lish"
+    },
+    "platform": {
+      "title": "VIZA platformasi",
+      "realMeta": "Har 5 daqiqada tekshiriladi · {count} ta endpoint",
+      "meta": "Har 5 daqiqada tekshiriladi",
+      "name": "VIZA ariza platformasi",
+      "sub": "VIZA ommaviy xizmatlari"
+    },
+    "uptime": {
+      "ago": "90 kun oldin",
+      "today": "Bugun",
+      "pct": "Tekshiruvlarning {pct}% i o‘tgan",
+      "noData": "Qayd etilgan tekshiruvlar yo‘q"
+    },
+    "dayObservation": "{date}: {checks} ta qayd etilgan tekshiruv",
+    "dayNoData": "{date}: qayd etilgan ma’lumot yo‘q",
+    "dayTitle": "{n}-kun",
+    "statusLabels": {
+      "op": "Ishlayapti",
+      "deg": "Sekinlashgan",
+      "part": "Qisman uzilish",
+      "maj": "Mavjud emas",
+      "none": "Joriy ma’lumot yo‘q"
+    },
+    "lastChecked": "Tekshirilgan: {time}",
+    "monitorStale": "Tekshiruv yo‘q yoki eskirgan",
+    "monitoringUnavailable": "Holat API’sida yangi dalil yo‘q. VIZA keshlangan yoki yaratilgan mavjudlikni joriy xizmat holati sifatida ko‘rsatmaydi.",
+    "noSearchResults": "Bu qidiruvga mos kuzatiladigan davlat yo‘q.",
+    "noRecordedIncidents": "So‘nggi 90 kunda qayd etilgan tekshiruvlardan hech qanday voqea aniqlanmagan.",
+    "incidentCount": "{count, plural, one {# ta voqea} other {# ta voqea}}",
+    "incidentRecovered": "Qayd etilgan tekshiruvlar bu xizmat tiklanganini ko‘rsatadi.",
+    "noIssues": "Faol muammolar yo‘q",
+    "activeIncident": "Faol voqea",
+    "portalsHead": {
+      "title": "Davlat portallari",
+      "lead": "Cheklangan sintetik so‘rov sozlangan har bir portalni har besh daqiqada tekshiradi. Kulrang tarix kuzatuv qayd etilmaganini bildiradi, u hech qachon taxminiy ma’lumot bilan to‘ldirilmaydi."
+    },
+    "incidentsHead": {
+      "title": "O‘tgan voqealar",
+      "lead": "Voqealar saqlangan monitor o‘tishlaridan ochiladi va yopiladi. Bu operatsion mavjudlik, ariza beruvchining shaxsiy viza qarori holati emas."
+    },
+    "tags": {
+      "identified": "Aniqlandi",
+      "investigating": "Tekshirilmoqda",
+      "resolved": "Hal qilindi"
+    },
+    "portals": {
+      "AE": {
+        "name": "Birlashgan Arab Amirliklari",
+        "sub": "GDRFA · ICA portallari"
+      },
+      "AM": {
+        "name": "Armaniston",
+        "sub": "Elektron viza portali"
+      },
+      "AU": {
+        "name": "Avstraliya",
+        "sub": "ImmiAccount"
+      },
+      "AZ": {
+        "name": "Ozarbayjon",
+        "sub": "ASAN Visa"
+      },
+      "DE": {
+        "name": "Germaniya",
+        "sub": "VIDEX · konsulxona navbatlari"
+      },
+      "DK": {
+        "name": "Daniya"
+      },
+      "EG": {
+        "name": "Misr",
+        "sub": "Elektron viza portali"
+      },
+      "FI": {
+        "name": "Finlyandiya",
+        "sub": "EnterFinland"
+      },
+      "FR": {
+        "name": "Fransiya",
+        "sub": "France-Visas"
+      },
+      "GB": {
+        "name": "Buyuk Britaniya",
+        "sub": "UKVCAS · UK Visas",
+        "bannerText": "Ayrim ariza turlarida uzilish kuzatilmoqda.",
+        "bannerLink": "Voqea vaqt chizig‘ini ko‘rish"
+      },
+      "GE": {
+        "name": "Gruziya"
+      },
+      "GR": {
+        "name": "Gretsiya",
+        "sub": "AEGEAN · konsullik"
+      },
+      "HK": {
+        "name": "Gonkong",
+        "sub": "Immigration eVisa"
+      },
+      "ID": {
+        "name": "Indoneziya",
+        "sub": "e-Visa Indonesia"
+      },
+      "IN": {
+        "name": "Hindiston",
+        "sub": "Indian Visa Online"
+      },
+      "JO": {
+        "name": "Iordaniya"
+      },
+      "KE": {
+        "name": "Keniya",
+        "sub": "eCitizen / eVisa"
+      },
+      "KH": {
+        "name": "Kambodja"
+      },
+      "LK": {
+        "name": "Shri-Lanka",
+        "sub": "ETA portali"
+      },
+      "MA": {
+        "name": "Marokash"
+      },
+      "TH": {
+        "name": "Tailand",
+        "sub": "Thailand e-Visa"
+      }
+    },
+    "incidents": {
+      "count": "<strong>{count}</strong> {count, plural, one {ta davlat} other {ta davlat}} unumdorlik muammolariga duch keldi",
+      "events": "{count, plural, one {# ta hodisa} other {# ta hodisa}}",
+      "days": [
+        {
+          "date": "2026-yil 10-may",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "10-may, 3:05 PM",
+                  "desc": "Bu voqea hal qilindi. Xizmat odatiy ish rejimiga qaytdi."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "10-may, 5:05 PM",
+                  "desc": "Bu voqea hal qilindi. Xizmat odatiy ish rejimiga qaytdi."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2026-yil 9-may",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "9-may, 10:50 PM",
+                  "desc": "Xatolar ulushi oshganini tekshiryapmiz."
+                },
+                {
+                  "time": "10-may, 12:20 AM",
+                  "desc": "Jiddiylik darajasi pasayishdan qisman uzilishgacha oshdi."
+                },
+                {
+                  "time": "10-may, 2:50 AM",
+                  "desc": "Jiddiylik darajasi qisman uzilishdan jiddiy uzilishgacha oshdi."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "9-may, 3:05 PM",
+                  "desc": "Xatolar ulushi oshganini tekshiryapmiz."
+                },
+                {
+                  "time": "9-may, 7:20 PM",
+                  "desc": "Jiddiylik darajasi qisman uzilishdan jiddiy uzilishgacha oshdi."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2026-yil 8-may",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "8-may, 1:05 PM",
+                  "desc": "Xatolar ulushi oshganini tekshiryapmiz."
+                },
+                {
+                  "time": "8-may, 2:05 PM",
+                  "desc": "Bu voqea hal qilindi. Xizmat odatiy ish rejimiga qaytdi."
+                },
+                {
+                  "time": "8-may, 2:50 PM",
+                  "desc": "Xatolar ulushi oshganini tekshiryapmiz."
+                },
+                {
+                  "time": "8-may, 7:35 PM",
+                  "desc": "Bu voqea hal qilindi. Xizmat odatiy ish rejimiga qaytdi."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2026-yil 5-may",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "5-may, 1:36 PM",
+                  "desc": "Jiddiylik darajasi pasayishdan qisman uzilishgacha oshdi."
+                },
+                {
+                  "time": "5-may, 4:50 PM",
+                  "desc": "Bu voqea hal qilindi."
+                },
+                {
+                  "time": "5-may, 9:20 PM",
+                  "desc": "Xatolar ulushi oshganini tekshiryapmiz."
+                },
+                {
+                  "time": "5-may, 10:20 PM",
+                  "desc": "Bu voqea hal qilindi."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "5-may, 2:43 PM",
+                  "desc": "Bu voqea hal qilindi."
+                },
+                {
+                  "time": "5-may, 3:35 PM",
+                  "desc": "Xatolar ulushi oshganini tekshiryapmiz."
+                },
+                {
+                  "time": "5-may, 7:35 PM",
+                  "desc": "Jiddiylik darajasi qisman uzilishdan jiddiy uzilishgacha oshdi."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2026-yil 4-may",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "4-may, 4:05 PM",
+                  "desc": "Xatolar ulushi oshganini tekshiryapmiz."
+                },
+                {
+                  "time": "4-may, 5:05 PM",
+                  "desc": "Bu voqea hal qilindi."
+                },
+                {
+                  "time": "4-may, 7:36 PM",
+                  "desc": "Xatolar ulushi oshganini tekshiryapmiz."
+                },
+                {
+                  "time": "4-may, 8:35 PM",
+                  "desc": "Bu voqea hal qilindi."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "4-may, 12:05 PM",
+                  "desc": "Bu voqea hal qilindi."
+                },
+                {
+                  "time": "4-may, 1:50 PM",
+                  "desc": "Xatolar ulushi oshganini tekshiryapmiz."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2026-yil 2-may",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "2-may, 6:35 PM",
+                  "desc": "Xatolar ulushi oshganini tekshiryapmiz."
+                },
+                {
+                  "time": "2-may, 7:50 PM",
+                  "desc": "Bu voqea hal qilindi."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "2-may, 9:20 AM",
+                  "desc": "Xatolar ulushi oshganini tekshiryapmiz."
+                },
+                {
+                  "time": "2-may, 10:20 AM",
+                  "desc": "Bu voqea hal qilindi."
+                },
+                {
+                  "time": "2-may, 8:20 PM",
+                  "desc": "Xatolar ulushi oshganini tekshiryapmiz."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "2-may, 8:20 PM",
+                  "desc": "Xatolar ulushi oshganini tekshiryapmiz."
+                },
+                {
+                  "time": "3-may, 12:05 AM",
+                  "desc": "Bu voqea hal qilindi."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2026-yil 1-may",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "1-may, 2:05 PM",
+                  "desc": "Xatolar ulushi oshganini tekshiryapmiz."
+                },
+                {
+                  "time": "1-may, 3:05 PM",
+                  "desc": "Bu voqea hal qilindi."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2026-yil 30-aprel",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "30-aprel, 8:20 AM",
+                  "desc": "Xatolar ulushi oshganini tekshiryapmiz."
+                },
+                {
+                  "time": "30-aprel, 9:50 AM",
+                  "desc": "Bu voqea hal qilindi."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30-aprel, 3:05 PM",
+                  "desc": "Bu voqea hal qilindi."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30-aprel, 4:51 PM",
+                  "desc": "Bu voqea hal qilindi."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30-aprel, 1:20 PM",
+                  "desc": "Xatolar ulushi oshganini tekshiryapmiz."
+                },
+                {
+                  "time": "30-aprel, 2:37 PM",
+                  "desc": "Jiddiylik darajasi pasayishdan qisman uzilishgacha oshdi."
+                },
+                {
+                  "time": "30-aprel, 8:20 PM",
+                  "desc": "Bu voqea hal qilindi."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30-aprel, 6:50 PM",
+                  "desc": "Bu voqea hal qilindi."
+                },
+                {
+                  "time": "30-aprel, 7:50 PM",
+                  "desc": "Xatolar ulushi oshganini tekshiryapmiz."
+                },
+                {
+                  "time": "1-may, 12:20 AM",
+                  "desc": "Bu voqea hal qilindi."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "subscribe": {
+      "title": "Nimadir buzilganda<br></br>birinchi bo‘lib eshiting.",
+      "lead": "Sizni qiziqtirgan davlatlarni tanlang, ularning portallari yoki bizniki ishdan chiqqanda yoki qayta ishga tushganda oddiy tilda bitta yangilanish yuboramiz.",
+      "emailLabel": "Voqea yangilanishlarini elektron pochta orqali oling",
+      "button": "Obuna bo‘lish",
+      "follow": "Yoki holatni shu orqali kuzating:",
+      "chipEmail": "Elektron pochta xulosasi",
+      "chipSms": "SMS va WhatsApp",
+      "chipRss": "RSS tasma",
+      "chipWebhook": "Operatsiyalar uchun webhook"
+    },
+    "footer": {
+      "tagline": "VIZA butun dunyo bo‘ylab vizalarni rejalashtirish, topshirish va kuzatishda sizga qulaylik yaratadi.",
+      "company": "Kompaniya",
+      "careers": "Karyera",
+      "contact": "Aloqa",
+      "security": "Xavfsizlik",
+      "systemStatus": "Tizim holati",
+      "privacy": "Maxfiylik",
+      "terms": "Shartlar",
+      "products": "Mahsulotlar",
+      "prodVisaReq": "Viza talablari",
+      "prodSchengen": "Shengen qabul tekshiruvchisi",
+      "prodPhoto": "Viza surati yaratuvchisi",
+      "prodHelpline": "VIZA favqulodda yordam liniyasi",
+      "copyright": "© VIZA, Barcha huquqlar himoyalangan"
+    }
+  },
+  "arrival": {
+    "breadcrumbHome": "Bosh sahifa",
+    "breadcrumbHub": "Kelish kartalari",
+    "hubH1": "Kelish kartasi qo‘llanmalari",
+    "hubLead": "Kelish kartasi davlatga kirishdan oldin to‘ldiriladigan qisqa davlat shaklidir. Ko‘pchiligi onlayn, bepul va taxminan besh daqiqa oladi. Bu qo‘llanmalar har biri kimga kerakligini, qachon topshirishni va buning uchun pul oladigan soxta saytlardan qanday saqlanishni ko‘rsatadi.",
+    "hubWhatTitle": "Kelish kartasi nima",
+    "hubWhat": [
+      "Kelish kartasi pasportingiz va viza (bo‘lsa) ustiga manzilingiz so‘raydigan deklaratsiyadir. Unda siz kimligingiz, qanday kelayotganingiz va qayerda turishingiz qayd etiladi. Ko‘p davlatlar samolyotda tarqatiladigan qog‘oz kartani onlayn shakl bilan almashtirgan.",
+      "Bu viza emas. Viza kirishga ariza berish imkonini beradi. Kelish kartasi esa chegara organiga safaringiz haqida xabar beradi, fuqaroligingiz viza talab qilsa, viza baribir kerak."
+    ],
+    "hubFreeTitle": "Kelish kartalari bepul",
+    "hubFree": [
+      "Bu qo‘llanmalardagi har bir karta davlatning o‘z saytida bepul. Ayrim veb-saytlar davlat shaklini nusxalab, buning uchun haq oladi. Ularning birortasiga ham to‘lashingiz shart emas.",
+      "Har doim har bir qo‘llanmada ko‘rsatilgan rasmiy manzildan boshlang. VIZA mustaqil xizmat va davlat veb-sayti emas."
+    ],
+    "hubWhenTitle": "Qachon kerak bo‘ladi",
+    "hubWhen": [
+      "Ko‘pchilik kartalar kelishingizdan uch kun oldin ochiladi va shu oraliqda topshirilishi kerak. Aniq qoidani har bir qo‘llanmadan tekshiring, chunki Yaponiyaning Visit Japan Web xizmatida qat’iy muddat yo‘q va u majburiy emas.",
+      "Rezidentlar, fuqarolar va tranzit yo‘lovchilar ko‘pincha ozod qilinadi yoki qisqaroq shakl to‘ldiradi. Har bir qo‘llanmada kimlar ozod qilingani, jumladan Malayziya MDAC uchun Singapur fuqarolariga berilgan istisno ko‘rsatilgan."
+    ],
+    "hubGuidesTitle": "Barcha qo‘llanmalar",
+    "hubGuidesSub": "Yo‘nalishingizni tanlang. Har bir qo‘llanmada qadamlar, keng tarqalgan xatolar va rasmiy havolalar bor.",
+    "readGuide": "Qo‘llanmani o‘qish",
+    "cardWhen": "Qachon",
+    "cardsLabel": "Kelish kartasi",
+    "hubVisaTitle": "Viza ham kerakmi",
+    "hubVisaBody": "Kelish kartasi vizani almashtirmaydi. Pasportingizga viza kerak yoki kerak emasligini yo‘nalish sahifasidan tekshiring.",
+    "hubVisaCta": "Viza sahifalarini ko‘rish",
+    "glanceTitle": "Qisqacha",
+    "stepsTitle": "Qadamma-qadam qanday to‘ldiriladi",
+    "mistakesTitle": "Keng tarqalgan xatolar",
+    "feesTitle": "To‘lovlar va soxta saytlar",
+    "faqTitle": "Savollar",
+    "sourcesTitle": "Manbalar",
+    "relatedTitle": "Boshqa kelish kartasi qo‘llanmalari",
+    "independent": "VIZA mustaqil xizmat va davlat veb-sayti emas.",
+    "officialCta": "Rasmiy saytni ochish",
+    "officialLabel": "Rasmiy sayt",
+    "vizaTitle": "VIZA buni siz uchun qilsin",
+    "vizaBody": "{name} ni VIZA hisobingizda boshlang. VIZA shakli rasmiy shakldagi savollarning o‘zi bilan sizni yetaklaydi va ma’lumotlaringizni keyingi safarlar uchun saqlaydi. Istalgan payt bepul rasmiy saytdan ham foydalanishingiz mumkin.",
+    "vizaFee": "VIZA xizmat haqi",
+    "vizaFeeFree": "Bepul",
+    "vizaCta": "VIZA’da boshlash",
+    "noVizaTitle": "Rasmiy saytdan foydalaning",
+    "noVizaBody": "VIZA bu kartani hozircha to‘ldirmaydi. Quyidagi rasmiy saytdan foydalaning va avval shu qo‘llanmadagi qadamlarni o‘qing.",
+    "visaTitle": "{country} uchun viza",
+    "visaBody": "Kelish kartasi vizadan alohida. {country} uchun kimga viza kerakligini, to‘lovlarni va qanday topshirishni ko‘ring.",
+    "visaCta": "{country} viza sahifasini ochish",
+    "reviewedTitle": "2026-yil 25-noyabrda tekshirilgan",
+    "stepLabel": "Qadam",
+    "cards": {
+      "malaysia-mdac": {
+        "summary": "Xorijiy mehmonlar uchun bepul onlayn karta. Singapur fuqarolari ozod qilingan.",
+        "when": "Kelishdan oldingi 3 kun ichida"
+      },
+      "singapore-sg-arrival-card": {
+        "summary": "ICA’ning sog‘liq deklaratsiyali onlayn kartasi. Veb-saytda yoki MyICA ilovasida topshiring.",
+        "when": "Kelishdan oldingi 3 kun ichida"
+      },
+      "japan-visit-japan-web": {
+        "summary": "Immigratsiya va bojxona uchun bepul QR kodlar. Tavsiya etiladi, majburiy emas.",
+        "when": "Parvozdan oldin"
+      },
+      "thailand-tdac": {
+        "summary": "Vizasiz yoki vizali har bir xorijiy mehmon uchun bepul karta. Qog‘oz TM6 o‘rnini egalladi.",
+        "when": "Kelishdan oldingi 3 kun ichida"
+      },
+      "korea-e-arrival-card": {
+        "summary": "2026-yil 1-yanvardan majburiy. Amaldagi K-ETA egasi ozod qilingan.",
+        "when": "Kelishdan oldingi 3 kun ichida"
+      },
+      "indonesia-all-indonesia": {
+        "summary": "Immigratsiya, bojxona va sog‘liqni saqlash uchun bitta karta. Bepul va viza emas.",
+        "when": "Kelishdan 3 kungacha oldin"
+      }
+    }
+  },
+  "guides": {
+    "breadcrumbHome": "Bosh sahifa",
+    "breadcrumbHub": "Qo‘llanmalar",
+    "hubH1": "Singapurda yashovchilar uchun viza qo‘llanmalari",
+    "hubLead": "Pasportingiz Singapur, Xitoy, Hindiston yoki Filippin pasporti bo‘lishidan qat’i nazar, bu qo‘llanmalar bitta savolga javob beradi: bu davlatga kirish uchun nima kerak va Singapurdan qayerga ariza topshiriladi. Har birida manbalar va tekshirilgan sana ko‘rsatilgan.",
+    "hubGuidesTitle": "Barcha qo‘llanmalar",
+    "hubGuidesSub": "Mavzuni tanlang. Qoidalar o‘zgaradi, shuning uchun har bir qo‘llanmada sayohatdan oldin tekshiriladigan rasmiy sahifalar keltirilgan.",
+    "readGuide": "Qo‘llanmani o‘qish",
+    "hubMoreTitle": "VIZA’dan yana",
+    "hubMoreBody": "Muayyan davlat, kelish kartasi yoki so‘nggi qoida o‘zgarishini qidiryapsizmi?",
+    "hubDestinations": "Viza sahifalari",
+    "hubArrival": "Kelish kartasi qo‘llanmalari",
+    "hubNews": "Viza yangiliklari",
+    "glanceTitle": "Qisqa javob",
+    "relatedVisaTitle": "Yo‘nalish sahifalari",
+    "relatedVisaSub": "Singapurda yashovchilar uchun to‘lovlar, hujjatlar va qadamlar.",
+    "relatedArrivalTitle": "Kelish kartasi qo‘llanmalari",
+    "relatedGuidesTitle": "Yana qo‘llanmalar",
+    "faqTitle": "Savollar",
+    "sourcesTitle": "Manbalar",
+    "reviewedTitle": "Qanday tekshirdik",
+    "published": "E’lon qilingan",
+    "updated": "Yangilangan",
+    "independent": "VIZA mustaqil xizmat va davlat veb-sayti emas."
+  },
+  "ds": {
+    "header": {
+      "home": "VIZA bosh sahifasi",
+      "primary": "Asosiy",
+      "language": "Til",
+      "signIn": "Kirish",
+      "openMenu": "Menyuni ochish",
+      "closeMenu": "Menyuni yopish",
+      "nav": {
+        "home": "Bosh sahifa",
+        "destinations": "Yo‘nalishlar",
+        "arrivalCards": "Kelish kartalari",
+        "guides": "Qo‘llanmalar",
+        "news": "Yangiliklar",
+        "about": "Biz haqimizda",
+        "contact": "Aloqa"
+      }
+    },
+    "footer": {
+      "home": "VIZA bosh sahifasi",
+      "tagline": "VIZA sun’iy intellekti tayyorlaydigan va maslahatchilarimiz tekshiradigan viza arizalari. Foydalanish bepul.",
+      "explore": "Kashf eting",
+      "follow": "Bizni kuzating",
+      "followOn": "VIZA’ni {platform} da kuzating",
+      "links": {
+        "destinations": "Yo‘nalishlar",
+        "arrivalCards": "Kelish kartalari",
+        "guides": "Qo‘llanmalar",
+        "news": "Yangiliklar",
+        "about": "Biz haqimizda",
+        "contact": "Aloqa",
+        "careers": "Karyera",
+        "security": "Xavfsizlik",
+        "status": "Holat"
+      },
+      "copyright": "© {year} VIZA. Barcha huquqlar himoyalangan.",
+      "office": "Ro‘yxatdan o‘tgan ofis: 60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapore 409051",
+      "privacy": "Maxfiylik",
+      "terms": "Shartlar",
+      "kelin": "Kelin Studio loyihasi",
+      "refunds": "Qaytarishlar",
+      "business": "Biznes ma’lumotlari"
+    },
+    "form": {
+      "fullName": {
+        "label": "Ismingiz",
+        "placeholder": "Jane Tan"
+      },
+      "email": {
+        "label": "Elektron pochta"
+      },
+      "phone": {
+        "label": "Telefon"
+      },
+      "destination": {
+        "label": "Yo‘nalish",
+        "placeholder": "Yaponiya, Shengen, Amerika Qo‘shma Shtatlari"
+      },
+      "message": {
+        "label": "Savolingiz",
+        "placeholder": "Qayerga borayotganingiz, pasportingiz va safar sanalaringiz."
+      },
+      "submit": "Xabar yuborish",
+      "sending": "Yuborilmoqda",
+      "success": "Rahmat, xabaringiz yetib keldi. Elektron pochta orqali javob beramiz.",
+      "error": "Xabaringizni yuborib bo‘lmadi. Iltimos, qayta urinib ko‘ring yoki sales@kelin.studio manziliga yozing.",
+      "consent": "Yuborish orqali siz <privacy>Maxfiylik siyosati</privacy> va <terms>Shartlar</terms>ga rozilik bildirasiz."
+    },
+    "gallery": {
+      "title": "Yo‘nalishlar",
+      "lede": "Kerakli vizani, hujjatlarni va davlat to‘lovini ko‘rish uchun yo‘nalishni tanlang.",
+      "view": "Ko‘rish",
+      "passportSummary": "{free} ta vizasiz · {voa} ta elektron viza yoki kelganda · {req} ta viza kerak",
+      "noResults": "Qidiruvingizga mos yo‘nalish topilmadi.",
+      "sorts": {
+        "featured": "Tavsiya etilgan",
+        "open": "Avval ochiqlari",
+        "name": "A dan Z gacha"
+      }
+    },
+    "dest": {
+      "all": "Barcha yo‘nalishlar",
+      "onPage": "Shu sahifada",
+      "applyTitle": "Arizani boshlash",
+      "facts": "Ma’lumotlar"
+    },
+    "article": {
+      "toc": "Shu sahifada",
+      "down": "Maqolaga o‘tish",
+      "faqLede": "Shu mavzu bo‘yicha qisqa javoblar."
+    },
+    "legal": {
+      "updated": "Oxirgi yangilanish",
+      "contents": "Mundarija"
+    }
+  },
+  "homePage": {
+    "hero": {
+      "browse": "Yo‘nalishlarni ko‘rish",
+      "picks": "Yo‘nalishlar"
+    },
+    "types": {
+      "title": "Viza turlari",
+      "lede": "Turistik, biznes, ish, talaba va uzoq muddatli vizalar.",
+      "prev": "Oldingi",
+      "next": "Keyingi",
+      "items": {
+        "tourist": {
+          "title": "Turistik",
+          "body": "Dam olish, oila ziyorati va qisqa muddatli turish."
+        },
+        "business": {
+          "title": "Biznes",
+          "body": "Uchrashuvlar, konferensiyalar va obyektlarga tashriflar."
+        },
+        "work": {
+          "title": "Ish",
+          "body": "Ish ruxsatnomalari va mehnat vizalari."
+        },
+        "student": {
+          "title": "Talaba",
+          "body": "Maktab va universitetlarda o‘qish uchun vizalar."
+        },
+        "long": {
+          "title": "Uzoq muddat",
+          "body": "Yashash va boshqa uzoq muddatli vizalar."
+        }
+      }
+    },
+    "steps": {
+      "title": "Qanday ishlaydi",
+      "cta": "Bepul arizangizni boshlang",
+      "side": {
+        "freeValue": "Bepul",
+        "freeLabel": "VIZA xizmati",
+        "langLabel": "Tillar",
+        "note": "Siz faqat davlat to‘lovini to‘laysiz.",
+        "noteBody": "U to‘g‘ridan-to‘g‘ri bergan organga boradi. VIZA o‘zidan haq qo‘shmaydi."
+      },
+      "items": {
+        "choose": {
+          "title": "Yo‘nalishni tanlang",
+          "body": "Boshlashdan oldin kerakli vizani, tayyorlanadigan hujjatlarni va davlat to‘lovini ko‘ring.",
+          "chips": "Viza turi|Hujjatlar|Davlat to‘lovi"
+        },
+        "passport": {
+          "title": "Pasportingizni yuklang",
+          "body": "VIZA ma’lumotlaringizni surat sahifasidan o‘qiydi, shuning uchun yozish juda kam.",
+          "chips": "Surat sahifasi|Ma’lumotlar to‘ldirilgan"
+        },
+        "confirm": {
+          "title": "Ma’lumotlaringizni tasdiqlang",
+          "body": "VIZA o‘qiganini tekshiring, safar sanalarini qo‘shing va bepul VIZA hisobingizda davom eting.",
+          "chips": "Safar sanalari|Bepul hisob"
+        },
+        "file": {
+          "title": "VIZA tekshiradi va topshiradi",
+          "body": "Maslahatchi har bir shaklni topshirilishidan oldin tekshiradi, jarayonni esa hisobingizda kuzatasiz.",
+          "chips": "Maslahatchi tekshiruvi|Jarayon yangiliklari"
+        }
+      }
+    },
+    "tiers": {
+      "title": "Narxlar",
+      "lede": "Ariza topshirishning ikki yo‘li, ikkalasi ham bepul.",
+      "cta": "Biz bilan bog‘laning",
+      "criteria": "Taqqoslash",
+      "guided": "Yo‘l-yo‘riqli",
+      "full": "To‘liq xizmat",
+      "rows": {
+        "fee": {
+          "label": "VIZA to‘lovi",
+          "guided": "Bepul",
+          "full": "Bepul"
+        },
+        "form": {
+          "label": "Ariza shakli",
+          "guided": "Siz javob berasiz, VIZA sun’iy intellekti yo‘l ko‘rsatadi",
+          "full": "Maslahatchi javoblarni siz bilan birga tayyorlaydi"
+        },
+        "documents": {
+          "label": "Hujjatlar",
+          "guided": "Sizning holatingiz uchun tekshiruv ro‘yxati",
+          "full": "Maslahatchi hujjatlaringizni tekshiradi"
+        },
+        "interview": {
+          "label": "Qabul va suhbat",
+          "guided": "O‘zingiz yozilasiz va borasiz",
+          "full": "Ehtimoliy savollarni siz bilan birga ko‘rib chiqamiz"
+        },
+        "govFee": {
+          "label": "Davlat to‘lovi",
+          "guided": "Organga to‘g‘ridan-to‘g‘ri to‘lanadi",
+          "full": "Organga to‘g‘ridan-to‘g‘ri to‘lanadi"
+        },
+        "bestFor": {
+          "label": "Kimga mos",
+          "guided": "Oddiy arizalar",
+          "full": "Murakkab holatlar yoki oldingi rad etilish"
+        }
+      }
+    },
+    "why": {
+      "title": "Nega VIZA",
+      "lede": "Tushunarli qadamlar, tekshirilgan shakllar va gaplashadigan haqiqiy odamlar.",
+      "items": {
+        "free": {
+          "title": "Bepul xizmat",
+          "body": "VIZA yordami hech narsa turmaydi. Siz faqat davlat to‘lovini to‘laysiz, to‘g‘ridan-to‘g‘ri organga."
+        },
+        "checked": {
+          "title": "Tekshirilgan shakllar",
+          "body": "Maslahatchi har bir shaklni topshirishdan oldin tekshiradi, shuning uchun mayda xatolar erta topiladi."
+        },
+        "language": {
+          "title": "Ingliz va xitoy tillari",
+          "body": "VIZA bilan ingliz yoki xitoy tilida WhatsApp, WeChat yoki elektron pochta orqali gaplashing."
+        }
+      },
+      "photos": {
+        "arrival": {
+          "title": "Kelish kartalari",
+          "body": "Malayziya, Singapur, Yaponiya, Tailand, Koreya va Indoneziya uchun bepul kelish kartalarini to‘ldirishda qadamma-qadam yordam."
+        },
+        "news": {
+          "title": "Yangiliklar",
+          "body": "Viza qoidalari o‘zgarishlari va yangi elektron viza tizimlari oddiy so‘zlar bilan tushuntirilgan."
+        }
+      }
+    },
+    "guides": {
+      "title": "Qo‘llanmalar",
+      "cta": "Barcha qo‘llanmalar"
+    },
+    "faq": {
+      "lede": "VIZA viza xizmati haqida qisqa javoblar.",
+      "more": "Yana savollar bormi?",
+      "items": {
+        "cost": {
+          "q": "VIZA o‘z xizmati uchun haq oladimi?",
+          "a": "Yo‘q. VIZA yordami bepul. Yo‘nalish davlat viza to‘lovini olsa, uni shu davlatning o‘ziga to‘g‘ridan-to‘g‘ri to‘laysiz."
+        },
+        "visas": {
+          "q": "VIZA qaysi vizalarda yordam bera oladi?",
+          "a": "Shu sahifadagi yo‘nalishlar uchun turistik, biznes, ish, talaba va uzoq muddatli vizalar. Sizniki ro‘yxatda bo‘lmasa, bizga yozing, maslahatchi nima mumkinligini aytadi."
+        },
+        "approval": {
+          "q": "Vizam bo‘yicha kim qaror qiladi?",
+          "a": "Har bir qarorni bergan organ qabul qiladi. VIZA shaklingiz va hujjatlaringizni topshirilishidan oldin tekshiradi, shunda arizangiz to‘liq va izchil bo‘ladi."
+        },
+        "tiers": {
+          "q": "Yo‘l-yo‘riqli va To‘liq xizmat o‘rtasida qanday farq bor?",
+          "a": "Yo‘l-yo‘riqli xizmatda VIZA sun’iy intellekti sizni shakl va tekshiruv ro‘yxati bo‘ylab yetaklaydi, har bir javob esa sizning nazoratingizda qoladi. To‘liq xizmatda maslahatchi javoblarni siz bilan tayyorlaydi va hujjatlaringizni tekshiradi. Ikkalasi ham bepul."
+        },
+        "language": {
+          "q": "Qaysi tillarda xizmat ko‘rsatasiz?",
+          "a": "Ingliz va xitoy tillarida, WhatsApp, WeChat, telefon va elektron pochta orqali."
+        }
+      }
+    },
+    "contactCard": {
+      "title": "VIZA maslahatchisi bilan gaplashing",
+      "body": "Ingliz yoki xitoy tilida javob beramiz.",
+      "cta": "Biz bilan bog‘laning"
+    },
+    "cta": {
+      "title": "Arizangizni boshlang",
+      "point1": "Ma’lumotlaringiz maxfiy qoladi",
+      "point2": "Haqiqiy inson javob beradi",
+      "formTitle": "Savol bering",
+      "formBody": "Qayerga borayotganingizni ayting, VIZA maslahatchisi elektron pochta orqali javob beradi."
+    }
+  },
+  "aboutPage": {
+    "h1": "VIZA haqida",
+    "intro": {
+      "title": "VIZA nima",
+      "text": "VIZA Singapurda yashovchi odamlar uchun viza arizalarini tayyorlaydi, tekshiradi va topshiradi. Hujjatlarni sun’iy intellektimiz tayyorlaydi, har bir shaklni maslahatchilarimiz ko‘rib chiqadi. Xizmat bepul."
+    },
+    "facts": {
+      "destinations": "Yo‘nalishlar",
+      "guides": "Viza qo‘llanmalari",
+      "arrival": "Kelish kartasi qo‘llanmalari",
+      "free": "Bepul",
+      "freeLabel": "VIZA xizmati"
+    },
+    "tiersTitle": "Yo‘l-yo‘riqli yoki To‘liq xizmat",
+    "tiersLede": "Qancha yordam kerakligini o‘zingiz tanlang. Ikkalasi ham bepul.",
+    "free": {
+      "title": "Bepul xizmat",
+      "text": "VIZA o‘z yordami uchun haq olmaydi. Yo‘nalish uchun davlat viza to‘lovi bo‘lsa, VIZA uni boshlashdan oldin ko‘rsatadi va siz uni bergan organga to‘g‘ridan-to‘g‘ri to‘laysiz. Pullik qo‘shimcha xizmatlar yo‘q."
+    },
+    "company": {
+      "title": "Kompaniya ma’lumotlari",
+      "office": "Ro‘yxatdan o‘tgan ofis",
+      "officeValue": "60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapur 409051",
+      "email": "Elektron pochta",
+      "phone": "Telefon va WhatsApp",
+      "languages": "Tillar",
+      "languagesValue": "Ingliz va xitoy tillari"
+    }
+  },
+  "contactPage": {
+    "h1": "Aloqa",
+    "lines": {
+      "whatsapp": {
+        "title": "Telefon va WhatsApp",
+        "body": "Maslahatchiga qo‘ng‘iroq qiling yoki xabar yozing."
+      },
+      "wechat": {
+        "body": "Bizni qo‘shish uchun WeChat’da ID bo‘yicha qidiring."
+      },
+      "email": {
+        "title": "Elektron pochta",
+        "body": "Hujjatlar va uzunroq savollar uchun eng qulayi."
+      },
+      "office": {
+        "top": "Singapur",
+        "title": "Ofis",
+        "body": "60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapur 409051"
+      }
+    },
+    "message": {
+      "title": "Xabar yuborish",
+      "text": "Viza, yo‘nalish yoki VIZA bilan ishlash bo‘yicha savollar. Bizga yozing, maslahatchi javob beradi."
+    }
+  },
+  "careersPage": {
+    "title": "Karyera",
+    "lede": "VIZA Singapurdagi odamlarga sun’iy intellekt va maslahatchilar yordamida viza olishda ko‘maklashadi, xizmat esa bepul. Biz sinchkov va foydali ishni yoqtiradigan odamlarni ishga olamiz.",
+    "teamsTitle": "Jamoalar",
+    "teams": [
+      {
+        "title": "Muhandislik",
+        "body": "Hujjat tekshiruvlari, ariza jarayoni va maslahatchilarimiz ishlatadigan vositalarni yarating."
+      },
+      {
+        "title": "Dizayn",
+        "body": "Murakkab jarayonni ariza beruvchi uchun tushunarli qiling."
+      },
+      {
+        "title": "Operatsiyalar",
+        "body": "Har bir ariza harakatda bo‘lishini va har bir talab dolzarb turishini ta’minlang."
+      },
+      {
+        "title": "Maslahat",
+        "body": "Inson kerak bo‘ladigan holatlarda ariza beruvchilarga ingliz va xitoy tillarida yordam bering."
+      },
+      {
+        "title": "Ma’lumotlar",
+        "body": "Davlat manbalarini muammolarni erta aniqlaydigan tekshiruvlarga aylantiring."
+      },
+      {
+        "title": "Marketing",
+        "body": "Vizalarni qo‘llanma va ishonchli sahifalarda oddiy tilda tushuntiring."
+      }
+    ],
+    "applyTitle": "Bog‘laning",
+    "applyBody": "O‘zingiz va qo‘shilmoqchi bo‘lgan jamoa haqida yozing. Biz har bir xatni o‘qiymiz.",
+    "applyCta": "Biz bilan bog‘laning"
+  },
+  "pageCopy": {
+    "product": {
+      "introTitle": "VIZA viza arizangizda qanday yordam beradi",
+      "introLede": "Mavjud viza tayyorlash, hujjatlarni ko‘rib chiqish va ariza holatini kuzatish xizmatlari bilan tanishing. VIZA xizmati bepul. Aniq xizmat doirasi va mavjudligi yo‘nalishni tanlaganingizdan keyin ko‘rsatiladi.",
+      "browse": "Yo‘nalishlarni ko‘rish"
+    },
+    "events": {
+      "title": "Hozircha tadbirlar yo‘q",
+      "lede": "Kelgusi viza klinikalari, axborot sessiyalari va hamkor tadbirlari shu yerda e’lon qilinadi.",
+      "contact": "Biz bilan bog‘laning"
+    }
+  },
+  "og": {
+    "band": "VIZA bepul. Davlat to‘lovlari alohida.",
+    "destSubtitle": "To‘lovlar va ariza topshirish"
+  }
+}

@@ -1954,8 +1954,8 @@
       "side": {
         "freeValue": "免费",
         "freeLabel": "VIZA 服务",
-        "langValue": "2",
-        "langLabel": "种语言：中文和英文",
+        "langValue": "60",
+        "langLabel": "种语言",
         "note": "您只需支付政府签证费。",
         "noteBody": "费用直接交给签发机关，VIZA 不另收任何费用。"
       },
@@ -2182,5 +2182,21 @@
     "applyTitle": "联系我们",
     "applyBody": "介绍一下您自己和想加入的团队，我们会认真阅读每一封来信。",
     "applyCta": "联系我们"
+  },
+  "pageCopy": {
+    "product": {
+      "introTitle": "VIZA 如何协助您的签证申请",
+      "introLede": "了解可用的签证申请准备、材料核对和申请进度服务。VIZA 的服务免费，具体服务范围和可用性会在您选择目的地后明确显示。",
+      "browse": "浏览目的地"
+    },
+    "events": {
+      "title": "暂时还没有活动",
+      "lede": "未来的签证讲座、咨询会和合作活动会在这里发布。",
+      "contact": "联系我们"
+    }
+  },
+  "og": {
+    "band": "VIZA 服务免费 · 政府费用另计",
+    "destSubtitle": "费用、材料与办理流程"
   }
 }

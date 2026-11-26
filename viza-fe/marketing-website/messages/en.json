@@ -1954,8 +1954,8 @@
       "side": {
         "freeValue": "Free",
         "freeLabel": "VIZA service",
-        "langValue": "2",
-        "langLabel": "Languages: English and Chinese",
+        "langValue": "60",
+        "langLabel": "Languages",
         "note": "You pay only the government fee.",
         "noteBody": "It goes directly to the issuing authority. VIZA adds no fee of its own."
       },
@@ -2182,5 +2182,21 @@
     "applyTitle": "Get in touch",
     "applyBody": "Tell us about yourself and the team you would like to join. We read every note.",
     "applyCta": "Contact us"
+  },
+  "pageCopy": {
+    "product": {
+      "introTitle": "How VIZA supports your visa application",
+      "introLede": "Explore available visa preparation, document review, and application-status services. VIZA's service is free. Exact scope and availability are shown after you choose a destination.",
+      "browse": "Browse destinations"
+    },
+    "events": {
+      "title": "No events yet",
+      "lede": "Future visa clinics, information sessions, and partner events will be announced here.",
+      "contact": "Contact us"
+    }
+  },
+  "og": {
+    "band": "VIZA is free. Government fees are separate.",
+    "destSubtitle": "Fees and how to apply"
   }
 }

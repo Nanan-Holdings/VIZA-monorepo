@@ -1,0 +1,2150 @@
+{
+  "cta": {
+    "startFreeApplication": "Bắt đầu hồ sơ miễn phí"
+  },
+  "nav": {
+    "home": "Trang chủ",
+    "apply": "Nộp hồ sơ",
+    "visas": "Visa",
+    "explore": "Khám phá",
+    "events": "Sự kiện",
+    "blog": "Tin tức",
+    "careers": "Tuyển dụng",
+    "contact": "Liên hệ",
+    "signIn": "Đăng nhập",
+    "getStarted": "Bắt đầu",
+    "yourPassport": "Hộ chiếu của bạn",
+    "searchPlaceholder": "Tìm quốc gia hoặc visa…",
+    "arrivalCards": "Thẻ nhập cảnh",
+    "guides": "Hướng dẫn"
+  },
+  "footer": {
+    "followUs": "Theo dõi chúng tôi:",
+    "followOn": "Theo dõi VIZA trên {platform}",
+    "product": "Sản phẩm",
+    "company": "Công ty",
+    "legal": "Pháp lý",
+    "offices": "Văn phòng",
+    "askAi": "Hỏi AI về VIZA",
+    "security": "Bảo mật",
+    "status": "Trạng thái",
+    "privacy": "Quyền riêng tư",
+    "terms": "Điều khoản",
+    "rights": "Bảo lưu mọi quyền.",
+    "tagline": "VIZA giúp bạn lên kế hoạch, nộp hồ sơ và theo dõi visa đi khắp thế giới một cách liền mạch.",
+    "careers": "Tuyển dụng",
+    "contact": "Liên hệ",
+    "copyright": "© VIZA, Bảo lưu mọi quyền",
+    "prodMockInterview": "Phỏng vấn thử visa Mỹ",
+    "prodVisaReq": "Yêu cầu visa",
+    "prodSchengen": "Kiểm tra lịch hẹn Schengen",
+    "prodPhoto": "Tạo ảnh visa",
+    "prodHelpline": "Đường dây khẩn cấp VIZA",
+    "prodStudent": "Visa du học",
+    "arrivalCards": "Thẻ nhập cảnh",
+    "guides": "Hướng dẫn",
+    "news": "Tin tức"
+  },
+  "pages": {
+    "blog": {
+      "metaTitle": "Tin tức visa và cập nhật chính sách | VIZA",
+      "metaDescription": "Tin tức visa từ VIZA: thay đổi quy định, chương trình visa điện tử và ETA mới, và ý nghĩa với người sống tại Singapore. Cập nhật khi quy định thay đổi.",
+      "title": "Tin tức visa",
+      "lede": "Thay đổi quy định và cập nhật chính sách, giải thích bằng lời dễ hiểu. Để có lời khuyên lâu dài, hãy đọc các hướng dẫn.",
+      "readArticle": "Đọc bài viết",
+      "featuredLabel": "Tin mới nhất",
+      "articlesTitle": "Tin mới nhất",
+      "articlesDescription": "Cập nhật chính sách và thay đổi quy định đi lại.",
+      "allPosts": "Tất cả bài viết",
+      "noMorePosts": "Sẽ có thêm tin tức sớm.",
+      "emptyTitle": "Chưa có tin tức nào",
+      "emptyBody": "Những bản tin đầu tiên đang được chuẩn bị. Vui lòng quay lại sau.",
+      "unavailableTitle": "Tin tức tạm thời không khả dụng",
+      "unavailableBody": "Chúng tôi chưa tải được tin mới nhất. Vui lòng thử lại sau ít phút.",
+      "backToBlog": "Quay lại tin tức",
+      "by": "Tác giả",
+      "updated": "Cập nhật",
+      "categoriesLabel": "Chủ đề tin tức",
+      "topicLabel": "Chủ đề",
+      "relatedTitle": "Tin khác",
+      "relatedDescription": "Thêm tin tức visa từ VIZA.",
+      "ctaEyebrow": "Lên kế hoạch tự tin",
+      "ctaTitle": "Sẵn sàng bắt đầu hồ sơ?",
+      "ctaBody": "Cho chúng tôi biết bạn muốn đi đâu. VIZA sẽ hướng dẫn bạn qua các yêu cầu và bước tiếp theo.",
+      "ctaAction": "Bắt đầu hồ sơ",
+      "categoryMetaTitle": "Tin tức {category} | VIZA",
+      "categoryMetaDescription": "Đọc tin tức VIZA về {category}: điều gì đã thay đổi, ai bị ảnh hưởng và cần làm gì tiếp theo.",
+      "categoryLede": "Tin tức về {category}.",
+      "visaLinkTitle": "Bạn đang xin visa {country}?",
+      "visaLinkBody": "Xem giấy tờ, lệ phí chính phủ và các bước dành cho người sống tại Singapore.",
+      "visaLinkAction": "Hướng dẫn visa {country}",
+      "guidesTitle": "Hướng dẫn liên quan",
+      "guidesBody": "Các hướng dẫn luôn được cập nhật về chủ đề này."
+    },
+    "home": {
+      "title": "Xin visa tại Singapore: Mỹ, Ấn Độ, Việt Nam | VIZA",
+      "description": "Xin visa Mỹ (DS-160), visa điện tử Ấn Độ, Việt Nam hoặc Ai Cập, hay visa Schengen Pháp. Chuyên viên kiểm tra từng tờ khai trước khi nộp.",
+      "heroTitle": "Bạn sẽ đi đâu tiếp theo?",
+      "heroLede": "Xem các lựa chọn visa cho mọi điểm đến. Chuyên viên tư vấn VIZA và AI của chúng tôi lo giấy tờ, bạn chỉ việc đặt chuyến đi."
+    },
+    "apply": {
+      "title": "Bắt đầu hồ sơ visa | VIZA",
+      "description": "Tải hộ chiếu lên, xác nhận thông tin và giao hồ sơ visa cho chuyên viên VIZA. Dịch vụ của VIZA miễn phí.",
+      "saveBadge": "Đã lưu · tiếp tục bất cứ lúc nào"
+    },
+    "careers": {
+      "title": "Tuyển dụng | VIZA",
+      "description": "Làm việc tại VIZA, dịch vụ visa miễn phí do Kelin Studio vận hành tại Singapore. Xem các nhóm đang tuyển và cách liên hệ về vị trí.",
+      "rightCta": "Xem vị trí"
+    },
+    "contact": {
+      "title": "Liên hệ: WhatsApp, WeChat, điện thoại, email | VIZA",
+      "description": "Liên hệ đội ngũ VIZA qua WhatsApp, WeChat, điện thoại hoặc email. Bốn kênh, bốn bộ phận, và người thật trả lời.",
+      "rightCta": "Viết cho chúng tôi"
+    },
+    "security": {
+      "title": "Bảo mật và công bố lỗ hổng có trách nhiệm | VIZA",
+      "description": "Riêng tư, minh bạch và an toàn theo mặc định. Cách VIZA bảo vệ dữ liệu khách hàng, chương trình công bố lỗ hổng và cam kết miễn trừ.",
+      "rightCta": "Báo cáo lỗ hổng"
+    },
+    "status": {
+      "title": "Trạng thái hệ thống | VIZA",
+      "description": "Trạng thái trực tiếp của VIZA và các cổng visa chính phủ mà chúng tôi nộp hồ sơ.",
+      "navPill": "Mọi hệ thống hoạt động bình thường"
+    },
+    "visa": {
+      "applyCta": "Nộp hồ sơ ngay",
+      "applicationProcess": "Quy trình nộp hồ sơ",
+      "documents": "Giấy tờ",
+      "rejectionReasons": "Lý do bị từ chối",
+      "entryExit": "Nhập cảnh và xuất cảnh",
+      "extension": "Gia hạn",
+      "reviews": "Đánh giá",
+      "nearby": "Các nước lân cận",
+      "sources": "Nguồn chính thức"
+    },
+    "privacy": {
+      "title": "Chính sách quyền riêng tư | VIZA",
+      "description": "VIZA thu thập gì khi bạn xin visa, vì sao, ai được xem và lưu giữ bao lâu, theo luật PDPA của Singapore."
+    },
+    "terms": {
+      "title": "Điều khoản và điều kiện | VIZA",
+      "description": "Điều khoản sử dụng dịch vụ nộp hồ sơ visa của VIZA, do Kelin Studio Pte. Ltd. vận hành tại Singapore. Dịch vụ của VIZA miễn phí."
+    },
+    "product": {
+      "title": "VIZA hỗ trợ hồ sơ visa của bạn thế nào | VIZA",
+      "description": "Chuẩn bị visa, rà soát giấy tờ và theo dõi tình trạng hồ sơ ở một nơi. Dịch vụ của VIZA miễn phí. Phạm vi và tình trạng cung cấp hiển thị theo từng điểm đến."
+    },
+    "events": {
+      "title": "Sự kiện | VIZA",
+      "description": "Các buổi tư vấn visa, buổi giới thiệu thông tin và sự kiện với đối tác từ VIZA."
+    },
+    "arrivalCards": {
+      "title": "Thẻ nhập cảnh: MDAC, SG Arrival Card, TDAC | VIZA",
+      "description": "Hướng dẫn miễn phí về thẻ nhập cảnh Malaysia, Singapore, Nhật Bản, Thái Lan, Hàn Quốc, Indonesia: ai cần, khi nào nộp và cách điền từng bước."
+    },
+    "guides": {
+      "title": "Hướng dẫn visa cho người sống tại Singapore | VIZA",
+      "description": "Hướng dẫn dễ hiểu: nước miễn visa, giấy tờ Schengen, phỏng vấn visa Mỹ, ETA, visa điện tử và bị từ chối. Đọc miễn phí, kiểm tra thường xuyên."
+    },
+    "about": {
+      "title": "Về VIZA: hỗ trợ visa miễn phí tại Singapore | VIZA",
+      "description": "VIZA chuẩn bị, kiểm tra và nộp hồ sơ visa cho người ở Singapore, nhờ AI và chuyên viên tư vấn. Dịch vụ miễn phí; lệ phí chính phủ trả cho cơ quan cấp."
+    },
+    "visaIndex": {
+      "title": "Điểm đến visa: yêu cầu theo từng nước | VIZA",
+      "description": "So sánh yêu cầu visa theo từng nước, kèm giấy tờ và lệ phí. VIZA hỗ trợ miễn phí.",
+      "heroTitle": "Điểm đến visa"
+    },
+    "refunds": {
+      "title": "Chính sách hoàn tiền | VIZA",
+      "description": "Dịch vụ của VIZA miễn phí, nên không có phí dịch vụ nào để hoàn. Cách tính lệ phí chính phủ và phí của các bên cung cấp khác."
+    },
+    "businessInformation": {
+      "title": "Thông tin doanh nghiệp | VIZA",
+      "description": "VIZA do Kelin Studio Pte. Ltd., một công ty Singapore, vận hành. Địa chỉ đăng ký, số UEN và thông tin liên hệ."
+    }
+  },
+  "common": {
+    "comingSoon": "Sắp ra mắt",
+    "learnMore": "Tìm hiểu thêm",
+    "readMore": "Đọc thêm",
+    "applyNow": "Nộp hồ sơ ngay",
+    "talkToHuman": "Trò chuyện với nhân viên",
+    "viewAll": "Xem tất cả"
+  },
+  "visa": {
+    "heroTitle": "Visa {country}",
+    "validity": "Thời hạn hiệu lực",
+    "howItWorks": "Cách thức hoạt động",
+    "step1": "Cho chúng tôi biết thông tin chuyến đi và tải hộ chiếu lên.",
+    "step2": "Chúng tôi điền và kiểm tra hồ sơ theo quy định mới nhất.",
+    "step3": "Chúng tôi nộp lên cổng thông tin của chính phủ và theo dõi kết quả.",
+    "step4": "Visa được chấp thuận sẽ gửi đến bạn qua email, và chúng tôi theo dõi từ đầu đến cuối.",
+    "documents": "Bạn cần chuẩn bị",
+    "doc1": "Hộ chiếu còn hạn ít nhất 6 tháng.",
+    "doc2": "Ảnh thẻ kiểu hộ chiếu chụp gần đây.",
+    "doc3": "Ngày đi và nơi lưu trú.",
+    "doc4": "Nếu điểm đến thu lệ phí visa, một thẻ thanh toán để trả trực tiếp cho chính phủ.",
+    "nearby": "Điểm đến lân cận",
+    "startApplication": "Bắt đầu hồ sơ của bạn",
+    "comingSoonTitle": "{country}: sắp ra mắt",
+    "comingSoonBody": "Chúng tôi đang hoàn thiện những chi tiết cuối cùng cho {country}. Hãy tạo tài khoản, chúng tôi sẽ báo bạn ngay khi mở.",
+    "browseDestinations": "Xem các điểm đến",
+    "notifyMe": "Báo cho tôi",
+    "back": "Quay lại Khám phá",
+    "tabOverview": "Tổng quan",
+    "tabProcess": "Quy trình nộp hồ sơ",
+    "tabDocuments": "Giấy tờ",
+    "tabRejection": "Lý do bị từ chối",
+    "tabEntry": "Nhập cảnh và xuất cảnh",
+    "tabExtension": "Gia hạn",
+    "tabReviews": "Đánh giá",
+    "tabNearby": "Các nước lân cận",
+    "reviewsTitle": "Đánh giá",
+    "nearbyTitle": "Các nước lân cận",
+    "nearbySub": "Đi nhiều nước trong khu vực? Thêm một visa khác vào chuyến đi, chuyên viên tư vấn VIZA sẽ xử lý chung một lượt.",
+    "faqTitle": "Câu hỏi thường gặp",
+    "editorial": "Trang này tuân theo chính sách biên tập của VIZA. Chúng tôi dựa vào nguồn chính thức của chính phủ và cập nhật từng yêu cầu khi chính sách thay đổi.",
+    "editorialLink": "Xem cách chúng tôi rà soát",
+    "sourcesTitle": "Nguồn",
+    "priceGovt": "Lệ phí chính phủ",
+    "priceFree": "Miễn phí",
+    "pillAllInclusive": "Trọn gói",
+    "priceCta": "Bắt đầu hồ sơ",
+    "onTime": "Đúng hạn",
+    "freeService": "Dịch vụ VIZA miễn phí",
+    "freeServiceNote": "VIZA không thu phí cho sự hỗ trợ của mình",
+    "govFeePaidDirect": "Lệ phí chính phủ {fee}, trả trực tiếp cho cơ quan cấp.",
+    "govFeeSetByAuthority": "Lệ phí chính phủ (nếu có) do cơ quan cấp quy định và được trả trực tiếp cho cơ quan đó.",
+    "govFeeSetByAuthorityShort": "Do cơ quan có thẩm quyền quy định",
+    "priceService": "Dịch vụ VIZA",
+    "pillPaidToAuthority": "Trả cho cơ quan cấp",
+    "priceTotalToViza": "Bạn trả cho VIZA",
+    "breadcrumbVisas": "Điểm đến visa",
+    "serviceDescription": "VIZA giúp người sống tại Singapore chuẩn bị, rà soát và nộp hồ sơ {type} {country} với sự hướng dẫn của AI và chuyên gia rà soát.",
+    "offerDescription": "Phí dịch vụ VIZA. Lệ phí visa của chính phủ tính riêng và được trả trực tiếp cho cơ quan cấp.",
+    "dest": {
+      "tabGlance": "Tóm tắt",
+      "tabPassports": "Hộ chiếu",
+      "tabTypes": "Loại visa",
+      "tabResidents": "Người cư trú",
+      "tabFees": "Lệ phí",
+      "tabApply": "Cách nộp hồ sơ",
+      "tabChecklist": "Giấy tờ",
+      "tabRejection": "Từ chối",
+      "tabTravel": "Trước khi đi",
+      "tabRelated": "Liên quan",
+      "glanceTitle": "Tóm tắt",
+      "glanceVisa": "Cần visa",
+      "glanceGovFee": "Lệ phí chính phủ",
+      "glanceVizaFee": "Phí VIZA",
+      "glanceProcessing": "Thời gian xử lý",
+      "glanceMaxStay": "Lưu trú tối đa",
+      "glanceChecked": "Ngày kiểm tra",
+      "passportsTitle": "Bạn có cần visa không?",
+      "typesTitle": "Loại visa",
+      "residentsTitle": "Người cư trú tại Singapore",
+      "feesTitle": "Lệ phí và thời gian",
+      "applyTitle": "Cách nộp hồ sơ",
+      "checklistTitle": "Danh sách giấy tờ",
+      "travelTitle": "Trước khi đi",
+      "colPassport": "Hộ chiếu",
+      "colEntry": "Nhập cảnh",
+      "colNotes": "Ghi chú",
+      "colItem": "Hạng mục",
+      "colAmount": "Số tiền",
+      "vizaFeeNote": "VIZA hỗ trợ miễn phí. Bạn chỉ trả lệ phí chính phủ, trực tiếp cho cơ quan có thẩm quyền.",
+      "reviewedBy": "Được chuyên viên tư vấn VIZA rà soát ngày {date}.",
+      "relatedTitle": "Điểm đến liên quan",
+      "relatedSub": "Những nơi khác mọi người thường đi cùng chuyến, và nơi đọc thêm.",
+      "startTitle": "Bắt đầu hồ sơ",
+      "startBody": "Bắt đầu với hộ chiếu và ngày đi của bạn. VIZA hỗ trợ miễn phí và bạn trả lệ phí chính phủ trực tiếp cho cơ quan có thẩm quyền.",
+      "startConsultBody": "Cho chuyên viên tư vấn VIZA biết nơi bạn sống, hộ chiếu và ngày đi của bạn. VIZA hỗ trợ miễn phí.",
+      "consultCta": "Trò chuyện với chuyên viên tư vấn"
+    }
+  },
+  "apply": {
+    "stepOf": "Bước {n}/3",
+    "back": "Quay lại",
+    "continue": "Tiếp tục",
+    "step1Name": "Tải hộ chiếu lên",
+    "step2Name": "Xác nhận thông tin",
+    "step3Name": "Bắt đầu hồ sơ",
+    "s1Title": "Tải hộ chiếu của bạn lên",
+    "s1Desc": "Chúng tôi tự động đọc thông tin của bạn, không cần gõ tay. Hãy dùng trang thông tin cá nhân (trang có ảnh của bạn).",
+    "segUpload": "Tải tệp lên",
+    "segCapture": "Chụp ảnh",
+    "dzTitle": "Thả ảnh hộ chiếu vào đây",
+    "dzSub": "Hoặc nhấn để chọn tệp. Tệp của bạn được mã hóa và không bao giờ được chia sẻ",
+    "dzBrowse": "Chọn tệp",
+    "dzUpTo": "Tối đa 10 MB",
+    "tip1Title": "Thấy đủ bốn góc",
+    "tip1Sub": "Chụp trọn trang thông tin, kể cả dải MRZ ở cuối trang.",
+    "tip2Title": "Ánh sáng đủ và đều",
+    "tip2Sub": "Tránh bóng của tay hoặc ốp điện thoại.",
+    "tip3Title": "Không lóa, không phản chiếu",
+    "tip3Sub": "Nghiêng nhẹ nếu con dấu bị phản chiếu.",
+    "errReadFail": "Không đọc được hộ chiếu này: {detail}. Vui lòng chụp lại trang thông tin rõ hơn.",
+    "extReading": "Đang đọc giấy tờ",
+    "extExtracting": "Đang trích xuất thông tin",
+    "extVerifying": "Đang xác minh tính xác thực",
+    "stReading": "Đang đọc…",
+    "stExtracting": "Đang trích xuất…",
+    "stVerifying": "Đang xác minh…",
+    "s2Title": "Xác nhận thông tin của bạn",
+    "s2Desc": "Các thông tin này được lấy trực tiếp từ hộ chiếu của bạn. Nhấn vào ô bất kỳ để sửa.",
+    "successHigh": "Đã trích xuất hộ chiếu thành công, độ tin cậy cao",
+    "warnLow": "Một số ô khó đọc. Vui lòng kiểm tra lại từng giá trị bên dưới.",
+    "warnMed": "Chúng tôi đã trích xuất hầu hết thông tin. Vui lòng kiểm tra các ô được tô sáng.",
+    "ppDetails": "Thông tin hộ chiếu",
+    "autoExtracted": "Tự động trích xuất",
+    "fSurname": "Họ",
+    "fGiven": "Tên đệm và tên",
+    "fPassport": "Số hộ chiếu",
+    "fDob": "Ngày sinh",
+    "fNationality": "Quốc tịch",
+    "fExpires": "Ngày hết hạn",
+    "reachTitle": "Chúng tôi liên hệ với bạn bằng cách nào?",
+    "reachDesc": "Chúng tôi sẽ gửi visa đến đây, kèm tin nhắn cập nhật tình trạng qua điện thoại.",
+    "email": "Email",
+    "phone": "Điện thoại",
+    "consent": "Tôi xác nhận thông tin trên khớp với hộ chiếu của tôi, và tôi ủy quyền cho VIZA thay mặt tôi nộp hồ sơ này đến cơ quan xuất nhập cảnh của {country}.",
+    "s3Title": "Bắt đầu hồ sơ của bạn",
+    "s3Desc": "Dịch vụ của VIZA miễn phí. Đăng nhập vào cổng VIZA và chúng tôi sẽ lo phần còn lại.",
+    "headsUp": "Lưu ý:",
+    "headsUpBody": "nếu chính phủ {country} thu lệ phí visa, bạn trả trực tiếp cho họ. VIZA không bao giờ thu hộ hay cộng thêm vào khoản này.",
+    "yourApp": "Hồ sơ của bạn",
+    "guaranteedBy": "Cam kết giao trước",
+    "govFee": "Lệ phí chính phủ",
+    "expressUpgrade": "Nâng cấp xử lý nhanh",
+    "total": "Tổng cộng",
+    "footEncrypted": "Mã hóa đầu cuối. VIZA không thu phí bạn cho hồ sơ này.",
+    "helpOnline": "Priya đang trực tuyến",
+    "helpTap": "Nhấn để trò chuyện với chuyên viên tư vấn VIZA của bạn",
+    "totalAmount": "SGD {amount}",
+    "totalFree": "Miễn phí",
+    "etaStandard": "8:00 sáng, 12/5/2026 (SGT)",
+    "failTitle": "Chúng tôi không đọc được giấy tờ này",
+    "failNotPassport": "Ảnh này không giống trang thông tin hộ chiếu. Vui lòng tải lên ảnh trang có ảnh chân dung và thông tin cá nhân của bạn.",
+    "failUnreadable": "Không đọc được ô bắt buộc nào. Vui lòng chụp lại trong điều kiện đủ sáng, trang thông tin phẳng, rõ nét và đầy đủ.",
+    "tryAgain": "Thử lại",
+    "warnPartial": "Chúng tôi chưa đọc được hết. Vui lòng điền các ô được tô sáng bên dưới.",
+    "warnExpired": "Hộ chiếu này có vẻ đã hết hạn. Hầu hết điểm đến yêu cầu hộ chiếu còn hạn ít nhất 6 tháng.",
+    "warnMrz": "Không đọc được vùng máy đọc (hai dòng ở cuối trang). Vui lòng kiểm tra lại từng ô.",
+    "warnBlurry": "Ảnh bị mờ. Vui lòng kiểm tra kỹ từng ô.",
+    "fieldRequired": "Bắt buộc, vui lòng điền",
+    "editField": "Sửa {field}",
+    "emailInvalid": "Nhập địa chỉ email hợp lệ. Cập nhật visa và liên kết đăng nhập sẽ được gửi đến đây.",
+    "phoneInvalid": "Nhập số điện thoại hợp lệ.",
+    "consentRequired": "Vui lòng xác nhận lời cam đoan để tiếp tục.",
+    "continueToStart": "Tiếp tục",
+    "startTitle": "Tiếp tục trên cổng VIZA",
+    "startSub": "Đăng nhập hoặc tạo tài khoản miễn phí. Hồ sơ cho điểm đến này sẽ mở ngay.",
+    "vizaService": "Dịch vụ VIZA",
+    "govFeeSetByAuthority": "Do cơ quan có thẩm quyền quy định",
+    "govFeeNote": "Lệ phí visa của chính phủ (nếu có) được trả thẳng cho cơ quan cấp, không trả cho VIZA.",
+    "completeBeforeStart": "Vui lòng hoàn tất các mục được tô sáng ở trên trước khi tiếp tục."
+  },
+  "explore": {
+    "help": "Trợ giúp",
+    "passportLabel": "Hộ chiếu {name}",
+    "passportSub": "Yêu cầu visa tại {n} điểm đến · Hạng {rank}",
+    "freeLabel": "Miễn visa",
+    "freeNote": "không cần giấy tờ",
+    "voaLabel": "Visa điện tử hoặc VOA",
+    "voaNote": "chúng tôi lo giúp bạn",
+    "reqLabel": "Cần visa",
+    "reqNote": "nộp qua đại sứ quán",
+    "fullMap": "Xem bản đồ visa đầy đủ",
+    "grid": "Lưới",
+    "map": "Bản đồ",
+    "mapLegendEvisa": "Visa điện tử và visa du lịch",
+    "mapHint": "Di chuột lên chấm được tô sáng để xem trước điểm đến",
+    "sectionTitle": "Dành cho hộ chiếu {country}",
+    "seeAll": "Xem tất cả {n}",
+    "footnote": "Dịch vụ của VIZA miễn phí. Lệ phí visa của chính phủ (nếu có) được trả thẳng cho cơ quan cấp và khác nhau tùy quốc gia.",
+    "fastTrack": "Xử lý nhanh",
+    "cardType": "Loại",
+    "cardValid": "Hiệu lực",
+    "cardFee": "Dịch vụ VIZA",
+    "save": "Lưu",
+    "startApplication": "Bắt đầu hồ sơ",
+    "catalogueUnavailable": "Hiện chưa có điểm đến nào nhận hồ sơ trực tuyến. Vui lòng quay lại sau.",
+    "choosePassport": "Chọn hộ chiếu của bạn",
+    "searchPassport": "Tìm quốc gia cấp hộ chiếu…",
+    "visaFree": "{n} miễn visa",
+    "ppFoot": "Cập nhật tháng 5/2026 · Nguồn: IATA Timatic",
+    "noMatch": "Không có hộ chiếu nào khớp với “{q}”",
+    "filters": {
+      "delivery": "Thời gian nhận visa",
+      "type": "Loại visa",
+      "documents": "Giấy tờ",
+      "dates": "Ngày đi"
+    },
+    "filterOpts": {
+      "delivery": [
+        "Bất kỳ lúc nào",
+        "Trong vòng 24 giờ",
+        "Trong vòng 3 ngày",
+        "Trong vòng 1 tuần",
+        "Trong vòng 1 tháng"
+      ],
+      "type": [
+        "Tất cả loại",
+        "Du lịch",
+        "Công tác",
+        "Lao động",
+        "Du học",
+        "Du mục kỹ thuật số"
+      ],
+      "documents": [
+        "Mọi loại giấy tờ",
+        "Tối thiểu (chỉ hộ chiếu)",
+        "Tiêu chuẩn",
+        "Bộ hồ sơ chi tiết"
+      ],
+      "dates": [
+        "Chọn ngày",
+        "Tuần này",
+        "Tháng này",
+        "Trong 3 tháng tới",
+        "Trong 6 tháng tới"
+      ]
+    }
+  },
+  "cities": {
+    "viza-test": "Thử nghiệm thanh toán thực",
+    "indonesia": "Bali · Jakarta",
+    "egypt": "Cairo · Giza",
+    "australia": "Sydney · Melbourne",
+    "saudi-arabia": "Riyadh · AlUla",
+    "united-kingdom": "London · Edinburgh",
+    "vietnam": "Hà Nội · Hội An",
+    "malaysia": "KL · Penang",
+    "japan": "Tokyo · Kyoto",
+    "united-states": "New York · Los Angeles",
+    "canada": "Toronto · Vancouver",
+    "turkiye": "Istanbul · Cappadocia",
+    "thailand": "Bangkok · Phuket",
+    "united-arab-emirates": "Dubai · Abu Dhabi",
+    "france": "Paris · Nice",
+    "italy": "Rome · Florence",
+    "india": "Delhi · Mumbai"
+  },
+  "validity": {
+    "viza-test": "Chỉ để demo",
+    "indonesia": "90 ngày",
+    "egypt": "90 ngày",
+    "australia": "1 năm",
+    "saudi-arabia": "365 ngày",
+    "united-kingdom": "6 tháng",
+    "vietnam": "90 ngày",
+    "malaysia": "3 tháng",
+    "japan": "90 ngày",
+    "united-states": "10 năm",
+    "canada": "10 năm",
+    "turkiye": "180 ngày",
+    "thailand": "3 tháng",
+    "united-arab-emirates": "60 ngày",
+    "france": "90 ngày",
+    "italy": "90 ngày",
+    "india": "30 ngày"
+  },
+  "passports": {
+    "SG": "Singapore",
+    "JP": "Nhật Bản",
+    "KR": "Hàn Quốc",
+    "DE": "Đức",
+    "FR": "Pháp",
+    "GB": "Vương quốc Anh",
+    "US": "Hoa Kỳ",
+    "AU": "Úc",
+    "CA": "Canada",
+    "AE": "Các Tiểu vương quốc Ả Rập Thống nhất",
+    "CN": "Trung Quốc",
+    "IN": "Ấn Độ",
+    "BR": "Brazil",
+    "PH": "Philippines",
+    "ID": "Indonesia",
+    "MY": "Malaysia",
+    "TH": "Thái Lan"
+  },
+  "countries": {
+    "viza-test": "VIZA Test",
+    "indonesia": "Indonesia",
+    "egypt": "Ai Cập",
+    "australia": "Úc",
+    "saudi-arabia": "Ả Rập Xê Út",
+    "united-kingdom": "Vương quốc Anh",
+    "vietnam": "Việt Nam",
+    "malaysia": "Malaysia",
+    "japan": "Nhật Bản",
+    "united-states": "Hoa Kỳ",
+    "canada": "Canada",
+    "turkiye": "Thổ Nhĩ Kỳ",
+    "thailand": "Thái Lan",
+    "united-arab-emirates": "Các Tiểu vương quốc Ả Rập Thống nhất",
+    "france": "Pháp",
+    "italy": "Ý",
+    "india": "Ấn Độ",
+    "china": "Trung Quốc",
+    "south-korea": "Hàn Quốc",
+    "schengen": "Schengen"
+  },
+  "visaTypes": {
+    "Test checkout": "Thanh toán thử",
+    "e-Visa": "Visa điện tử",
+    "Standard Visitor": "Standard Visitor (khách thăm tiêu chuẩn)",
+    "Visitor 600": "Visitor 600",
+    "Tourist": "Du lịch",
+    "B1/B2": "B1/B2",
+    "eTA": "eTA",
+    "Schengen": "Schengen",
+    "eVisa": "Visa điện tử",
+    "Visitor visa": "Visa thăm thân, du lịch",
+    "Tourist visa": "Visa du lịch"
+  },
+  "careers": {
+    "hero": {
+      "nowHiring": "Đang tuyển dụng tại",
+      "cities": [
+        "Thượng Hải",
+        "Singapore"
+      ],
+      "openRoles": "28 vị trí đang tuyển",
+      "title": "Cùng chúng tôi khiến biên giới<br></br><em>biến mất</em>, <u>thật nhẹ nhàng,</u><br></br>với tốc độ của phần mềm.",
+      "lead": "Chúng tôi biến hàng tháng trời giấy tờ visa thành vài giờ xử lý bằng phần mềm, cho hàng triệu người chỉ muốn được lên máy bay. Hãy mang tay nghề của bạn đến một đội ngũ làm việc với những hạn chót có thật.",
+      "ctaRoles": "Xem tất cả vị trí",
+      "ctaWhy": "Vì sao chúng tôi tồn tại"
+    },
+    "board": {
+      "ariaLabel": "Bảng giờ khởi hành liệt kê các vị trí đang tuyển tại VIZA",
+      "head": "Vị trí đang tuyển · trực tiếp",
+      "live": "Đúng giờ",
+      "cols": {
+        "req": "Mã",
+        "role": "Vị trí",
+        "office": "Văn phòng",
+        "status": "Trạng thái"
+      },
+      "rows": [
+        {
+          "role": "Staff Engineer",
+          "sub": "Quy trình xử lý giấy tờ",
+          "status": "Đang lên máy bay"
+        },
+        {
+          "role": "Nhà thiết kế sản phẩm",
+          "sub": "Luồng người nộp hồ sơ",
+          "status": "Đang mở"
+        },
+        {
+          "role": "Chuyên viên liên lạc đại sứ quán",
+          "sub": "Quan hệ đối tác chính phủ",
+          "status": "Gọi lần cuối"
+        },
+        {
+          "role": "Vận hành khách hàng",
+          "sub": "Xử lý yêu cầu cấp 2",
+          "status": "Đang mở"
+        }
+      ],
+      "foot": "Thêm 24 vị trí khác ở kỹ thuật, vận hành và thiết kế",
+      "browseAll": "Xem tất cả",
+      "chip1Label": "Tuyển dụng tại",
+      "chip1Value": "4 văn phòng",
+      "chip2Label": "Phản hồi trung bình",
+      "chip2Value": "3.2 ngày đến cuộc gọi đầu tiên"
+    },
+    "stats": [
+      {
+        "value": "2.4M",
+        "label": "Visa được cấp qua VIZA năm ngoái"
+      },
+      {
+        "label": "Điểm đến được hỗ trợ xử lý trực tiếp"
+      },
+      {
+        "label": "Tỷ lệ được chấp thuận trên mọi loại visa năm 2025"
+      },
+      {
+        "label": "Nhân sự tại Thượng Hải và Singapore"
+      }
+    ],
+    "mission": {
+      "eyebrow": "Câu chuyện của chúng tôi",
+      "title": "Phần lớn thế giới<br></br>vẫn đi lại với<br></br><em>giấy tờ in sẵn.</em>",
+      "kicker1": "Chúng tôi lập ra VIZA năm 2021 sau quá nhiều tuần chờ máy với các đại sứ quán. Hệ thống đưa con người qua biên giới còn lâu đời hơn cả internet, và những người mắc kẹt trong đó xứng đáng được đối xử tốt hơn.",
+      "kicker2": "Ngày nay, đội ngũ 340 người tại bốn văn phòng phát triển phần mềm, nộp giấy tờ và vận hành tại 194 quốc gia. Chúng tôi làm phần việc nhàm chán, mệt mỏi để chuyến đi trở nên giống như phần còn lại của internet: vài lần chạm, rồi bạn lên đường.",
+      "founderName": "Mira Kohli",
+      "founderRole": "Đồng sáng lập và CEO · Singapore",
+      "beliefs": [
+        {
+          "title": "Chúng tôi là công ty vận hành biết làm phần mềm.",
+          "body": "Một nửa VIZA là kỹ sư, nhà thiết kế và PM. Nửa còn lại là chuyên viên tư vấn, vận hành và chuyên viên giấy tờ tại từng nước. Không nửa nào thành công nếu thiếu nửa kia."
+        },
+        {
+          "title": "Người nộp hồ sơ luôn là khách hàng.",
+          "body": "Đại sứ quán, đối tác, hãng bay: tất cả đều quan trọng. Nhưng người đang xếp hàng lúc 3 giờ sáng, liên tục tải lại cổng thông tin mới là người chúng tôi làm việc vì họ, và là thước đo của chúng tôi."
+        },
+        {
+          "title": "Tốc độ tích lũy khi bạn kiên nhẫn với chất lượng.",
+          "body": "Chúng tôi phát hành nhanh, nhưng chậm rãi với những quyết định không thể đảo ngược. Một quyết định visa sai có thể phá hỏng một đám cưới, một công việc, một đám tang. Chúng tôi giữ chuẩn đó kể cả khi nó làm chúng tôi chậm lại."
+        },
+        {
+          "title": "Khoảng cách là bài toán trải nghiệm, không phải rào cản.",
+          "body": "Các nhóm của chúng tôi ở bốn múi giờ. Viết bất đồng bộ, phân công rõ ràng và văn hóa tài liệu tốt là cách chúng tôi đổi thời gian lấy niềm tin, và là cách chúng tôi phát hành khắp thế giới mà không làm ai kiệt sức."
+        }
+      ]
+    },
+    "values": {
+      "eyebrow": "Chuẩn mực chúng tôi tự đặt ra",
+      "title": "Năm điều chúng tôi tin, kể cả khi phải trả giá.",
+      "lead": "Giá trị thì dễ viết ra nhưng khó làm theo. Đây là năm điều chúng tôi thực sự dùng khi tuyển dụng, khi đánh giá và trong những quyết định khó hiếm hoi.",
+      "cards": [
+        {
+          "title": "Nói thật, nhất là khi phải trả giá.",
+          "body": "Nếu visa không kịp, hãy nói ngay hôm nay, đừng đợi đến hôm trước chuyến bay. Chúng tôi thà mất một đơn hàng còn hơn nói dối.",
+          "kicker": "Trong thực tế → chính sách công khai, kiểm tra thay đổi"
+        },
+        {
+          "title": "Tạo ra tốc độ thật. Đừng chỉ cảm thấy bận rộn.",
+          "body": "Chúng tôi ghi nhận quyết định và sản phẩm đã phát hành, không phải cuộc họp hay chuỗi tin nhắn. Điều quan trọng là kết quả hướng đến sứ mệnh, không phải lịch kín mít.",
+          "kicker": "Trong thực tế → đánh giá năng suất hằng quý"
+        },
+        {
+          "title": "Nghĩ theo hộ chiếu, không theo chân dung người dùng.",
+          "body": "Quy định visa phụ thuộc vào quốc tịch. Không có “người dùng” chung chung, chỉ có một người mang hộ chiếu Philippines xin visa Schengen. Chúng tôi xây dựng cho người thật, không phải số trung bình.",
+          "kicker": "Trong thực tế → đặc tả sản phẩm bắt đầu từ hộ chiếu"
+        },
+        {
+          "title": "Viết ra. Nhất là các quyết định.",
+          "body": "Bốn văn phòng, bốn múi giờ. Quyết định không được viết ra coi như chưa từng có. Wiki của chúng tôi là tài liệu bắt buộc đọc; họp đứng hằng ngày thì không bắt buộc.",
+          "kicker": "Trong thực tế → ADR, bản ghi nhớ hằng tuần, ưu tiên bất đồng bộ"
+        },
+        {
+          "title": "Luôn sát với hàng đợi.",
+          "body": "Mỗi kỹ sư làm một ca mỗi quý cùng đội tư vấn. Bạn không thể thiết kế để loại bỏ những vướng mắc mà bạn chưa từng gặp lúc 11 giờ đêm Chủ nhật.",
+          "kicker": "Trong thực tế → luân phiên trực hàng đợi"
+        },
+        {
+          "title": "Chọn phiên bản dài.",
+          "body": "Câu trả lời ba mươi giây thường là sai. Chúng tôi đầu tư vào tài liệu chuyên sâu, quy trình vững chắc và những lời giải thích đứng vững, kể cả khi phiên bản dễ hơn cũng tạm đủ.",
+          "kicker": "Trong thực tế → sổ tay hội nhập, quy trình công khai"
+        }
+      ]
+    },
+    "inside": {
+      "eyebrow": "Bên trong VIZA",
+      "title": "Làm việc ở đây<br></br>thực sự trông thế nào.",
+      "lead": "Chúng tôi có văn phòng ở hai thành phố vì chúng tôi tuyển người gần nơi hồ sơ được nộp. Chúng tôi ồn ào khi thắng, im lặng với chuyện chính trị nội bộ, và thẳng thắn về những gì còn phải xây dựng.",
+      "photos": [
+        {
+          "label": "ảnh · trụ sở Singapore, không gian mở",
+          "mark": "Paya Lebar Square, Singapore"
+        },
+        {
+          "label": "ảnh · khu vực đội tư vấn",
+          "mark": "Đường Luoshan, Thượng Hải"
+        },
+        {
+          "label": "ảnh · buổi làm việc với bảng trắng",
+          "mark": "Offsite kỹ thuật, Bali"
+        },
+        {
+          "label": "ảnh · khu vận hành Thượng Hải",
+          "mark": "Phố Đông, Thượng Hải"
+        },
+        {
+          "label": "ảnh · bữa tối của nhóm",
+          "mark": "Họp toàn công ty, Lisbon"
+        },
+        {
+          "label": "ảnh · đối tác đại sứ quán đến thăm",
+          "mark": "Paya Lebar Square, Singapore"
+        }
+      ],
+      "pull": "“Chúng tôi tuyển những người đã có quan điểm về visa trước khi gia nhập. Đến tháng thứ hai, quan điểm đó sẽ càng vững hơn.”",
+      "pullBy": "Felix Adekunle, Phó chủ tịch Kỹ thuật",
+      "para1": "VIZA trao nhiều quyền tự chủ và nhiều bối cảnh. Mọi việc bạn làm đều có người phụ trách rõ ràng, ngân sách thật, và bạn được kỳ vọng giải thích lý do đằng sau công việc của mình cho cả công ty.",
+      "para2": "Nếu bạn muốn được giao việc mỗi ngày, đây không phải nơi phù hợp. Nếu bạn đang chờ ai đó trao tay lái cho mình, nó ở ngay đây."
+    },
+    "how": {
+      "eyebrow": "Kỹ thuật và vận hành tại VIZA",
+      "title": "Công việc thực sự diễn ra thế nào.",
+      "lead": "Nếu bạn xây dựng, nộp hồ sơ hay thiết kế ở đây, tuần làm việc của bạn trông như thế này. Ít nghi thức, nhiều sản phẩm phát hành. Ít Slack, nhiều quyết định được viết ra.",
+      "cells": [
+        {
+          "title": "Làm chủ từ đầu đến cuối",
+          "body": "Bạn thiết kế, xây dựng, phát hành và chịu trách nhiệm trên môi trường thật. Không có hàng đợi bàn giao, không có lộ trình do người cách ba tầng quản lý viết ra. Việc của bạn là thực sự của bạn."
+        },
+        {
+          "title": "Triển khai hằng ngày, theo mặc định",
+          "body": "Hầu hết các nhóm phát hành nhiều lần mỗi ngày. Vòng phản hồi được thiết kế ngắn, và quay lui trong ba mươi phút được ưu tiên hơn tranh luận ba tuần."
+        },
+        {
+          "title": "Bài toán thật, phức tạp",
+          "body": "Đây không phải CRUD. Bạn sẽ làm OCR giấy tờ, lập lịch nhạy độ trễ với hơn 90 cổng thông tin chính phủ, và các luồng tiêu dùng có hàng triệu người dùng."
+        },
+        {
+          "title": "Tiêu chuẩn cao, công khai",
+          "body": "Chúng tôi cùng nhau rà soát thiết kế. Chúng tôi bình luận trực tiếp trên PR. Chúng tôi tin gu thẩm mỹ có thể dạy được, và mong mọi người chủ động giúp những người xung quanh tiến bộ."
+        },
+        {
+          "title": "Ngân sách học tập thật sự",
+          "body": "$2,000 mỗi người mỗi năm, không cần giải trình, cho hội nghị, sách, khóa học, bất cứ thứ gì giúp ích lại cho công việc của bạn ở đây."
+        },
+        {
+          "title": "Kiến trúc do chính bạn viết",
+          "body": "RFC mở cho tất cả mọi người. Kỹ sư mới đã định hình hạ tầng cốt lõi ngay tháng đầu tiên. Nếu bạn có kế hoạch tốt hơn, hãy viết ra, chúng tôi sẽ đọc."
+        }
+      ]
+    },
+    "roles": {
+      "eyebrow": "Vị trí đang tuyển · cập nhật hằng tuần",
+      "title": "Cùng chúng tôi trên hành trình.",
+      "lead": "28 vị trí đang tuyển tại bốn văn phòng. Chúng tôi tuyển ở kỹ thuật, thiết kế, vận hành, tư vấn và quan hệ đối tác. Vị trí mới được đăng vào thứ Hai.",
+      "allDepartments": "Tất cả phòng ban",
+      "deps": {
+        "eng": "Kỹ thuật",
+        "design": "Thiết kế",
+        "ops": "Vận hành",
+        "consult": "Chuyên viên tư vấn",
+        "data": "Dữ liệu và ML",
+        "gtm": "Marketing và GTM"
+      },
+      "showing": "Đang hiển thị <strong>{count}</strong> vị trí · mọi địa điểm · mọi nhóm",
+      "anyLocation": "Mọi địa điểm",
+      "groupCount": "{count} đang tuyển",
+      "posSub": "{team} · chúng tôi tuyển theo tay nghề và óc phán đoán, không theo lý lịch",
+      "locationLabel": "Địa điểm",
+      "typeLabel": "Hình thức",
+      "fullTime": "Toàn thời gian",
+      "viewRole": "Xem vị trí",
+      "locations": {
+        "sg": "Singapore",
+        "sf": "Thượng Hải",
+        "ldn": "Singapore",
+        "dxb": "Thượng Hải"
+      },
+      "jobs": {
+        "backendPayments": "Kỹ sư Backend cấp cao, Nền tảng",
+        "staffDocPipeline": "Staff Engineer, Quy trình xử lý giấy tờ",
+        "iosApplicant": "Kỹ sư iOS, Ứng dụng người nộp hồ sơ",
+        "platformInfra": "Kỹ sư nền tảng, Hạ tầng và Bảo mật",
+        "frontendConsole": "Kỹ sư Frontend, Bảng điều khiển tư vấn",
+        "emWeb": "Quản lý kỹ thuật, Web",
+        "sre": "Kỹ sư độ tin cậy hệ thống (SRE)",
+        "androidSenior": "Kỹ sư Android cấp cao",
+        "leadEmbassy": "Trưởng nhóm kỹ thuật, Tích hợp đại sứ quán",
+        "productDesignerApplicant": "Nhà thiết kế sản phẩm cấp cao, Luồng nộp hồ sơ",
+        "brandDesigner": "Nhà thiết kế thương hiệu",
+        "designLeadConsultant": "Trưởng nhóm thiết kế, Công cụ tư vấn",
+        "headOpsMe": "Trưởng bộ phận vận hành, Trung Đông",
+        "visaOpsSchengen": "Trưởng nhóm vận hành visa, Schengen",
+        "logistics": "Quản lý hậu cần và chuyển phát",
+        "processDocQa": "Kỹ sư quy trình, Kiểm định giấy tờ",
+        "opsAnalyst": "Chuyên viên phân tích vận hành, Đặt lịch",
+        "consultSchengen": "Chuyên viên tư vấn visa, Schengen",
+        "consultUs": "Chuyên viên tư vấn visa, Mỹ B1/B2",
+        "consultUae": "Chuyên viên tư vấn visa, Cư trú UAE",
+        "consultStudent": "Chuyên viên tư vấn cấp cao, Visa du học",
+        "consultApac": "Trưởng nhóm tư vấn, Châu Á Thái Bình Dương",
+        "consultUk": "Chuyên viên tư vấn visa, Vương quốc Anh",
+        "dataScientist": "Nhà khoa học dữ liệu cấp cao, Mô hình chấp thuận",
+        "mlOcr": "Kỹ sư ML, OCR và AI giấy tờ",
+        "perfMarketing": "Quản lý Performance Marketing",
+        "contentLead": "Trưởng nhóm nội dung, Kể chuyện",
+        "lifecycleCrm": "Quản lý Lifecycle và CRM"
+      }
+    },
+    "fellowship": {
+      "tag": "▲ VIZA Launchpad · chương trình 12 tuần",
+      "title": "Mười hai tuần. Một nhóm sản phẩm.<br></br><em>Một cơ hội để phát hành sản phẩm.</em>",
+      "para1": "Launchpad là chương trình nội trú cho kỹ sư, PM và nhà thiết kế mới vào nghề, những người lẽ ra phải cần thêm hai năm “kinh nghiệm” mới có cơ hội thực sự.",
+      "para2": "Bạn sẽ làm việc cùng các trưởng nhóm cấp cao, phụ trách một phần sản phẩm thật từ khởi động đến phát hành, và ra về với thứ mà hàng triệu người sẽ dùng. Khoảng 60% học viên mỗi khóa nhận lời mời làm việc toàn thời gian.",
+      "meta": [
+        {
+          "k": "Thời gian",
+          "v": "12 tuần"
+        },
+        {
+          "k": "Địa điểm",
+          "v": "Tại văn phòng, trụ sở bất kỳ"
+        },
+        {
+          "k": "Trợ cấp",
+          "v": "Cao hơn mặt bằng thị trường"
+        },
+        {
+          "k": "Khóa tiếp theo",
+          "v": "Tháng 9/2026"
+        }
+      ],
+      "apply": "Đăng ký Launchpad",
+      "readCohort": "Đọc về khóa 2025",
+      "projects": [
+        {
+          "k": "2024 · Kỹ thuật",
+          "title": "Viết lại quy trình OCR",
+          "meta1": "Đã phát hành chính thức",
+          "meta2": "Nhanh hơn 3.2×"
+        },
+        {
+          "k": "2025 · Thiết kế",
+          "title": "Thiết kế lại luồng Schengen",
+          "meta1": "14 nước đã hoạt động",
+          "meta2": "↑ 22% chuyển đổi"
+        },
+        {
+          "k": "2025 · Sản phẩm",
+          "title": "Công cụ đặt lịch hẹn đại sứ quán",
+          "meta1": "9 đại sứ quán",
+          "meta2": "40k lịch hẹn/tháng"
+        }
+      ]
+    },
+    "benefits": {
+      "eyebrow": "Chúng tôi lo cho bạn (thật đấy)",
+      "title": "Những việc nhàm chán,<br></br>được lo chu đáo.",
+      "lead": "Chúng tôi không coi phúc lợi là đặc quyền. Đó là nền tảng để mọi người làm việc tốt nhất. Đây là những gì mọi nhân viên VIZA nhận được, ở mọi văn phòng, ngay từ ngày đầu.",
+      "items": [
+        {
+          "title": "Bảo hiểm sức khỏe toàn diện.",
+          "body": "Bảo hiểm y tế, nha khoa và mắt đầy đủ từ ngày đầu tiên, cho bạn, vợ hoặc chồng và con cái. Chúng tôi trả phí bảo hiểm, không có trò mức khấu trừ."
+        },
+        {
+          "title": "Xây dựng tài sản, không chỉ là lương.",
+          "body": "Lương cơ bản cao hơn thị trường ở mọi nơi chúng tôi tuyển, cộng với cổ phần hào phóng gắn với cột mốc, không chỉ số năm làm việc. Chúng tôi xét lại mỗi hai năm."
+        },
+        {
+          "title": "Học những gì thực sự quan trọng.",
+          "body": "Ngân sách học tập $2,000/năm, buổi chia sẻ nội bộ hằng tháng, và thời gian thật trên lịch, không chỉ là sự cho phép, để học khóa đó hoặc dự hội nghị đó."
+        },
+        {
+          "title": "Làm khách hàng hài lòng như tiêu tiền của chính bạn.",
+          "body": "Mỗi người nộp hồ sơ có ngân sách thiện chí $100 cho những việc vượt mong đợi. Không cần duyệt, không cần báo cấp trên: cứ giải quyết, rồi ghi lại chuyện đã xảy ra."
+        },
+        {
+          "title": "Tinh thần quan trọng hơn tất cả.",
+          "body": "Hỗ trợ sức khỏe tinh thần chuyên nghiệp, bảo mật, không thủ tục bảo hiểm rườm rà. Cùng ba ngày “không họp” mỗi tháng trên toàn công ty."
+        },
+        {
+          "title": "Ưu đãi đi lại (không thể thiếu).",
+          "body": "Chúng tôi làm visa, nên đội ngũ cũng phải được đi lại miễn phí. Tín dụng đi lại $4k/năm, và VIZA lo mọi visa bạn cần, ngay lập tức, ngay trong nội bộ."
+        },
+        {
+          "title": "Nghỉ phép hào phóng, thật sự.",
+          "body": "30 ngày nghỉ phép có lương, cộng ngày lễ của nước bạn, cộng một tuần nghỉ có lương từ 24/12 đến 1/1. Chúng tôi theo dõi và nhắc mọi người nghỉ nhiều hơn, không phải ít hơn."
+        },
+        {
+          "title": "Thiết bị, không cần hỏi.",
+          "body": "Chọn laptop, màn hình và ghế ngay ngày đầu. Có trợ cấp làm việc tại nhà để trang bị chỗ ngồi. Chúng tôi tin bạn biết mình cần gì để làm tốt công việc."
+        },
+        {
+          "title": "Nghỉ thai sản, chăm con thực sự hiệu quả.",
+          "body": "20 tuần cho người chăm sóc chính, 12 tuần cho người chăm sóc phụ, hưởng đủ lương. Cùng lộ trình quay lại từng bước, để bạn không phải chạy hết công suất ngay ngày đầu."
+        }
+      ]
+    },
+    "offices": {
+      "eyebrow": "Nơi chúng tôi làm việc",
+      "title": "Hai văn phòng, một sản phẩm.",
+      "lead": "Chúng tôi tuyển người gần đại sứ quán, đối tác và các thị trường chúng tôi phục vụ. Văn phòng nào cũng có cả kỹ sư lẫn vận hành: chúng tôi không tách nhóm xây dựng khỏi nhóm vận hành.",
+      "cards": [
+        {
+          "photo": "ảnh · Thượng Hải",
+          "open": "6 vị trí",
+          "name": "Thượng Hải",
+          "addr1": "Ngõ 1502, đường Luoshan,",
+          "addr2": "Khu thương mại tự do thí điểm Trung Quốc (Thượng Hải)",
+          "tz": "GMT+8 · Vận hành Trung Quốc",
+          "since": "Từ năm 2023"
+        },
+        {
+          "photo": "ảnh · trụ sở Singapore",
+          "open": "12 vị trí",
+          "name": "Singapore",
+          "addr1": "Số 60 đường Paya Lebar, #06-28 Paya Lebar Square,",
+          "addr2": "Singapore 409051",
+          "tz": "GMT+8 · Trụ sở Châu Á Thái Bình Dương",
+          "since": "Trụ sở · từ năm 2021"
+        }
+      ]
+    },
+    "ctaStrip": {
+      "title": "Không thấy vị trí của bạn,<br></br>nhưng vẫn muốn gia nhập?",
+      "body": "Nếu bạn có xuất thân khác thường và nghĩ mình có thể giúp du khách khắp thế giới đi lại nhanh hơn, chúng tôi muốn nghe từ bạn. Chúng tôi từng tuyển tài xế xe buýt, cựu nhân viên đại sứ quán và luật sư. Chúng tôi không có khuôn mẫu nào.",
+      "lead": "Ứng tuyển chung",
+      "cta": "Gửi câu chuyện của bạn",
+      "note": "Chúng tôi trả lời trong vòng 7 ngày, kể cả khi câu trả lời là không."
+    },
+    "footer": {
+      "tagline": "VIZA giúp bạn lên kế hoạch, nộp hồ sơ và theo dõi visa đi khắp thế giới một cách liền mạch.",
+      "company": "Công ty",
+      "products": "Sản phẩm",
+      "offices": "Văn phòng",
+      "careers": "Tuyển dụng",
+      "contact": "Liên hệ",
+      "security": "Bảo mật",
+      "privacy": "Quyền riêng tư",
+      "terms": "Điều khoản",
+      "prodVisaReq": "Yêu cầu visa",
+      "prodSchengen": "Kiểm tra lịch hẹn Schengen",
+      "prodPhoto": "Tạo ảnh visa",
+      "prodHelpline": "Đường dây khẩn cấp VIZA",
+      "prodStudent": "Visa du học",
+      "officeSg": "Singapore, Trụ sở",
+      "officeSf": "Thượng Hải",
+      "copyright": "© VIZA, Bảo lưu mọi quyền"
+    }
+  },
+  "security": {
+    "hero": {
+      "eyebrow": "Bảo mật tại VIZA · cập nhật lần cuối tháng 5/2026",
+      "title": "Riêng tư. Minh bạch.<br></br><em>An toàn theo mặc định.</em>",
+      "lead": "Khách hàng khắp thế giới tin giao cho chúng tôi hàng triệu giấy tờ nhạy cảm: hộ chiếu, sao kê ngân hàng, ảnh. Đây chính xác là cách chúng tôi thu thập, lưu trữ và chứng minh mình làm đúng.",
+      "ctaPrimary": "Cách chúng tôi bảo vệ dữ liệu của bạn",
+      "ctaVdp": "Báo cáo lỗ hổng"
+    },
+    "clearance": {
+      "republicKey": "Cộng hòa",
+      "officeKey": "Cơ quan cấp",
+      "officeVal": "Tin cậy và An toàn",
+      "title": "Giấy phép an ninh /<br></br>Dữ liệu khách hàng",
+      "grid": {
+        "encryption": {
+          "k": "Mã hóa",
+          "v": "AES-256 / TLS 1.3"
+        },
+        "region": {
+          "k": "Khu vực",
+          "v": "SG · US · EU"
+        },
+        "audit": {
+          "k": "Tần suất kiểm toán",
+          "v": "Hằng quý"
+        },
+        "retention": {
+          "k": "Thời gian lưu giữ",
+          "v": "Tối đa 90 ngày"
+        }
+      },
+      "referenceKey": "Mã tham chiếu",
+      "glyph": "ĐÃ DUYỆT<br></br>VIZA · 26"
+    },
+    "chips": {
+      "transitLabel": "Khi truyền tải",
+      "transitVal": "TLS 1.3 đầu cuối",
+      "restLabel": "Khi lưu trữ",
+      "restVal": "AES-256, cố định theo khu vực"
+    },
+    "stats": {
+      "docs": {
+        "value": "2.4M",
+        "label": "Giấy tờ được xử lý năm 2025, không vụ rò rỉ dữ liệu khách hàng nào"
+      },
+      "retention": {
+        "unit": "ngày",
+        "label": "Thời gian lưu giữ tối đa giấy tờ gốc sau khi cấp"
+      },
+      "pentests": {
+        "label": "Kiểm thử xâm nhập độc lập, mọi báo cáo được công bố nội bộ"
+      },
+      "ack": {
+        "unit": "giờ",
+        "label": "Thời gian trung vị để xác nhận một lỗ hổng được báo cáo"
+      }
+    },
+    "docs": {
+      "eyebrow": "Những gì chúng tôi thu thập",
+      "title": "Năm loại giấy tờ.<br></br><em>Không hơn.</em>",
+      "copy1": "Hồ sơ visa là bài toán giấy tờ. Chúng tôi chỉ thu thập những gì đại sứ quán yêu cầu rõ ràng, và ẩn danh hóa bất cứ khi nào có thể. Mỗi giấy tờ gắn với một hồ sơ duy nhất, được mã hóa ngay khi nhận và xóa theo lịch cố định.",
+      "copy2": "Chúng tôi không bao giờ bán dữ liệu của bạn. Chúng tôi không bao giờ chia sẻ dữ liệu với bên thứ ba ngoài lãnh sự quán hoặc đối tác trực tiếp liên quan đến visa của bạn.",
+      "cards": {
+        "payment": {
+          "name": "Thông tin thanh toán",
+          "meta": "không thu thập"
+        },
+        "photos": {
+          "name": "Ảnh visa",
+          "meta": "đã xử lý · tối đa 90 ngày"
+        },
+        "bank": {
+          "name": "Sao kê ngân hàng",
+          "meta": "che thông tin · chỉ PDF"
+        },
+        "pastVisas": {
+          "name": "Visa cũ",
+          "meta": "chỉ đọc · OCR"
+        },
+        "passport": {
+          "name": "Hộ chiếu",
+          "meta": "đã trích xuất MRZ"
+        }
+      }
+    },
+    "features": {
+      "eyebrow": "Bảy biện pháp kiểm soát, luôn bật",
+      "title": "Dữ liệu của bạn vẫn là<br></br>của bạn, từ đầu <em>đến cuối.</em>",
+      "intro": "Trạng thái mặc định của mọi byte tại VIZA là “được mã hóa, giới hạn phạm vi và có thời hạn”. Đây là bảy biện pháp kiểm soát làm nên điều đó: không phải mong muốn, mà là những gì đang thực sự chạy trên nền tảng hôm nay.",
+      "cells": {
+        "minimise": {
+          "title": "Tối thiểu hóa và ẩn danh hóa dữ liệu",
+          "body": "Chúng tôi chỉ thu thập những gì đại sứ quán hoặc đối tác thực sự yêu cầu cho từng hồ sơ, và ẩn danh hóa ở mọi chỗ nền tảng cho phép. Những ô bạn không thấy trong biểu mẫu là những ô chúng tôi không lưu.",
+          "why": "<strong>Vì sao:</strong> rò rỉ không thể làm lộ dữ liệu chưa từng được thu thập."
+        },
+        "payments": {
+          "title": "Không có dữ liệu thanh toán",
+          "body": "Dịch vụ của VIZA miễn phí và chúng tôi không nhận thanh toán, nên chúng tôi không bao giờ hỏi, xem hay lưu số thẻ.",
+          "why": "<strong>Vì sao:</strong> dữ liệu chúng tôi không giữ thì không thể bị đánh cắp."
+        },
+        "atRest": {
+          "title": "Mã hóa khi lưu trữ",
+          "body": "Mọi giấy tờ, tin nhắn và trường siêu dữ liệu trên máy chủ VIZA đều được mã hóa AES-256 trước khi ghi xuống ổ đĩa. Khóa được xoay vòng tự động và lưu trong KMS dựa trên phần cứng mà ngay cả đội hạ tầng của chúng tôi cũng không đọc trực tiếp được.",
+          "why": "<strong>Vì sao:</strong> ổ đĩa hoặc bản sao lưu bị đánh cắp vẫn không đọc được nếu không có khóa."
+        },
+        "inTransit": {
+          "title": "Mã hóa đầu cuối",
+          "body": "Mọi lưu lượng giữa thiết bị của bạn, máy chủ của chúng tôi và lãnh sự quán đối tác đều dùng TLS 1.3 với ghim chứng chỉ nghiêm ngặt. Việc tải giấy tờ lên dùng một kênh riêng có chữ ký, để ngay cả kẻ tấn công ở tầng mạng cũng không thấy bạn gửi gì.",
+          "why": "<strong>Vì sao:</strong> mạng không an toàn, kể cả Wi-Fi sân bay, không thể đọc hồ sơ của bạn."
+        },
+        "audits": {
+          "title": "Kiểm toán bảo mật định kỳ",
+          "body": "Chúng tôi thực hiện kiểm thử xâm nhập độc lập mỗi quý, kiểm toán SOC 2 Type II hằng năm và quét lỗ hổng tự động liên tục. Mọi phát hiện đều được ghi lại kèm hạn khắc phục, và mục quá hạn sẽ báo động đến trưởng nhóm kỹ thuật.",
+          "why": "<strong>Vì sao:</strong> mối đe dọa luôn thay đổi; hệ thống phòng thủ của chúng tôi được kiểm tra theo lịch."
+        },
+        "access": {
+          "title": "Kiểm soát truy cập an toàn",
+          "body": "Quyền truy cập nội bộ vào dữ liệu khách hàng được giới hạn theo vai trò, kiểm toán theo từng yêu cầu và chỉ nâng quyền đúng lúc cần. Chuyên viên tư vấn chỉ thấy hồ sơ họ đang xử lý. Mọi lượt đọc được ghi nhật ký trong 12 tháng.",
+          "why": "<strong>Vì sao:</strong> sai sót và lạm dụng nội bộ được khoanh vùng, truy được người chịu trách nhiệm và có thể rà soát."
+        },
+        "education": {
+          "title": "Giáo dục và nâng cao nhận thức người dùng",
+          "body": "Phần khó nhất của bảo mật là phần chúng tôi không thể làm thay bạn. Chúng tôi gửi hướng dẫn dễ hiểu về lừa đảo qua mạng, lừa đảo ảnh hộ chiếu và tin nhắn giả mạo đại sứ quán ngay khi bạn bắt đầu hồ sơ, và nhắc lại ngay trong sản phẩm khi có điều gì bất thường. Bạn là tuyến phòng thủ cuối cùng; chúng tôi muốn trang bị cho bạn thay vì đổ lỗi.",
+          "why": "<strong>Vì sao:</strong> người nộp hồ sơ hiểu biết là biện pháp bảo mật rẻ nhất và hiệu quả nhất chúng tôi có."
+        }
+      }
+    },
+    "vdp": {
+      "tag": "▲ Công bố lỗ hổng · mở cho mọi nhà nghiên cứu",
+      "title": "Bạn phát hiện điều gì?<br></br><em>Chúng tôi muốn được biết.</em>",
+      "p1": "An toàn của người dùng và đối tác là tất cả với chúng tôi. Nếu bạn tin mình đã phát hiện một lỗ hổng thật ảnh hưởng đến dịch vụ VIZA, hãy báo trực tiếp cho chúng tôi, chúng tôi sẽ phối hợp với bạn một cách tôn trọng và nhanh chóng để khắc phục.",
+      "p2": "Gửi phát hiện của bạn qua email đến <strong>security@viza.it.com</strong>. Chúng tôi sẽ xác nhận đã nhận trong vòng một ngày làm việc, kể cả khi lỗi đã được biết hoặc nằm ngoài phạm vi.",
+      "meta": {
+        "ack": {
+          "k": "Xác nhận trong",
+          "v": "'<' 24 giờ"
+        },
+        "triage": {
+          "k": "Phân loại trong",
+          "v": "3 ngày làm việc"
+        },
+        "lang": {
+          "k": "Ngôn ngữ",
+          "v": "EN · ID · AR"
+        },
+        "pgp": {
+          "k": "Khóa PGP",
+          "v": "0xVIZA · 2026"
+        }
+      },
+      "ctaEmail": "Gửi email đến security@viza.it.com",
+      "ctaScope": "Xem phạm vi",
+      "terminal": {
+        "title": "bản-nháp-báo-cáo · security@viza.it.com",
+        "l1": "# báo cáo lỗ hổng",
+        "typeKey": "loại:",
+        "typeVal": "vượt qua xác thực",
+        "urlKey": "url:",
+        "reproKey": "tái hiện:",
+        "reproVal": "[bước 1-4]",
+        "impactKey": "tác động:",
+        "impactVal": "chiếm quyền tài khoản",
+        "pocKey": "poc:",
+        "l7": "# ↳ mã hóa bằng 0xVIZA",
+        "send": "gửi"
+      }
+    },
+    "report": {
+      "eyebrow": "Báo cáo lỗ hổng",
+      "title": "Nên đưa gì vào<br></br>báo cáo, và <em>không nên đưa gì.</em>",
+      "intro": "Một báo cáo tốt tiết kiệm cho cả hai bên một tuần. Đây là định dạng giúp phân loại nhanh nhất, cùng những thứ chúng tôi thật sự không muốn nhận trong hộp thư.",
+      "include": {
+        "heading": "Vui lòng cung cấp",
+        "sub": "Năm mục. Càng rõ ràng, chúng tôi càng xác nhận và khắc phục nhanh.",
+        "items": {
+          "type": "<strong>Loại sự cố</strong>: ví dụ xác thực, kiểm soát truy cập, injection, IDOR, SSRF.",
+          "steps": "<strong>Các bước tái hiện rõ ràng</strong>: đánh số, theo thứ tự, trên một phiên sạch nếu có thể.",
+          "impact": "<strong>Tác động bảo mật tiềm ẩn</strong>: kẻ tấn công có thể làm gì với lỗi này, bằng lời dễ hiểu.",
+          "poc": "<strong>Bằng chứng khái niệm</strong>: ưu tiên ảnh chụp màn hình hoặc video quay màn hình ngắn; nhật ký là lựa chọn thứ hai."
+        }
+      },
+      "dontSend": {
+        "heading": "Vui lòng không gửi",
+        "sub": "Những thứ này không an toàn, không hữu ích, hoặc cả hai, và chúng tôi sẽ phải xóa ngay khi nhận.",
+        "items": {
+          "secrets": "<strong>Mật khẩu hoặc token xác thực</strong>, của bạn hay của bất kỳ ai. Hãy chỉ ra cách khai thác, không phải bí mật.",
+          "malware": "<strong>Mẫu mã độc thô hoặc nhật ký phần mềm đánh cắp thông tin.</strong> Hãy mô tả những gì bạn thấy; đừng đính kèm.",
+          "scanners": "<strong>Báo cáo quét tự động dài</strong> mà không có phát hiện cụ thể đã được chứng minh.",
+          "customerData": "<strong>Dữ liệu cá nhân hoặc giấy tờ của khách hàng</strong>, kể cả khi đó là cơ sở cho phát hiện của bạn.",
+          "socialEng": "<strong>Bản ghi các lần thử tấn công phi kỹ thuật</strong> nhắm vào nhân viên hoặc chuyên viên tư vấn của chúng tôi."
+        }
+      }
+    },
+    "scope": {
+      "eyebrow": "Phạm vi chương trình",
+      "title": "Trong phạm vi và ngoài phạm vi.",
+      "intro": "Nếu không chắc báo cáo có nằm trong danh sách này không, cứ gửi và hỏi chúng tôi. Chúng tôi thà phân loại rồi bỏ qua còn hơn để bạn giữ một lỗi thật chỉ vì ranh giới không rõ.",
+      "fileRef": "/security/scope.md · v6",
+      "in": {
+        "pill": "Trong phạm vi",
+        "heading": "Báo cáo chúng tôi sẽ chủ động phân loại",
+        "items": {
+          "web": "Ứng dụng web và API của VIZA tại <code>*.viza.com</code>, gồm cổng người nộp hồ sơ, bảng điều khiển tư vấn và các endpoint đối tác.",
+          "infra": "Hạ tầng và dịch vụ do VIZA sở hữu: xác thực, quy trình xử lý giấy tờ, lập lịch.",
+          "mobile": "Ứng dụng di động (iOS, Android) phát hành dưới tài khoản nhà phát triển VIZA.",
+          "marketing": "Các trang marketing và nội dung công khai thuộc tên miền do VIZA quản lý."
+        }
+      },
+      "out": {
+        "pill": "Ngoài phạm vi",
+        "heading": "Báo cáo chúng tôi không thể xử lý trong chương trình này",
+        "items": {
+          "devices": "Sự cố phát sinh từ thiết bị người dùng bị xâm nhập, tiện ích trình duyệt hoặc thông tin đăng nhập bị đánh cắp.",
+          "phishing": "Tấn công phi kỹ thuật hoặc lừa đảo qua mạng nhắm vào nhân viên, đối tác hoặc chuyên viên tư vấn của VIZA.",
+          "thirdParty": "Dịch vụ hoặc tích hợp bên thứ ba không do VIZA trực tiếp vận hành (cổng lãnh sự quán, trang chuyển phát).",
+          "scanners": "Kết quả quét tự động không chứng minh được khả năng khai thác thực tế.",
+          "headers": "Thiếu header bảo mật hoặc khuyến nghị thực hành tốt chung chung mà không có cách khai thác."
+        }
+      }
+    },
+    "pledge": {
+      "eyebrow": "Công bố có trách nhiệm",
+      "title": "Thỏa thuận<br></br>giữa đôi bên.",
+      "intro": "Việc công bố hiệu quả vì cả hai bên đều thiện chí. Đây là những gì chúng tôi đề nghị ở bạn, và những gì bạn có thể yêu cầu ở chúng tôi, được viết ra để không ai phải đoán.",
+      "researcher": {
+        "kicker": "Điều chúng tôi đề nghị ở bạn",
+        "title": "Cam kết của <em>nhà nghiên cứu.</em>",
+        "p": "Khi gửi báo cáo, bạn đồng ý hành động thiện chí và theo đúng tinh thần của chương trình, không chỉ câu chữ.",
+        "items": {
+          "1": "Hành động thiện chí: tránh xâm phạm quyền riêng tư, phá hủy dữ liệu hoặc gián đoạn dịch vụ trong khi nghiên cứu.",
+          "2": "Không khai thác lỗi quá mức tối thiểu cần để xác nhận, và không bao giờ truy cập dữ liệu không phải của bạn.",
+          "3": "Giữ bí mật chi tiết lỗ hổng cho đến khi chúng tôi phát hành bản sửa và xác nhận với bạn.",
+          "4": "Không công bố phát hiện khi chưa có sự đồng ý bằng văn bản của đội bảo mật VIZA."
+        }
+      },
+      "viza": {
+        "kicker": "Điều bạn có thể yêu cầu ở chúng tôi",
+        "title": "Cam kết của <em>VIZA.</em>",
+        "p": "Đổi lại, chúng tôi không phớt lờ người báo cáo, không tranh cãi mức độ nghiêm trọng để né việc sửa, và không kiện những người giúp chúng tôi.",
+        "items": {
+          "1": "Chúng tôi sẽ xem xét mọi báo cáo hợp lệ và phản hồi trong vòng một ngày làm việc, bất kể mức độ nghiêm trọng.",
+          "2": "Chúng tôi sẽ trao đổi một cách tôn trọng: không ngôn từ phòng thủ, không gạt đi bằng câu “hoạt động đúng thiết kế”.",
+          "3": "Chúng tôi sẽ có biện pháp khắc phục phù hợp khi cần, và báo bạn khi bản sửa đã được phát hành.",
+          "4": "Chúng tôi sẽ ghi công bạn (khi được đồng ý) trong nhật ký thay đổi bảo mật khi sự cố được giải quyết."
+        }
+      }
+    },
+    "legal": {
+      "eyebrow": "Pháp lý và phần thưởng",
+      "title": "Miễn trừ pháp lý, tiền thưởng,<br></br>và các điều khoản chi tiết.",
+      "intro": "Nếu bạn tuân thủ chính sách này với thiện chí, chúng tôi coi nghiên cứu của bạn là được phép. Phần còn lại của trang là những điều khô khan nhưng quan trọng, được trình bày rõ chứ không giấu đi.",
+      "cards": {
+        "safeHarbour": {
+          "title": "Miễn trừ pháp lý",
+          "body": "Nếu bạn tuân thủ chính sách này với thiện chí, VIZA sẽ không khởi kiện bạn vì những vi phạm vô tình hoặc không cố ý liên quan đến nghiên cứu của bạn. Bạn vẫn phải tuân thủ luật pháp và quy định hiện hành."
+        },
+        "rewards": {
+          "title": "Phần thưởng và bug bounty",
+          "body": "VIZA hiện chưa có chương trình bug bounty công khai. Chúng tôi có món quà tri ân tùy ý cho các lỗi hợp lệ được báo cáo có trách nhiệm, đánh giá theo tác động, độ mới và chất lượng báo cáo.",
+          "meta": "tùy ý · theo từng trường hợp"
+        },
+        "updates": {
+          "title": "Cập nhật chương trình",
+          "body": "VIZA có quyền sửa đổi hoặc chấm dứt chương trình này bất cứ lúc nào. Nếu không chắc nghiên cứu của bạn có phù hợp với chính sách không, vui lòng liên hệ security@viza.it.com <em>trước</em> khi tiến hành.",
+          "meta": "sửa đổi lần cuối · tháng 5/2026"
+        }
+      }
+    },
+    "cta": {
+      "title": "Thấy điều gì bất thường?<br></br>Hãy báo đội bảo mật.",
+      "body": "Chúng tôi thà nghe về một phát hiện nhỏ hai lần còn hơn bỏ lỡ một phát hiện lớn. Báo cáo đến thẳng một người thật trong đội bảo mật: không cổng ticket, không robot phân loại.",
+      "lead": "Gửi thẳng đến đội bảo mật",
+      "small": "Phản hồi trung vị: dưới 24 giờ, mọi ngày trong tuần."
+    },
+    "footer": {
+      "tagline": "VIZA giúp bạn lên kế hoạch, nộp hồ sơ và theo dõi visa đi khắp thế giới một cách liền mạch.",
+      "company": "Công ty",
+      "careers": "Tuyển dụng",
+      "contact": "Liên hệ",
+      "security": "Bảo mật",
+      "privacy": "Quyền riêng tư",
+      "terms": "Điều khoản",
+      "products": "Sản phẩm",
+      "prodVisaReq": "Yêu cầu visa",
+      "prodSchengen": "Kiểm tra lịch hẹn Schengen",
+      "prodPhoto": "Tạo ảnh visa",
+      "prodHelpline": "Đường dây khẩn cấp VIZA",
+      "prodStudent": "Visa du học",
+      "offices": "Văn phòng",
+      "officeSg": "Singapore, Trụ sở",
+      "officeSf": "Thượng Hải",
+      "copyright": "© VIZA, Bảo lưu mọi quyền"
+    }
+  },
+  "status": {
+    "crumbHome": "Minh bạch",
+    "crumbHere": "Trạng thái hệ thống",
+    "hero": {
+      "title": "Trạng thái hệ thống",
+      "lead": "Mức độ sẵn sàng có bằng chứng của VIZA và các cổng visa chính phủ chúng tôi làm việc cùng. Mọi tỷ lệ phần trăm, thanh thời gian và sự cố bên dưới đều lấy từ các lần kiểm tra tự động đã được ghi lại."
+    },
+    "console": {
+      "title": "Độ tin cậy VIZA · Trực tiếp",
+      "live": "Đã xác minh",
+      "unverified": "Chưa xác minh",
+      "allOperational": "Mọi hệ thống hoạt động bình thường",
+      "degraded": "Một số hệ thống đang suy giảm",
+      "majorOutage": "Một hệ thống được giám sát đang không khả dụng",
+      "dataUnavailable": "Không có dữ liệu giám sát",
+      "lastChecked": "Lần kiểm tra gần nhất: {time}",
+      "noChecks": "Chưa ghi nhận lần kiểm tra hoàn tất nào",
+      "kUptime": "Kiểm tra đạt trong 90 ngày",
+      "kMonitors": "Điểm cuối được giám sát",
+      "kIncidents": "Sự cố đang diễn ra"
+    },
+    "subnav": {
+      "current": "Trạng thái hiện tại",
+      "incidents": "Sự cố đã qua",
+      "subscribe": "Đăng ký",
+      "searchPlaceholder": "Tìm quốc gia",
+      "subscribeBtn": "Đăng ký nhận cập nhật"
+    },
+    "platform": {
+      "title": "Nền tảng VIZA",
+      "realMeta": "Kiểm tra mỗi 5 phút · {count} điểm cuối",
+      "meta": "Kiểm tra mỗi 5 phút",
+      "name": "Nền tảng nộp hồ sơ VIZA",
+      "sub": "Các dịch vụ công khai của VIZA"
+    },
+    "uptime": {
+      "ago": "90 ngày trước",
+      "today": "Hôm nay",
+      "pct": "{pct}% lần kiểm tra đạt",
+      "noData": "Không có lần kiểm tra nào được ghi lại"
+    },
+    "dayObservation": "{date}: {checks} lần kiểm tra được ghi lại",
+    "dayNoData": "{date}: không có dữ liệu được ghi lại",
+    "dayTitle": "Ngày {n}",
+    "statusLabels": {
+      "op": "Hoạt động bình thường",
+      "deg": "Suy giảm",
+      "part": "Gián đoạn một phần",
+      "maj": "Không khả dụng",
+      "none": "Không có dữ liệu hiện tại"
+    },
+    "lastChecked": "Kiểm tra lúc {time}",
+    "monitorStale": "Thiếu lần kiểm tra hoặc dữ liệu đã cũ",
+    "monitoringUnavailable": "API trạng thái không có bằng chứng mới. VIZA sẽ không hiển thị dữ liệu lưu tạm hoặc tự tạo như tình trạng dịch vụ hiện tại.",
+    "noSearchResults": "Không có quốc gia được giám sát nào khớp với tìm kiếm.",
+    "noRecordedIncidents": "Không có sự cố nào được ghi nhận từ các lần kiểm tra trong 90 ngày qua.",
+    "incidentCount": "{count, plural, one {# sự cố} other {# sự cố}}",
+    "incidentRecovered": "Các lần kiểm tra cho thấy dịch vụ này đã phục hồi.",
+    "noIssues": "Không có sự cố đang diễn ra",
+    "activeIncident": "Sự cố đang diễn ra",
+    "portalsHead": {
+      "title": "Cổng thông tin chính phủ",
+      "lead": "Một yêu cầu tự động có giới hạn kiểm tra từng cổng đã cấu hình mỗi năm phút. Lịch sử màu xám nghĩa là không có quan sát nào được ghi lại; chúng tôi không bao giờ điền dữ liệu ước tính vào đó."
+    },
+    "incidentsHead": {
+      "title": "Sự cố đã qua",
+      "lead": "Sự cố được mở và đóng dựa trên các thay đổi trạng thái giám sát đã lưu. Đây là mức độ sẵn sàng vận hành, không phải tình trạng quyết định visa của từng người nộp hồ sơ."
+    },
+    "tags": {
+      "identified": "Đã xác định",
+      "investigating": "Đang điều tra",
+      "resolved": "Đã khắc phục"
+    },
+    "portals": {
+      "AE": {
+        "name": "Các Tiểu vương quốc Ả Rập Thống nhất",
+        "sub": "Cổng GDRFA · ICA"
+      },
+      "AM": {
+        "name": "Armenia",
+        "sub": "Cổng visa điện tử"
+      },
+      "AU": {
+        "name": "Úc",
+        "sub": "ImmiAccount"
+      },
+      "AZ": {
+        "name": "Azerbaijan",
+        "sub": "ASAN Visa"
+      },
+      "DE": {
+        "name": "Đức",
+        "sub": "VIDEX · lịch hẹn lãnh sự"
+      },
+      "DK": {
+        "name": "Đan Mạch"
+      },
+      "EG": {
+        "name": "Ai Cập",
+        "sub": "Cổng visa điện tử"
+      },
+      "FI": {
+        "name": "Phần Lan",
+        "sub": "EnterFinland"
+      },
+      "FR": {
+        "name": "Pháp",
+        "sub": "France-Visas"
+      },
+      "GB": {
+        "name": "Vương quốc Anh",
+        "sub": "UKVCAS · UK Visas",
+        "bannerText": "Một số loại hồ sơ đang bị gián đoạn.",
+        "bannerLink": "Xem diễn biến sự cố"
+      },
+      "GE": {
+        "name": "Gruzia"
+      },
+      "GR": {
+        "name": "Hy Lạp",
+        "sub": "AEGEAN · lãnh sự"
+      },
+      "HK": {
+        "name": "Hồng Kông",
+        "sub": "eVisa Sở Di trú"
+      },
+      "ID": {
+        "name": "Indonesia",
+        "sub": "e-Visa Indonesia"
+      },
+      "IN": {
+        "name": "Ấn Độ",
+        "sub": "Indian Visa Online"
+      },
+      "JO": {
+        "name": "Jordan"
+      },
+      "KE": {
+        "name": "Kenya",
+        "sub": "eCitizen / eVisa"
+      },
+      "KH": {
+        "name": "Campuchia"
+      },
+      "LK": {
+        "name": "Sri Lanka",
+        "sub": "Cổng ETA"
+      },
+      "MA": {
+        "name": "Maroc"
+      },
+      "TH": {
+        "name": "Thái Lan",
+        "sub": "Thailand e-Visa"
+      }
+    },
+    "incidents": {
+      "count": "<strong>{count}</strong> {count, plural, one {quốc gia} other {quốc gia}} gặp sự cố hiệu năng",
+      "events": "{count, plural, one {# sự kiện} other {# sự kiện}}",
+      "days": [
+        {
+          "date": "10 tháng 5, 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "3:05 CH, 10/5",
+                  "desc": "Sự cố đã được khắc phục. Dịch vụ đã hoạt động bình thường trở lại."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "5:05 CH, 10/5",
+                  "desc": "Sự cố đã được khắc phục. Dịch vụ đã hoạt động bình thường trở lại."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "9 tháng 5, 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "10:50 CH, 9/5",
+                  "desc": "Chúng tôi đang điều tra tỷ lệ lỗi tăng cao."
+                },
+                {
+                  "time": "12:20 SA, 10/5",
+                  "desc": "Mức độ nghiêm trọng tăng từ suy giảm lên gián đoạn một phần."
+                },
+                {
+                  "time": "2:50 SA, 10/5",
+                  "desc": "Mức độ nghiêm trọng tăng từ gián đoạn một phần lên gián đoạn nghiêm trọng."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "3:05 CH, 9/5",
+                  "desc": "Chúng tôi đang điều tra tỷ lệ lỗi tăng cao."
+                },
+                {
+                  "time": "7:20 CH, 9/5",
+                  "desc": "Mức độ nghiêm trọng tăng từ gián đoạn một phần lên gián đoạn nghiêm trọng."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "8 tháng 5, 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "1:05 CH, 8/5",
+                  "desc": "Chúng tôi đang điều tra tỷ lệ lỗi tăng cao."
+                },
+                {
+                  "time": "2:05 CH, 8/5",
+                  "desc": "Sự cố đã được khắc phục. Dịch vụ đã hoạt động bình thường trở lại."
+                },
+                {
+                  "time": "2:50 CH, 8/5",
+                  "desc": "Chúng tôi đang điều tra tỷ lệ lỗi tăng cao."
+                },
+                {
+                  "time": "7:35 CH, 8/5",
+                  "desc": "Sự cố đã được khắc phục. Dịch vụ đã hoạt động bình thường trở lại."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "5 tháng 5, 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "1:36 CH, 5/5",
+                  "desc": "Mức độ nghiêm trọng tăng từ suy giảm lên gián đoạn một phần."
+                },
+                {
+                  "time": "4:50 CH, 5/5",
+                  "desc": "Sự cố đã được khắc phục."
+                },
+                {
+                  "time": "9:20 CH, 5/5",
+                  "desc": "Chúng tôi đang điều tra tỷ lệ lỗi tăng cao."
+                },
+                {
+                  "time": "10:20 CH, 5/5",
+                  "desc": "Sự cố đã được khắc phục."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "2:43 CH, 5/5",
+                  "desc": "Sự cố đã được khắc phục."
+                },
+                {
+                  "time": "3:35 CH, 5/5",
+                  "desc": "Chúng tôi đang điều tra tỷ lệ lỗi tăng cao."
+                },
+                {
+                  "time": "7:35 CH, 5/5",
+                  "desc": "Mức độ nghiêm trọng tăng từ gián đoạn một phần lên gián đoạn nghiêm trọng."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "4 tháng 5, 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "4:05 CH, 4/5",
+                  "desc": "Chúng tôi đang điều tra tỷ lệ lỗi tăng cao."
+                },
+                {
+                  "time": "5:05 CH, 4/5",
+                  "desc": "Sự cố đã được khắc phục."
+                },
+                {
+                  "time": "7:36 CH, 4/5",
+                  "desc": "Chúng tôi đang điều tra tỷ lệ lỗi tăng cao."
+                },
+                {
+                  "time": "8:35 CH, 4/5",
+                  "desc": "Sự cố đã được khắc phục."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "12:05 CH, 4/5",
+                  "desc": "Sự cố đã được khắc phục."
+                },
+                {
+                  "time": "1:50 CH, 4/5",
+                  "desc": "Chúng tôi đang điều tra tỷ lệ lỗi tăng cao."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2 tháng 5, 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "6:35 CH, 2/5",
+                  "desc": "Chúng tôi đang điều tra tỷ lệ lỗi tăng cao."
+                },
+                {
+                  "time": "7:50 CH, 2/5",
+                  "desc": "Sự cố đã được khắc phục."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "9:20 SA, 2/5",
+                  "desc": "Chúng tôi đang điều tra tỷ lệ lỗi tăng cao."
+                },
+                {
+                  "time": "10:20 SA, 2/5",
+                  "desc": "Sự cố đã được khắc phục."
+                },
+                {
+                  "time": "8:20 CH, 2/5",
+                  "desc": "Chúng tôi đang điều tra tỷ lệ lỗi tăng cao."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "8:20 CH, 2/5",
+                  "desc": "Chúng tôi đang điều tra tỷ lệ lỗi tăng cao."
+                },
+                {
+                  "time": "12:05 SA, 3/5",
+                  "desc": "Sự cố đã được khắc phục."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "1 tháng 5, 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "2:05 CH, 1/5",
+                  "desc": "Chúng tôi đang điều tra tỷ lệ lỗi tăng cao."
+                },
+                {
+                  "time": "3:05 CH, 1/5",
+                  "desc": "Sự cố đã được khắc phục."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "30 tháng 4, 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "8:20 SA, 30/4",
+                  "desc": "Chúng tôi đang điều tra tỷ lệ lỗi tăng cao."
+                },
+                {
+                  "time": "9:50 SA, 30/4",
+                  "desc": "Sự cố đã được khắc phục."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "3:05 CH, 30/4",
+                  "desc": "Sự cố đã được khắc phục."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "4:51 CH, 30/4",
+                  "desc": "Sự cố đã được khắc phục."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "1:20 CH, 30/4",
+                  "desc": "Chúng tôi đang điều tra tỷ lệ lỗi tăng cao."
+                },
+                {
+                  "time": "2:37 CH, 30/4",
+                  "desc": "Mức độ nghiêm trọng tăng từ suy giảm lên gián đoạn một phần."
+                },
+                {
+                  "time": "8:20 CH, 30/4",
+                  "desc": "Sự cố đã được khắc phục."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "6:50 CH, 30/4",
+                  "desc": "Sự cố đã được khắc phục."
+                },
+                {
+                  "time": "7:50 CH, 30/4",
+                  "desc": "Chúng tôi đang điều tra tỷ lệ lỗi tăng cao."
+                },
+                {
+                  "time": "12:20 SA, 1/5",
+                  "desc": "Sự cố đã được khắc phục."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "subscribe": {
+      "title": "Là người đầu tiên<br></br>biết khi có sự cố.",
+      "lead": "Chọn những quốc gia bạn quan tâm, chúng tôi sẽ gửi một bản cập nhật ngắn gọn, dễ hiểu khi cổng của họ, hoặc của chúng tôi, ngừng hoạt động hay hoạt động trở lại.",
+      "emailLabel": "Nhận cập nhật sự cố qua email",
+      "button": "Đăng ký",
+      "follow": "Hoặc theo dõi trạng thái qua:",
+      "chipEmail": "Email tổng hợp",
+      "chipSms": "SMS và WhatsApp",
+      "chipRss": "Nguồn RSS",
+      "chipWebhook": "Webhook cho vận hành"
+    },
+    "footer": {
+      "tagline": "VIZA giúp bạn lên kế hoạch, nộp hồ sơ và theo dõi visa đi khắp thế giới một cách liền mạch.",
+      "company": "Công ty",
+      "careers": "Tuyển dụng",
+      "contact": "Liên hệ",
+      "security": "Bảo mật",
+      "systemStatus": "Trạng thái hệ thống",
+      "privacy": "Quyền riêng tư",
+      "terms": "Điều khoản",
+      "products": "Sản phẩm",
+      "prodVisaReq": "Yêu cầu visa",
+      "prodSchengen": "Kiểm tra lịch hẹn Schengen",
+      "prodPhoto": "Tạo ảnh visa",
+      "prodHelpline": "Đường dây khẩn cấp VIZA",
+      "copyright": "© VIZA, Bảo lưu mọi quyền"
+    }
+  },
+  "arrival": {
+    "breadcrumbHome": "Trang chủ",
+    "breadcrumbHub": "Thẻ nhập cảnh",
+    "hubH1": "Hướng dẫn thẻ nhập cảnh",
+    "hubLead": "Thẻ nhập cảnh là một tờ khai ngắn của chính phủ mà bạn điền trước khi vào một nước. Hầu hết đều làm trực tuyến, miễn phí và mất khoảng năm phút. Các hướng dẫn này cho biết ai cần loại thẻ nào, khi nào nộp, và cách tránh các trang giả mạo thu phí.",
+    "hubWhatTitle": "Thẻ nhập cảnh là gì",
+    "hubWhat": [
+      "Thẻ nhập cảnh là bản khai báo mà điểm đến yêu cầu, ngoài hộ chiếu và visa (nếu có). Thẻ ghi lại bạn là ai, bạn đến bằng cách nào và sẽ ở đâu. Nhiều nước đã thay tờ khai giấy phát trên máy bay bằng biểu mẫu trực tuyến.",
+      "Đây không phải là visa. Visa cho phép bạn xin nhập cảnh. Thẻ nhập cảnh thông báo cho cơ quan biên phòng về chuyến đi của bạn, và bạn vẫn cần visa nếu quốc tịch của bạn thuộc diện phải có."
+    ],
+    "hubFreeTitle": "Thẻ nhập cảnh miễn phí",
+    "hubFree": [
+      "Mọi thẻ trong các hướng dẫn này đều miễn phí trên trang của chính phủ. Một số trang web sao chép tờ khai của chính phủ rồi thu phí. Bạn không bao giờ cần trả tiền cho những trang đó.",
+      "Luôn bắt đầu từ địa chỉ chính thức ghi trong từng hướng dẫn. VIZA là dịch vụ độc lập, không phải trang web của chính phủ."
+    ],
+    "hubWhenTitle": "Khi nào bạn cần",
+    "hubWhen": [
+      "Hầu hết các thẻ mở ba ngày trước khi bạn đến và phải nộp trong khoảng thời gian đó. Hãy xem quy định chính xác trong từng hướng dẫn, vì Visit Japan Web của Nhật Bản không có hạn chót cố định và không bắt buộc.",
+      "Người cư trú, công dân và hành khách quá cảnh thường được miễn hoặc có tờ khai ngắn hơn. Mỗi hướng dẫn đều liệt kê ai được miễn, gồm cả việc công dân Singapore được miễn MDAC của Malaysia."
+    ],
+    "hubGuidesTitle": "Tất cả hướng dẫn",
+    "hubGuidesSub": "Chọn điểm đến của bạn. Mỗi hướng dẫn có các bước, lỗi thường gặp và đường dẫn chính thức.",
+    "readGuide": "Đọc hướng dẫn",
+    "cardWhen": "Khi nào",
+    "cardsLabel": "Thẻ nhập cảnh",
+    "hubVisaTitle": "Bạn cũng cần visa?",
+    "hubVisaBody": "Thẻ nhập cảnh không thay thế visa. Hãy xem trang điểm đến để biết hộ chiếu của bạn có cần visa không.",
+    "hubVisaCta": "Xem các trang visa",
+    "glanceTitle": "Tóm tắt",
+    "stepsTitle": "Cách điền từng bước",
+    "mistakesTitle": "Lỗi thường gặp",
+    "feesTitle": "Lệ phí và trang giả mạo",
+    "faqTitle": "Câu hỏi",
+    "sourcesTitle": "Nguồn",
+    "relatedTitle": "Các hướng dẫn thẻ nhập cảnh khác",
+    "independent": "VIZA là dịch vụ độc lập, không phải trang web của chính phủ.",
+    "officialCta": "Mở trang chính thức",
+    "officialLabel": "Trang chính thức",
+    "vizaTitle": "Để VIZA làm giúp bạn",
+    "vizaBody": "Bắt đầu {name} trong tài khoản VIZA của bạn. Biểu mẫu của VIZA dẫn bạn qua đúng các câu hỏi như bản chính thức và lưu thông tin cho các chuyến đi sau. Bạn luôn có thể dùng trang chính thức miễn phí thay thế.",
+    "vizaFee": "Phí dịch vụ VIZA",
+    "vizaFeeFree": "Miễn phí",
+    "vizaCta": "Bắt đầu trên VIZA",
+    "noVizaTitle": "Dùng trang chính thức",
+    "noVizaBody": "VIZA chưa hỗ trợ điền thẻ này. Hãy dùng trang chính thức bên dưới, và đọc các bước trong hướng dẫn này trước.",
+    "visaTitle": "Visa {country}",
+    "visaBody": "Thẻ nhập cảnh tách biệt với visa. Xem ai cần visa {country}, lệ phí và cách nộp hồ sơ.",
+    "visaCta": "Mở trang visa {country}",
+    "reviewedTitle": "Kiểm tra ngày 25 tháng 11 năm 2026",
+    "stepLabel": "Bước",
+    "cards": {
+      "malaysia-mdac": {
+        "summary": "Thẻ trực tuyến miễn phí cho khách nước ngoài. Công dân Singapore được miễn.",
+        "when": "Trong vòng 3 ngày trước khi đến"
+      },
+      "singapore-sg-arrival-card": {
+        "summary": "Thẻ trực tuyến của ICA kèm khai báo y tế. Nộp trên trang web hoặc ứng dụng MyICA.",
+        "when": "Trong vòng 3 ngày trước khi đến"
+      },
+      "japan-visit-japan-web": {
+        "summary": "Mã QR miễn phí cho thủ tục xuất nhập cảnh và hải quan. Khuyến khích, không bắt buộc.",
+        "when": "Trước khi bay"
+      },
+      "thailand-tdac": {
+        "summary": "Thẻ miễn phí cho mọi khách nước ngoài, dù được miễn visa hay không. Thay thế tờ TM6 giấy.",
+        "when": "Trong vòng 3 ngày trước khi đến"
+      },
+      "korea-e-arrival-card": {
+        "summary": "Bắt buộc từ ngày 1 tháng 1 năm 2026. Người có K-ETA còn hiệu lực được miễn.",
+        "when": "Trong vòng 3 ngày trước khi đến"
+      },
+      "indonesia-all-indonesia": {
+        "summary": "Một thẻ cho xuất nhập cảnh, hải quan và y tế. Miễn phí, và không phải visa.",
+        "when": "Tối đa 3 ngày trước khi đến"
+      }
+    }
+  },
+  "guides": {
+    "breadcrumbHome": "Trang chủ",
+    "breadcrumbHub": "Hướng dẫn",
+    "hubH1": "Hướng dẫn visa cho người sống tại Singapore",
+    "hubLead": "Dù bạn mang hộ chiếu Singapore, Trung Quốc, Ấn Độ hay Philippines, các hướng dẫn này đều trả lời cùng một câu hỏi: tôi cần gì để nhập cảnh nước này, và nộp hồ sơ ở đâu từ Singapore. Mỗi bài đều ghi rõ nguồn và ngày kiểm tra.",
+    "hubGuidesTitle": "Tất cả hướng dẫn",
+    "hubGuidesSub": "Chọn một chủ đề. Quy định có thể thay đổi, nên mỗi bài đều liệt kê các trang chính thức cần xem trước khi đi.",
+    "readGuide": "Đọc hướng dẫn",
+    "hubMoreTitle": "Thêm từ VIZA",
+    "hubMoreBody": "Bạn đang tìm một quốc gia cụ thể, thẻ nhập cảnh hay thay đổi quy định mới nhất?",
+    "hubDestinations": "Trang visa",
+    "hubArrival": "Hướng dẫn thẻ nhập cảnh",
+    "hubNews": "Tin tức visa",
+    "glanceTitle": "Trả lời nhanh",
+    "relatedVisaTitle": "Trang điểm đến",
+    "relatedVisaSub": "Lệ phí, giấy tờ và các bước cho người sống tại Singapore.",
+    "relatedArrivalTitle": "Hướng dẫn thẻ nhập cảnh",
+    "relatedGuidesTitle": "Thêm hướng dẫn",
+    "faqTitle": "Câu hỏi",
+    "sourcesTitle": "Nguồn",
+    "reviewedTitle": "Cách chúng tôi kiểm tra",
+    "published": "Ngày đăng",
+    "updated": "Cập nhật",
+    "independent": "VIZA là dịch vụ độc lập, không phải trang web của chính phủ."
+  },
+  "ds": {
+    "header": {
+      "home": "Trang chủ VIZA",
+      "primary": "Menu chính",
+      "language": "Ngôn ngữ",
+      "signIn": "Đăng nhập",
+      "openMenu": "Mở menu",
+      "closeMenu": "Đóng menu",
+      "nav": {
+        "home": "Trang chủ",
+        "destinations": "Điểm đến",
+        "arrivalCards": "Thẻ nhập cảnh",
+        "guides": "Hướng dẫn",
+        "news": "Tin tức",
+        "about": "Giới thiệu",
+        "contact": "Liên hệ"
+      }
+    },
+    "footer": {
+      "home": "Trang chủ VIZA",
+      "tagline": "Hồ sơ visa do AI của VIZA chuẩn bị và chuyên viên tư vấn kiểm tra. Sử dụng miễn phí.",
+      "explore": "Khám phá",
+      "follow": "Theo dõi chúng tôi",
+      "followOn": "Theo dõi VIZA trên {platform}",
+      "links": {
+        "destinations": "Điểm đến",
+        "arrivalCards": "Thẻ nhập cảnh",
+        "guides": "Hướng dẫn",
+        "news": "Tin tức",
+        "about": "Giới thiệu",
+        "contact": "Liên hệ",
+        "careers": "Tuyển dụng",
+        "security": "Bảo mật",
+        "status": "Trạng thái"
+      },
+      "copyright": "© {year} VIZA. Bảo lưu mọi quyền.",
+      "office": "Văn phòng đăng ký: Số 60 đường Paya Lebar, #06-28 Paya Lebar Square, Singapore 409051",
+      "privacy": "Quyền riêng tư",
+      "terms": "Điều khoản",
+      "kelin": "Một dự án của Kelin Studio",
+      "refunds": "Hoàn tiền",
+      "business": "Thông tin doanh nghiệp"
+    },
+    "form": {
+      "fullName": {
+        "label": "Tên của bạn",
+        "placeholder": "Nguyễn Văn An"
+      },
+      "email": {
+        "label": "Email"
+      },
+      "phone": {
+        "label": "Điện thoại"
+      },
+      "destination": {
+        "label": "Điểm đến",
+        "placeholder": "Nhật Bản, Schengen, Hoa Kỳ"
+      },
+      "message": {
+        "label": "Câu hỏi của bạn",
+        "placeholder": "Bạn đi đâu, hộ chiếu nước nào và ngày đi."
+      },
+      "submit": "Gửi tin nhắn",
+      "sending": "Đang gửi",
+      "success": "Cảm ơn bạn, chúng tôi đã nhận được tin nhắn. Chúng tôi sẽ trả lời qua email.",
+      "error": "Chưa gửi được tin nhắn. Vui lòng thử lại, hoặc gửi email đến sales@kelin.studio.",
+      "consent": "Khi gửi, bạn đồng ý với <privacy>Chính sách quyền riêng tư</privacy> và <terms>Điều khoản</terms> của chúng tôi."
+    },
+    "gallery": {
+      "title": "Điểm đến",
+      "lede": "Chọn một điểm đến để xem loại visa bạn cần, giấy tờ và lệ phí chính phủ.",
+      "view": "Xem",
+      "passportSummary": "{free} miễn visa · {voa} visa điện tử hoặc tại cửa khẩu · {req} cần visa",
+      "noResults": "Không có điểm đến nào khớp với tìm kiếm.",
+      "sorts": {
+        "featured": "Nổi bật",
+        "open": "Đang mở trước",
+        "name": "A đến Z"
+      }
+    },
+    "dest": {
+      "all": "Tất cả điểm đến",
+      "onPage": "Trên trang này",
+      "applyTitle": "Bắt đầu hồ sơ",
+      "facts": "Thông tin chính"
+    },
+    "article": {
+      "toc": "Trên trang này",
+      "down": "Đến bài viết",
+      "faqLede": "Giải đáp nhanh về chủ đề này."
+    },
+    "legal": {
+      "updated": "Cập nhật lần cuối",
+      "contents": "Mục lục"
+    }
+  },
+  "homePage": {
+    "hero": {
+      "browse": "Xem các điểm đến",
+      "picks": "Điểm đến"
+    },
+    "types": {
+      "title": "Loại visa",
+      "lede": "Visa du lịch, công tác, lao động, du học và dài hạn.",
+      "prev": "Trước",
+      "next": "Tiếp",
+      "items": {
+        "tourist": {
+          "title": "Du lịch",
+          "body": "Nghỉ dưỡng, thăm gia đình và lưu trú ngắn ngày."
+        },
+        "business": {
+          "title": "Công tác",
+          "body": "Họp, hội nghị và khảo sát thực tế."
+        },
+        "work": {
+          "title": "Lao động",
+          "body": "Giấy phép lao động và visa làm việc."
+        },
+        "student": {
+          "title": "Du học",
+          "body": "Visa du học cho các trường phổ thông và đại học."
+        },
+        "long": {
+          "title": "Lưu trú dài hạn",
+          "body": "Visa cư trú và các loại visa dài hạn khác."
+        }
+      }
+    },
+    "steps": {
+      "title": "Cách thức hoạt động",
+      "cta": "Bắt đầu hồ sơ miễn phí",
+      "side": {
+        "freeValue": "Miễn phí",
+        "freeLabel": "Dịch vụ VIZA",
+        "langLabel": "Ngôn ngữ",
+        "note": "Bạn chỉ trả lệ phí chính phủ.",
+        "noteBody": "Khoản này được trả thẳng cho cơ quan cấp. VIZA không cộng thêm phí nào của mình."
+      },
+      "items": {
+        "choose": {
+          "title": "Chọn điểm đến",
+          "body": "Xem loại visa bạn cần, giấy tờ cần chuẩn bị và lệ phí chính phủ trước khi bắt đầu.",
+          "chips": "Loại visa|Giấy tờ|Lệ phí chính phủ"
+        },
+        "passport": {
+          "title": "Tải hộ chiếu lên",
+          "body": "VIZA đọc thông tin từ trang có ảnh, nên bạn gần như không phải gõ gì.",
+          "chips": "Trang có ảnh|Thông tin tự điền"
+        },
+        "confirm": {
+          "title": "Xác nhận thông tin",
+          "body": "Kiểm tra những gì VIZA đã đọc, thêm ngày đi và tiếp tục trong tài khoản VIZA miễn phí của bạn.",
+          "chips": "Ngày đi|Tài khoản miễn phí"
+        },
+        "file": {
+          "title": "VIZA kiểm tra và nộp hồ sơ",
+          "body": "Chuyên viên kiểm tra từng tờ khai trước khi nộp, và bạn theo dõi tiến độ ngay trong tài khoản.",
+          "chips": "Chuyên viên kiểm tra|Cập nhật tiến độ"
+        }
+      }
+    },
+    "tiers": {
+      "title": "Bảng giá",
+      "lede": "Hai cách nộp hồ sơ, đều miễn phí.",
+      "cta": "Liên hệ",
+      "criteria": "So sánh",
+      "guided": "Có hướng dẫn",
+      "full": "Trọn gói",
+      "rows": {
+        "fee": {
+          "label": "Phí VIZA",
+          "guided": "Miễn phí",
+          "full": "Miễn phí"
+        },
+        "form": {
+          "label": "Tờ khai",
+          "guided": "Bạn tự trả lời, có AI của VIZA hướng dẫn",
+          "full": "Chuyên viên tư vấn cùng bạn chuẩn bị câu trả lời"
+        },
+        "documents": {
+          "label": "Giấy tờ",
+          "guided": "Danh sách kiểm tra theo trường hợp của bạn",
+          "full": "Chuyên viên tư vấn kiểm tra giấy tờ của bạn"
+        },
+        "interview": {
+          "label": "Lịch hẹn và phỏng vấn",
+          "guided": "Bạn tự đặt lịch và tham dự",
+          "full": "Chúng tôi cùng bạn ôn các câu hỏi thường gặp"
+        },
+        "govFee": {
+          "label": "Lệ phí chính phủ",
+          "guided": "Trả trực tiếp cho cơ quan cấp",
+          "full": "Trả trực tiếp cho cơ quan cấp"
+        },
+        "bestFor": {
+          "label": "Phù hợp với",
+          "guided": "Hồ sơ đơn giản",
+          "full": "Trường hợp phức tạp hoặc từng bị từ chối"
+        }
+      }
+    },
+    "why": {
+      "title": "Vì sao chọn VIZA",
+      "lede": "Các bước rõ ràng, tờ khai được kiểm tra và có người thật để trao đổi.",
+      "items": {
+        "free": {
+          "title": "Dịch vụ miễn phí",
+          "body": "VIZA hỗ trợ hoàn toàn miễn phí. Bạn chỉ trả lệ phí chính phủ, trực tiếp cho cơ quan cấp."
+        },
+        "checked": {
+          "title": "Tờ khai được kiểm tra",
+          "body": "Chuyên viên kiểm tra từng tờ khai trước khi nộp, nên các lỗi nhỏ được phát hiện sớm."
+        },
+        "language": {
+          "title": "Tiếng Anh và tiếng Trung",
+          "body": "Trao đổi với VIZA bằng tiếng Anh hoặc tiếng Trung, qua WhatsApp, WeChat hoặc email."
+        }
+      },
+      "photos": {
+        "arrival": {
+          "title": "Thẻ nhập cảnh",
+          "body": "Hướng dẫn từng bước điền thẻ nhập cảnh miễn phí của Malaysia, Singapore, Nhật Bản, Thái Lan, Hàn Quốc và Indonesia."
+        },
+        "news": {
+          "title": "Tin tức",
+          "body": "Thay đổi quy định visa và các chương trình visa điện tử mới, giải thích bằng lời dễ hiểu."
+        }
+      }
+    },
+    "guides": {
+      "title": "Hướng dẫn",
+      "cta": "Tất cả hướng dẫn"
+    },
+    "faq": {
+      "lede": "Giải đáp nhanh về dịch vụ visa của VIZA.",
+      "more": "Còn câu hỏi khác?",
+      "items": {
+        "cost": {
+          "q": "VIZA có thu phí dịch vụ không?",
+          "a": "Không. VIZA hỗ trợ miễn phí. Nếu điểm đến thu lệ phí visa, bạn trả trực tiếp cho chính phủ nước đó."
+        },
+        "visas": {
+          "q": "VIZA hỗ trợ những loại visa nào?",
+          "a": "Visa du lịch, công tác, lao động, du học và dài hạn cho các điểm đến trên trang này. Nếu điểm đến của bạn chưa có, hãy viết cho chúng tôi, chuyên viên tư vấn sẽ cho bạn biết những gì có thể làm."
+        },
+        "approval": {
+          "q": "Ai quyết định visa của tôi?",
+          "a": "Cơ quan cấp đưa ra mọi quyết định. VIZA kiểm tra tờ khai và giấy tờ trước khi nộp, để hồ sơ của bạn đầy đủ và nhất quán."
+        },
+        "tiers": {
+          "q": "Gói Có hướng dẫn và gói Trọn gói khác nhau thế nào?",
+          "a": "Với gói Có hướng dẫn, AI của VIZA dẫn bạn qua tờ khai và danh sách kiểm tra, bạn tự quyết từng câu trả lời. Với gói Trọn gói, chuyên viên tư vấn cùng bạn chuẩn bị câu trả lời và kiểm tra giấy tờ. Cả hai đều miễn phí."
+        },
+        "language": {
+          "q": "Các bạn hỗ trợ những ngôn ngữ nào?",
+          "a": "Tiếng Anh và tiếng Trung, qua WhatsApp, WeChat, điện thoại và email."
+        }
+      }
+    },
+    "contactCard": {
+      "title": "Trò chuyện với chuyên viên tư vấn VIZA",
+      "body": "Chúng tôi trả lời bằng tiếng Anh hoặc tiếng Trung.",
+      "cta": "Liên hệ"
+    },
+    "cta": {
+      "title": "Bắt đầu hồ sơ của bạn",
+      "point1": "Thông tin của bạn được giữ kín",
+      "point2": "Người thật trả lời",
+      "formTitle": "Đặt câu hỏi",
+      "formBody": "Cho chúng tôi biết bạn sắp đi đâu, chuyên viên tư vấn VIZA sẽ trả lời qua email."
+    }
+  },
+  "aboutPage": {
+    "h1": "Về VIZA",
+    "intro": {
+      "title": "VIZA là gì",
+      "text": "VIZA chuẩn bị, kiểm tra và nộp hồ sơ visa cho người đang sống tại Singapore. AI của chúng tôi lo phần giấy tờ, còn chuyên viên tư vấn rà soát từng tờ khai. Dịch vụ miễn phí."
+    },
+    "facts": {
+      "destinations": "Điểm đến",
+      "guides": "Hướng dẫn visa",
+      "arrival": "Hướng dẫn thẻ nhập cảnh",
+      "free": "Miễn phí",
+      "freeLabel": "Dịch vụ VIZA"
+    },
+    "tiersTitle": "Có hướng dẫn hoặc Trọn gói",
+    "tiersLede": "Bạn chọn mức hỗ trợ mình cần. Cả hai đều miễn phí.",
+    "free": {
+      "title": "Dịch vụ miễn phí",
+      "text": "VIZA không thu phí cho sự hỗ trợ của mình. Nếu điểm đến có lệ phí visa của chính phủ, VIZA hiển thị trước khi bạn bắt đầu và bạn trả thẳng cho cơ quan cấp. Không có gói nâng cấp trả phí."
+    },
+    "company": {
+      "title": "Thông tin công ty",
+      "office": "Văn phòng đăng ký",
+      "officeValue": "Số 60 đường Paya Lebar, #06-28 Paya Lebar Square, Singapore 409051",
+      "email": "Email",
+      "phone": "Điện thoại và WhatsApp",
+      "languages": "Ngôn ngữ",
+      "languagesValue": "Tiếng Anh và tiếng Trung"
+    }
+  },
+  "contactPage": {
+    "h1": "Liên hệ",
+    "lines": {
+      "whatsapp": {
+        "title": "Điện thoại và WhatsApp",
+        "body": "Gọi điện hoặc nhắn tin cho chuyên viên tư vấn."
+      },
+      "wechat": {
+        "body": "Tìm ID trên WeChat để kết bạn với chúng tôi."
+      },
+      "email": {
+        "title": "Email",
+        "body": "Phù hợp nhất để gửi giấy tờ và câu hỏi dài."
+      },
+      "office": {
+        "top": "Singapore",
+        "title": "Văn phòng",
+        "body": "Số 60 đường Paya Lebar, #06-28 Paya Lebar Square, Singapore 409051"
+      }
+    },
+    "message": {
+      "title": "Gửi tin nhắn",
+      "text": "Bạn có câu hỏi về visa, điểm đến hoặc hợp tác với VIZA? Hãy viết cho chúng tôi, chuyên viên tư vấn sẽ trả lời."
+    }
+  },
+  "careersPage": {
+    "title": "Tuyển dụng",
+    "lede": "VIZA giúp người ở Singapore xin visa nhờ AI và chuyên viên tư vấn, hoàn toàn miễn phí. Chúng tôi tìm những người thích công việc cẩn thận và hữu ích.",
+    "teamsTitle": "Các nhóm",
+    "teams": [
+      {
+        "title": "Kỹ thuật",
+        "body": "Xây dựng phần kiểm tra giấy tờ, quy trình nộp hồ sơ và các công cụ chuyên viên tư vấn sử dụng."
+      },
+      {
+        "title": "Thiết kế",
+        "body": "Biến một quy trình căng thẳng thành trải nghiệm rõ ràng cho người nộp hồ sơ."
+      },
+      {
+        "title": "Vận hành",
+        "body": "Giữ mọi hồ sơ được xử lý liên tục và mọi yêu cầu luôn cập nhật."
+      },
+      {
+        "title": "Tư vấn",
+        "body": "Hỗ trợ người nộp hồ sơ trong những trường hợp cần đến con người, bằng tiếng Anh và tiếng Trung."
+      },
+      {
+        "title": "Dữ liệu",
+        "body": "Biến nguồn thông tin chính phủ thành các bước kiểm tra giúp phát hiện vấn đề sớm."
+      },
+      {
+        "title": "Marketing",
+        "body": "Giải thích visa một cách dễ hiểu, qua các hướng dẫn và trang thông tin đáng tin cậy."
+      }
+    ],
+    "applyTitle": "Liên hệ với chúng tôi",
+    "applyBody": "Hãy kể về bản thân và nhóm bạn muốn tham gia. Chúng tôi đọc mọi lời nhắn.",
+    "applyCta": "Liên hệ"
+  },
+  "pageCopy": {
+    "product": {
+      "introTitle": "VIZA hỗ trợ hồ sơ visa của bạn thế nào",
+      "introLede": "Xem các dịch vụ chuẩn bị visa, rà soát giấy tờ và theo dõi tình trạng hồ sơ. Dịch vụ của VIZA miễn phí. Phạm vi và tình trạng cung cấp cụ thể hiện ra sau khi bạn chọn điểm đến.",
+      "browse": "Xem các điểm đến"
+    },
+    "events": {
+      "title": "Chưa có sự kiện",
+      "lede": "Các buổi tư vấn visa, buổi giới thiệu thông tin và sự kiện với đối tác sắp tới sẽ được thông báo tại đây.",
+      "contact": "Liên hệ"
+    }
+  },
+  "og": {
+    "band": "VIZA miễn phí. Lệ phí chính phủ tính riêng.",
+    "destSubtitle": "Lệ phí và cách nộp hồ sơ"
+  }
+}

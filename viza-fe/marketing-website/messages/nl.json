@@ -1,0 +1,2150 @@
+{
+  "cta": {
+    "startFreeApplication": "Start je gratis aanvraag"
+  },
+  "nav": {
+    "home": "Home",
+    "apply": "Aanvragen",
+    "visas": "Visa",
+    "explore": "Ontdekken",
+    "events": "Evenementen",
+    "blog": "Nieuws",
+    "careers": "Vacatures",
+    "contact": "Contact",
+    "signIn": "Inloggen",
+    "getStarted": "Aan de slag",
+    "yourPassport": "Jouw paspoort",
+    "searchPlaceholder": "Zoek een land of visum…",
+    "arrivalCards": "Aankomstkaarten",
+    "guides": "Gidsen"
+  },
+  "footer": {
+    "followUs": "Volg ons:",
+    "followOn": "Volg VIZA op {platform}",
+    "product": "Producten",
+    "company": "Bedrijf",
+    "legal": "Juridisch",
+    "offices": "Kantoren",
+    "askAi": "Vraag AI over VIZA",
+    "security": "Beveiliging",
+    "status": "Status",
+    "privacy": "Privacy",
+    "terms": "Voorwaarden",
+    "rights": "Alle rechten voorbehouden.",
+    "tagline": "VIZA helpt je visa plannen, aanvragen en volgen, overal ter wereld.",
+    "careers": "Vacatures",
+    "contact": "Contact",
+    "copyright": "© VIZA, alle rechten voorbehouden",
+    "prodMockInterview": "VS-proefinterview",
+    "prodVisaReq": "Visumvereisten",
+    "prodSchengen": "Schengen-afsprakencheck",
+    "prodPhoto": "Visumfoto-maker",
+    "prodHelpline": "VIZA-noodlijn",
+    "prodStudent": "Studentenvisum",
+    "arrivalCards": "Aankomstkaarten",
+    "guides": "Gidsen",
+    "news": "Nieuws"
+  },
+  "pages": {
+    "blog": {
+      "metaTitle": "Visumnieuws en beleidsupdates | VIZA",
+      "metaDescription": "Visumnieuws van VIZA: regelwijzigingen, nieuwe e-visum- en ETA-regelingen en wat ze betekenen voor mensen in Singapore. Bijgewerkt als de regels veranderen.",
+      "title": "Visumnieuws",
+      "lede": "Regelwijzigingen en beleidsupdates, uitgelegd in gewone woorden. Voor advies dat blijft kloppen lees je de gidsen.",
+      "readArticle": "Lees het artikel",
+      "featuredLabel": "Laatste nieuws",
+      "articlesTitle": "Laatste nieuws",
+      "articlesDescription": "Beleidsupdates en wijzigingen in reisregels.",
+      "allPosts": "Alle berichten",
+      "noMorePosts": "Er komt meer nieuws aan.",
+      "emptyTitle": "Nog geen nieuws gepubliceerd",
+      "emptyBody": "We bereiden onze eerste updates voor. Kom binnenkort terug.",
+      "unavailableTitle": "Nieuws is tijdelijk niet beschikbaar",
+      "unavailableBody": "We konden het laatst gepubliceerde nieuws niet laden. Probeer het zo meteen opnieuw.",
+      "backToBlog": "Terug naar nieuws",
+      "by": "Door",
+      "updated": "Bijgewerkt",
+      "categoriesLabel": "Nieuwsonderwerpen",
+      "topicLabel": "Onderwerp",
+      "relatedTitle": "Meer nieuws",
+      "relatedDescription": "Meer visumnieuws van VIZA.",
+      "ctaEyebrow": "Plan met vertrouwen",
+      "ctaTitle": "Klaar om je aanvraag te starten?",
+      "ctaBody": "Vertel ons waar je heen wilt. VIZA loodst je door de vereisten en de volgende stappen.",
+      "ctaAction": "Start een aanvraag",
+      "categoryMetaTitle": "Nieuws over {category} | VIZA",
+      "categoryMetaDescription": "Lees VIZA-nieuws over {category}: wat er veranderde, wie het raakt en wat je nu doet.",
+      "categoryLede": "Nieuws over {category}.",
+      "visaLinkTitle": "Een visum voor {country} aanvragen?",
+      "visaLinkBody": "Bekijk de documenten, overheidskosten en stappen voor mensen die in Singapore wonen.",
+      "visaLinkAction": "Visumgids {country}",
+      "guidesTitle": "Gerelateerde gidsen",
+      "guidesBody": "Gidsen die over dit onderwerp actueel blijven."
+    },
+    "home": {
+      "title": "Visumaanvragen in Singapore: VS, India, Vietnam | VIZA",
+      "description": "Vraag een VS-visum (DS-160), een e-visum voor India, Vietnam of Egypte of een Schengenvisum voor Frankrijk aan. Een adviseur controleert elk formulier.",
+      "heroTitle": "Waar ga je heen?",
+      "heroLede": "Bekijk de visumopties voor elke bestemming. Je VIZA-consultant en onze AI regelen het papierwerk, jij boekt de reis."
+    },
+    "apply": {
+      "title": "Start een visumaanvraag | VIZA",
+      "description": "Upload je paspoort, bevestig je gegevens en geef je visumaanvraag aan een VIZA-adviseur. De dienst van VIZA is gratis.",
+      "saveBadge": "Opgeslagen · hervat wanneer je wilt"
+    },
+    "careers": {
+      "title": "Vacatures | VIZA",
+      "description": "Werk aan VIZA, de gratis visumdienst van Kelin Studio in Singapore. Bekijk de teams waarvoor we werven en hoe je contact opneemt over een functie.",
+      "rightCta": "Bekijk functies"
+    },
+    "contact": {
+      "title": "Contact: WhatsApp, WeChat, telefoon, e-mail | VIZA",
+      "description": "Bereik het VIZA-team via WhatsApp, WeChat, telefoon of e-mail. Vier kanalen, vier loketten, en een echt mens antwoordt.",
+      "rightCta": "Schrijf ons"
+    },
+    "security": {
+      "title": "Beveiliging en verantwoorde melding | VIZA",
+      "description": "Privé, transparant en standaard veilig. Hoe VIZA klantgegevens beschermt, ons programma voor het melden van kwetsbaarheden en onze veilige haven.",
+      "rightCta": "Meld een kwetsbaarheid"
+    },
+    "status": {
+      "title": "Systeemstatus | VIZA",
+      "description": "Actuele status van VIZA en de visumportalen van overheden waarbij we indienen.",
+      "navPill": "Alle systemen werken"
+    },
+    "visa": {
+      "applyCta": "Nu aanvragen",
+      "applicationProcess": "Aanvraagproces",
+      "documents": "Documenten",
+      "rejectionReasons": "Redenen voor afwijzing",
+      "entryExit": "Inreis en uitreis",
+      "extension": "Verlenging",
+      "reviews": "Beoordelingen",
+      "nearby": "Landen in de buurt",
+      "sources": "Officiële bronnen"
+    },
+    "privacy": {
+      "title": "Privacybeleid | VIZA",
+      "description": "Wat VIZA verzamelt als je een visum aanvraagt, waarom, wie het ziet en hoe lang we het bewaren, onder de PDPA van Singapore."
+    },
+    "terms": {
+      "title": "Algemene voorwaarden | VIZA",
+      "description": "De voorwaarden voor het gebruik van de visumaanvraagdienst van VIZA, beheerd door Kelin Studio Pte. Ltd. in Singapore. De dienst van VIZA is gratis."
+    },
+    "product": {
+      "title": "Zo ondersteunt VIZA je visumaanvraag | VIZA",
+      "description": "Visumvoorbereiding, documentcontrole en aanvraagstatus op één plek. De dienst van VIZA is gratis. Bereik en beschikbaarheid zie je per bestemming."
+    },
+    "events": {
+      "title": "Evenementen | VIZA",
+      "description": "Visumspreekuren, informatiesessies en partnerevenementen van VIZA."
+    },
+    "arrivalCards": {
+      "title": "Gidsen aankomstkaarten: MDAC, SG Arrival Card, TDAC | VIZA",
+      "description": "Gratis gidsen voor aankomstkaarten van Maleisië, Singapore, Japan, Thailand, Korea en Indonesië: wie er een nodig heeft, wanneer je indient en hoe."
+    },
+    "guides": {
+      "title": "Visumgidsen voor mensen in Singapore | VIZA",
+      "description": "Heldere gidsen voor mensen in Singapore: visumvrije landen, Schengendocumenten, VS-interview, ETA, e-visum en afwijzingen. Gratis te lezen, vaak gecontroleerd."
+    },
+    "about": {
+      "title": "Over VIZA: gratis visumhulp in Singapore | VIZA",
+      "description": "VIZA bereidt visumaanvragen voor mensen in Singapore voor, controleert ze en dient ze in, met AI en consultants. Gratis; overheidskosten gaan naar de instantie."
+    },
+    "visaIndex": {
+      "title": "Visumbestemmingen: vereisten per land | VIZA",
+      "description": "Vergelijk visumvereisten per land, met de documenten en kosten voor elk. De hulp van VIZA is gratis.",
+      "heroTitle": "Visumbestemmingen"
+    },
+    "refunds": {
+      "title": "Terugbetalingsbeleid | VIZA",
+      "description": "De dienst van VIZA is gratis, dus er zijn geen servicekosten om terug te betalen. Hoe overheidskosten en kosten van andere partijen werken."
+    },
+    "businessInformation": {
+      "title": "Bedrijfsinformatie | VIZA",
+      "description": "VIZA wordt beheerd door Kelin Studio Pte. Ltd., een bedrijf in Singapore. Statutair adres, UEN en contactgegevens."
+    }
+  },
+  "common": {
+    "comingSoon": "Binnenkort beschikbaar",
+    "learnMore": "Meer informatie",
+    "readMore": "Lees meer",
+    "applyNow": "Nu aanvragen",
+    "talkToHuman": "Praat met een mens",
+    "viewAll": "Alles bekijken"
+  },
+  "visa": {
+    "heroTitle": "{country}-visum",
+    "validity": "Geldigheid",
+    "howItWorks": "Zo werkt het",
+    "step1": "Vertel ons over je reis en upload je paspoort.",
+    "step2": "Wij vullen je aanvraag in en controleren haar op de nieuwste regels.",
+    "step3": "Wij dienen in bij het overheidsportaal en volgen de beslissing.",
+    "step4": "Je goedgekeurde visum komt per e-mail binnen en wij volgen het van begin tot eind.",
+    "documents": "Wat je nodig hebt",
+    "doc1": "Een paspoort dat minstens 6 maanden geldig is.",
+    "doc2": "Een recente pasfoto.",
+    "doc3": "Je reisdata en verblijfsadres.",
+    "doc4": "Rekent de bestemming kosten voor het visum, dan heb je een betaalkaart om die rechtstreeks aan de overheid te betalen.",
+    "nearby": "Bestemmingen in de buurt",
+    "startApplication": "Start je aanvraag",
+    "comingSoonTitle": "{country}: binnenkort beschikbaar",
+    "comingSoonBody": "We werken {country} nog af. Maak een account aan en we laten je weten zodra het live is.",
+    "browseDestinations": "Bekijk bestemmingen",
+    "notifyMe": "Waarschuw mij",
+    "back": "Terug naar ontdekken",
+    "tabOverview": "Overzicht",
+    "tabProcess": "Aanvraagproces",
+    "tabDocuments": "Documenten",
+    "tabRejection": "Redenen voor afwijzing",
+    "tabEntry": "Inreis en uitreis",
+    "tabExtension": "Verlenging",
+    "tabReviews": "Beoordelingen",
+    "tabNearby": "Landen in de buurt",
+    "reviewsTitle": "Beoordelingen",
+    "nearbyTitle": "Landen in de buurt",
+    "nearbySub": "Reis je door de regio? Voeg nog een visum toe aan je reis, en je VIZA-consultant bundelt ze.",
+    "faqTitle": "Veelgestelde vragen",
+    "editorial": "Deze pagina volgt het redactiebeleid van VIZA. We gebruiken officiële overheidsbronnen en passen elke vereiste aan als het beleid verandert.",
+    "editorialLink": "Lees hoe we controleren",
+    "sourcesTitle": "Bronnen",
+    "priceGovt": "Overheidskosten",
+    "priceFree": "Gratis",
+    "pillAllInclusive": "Alles inbegrepen",
+    "priceCta": "Start aanvraag",
+    "onTime": "Op tijd",
+    "freeService": "Gratis VIZA-dienst",
+    "freeServiceNote": "VIZA rekent niets voor de hulp",
+    "govFeePaidDirect": "Overheidskosten {fee}, rechtstreeks te betalen aan de uitgevende instantie.",
+    "govFeeSetByAuthority": "Overheidskosten worden bepaald door de uitgevende instantie en rechtstreeks aan haar betaald.",
+    "govFeeSetByAuthorityShort": "Bepaald door de instantie",
+    "priceService": "VIZA-dienst",
+    "pillPaidToAuthority": "Betaald aan de instantie",
+    "priceTotalToViza": "Je betaalt VIZA",
+    "breadcrumbVisas": "Visumbestemmingen",
+    "serviceDescription": "VIZA helpt mensen die in Singapore wonen om {type}-aanvragen voor {country} voor te bereiden, te controleren en in te dienen, met AI-begeleiding en controle door experts.",
+    "offerDescription": "Servicekosten VIZA. Overheidskosten voor het visum komen apart en worden rechtstreeks aan de uitgevende instantie betaald.",
+    "dest": {
+      "tabGlance": "In het kort",
+      "tabPassports": "Paspoorten",
+      "tabTypes": "Soorten visa",
+      "tabResidents": "Inwoners",
+      "tabFees": "Kosten",
+      "tabApply": "Zo vraag je aan",
+      "tabChecklist": "Documenten",
+      "tabRejection": "Afwijzingen",
+      "tabTravel": "Voor je reis",
+      "tabRelated": "Gerelateerd",
+      "glanceTitle": "In het kort",
+      "glanceVisa": "Visum nodig",
+      "glanceGovFee": "Overheidskosten",
+      "glanceVizaFee": "Kosten VIZA",
+      "glanceProcessing": "Verwerkingstijd",
+      "glanceMaxStay": "Maximaal verblijf",
+      "glanceChecked": "Datum van controle",
+      "passportsTitle": "Heb je een visum nodig?",
+      "typesTitle": "Soorten visa",
+      "residentsTitle": "Inwoners van Singapore",
+      "feesTitle": "Kosten en timing",
+      "applyTitle": "Zo vraag je aan",
+      "checklistTitle": "Documentenchecklist",
+      "travelTitle": "Voor je reis",
+      "colPassport": "Paspoort",
+      "colEntry": "Toegang",
+      "colNotes": "Opmerkingen",
+      "colItem": "Onderdeel",
+      "colAmount": "Bedrag",
+      "vizaFeeNote": "De hulp van VIZA is gratis. Je betaalt alleen de overheidskosten, rechtstreeks aan de instantie.",
+      "reviewedBy": "Gecontroleerd door een VIZA-consultant op {date}.",
+      "relatedTitle": "Gerelateerde bestemmingen",
+      "relatedSub": "Andere plekken die mensen aan dezelfde reis toevoegen, en waar je meer leest.",
+      "startTitle": "Start aanvraag",
+      "startBody": "Begin met je paspoort en reisdata. De hulp van VIZA is gratis en je betaalt de overheidskosten rechtstreeks aan de instantie.",
+      "startConsultBody": "Vertel een VIZA-consultant waar je woont, wat je paspoort is en wanneer je reist. De hulp van VIZA is gratis.",
+      "consultCta": "Praat met een consultant"
+    }
+  },
+  "apply": {
+    "stepOf": "Stap {n} van 3",
+    "back": "Terug",
+    "continue": "Doorgaan",
+    "step1Name": "Paspoort uploaden",
+    "step2Name": "Gegevens bevestigen",
+    "step3Name": "Aanvraag starten",
+    "s1Title": "Upload je paspoort",
+    "s1Desc": "We lezen je gegevens automatisch uit, typen hoeft niet. Gebruik de pasfotopagina (die met je foto).",
+    "segUpload": "Bestand uploaden",
+    "segCapture": "Foto maken",
+    "dzTitle": "Sleep je paspoortfoto hierheen",
+    "dzSub": "Of klik om te bladeren, je bestand is versleuteld en wordt nooit gedeeld",
+    "dzBrowse": "Bestand kiezen",
+    "dzUpTo": "Tot 10 MB",
+    "tip1Title": "Alle vier de hoeken zichtbaar",
+    "tip1Sub": "Fotografeer de hele pasfotopagina, inclusief de MRZ onderaan.",
+    "tip2Title": "Helder, gelijkmatig licht",
+    "tip2Sub": "Vermijd schaduw van je hand of telefoonhoesje.",
+    "tip3Title": "Geen glans of reflecties",
+    "tip3Sub": "Kantel iets als je zegel weerkaatst.",
+    "errReadFail": "We konden dat paspoort niet lezen: {detail}. Probeer een duidelijkere foto van de pasfotopagina.",
+    "extReading": "Document lezen",
+    "extExtracting": "Je gegevens uitlezen",
+    "extVerifying": "Echtheid controleren",
+    "stReading": "Lezen…",
+    "stExtracting": "Uitlezen…",
+    "stVerifying": "Controleren…",
+    "s2Title": "Bevestig je gegevens",
+    "s2Desc": "We hebben deze rechtstreeks uit je paspoort gehaald. Tik op een veld om het te wijzigen.",
+    "successHigh": "Paspoort succesvol uitgelezen, hoge betrouwbaarheid",
+    "warnLow": "Sommige velden waren moeilijk te lezen. Controleer hieronder elke waarde goed.",
+    "warnMed": "We hebben het merendeel van je gegevens uitgelezen. Controleer de gemarkeerde velden.",
+    "ppDetails": "Paspoortgegevens",
+    "autoExtracted": "Automatisch uitgelezen",
+    "fSurname": "Achternaam",
+    "fGiven": "Voornamen",
+    "fPassport": "Paspoortnummer",
+    "fDob": "Geboortedatum",
+    "fNationality": "Nationaliteit",
+    "fExpires": "Verloopt",
+    "reachTitle": "Hoe kunnen we je bereiken?",
+    "reachDesc": "We sturen je visum hierheen, plus statusupdates per sms naar je telefoon.",
+    "email": "E-mail",
+    "phone": "Telefoon",
+    "consent": "Ik bevestig dat bovenstaande gegevens overeenkomen met mijn paspoort en ik geef VIZA toestemming om deze aanvraag namens mij in te dienen bij de immigratiediensten van {country}.",
+    "s3Title": "Start je aanvraag",
+    "s3Desc": "De dienst van VIZA is gratis. Log in op het VIZA-portaal en wij nemen het van je over.",
+    "headsUp": "Let op:",
+    "headsUpBody": "als de overheid van {country} kosten voor het visum rekent, betaal je die rechtstreeks aan hen. VIZA int dat bedrag nooit en rekent er geen opslag op.",
+    "yourApp": "Je aanvraag",
+    "guaranteedBy": "Gegarandeerde levering uiterlijk",
+    "govFee": "Overheidskosten",
+    "expressUpgrade": "Express-upgrade",
+    "total": "Totaal",
+    "footEncrypted": "End-to-end versleuteld. VIZA rekent je niets voor deze aanvraag.",
+    "helpOnline": "Priya is online",
+    "helpTap": "Tik om te chatten met je VIZA-consultant",
+    "totalAmount": "SGD {amount}",
+    "totalFree": "Gratis",
+    "etaStandard": "12 mei 2026, 8:00 SGT",
+    "failTitle": "We konden dat document niet lezen",
+    "failNotPassport": "Dit lijkt geen pasfotopagina van een paspoort. Upload een foto van de pagina met je foto en persoonsgegevens.",
+    "failUnreadable": "Geen van de verplichte velden kon worden gelezen. Maak de foto opnieuw bij goed licht, met de hele pasfotopagina plat en scherp.",
+    "tryAgain": "Opnieuw proberen",
+    "warnPartial": "We konden niet alles lezen. Vul de gemarkeerde velden hieronder aan.",
+    "warnExpired": "Dit paspoort lijkt verlopen. De meeste bestemmingen eisen minstens 6 maanden geldigheid.",
+    "warnMrz": "De machineleesbare zone (de twee regels onderaan) was onleesbaar. Controleer elk veld goed.",
+    "warnBlurry": "De foto was onscherp. Controleer elk veld zorgvuldig.",
+    "fieldRequired": "Verplicht, vul dit in",
+    "editField": "{field} wijzigen",
+    "emailInvalid": "Vul een geldig e-mailadres in, hier komen je visumupdates en inloglink.",
+    "phoneInvalid": "Vul een geldig telefoonnummer in.",
+    "consentRequired": "Bevestig de verklaring om door te gaan.",
+    "continueToStart": "Doorgaan",
+    "startTitle": "Ga verder in het VIZA-portaal",
+    "startSub": "Log in of maak je gratis account aan. Je aanvraag voor deze bestemming opent meteen.",
+    "vizaService": "VIZA-dienst",
+    "govFeeSetByAuthority": "Bepaald door de instantie",
+    "govFeeNote": "Overheidskosten voor het visum betaal je rechtstreeks aan de uitgevende instantie, niet aan VIZA.",
+    "completeBeforeStart": "Vul eerst de gemarkeerde onderdelen hierboven in voordat je doorgaat."
+  },
+  "explore": {
+    "help": "Hulp",
+    "passportLabel": "Paspoort van {name}",
+    "passportSub": "Visumvereisten voor {n} bestemmingen · Rang {rank}",
+    "freeLabel": "Visumvrij",
+    "freeNote": "geen papierwerk",
+    "voaLabel": "e-Visum of VOA",
+    "voaNote": "wij regelen het",
+    "reqLabel": "Visum nodig",
+    "reqNote": "aanvraag via ambassade",
+    "fullMap": "Bekijk de volledige visumkaart",
+    "grid": "Raster",
+    "map": "Kaart",
+    "mapLegendEvisa": "e-Visa en bezoekersvisa",
+    "mapHint": "Beweeg over een gemarkeerde stip voor een voorbeeld van de bestemming",
+    "sectionTitle": "Voor paspoorten van {country}",
+    "seeAll": "Bekijk alle {n}",
+    "footnote": "De dienst van VIZA is gratis. Overheidskosten voor het visum betaal je rechtstreeks aan de uitgevende instantie en ze verschillen per land.",
+    "fastTrack": "Snelle route",
+    "cardType": "Type",
+    "cardValid": "Geldig",
+    "cardFee": "VIZA-dienst",
+    "save": "Opslaan",
+    "startApplication": "Start aanvraag",
+    "catalogueUnavailable": "Er zijn nu geen bestemmingen open voor online aanvragen. Kom binnenkort terug.",
+    "choosePassport": "Kies je paspoort",
+    "searchPassport": "Zoek paspoortland…",
+    "visaFree": "{n} visumvrij",
+    "ppFoot": "Bijgewerkt voor mei 2026 · Bron: IATA Timatic",
+    "noMatch": "Geen paspoorten gevonden voor “{q}”",
+    "filters": {
+      "delivery": "Levering van het visum",
+      "type": "Soort visum",
+      "documents": "Documenten",
+      "dates": "Reisdata"
+    },
+    "filterOpts": {
+      "delivery": [
+        "Op elk moment",
+        "Binnen 24 uur",
+        "Binnen 3 dagen",
+        "Binnen 1 week",
+        "Binnen 1 maand"
+      ],
+      "type": [
+        "Alle soorten",
+        "Toerist",
+        "Zakelijk",
+        "Werk",
+        "Student",
+        "Digitale nomade"
+      ],
+      "documents": [
+        "Alle documenten",
+        "Minimaal (alleen paspoort)",
+        "Standaard",
+        "Uitgebreid pakket"
+      ],
+      "dates": [
+        "Kies data",
+        "Deze week",
+        "Deze maand",
+        "Over 3 maanden",
+        "Over 6 maanden"
+      ]
+    }
+  },
+  "cities": {
+    "viza-test": "Live checkouttest",
+    "indonesia": "Bali · Jakarta",
+    "egypt": "Caïro · Gizeh",
+    "australia": "Sydney · Melbourne",
+    "saudi-arabia": "Riyad · AlUla",
+    "united-kingdom": "Londen · Edinburgh",
+    "vietnam": "Hanoi · Hoi An",
+    "malaysia": "KL · Penang",
+    "japan": "Tokio · Kyoto",
+    "united-states": "New York · LA",
+    "canada": "Toronto · Vancouver",
+    "turkiye": "Istanbul · Cappadocië",
+    "thailand": "Bangkok · Phuket",
+    "united-arab-emirates": "Dubai · Abu Dhabi",
+    "france": "Parijs · Nice",
+    "italy": "Rome · Florence",
+    "india": "Delhi · Mumbai"
+  },
+  "validity": {
+    "viza-test": "Alleen demo",
+    "indonesia": "90 dagen",
+    "egypt": "90 dagen",
+    "australia": "1 jaar",
+    "saudi-arabia": "365 dagen",
+    "united-kingdom": "6 maanden",
+    "vietnam": "90 dagen",
+    "malaysia": "3 maanden",
+    "japan": "90 dagen",
+    "united-states": "10 jaar",
+    "canada": "10 jaar",
+    "turkiye": "180 dagen",
+    "thailand": "3 maanden",
+    "united-arab-emirates": "60 dagen",
+    "france": "90 dagen",
+    "italy": "90 dagen",
+    "india": "30 dagen"
+  },
+  "passports": {
+    "SG": "Singapore",
+    "JP": "Japan",
+    "KR": "Zuid-Korea",
+    "DE": "Duitsland",
+    "FR": "Frankrijk",
+    "GB": "Verenigd Koninkrijk",
+    "US": "Verenigde Staten",
+    "AU": "Australië",
+    "CA": "Canada",
+    "AE": "Verenigde Arabische Emiraten",
+    "CN": "China",
+    "IN": "India",
+    "BR": "Brazilië",
+    "PH": "Filipijnen",
+    "ID": "Indonesië",
+    "MY": "Maleisië",
+    "TH": "Thailand"
+  },
+  "countries": {
+    "viza-test": "VIZA Test",
+    "indonesia": "Indonesië",
+    "egypt": "Egypte",
+    "australia": "Australië",
+    "saudi-arabia": "Saoedi-Arabië",
+    "united-kingdom": "Verenigd Koninkrijk",
+    "vietnam": "Vietnam",
+    "malaysia": "Maleisië",
+    "japan": "Japan",
+    "united-states": "Verenigde Staten",
+    "canada": "Canada",
+    "turkiye": "Turkije",
+    "thailand": "Thailand",
+    "united-arab-emirates": "Verenigde Arabische Emiraten",
+    "france": "Frankrijk",
+    "italy": "Italië",
+    "india": "India",
+    "china": "China",
+    "south-korea": "Zuid-Korea",
+    "schengen": "Schengen"
+  },
+  "visaTypes": {
+    "Test checkout": "Checkouttest",
+    "e-Visa": "e-Visum",
+    "Standard Visitor": "Standard Visitor",
+    "Visitor 600": "Visitor 600",
+    "Tourist": "Toerist",
+    "B1/B2": "B1/B2",
+    "eTA": "eTA",
+    "Schengen": "Schengen",
+    "eVisa": "eVisum",
+    "Visitor visa": "Bezoekersvisum",
+    "Tourist visa": "Toeristenvisum"
+  },
+  "careers": {
+    "hero": {
+      "nowHiring": "We zoeken mensen in",
+      "cities": [
+        "Sjanghai",
+        "Singapore"
+      ],
+      "openRoles": "28 openstaande functies",
+      "title": "Help ons grenzen<br></br><em>laten verdwijnen</em>, <u>geruisloos,</u><br></br>op softwaresnelheid.",
+      "lead": "We maken van maanden visumpapierwerk uren software, voor miljoenen mensen die gewoon een vliegtuig in willen. Breng je vakmanschap naar een team dat levert tegen echte deadlines.",
+      "ctaRoles": "Bekijk alle openstaande functies",
+      "ctaWhy": "Waarom we bestaan"
+    },
+    "board": {
+      "ariaLabel": "Vertrekbord met openstaande functies bij VIZA",
+      "head": "Openstaande functies · live",
+      "live": "Op tijd",
+      "cols": {
+        "req": "Nr.",
+        "role": "Functie",
+        "office": "Kantoor",
+        "status": "Status"
+      },
+      "rows": [
+        {
+          "role": "Staff Engineer",
+          "sub": "Documentpijplijn",
+          "status": "Instappen"
+        },
+        {
+          "role": "Product Designer",
+          "sub": "Aanvragersflows",
+          "status": "Open"
+        },
+        {
+          "role": "Ambassadecontact",
+          "sub": "Samenwerking met overheden",
+          "status": "Laatste oproep"
+        },
+        {
+          "role": "Klantoperaties",
+          "sub": "Tier-2-escalaties",
+          "status": "Open"
+        }
+      ],
+      "foot": "+24 meer functies in engineering, operaties en design",
+      "browseAll": "Bekijk alles",
+      "chip1Label": "We werven in",
+      "chip1Value": "4 kantoren",
+      "chip2Label": "Gem. reactietijd",
+      "chip2Value": "3.2 dagen tot het eerste gesprek"
+    },
+    "stats": [
+      {
+        "value": "2.4M",
+        "label": "Visa uitgegeven via VIZA vorig jaar"
+      },
+      {
+        "label": "Bestemmingen ondersteund met live verwerking"
+      },
+      {
+        "label": "Goedkeuringspercentage over alle soorten visa in 2025"
+      },
+      {
+        "label": "Mensen in Sjanghai en Singapore"
+      }
+    ],
+    "mission": {
+      "eyebrow": "Ons verhaal",
+      "title": "Het grootste deel van de wereld<br></br>reist nog steeds met<br></br><em>papieren formulieren.</em>",
+      "kicker1": "We begonnen VIZA in 2021, na een week te veel in de wacht bij ambassades. Het systeem om mensen over grenzen te brengen is ouder dan internet, en de mensen die erin vastzitten verdienen beter.",
+      "kicker2": "Vandaag levert een team van 340 mensen op vier kantoren software, verwerkt documenten en draait operaties in 194 landen. Wij doen het saaie, slopende werk zodat reizen kan voelen zoals de rest van internet: een paar tikken en je bent onderweg.",
+      "founderName": "Mira Kohli",
+      "founderRole": "Medeoprichter en CEO · Singapore",
+      "beliefs": [
+        {
+          "title": "We zijn een operatiebedrijf dat software maakt.",
+          "body": "De helft van VIZA bestaat uit engineers, designers en PM's. De andere helft zijn consultants, operatiemedewerkers en documentspecialisten ter plekke. Geen van beide helften wint zonder de ander."
+        },
+        {
+          "title": "De aanvrager is altijd de klant.",
+          "body": "Ambassades, partners, luchtvaartmaatschappijen: ze tellen allemaal mee. Maar de persoon die om 3 uur 's nachts in de rij staat en een portaal ververst, is degene voor wie we werken en waaraan we ons meten."
+        },
+        {
+          "title": "Snelheid groeit als je geduldig bent met kwaliteit.",
+          "body": "We zijn snel met opleveren en traag met onomkeerbare beslissingen. Een verkeerde visumbeslissing kan een bruiloft, een baan of een begrafenis verpesten. Die lat houden we hoog, ook als het ons vertraagt."
+        },
+        {
+          "title": "Afstand is een UX-probleem, geen beperking.",
+          "body": "Onze teams zitten in vier tijdzones. Asynchroon schrijven, duidelijk eigenaarschap en een goede documentatiecultuur zijn hoe we tijd voor vertrouwen ruilen, en hoe we over de hele wereld opleveren zonder iemand uit te putten."
+        }
+      ]
+    },
+    "values": {
+      "eyebrow": "Waaraan we ons houden",
+      "title": "Vijf dingen waarin we geloven, ook als het duur is.",
+      "lead": "Waarden zijn makkelijk op te schrijven en moeilijk na te leven. Dit zijn de vijf die we echt gebruiken bij het aannemen, bij beoordelingen en bij de zeldzame lastige beslissingen.",
+      "cards": [
+        {
+          "title": "Vertel de waarheid, zeker als het ons iets kost.",
+          "body": "Komt een visum niet op tijd, zeg dat dan vandaag, niet de dag voor de vlucht. We verliezen liever een verkoop dan dat we een leugen leveren.",
+          "kicker": "In de praktijk → gepubliceerd beleid, wijzigingsaudit"
+        },
+        {
+          "title": "Verdien snelheid. Voel je niet alleen druk.",
+          "body": "We vieren beslissingen en opgeleverd werk, niet vergaderingen en draadjes. Het gaat om doorvoer richting de missie, niet om beweging in je agenda.",
+          "kicker": "In de praktijk → kwartaalreview van doorvoer"
+        },
+        {
+          "title": "Denk in paspoorten, niet in persona's.",
+          "body": "Visumregels hangen af van nationaliteit. Een gebruiker bestaat niet, wel een houder van een Filipijns paspoort die Schengen aanvraagt. We bouwen voor echte mensen, niet voor gemiddelden.",
+          "kicker": "In de praktijk → productspecificatie met paspoort voorop"
+        },
+        {
+          "title": "Schrijf dingen op. Beslissingen vooral.",
+          "body": "Vier kantoren, vier tijdzones. Een beslissing die niet is opgeschreven, is niet genomen. Onze wiki is verplichte lectuur, onze stand-ups zijn optioneel.",
+          "kicker": "In de praktijk → ADR's, wekelijkse memo, asynchroon eerst"
+        },
+        {
+          "title": "Blijf dicht bij de wachtrij.",
+          "body": "Elke engineer draait een dienst per kwartaal op de consultantvloer. Wrijving die je nooit voelde om 11 uur 's avonds op een zondag, kun je niet wegontwerpen.",
+          "kicker": "In de praktijk → roulerende wachtrijdiensten"
+        },
+        {
+          "title": "Kies de lange versie.",
+          "body": "Het antwoord van dertig seconden is meestal fout. We investeren in diepe documentatie, robuuste draaiboeken en uitleg die standhoudt, ook als de makkelijke versie zou volstaan.",
+          "kicker": "In de praktijk → onboardinghandboek, openbare draaiboeken"
+        }
+      ]
+    },
+    "inside": {
+      "eyebrow": "Binnen VIZA",
+      "title": "Hoe het er echt<br></br>uitziet om hier te werken.",
+      "lead": "We hebben kantoren in twee steden omdat we werven dicht bij waar aanvragen worden ingediend. We zijn luid over successen, stil over politiek en eerlijk over hoeveel we nog moeten bouwen.",
+      "photos": [
+        {
+          "label": "foto · hoofdkantoor Singapore, open werkvloer",
+          "mark": "Paya Lebar Square, SG"
+        },
+        {
+          "label": "foto · consultantvloer met wachtrij",
+          "mark": "Luoshan Rd, Sjanghai"
+        },
+        {
+          "label": "foto · whiteboardsessie",
+          "mark": "Tech-offsite, Bali"
+        },
+        {
+          "label": "foto · operatievloer Sjanghai",
+          "mark": "Pudong, Sjanghai"
+        },
+        {
+          "label": "foto · teamdiner",
+          "mark": "All-hands, Lissabon"
+        },
+        {
+          "label": "foto · bezoek van ambassadepartner",
+          "mark": "Paya Lebar Square, SG"
+        }
+      ],
+      "pull": "“We nemen mensen aan die een mening over visa hebben voordat ze starten. In maand twee heb je een sterkere.”",
+      "pullBy": "Felix Adekunle, VP Engineering",
+      "para1": "VIZA heeft veel autonomie en veel context. Je krijgt een eigenaar voor alles wat je doet, echte budgetten en de verwachting dat je de redenering achter je werk aan de rest van het bedrijf uitlegt.",
+      "para2": "Wil je elke dag horen wat je moet doen, dan is dit niet de juiste plek. Wacht je al een tijd tot iemand je het stuur overhandigt: het ligt hier."
+    },
+    "how": {
+      "eyebrow": "Engineering en operaties bij VIZA",
+      "title": "Hoe het werk echt loopt.",
+      "lead": "Bouw, verwerk of ontwerp je hier, dan ziet je week er zo uit. Minder ceremonie, meer opgeleverd werk. Minder Slack, meer beslissingen op papier.",
+      "cells": [
+        {
+          "title": "Eigenaarschap van begin tot eind",
+          "body": "Je ontwerpt het, bouwt het, levert het op en beheert het in productie. Geen overdrachtswachtrijen, geen roadmaps geschreven door mensen drie lagen verderop. Is het van jou, dan is het echt van jou."
+        },
+        {
+          "title": "Standaard elke dag uitrollen",
+          "body": "De meeste teams leveren meerdere keren per dag op. Feedbackloops zijn bewust kort, en een terugdraai van dertig minuten gaat boven een discussie van drie weken."
+        },
+        {
+          "title": "Echte, rommelige problemen",
+          "body": "Dit is geen CRUD. Je werkt aan document-OCR, latentiegevoelige planning tegen 90+ overheidsportalen en consumentenflows die miljoenen mensen gebruiken."
+        },
+        {
+          "title": "De lat ligt hoog, en dat zeggen we openlijk",
+          "body": "We werken samen aan designreviews. We becommentariëren PR's regel voor regel. We geloven dat smaak aan te leren is en verwachten dat mensen actief helpen om iedereen om hen heen beter te maken."
+        },
+        {
+          "title": "Een echt leerbudget",
+          "body": "$2,000 per persoon per jaar, zonder vragen, voor conferenties, boeken, cursussen, alles wat terugvloeit in het werk dat je hier doet."
+        },
+        {
+          "title": "Architectuur door jou geschreven",
+          "body": "RFC's staan open voor iedereen. Nieuwe engineers hebben in hun eerste maand kerninfrastructuur gevormd. Heb je een sterker plan, schrijf het op. We lezen het."
+        }
+      ]
+    },
+    "roles": {
+      "eyebrow": "Openstaande functies · wekelijks bijgewerkt",
+      "title": "Maak deel uit van de reis.",
+      "lead": "28 openstaande functies op vier kantoren. We werven in engineering, design, operaties, consultants en partnerschappen. Nieuwe functies verschijnen op maandag.",
+      "allDepartments": "Alle afdelingen",
+      "deps": {
+        "eng": "Engineering",
+        "design": "Design",
+        "ops": "Operaties",
+        "consult": "Consultants",
+        "data": "Data en ML",
+        "gtm": "Marketing en GTM"
+      },
+      "showing": "<strong>{count}</strong> functies te zien · alle locaties · alle teams",
+      "anyLocation": "Elke locatie",
+      "groupCount": "{count} open",
+      "posSub": "{team} · we werven op vakmanschap en oordeelsvermogen, niet op afkomst",
+      "locationLabel": "Locatie",
+      "typeLabel": "Type",
+      "fullTime": "Fulltime",
+      "viewRole": "Bekijk functie",
+      "locations": {
+        "sg": "Singapore",
+        "sf": "Sjanghai",
+        "ldn": "Singapore",
+        "dxb": "Sjanghai"
+      },
+      "jobs": {
+        "backendPayments": "Senior Backend Engineer, Platformteam",
+        "staffDocPipeline": "Staff Engineer, Documentpijplijn",
+        "iosApplicant": "iOS Engineer, Aanvragersapp",
+        "platformInfra": "Platform Engineer, Infra en beveiliging",
+        "frontendConsole": "Frontend Engineer, Consultantconsole",
+        "emWeb": "Engineering Manager, Web",
+        "sre": "Site Reliability Engineer",
+        "androidSenior": "Senior Android Engineer",
+        "leadEmbassy": "Engineering Lead, Ambassade-integraties",
+        "productDesignerApplicant": "Senior Product Designer, Aanvragersflow",
+        "brandDesigner": "Brand Designer",
+        "designLeadConsultant": "Design Lead, Consultanttools",
+        "headOpsMe": "Hoofd Operaties, Midden-Oosten",
+        "visaOpsSchengen": "Visa Operations Lead, Schengen",
+        "logistics": "Logistiek- en Koeriersmanager",
+        "processDocQa": "Procesengineer, Documentkwaliteit",
+        "opsAnalyst": "Operations Analyst, Boekingen",
+        "consultSchengen": "Visumconsultant, Schengen",
+        "consultUs": "Visumconsultant, VS B1/B2",
+        "consultUae": "Visumconsultant, VAE-verblijf",
+        "consultStudent": "Senior Consultant, Studentenvisa",
+        "consultApac": "Consultant Lead, Azië-Pacific",
+        "consultUk": "Visumconsultant, VK",
+        "dataScientist": "Senior Data Scientist, Goedkeuringsmodellen",
+        "mlOcr": "ML Engineer, OCR en document-AI",
+        "perfMarketing": "Performance Marketing Manager",
+        "contentLead": "Content Lead, Storytelling",
+        "lifecycleCrm": "Lifecycle- en CRM-manager"
+      }
+    },
+    "fellowship": {
+      "tag": "▲ VIZA Launchpad · programma van 12 weken",
+      "title": "Twaalf weken. Eén productteam.<br></br><em>Eén kans om iets op te leveren.</em>",
+      "para1": "Launchpad is ons programma voor engineers, PM's en designers aan het begin van hun loopbaan, mensen die anders nog twee jaar “ervaring” nodig zouden hebben voordat ze echt mogen slaan.",
+      "para2": "Je werkt samen met senior leads, beheert een echt productonderdeel van start tot release en loopt weg met iets wat miljoenen mensen gaan gebruiken. Voor ~60% van de groep volgt een fulltime aanbod.",
+      "meta": [
+        {
+          "k": "Duur",
+          "v": "12 weken"
+        },
+        {
+          "k": "Locatie",
+          "v": "Op kantoor, elk hoofdkantoor"
+        },
+        {
+          "k": "Vergoeding",
+          "v": "Boven marktniveau"
+        },
+        {
+          "k": "Volgende groep",
+          "v": "Sep 2026"
+        }
+      ],
+      "apply": "Meld je aan voor Launchpad",
+      "readCohort": "Lees over de groep van 2025",
+      "projects": [
+        {
+          "k": "2024 · Engineering",
+          "title": "OCR-pijplijn herschreven",
+          "meta1": "In productie genomen",
+          "meta2": "3.2× sneller"
+        },
+        {
+          "k": "2025 · Design",
+          "title": "Schengenflow opnieuw ontworpen",
+          "meta1": "14 landen live",
+          "meta2": "↑ 22% conversie"
+        },
+        {
+          "k": "2025 · Product",
+          "title": "Planner voor ambassadeplekken",
+          "meta1": "9 ambassades",
+          "meta2": "40k plekken/maand"
+        }
+      ]
+    },
+    "benefits": {
+      "eyebrow": "We staan voor je klaar (echt waar)",
+      "title": "De saaie dingen,<br></br>goed geregeld.",
+      "lead": "Wij zien arbeidsvoorwaarden niet als extraatje. Ze zijn het minimum waarmee mensen hun beste werk kunnen doen. Dit krijgt elke VIZA-medewerker, op elk kantoor, vanaf dag één.",
+      "items": [
+        {
+          "title": "Uitgebreide gezondheidszorg, geregeld.",
+          "body": "Volledige medische, tandheelkundige en oogzorg vanaf je eerste dag, voor jou, je partner en je kinderen. Wij betalen de premie, zonder gedoe met eigen risico."
+        },
+        {
+          "title": "Bouw vermogen op, niet alleen salaris.",
+          "body": "Een basissalaris boven marktniveau in elke markt waar we werven, plus een royale aandelentoekenning gekoppeld aan mijlpalen, niet alleen aan dienstjaren. We verversen die elke twee jaar."
+        },
+        {
+          "title": "Leer wat er echt toe doet.",
+          "body": "$2,000/jaar leerbudget, maandelijkse interne leersessies en tijd in je agenda, niet alleen toestemming, om die cursus te volgen of die conferentie te bezoeken."
+        },
+        {
+          "title": "Maak klanten blij alsof het je eigen geld is.",
+          "body": "Elke aanvrager krijgt een budget van $100 voor extra goodwill. Geen goedkeuring, geen escalatie: los het op en schrijf daarna op wat er gebeurde."
+        },
+        {
+          "title": "Geest > alles.",
+          "body": "Vertrouwelijke, professionele ondersteuning voor mentale gezondheid, zonder verzekeringsgedoe. Plus drie “vergaderingsvrije” dagen per maand, voor het hele bedrijf."
+        },
+        {
+          "title": "Reisvoordelen (dat moest wel).",
+          "body": "Wij doen visa, dus ons team moet op kosten van het huis reizen. $4k/jaar reistegoed, plus VIZA regelt elk visum dat je ooit nodig hebt, direct en intern."
+        },
+        {
+          "title": "Royale, echte vrije tijd.",
+          "body": "30 dagen betaald verlof, plus de feestdagen van jouw land, plus een betaalde week vrij tussen 24 december en 1 januari. We houden het gebruik bij en moedigen mensen aan meer op te nemen, niet minder."
+        },
+        {
+          "title": "Apparatuur, zonder vragen.",
+          "body": "Kies op dag één je laptop, monitor en stoel. Thuiswerkvergoeding voor je opstelling. We vertrouwen erop dat je weet wat je nodig hebt voor goed werk."
+        },
+        {
+          "title": "Ouderschapsverlof dat echt werkt.",
+          "body": "20 weken voor de primaire verzorger, 12 voor de tweede, volledig betaald. Plus een gefaseerde terugkeer, zodat je op dag één niet meteen op volle toeren draait."
+        }
+      ]
+    },
+    "offices": {
+      "eyebrow": "Waar we werken",
+      "title": "Twee kantoren, één product.",
+      "lead": "We werven dicht bij ambassades, partners en de markten die we bedienen. Elk kantoor heeft zowel engineers als operatiemedewerkers: we scheiden de teams die bouwen niet van degenen die de vloer draaiende houden.",
+      "cards": [
+        {
+          "photo": "foto · Sjanghai",
+          "open": "6 open",
+          "name": "Sjanghai",
+          "addr1": "Lane 1502, Luoshan Road,",
+          "addr2": "China (Sjanghai) Pilot Free Trade Zone",
+          "tz": "GMT+8 · Operaties in China",
+          "since": "Sinds 2023"
+        },
+        {
+          "photo": "foto · hoofdkantoor Singapore",
+          "open": "12 open",
+          "name": "Singapore",
+          "addr1": "Paya Lebar Road 60, #06-28 Paya Lebar Square,",
+          "addr2": "Singapore 409051",
+          "tz": "GMT+8 · Hoofdkantoor Azië-Pacific",
+          "since": "Hoofdkantoor · sinds 2021"
+        }
+      ]
+    },
+    "ctaStrip": {
+      "title": "Zie je jouw functie niet,<br></br>maar wil je erbij?",
+      "body": "Heb je een ongewone achtergrond en denk je dat je ons helpt reizigers over de hele wereld sneller te laten reizen, dan horen we graag van je. We hebben buschauffeurs, oud-ambassademedewerkers en juristen aangenomen. We hebben geen type.",
+      "lead": "Open sollicitatie",
+      "cta": "Stuur ons je verhaal",
+      "note": "We antwoorden binnen 7 dagen, ook als het een nee is."
+    },
+    "footer": {
+      "tagline": "VIZA helpt je visa plannen, aanvragen en volgen, overal ter wereld.",
+      "company": "Bedrijf",
+      "products": "Producten",
+      "offices": "Kantoren",
+      "careers": "Vacatures",
+      "contact": "Contact",
+      "security": "Beveiliging",
+      "privacy": "Privacy",
+      "terms": "Voorwaarden",
+      "prodVisaReq": "Visumvereisten",
+      "prodSchengen": "Schengen-afsprakencheck",
+      "prodPhoto": "Visumfoto-maker",
+      "prodHelpline": "VIZA-noodlijn",
+      "prodStudent": "Studentenvisum",
+      "officeSg": "Singapore, hoofdkantoor",
+      "officeSf": "Sjanghai",
+      "copyright": "© VIZA, alle rechten voorbehouden"
+    }
+  },
+  "security": {
+    "hero": {
+      "eyebrow": "Beveiliging bij VIZA · laatst bijgewerkt in mei 2026",
+      "title": "Privé. Transparant.<br></br><em>Standaard veilig.</em>",
+      "lead": "Klanten over de hele wereld vertrouwen ons miljoenen gevoelige documenten toe: paspoorten, bankafschriften, foto's. Hier lees je precies hoe we ze verzamelen, opslaan en aantonen dat we het goed doen.",
+      "ctaPrimary": "Zo beschermen we je gegevens",
+      "ctaVdp": "Meld een kwetsbaarheid"
+    },
+    "clearance": {
+      "republicKey": "Republiek van",
+      "officeKey": "Afgiftekantoor",
+      "officeVal": "Trust & Safety",
+      "title": "Beveiligingsmachtiging /<br></br>Klantgegevens",
+      "grid": {
+        "encryption": {
+          "k": "Versleuteling",
+          "v": "AES-256 / TLS 1.3"
+        },
+        "region": {
+          "k": "Regio",
+          "v": "SG · US · EU"
+        },
+        "audit": {
+          "k": "Auditfrequentie",
+          "v": "Elk kwartaal"
+        },
+        "retention": {
+          "k": "Bewaartermijn",
+          "v": "Maximaal 90 dagen"
+        }
+      },
+      "referenceKey": "Referentie",
+      "glyph": "GOEDGEKEURD<br></br>VIZA · 26"
+    },
+    "chips": {
+      "transitLabel": "Onderweg",
+      "transitVal": "End-to-end TLS 1.3",
+      "restLabel": "Opgeslagen",
+      "restVal": "AES-256, vastgezet op regio"
+    },
+    "stats": {
+      "docs": {
+        "value": "2.4M",
+        "label": "Documenten verwerkt in 2025, nul datalekken met klantgegevens"
+      },
+      "retention": {
+        "unit": "d",
+        "label": "Maximale bewaartermijn voor brondocumenten na afgifte"
+      },
+      "pentests": {
+        "label": "Externe penetratietests, alle rapporten intern gepubliceerd"
+      },
+      "ack": {
+        "unit": "u",
+        "label": "Mediane tijd tot bevestiging van een gemelde kwetsbaarheid"
+      }
+    },
+    "docs": {
+      "eyebrow": "Wat we verzamelen",
+      "title": "Vijf soorten documenten.<br></br><em>Niets meer.</em>",
+      "copy1": "Een visumaanvraag is een papierwerkprobleem. We verzamelen alleen wat een ambassade uitdrukkelijk vraagt, en we anonimiseren waar mogelijk. Elk document hoort bij één aanvraag, wordt bij ontvangst versleuteld en volgens een vast schema gewist.",
+      "copy2": "We verkopen je gegevens nooit. We delen ze met niemand, behalve het consulaat of de partner die direct bij je visum betrokken is.",
+      "cards": {
+        "payment": {
+          "name": "Betaalgegevens",
+          "meta": "niet verzameld"
+        },
+        "photos": {
+          "name": "Visumfoto's",
+          "meta": "verwerkt · max. 90 d"
+        },
+        "bank": {
+          "name": "Bankafschriften",
+          "meta": "afgeschermd · alleen pdf"
+        },
+        "pastVisas": {
+          "name": "Eerdere visa",
+          "meta": "alleen lezen · OCR"
+        },
+        "passport": {
+          "name": "Paspoort",
+          "meta": "MRZ uitgelezen"
+        }
+      }
+    },
+    "features": {
+      "eyebrow": "Zeven maatregelen, altijd actief",
+      "title": "Hoe je gegevens van jou<br></br>blijven, van begin tot <em>eind.</em>",
+      "intro": "De standaardstatus van elke byte bij VIZA is “versleuteld, afgebakend en beperkt in tijd”. Deze zeven maatregelen zorgen daarvoor: geen wensen, maar wat vandaag echt in het platform is ingebouwd.",
+      "cells": {
+        "minimise": {
+          "title": "Gegevensminimalisatie en anonimisering",
+          "body": "We verzamelen alleen wat een ambassade of partner echt nodig heeft voor een bepaalde aanvraag, en we anonimiseren waar de rest van het platform dat toelaat. De velden die je niet in onze formulieren ziet, slaan we niet op.",
+          "why": "<strong>Waarom:</strong> een datalek kan geen gegevens prijsgeven die nooit zijn verzameld."
+        },
+        "payments": {
+          "title": "Geen betaalgegevens",
+          "body": "De dienst van VIZA is gratis en we nemen geen betalingen aan, dus we vragen nooit om kaartnummers, zien ze niet en slaan ze niet op.",
+          "why": "<strong>Waarom:</strong> gegevens die we nooit bewaren, kunnen niet worden gestolen."
+        },
+        "atRest": {
+          "title": "Versleuteling in opslag",
+          "body": "Elk document, bericht en metadataveld op VIZA-servers is met AES-256 versleuteld voordat het de schijf raakt. Sleutels worden automatisch gewisseld en bewaard in een hardwarematige KMS die zelfs ons infrastructuurteam niet rechtstreeks kan lezen.",
+          "why": "<strong>Waarom:</strong> gestolen schijven of back-ups blijven onleesbaar zonder de sleutels."
+        },
+        "inTransit": {
+          "title": "End-to-end versleuteling",
+          "body": "Al het verkeer tussen je apparaat, onze servers en partnerconsulaten gebruikt TLS 1.3 met strikte pinning. Documentuploads lopen via een apart, ondertekend kanaal, zodat zelfs tegenstanders op netwerkniveau niet zien wat je verstuurt.",
+          "why": "<strong>Waarom:</strong> vijandige netwerken, zoals wifi op het vliegveld, kunnen je aanvraag niet lezen."
+        },
+        "audits": {
+          "title": "Regelmatige beveiligingsaudits",
+          "body": "We laten elk kwartaal een externe penetratietest uitvoeren, jaarlijks een SOC 2 Type II-audit en draaien continu geautomatiseerde kwetsbaarheidsscans. Elke bevinding wordt vastgelegd met een uiterste hersteldatum, en achterstallige punten alarmeren de engineeringlead.",
+          "why": "<strong>Waarom:</strong> bedreigingen veranderen; onze verdediging wordt er op een vast ritme tegen getoetst."
+        },
+        "access": {
+          "title": "Veilige toegangscontrole",
+          "body": "Interne toegang tot klantgegevens is rolgebonden, wordt per verzoek geaudit en wordt verleend met just-in-time-verhoging. Consultants zien alleen de aanvraag waaraan ze actief werken. Elke leesactie wordt 12 maanden gelogd.",
+          "why": "<strong>Waarom:</strong> interne fouten en misbruik blijven beperkt, zijn toe te wijzen en kunnen worden nagekeken."
+        },
+        "education": {
+          "title": "Voorlichting en bewustwording van gebruikers",
+          "body": "Het moeilijkste deel van beveiliging is het deel dat we niet voor je kunnen opleveren. We sturen je in gewone taal gidsen over phishing, oplichting met paspoortfoto's en nep-ambassade-sms'jes zodra je een aanvraag start, en tonen ze opnieuw in het product zodra er iets vreemds opduikt. Jij bent de laatste verdedigingslinie; we rusten je liever uit dan dat we je de schuld geven.",
+          "why": "<strong>Waarom:</strong> een goed geïnformeerde aanvrager is de goedkoopste en meest effectieve beveiligingsmaatregel die we hebben."
+        }
+      }
+    },
+    "vdp": {
+      "tag": "▲ Melden van kwetsbaarheden · open voor alle onderzoekers",
+      "title": "Iets gevonden?<br></br><em>Dat horen we graag.</em>",
+      "p1": "De veiligheid van onze gebruikers en partners gaat boven alles. Denk je een echte kwetsbaarheid in VIZA-diensten te hebben gevonden, vertel het ons dan rechtstreeks. We werken respectvol en snel met je samen aan een oplossing.",
+      "p2": "Mail je bevindingen naar <strong>security@viza.it.com</strong>. We bevestigen de ontvangst binnen één werkdag, ook als het een bekende kwestie blijkt of buiten het bereik valt.",
+      "meta": {
+        "ack": {
+          "k": "Bevestigd binnen",
+          "v": "'<' 24 uur"
+        },
+        "triage": {
+          "k": "Beoordeeld binnen",
+          "v": "3 werkdagen"
+        },
+        "lang": {
+          "k": "Talen",
+          "v": "EN · ID · AR"
+        },
+        "pgp": {
+          "k": "PGP-sleutel",
+          "v": "0xVIZA · 2026"
+        }
+      },
+      "ctaEmail": "Mail security@viza.it.com",
+      "ctaScope": "Lees het bereik",
+      "terminal": {
+        "title": "conceptmelding · security@viza.it.com",
+        "l1": "# melding van kwetsbaarheid",
+        "typeKey": "type:",
+        "typeVal": "authenticatie-omzeiling",
+        "urlKey": "url:",
+        "reproKey": "repro:",
+        "reproVal": "[stappen 1-4]",
+        "impactKey": "impact:",
+        "impactVal": "accountovername",
+        "pocKey": "poc:",
+        "l7": "# ↳ versleuteld naar 0xVIZA",
+        "send": "verstuur"
+      }
+    },
+    "report": {
+      "eyebrow": "Een kwetsbaarheid melden",
+      "title": "Wat je in je melding zet<br></br>en <em>wat niet.</em>",
+      "intro": "Een goede melding scheelt ons allebei een week. Dit is het formaat waarmee zaken het snelst worden beoordeeld, plus de dingen die we liever niet in onze inbox krijgen.",
+      "include": {
+        "heading": "Graag meesturen",
+        "sub": "Vijf velden. Hoe duidelijker, hoe sneller we kunnen bevestigen en herstellen.",
+        "items": {
+          "type": "<strong>Soort probleem</strong>, bijvoorbeeld authenticatie, toegangscontrole, injectie, IDOR, SSRF.",
+          "steps": "<strong>Duidelijke stappen om het te reproduceren</strong>, genummerd, op volgorde, zo mogelijk in een schone sessie.",
+          "impact": "<strong>Mogelijke beveiligingsimpact</strong>, wat een aanvaller hiermee kan doen, in gewone taal.",
+          "poc": "<strong>Proof of concept</strong>, bij voorkeur screenshots of een korte schermopname; logs als tweede keus."
+        }
+      },
+      "dontSend": {
+        "heading": "Graag niet sturen",
+        "sub": "Dit is onveilig, onbruikbaar of allebei, en we moeten het bij ontvangst verwijderen.",
+        "items": {
+          "secrets": "<strong>Wachtwoorden of authenticatietokens</strong>, van jou of van iemand anders. Toon de aanvalsroute, niet het geheim.",
+          "malware": "<strong>Ruwe malwaremonsters of stealer-logs.</strong> Beschrijf wat je zag, voeg het niet toe.",
+          "scanners": "<strong>Grote geautomatiseerde scannerrapporten</strong> zonder een met de hand gekozen, aangetoonde bevinding.",
+          "customerData": "<strong>Persoonsgegevens of documenten van klanten</strong>, ook als ze de basis van je bevinding waren.",
+          "socialEng": "<strong>Opnamen van social-engineeringpogingen</strong> tegen ons personeel of onze consultants."
+        }
+      }
+    },
+    "scope": {
+      "eyebrow": "Bereik van het programma",
+      "title": "Wat erbinnen valt en wat niet.",
+      "intro": "Weet je niet zeker of een melding binnen deze lijst valt, stuur hem dan toch en vraag het. We beoordelen liever en gaan verder dan dat je op een echt probleem blijft zitten omdat de grens niet duidelijk was.",
+      "fileRef": "/security/scope.md · v6",
+      "in": {
+        "pill": "Binnen bereik",
+        "heading": "Meldingen die we actief beoordelen",
+        "items": {
+          "web": "VIZA-webapplicaties en API's op <code>*.viza.com</code>, inclusief het aanvragersportaal, de consultantconsole en partnerendpoints.",
+          "infra": "Infrastructuur en diensten van VIZA: authenticatie, documentpijplijn, planning.",
+          "mobile": "Mobiele apps (iOS, Android) die onder het VIZA-ontwikkelaarsaccount zijn gepubliceerd.",
+          "marketing": "Openbare marketing- en contentsites onder domeinen die VIZA beheert."
+        }
+      },
+      "out": {
+        "pill": "Buiten bereik",
+        "heading": "Meldingen die we onder dit programma niet kunnen oppakken",
+        "items": {
+          "devices": "Problemen door gecompromitteerde gebruikersapparaten, browserextensies of gestolen inloggegevens.",
+          "phishing": "Social engineering of phishing gericht op VIZA-medewerkers, partners of consultants.",
+          "thirdParty": "Diensten of integraties van derden die VIZA niet zelf beheert (consulaatportalen, koeriersites).",
+          "scanners": "Bevindingen van geautomatiseerde scanners zonder aangetoonde, praktisch bruikbare uitbuitbaarheid.",
+          "headers": "Ontbrekende beveiligingsheaders of algemene best-practiceadviezen zonder aanvalsroute."
+        }
+      }
+    },
+    "pledge": {
+      "eyebrow": "Verantwoorde melding",
+      "title": "De afspraak die we<br></br>met elkaar maken.",
+      "intro": "Melden werkt omdat beide kanten te goeder trouw handelen. Dit vragen wij van jou, en hier mag je ons op aanspreken, opgeschreven zodat niemand hoeft te raden.",
+      "researcher": {
+        "kicker": "Wat we van jou vragen",
+        "title": "<em>Afspraken</em> voor onderzoekers.",
+        "p": "Door een melding in te sturen, ga je ermee akkoord te goeder trouw te handelen en volgens de geest van het programma, niet alleen volgens de letter.",
+        "items": {
+          "1": "Handel te goeder trouw: vermijd privacyschendingen, gegevensvernietiging of verstoring van de dienst tijdens je onderzoek.",
+          "2": "Buit een probleem niet verder uit dan nodig is om het te bevestigen, en open nooit gegevens die niet van jou zijn.",
+          "3": "Houd details van de kwetsbaarheid vertrouwelijk tot we een oplossing hebben uitgerold en met jou hebben bevestigd.",
+          "4": "Maak bevindingen niet openbaar zonder voorafgaande schriftelijke toestemming van het beveiligingsteam van VIZA."
+        }
+      },
+      "viza": {
+        "kicker": "Waarop je ons mag aanspreken",
+        "title": "<em>Afspraken</em> van VIZA.",
+        "p": "Daar staat tegenover dat we melders niet negeren, niet over de ernst steggelen om een oplossing te ontlopen en geen mensen aanklagen die ons helpen.",
+        "items": {
+          "1": "We beoordelen elke geldige melding en reageren binnen één werkdag, ongeacht de ernst.",
+          "2": "We communiceren respectvol: geen defensieve taal, geen “werkt zoals bedoeld”-gebaren.",
+          "3": "We nemen passende herstelmaatregelen waar dat nodig is en laten je weten wanneer de oplossing is uitgerold.",
+          "4": "We noemen je (met toestemming) in onze beveiligingschangelog zodra het probleem is opgelost."
+        }
+      }
+    },
+    "legal": {
+      "eyebrow": "Juridisch en beloningen",
+      "title": "Veilige haven, beloningen<br></br>en de kleine lettertjes.",
+      "intro": "Volg je dit beleid te goeder trouw, dan behandelen we je onderzoek als toegestaan. De rest van de pagina is het saaie maar belangrijke deel, uitgelegd en niet verstopt.",
+      "cards": {
+        "safeHarbour": {
+          "title": "Juridische veilige haven",
+          "body": "Volg je dit beleid te goeder trouw, dan start VIZA geen juridische stappen tegen je voor onopzettelijke of per ongeluk gemaakte schendingen die met je onderzoek te maken hebben. Je moet je nog steeds aan de toepasselijke wet- en regelgeving houden."
+        },
+        "rewards": {
+          "title": "Beloningen en bugbounty",
+          "body": "VIZA heeft momenteel geen openbare bugbounty. Wel bieden we een vrijblijvend blijk van waardering voor geldige, verantwoord gemelde problemen, beoordeeld op impact, nieuwheid en de kwaliteit van de melding.",
+          "meta": "vrijblijvend · per geval"
+        },
+        "updates": {
+          "title": "Updates van het programma",
+          "body": "VIZA behoudt zich het recht voor dit programma op elk moment te wijzigen of te beëindigen. Weet je niet zeker of je onderzoek binnen het beleid past, neem dan contact op via security@viza.it.com <em>voordat</em> je verdergaat.",
+          "meta": "laatst herzien · mei 2026"
+        }
+      }
+    },
+    "cta": {
+      "title": "Iets vreemds gezien?<br></br>Vertel het ons beveiligingsteam.",
+      "body": "We horen liever twee keer over een kleine bevinding dan één keer een grote te missen. Meldingen gaan rechtstreeks naar een echt mens in het beveiligingsteam, zonder ticketportaal en zonder triagerobot.",
+      "lead": "Rechtstreeks naar beveiliging",
+      "small": "Mediane reactietijd: onder 24 uur, elke dag van de week."
+    },
+    "footer": {
+      "tagline": "VIZA helpt je visa plannen, aanvragen en volgen, overal ter wereld.",
+      "company": "Bedrijf",
+      "careers": "Vacatures",
+      "contact": "Contact",
+      "security": "Beveiliging",
+      "privacy": "Privacy",
+      "terms": "Voorwaarden",
+      "products": "Producten",
+      "prodVisaReq": "Visumvereisten",
+      "prodSchengen": "Schengen-afsprakencheck",
+      "prodPhoto": "Visumfoto-maker",
+      "prodHelpline": "VIZA-noodlijn",
+      "prodStudent": "Studentenvisum",
+      "offices": "Kantoren",
+      "officeSg": "Singapore, hoofdkantoor",
+      "officeSf": "Sjanghai",
+      "copyright": "© VIZA, alle rechten voorbehouden"
+    }
+  },
+  "status": {
+    "crumbHome": "Transparantie",
+    "crumbHere": "Systeemstatus",
+    "hero": {
+      "title": "Systeemstatus",
+      "lead": "Beschikbaarheid met bewijs voor VIZA en de visumportalen van overheden waarmee we werken. Elk percentage, elke tijdlijnbalk en elk incident hieronder komt uit een vastgelegde synthetische controle."
+    },
+    "console": {
+      "title": "VIZA-betrouwbaarheid · Live",
+      "live": "Geverifieerd",
+      "unverified": "Niet geverifieerd",
+      "allOperational": "Alle systemen werken",
+      "degraded": "Sommige systemen zijn verminderd beschikbaar",
+      "majorOutage": "Een bewaakt systeem is niet beschikbaar",
+      "dataUnavailable": "Monitoringgegevens niet beschikbaar",
+      "lastChecked": "Laatst vastgelegde controle: {time}",
+      "noChecks": "Er zijn nog geen voltooide controles vastgelegd",
+      "kUptime": "Controles geslaagd in 90 dagen",
+      "kMonitors": "Bewaakte endpoints",
+      "kIncidents": "Actief incident"
+    },
+    "subnav": {
+      "current": "Huidige status",
+      "incidents": "Eerdere incidenten",
+      "subscribe": "Abonneren",
+      "searchPlaceholder": "Zoek naar landen",
+      "subscribeBtn": "Abonneer op updates"
+    },
+    "platform": {
+      "title": "VIZA-platform",
+      "realMeta": "Elke 5 minuten gecontroleerd · {count} endpoint(s)",
+      "meta": "Elke 5 minuten gecontroleerd",
+      "name": "VIZA-aanvraagplatform",
+      "sub": "Openbare VIZA-diensten"
+    },
+    "uptime": {
+      "ago": "90 dagen geleden",
+      "today": "Vandaag",
+      "pct": "{pct}% van de controles geslaagd",
+      "noData": "Geen vastgelegde controles"
+    },
+    "dayObservation": "{date}: {checks} vastgelegde controle(s)",
+    "dayNoData": "{date}: geen vastgelegde gegevens",
+    "dayTitle": "Dag {n}",
+    "statusLabels": {
+      "op": "Werkt",
+      "deg": "Verminderd",
+      "part": "Gedeeltelijke storing",
+      "maj": "Niet beschikbaar",
+      "none": "Geen actuele gegevens"
+    },
+    "lastChecked": "Gecontroleerd {time}",
+    "monitorStale": "Ontbrekende of verouderde controle",
+    "monitoringUnavailable": "De status-API heeft geen recent bewijs. VIZA toont geen opgeslagen of gegenereerde beschikbaarheid als actuele gezondheid van de dienst.",
+    "noSearchResults": "Geen bewaakt land komt overeen met deze zoekopdracht.",
+    "noRecordedIncidents": "In de afgelopen 90 dagen zijn er geen incidenten afgeleid uit vastgelegde controles.",
+    "incidentCount": "{count, plural, one {# incident} other {# incidenten}}",
+    "incidentRecovered": "Vastgelegde controles laten zien dat deze dienst is hersteld.",
+    "noIssues": "Geen actieve problemen",
+    "activeIncident": "Actief incident",
+    "portalsHead": {
+      "title": "Overheidsportalen",
+      "lead": "Een afgebakend synthetisch verzoek controleert elk ingesteld portaal elke vijf minuten. Grijze geschiedenis betekent dat er geen waarneming is vastgelegd; die wordt nooit met geschatte gegevens opgevuld."
+    },
+    "incidentsHead": {
+      "title": "Eerdere incidenten",
+      "lead": "Incidenten openen en sluiten op basis van opgeslagen monitorovergangen. Dit is operationele beschikbaarheid, niet de status van de persoonlijke visumbeslissing van een aanvrager."
+    },
+    "tags": {
+      "identified": "Vastgesteld",
+      "investigating": "In onderzoek",
+      "resolved": "Opgelost"
+    },
+    "portals": {
+      "AE": {
+        "name": "Verenigde Arabische Emiraten",
+        "sub": "GDRFA · ICA-portalen"
+      },
+      "AM": {
+        "name": "Armenië",
+        "sub": "e-visumportaal"
+      },
+      "AU": {
+        "name": "Australië",
+        "sub": "ImmiAccount"
+      },
+      "AZ": {
+        "name": "Azerbeidzjan",
+        "sub": "ASAN Visa"
+      },
+      "DE": {
+        "name": "Duitsland",
+        "sub": "VIDEX · consulaatplekken"
+      },
+      "DK": {
+        "name": "Denemarken"
+      },
+      "EG": {
+        "name": "Egypte",
+        "sub": "e-visumportaal"
+      },
+      "FI": {
+        "name": "Finland",
+        "sub": "EnterFinland"
+      },
+      "FR": {
+        "name": "Frankrijk",
+        "sub": "France-Visas"
+      },
+      "GB": {
+        "name": "Verenigd Koninkrijk",
+        "sub": "UKVCAS · UK Visas",
+        "bannerText": "Sommige soorten aanvragen kampen met een storing.",
+        "bannerLink": "Bekijk de tijdlijn van het incident"
+      },
+      "GE": {
+        "name": "Georgië"
+      },
+      "GR": {
+        "name": "Griekenland",
+        "sub": "AEGEAN · consulair"
+      },
+      "HK": {
+        "name": "Hongkong",
+        "sub": "Immigration eVisa"
+      },
+      "ID": {
+        "name": "Indonesië",
+        "sub": "e-Visa Indonesia"
+      },
+      "IN": {
+        "name": "India",
+        "sub": "Indian Visa Online"
+      },
+      "JO": {
+        "name": "Jordanië"
+      },
+      "KE": {
+        "name": "Kenia",
+        "sub": "eCitizen / eVisa"
+      },
+      "KH": {
+        "name": "Cambodja"
+      },
+      "LK": {
+        "name": "Sri Lanka",
+        "sub": "ETA-portaal"
+      },
+      "MA": {
+        "name": "Marokko"
+      },
+      "TH": {
+        "name": "Thailand",
+        "sub": "Thailand e-Visa"
+      }
+    },
+    "incidents": {
+      "count": "<strong>{count}</strong> {count, plural, one {land had} other {landen hadden}} prestatieproblemen",
+      "events": "{count, plural, one {# gebeurtenis} other {# gebeurtenissen}}",
+      "days": [
+        {
+          "date": "10 mei 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "10 mei, 3:05 p.m.",
+                  "desc": "Dit incident is opgelost. De dienst werkt weer normaal."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "10 mei, 5:05 p.m.",
+                  "desc": "Dit incident is opgelost. De dienst werkt weer normaal."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "9 mei 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "9 mei, 10:50 p.m.",
+                  "desc": "We onderzoeken de verhoogde foutpercentages."
+                },
+                {
+                  "time": "10 mei, 12:20 a.m.",
+                  "desc": "De ernst is verhoogd van verminderd naar gedeeltelijke storing."
+                },
+                {
+                  "time": "10 mei, 2:50 a.m.",
+                  "desc": "De ernst is verhoogd van gedeeltelijke storing naar grote storing."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "9 mei, 3:05 p.m.",
+                  "desc": "We onderzoeken de verhoogde foutpercentages."
+                },
+                {
+                  "time": "9 mei, 7:20 p.m.",
+                  "desc": "De ernst is verhoogd van gedeeltelijke storing naar grote storing."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "8 mei 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "8 mei, 1:05 p.m.",
+                  "desc": "We onderzoeken de verhoogde foutpercentages."
+                },
+                {
+                  "time": "8 mei, 2:05 p.m.",
+                  "desc": "Dit incident is opgelost. De dienst werkt weer normaal."
+                },
+                {
+                  "time": "8 mei, 2:50 p.m.",
+                  "desc": "We onderzoeken de verhoogde foutpercentages."
+                },
+                {
+                  "time": "8 mei, 7:35 p.m.",
+                  "desc": "Dit incident is opgelost. De dienst werkt weer normaal."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "5 mei 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "5 mei, 1:36 p.m.",
+                  "desc": "De ernst is verhoogd van verminderd naar gedeeltelijke storing."
+                },
+                {
+                  "time": "5 mei, 4:50 p.m.",
+                  "desc": "Dit incident is opgelost."
+                },
+                {
+                  "time": "5 mei, 9:20 p.m.",
+                  "desc": "We onderzoeken de verhoogde foutpercentages."
+                },
+                {
+                  "time": "5 mei, 10:20 p.m.",
+                  "desc": "Dit incident is opgelost."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "5 mei, 2:43 p.m.",
+                  "desc": "Dit incident is opgelost."
+                },
+                {
+                  "time": "5 mei, 3:35 p.m.",
+                  "desc": "We onderzoeken de verhoogde foutpercentages."
+                },
+                {
+                  "time": "5 mei, 7:35 p.m.",
+                  "desc": "De ernst is verhoogd van gedeeltelijke storing naar grote storing."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "4 mei 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "4 mei, 4:05 p.m.",
+                  "desc": "We onderzoeken de verhoogde foutpercentages."
+                },
+                {
+                  "time": "4 mei, 5:05 p.m.",
+                  "desc": "Dit incident is opgelost."
+                },
+                {
+                  "time": "4 mei, 7:36 p.m.",
+                  "desc": "We onderzoeken de verhoogde foutpercentages."
+                },
+                {
+                  "time": "4 mei, 8:35 p.m.",
+                  "desc": "Dit incident is opgelost."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "4 mei, 12:05 p.m.",
+                  "desc": "Dit incident is opgelost."
+                },
+                {
+                  "time": "4 mei, 1:50 p.m.",
+                  "desc": "We onderzoeken de verhoogde foutpercentages."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2 mei 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "2 mei, 6:35 p.m.",
+                  "desc": "We onderzoeken de verhoogde foutpercentages."
+                },
+                {
+                  "time": "2 mei, 7:50 p.m.",
+                  "desc": "Dit incident is opgelost."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "2 mei, 9:20 a.m.",
+                  "desc": "We onderzoeken de verhoogde foutpercentages."
+                },
+                {
+                  "time": "2 mei, 10:20 a.m.",
+                  "desc": "Dit incident is opgelost."
+                },
+                {
+                  "time": "2 mei, 8:20 p.m.",
+                  "desc": "We onderzoeken de verhoogde foutpercentages."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "2 mei, 8:20 p.m.",
+                  "desc": "We onderzoeken de verhoogde foutpercentages."
+                },
+                {
+                  "time": "3 mei, 12:05 a.m.",
+                  "desc": "Dit incident is opgelost."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "1 mei 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "1 mei, 2:05 p.m.",
+                  "desc": "We onderzoeken de verhoogde foutpercentages."
+                },
+                {
+                  "time": "1 mei, 3:05 p.m.",
+                  "desc": "Dit incident is opgelost."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "30 april 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "30 apr, 8:20 a.m.",
+                  "desc": "We onderzoeken de verhoogde foutpercentages."
+                },
+                {
+                  "time": "30 apr, 9:50 a.m.",
+                  "desc": "Dit incident is opgelost."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 apr, 3:05 p.m.",
+                  "desc": "Dit incident is opgelost."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 apr, 4:51 p.m.",
+                  "desc": "Dit incident is opgelost."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 apr, 1:20 p.m.",
+                  "desc": "We onderzoeken de verhoogde foutpercentages."
+                },
+                {
+                  "time": "30 apr, 2:37 p.m.",
+                  "desc": "De ernst is verhoogd van verminderd naar gedeeltelijke storing."
+                },
+                {
+                  "time": "30 apr, 8:20 p.m.",
+                  "desc": "Dit incident is opgelost."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 apr, 6:50 p.m.",
+                  "desc": "Dit incident is opgelost."
+                },
+                {
+                  "time": "30 apr, 7:50 p.m.",
+                  "desc": "We onderzoeken de verhoogde foutpercentages."
+                },
+                {
+                  "time": "1 mei, 12:20 a.m.",
+                  "desc": "Dit incident is opgelost."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "subscribe": {
+      "title": "Hoor als eerste<br></br>wanneer er iets stukgaat.",
+      "lead": "Kies de landen die je belangrijk vindt en we sturen je één heldere update wanneer hun portalen, of de onze, uitvallen of weer online komen.",
+      "emailLabel": "Ontvang incidentupdates per e-mail",
+      "button": "Abonneren",
+      "follow": "Of volg de status via:",
+      "chipEmail": "E-mailoverzicht",
+      "chipSms": "SMS en WhatsApp",
+      "chipRss": "RSS-feed",
+      "chipWebhook": "Webhook voor ops"
+    },
+    "footer": {
+      "tagline": "VIZA helpt je visa plannen, aanvragen en volgen, overal ter wereld.",
+      "company": "Bedrijf",
+      "careers": "Vacatures",
+      "contact": "Contact",
+      "security": "Beveiliging",
+      "systemStatus": "Systeemstatus",
+      "privacy": "Privacy",
+      "terms": "Voorwaarden",
+      "products": "Producten",
+      "prodVisaReq": "Visumvereisten",
+      "prodSchengen": "Schengen-afsprakencheck",
+      "prodPhoto": "Visumfoto-maker",
+      "prodHelpline": "VIZA-noodlijn",
+      "copyright": "© VIZA, alle rechten voorbehouden"
+    }
+  },
+  "arrival": {
+    "breadcrumbHome": "Home",
+    "breadcrumbHub": "Aankomstkaarten",
+    "hubH1": "Gidsen voor aankomstkaarten",
+    "hubLead": "Een aankomstkaart is een kort overheidsformulier dat je invult voordat je een land binnenkomt. De meeste zijn online, gratis en kosten ongeveer vijf minuten. Deze gidsen laten zien wie welke kaart nodig heeft, wanneer je hem indient en hoe je de nepsites vermijdt die ervoor rekenen.",
+    "hubWhatTitle": "Wat een aankomstkaart is",
+    "hubWhat": [
+      "Een aankomstkaart is een verklaring die je bestemming vraagt bovenop je paspoort en eventueel visum. Hij legt vast wie je bent, hoe je aankomt en waar je verblijft. Veel landen vervingen de papieren kaart uit het vliegtuig door een online formulier.",
+      "Het is geen visum. Met een visum mag je een aanvraag doen om binnen te komen. Een aankomstkaart informeert de grensautoriteit over je reis, en je hebt nog steeds een visum nodig als je nationaliteit dat vraagt."
+    ],
+    "hubFreeTitle": "Aankomstkaarten zijn gratis",
+    "hubFree": [
+      "Elke kaart in deze gidsen is gratis op de eigen website van de overheid. Sommige websites kopiëren het overheidsformulier en rekenen er geld voor. Je hoeft er nooit een te betalen.",
+      "Begin altijd bij het officiële adres in elke gids. VIZA is een onafhankelijke dienst en geen overheidswebsite."
+    ],
+    "hubWhenTitle": "Wanneer je er een nodig hebt",
+    "hubWhen": [
+      "De meeste kaarten gaan drie dagen voor aankomst open en moeten binnen dat venster worden ingediend. Lees de exacte regel in elke gids, want Visit Japan Web van Japan heeft geen vaste deadline en is niet verplicht.",
+      "Inwoners, burgers en transitpassagiers zijn vaak vrijgesteld of hebben een korter formulier. Elke gids noemt wie is vrijgesteld, inclusief de vrijstelling voor Singaporese burgers bij de MDAC van Maleisië."
+    ],
+    "hubGuidesTitle": "Alle gidsen",
+    "hubGuidesSub": "Kies je bestemming. Elke gids heeft de stappen, de veelgemaakte fouten en de officiële links.",
+    "readGuide": "Lees de gids",
+    "cardWhen": "Wanneer",
+    "cardsLabel": "Aankomstkaart",
+    "hubVisaTitle": "Ook een visum nodig",
+    "hubVisaBody": "Een aankomstkaart vervangt geen visum. Bekijk de bestemmingspagina om te zien of je paspoort er een nodig heeft.",
+    "hubVisaCta": "Bekijk visumpagina's",
+    "glanceTitle": "In het kort",
+    "stepsTitle": "Zo vul je hem in, stap voor stap",
+    "mistakesTitle": "Veelgemaakte fouten",
+    "feesTitle": "Kosten en nepsites",
+    "faqTitle": "Vragen",
+    "sourcesTitle": "Bronnen",
+    "relatedTitle": "Andere gidsen voor aankomstkaarten",
+    "independent": "VIZA is een onafhankelijke dienst en geen overheidswebsite.",
+    "officialCta": "Open de officiële website",
+    "officialLabel": "Officiële website",
+    "vizaTitle": "Laat VIZA het voor je doen",
+    "vizaBody": "Start de {name} in je VIZA-account. Het formulier van VIZA loopt dezelfde vragen met je door als het officiële en bewaart je gegevens voor latere reizen. Je kunt altijd de gratis officiële website gebruiken.",
+    "vizaFee": "Servicekosten VIZA",
+    "vizaFeeFree": "Gratis",
+    "vizaCta": "Start bij VIZA",
+    "noVizaTitle": "Gebruik de officiële website",
+    "noVizaBody": "VIZA vult deze kaart nog niet in. Gebruik de officiële website hieronder en lees eerst de stappen in deze gids.",
+    "visaTitle": "Visum voor {country}",
+    "visaBody": "De aankomstkaart staat los van het visum. Bekijk wie een visum nodig heeft voor {country}, de kosten en hoe je aanvraagt.",
+    "visaCta": "Open de visumpagina van {country}",
+    "reviewedTitle": "Gecontroleerd op 25 november 2026",
+    "stepLabel": "Stap",
+    "cards": {
+      "malaysia-mdac": {
+        "summary": "Gratis online kaart voor buitenlandse bezoekers. Singaporese burgers zijn vrijgesteld.",
+        "when": "Binnen 3 dagen voor aankomst"
+      },
+      "singapore-sg-arrival-card": {
+        "summary": "De online kaart van ICA met een gezondheidsverklaring. Dien in via de website of de MyICA-app.",
+        "when": "Binnen 3 dagen voor aankomst"
+      },
+      "japan-visit-japan-web": {
+        "summary": "Gratis QR-codes voor immigratie en douane. Aanbevolen, niet verplicht.",
+        "when": "Voordat je vliegt"
+      },
+      "thailand-tdac": {
+        "summary": "Gratis kaart voor elke buitenlandse bezoeker, met of zonder visum. Verving de papieren TM6.",
+        "when": "Binnen 3 dagen voor aankomst"
+      },
+      "korea-e-arrival-card": {
+        "summary": "Verplicht sinds 1 januari 2026. Een houder van een geldige K-ETA is vrijgesteld.",
+        "when": "Binnen 3 dagen voor aankomst"
+      },
+      "indonesia-all-indonesia": {
+        "summary": "Eén kaart voor immigratie, douane en gezondheid. Gratis, en geen visum.",
+        "when": "Tot 3 dagen voor aankomst"
+      }
+    }
+  },
+  "guides": {
+    "breadcrumbHome": "Home",
+    "breadcrumbHub": "Gidsen",
+    "hubH1": "Visumgidsen voor mensen die in Singapore wonen",
+    "hubLead": "Heb je een Singaporees, Chinees, Indiaas of Filipijns paspoort, deze gidsen beantwoorden dezelfde vraag: wat heb ik nodig om dit land binnen te komen en waar vraag ik het aan vanuit Singapore. Elke gids noemt zijn bronnen en de datum van de controle.",
+    "hubGuidesTitle": "Alle gidsen",
+    "hubGuidesSub": "Kies een onderwerp. Regels veranderen, dus elke gids noemt de officiële pagina's die je vóór je reis moet nalopen.",
+    "readGuide": "Lees de gids",
+    "hubMoreTitle": "Meer van VIZA",
+    "hubMoreBody": "Op zoek naar een specifiek land, een aankomstkaart of de nieuwste regelwijziging?",
+    "hubDestinations": "Visumpagina's",
+    "hubArrival": "Gidsen voor aankomstkaarten",
+    "hubNews": "Visumnieuws",
+    "glanceTitle": "Kort antwoord",
+    "relatedVisaTitle": "Bestemmingspagina's",
+    "relatedVisaSub": "Kosten, documenten en stappen voor mensen die in Singapore wonen.",
+    "relatedArrivalTitle": "Gidsen voor aankomstkaarten",
+    "relatedGuidesTitle": "Meer gidsen",
+    "faqTitle": "Vragen",
+    "sourcesTitle": "Bronnen",
+    "reviewedTitle": "Hoe we hebben gecontroleerd",
+    "published": "Gepubliceerd",
+    "updated": "Bijgewerkt",
+    "independent": "VIZA is een onafhankelijke dienst en geen overheidswebsite."
+  },
+  "ds": {
+    "header": {
+      "home": "VIZA home",
+      "primary": "Hoofdmenu",
+      "language": "Taal",
+      "signIn": "Inloggen",
+      "openMenu": "Menu openen",
+      "closeMenu": "Menu sluiten",
+      "nav": {
+        "home": "Home",
+        "destinations": "Bestemmingen",
+        "arrivalCards": "Aankomstkaarten",
+        "guides": "Gidsen",
+        "news": "Nieuws",
+        "about": "Over ons",
+        "contact": "Contact"
+      }
+    },
+    "footer": {
+      "home": "VIZA home",
+      "tagline": "Visumaanvragen voorbereid door de AI van VIZA en gecontroleerd door onze consultants. Gratis te gebruiken.",
+      "explore": "Ontdekken",
+      "follow": "Volg ons",
+      "followOn": "Volg VIZA op {platform}",
+      "links": {
+        "destinations": "Bestemmingen",
+        "arrivalCards": "Aankomstkaarten",
+        "guides": "Gidsen",
+        "news": "Nieuws",
+        "about": "Over ons",
+        "contact": "Contact",
+        "careers": "Vacatures",
+        "security": "Beveiliging",
+        "status": "Status"
+      },
+      "copyright": "© {year} VIZA. Alle rechten voorbehouden.",
+      "office": "Statutair adres: 60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapore 409051",
+      "privacy": "Privacy",
+      "terms": "Voorwaarden",
+      "kelin": "Een initiatief van Kelin Studio",
+      "refunds": "Terugbetalingen",
+      "business": "Bedrijfsinformatie"
+    },
+    "form": {
+      "fullName": {
+        "label": "Je naam",
+        "placeholder": "Jane Tan"
+      },
+      "email": {
+        "label": "E-mail"
+      },
+      "phone": {
+        "label": "Telefoon"
+      },
+      "destination": {
+        "label": "Bestemming",
+        "placeholder": "Japan, Schengen, Verenigde Staten"
+      },
+      "message": {
+        "label": "Je vraag",
+        "placeholder": "Waar je heen gaat, je paspoort en je reisdata."
+      },
+      "submit": "Bericht versturen",
+      "sending": "Versturen",
+      "success": "Bedankt, je bericht is binnen. We antwoorden per e-mail.",
+      "error": "We konden je bericht niet versturen. Probeer het opnieuw of mail naar sales@kelin.studio.",
+      "consent": "Door te versturen ga je akkoord met ons <privacy>Privacybeleid</privacy> en onze <terms>Voorwaarden</terms>."
+    },
+    "gallery": {
+      "title": "Bestemmingen",
+      "lede": "Kies een bestemming om te zien welk visum je nodig hebt, welke documenten en welke overheidskosten.",
+      "view": "Bekijk",
+      "passportSummary": "{free} visumvrij · {voa} e-Visum of bij aankomst · {req} visum nodig",
+      "noResults": "Geen bestemmingen gevonden voor je zoekopdracht.",
+      "sorts": {
+        "featured": "Uitgelicht",
+        "open": "Nu open eerst",
+        "name": "A tot Z"
+      }
+    },
+    "dest": {
+      "all": "Alle bestemmingen",
+      "onPage": "Op deze pagina",
+      "applyTitle": "Start aanvraag",
+      "facts": "Feiten"
+    },
+    "article": {
+      "toc": "Op deze pagina",
+      "down": "Ga naar het artikel",
+      "faqLede": "Korte antwoorden over dit onderwerp."
+    },
+    "legal": {
+      "updated": "Laatst bijgewerkt",
+      "contents": "Inhoud"
+    }
+  },
+  "homePage": {
+    "hero": {
+      "browse": "Bekijk bestemmingen",
+      "picks": "Bestemmingen"
+    },
+    "types": {
+      "title": "Soorten visa",
+      "lede": "Toeristen-, zakelijke, werk-, studenten- en langverblijfsvisa.",
+      "prev": "Vorige",
+      "next": "Volgende",
+      "items": {
+        "tourist": {
+          "title": "Toerist",
+          "body": "Vakanties, familiebezoek en korte verblijven."
+        },
+        "business": {
+          "title": "Zakelijk",
+          "body": "Vergaderingen, congressen en bedrijfsbezoeken."
+        },
+        "work": {
+          "title": "Werk",
+          "body": "Werkvergunningen en werkvisa."
+        },
+        "student": {
+          "title": "Student",
+          "body": "Studievisa voor scholen en universiteiten."
+        },
+        "long": {
+          "title": "Langverblijf",
+          "body": "Verblijfsvergunningen en andere langetermijnvisa."
+        }
+      }
+    },
+    "steps": {
+      "title": "Zo werkt het",
+      "cta": "Start je gratis aanvraag",
+      "side": {
+        "freeValue": "Gratis",
+        "freeLabel": "VIZA-dienst",
+        "langLabel": "Talen",
+        "note": "Je betaalt alleen de overheidskosten.",
+        "noteBody": "Die gaan rechtstreeks naar de uitgevende instantie. VIZA rekent zelf niets."
+      },
+      "items": {
+        "choose": {
+          "title": "Kies een bestemming",
+          "body": "Zie voordat je begint welk visum je nodig hebt, welke documenten je klaarmaakt en wat de overheidskosten zijn.",
+          "chips": "Soort visum|Documenten|Overheidskosten"
+        },
+        "passport": {
+          "title": "Upload je paspoort",
+          "body": "VIZA leest je gegevens van de pasfotopagina, dus je hoeft bijna niets te typen.",
+          "chips": "Pasfotopagina|Gegevens ingevuld"
+        },
+        "confirm": {
+          "title": "Bevestig je gegevens",
+          "body": "Controleer wat VIZA las, voeg je reisdata toe en ga verder in je gratis VIZA-account.",
+          "chips": "Reisdata|Gratis account"
+        },
+        "file": {
+          "title": "VIZA controleert en dient in",
+          "body": "Een adviseur controleert elk formulier voordat het wordt ingediend, en je volgt de voortgang in je account.",
+          "chips": "Controle door adviseur|Voortgangsupdates"
+        }
+      }
+    },
+    "tiers": {
+      "title": "Prijzen",
+      "lede": "Twee manieren om aan te vragen, beide gratis.",
+      "cta": "Neem contact op",
+      "criteria": "Vergelijk",
+      "guided": "Begeleid",
+      "full": "Volledige service",
+      "rows": {
+        "fee": {
+          "label": "Kosten VIZA",
+          "guided": "Gratis",
+          "full": "Gratis"
+        },
+        "form": {
+          "label": "Aanvraagformulier",
+          "guided": "Jij antwoordt, met de AI van VIZA als gids",
+          "full": "Een consultant bereidt de antwoorden met je voor"
+        },
+        "documents": {
+          "label": "Documenten",
+          "guided": "Een checklist voor jouw situatie",
+          "full": "Een consultant controleert je documenten"
+        },
+        "interview": {
+          "label": "Afspraak en interview",
+          "guided": "Jij boekt en gaat erheen",
+          "full": "We lopen de waarschijnlijke vragen met je door"
+        },
+        "govFee": {
+          "label": "Overheidskosten",
+          "guided": "Rechtstreeks betaald aan de instantie",
+          "full": "Rechtstreeks betaald aan de instantie"
+        },
+        "bestFor": {
+          "label": "Geschikt voor",
+          "guided": "Eenvoudige aanvragen",
+          "full": "Ingewikkelde zaken of een eerdere afwijzing"
+        }
+      }
+    },
+    "why": {
+      "title": "Waarom VIZA",
+      "lede": "Duidelijke stappen, gecontroleerde formulieren en echte mensen om mee te praten.",
+      "items": {
+        "free": {
+          "title": "Gratis dienst",
+          "body": "De hulp van VIZA kost niets. Je betaalt alleen de overheidskosten, rechtstreeks aan de instantie."
+        },
+        "checked": {
+          "title": "Gecontroleerde formulieren",
+          "body": "Een adviseur controleert elk formulier voordat het wordt ingediend, zodat kleine fouten vroeg worden opgemerkt."
+        },
+        "language": {
+          "title": "Engels en Chinees",
+          "body": "Praat met VIZA in het Engels of Chinees, via WhatsApp, WeChat of e-mail."
+        }
+      },
+      "photos": {
+        "arrival": {
+          "title": "Aankomstkaarten",
+          "body": "Hulp stap voor stap bij de gratis aankomstkaarten voor Maleisië, Singapore, Japan, Thailand, Korea en Indonesië."
+        },
+        "news": {
+          "title": "Nieuws",
+          "body": "Wijzigingen in visumregels en nieuwe e-visumregelingen, uitgelegd in gewone woorden."
+        }
+      }
+    },
+    "guides": {
+      "title": "Gidsen",
+      "cta": "Alle gidsen"
+    },
+    "faq": {
+      "lede": "Korte antwoorden over de visumdienst van VIZA.",
+      "more": "Meer vragen?",
+      "items": {
+        "cost": {
+          "q": "Rekent VIZA geld voor de dienst?",
+          "a": "Nee. De hulp van VIZA is gratis. Rekent een bestemming overheidskosten voor het visum, dan betaal je die rechtstreeks aan die overheid."
+        },
+        "visas": {
+          "q": "Bij welke visa kan VIZA helpen?",
+          "a": "Toeristen-, zakelijke, werk-, studenten- en langverblijfsvisa voor de bestemmingen op deze pagina. Staat de jouwe er niet bij, schrijf ons dan en een consultant vertelt wat mogelijk is."
+        },
+        "approval": {
+          "q": "Wie beslist over mijn visum?",
+          "a": "De uitgevende instantie neemt elke beslissing. VIZA controleert je formulier en documenten voordat ze worden ingediend, zodat je aanvraag compleet en consistent is."
+        },
+        "tiers": {
+          "q": "Wat is het verschil tussen Begeleid en Volledige service?",
+          "a": "Bij Begeleid loodst de AI van VIZA je door het formulier en de checklist en houd jij de controle over elk antwoord. Bij Volledige service bereidt een consultant de antwoorden met je voor en controleert je documenten. Beide zijn gratis."
+        },
+        "language": {
+          "q": "Welke talen ondersteunen jullie?",
+          "a": "Engels en Chinees, via WhatsApp, WeChat, telefoon en e-mail."
+        }
+      }
+    },
+    "contactCard": {
+      "title": "Praat met een VIZA-consultant",
+      "body": "We antwoorden in het Engels of Chinees.",
+      "cta": "Neem contact op"
+    },
+    "cta": {
+      "title": "Start je aanvraag",
+      "point1": "Je gegevens blijven privé",
+      "point2": "Een echt mens antwoordt",
+      "formTitle": "Stel een vraag",
+      "formBody": "Vertel ons waar je heen gaat en een VIZA-consultant antwoordt per e-mail."
+    }
+  },
+  "aboutPage": {
+    "h1": "Over VIZA",
+    "intro": {
+      "title": "Wat VIZA is",
+      "text": "VIZA bereidt visumaanvragen voor, controleert ze en dient ze in voor mensen die in Singapore wonen. Onze AI doet het papierwerk en onze consultants controleren elk formulier. De dienst is gratis."
+    },
+    "facts": {
+      "destinations": "Bestemmingen",
+      "guides": "Visumgidsen",
+      "arrival": "Gidsen voor aankomstkaarten",
+      "free": "Gratis",
+      "freeLabel": "VIZA-dienst"
+    },
+    "tiersTitle": "Begeleid of Volledige service",
+    "tiersLede": "Kies hoeveel hulp je wilt. Beide zijn gratis.",
+    "free": {
+      "title": "Gratis dienst",
+      "text": "VIZA rekent niets voor de hulp. Heeft een bestemming overheidskosten voor het visum, dan laat VIZA die vooraf zien en betaal je ze rechtstreeks aan de uitgevende instantie. Er zijn geen betaalde upgrades."
+    },
+    "company": {
+      "title": "Bedrijfsgegevens",
+      "office": "Statutair adres",
+      "officeValue": "Paya Lebar Road 60, #06-28 Paya Lebar Square, Singapore 409051",
+      "email": "E-mail",
+      "phone": "Telefoon en WhatsApp",
+      "languages": "Talen",
+      "languagesValue": "Engels en Chinees"
+    }
+  },
+  "contactPage": {
+    "h1": "Contact",
+    "lines": {
+      "whatsapp": {
+        "title": "Telefoon en WhatsApp",
+        "body": "Bel of stuur een bericht naar een consultant."
+      },
+      "wechat": {
+        "body": "Zoek de ID op in WeChat om ons toe te voegen."
+      },
+      "email": {
+        "title": "E-mail",
+        "body": "Handig voor documenten en langere vragen."
+      },
+      "office": {
+        "top": "Singapore",
+        "title": "Kantoor",
+        "body": "Paya Lebar Road 60, #06-28 Paya Lebar Square, Singapore 409051"
+      }
+    },
+    "message": {
+      "title": "Stuur een bericht",
+      "text": "Vragen over een visum, een bestemming of werken met VIZA. Schrijf ons en een consultant antwoordt je."
+    }
+  },
+  "careersPage": {
+    "title": "Vacatures",
+    "lede": "VIZA helpt mensen in Singapore aan hun visum met AI en consultants, en de dienst is gratis. We zoeken mensen die van zorgvuldig, nuttig werk houden.",
+    "teamsTitle": "Teams",
+    "teams": [
+      {
+        "title": "Engineering",
+        "body": "Bouw de documentcontroles, de aanvraagflow en de tools die onze consultants gebruiken."
+      },
+      {
+        "title": "Design",
+        "body": "Maak van een stressvol proces iets wat voor de aanvrager duidelijk voelt."
+      },
+      {
+        "title": "Operations",
+        "body": "Houd elke aanvraag in beweging en elke vereiste actueel."
+      },
+      {
+        "title": "Consulting",
+        "body": "Help aanvragers met de zaken die een mens nodig hebben, in het Engels en Chinees."
+      },
+      {
+        "title": "Data",
+        "body": "Maak van overheidsbronnen controles die problemen vroeg opsporen."
+      },
+      {
+        "title": "Marketing",
+        "body": "Leg visa helder uit, in gidsen en pagina's die mensen kunnen vertrouwen."
+      }
+    ],
+    "applyTitle": "Neem contact op",
+    "applyBody": "Vertel ons wie je bent en bij welk team je wilt werken. We lezen elk bericht.",
+    "applyCta": "Contact"
+  },
+  "pageCopy": {
+    "product": {
+      "introTitle": "Zo ondersteunt VIZA je visumaanvraag",
+      "introLede": "Bekijk de beschikbare diensten voor visumvoorbereiding, documentcontrole en aanvraagstatus. De dienst van VIZA is gratis. Wat precies mogelijk is, zie je nadat je een bestemming kiest.",
+      "browse": "Bekijk bestemmingen"
+    },
+    "events": {
+      "title": "Nog geen evenementen",
+      "lede": "Toekomstige visumspreekuren, informatiesessies en partnerevenementen maken we hier bekend.",
+      "contact": "Neem contact op"
+    }
+  },
+  "og": {
+    "band": "VIZA is gratis. Overheidskosten komen apart.",
+    "destSubtitle": "Kosten en hoe je aanvraagt"
+  }
+}

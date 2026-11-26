@@ -5,7 +5,9 @@ import VisaCountryPageClient from "@/components/VisaCountryPageClient";
 import { locales } from "@/i18n";
 import { COUNTRIES, isPublished, type CountryMeta } from "@/lib/countries";
 import { getPublishedCatalogue } from "@/lib/public-catalogue";
+import { loadVisaContent } from "@/lib/visa-content";
 import { destinationDescription, destinationTitle } from "@/lib/seo/titles";
+import { loadSeoCopy } from "@/lib/seo/seo-copy";
 import { pageMetadata } from "@/lib/seo/metadata";
 
 /**
@@ -47,9 +49,10 @@ export async function generateMetadata({
   const { country, launched } = resolved;
   const tc = await getTranslations({ locale, namespace: "countries" });
   const name = tc.has(country.slug) ? tc(country.slug) : country.name;
+  const copy = await loadSeoCopy(locale);
   return pageMetadata({
-    title: destinationTitle(country, name, locale),
-    description: destinationDescription(country, name, locale),
+    title: destinationTitle(country, name, locale, copy),
+    description: destinationDescription(country, name, locale, copy),
     path: `/visa/${country.slug}`,
     locale,
     ogKey: `visa-${country.slug}`,
@@ -65,5 +68,5 @@ export default async function VisaCountryPage({
   const { locale, country: slug } = await params;
   setRequestLocale(locale);
   if (!(await resolveCountry(slug))) notFound();
-  return <VisaCountryPageClient />;
+  return <VisaCountryPageClient content={await loadVisaContent(slug, locale)} />;
 }

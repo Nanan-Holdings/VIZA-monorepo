@@ -1,0 +1,2150 @@
+{
+  "cta": {
+    "startFreeApplication": "Mulai permohonan gratis Anda"
+  },
+  "nav": {
+    "home": "Beranda",
+    "apply": "Ajukan",
+    "visas": "Visa",
+    "explore": "Jelajahi",
+    "events": "Acara",
+    "blog": "Berita",
+    "careers": "Karier",
+    "contact": "Kontak",
+    "signIn": "Masuk",
+    "getStarted": "Mulai",
+    "yourPassport": "Paspor Anda",
+    "searchPlaceholder": "Cari negara atau visa…",
+    "arrivalCards": "Kartu kedatangan",
+    "guides": "Panduan"
+  },
+  "footer": {
+    "followUs": "Ikuti kami:",
+    "followOn": "Ikuti VIZA di {platform}",
+    "product": "Produk",
+    "company": "Perusahaan",
+    "legal": "Hukum",
+    "offices": "Kantor",
+    "askAi": "Tanya AI tentang VIZA",
+    "security": "Keamanan",
+    "status": "Status",
+    "privacy": "Privasi",
+    "terms": "Ketentuan",
+    "rights": "Hak cipta dilindungi undang-undang.",
+    "tagline": "VIZA membantu Anda merencanakan, mengajukan, dan melacak visa dengan mudah ke seluruh dunia.",
+    "careers": "Karier",
+    "contact": "Kontak",
+    "copyright": "© VIZA, Hak cipta dilindungi undang-undang",
+    "prodMockInterview": "Simulasi Wawancara AS",
+    "prodVisaReq": "Persyaratan Visa",
+    "prodSchengen": "Pengecek Janji Temu Schengen",
+    "prodPhoto": "Pembuat Foto Visa",
+    "prodHelpline": "Saluran Darurat VIZA",
+    "prodStudent": "Visa Pelajar",
+    "arrivalCards": "Kartu kedatangan",
+    "guides": "Panduan",
+    "news": "Berita"
+  },
+  "pages": {
+    "blog": {
+      "metaTitle": "Berita Visa dan Pembaruan Kebijakan | VIZA",
+      "metaDescription": "Berita visa dari VIZA: perubahan aturan, skema e-visa dan ETA baru, serta dampaknya bagi yang tinggal di Singapura. Diperbarui saat aturan berubah.",
+      "title": "Berita visa",
+      "lede": "Perubahan aturan dan pembaruan kebijakan, dijelaskan dengan bahasa sederhana. Untuk saran yang tetap berlaku, baca panduan kami.",
+      "readArticle": "Baca artikel",
+      "featuredLabel": "Berita terbaru",
+      "articlesTitle": "Berita terbaru",
+      "articlesDescription": "Pembaruan kebijakan dan perubahan aturan perjalanan.",
+      "allPosts": "Semua artikel",
+      "noMorePosts": "Berita lainnya segera hadir.",
+      "emptyTitle": "Belum ada berita yang diterbitkan",
+      "emptyBody": "Pembaruan pertama kami sedang disiapkan. Silakan cek lagi nanti.",
+      "unavailableTitle": "Berita sementara tidak tersedia",
+      "unavailableBody": "Berita terbaru tidak dapat dimuat. Silakan coba lagi sebentar lagi.",
+      "backToBlog": "Kembali ke berita",
+      "by": "Oleh",
+      "updated": "Diperbarui",
+      "categoriesLabel": "Topik berita",
+      "topicLabel": "Topik",
+      "relatedTitle": "Berita lainnya",
+      "relatedDescription": "Berita visa lainnya dari VIZA.",
+      "ctaEyebrow": "Rencanakan dengan yakin",
+      "ctaTitle": "Siap memulai permohonan Anda?",
+      "ctaBody": "Beri tahu kami tujuan Anda. VIZA akan memandu Anda melalui persyaratan dan langkah berikutnya.",
+      "ctaAction": "Mulai permohonan",
+      "categoryMetaTitle": "Berita {category} | VIZA",
+      "categoryMetaDescription": "Baca berita VIZA tentang {category}: apa yang berubah, siapa yang terdampak, dan apa yang perlu dilakukan.",
+      "categoryLede": "Berita tentang {category}.",
+      "visaLinkTitle": "Mengajukan visa {country}?",
+      "visaLinkBody": "Lihat dokumen, biaya pemerintah, dan langkah-langkahnya bagi yang tinggal di Singapura.",
+      "visaLinkAction": "Panduan visa {country}",
+      "guidesTitle": "Panduan terkait",
+      "guidesBody": "Panduan yang selalu diperbarui tentang topik ini."
+    },
+    "home": {
+      "title": "Permohonan Visa di Singapura: AS, India, Vietnam | VIZA",
+      "description": "Ajukan visa AS (DS-160), e-visa India, Vietnam, atau Mesir, atau visa Schengen Prancis. Seorang penasihat memeriksa setiap formulir sebelum diajukan.",
+      "heroTitle": "Mau ke mana berikutnya?",
+      "heroLede": "Lihat pilihan visa untuk tujuan mana pun. Konsultan VIZA dan AI kami mengurus dokumennya, Anda tinggal memesan perjalanan."
+    },
+    "apply": {
+      "title": "Mulai Permohonan Visa | VIZA",
+      "description": "Unggah paspor Anda, konfirmasi data, dan serahkan permohonan visa Anda kepada penasihat VIZA. Layanan VIZA gratis.",
+      "saveBadge": "Tersimpan · lanjutkan kapan saja"
+    },
+    "careers": {
+      "title": "Karier | VIZA",
+      "description": "Bekerja di VIZA, layanan visa gratis yang dijalankan Kelin Studio di Singapura. Lihat tim yang sedang merekrut dan cara menghubungi kami.",
+      "rightCta": "Lihat lowongan"
+    },
+    "contact": {
+      "title": "Hubungi Kami: WhatsApp, WeChat, Telepon, Email | VIZA",
+      "description": "Hubungi tim VIZA lewat WhatsApp, WeChat, telepon, atau email. Empat saluran, empat meja layanan, dan orang sungguhan yang membalas.",
+      "rightCta": "Tulis kepada kami"
+    },
+    "security": {
+      "title": "Keamanan dan Pengungkapan Bertanggung Jawab | VIZA",
+      "description": "Privat, transparan, dan aman sejak awal. Cara VIZA melindungi data pelanggan, program pengungkapan kerentanan, dan safe harbour kami.",
+      "rightCta": "Laporkan kerentanan"
+    },
+    "status": {
+      "title": "Status Sistem | VIZA",
+      "description": "Status langsung VIZA dan portal visa pemerintah tempat kami mengajukan permohonan.",
+      "navPill": "Semua sistem berjalan normal"
+    },
+    "visa": {
+      "applyCta": "Ajukan sekarang",
+      "applicationProcess": "Proses permohonan",
+      "documents": "Dokumen",
+      "rejectionReasons": "Alasan penolakan",
+      "entryExit": "Masuk & keluar",
+      "extension": "Perpanjangan",
+      "reviews": "Ulasan",
+      "nearby": "Negara terdekat",
+      "sources": "Sumber resmi"
+    },
+    "privacy": {
+      "title": "Kebijakan Privasi | VIZA",
+      "description": "Data apa yang dikumpulkan VIZA saat Anda mengajukan visa, alasannya, siapa yang melihatnya, dan berapa lama disimpan, sesuai PDPA Singapura."
+    },
+    "terms": {
+      "title": "Syarat & Ketentuan | VIZA",
+      "description": "Ketentuan penggunaan layanan permohonan visa VIZA, dioperasikan oleh Kelin Studio Pte. Ltd. di Singapura. Layanan VIZA gratis."
+    },
+    "product": {
+      "title": "Cara VIZA Mendukung Permohonan Visa Anda | VIZA",
+      "description": "Persiapan visa, pemeriksaan dokumen, dan status permohonan di satu tempat. Layanan VIZA gratis. Cakupan dan ketersediaan ditampilkan per tujuan."
+    },
+    "events": {
+      "title": "Acara | VIZA",
+      "description": "Klinik visa, sesi informasi, dan acara mitra dari VIZA."
+    },
+    "arrivalCards": {
+      "title": "Panduan Kartu Kedatangan: MDAC, SG Arrival Card, TDAC | VIZA",
+      "description": "Panduan gratis kartu kedatangan Malaysia, Singapura, Jepang, Thailand, Korea, dan Indonesia: siapa yang perlu, kapan dikirim, dan langkahnya."
+    },
+    "guides": {
+      "title": "Panduan Visa bagi yang Tinggal di Singapura | VIZA",
+      "description": "Panduan sederhana bagi yang tinggal di Singapura: negara bebas visa, dokumen Schengen, wawancara AS, ETA, e-visa, dan penolakan. Gratis, sering diperiksa."
+    },
+    "about": {
+      "title": "Tentang VIZA: Bantuan Visa Gratis di Singapura | VIZA",
+      "description": "VIZA menyiapkan, memeriksa, dan mengajukan visa bagi orang di Singapura, dengan AI dan konsultan. Gratis; biaya pemerintah dibayar ke otoritas."
+    },
+    "visaIndex": {
+      "title": "Tujuan Visa: Persyaratan per Negara | VIZA",
+      "description": "Bandingkan persyaratan visa per negara, lengkap dengan dokumen dan biaya masing-masing. Bantuan VIZA gratis.",
+      "heroTitle": "Tujuan visa"
+    },
+    "refunds": {
+      "title": "Kebijakan Pengembalian Dana | VIZA",
+      "description": "Layanan VIZA gratis, jadi tidak ada biaya layanan yang perlu dikembalikan. Begini cara kerja biaya pemerintah dan biaya penyedia lain."
+    },
+    "businessInformation": {
+      "title": "Informasi Bisnis | VIZA",
+      "description": "VIZA dioperasikan oleh Kelin Studio Pte. Ltd., perusahaan Singapura. Alamat terdaftar, UEN, dan detail kontak."
+    }
+  },
+  "common": {
+    "comingSoon": "Segera hadir",
+    "learnMore": "Pelajari lebih lanjut",
+    "readMore": "Baca selengkapnya",
+    "applyNow": "Ajukan sekarang",
+    "talkToHuman": "Bicara dengan staf kami",
+    "viewAll": "Lihat semua"
+  },
+  "visa": {
+    "heroTitle": "Visa {country}",
+    "validity": "Masa berlaku",
+    "howItWorks": "Cara kerjanya",
+    "step1": "Beri tahu kami detail perjalanan Anda dan unggah paspor Anda.",
+    "step2": "Kami melengkapi dan memeriksa permohonan Anda sesuai aturan terbaru.",
+    "step3": "Kami mengajukannya ke portal pemerintah dan memantau keputusannya.",
+    "step4": "Visa yang disetujui dikirim lewat email, dan kami memantaunya dari awal hingga akhir.",
+    "documents": "Yang Anda perlukan",
+    "doc1": "Paspor yang masih berlaku minimal 6 bulan.",
+    "doc2": "Pasfoto terbaru.",
+    "doc3": "Tanggal perjalanan dan akomodasi Anda.",
+    "doc4": "Jika tujuan mengenakan biaya visa, kartu pembayaran untuk membayarnya langsung ke pemerintah.",
+    "nearby": "Tujuan terdekat",
+    "startApplication": "Mulai permohonan Anda",
+    "comingSoonTitle": "{country}: segera hadir",
+    "comingSoonBody": "Kami sedang menyelesaikan persiapan untuk {country}. Buat akun dan kami akan mengabari Anda begitu layanannya tersedia.",
+    "browseDestinations": "Lihat tujuan",
+    "notifyMe": "Beri tahu saya",
+    "back": "Kembali ke jelajahi",
+    "tabOverview": "Ringkasan",
+    "tabProcess": "Proses permohonan",
+    "tabDocuments": "Dokumen",
+    "tabRejection": "Alasan penolakan",
+    "tabEntry": "Masuk & keluar",
+    "tabExtension": "Perpanjangan",
+    "tabReviews": "Ulasan",
+    "tabNearby": "Negara terdekat",
+    "reviewsTitle": "Ulasan",
+    "nearbyTitle": "Negara terdekat",
+    "nearbySub": "Berkeliling di kawasan ini? Tambahkan visa lain ke perjalanan Anda, dan konsultan VIZA Anda akan mengurusnya sekaligus.",
+    "faqTitle": "Pertanyaan yang sering diajukan",
+    "editorial": "Halaman ini mengikuti kebijakan editorial VIZA. Kami mengandalkan sumber resmi pemerintah dan memperbarui setiap persyaratan saat kebijakan berubah.",
+    "editorialLink": "Baca cara kami meninjau",
+    "sourcesTitle": "Sumber",
+    "priceGovt": "Biaya pemerintah",
+    "priceFree": "Gratis",
+    "pillAllInclusive": "Sudah termasuk semua",
+    "priceCta": "Mulai permohonan",
+    "onTime": "Tepat waktu",
+    "freeService": "Layanan VIZA gratis",
+    "freeServiceNote": "VIZA tidak memungut biaya apa pun untuk bantuannya",
+    "govFeePaidDirect": "Biaya pemerintah {fee}, dibayar langsung ke otoritas penerbit.",
+    "govFeeSetByAuthority": "Biaya pemerintah ditetapkan oleh otoritas penerbit dan dibayar langsung kepadanya.",
+    "govFeeSetByAuthorityShort": "Ditetapkan oleh otoritas",
+    "priceService": "Layanan VIZA",
+    "pillPaidToAuthority": "Dibayar ke otoritas",
+    "priceTotalToViza": "Yang Anda bayar ke VIZA",
+    "breadcrumbVisas": "Tujuan visa",
+    "serviceDescription": "VIZA membantu orang yang tinggal di Singapura menyiapkan, meninjau, dan mengajukan permohonan {type} {country} dengan panduan AI dan tinjauan ahli.",
+    "offerDescription": "Biaya layanan VIZA. Biaya visa pemerintah terpisah dan dibayar langsung ke otoritas penerbit.",
+    "dest": {
+      "tabGlance": "Sekilas",
+      "tabPassports": "Paspor",
+      "tabTypes": "Jenis visa",
+      "tabResidents": "Penduduk",
+      "tabFees": "Biaya",
+      "tabApply": "Cara mengajukan",
+      "tabChecklist": "Dokumen",
+      "tabRejection": "Penolakan",
+      "tabTravel": "Sebelum berangkat",
+      "tabRelated": "Terkait",
+      "glanceTitle": "Sekilas",
+      "glanceVisa": "Perlu visa",
+      "glanceGovFee": "Biaya pemerintah",
+      "glanceVizaFee": "Biaya VIZA",
+      "glanceProcessing": "Waktu proses",
+      "glanceMaxStay": "Lama tinggal maksimal",
+      "glanceChecked": "Tanggal diperiksa",
+      "passportsTitle": "Apakah Anda perlu visa?",
+      "typesTitle": "Jenis visa",
+      "residentsTitle": "Penduduk Singapura",
+      "feesTitle": "Biaya dan waktu",
+      "applyTitle": "Cara mengajukan",
+      "checklistTitle": "Daftar periksa dokumen",
+      "travelTitle": "Sebelum berangkat",
+      "colPassport": "Paspor",
+      "colEntry": "Masuk",
+      "colNotes": "Catatan",
+      "colItem": "Item",
+      "colAmount": "Jumlah",
+      "vizaFeeNote": "Bantuan VIZA gratis. Anda hanya membayar biaya pemerintah, langsung ke otoritas.",
+      "reviewedBy": "Ditinjau oleh konsultan VIZA pada {date}.",
+      "relatedTitle": "Tujuan terkait",
+      "relatedSub": "Tempat lain yang sering ditambahkan ke perjalanan yang sama, dan bacaan lanjutan.",
+      "startTitle": "Mulai permohonan",
+      "startBody": "Mulai dengan paspor dan tanggal perjalanan Anda. Bantuan VIZA gratis dan Anda membayar biaya pemerintah langsung ke otoritas.",
+      "startConsultBody": "Beri tahu konsultan VIZA tempat tinggal Anda, paspor Anda, dan tanggal perjalanan Anda. Bantuan VIZA gratis.",
+      "consultCta": "Bicara dengan konsultan"
+    }
+  },
+  "apply": {
+    "stepOf": "Langkah {n} dari 3",
+    "back": "Kembali",
+    "continue": "Lanjut",
+    "step1Name": "Unggah paspor",
+    "step2Name": "Konfirmasi data",
+    "step3Name": "Mulai permohonan",
+    "s1Title": "Unggah paspor Anda",
+    "s1Desc": "Kami membaca data Anda secara otomatis, tanpa perlu mengetik. Gunakan halaman biodata (halaman yang ada foto Anda).",
+    "segUpload": "Unggah file",
+    "segCapture": "Ambil foto",
+    "dzTitle": "Letakkan foto paspor Anda di sini",
+    "dzSub": "Atau klik untuk memilih. File Anda dienkripsi dan tidak pernah dibagikan",
+    "dzBrowse": "Pilih file",
+    "dzUpTo": "Maksimal 10 MB",
+    "tip1Title": "Keempat sudut terlihat",
+    "tip1Sub": "Masukkan seluruh halaman biodata, termasuk MRZ di bagian bawah.",
+    "tip2Title": "Cahaya terang dan merata",
+    "tip2Sub": "Hindari bayangan dari tangan atau casing ponsel Anda.",
+    "tip3Title": "Tanpa silau atau pantulan",
+    "tip3Sub": "Miringkan sedikit jika lambangnya memantulkan cahaya.",
+    "errReadFail": "Paspor tersebut tidak dapat dibaca: {detail}. Silakan coba foto halaman biodata yang lebih jelas.",
+    "extReading": "Membaca dokumen",
+    "extExtracting": "Mengambil data Anda",
+    "extVerifying": "Memverifikasi keaslian",
+    "stReading": "Membaca…",
+    "stExtracting": "Mengambil data…",
+    "stVerifying": "Memverifikasi…",
+    "s2Title": "Konfirmasi data Anda",
+    "s2Desc": "Data ini kami ambil langsung dari paspor Anda. Ketuk kolom mana pun untuk mengubahnya.",
+    "successHigh": "Data paspor berhasil diambil, tingkat keyakinan tinggi",
+    "warnLow": "Beberapa kolom sulit dibaca. Silakan periksa ulang setiap nilai di bawah.",
+    "warnMed": "Sebagian besar data Anda berhasil diambil. Silakan periksa kolom yang disorot.",
+    "ppDetails": "Data paspor",
+    "autoExtracted": "Diambil otomatis",
+    "fSurname": "Nama keluarga",
+    "fGiven": "Nama depan",
+    "fPassport": "Nomor paspor",
+    "fDob": "Tanggal lahir",
+    "fNationality": "Kewarganegaraan",
+    "fExpires": "Berlaku hingga",
+    "reachTitle": "Bagaimana kami menghubungi Anda?",
+    "reachDesc": "Kami akan mengirim visa Anda ke sini, serta pembaruan status lewat SMS ke ponsel Anda.",
+    "email": "Email",
+    "phone": "Telepon",
+    "consent": "Saya menyatakan data di atas sesuai dengan paspor saya, dan saya memberi wewenang kepada VIZA untuk mengajukan permohonan ini atas nama saya kepada otoritas imigrasi {country}.",
+    "s3Title": "Mulai permohonan Anda",
+    "s3Desc": "Layanan VIZA gratis. Masuk ke portal VIZA dan kami lanjutkan dari sana.",
+    "headsUp": "Perlu diketahui:",
+    "headsUpBody": "jika pemerintah {country} mengenakan biaya visa, Anda membayarnya langsung kepada mereka. VIZA tidak pernah memungut atau menaikkan jumlah tersebut.",
+    "yourApp": "Permohonan Anda",
+    "guaranteedBy": "Dijamin terkirim paling lambat",
+    "govFee": "Biaya pemerintah",
+    "expressUpgrade": "Peningkatan ekspres",
+    "total": "Total",
+    "footEncrypted": "Terenkripsi end-to-end. VIZA tidak memungut biaya untuk permohonan ini.",
+    "helpOnline": "Priya sedang online",
+    "helpTap": "Ketuk untuk chat dengan konsultan VIZA Anda",
+    "totalAmount": "SGD {amount}",
+    "totalFree": "Gratis",
+    "etaStandard": "12 Mei 2026, pukul 8:00 pagi SGT",
+    "failTitle": "Dokumen tersebut tidak dapat dibaca",
+    "failNotPassport": "Ini tidak terlihat seperti halaman biodata paspor. Silakan unggah foto halaman yang memuat foto dan data pribadi Anda.",
+    "failUnreadable": "Tidak ada kolom wajib yang dapat dibaca. Silakan foto ulang di tempat yang terang, dengan seluruh halaman biodata rata dan fokus.",
+    "tryAgain": "Coba lagi",
+    "warnPartial": "Tidak semua data dapat dibaca. Silakan lengkapi kolom yang disorot di bawah.",
+    "warnExpired": "Paspor ini tampaknya sudah habis masa berlakunya. Sebagian besar tujuan mensyaratkan masa berlaku minimal 6 bulan.",
+    "warnMrz": "Zona baca mesin (dua baris di bagian bawah) tidak terbaca. Silakan periksa ulang setiap kolom.",
+    "warnBlurry": "Fotonya buram. Silakan periksa ulang setiap kolom dengan teliti.",
+    "fieldRequired": "Wajib diisi",
+    "editField": "Ubah {field}",
+    "emailInvalid": "Masukkan alamat email yang valid. Pembaruan visa dan tautan masuk Anda dikirim ke sini.",
+    "phoneInvalid": "Masukkan nomor telepon yang valid.",
+    "consentRequired": "Silakan konfirmasi pernyataan untuk melanjutkan.",
+    "continueToStart": "Lanjut",
+    "startTitle": "Lanjutkan di portal VIZA",
+    "startSub": "Masuk atau buat akun gratis Anda. Permohonan untuk tujuan ini langsung terbuka.",
+    "vizaService": "Layanan VIZA",
+    "govFeeSetByAuthority": "Ditetapkan oleh otoritas",
+    "govFeeNote": "Biaya visa pemerintah dibayar langsung ke otoritas penerbit, bukan ke VIZA.",
+    "completeBeforeStart": "Silakan lengkapi item yang disorot di atas sebelum melanjutkan."
+  },
+  "explore": {
+    "help": "Bantuan",
+    "passportLabel": "Paspor {name}",
+    "passportSub": "Persyaratan visa untuk {n} tujuan · Peringkat {rank}",
+    "freeLabel": "Bebas visa",
+    "freeNote": "tanpa dokumen",
+    "voaLabel": "e-Visa atau VOA",
+    "voaNote": "kami yang urus",
+    "reqLabel": "Wajib visa",
+    "reqNote": "diajukan ke kedutaan",
+    "fullMap": "Lihat peta visa lengkap",
+    "grid": "Kisi",
+    "map": "Peta",
+    "mapLegendEvisa": "e-Visa & visa kunjungan",
+    "mapHint": "Arahkan kursor ke titik yang disorot untuk melihat tujuan",
+    "sectionTitle": "Untuk paspor {country}",
+    "seeAll": "Lihat semua {n}",
+    "footnote": "Layanan VIZA gratis. Biaya visa pemerintah dibayar langsung ke otoritas penerbit dan berbeda di setiap negara.",
+    "fastTrack": "Jalur cepat",
+    "cardType": "Jenis",
+    "cardValid": "Berlaku",
+    "cardFee": "Layanan VIZA",
+    "save": "Simpan",
+    "startApplication": "Mulai permohonan",
+    "catalogueUnavailable": "Saat ini belum ada tujuan yang dibuka untuk permohonan online. Silakan cek lagi nanti.",
+    "choosePassport": "Pilih paspor Anda",
+    "searchPassport": "Cari negara paspor…",
+    "visaFree": "{n} bebas visa",
+    "ppFoot": "Diperbarui untuk Mei 2026 · Sumber: IATA Timatic",
+    "noMatch": "Tidak ada paspor yang cocok dengan “{q}”",
+    "filters": {
+      "delivery": "Pengiriman visa",
+      "type": "Jenis visa",
+      "documents": "Dokumen",
+      "dates": "Tanggal perjalanan"
+    },
+    "filterOpts": {
+      "delivery": [
+        "Kapan saja",
+        "Dalam 24 jam",
+        "Dalam 3 hari",
+        "Dalam 1 minggu",
+        "Dalam 1 bulan"
+      ],
+      "type": [
+        "Semua jenis",
+        "Turis",
+        "Bisnis",
+        "Kerja",
+        "Pelajar",
+        "Digital nomad"
+      ],
+      "documents": [
+        "Dokumen apa saja",
+        "Minimal (hanya paspor)",
+        "Standar",
+        "Paket lengkap"
+      ],
+      "dates": [
+        "Pilih tanggal",
+        "Minggu ini",
+        "Bulan ini",
+        "Dalam 3 bulan",
+        "Dalam 6 bulan"
+      ]
+    }
+  },
+  "cities": {
+    "viza-test": "Uji checkout langsung",
+    "indonesia": "Bali · Jakarta",
+    "egypt": "Kairo · Giza",
+    "australia": "Sydney · Melbourne",
+    "saudi-arabia": "Riyadh · AlUla",
+    "united-kingdom": "London · Edinburgh",
+    "vietnam": "Hanoi · Hoi An",
+    "malaysia": "KL · Penang",
+    "japan": "Tokyo · Kyoto",
+    "united-states": "NYC · LA",
+    "canada": "Toronto · Vancouver",
+    "turkiye": "Istanbul · Cappadocia",
+    "thailand": "Bangkok · Phuket",
+    "united-arab-emirates": "Dubai · Abu Dhabi",
+    "france": "Paris · Nice",
+    "italy": "Roma · Firenze",
+    "india": "Delhi · Mumbai"
+  },
+  "validity": {
+    "viza-test": "Hanya demo",
+    "indonesia": "90 hari",
+    "egypt": "90 hari",
+    "australia": "1 tahun",
+    "saudi-arabia": "365 hari",
+    "united-kingdom": "6 bulan",
+    "vietnam": "90 hari",
+    "malaysia": "3 bulan",
+    "japan": "90 hari",
+    "united-states": "10 tahun",
+    "canada": "10 tahun",
+    "turkiye": "180 hari",
+    "thailand": "3 bulan",
+    "united-arab-emirates": "60 hari",
+    "france": "90 hari",
+    "italy": "90 hari",
+    "india": "30 hari"
+  },
+  "passports": {
+    "SG": "Singapura",
+    "JP": "Jepang",
+    "KR": "Korea Selatan",
+    "DE": "Jerman",
+    "FR": "Prancis",
+    "GB": "Britania Raya",
+    "US": "Amerika Serikat",
+    "AU": "Australia",
+    "CA": "Kanada",
+    "AE": "Uni Emirat Arab",
+    "CN": "Tiongkok",
+    "IN": "India",
+    "BR": "Brasil",
+    "PH": "Filipina",
+    "ID": "Indonesia",
+    "MY": "Malaysia",
+    "TH": "Thailand"
+  },
+  "countries": {
+    "viza-test": "VIZA Test",
+    "indonesia": "Indonesia",
+    "egypt": "Mesir",
+    "australia": "Australia",
+    "saudi-arabia": "Arab Saudi",
+    "united-kingdom": "Britania Raya",
+    "vietnam": "Vietnam",
+    "malaysia": "Malaysia",
+    "japan": "Jepang",
+    "united-states": "Amerika Serikat",
+    "canada": "Kanada",
+    "turkiye": "Turki",
+    "thailand": "Thailand",
+    "united-arab-emirates": "Uni Emirat Arab",
+    "france": "Prancis",
+    "italy": "Italia",
+    "india": "India",
+    "china": "Tiongkok",
+    "south-korea": "Korea Selatan",
+    "schengen": "Schengen"
+  },
+  "visaTypes": {
+    "Test checkout": "Uji checkout",
+    "e-Visa": "e-Visa",
+    "Standard Visitor": "Standard Visitor",
+    "Visitor 600": "Visitor 600",
+    "Tourist": "Turis",
+    "B1/B2": "B1/B2",
+    "eTA": "eTA",
+    "Schengen": "Schengen",
+    "eVisa": "eVisa",
+    "Visitor visa": "Visa kunjungan",
+    "Tourist visa": "Visa turis"
+  },
+  "careers": {
+    "hero": {
+      "nowHiring": "Sedang merekrut di",
+      "cities": [
+        "Shanghai",
+        "Singapura"
+      ],
+      "openRoles": "28 posisi terbuka",
+      "title": "Bantu kami membuat batas negara<br></br><em>menghilang</em>, <u>diam-diam,</u><br></br>secepat perangkat lunak.",
+      "lead": "Kami mengubah urusan dokumen visa yang makan waktu berbulan-bulan menjadi perangkat lunak yang selesai dalam hitungan jam, untuk jutaan orang yang hanya ingin naik pesawat. Bawa keahlian Anda ke tim yang bekerja dengan tenggat dunia nyata.",
+      "ctaRoles": "Lihat semua posisi terbuka",
+      "ctaWhy": "Mengapa kami ada"
+    },
+    "board": {
+      "ariaLabel": "Papan keberangkatan berisi posisi terbuka di VIZA",
+      "head": "Posisi terbuka · langsung",
+      "live": "Tepat waktu",
+      "cols": {
+        "req": "No.",
+        "role": "Posisi",
+        "office": "Kantor",
+        "status": "Status"
+      },
+      "rows": [
+        {
+          "role": "Staff Engineer",
+          "sub": "Alur dokumen",
+          "status": "Boarding"
+        },
+        {
+          "role": "Product Designer",
+          "sub": "Alur pemohon",
+          "status": "Dibuka"
+        },
+        {
+          "role": "Penghubung Kedutaan",
+          "sub": "Kemitraan pemerintah",
+          "status": "Panggilan terakhir"
+        },
+        {
+          "role": "Operasional Pelanggan",
+          "sub": "Eskalasi tingkat 2",
+          "status": "Dibuka"
+        }
+      ],
+      "foot": "+24 posisi lain di engineering, operasional & desain",
+      "browseAll": "Lihat semua",
+      "chip1Label": "Merekrut di",
+      "chip1Value": "4 kantor",
+      "chip2Label": "Rata-rata respons",
+      "chip2Value": "3.2 hari hingga panggilan pertama"
+    },
+    "stats": [
+      {
+        "value": "2.4M",
+        "label": "Visa yang diterbitkan melalui VIZA tahun lalu"
+      },
+      {
+        "label": "Tujuan yang didukung dengan pemrosesan langsung"
+      },
+      {
+        "label": "Tingkat persetujuan untuk semua jenis visa pada 2025"
+      },
+      {
+        "label": "Orang di Shanghai & Singapura"
+      }
+    ],
+    "mission": {
+      "eyebrow": "Kisah kami",
+      "title": "Sebagian besar dunia<br></br>masih bepergian dengan<br></br><em>dokumen cetak.</em>",
+      "kicker1": "Kami memulai VIZA pada 2021 setelah terlalu sering menunggu berminggu-minggu di telepon dengan kedutaan. Sistem untuk memindahkan orang lintas negara lebih tua dari internet, dan orang-orang yang terjebak di dalamnya layak mendapat yang lebih baik.",
+      "kicker2": "Kini, tim berisi 340 orang di empat kantor membangun perangkat lunak, mengurus dokumen, dan menjalankan operasional di 194 negara. Kami mengerjakan pekerjaan yang membosankan dan melelahkan, agar perjalanan terasa seperti bagian internet lainnya: beberapa ketukan, lalu Anda berangkat.",
+      "founderName": "Mira Kohli",
+      "founderRole": "Salah satu pendiri & CEO · Singapura",
+      "beliefs": [
+        {
+          "title": "Kami perusahaan operasional yang membangun perangkat lunak.",
+          "body": "Separuh VIZA adalah engineer, desainer, dan PM. Separuh lainnya adalah konsultan, tim operasional, dan spesialis dokumen di tiap negara. Tidak ada yang bisa berhasil tanpa yang lain."
+        },
+        {
+          "title": "Pemohon selalu menjadi pelanggan kami.",
+          "body": "Kedutaan, mitra, maskapai, semuanya penting. Namun orang yang terjebak antre pukul 3 pagi sambil memuat ulang portal adalah orang yang kami layani, dan tolok ukur kinerja kami."
+        },
+        {
+          "title": "Kecepatan berlipat ganda saat Anda sabar menjaga kualitas.",
+          "body": "Kami cepat dalam merilis, lambat dalam keputusan yang tidak bisa diubah. Keputusan visa yang salah bisa merusak pernikahan, pekerjaan, atau pemakaman. Kami menjaga standar itu meski memperlambat kami."
+        },
+        {
+          "title": "Jarak adalah masalah UX, bukan hambatan.",
+          "body": "Tim kami tersebar di empat zona waktu. Tulisan asinkron, kepemilikan yang jelas, dan budaya dokumentasi yang baik adalah cara kami menukar waktu dengan kepercayaan, dan cara kami bekerja lintas dunia tanpa membuat siapa pun kelelahan."
+        }
+      ]
+    },
+    "values": {
+      "eyebrow": "Standar yang kami pegang",
+      "title": "Lima hal yang kami yakini, meski mahal harganya.",
+      "lead": "Nilai mudah ditulis tetapi sulit dijalankan. Inilah lima nilai yang benar-benar kami gunakan saat merekrut, saat evaluasi, dan saat mengambil keputusan sulit yang jarang terjadi.",
+      "cards": [
+        {
+          "title": "Katakan yang sebenarnya, terutama saat itu merugikan kami.",
+          "body": "Jika visa tidak akan keluar tepat waktu, katakan hari ini, bukan sehari sebelum penerbangan. Kami lebih baik kehilangan penjualan daripada menyampaikan kebohongan.",
+          "kicker": "Dalam praktik → kebijakan yang dipublikasikan, audit perubahan"
+        },
+        {
+          "title": "Raih kecepatan nyata. Jangan cuma merasa sibuk.",
+          "body": "Kami merayakan keputusan dan hasil kerja yang dirilis, bukan rapat dan utas diskusi. Intinya adalah hasil nyata untuk misi, bukan sekadar kesibukan di kalender Anda.",
+          "kicker": "Dalam praktik → evaluasi hasil kerja tiap kuartal"
+        },
+        {
+          "title": "Berpikir dalam paspor, bukan persona.",
+          "body": "Aturan visa bergantung pada kewarganegaraan. “Pengguna” itu tidak ada; yang ada adalah pemegang paspor Filipina yang mengajukan visa Schengen. Kami membangun untuk orang sungguhan, bukan rata-rata.",
+          "kicker": "Dalam praktik → spesifikasi produk berbasis paspor"
+        },
+        {
+          "title": "Tuliskan semuanya. Terutama keputusan.",
+          "body": "Empat kantor, empat zona waktu. Jika keputusan tidak ditulis, keputusan itu tidak pernah terjadi. Wiki kami wajib dibaca; standup kami opsional.",
+          "kicker": "Dalam praktik → ADR, memo mingguan, utamakan asinkron"
+        },
+        {
+          "title": "Tetap dekat dengan antrean.",
+          "body": "Setiap engineer menjalani satu sif per kuartal bersama tim konsultan. Anda tidak bisa menghilangkan hambatan yang belum pernah Anda rasakan pukul 11 malam di hari Minggu.",
+          "kicker": "Dalam praktik → sif antrean bergilir"
+        },
+        {
+          "title": "Pilih versi yang panjang.",
+          "body": "Jawaban tiga puluh detik biasanya salah. Kami berinvestasi pada dokumentasi mendalam, panduan kerja yang kokoh, dan penjelasan yang teruji, meski versi singkat sebenarnya cukup.",
+          "kicker": "Dalam praktik → buku panduan orientasi, panduan kerja publik"
+        }
+      ]
+    },
+    "inside": {
+      "eyebrow": "Di dalam VIZA",
+      "title": "Seperti apa sebenarnya<br></br>bekerja di sini.",
+      "lead": "Kami punya kantor di dua kota karena kami merekrut dekat dengan tempat permohonan diajukan. Kami lantang soal pencapaian, diam soal politik kantor, dan jujur tentang seberapa banyak yang masih harus kami bangun.",
+      "photos": [
+        {
+          "label": "foto · kantor pusat singapura, ruang terbuka",
+          "mark": "Paya Lebar Square, SG"
+        },
+        {
+          "label": "foto · ruang antrean konsultan",
+          "mark": "Luoshan Rd, Shanghai"
+        },
+        {
+          "label": "foto · sesi papan tulis",
+          "mark": "Offsite tim teknologi, Bali"
+        },
+        {
+          "label": "foto · ruang operasional shanghai",
+          "mark": "Pudong, Shanghai"
+        },
+        {
+          "label": "foto · makan malam tim",
+          "mark": "Pertemuan seluruh tim, Lisboa"
+        },
+        {
+          "label": "foto · kunjungan mitra kedutaan",
+          "mark": "Paya Lebar Square, SG"
+        }
+      ],
+      "pull": "“Kami merekrut orang yang sudah punya pendapat tentang visa sebelum bergabung. Di bulan kedua, pendapat Anda akan makin kuat.”",
+      "pullBy": "Felix Adekunle, VP Engineering",
+      "para1": "VIZA memberi otonomi tinggi dan konteks yang lengkap. Setiap pekerjaan Anda punya pemilik, anggaran nyata, dan harapan bahwa Anda akan menjelaskan alasan di balik pekerjaan Anda kepada seluruh perusahaan.",
+      "para2": "Jika Anda ingin diberi tahu apa yang harus dikerjakan setiap hari, ini bukan tempat yang tepat. Jika Anda sudah lama menunggu seseorang menyerahkan kemudi kepada Anda, kemudinya ada di sini."
+    },
+    "how": {
+      "eyebrow": "Engineering & operasional di VIZA",
+      "title": "Bagaimana pekerjaan benar-benar berjalan.",
+      "lead": "Jika Anda membangun, mengurus dokumen, atau mendesain di sini, beginilah minggu Anda. Lebih sedikit seremoni, lebih banyak hasil yang dirilis. Lebih sedikit Slack, lebih banyak keputusan yang ditulis.",
+      "cells": [
+        {
+          "title": "Kepemilikan dari awal hingga akhir",
+          "body": "Anda mendesain, membangun, merilis, dan memilikinya di produksi. Tanpa antrean serah terima, tanpa roadmap yang ditulis orang tiga lapis jauhnya. Jika itu milik Anda, itu benar-benar milik Anda."
+        },
+        {
+          "title": "Deploy setiap hari, secara bawaan",
+          "body": "Sebagian besar tim merilis beberapa kali sehari. Siklus umpan balik sengaja dibuat cepat, dan pembatalan dalam tiga puluh menit lebih disukai daripada perdebatan tiga minggu."
+        },
+        {
+          "title": "Masalah nyata yang rumit",
+          "body": "Ini bukan sekadar CRUD. Anda akan menangani OCR dokumen, penjadwalan yang sensitif terhadap latensi di 90+ portal pemerintah, dan alur konsumen yang dipakai jutaan orang."
+        },
+        {
+          "title": "Standarnya tinggi, secara terbuka",
+          "body": "Kami berpasangan dalam tinjauan desain. Kami memberi komentar langsung di PR. Kami percaya selera bisa diajarkan, dan kami berharap setiap orang aktif membantu rekan di sekitarnya menjadi lebih baik."
+        },
+        {
+          "title": "Anggaran belajar yang nyata",
+          "body": "$2,000 per orang per tahun, tanpa banyak tanya, untuk konferensi, buku, kursus, apa pun yang memberi nilai balik pada pekerjaan Anda di sini."
+        },
+        {
+          "title": "Arsitektur yang Anda tulis",
+          "body": "RFC terbuka untuk semua orang. Engineer baru sudah ikut membentuk infrastruktur inti di bulan pertama mereka. Jika Anda punya rencana yang lebih baik, tuliskan; kami akan membacanya."
+        }
+      ]
+    },
+    "roles": {
+      "eyebrow": "Posisi terbuka · diperbarui setiap minggu",
+      "title": "Jadilah bagian dari perjalanan ini.",
+      "lead": "28 posisi terbuka di empat kantor. Kami merekrut untuk engineering, desain, operasional, konsultan, dan kemitraan. Posisi baru muncul setiap Senin.",
+      "allDepartments": "Semua departemen",
+      "deps": {
+        "eng": "Engineering",
+        "design": "Desain",
+        "ops": "Operasional",
+        "consult": "Konsultan",
+        "data": "Data & ML",
+        "gtm": "Pemasaran & GTM"
+      },
+      "showing": "Menampilkan <strong>{count}</strong> posisi · semua lokasi · semua tim",
+      "anyLocation": "Semua lokasi",
+      "groupCount": "{count} dibuka",
+      "posSub": "{team} · kami merekrut berdasarkan keahlian dan penilaian, bukan latar belakang",
+      "locationLabel": "Lokasi",
+      "typeLabel": "Jenis",
+      "fullTime": "Penuh waktu",
+      "viewRole": "Lihat posisi",
+      "locations": {
+        "sg": "Singapura",
+        "sf": "Shanghai",
+        "ldn": "Singapura",
+        "dxb": "Shanghai"
+      },
+      "jobs": {
+        "backendPayments": "Senior Backend Engineer, Tim Platform",
+        "staffDocPipeline": "Staff Engineer, Alur Dokumen",
+        "iosApplicant": "iOS Engineer, Aplikasi Pemohon",
+        "platformInfra": "Platform Engineer, Infrastruktur & Keamanan",
+        "frontendConsole": "Frontend Engineer, Konsol Konsultan",
+        "emWeb": "Engineering Manager, Web",
+        "sre": "Site Reliability Engineer",
+        "androidSenior": "Senior Android Engineer",
+        "leadEmbassy": "Engineering Lead, Integrasi Kedutaan",
+        "productDesignerApplicant": "Senior Product Designer, Alur Pemohon",
+        "brandDesigner": "Brand Designer",
+        "designLeadConsultant": "Design Lead, Alat Konsultan",
+        "headOpsMe": "Kepala Operasional, Timur Tengah",
+        "visaOpsSchengen": "Lead Operasional Visa, Schengen",
+        "logistics": "Manajer Logistik & Kurir",
+        "processDocQa": "Process Engineer, QA Dokumen",
+        "opsAnalyst": "Analis Operasional, Pemesanan",
+        "consultSchengen": "Konsultan Visa, Schengen",
+        "consultUs": "Konsultan Visa, AS B1/B2",
+        "consultUae": "Konsultan Visa, Izin Tinggal UEA",
+        "consultStudent": "Konsultan Senior, Visa Pelajar",
+        "consultApac": "Lead Konsultan, Asia-Pasifik",
+        "consultUk": "Konsultan Visa, Inggris",
+        "dataScientist": "Senior Data Scientist, Pemodelan Persetujuan",
+        "mlOcr": "ML Engineer, OCR & AI Dokumen",
+        "perfMarketing": "Manajer Performance Marketing",
+        "contentLead": "Lead Konten, Storytelling",
+        "lifecycleCrm": "Manajer Lifecycle & CRM"
+      }
+    },
+    "fellowship": {
+      "tag": "▲ VIZA Launchpad · program 12 minggu",
+      "title": "Dua belas minggu. Satu tim produk.<br></br><em>Satu kesempatan untuk merilis sesuatu.</em>",
+      "para1": "Launchpad adalah program residensi kami untuk engineer, PM, dan desainer di awal karier: orang-orang yang biasanya harus menunggu dua tahun “pengalaman” lagi sebelum mendapat kesempatan nyata.",
+      "para2": "Anda akan berpasangan dengan lead senior, memegang bagian produk nyata dari awal hingga rilis, dan pulang dengan sesuatu yang akan dipakai jutaan orang. Tawaran kerja penuh waktu diberikan kepada ~60% peserta angkatan.",
+      "meta": [
+        {
+          "k": "Durasi",
+          "v": "12 minggu"
+        },
+        {
+          "k": "Lokasi",
+          "v": "Di kantor, kantor pusat mana pun"
+        },
+        {
+          "k": "Tunjangan",
+          "v": "Di atas pasar"
+        },
+        {
+          "k": "Angkatan berikutnya",
+          "v": "Sep 2026"
+        }
+      ],
+      "apply": "Daftar Launchpad",
+      "readCohort": "Baca tentang angkatan 2025",
+      "projects": [
+        {
+          "k": "2024 · Engineering",
+          "title": "Penulisan ulang alur OCR",
+          "meta1": "Sudah dirilis ke produksi",
+          "meta2": "3.2× lebih cepat"
+        },
+        {
+          "k": "2025 · Desain",
+          "title": "Desain ulang alur Schengen",
+          "meta1": "Aktif di 14 negara",
+          "meta2": "↑ 22% konversi"
+        },
+        {
+          "k": "2025 · Produk",
+          "title": "Penjadwal slot kedutaan",
+          "meta1": "9 kedutaan",
+          "meta2": "40k slot/bln"
+        }
+      ]
+    },
+    "benefits": {
+      "eyebrow": "Kami mendukung Anda (sungguh)",
+      "title": "Hal-hal membosankan,<br></br>diurus dengan benar.",
+      "lead": "Bagi kami, tunjangan bukan bonus. Tunjangan adalah dasar agar orang bisa bekerja sebaik mungkin. Inilah yang didapat setiap karyawan VIZA, di setiap kantor, sejak hari pertama.",
+      "items": [
+        {
+          "title": "Kesehatan menyeluruh, beres.",
+          "body": "Asuransi medis, gigi, dan mata penuh sejak hari pertama, untuk Anda, pasangan, dan anak-anak. Kami membayar preminya, tanpa permainan biaya risiko sendiri."
+        },
+        {
+          "title": "Bangun kekayaan, bukan sekadar gaji.",
+          "body": "Gaji pokok di atas pasar di setiap negara tempat kami merekrut, plus hibah saham yang besar dan terkait pencapaian, bukan sekadar masa kerja. Kami memperbaruinya setiap dua tahun."
+        },
+        {
+          "title": "Pelajari hal yang benar-benar penting.",
+          "body": "Anggaran belajar $2,000/tahun, sesi berbagi ilmu internal setiap bulan, dan waktu yang dialokasikan di kalender, bukan sekadar izin, untuk mengikuti kursus atau konferensi itu."
+        },
+        {
+          "title": "Puaskan pelanggan seolah itu uang Anda sendiri.",
+          "body": "Setiap pemohon mendapat anggaran $100 untuk bantuan ekstra. Tanpa persetujuan, tanpa eskalasi: selesaikan masalahnya, lalu tuliskan apa yang terjadi."
+        },
+        {
+          "title": "Pikiran > segalanya.",
+          "body": "Dukungan kesehatan mental profesional yang rahasia, tanpa ribet urusan asuransi. Plus tiga hari “tanpa rapat” setiap bulan, untuk seluruh perusahaan."
+        },
+        {
+          "title": "Fasilitas perjalanan (tentu saja).",
+          "body": "Kami mengurus visa; tim kami seharusnya bisa bepergian ditanggung perusahaan. Kredit perjalanan $4k/tahun, plus VIZA mengurus setiap visa yang Anda butuhkan, langsung, secara internal."
+        },
+        {
+          "title": "Cuti yang murah hati dan nyata.",
+          "body": "30 hari cuti tahunan, ditambah hari libur nasional negara Anda, ditambah satu minggu libur berbayar antara 24 Des dan 1 Jan. Kami memantau penggunaannya dan mendorong orang untuk mengambil lebih banyak, bukan lebih sedikit."
+        },
+        {
+          "title": "Peralatan, tanpa banyak tanya.",
+          "body": "Pilih laptop, monitor, dan kursi Anda di hari pertama. Tunjangan WFH untuk perlengkapan Anda. Kami percaya Anda tahu apa yang dibutuhkan untuk bekerja dengan baik."
+        },
+        {
+          "title": "Cuti orang tua yang benar-benar berguna.",
+          "body": "20 minggu untuk pengasuh utama, 12 untuk pengasuh kedua, dibayar penuh. Plus kembali bekerja secara bertahap, jadi Anda tidak langsung bekerja penuh di hari pertama."
+        }
+      ]
+    },
+    "offices": {
+      "eyebrow": "Tempat kami bekerja",
+      "title": "Dua kantor, satu produk.",
+      "lead": "Kami merekrut dekat dengan kedutaan, mitra, dan pasar yang kami layani. Setiap kantor punya engineer dan tim operasional; kami tidak memisahkan tim yang membangun dari tim yang menjalankan operasional.",
+      "cards": [
+        {
+          "photo": "foto · shanghai",
+          "open": "6 dibuka",
+          "name": "Shanghai",
+          "addr1": "Lane 1502, Luoshan Road,",
+          "addr2": "Zona Perdagangan Bebas Percontohan Tiongkok (Shanghai)",
+          "tz": "GMT+8 · Operasional Tiongkok",
+          "since": "Sejak 2023"
+        },
+        {
+          "photo": "foto · kantor pusat singapura",
+          "open": "12 dibuka",
+          "name": "Singapura",
+          "addr1": "60 Paya Lebar Road, unit #06-28, Paya Lebar Square,",
+          "addr2": "Singapore 409051",
+          "tz": "GMT+8 · Kantor pusat Asia-Pasifik",
+          "since": "Kantor pusat · sejak 2021"
+        }
+      ]
+    },
+    "ctaStrip": {
+      "title": "Tidak menemukan posisi Anda,<br></br>tapi ingin bergabung?",
+      "body": "Jika Anda punya latar belakang yang tidak biasa dan merasa bisa membantu kami mempercepat perjalanan para pelancong dunia, kami ingin mendengar dari Anda. Kami pernah merekrut sopir bus, mantan staf kedutaan, dan pengacara. Kami tidak punya tipe tertentu.",
+      "lead": "Lamaran umum",
+      "cta": "Kirimkan kisah Anda",
+      "note": "Kami membalas dalam 7 hari, meskipun jawabannya tidak."
+    },
+    "footer": {
+      "tagline": "VIZA membantu Anda merencanakan, mengajukan, dan melacak visa dengan mudah di seluruh dunia.",
+      "company": "Perusahaan",
+      "products": "Produk",
+      "offices": "Kantor",
+      "careers": "Karier",
+      "contact": "Kontak",
+      "security": "Keamanan",
+      "privacy": "Privasi",
+      "terms": "Ketentuan",
+      "prodVisaReq": "Persyaratan Visa",
+      "prodSchengen": "Pemeriksa Janji Temu Schengen",
+      "prodPhoto": "Pembuat Foto Visa",
+      "prodHelpline": "Saluran Darurat VIZA",
+      "prodStudent": "Visa Pelajar",
+      "officeSg": "Singapura, kantor pusat",
+      "officeSf": "Shanghai",
+      "copyright": "© VIZA, Hak cipta dilindungi undang-undang"
+    }
+  },
+  "security": {
+    "hero": {
+      "eyebrow": "Keamanan di VIZA · terakhir diperbarui Mei 2026",
+      "title": "Privat. Transparan.<br></br><em>Aman sejak awal.</em>",
+      "lead": "Pelanggan di seluruh dunia memercayakan jutaan dokumen sensitif kepada kami: paspor, rekening koran, foto. Inilah cara kami mengumpulkan, menyimpan, dan membuktikan bahwa kami melakukannya dengan benar.",
+      "ctaPrimary": "Cara kami melindungi data Anda",
+      "ctaVdp": "Laporkan kerentanan"
+    },
+    "clearance": {
+      "republicKey": "Republik",
+      "officeKey": "Kantor penerbit",
+      "officeVal": "Kepercayaan & Keamanan",
+      "title": "Izin keamanan /<br></br>Data pelanggan",
+      "grid": {
+        "encryption": {
+          "k": "Enkripsi",
+          "v": "AES-256 / TLS 1.3"
+        },
+        "region": {
+          "k": "Wilayah",
+          "v": "SG · US · EU"
+        },
+        "audit": {
+          "k": "Jadwal audit",
+          "v": "Tiap kuartal"
+        },
+        "retention": {
+          "k": "Penyimpanan",
+          "v": "Maks. 90 hari"
+        }
+      },
+      "referenceKey": "Referensi",
+      "glyph": "LOLOS<br></br>VIZA · 26"
+    },
+    "chips": {
+      "transitLabel": "Saat dikirim",
+      "transitVal": "TLS 1.3 ujung ke ujung",
+      "restLabel": "Saat disimpan",
+      "restVal": "AES-256, terikat wilayah"
+    },
+    "stats": {
+      "docs": {
+        "value": "2.4M",
+        "label": "Dokumen yang ditangani pada 2025, tanpa satu pun kebocoran data pelanggan"
+      },
+      "retention": {
+        "unit": "hr",
+        "label": "Batas maksimum penyimpanan dokumen asli setelah penerbitan"
+      },
+      "pentests": {
+        "label": "Uji penetrasi eksternal, semua laporan dipublikasikan secara internal"
+      },
+      "ack": {
+        "unit": "jam",
+        "label": "Median waktu konfirmasi untuk kerentanan yang dilaporkan"
+      }
+    },
+    "docs": {
+      "eyebrow": "Yang kami kumpulkan",
+      "title": "Lima jenis dokumen.<br></br><em>Tidak lebih.</em>",
+      "copy1": "Permohonan visa adalah urusan dokumen. Kami hanya mengumpulkan apa yang secara tegas diminta kedutaan, dan kami menganonimkan data jika memungkinkan. Setiap dokumen terkait dengan satu permohonan, dienkripsi saat diterima, dan dihapus sesuai jadwal tetap.",
+      "copy2": "Kami tidak pernah menjual data Anda. Kami tidak pernah membagikannya kepada pihak ketiga selain konsulat atau mitra yang terlibat langsung dalam visa Anda.",
+      "cards": {
+        "payment": {
+          "name": "Informasi pembayaran",
+          "meta": "tidak dikumpulkan"
+        },
+        "photos": {
+          "name": "Foto visa",
+          "meta": "diproses · maks. 90 hari"
+        },
+        "bank": {
+          "name": "Rekening koran",
+          "meta": "disamarkan · hanya pdf"
+        },
+        "pastVisas": {
+          "name": "Visa sebelumnya",
+          "meta": "hanya baca · OCR"
+        },
+        "passport": {
+          "name": "Paspor",
+          "meta": "MRZ diekstrak"
+        }
+      }
+    },
+    "features": {
+      "eyebrow": "Tujuh kontrol, selalu aktif",
+      "title": "Data Anda tetap<br></br>milik Anda, dari awal hingga <em>akhir.</em>",
+      "intro": "Kondisi bawaan setiap byte di VIZA adalah “terenkripsi, terbatas aksesnya, dan berbatas waktu.” Inilah tujuh kontrol yang mewujudkannya: bukan sekadar cita-cita, tetapi yang benar-benar sudah terpasang di platform saat ini.",
+      "cells": {
+        "minimise": {
+          "title": "Minimisasi & anonimisasi data",
+          "body": "Kami hanya mengumpulkan apa yang benar-benar dibutuhkan kedutaan atau mitra untuk suatu permohonan, dan menganonimkan sisanya jika platform memungkinkan. Kolom yang tidak Anda lihat di formulir kami adalah data yang tidak kami simpan.",
+          "why": "<strong>Alasannya:</strong> kebocoran tidak bisa mengungkap data yang tidak pernah dikumpulkan."
+        },
+        "payments": {
+          "title": "Tanpa data pembayaran",
+          "body": "Layanan VIZA gratis dan kami tidak menerima pembayaran, jadi kami tidak pernah meminta, melihat, atau menyimpan nomor kartu.",
+          "why": "<strong>Alasannya:</strong> data yang tidak pernah kami simpan tidak bisa dicuri."
+        },
+        "atRest": {
+          "title": "Enkripsi saat disimpan",
+          "body": "Setiap dokumen, pesan, dan kolom metadata di server VIZA dienkripsi dengan AES-256 sebelum ditulis ke disk. Kunci dirotasi otomatis dan disimpan di KMS berbasis perangkat keras yang bahkan tidak bisa dibaca langsung oleh tim infrastruktur kami.",
+          "why": "<strong>Alasannya:</strong> drive atau cadangan yang dicuri tetap tidak terbaca tanpa kuncinya."
+        },
+        "inTransit": {
+          "title": "Enkripsi ujung ke ujung",
+          "body": "Semua lalu lintas antara perangkat Anda, server kami, dan konsulat mitra menggunakan TLS 1.3 dengan pinning ketat. Unggahan dokumen memakai saluran terpisah yang ditandatangani, sehingga penyerang di tingkat jaringan pun tidak bisa melihat apa yang Anda kirim.",
+          "why": "<strong>Alasannya:</strong> jaringan berbahaya, termasuk Wi-Fi bandara, tidak bisa membaca permohonan Anda."
+        },
+        "audits": {
+          "title": "Audit keamanan rutin",
+          "body": "Kami menjalankan uji penetrasi eksternal setiap kuartal, audit SOC 2 Type II tahunan, dan pemindaian kerentanan otomatis yang berkelanjutan. Setiap temuan dicatat dengan tenggat perbaikan, dan item yang terlambat langsung dilaporkan ke kepala tim engineering.",
+          "why": "<strong>Alasannya:</strong> ancaman terus berubah; pertahanan kami diuji terhadapnya secara terjadwal."
+        },
+        "access": {
+          "title": "Kontrol akses yang aman",
+          "body": "Akses internal ke data pelanggan dibatasi menurut peran, diaudit per permintaan, dan diberikan dengan peningkatan hak akses tepat waktu. Konsultan hanya melihat permohonan yang sedang mereka tangani. Setiap akses baca dicatat selama 12 bulan.",
+          "why": "<strong>Alasannya:</strong> kesalahan dan penyalahgunaan dari orang dalam bisa dibatasi, dilacak pelakunya, dan ditinjau."
+        },
+        "education": {
+          "title": "Edukasi & kesadaran pengguna",
+          "body": "Bagian tersulit dari keamanan adalah bagian yang tidak bisa kami kerjakan untuk Anda. Kami mengirim panduan yang mudah dipahami tentang phishing, penipuan foto paspor, dan SMS kedutaan palsu begitu Anda memulai permohonan, lalu menampilkannya lagi di dalam produk begitu ada yang tampak janggal. Anda adalah pertahanan terakhir; kami lebih memilih membekali Anda daripada menyalahkan Anda.",
+          "why": "<strong>Alasannya:</strong> pemohon yang terinformasi dengan baik adalah kontrol keamanan termurah dan paling efektif yang kami miliki."
+        }
+      }
+    },
+    "vdp": {
+      "tag": "▲ Pengungkapan kerentanan · terbuka untuk semua peneliti",
+      "title": "Menemukan sesuatu?<br></br><em>Kami ingin mendengarnya.</em>",
+      "p1": "Keamanan pengguna dan mitra kami adalah segalanya. Jika Anda yakin telah menemukan kerentanan nyata yang memengaruhi layanan VIZA, beri tahu kami secara langsung. Kami akan bekerja sama dengan Anda secara hormat dan cepat untuk memperbaikinya.",
+      "p2": "Kirim temuan Anda ke <strong>security@viza.it.com</strong>. Kami akan mengonfirmasi penerimaan dalam satu hari kerja, meskipun ternyata masalahnya sudah diketahui atau di luar cakupan.",
+      "meta": {
+        "ack": {
+          "k": "Dikonfirmasi dalam",
+          "v": "'<' 24 jam"
+        },
+        "triage": {
+          "k": "Ditriase dalam",
+          "v": "3 hari kerja"
+        },
+        "lang": {
+          "k": "Bahasa",
+          "v": "EN · ID · AR"
+        },
+        "pgp": {
+          "k": "Kunci PGP",
+          "v": "0xVIZA · 2026"
+        }
+      },
+      "ctaEmail": "Email security@viza.it.com",
+      "ctaScope": "Baca cakupannya",
+      "terminal": {
+        "title": "draf-laporan · security@viza.it.com",
+        "l1": "# laporan kerentanan",
+        "typeKey": "jenis:",
+        "typeVal": "bypass-autentikasi",
+        "urlKey": "url:",
+        "reproKey": "repro:",
+        "reproVal": "[langkah 1-4]",
+        "impactKey": "dampak:",
+        "impactVal": "pengambilalihan akun",
+        "pocKey": "poc:",
+        "l7": "# ↳ dienkripsi ke 0xVIZA",
+        "send": "kirim"
+      }
+    },
+    "report": {
+      "eyebrow": "Melaporkan kerentanan",
+      "title": "Apa yang perlu ada di<br></br>laporan Anda, dan <em>apa yang tidak.</em>",
+      "intro": "Laporan yang baik menghemat waktu seminggu bagi kita berdua. Berikut format yang paling cepat ditriase, plus hal-hal yang sebaiknya tidak masuk ke kotak masuk kami.",
+      "include": {
+        "heading": "Harap sertakan",
+        "sub": "Lima kolom. Makin jelas isinya, makin cepat kami bisa mengonfirmasi dan memperbaikinya.",
+        "items": {
+          "type": "<strong>Jenis masalah</strong>: misalnya autentikasi, kontrol akses, injeksi, IDOR, SSRF.",
+          "steps": "<strong>Langkah reproduksi yang jelas</strong>: bernomor, berurutan, pada sesi bersih jika memungkinkan.",
+          "impact": "<strong>Potensi dampak keamanan</strong>: apa yang bisa dilakukan penyerang dengan ini, dalam bahasa sederhana.",
+          "poc": "<strong>Bukti konsep</strong>: utamakan tangkapan layar atau rekaman layar singkat; log di urutan kedua."
+        }
+      },
+      "dontSend": {
+        "heading": "Mohon jangan kirim",
+        "sub": "Hal-hal ini tidak aman, tidak membantu, atau keduanya, dan kami harus menghapusnya begitu diterima.",
+        "items": {
+          "secrets": "<strong>Kata sandi atau token autentikasi</strong>, milik Anda atau orang lain. Tunjukkan celahnya, bukan rahasianya.",
+          "malware": "<strong>Sampel malware mentah atau log stealer.</strong> Jelaskan apa yang Anda lihat; jangan lampirkan.",
+          "scanners": "<strong>Laporan pemindai otomatis berukuran besar</strong> tanpa temuan pilihan yang sudah dibuktikan.",
+          "customerData": "<strong>Data pribadi atau dokumen pelanggan</strong>, meskipun itu dasar temuan Anda.",
+          "socialEng": "<strong>Rekaman upaya rekayasa sosial</strong> terhadap staf atau konsultan kami."
+        }
+      }
+    },
+    "scope": {
+      "eyebrow": "Cakupan program",
+      "title": "Yang termasuk, yang tidak.",
+      "intro": "Jika Anda ragu apakah suatu laporan masuk dalam daftar ini, tetap kirimkan dan tanyakan. Kami lebih suka melakukan triase lalu lanjut daripada Anda menahan masalah nyata karena batasnya kurang jelas.",
+      "fileRef": "/security/scope.md · v6",
+      "in": {
+        "pill": "Dalam cakupan",
+        "heading": "Laporan yang akan kami triase secara aktif",
+        "items": {
+          "web": "Aplikasi web dan API VIZA di <code>*.viza.com</code>, termasuk portal pemohon, konsol konsultan, dan endpoint mitra.",
+          "infra": "Infrastruktur dan layanan milik VIZA: autentikasi, alur dokumen, penjadwalan.",
+          "mobile": "Aplikasi seluler (iOS, Android) yang diterbitkan di bawah akun developer VIZA.",
+          "marketing": "Situs pemasaran dan konten publik di bawah domain yang dikendalikan VIZA."
+        }
+      },
+      "out": {
+        "pill": "Di luar cakupan",
+        "heading": "Laporan yang tidak bisa kami tindak lanjuti dalam program ini",
+        "items": {
+          "devices": "Masalah akibat perangkat pengguna yang disusupi, ekstensi browser, atau kredensial yang dicuri.",
+          "phishing": "Serangan rekayasa sosial atau phishing yang menyasar karyawan, mitra, atau konsultan VIZA.",
+          "thirdParty": "Layanan atau integrasi pihak ketiga yang tidak dioperasikan langsung oleh VIZA (portal konsulat, situs kurir).",
+          "scanners": "Temuan pemindai otomatis tanpa bukti bahwa celahnya bisa dieksploitasi di dunia nyata.",
+          "headers": "Header keamanan yang tidak ada atau rekomendasi praktik terbaik umum tanpa jalur eksploitasi."
+        }
+      }
+    },
+    "pledge": {
+      "eyebrow": "Pengungkapan bertanggung jawab",
+      "title": "Kesepakatan yang kita buat<br></br>bersama.",
+      "intro": "Pengungkapan berjalan baik karena kedua pihak bertindak dengan itikad baik. Inilah yang kami minta dari Anda, dan inilah yang bisa Anda tagih dari kami sebagai gantinya, tertulis jelas agar tidak ada yang perlu menebak.",
+      "researcher": {
+        "kicker": "Yang kami minta dari Anda",
+        "title": "Komitmen <em>peneliti.</em>",
+        "p": "Dengan mengirim laporan, Anda setuju untuk bertindak dengan itikad baik dan sesuai semangat program, bukan hanya bunyi aturannya.",
+        "items": {
+          "1": "Bertindak dengan itikad baik: hindari pelanggaran privasi, perusakan data, atau gangguan layanan selama meneliti.",
+          "2": "Jangan mengeksploitasi masalah melebihi batas minimum untuk mengonfirmasinya, dan jangan pernah mengakses data yang bukan milik Anda.",
+          "3": "Rahasiakan detail kerentanan sampai kami merilis perbaikan dan mengonfirmasinya dengan Anda.",
+          "4": "Jangan mengungkap temuan ke publik tanpa persetujuan tertulis dari tim keamanan VIZA terlebih dahulu."
+        }
+      },
+      "viza": {
+        "kicker": "Yang bisa Anda tagih dari kami",
+        "title": "Komitmen <em>VIZA.</em>",
+        "p": "Sebagai gantinya, kami tidak mengabaikan pelapor, tidak memperdebatkan tingkat keparahan untuk menghindari perbaikan, dan tidak menuntut orang yang membantu kami.",
+        "items": {
+          "1": "Kami akan meninjau setiap laporan yang valid dan merespons dalam satu hari kerja, apa pun tingkat keparahannya.",
+          "2": "Kami akan berkomunikasi dengan hormat: tanpa bahasa defensif, tanpa dalih “memang begitu cara kerjanya.”",
+          "3": "Kami akan mengambil tindakan perbaikan yang sesuai bila diperlukan, dan memberi tahu Anda saat perbaikan sudah dirilis.",
+          "4": "Kami akan mencantumkan nama Anda (dengan persetujuan) di catatan perubahan keamanan kami saat masalah selesai."
+        }
+      }
+    },
+    "legal": {
+      "eyebrow": "Hukum & penghargaan",
+      "title": "Perlindungan hukum, bounty,<br></br>dan ketentuan kecil.",
+      "intro": "Jika Anda mengikuti kebijakan ini dengan itikad baik, kami menganggap riset Anda sah. Sisa halaman ini adalah bagian yang membosankan tetapi penting, dipaparkan terbuka, bukan disembunyikan.",
+      "cards": {
+        "safeHarbour": {
+          "title": "Perlindungan hukum (safe harbour)",
+          "body": "Jika Anda mengikuti kebijakan ini dengan itikad baik, VIZA tidak akan mengambil tindakan hukum terhadap Anda atas pelanggaran yang tidak disengaja terkait riset Anda. Anda tetap wajib mematuhi hukum dan peraturan yang berlaku."
+        },
+        "rewards": {
+          "title": "Penghargaan & bug bounty",
+          "body": "VIZA saat ini tidak menjalankan bug bounty publik. Kami memberikan tanda terima kasih atas kebijakan kami sendiri untuk masalah valid yang dilaporkan secara bertanggung jawab, dinilai dari dampak, kebaruan, dan kualitas laporan.",
+          "meta": "atas kebijakan kami · kasus per kasus"
+        },
+        "updates": {
+          "title": "Pembaruan program",
+          "body": "VIZA berhak mengubah atau menghentikan program ini kapan saja. Jika Anda ragu apakah riset Anda sesuai dengan kebijakan ini, hubungi kami di security@viza.it.com <em>sebelum</em> melanjutkan.",
+          "meta": "terakhir direvisi · Mei 2026"
+        }
+      }
+    },
+    "cta": {
+      "title": "Melihat yang janggal?<br></br>Beri tahu tim keamanan kami.",
+      "body": "Kami lebih suka mendengar temuan kecil dua kali daripada melewatkan temuan besar sekali. Laporan langsung masuk ke orang sungguhan di tim keamanan: tanpa portal tiket, tanpa robot triase.",
+      "lead": "Langsung ke tim keamanan",
+      "small": "Median respons: kurang dari 24 jam, setiap hari dalam seminggu."
+    },
+    "footer": {
+      "tagline": "VIZA membantu Anda merencanakan, mengajukan, dan melacak visa dengan mudah di seluruh dunia.",
+      "company": "Perusahaan",
+      "careers": "Karier",
+      "contact": "Kontak",
+      "security": "Keamanan",
+      "privacy": "Privasi",
+      "terms": "Ketentuan",
+      "products": "Produk",
+      "prodVisaReq": "Persyaratan Visa",
+      "prodSchengen": "Pemeriksa Janji Temu Schengen",
+      "prodPhoto": "Pembuat Foto Visa",
+      "prodHelpline": "Saluran Darurat VIZA",
+      "prodStudent": "Visa Pelajar",
+      "offices": "Kantor",
+      "officeSg": "Singapura, kantor pusat",
+      "officeSf": "Shanghai",
+      "copyright": "© VIZA, Hak cipta dilindungi undang-undang"
+    }
+  },
+  "status": {
+    "crumbHome": "Transparansi",
+    "crumbHere": "Status Sistem",
+    "hero": {
+      "title": "Status sistem",
+      "lead": "Ketersediaan VIZA dan portal visa pemerintah yang kami gunakan, berdasarkan bukti. Setiap persentase, bilah linimasa, dan insiden di bawah ini berasal dari pemeriksaan sintetis yang tercatat."
+    },
+    "console": {
+      "title": "Keandalan VIZA · Langsung",
+      "live": "Terverifikasi",
+      "unverified": "Belum terverifikasi",
+      "allOperational": "Semua sistem berjalan normal",
+      "degraded": "Beberapa sistem mengalami penurunan kinerja",
+      "majorOutage": "Salah satu sistem yang dipantau tidak tersedia",
+      "dataUnavailable": "Data pemantauan tidak tersedia",
+      "lastChecked": "Pemeriksaan terakhir yang tercatat: {time}",
+      "noChecks": "Belum ada pemeriksaan selesai yang tercatat",
+      "kUptime": "Pemeriksaan lulus dalam 90 hari",
+      "kMonitors": "Endpoint yang dipantau",
+      "kIncidents": "Insiden aktif"
+    },
+    "subnav": {
+      "current": "Status saat ini",
+      "incidents": "Insiden sebelumnya",
+      "subscribe": "Berlangganan",
+      "searchPlaceholder": "Cari negara",
+      "subscribeBtn": "Berlangganan pembaruan"
+    },
+    "platform": {
+      "title": "Platform VIZA",
+      "realMeta": "Diperiksa setiap 5 menit · {count} endpoint",
+      "meta": "Diperiksa setiap 5 menit",
+      "name": "Platform permohonan VIZA",
+      "sub": "Layanan publik VIZA"
+    },
+    "uptime": {
+      "ago": "90 hari lalu",
+      "today": "Hari ini",
+      "pct": "{pct}% pemeriksaan lulus",
+      "noData": "Tidak ada pemeriksaan tercatat"
+    },
+    "dayObservation": "{date}: {checks} pemeriksaan tercatat",
+    "dayNoData": "{date}: tidak ada data tercatat",
+    "dayTitle": "Hari {n}",
+    "statusLabels": {
+      "op": "Normal",
+      "deg": "Menurun",
+      "part": "Gangguan sebagian",
+      "maj": "Tidak tersedia",
+      "none": "Tidak ada data terkini"
+    },
+    "lastChecked": "Diperiksa {time}",
+    "monitorStale": "Pemeriksaan hilang atau usang",
+    "monitoringUnavailable": "API status tidak memiliki bukti terbaru. VIZA tidak akan menampilkan ketersediaan dari cache atau hasil perkiraan sebagai kondisi layanan saat ini.",
+    "noSearchResults": "Tidak ada negara yang dipantau yang cocok dengan pencarian ini.",
+    "noRecordedIncidents": "Tidak ada insiden dari pemeriksaan tercatat dalam 90 hari terakhir.",
+    "incidentCount": "{count, plural, one {# insiden} other {# insiden}}",
+    "incidentRecovered": "Pemeriksaan tercatat menunjukkan layanan ini sudah pulih.",
+    "noIssues": "Tidak ada masalah aktif",
+    "activeIncident": "Insiden aktif",
+    "portalsHead": {
+      "title": "Portal pemerintah",
+      "lead": "Permintaan sintetis terbatas memeriksa setiap portal yang dikonfigurasi setiap lima menit. Riwayat abu-abu berarti tidak ada pengamatan yang tercatat; bagian ini tidak pernah diisi data perkiraan."
+    },
+    "incidentsHead": {
+      "title": "Insiden sebelumnya",
+      "lead": "Insiden dibuka dan ditutup berdasarkan perubahan status pemantauan yang tersimpan. Ini adalah ketersediaan operasional, bukan status keputusan visa pribadi pemohon."
+    },
+    "tags": {
+      "identified": "Teridentifikasi",
+      "investigating": "Sedang diselidiki",
+      "resolved": "Terselesaikan"
+    },
+    "portals": {
+      "AE": {
+        "name": "Uni Emirat Arab",
+        "sub": "Portal GDRFA · ICA"
+      },
+      "AM": {
+        "name": "Armenia",
+        "sub": "Portal e-Visa"
+      },
+      "AU": {
+        "name": "Australia",
+        "sub": "ImmiAccount"
+      },
+      "AZ": {
+        "name": "Azerbaijan",
+        "sub": "ASAN Visa"
+      },
+      "DE": {
+        "name": "Jerman",
+        "sub": "VIDEX · slot konsulat"
+      },
+      "DK": {
+        "name": "Denmark"
+      },
+      "EG": {
+        "name": "Mesir",
+        "sub": "Portal e-Visa"
+      },
+      "FI": {
+        "name": "Finlandia",
+        "sub": "EnterFinland"
+      },
+      "FR": {
+        "name": "Prancis",
+        "sub": "France-Visas"
+      },
+      "GB": {
+        "name": "Inggris Raya",
+        "sub": "UKVCAS · UK Visas",
+        "bannerText": "Beberapa jenis permohonan sedang mengalami gangguan.",
+        "bannerLink": "Lihat linimasa insiden"
+      },
+      "GE": {
+        "name": "Georgia"
+      },
+      "GR": {
+        "name": "Yunani",
+        "sub": "AEGEAN · konsuler"
+      },
+      "HK": {
+        "name": "Hong Kong",
+        "sub": "eVisa Imigrasi"
+      },
+      "ID": {
+        "name": "Indonesia",
+        "sub": "e-Visa Indonesia"
+      },
+      "IN": {
+        "name": "India",
+        "sub": "Indian Visa Online"
+      },
+      "JO": {
+        "name": "Yordania"
+      },
+      "KE": {
+        "name": "Kenya",
+        "sub": "eCitizen / eVisa"
+      },
+      "KH": {
+        "name": "Kamboja"
+      },
+      "LK": {
+        "name": "Sri Lanka",
+        "sub": "Portal ETA"
+      },
+      "MA": {
+        "name": "Maroko"
+      },
+      "TH": {
+        "name": "Thailand",
+        "sub": "Thailand e-Visa"
+      }
+    },
+    "incidents": {
+      "count": "<strong>{count}</strong> {count, plural, one {negara} other {negara}} mengalami masalah kinerja",
+      "events": "{count, plural, one {# kejadian} other {# kejadian}}",
+      "days": [
+        {
+          "date": "10 Mei 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "10 Mei, 3:05 PM",
+                  "desc": "Insiden ini telah diselesaikan. Layanan sudah kembali normal."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "10 Mei, 5:05 PM",
+                  "desc": "Insiden ini telah diselesaikan. Layanan sudah kembali normal."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "9 Mei 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "9 Mei, 10:50 PM",
+                  "desc": "Kami sedang menyelidiki peningkatan tingkat kegagalan."
+                },
+                {
+                  "time": "10 Mei, 12:20 AM",
+                  "desc": "Tingkat keparahan naik dari penurunan kinerja menjadi gangguan sebagian."
+                },
+                {
+                  "time": "10 Mei, 2:50 AM",
+                  "desc": "Tingkat keparahan naik dari gangguan sebagian menjadi gangguan besar."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "9 Mei, 3:05 PM",
+                  "desc": "Kami sedang menyelidiki peningkatan tingkat kegagalan."
+                },
+                {
+                  "time": "9 Mei, 7:20 PM",
+                  "desc": "Tingkat keparahan naik dari gangguan sebagian menjadi gangguan besar."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "8 Mei 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "8 Mei, 1:05 PM",
+                  "desc": "Kami sedang menyelidiki peningkatan tingkat kegagalan."
+                },
+                {
+                  "time": "8 Mei, 2:05 PM",
+                  "desc": "Insiden ini telah diselesaikan. Layanan sudah kembali normal."
+                },
+                {
+                  "time": "8 Mei, 2:50 PM",
+                  "desc": "Kami sedang menyelidiki peningkatan tingkat kegagalan."
+                },
+                {
+                  "time": "8 Mei, 7:35 PM",
+                  "desc": "Insiden ini telah diselesaikan. Layanan sudah kembali normal."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "5 Mei 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "5 Mei, 1:36 PM",
+                  "desc": "Tingkat keparahan naik dari penurunan kinerja menjadi gangguan sebagian."
+                },
+                {
+                  "time": "5 Mei, 4:50 PM",
+                  "desc": "Insiden ini telah diselesaikan."
+                },
+                {
+                  "time": "5 Mei, 9:20 PM",
+                  "desc": "Kami sedang menyelidiki peningkatan tingkat kegagalan."
+                },
+                {
+                  "time": "5 Mei, 10:20 PM",
+                  "desc": "Insiden ini telah diselesaikan."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "5 Mei, 2:43 PM",
+                  "desc": "Insiden ini telah diselesaikan."
+                },
+                {
+                  "time": "5 Mei, 3:35 PM",
+                  "desc": "Kami sedang menyelidiki peningkatan tingkat kegagalan."
+                },
+                {
+                  "time": "5 Mei, 7:35 PM",
+                  "desc": "Tingkat keparahan naik dari gangguan sebagian menjadi gangguan besar."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "4 Mei 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "4 Mei, 4:05 PM",
+                  "desc": "Kami sedang menyelidiki peningkatan tingkat kegagalan."
+                },
+                {
+                  "time": "4 Mei, 5:05 PM",
+                  "desc": "Insiden ini telah diselesaikan."
+                },
+                {
+                  "time": "4 Mei, 7:36 PM",
+                  "desc": "Kami sedang menyelidiki peningkatan tingkat kegagalan."
+                },
+                {
+                  "time": "4 Mei, 8:35 PM",
+                  "desc": "Insiden ini telah diselesaikan."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "4 Mei, 12:05 PM",
+                  "desc": "Insiden ini telah diselesaikan."
+                },
+                {
+                  "time": "4 Mei, 1:50 PM",
+                  "desc": "Kami sedang menyelidiki peningkatan tingkat kegagalan."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "2 Mei 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "2 Mei, 6:35 PM",
+                  "desc": "Kami sedang menyelidiki peningkatan tingkat kegagalan."
+                },
+                {
+                  "time": "2 Mei, 7:50 PM",
+                  "desc": "Insiden ini telah diselesaikan."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "2 Mei, 9:20 AM",
+                  "desc": "Kami sedang menyelidiki peningkatan tingkat kegagalan."
+                },
+                {
+                  "time": "2 Mei, 10:20 AM",
+                  "desc": "Insiden ini telah diselesaikan."
+                },
+                {
+                  "time": "2 Mei, 8:20 PM",
+                  "desc": "Kami sedang menyelidiki peningkatan tingkat kegagalan."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "2 Mei, 8:20 PM",
+                  "desc": "Kami sedang menyelidiki peningkatan tingkat kegagalan."
+                },
+                {
+                  "time": "3 Mei, 12:05 AM",
+                  "desc": "Insiden ini telah diselesaikan."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "1 Mei 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "1 Mei, 2:05 PM",
+                  "desc": "Kami sedang menyelidiki peningkatan tingkat kegagalan."
+                },
+                {
+                  "time": "1 Mei, 3:05 PM",
+                  "desc": "Insiden ini telah diselesaikan."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "date": "30 April 2026",
+          "items": [
+            {
+              "events": [
+                {
+                  "time": "30 Apr, 8:20 AM",
+                  "desc": "Kami sedang menyelidiki peningkatan tingkat kegagalan."
+                },
+                {
+                  "time": "30 Apr, 9:50 AM",
+                  "desc": "Insiden ini telah diselesaikan."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 Apr, 3:05 PM",
+                  "desc": "Insiden ini telah diselesaikan."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 Apr, 4:51 PM",
+                  "desc": "Insiden ini telah diselesaikan."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 Apr, 1:20 PM",
+                  "desc": "Kami sedang menyelidiki peningkatan tingkat kegagalan."
+                },
+                {
+                  "time": "30 Apr, 2:37 PM",
+                  "desc": "Tingkat keparahan naik dari penurunan kinerja menjadi gangguan sebagian."
+                },
+                {
+                  "time": "30 Apr, 8:20 PM",
+                  "desc": "Insiden ini telah diselesaikan."
+                }
+              ]
+            },
+            {
+              "events": [
+                {
+                  "time": "30 Apr, 6:50 PM",
+                  "desc": "Insiden ini telah diselesaikan."
+                },
+                {
+                  "time": "30 Apr, 7:50 PM",
+                  "desc": "Kami sedang menyelidiki peningkatan tingkat kegagalan."
+                },
+                {
+                  "time": "1 Mei, 12:20 AM",
+                  "desc": "Insiden ini telah diselesaikan."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "subscribe": {
+      "title": "Jadilah yang pertama<br></br>tahu saat ada gangguan.",
+      "lead": "Pilih negara yang Anda pedulikan, dan kami akan mengirim satu pembaruan singkat dan mudah dipahami saat portal mereka, atau portal kami, mati atau kembali aktif.",
+      "emailLabel": "Dapatkan pembaruan insiden lewat email",
+      "button": "Berlangganan",
+      "follow": "Atau ikuti status lewat:",
+      "chipEmail": "Ringkasan email",
+      "chipSms": "SMS & WhatsApp",
+      "chipRss": "Feed RSS",
+      "chipWebhook": "Webhook untuk tim operasional"
+    },
+    "footer": {
+      "tagline": "VIZA membantu Anda merencanakan, mengajukan, dan melacak visa dengan mudah di seluruh dunia.",
+      "company": "Perusahaan",
+      "careers": "Karier",
+      "contact": "Kontak",
+      "security": "Keamanan",
+      "systemStatus": "Status sistem",
+      "privacy": "Privasi",
+      "terms": "Ketentuan",
+      "products": "Produk",
+      "prodVisaReq": "Persyaratan Visa",
+      "prodSchengen": "Pemeriksa Janji Temu Schengen",
+      "prodPhoto": "Pembuat Foto Visa",
+      "prodHelpline": "Saluran Darurat VIZA",
+      "copyright": "© VIZA, Hak cipta dilindungi undang-undang"
+    }
+  },
+  "arrival": {
+    "breadcrumbHome": "Beranda",
+    "breadcrumbHub": "Kartu kedatangan",
+    "hubH1": "Panduan kartu kedatangan",
+    "hubLead": "Kartu kedatangan adalah formulir singkat dari pemerintah yang Anda isi sebelum masuk ke suatu negara. Sebagian besar bisa diisi online, gratis, dan butuh sekitar lima menit. Panduan ini menjelaskan siapa yang wajib mengisinya, kapan harus dikirim, dan cara menghindari situs palsu yang memungut biaya.",
+    "hubWhatTitle": "Apa itu kartu kedatangan",
+    "hubWhat": [
+      "Kartu kedatangan adalah pernyataan yang diminta negara tujuan Anda selain paspor dan visa (jika ada). Isinya mencatat siapa Anda, bagaimana Anda tiba, dan di mana Anda akan menginap. Banyak negara telah mengganti kartu kertas yang dibagikan di pesawat dengan formulir online.",
+      "Kartu ini bukan visa. Visa memungkinkan Anda mengajukan izin masuk. Kartu kedatangan memberi tahu otoritas perbatasan tentang perjalanan Anda, dan Anda tetap memerlukan visa jika kewarganegaraan Anda mewajibkannya."
+    ],
+    "hubFreeTitle": "Kartu kedatangan gratis",
+    "hubFree": [
+      "Setiap kartu dalam panduan ini gratis di situs resmi pemerintah. Ada situs yang meniru formulir pemerintah dan memungut biaya. Anda tidak perlu membayar situs semacam itu.",
+      "Selalu mulai dari alamat resmi yang tercantum di setiap panduan. VIZA adalah layanan independen dan bukan situs web pemerintah."
+    ],
+    "hubWhenTitle": "Kapan Anda memerlukannya",
+    "hubWhen": [
+      "Sebagian besar kartu dibuka tiga hari sebelum Anda tiba dan harus dikirim dalam rentang waktu itu. Cek aturan pastinya di setiap panduan, karena Visit Japan Web dari Jepang tidak punya tenggat tetap dan tidak wajib.",
+      "Penduduk, warga negara, dan penumpang transit sering kali dikecualikan atau mengisi formulir yang lebih singkat. Setiap panduan mencantumkan siapa yang dikecualikan, termasuk pengecualian warga negara Singapura untuk MDAC Malaysia."
+    ],
+    "hubGuidesTitle": "Semua panduan",
+    "hubGuidesSub": "Pilih tujuan Anda. Setiap panduan memuat langkah-langkah, kesalahan umum, dan tautan resmi.",
+    "readGuide": "Baca panduan",
+    "cardWhen": "Kapan",
+    "cardsLabel": "Kartu kedatangan",
+    "hubVisaTitle": "Perlu visa juga?",
+    "hubVisaBody": "Kartu kedatangan tidak menggantikan visa. Cek halaman tujuan untuk melihat apakah paspor Anda memerlukan visa.",
+    "hubVisaCta": "Lihat halaman visa",
+    "glanceTitle": "Sekilas",
+    "stepsTitle": "Cara mengisinya, langkah demi langkah",
+    "mistakesTitle": "Kesalahan umum",
+    "feesTitle": "Biaya dan situs palsu",
+    "faqTitle": "Pertanyaan",
+    "sourcesTitle": "Sumber",
+    "relatedTitle": "Panduan kartu kedatangan lainnya",
+    "independent": "VIZA adalah layanan independen dan bukan situs web pemerintah.",
+    "officialCta": "Buka situs resmi",
+    "officialLabel": "Situs resmi",
+    "vizaTitle": "Biar VIZA yang mengurusnya",
+    "vizaBody": "Mulai {name} di akun VIZA Anda. Formulir VIZA memandu Anda melalui pertanyaan yang sama dengan formulir resmi dan menyimpan data Anda untuk perjalanan berikutnya. Anda tetap bisa memakai situs resmi yang gratis.",
+    "vizaFee": "Biaya layanan VIZA",
+    "vizaFeeFree": "Gratis",
+    "vizaCta": "Mulai di VIZA",
+    "noVizaTitle": "Gunakan situs resmi",
+    "noVizaBody": "VIZA belum bisa mengisi kartu ini. Gunakan situs resmi di bawah, dan baca dulu langkah-langkah di panduan ini.",
+    "visaTitle": "Visa untuk {country}",
+    "visaBody": "Kartu kedatangan terpisah dari visa. Lihat siapa yang memerlukan visa untuk {country}, biayanya, dan cara mengajukannya.",
+    "visaCta": "Buka halaman visa {country}",
+    "reviewedTitle": "Diperiksa pada 25 November 2026",
+    "stepLabel": "Langkah",
+    "cards": {
+      "malaysia-mdac": {
+        "summary": "Kartu online gratis untuk pengunjung asing. Warga negara Singapura dikecualikan.",
+        "when": "Dalam 3 hari sebelum tiba"
+      },
+      "singapore-sg-arrival-card": {
+        "summary": "Kartu online ICA dengan deklarasi kesehatan. Kirim lewat situs web atau aplikasi MyICA.",
+        "when": "Dalam 3 hari sebelum tiba"
+      },
+      "japan-visit-japan-web": {
+        "summary": "Kode QR gratis untuk imigrasi dan bea cukai. Disarankan, tidak wajib.",
+        "when": "Sebelum Anda terbang"
+      },
+      "thailand-tdac": {
+        "summary": "Kartu gratis untuk setiap pengunjung asing, bebas visa atau tidak. Menggantikan TM6 versi kertas.",
+        "when": "Dalam 3 hari sebelum tiba"
+      },
+      "korea-e-arrival-card": {
+        "summary": "Wajib sejak 1 Januari 2026. Pemegang K-ETA yang masih berlaku dikecualikan.",
+        "when": "Dalam 3 hari sebelum tiba"
+      },
+      "indonesia-all-indonesia": {
+        "summary": "Satu kartu untuk imigrasi, bea cukai, dan kesehatan. Gratis, dan bukan visa.",
+        "when": "Paling lambat 3 hari sebelum tiba"
+      }
+    }
+  },
+  "guides": {
+    "breadcrumbHome": "Beranda",
+    "breadcrumbHub": "Panduan",
+    "hubH1": "Panduan visa bagi yang tinggal di Singapura",
+    "hubLead": "Apa pun paspor Anda, Singapura, Tiongkok, India, atau Filipina, panduan ini menjawab pertanyaan yang sama: apa yang saya perlukan untuk masuk ke negara ini, dan di mana saya mengajukan dari Singapura. Setiap panduan mencantumkan sumbernya dan tanggal pemeriksaannya.",
+    "hubGuidesTitle": "Semua panduan",
+    "hubGuidesSub": "Pilih topik. Aturan bisa berubah, jadi setiap panduan mencantumkan halaman resmi yang perlu dicek sebelum Anda bepergian.",
+    "readGuide": "Baca panduan",
+    "hubMoreTitle": "Lainnya dari VIZA",
+    "hubMoreBody": "Mencari negara tertentu, kartu kedatangan, atau perubahan aturan terbaru?",
+    "hubDestinations": "Halaman visa",
+    "hubArrival": "Panduan kartu kedatangan",
+    "hubNews": "Berita visa",
+    "glanceTitle": "Jawaban singkat",
+    "relatedVisaTitle": "Halaman tujuan",
+    "relatedVisaSub": "Biaya, dokumen, dan langkah bagi yang tinggal di Singapura.",
+    "relatedArrivalTitle": "Panduan kartu kedatangan",
+    "relatedGuidesTitle": "Panduan lainnya",
+    "faqTitle": "Pertanyaan",
+    "sourcesTitle": "Sumber",
+    "reviewedTitle": "Cara kami memeriksa",
+    "published": "Diterbitkan",
+    "updated": "Diperbarui",
+    "independent": "VIZA adalah layanan independen dan bukan situs web pemerintah."
+  },
+  "ds": {
+    "header": {
+      "home": "Beranda VIZA",
+      "primary": "Utama",
+      "language": "Bahasa",
+      "signIn": "Masuk",
+      "openMenu": "Buka menu",
+      "closeMenu": "Tutup menu",
+      "nav": {
+        "home": "Beranda",
+        "destinations": "Tujuan",
+        "arrivalCards": "Kartu kedatangan",
+        "guides": "Panduan",
+        "news": "Berita",
+        "about": "Tentang",
+        "contact": "Kontak"
+      }
+    },
+    "footer": {
+      "home": "Beranda VIZA",
+      "tagline": "Permohonan visa disiapkan oleh AI VIZA dan diperiksa oleh konsultan kami. Gratis digunakan.",
+      "explore": "Jelajahi",
+      "follow": "Ikuti kami",
+      "followOn": "Ikuti VIZA di {platform}",
+      "links": {
+        "destinations": "Tujuan",
+        "arrivalCards": "Kartu kedatangan",
+        "guides": "Panduan",
+        "news": "Berita",
+        "about": "Tentang",
+        "contact": "Kontak",
+        "careers": "Karier",
+        "security": "Keamanan",
+        "status": "Status"
+      },
+      "copyright": "© {year} VIZA. Hak cipta dilindungi undang-undang.",
+      "office": "Kantor terdaftar: 60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapura 409051",
+      "privacy": "Privasi",
+      "terms": "Ketentuan",
+      "kelin": "Usaha dari Kelin Studio",
+      "refunds": "Pengembalian dana",
+      "business": "Informasi bisnis"
+    },
+    "form": {
+      "fullName": {
+        "label": "Nama Anda",
+        "placeholder": "Jane Tan"
+      },
+      "email": {
+        "label": "Email"
+      },
+      "phone": {
+        "label": "Telepon"
+      },
+      "destination": {
+        "label": "Tujuan",
+        "placeholder": "Jepang, Schengen, Amerika Serikat"
+      },
+      "message": {
+        "label": "Pertanyaan Anda",
+        "placeholder": "Tujuan Anda, paspor Anda, dan tanggal perjalanan Anda."
+      },
+      "submit": "Kirim pesan",
+      "sending": "Mengirim",
+      "success": "Terima kasih, pesan Anda sudah kami terima. Kami akan membalas lewat email.",
+      "error": "Pesan Anda tidak dapat dikirim. Silakan coba lagi, atau kirim email ke sales@kelin.studio.",
+      "consent": "Dengan mengirim, Anda menyetujui <privacy>Kebijakan Privasi</privacy> dan <terms>Ketentuan</terms> kami."
+    },
+    "gallery": {
+      "title": "Tujuan",
+      "lede": "Pilih tujuan untuk melihat visa yang Anda perlukan, dokumennya, dan biaya pemerintahnya.",
+      "view": "Lihat",
+      "passportSummary": "{free} bebas visa · {voa} e-Visa atau saat kedatangan · {req} wajib visa",
+      "noResults": "Tidak ada tujuan yang cocok dengan pencarian Anda.",
+      "sorts": {
+        "featured": "Unggulan",
+        "open": "Yang buka lebih dulu",
+        "name": "A sampai Z"
+      }
+    },
+    "dest": {
+      "all": "Semua tujuan",
+      "onPage": "Di halaman ini",
+      "applyTitle": "Mulai permohonan",
+      "facts": "Fakta"
+    },
+    "article": {
+      "toc": "Di halaman ini",
+      "down": "Langsung ke artikel",
+      "faqLede": "Jawaban singkat seputar topik ini."
+    },
+    "legal": {
+      "updated": "Terakhir diperbarui",
+      "contents": "Daftar isi"
+    }
+  },
+  "homePage": {
+    "hero": {
+      "browse": "Lihat tujuan",
+      "picks": "Tujuan"
+    },
+    "types": {
+      "title": "Jenis visa",
+      "lede": "Visa turis, bisnis, kerja, pelajar, dan jangka panjang.",
+      "prev": "Sebelumnya",
+      "next": "Berikutnya",
+      "items": {
+        "tourist": {
+          "title": "Turis",
+          "body": "Liburan, kunjungan keluarga, dan tinggal singkat."
+        },
+        "business": {
+          "title": "Bisnis",
+          "body": "Rapat, konferensi, dan kunjungan lokasi."
+        },
+        "work": {
+          "title": "Kerja",
+          "body": "Izin kerja dan visa kerja."
+        },
+        "student": {
+          "title": "Pelajar",
+          "body": "Visa studi untuk sekolah dan universitas."
+        },
+        "long": {
+          "title": "Tinggal lama",
+          "body": "Izin tinggal dan visa jangka panjang lainnya."
+        }
+      }
+    },
+    "steps": {
+      "title": "Cara kerjanya",
+      "cta": "Mulai permohonan gratis Anda",
+      "side": {
+        "freeValue": "Gratis",
+        "freeLabel": "Layanan VIZA",
+        "langLabel": "Bahasa",
+        "note": "Anda hanya membayar biaya pemerintah.",
+        "noteBody": "Biaya itu langsung masuk ke otoritas penerbit. VIZA tidak menambahkan biaya sendiri."
+      },
+      "items": {
+        "choose": {
+          "title": "Pilih tujuan",
+          "body": "Lihat visa yang Anda perlukan, dokumen yang perlu disiapkan, dan biaya pemerintahnya sebelum mulai.",
+          "chips": "Jenis visa|Dokumen|Biaya pemerintah"
+        },
+        "passport": {
+          "title": "Unggah paspor Anda",
+          "body": "VIZA membaca data Anda dari halaman foto, jadi hanya sedikit yang perlu diketik.",
+          "chips": "Halaman foto|Data terisi otomatis"
+        },
+        "confirm": {
+          "title": "Konfirmasi data Anda",
+          "body": "Periksa data yang dibaca VIZA, tambahkan tanggal perjalanan, lalu lanjutkan di akun VIZA gratis Anda.",
+          "chips": "Tanggal perjalanan|Akun gratis"
+        },
+        "file": {
+          "title": "VIZA memeriksa dan mengajukan",
+          "body": "Seorang penasihat memeriksa setiap formulir sebelum diajukan, dan Anda bisa memantau perkembangannya di akun Anda.",
+          "chips": "Pemeriksaan penasihat|Kabar perkembangan"
+        }
+      }
+    },
+    "tiers": {
+      "title": "Harga",
+      "lede": "Dua cara mengajukan, keduanya gratis.",
+      "cta": "Hubungi kami",
+      "criteria": "Bandingkan",
+      "guided": "Terpandu",
+      "full": "Layanan Penuh",
+      "rows": {
+        "fee": {
+          "label": "Biaya VIZA",
+          "guided": "Gratis",
+          "full": "Gratis"
+        },
+        "form": {
+          "label": "Formulir permohonan",
+          "guided": "Anda yang menjawab, dipandu AI VIZA",
+          "full": "Konsultan menyiapkan jawaban bersama Anda"
+        },
+        "documents": {
+          "label": "Dokumen",
+          "guided": "Daftar periksa sesuai situasi Anda",
+          "full": "Konsultan memeriksa dokumen Anda"
+        },
+        "interview": {
+          "label": "Janji temu dan wawancara",
+          "guided": "Anda yang memesan dan hadir",
+          "full": "Kami membahas kemungkinan pertanyaan bersama Anda"
+        },
+        "govFee": {
+          "label": "Biaya pemerintah",
+          "guided": "Dibayar langsung ke otoritas",
+          "full": "Dibayar langsung ke otoritas"
+        },
+        "bestFor": {
+          "label": "Cocok untuk",
+          "guided": "Permohonan yang sederhana",
+          "full": "Kasus rumit atau pernah ditolak"
+        }
+      }
+    },
+    "why": {
+      "title": "Mengapa VIZA",
+      "lede": "Langkah yang jelas, formulir yang diperiksa, dan orang sungguhan yang bisa diajak bicara.",
+      "items": {
+        "free": {
+          "title": "Layanan gratis",
+          "body": "Bantuan VIZA tidak dipungut biaya. Anda hanya membayar biaya pemerintah, langsung ke otoritas."
+        },
+        "checked": {
+          "title": "Formulir diperiksa",
+          "body": "Seorang penasihat memeriksa setiap formulir sebelum diajukan, sehingga kesalahan kecil ketahuan sejak awal."
+        },
+        "language": {
+          "title": "Inggris dan Mandarin",
+          "body": "Hubungi VIZA dalam bahasa Inggris atau Mandarin, lewat WhatsApp, WeChat, atau email."
+        }
+      },
+      "photos": {
+        "arrival": {
+          "title": "Kartu kedatangan",
+          "body": "Bantuan langkah demi langkah untuk kartu kedatangan gratis Malaysia, Singapura, Jepang, Thailand, Korea, dan Indonesia."
+        },
+        "news": {
+          "title": "Berita",
+          "body": "Perubahan aturan visa dan skema visa elektronik baru, dijelaskan dengan bahasa sederhana."
+        }
+      }
+    },
+    "guides": {
+      "title": "Panduan",
+      "cta": "Semua panduan"
+    },
+    "faq": {
+      "lede": "Jawaban singkat tentang layanan visa VIZA.",
+      "more": "Ada pertanyaan lain?",
+      "items": {
+        "cost": {
+          "q": "Apakah VIZA memungut biaya untuk layanannya?",
+          "a": "Tidak. Bantuan VIZA gratis. Jika suatu tujuan mengenakan biaya visa pemerintah, Anda membayarnya langsung ke pemerintah tersebut."
+        },
+        "visas": {
+          "q": "Visa apa saja yang bisa dibantu VIZA?",
+          "a": "Visa turis, bisnis, kerja, pelajar, dan jangka panjang untuk tujuan di halaman ini. Jika tujuan Anda tidak ada, tulis kepada kami dan konsultan akan menjelaskan apa yang bisa dilakukan."
+        },
+        "approval": {
+          "q": "Siapa yang memutuskan visa saya?",
+          "a": "Otoritas penerbit yang membuat setiap keputusan. VIZA memeriksa formulir dan dokumen Anda sebelum diajukan, agar permohonan Anda lengkap dan konsisten."
+        },
+        "tiers": {
+          "q": "Apa bedanya Terpandu dan Layanan Penuh?",
+          "a": "Dengan Terpandu, AI VIZA memandu Anda mengisi formulir dan daftar periksa, dan Anda tetap memegang kendali atas setiap jawaban. Dengan Layanan Penuh, konsultan menyiapkan jawaban bersama Anda dan memeriksa dokumen Anda. Keduanya gratis."
+        },
+        "language": {
+          "q": "Bahasa apa saja yang didukung?",
+          "a": "Inggris dan Mandarin, lewat WhatsApp, WeChat, telepon, dan email."
+        }
+      }
+    },
+    "contactCard": {
+      "title": "Bicara dengan konsultan VIZA",
+      "body": "Kami membalas dalam bahasa Inggris atau Mandarin.",
+      "cta": "Hubungi kami"
+    },
+    "cta": {
+      "title": "Mulai permohonan Anda",
+      "point1": "Data Anda tetap privat",
+      "point2": "Dibalas oleh orang sungguhan",
+      "formTitle": "Ajukan pertanyaan",
+      "formBody": "Beri tahu kami tujuan Anda dan konsultan VIZA akan membalas lewat email."
+    }
+  },
+  "aboutPage": {
+    "h1": "Tentang VIZA",
+    "intro": {
+      "title": "Apa itu VIZA",
+      "text": "VIZA menyiapkan, memeriksa, dan mengajukan permohonan visa bagi orang yang tinggal di Singapura. AI kami mengurus dokumen dan konsultan kami meninjau setiap formulir. Layanannya gratis."
+    },
+    "facts": {
+      "destinations": "Tujuan",
+      "guides": "Panduan visa",
+      "arrival": "Panduan kartu kedatangan",
+      "free": "Gratis",
+      "freeLabel": "Layanan VIZA"
+    },
+    "tiersTitle": "Terpandu atau Layanan Penuh",
+    "tiersLede": "Pilih seberapa banyak bantuan yang Anda inginkan. Keduanya gratis.",
+    "free": {
+      "title": "Layanan gratis",
+      "text": "VIZA tidak memungut biaya untuk bantuannya. Jika suatu tujuan mengenakan biaya visa pemerintah, VIZA menampilkannya sebelum Anda mulai dan Anda membayarnya langsung ke otoritas penerbit. Tidak ada paket berbayar."
+    },
+    "company": {
+      "title": "Detail perusahaan",
+      "office": "Kantor terdaftar",
+      "officeValue": "60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapura 409051",
+      "email": "Email",
+      "phone": "Telepon dan WhatsApp",
+      "languages": "Bahasa",
+      "languagesValue": "Inggris dan Mandarin"
+    }
+  },
+  "contactPage": {
+    "h1": "Kontak",
+    "lines": {
+      "whatsapp": {
+        "title": "Telepon dan WhatsApp",
+        "body": "Telepon atau kirim pesan ke konsultan."
+      },
+      "wechat": {
+        "body": "Cari ID ini di WeChat untuk menambahkan kami."
+      },
+      "email": {
+        "title": "Email",
+        "body": "Paling cocok untuk dokumen dan pertanyaan yang lebih panjang."
+      },
+      "office": {
+        "top": "Singapura",
+        "title": "Kantor",
+        "body": "60 Paya Lebar Road, #06-28 Paya Lebar Square, Singapura 409051"
+      }
+    },
+    "message": {
+      "title": "Kirim pesan",
+      "text": "Ada pertanyaan tentang visa, tujuan perjalanan, atau kerja sama dengan VIZA? Tulis kepada kami dan konsultan akan membalas."
+    }
+  },
+  "careersPage": {
+    "title": "Karier",
+    "lede": "VIZA membantu orang di Singapura mendapatkan visa dengan AI dan konsultan, dan layanannya gratis. Kami merekrut orang yang suka pekerjaan teliti dan bermanfaat.",
+    "teamsTitle": "Tim",
+    "teams": [
+      {
+        "title": "Engineering",
+        "body": "Bangun pemeriksaan dokumen, alur permohonan, dan alat yang dipakai konsultan kami."
+      },
+      {
+        "title": "Desain",
+        "body": "Buat proses yang menegangkan terasa jelas bagi pemohon."
+      },
+      {
+        "title": "Operasional",
+        "body": "Pastikan setiap permohonan terus berjalan dan setiap persyaratan selalu terbaru."
+      },
+      {
+        "title": "Konsultasi",
+        "body": "Bantu pemohon dengan kasus yang membutuhkan orang, dalam bahasa Inggris dan Mandarin."
+      },
+      {
+        "title": "Data",
+        "body": "Ubah sumber pemerintah menjadi pemeriksaan yang menangkap masalah sejak awal."
+      },
+      {
+        "title": "Pemasaran",
+        "body": "Jelaskan visa dengan sederhana, lewat panduan dan halaman yang bisa dipercaya."
+      }
+    ],
+    "applyTitle": "Hubungi kami",
+    "applyBody": "Ceritakan tentang diri Anda dan tim yang ingin Anda ikuti. Kami membaca setiap pesan.",
+    "applyCta": "Hubungi kami"
+  },
+  "pageCopy": {
+    "product": {
+      "introTitle": "Cara VIZA mendukung permohonan visa Anda",
+      "introLede": "Lihat layanan persiapan visa, pemeriksaan dokumen, dan status permohonan yang tersedia. Layanan VIZA gratis. Cakupan dan ketersediaan pastinya ditampilkan setelah Anda memilih tujuan.",
+      "browse": "Lihat tujuan"
+    },
+    "events": {
+      "title": "Belum ada acara",
+      "lede": "Klinik visa, sesi informasi, dan acara mitra berikutnya akan diumumkan di sini.",
+      "contact": "Hubungi kami"
+    }
+  },
+  "og": {
+    "band": "VIZA gratis. Biaya pemerintah dibayar terpisah.",
+    "destSubtitle": "Biaya dan cara mengajukan"
+  }
+}

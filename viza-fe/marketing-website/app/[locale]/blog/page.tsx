@@ -12,7 +12,7 @@ import { blogCategories } from "@/lib/blog-taxonomy";
 import { pageMetadata } from "@/lib/seo/metadata";
 import { blogUrl, breadcrumbJsonLd, jsonLd } from "@/lib/blog-structured-data";
 
-export const revalidate = 300;
+export const revalidate = false;
 
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));

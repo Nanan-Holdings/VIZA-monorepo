@@ -66,7 +66,14 @@ const nextConfig: NextConfig = {
     return REDIRECTS;
   },
   async headers() {
-    return [{ source: "/:path*", headers: SECURITY_HEADERS }];
+    return [
+      { source: "/:path*", headers: SECURITY_HEADERS },
+      // Static assets: long browser and CDN caching. Fonts never change under the same name; link previews
+      // and brand assets are only replaced by a deploy, so a month plus a long stale window is safe.
+      { source: "/fonts/:path*", headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }] },
+      { source: "/og/:path*", headers: [{ key: "Cache-Control", value: "public, max-age=2592000, s-maxage=2592000, stale-while-revalidate=604800" }] },
+      { source: "/assets/:path*", headers: [{ key: "Cache-Control", value: "public, max-age=2592000, s-maxage=2592000, stale-while-revalidate=604800" }] },
+    ];
   },
 };
 
