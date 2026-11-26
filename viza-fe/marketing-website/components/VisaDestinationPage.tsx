@@ -158,7 +158,7 @@ export default function VisaDestinationPage({
             <h1 className="ds-hero-title dp-title" data-reveal="hero">
               {content.heroTitle}
               <span className="dp-flag">
-                <CircleFlag countryCode={country.flagCode} height={44} />
+                <CircleFlag alt="" countryCode={country.flagCode} height={44} />
               </span>
               {content.heroTitleSuffix ? <span className="dp-title-suffix"> {content.heroTitleSuffix}</span> : null}
             </h1>
@@ -428,7 +428,7 @@ export default function VisaDestinationPage({
                         <div className="ds-dest-media">
                           <Photo src={c.image} sizes="(max-width: 809px) 100vw, 320px" />
                           <span className="ds-dest-flag" aria-hidden="true">
-                            <CircleFlag countryCode={c.flagCode} height={32} />
+                            <CircleFlag alt="" countryCode={c.flagCode} height={32} />
                           </span>
                         </div>
                         <div className="ds-dest-caption">

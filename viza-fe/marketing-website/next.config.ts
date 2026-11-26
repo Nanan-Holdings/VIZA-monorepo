@@ -68,6 +68,16 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       { source: "/:path*", headers: SECURITY_HEADERS },
+      // Discovery links for agents on the home page (RFC 8288).
+      {
+        source: "/",
+        headers: [
+          {
+            key: "Link",
+            value: '</index.md>; rel="alternate"; type="text/markdown", </llms.txt>; rel="describedby"; type="text/plain", </sitemap.xml>; rel="sitemap"; type="application/xml"',
+          },
+        ],
+      },
       // Static assets: long browser and CDN caching. Fonts never change under the same name; link previews
       // and brand assets are only replaced by a deploy, so a month plus a long stale window is safe.
       { source: "/fonts/:path*", headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }] },

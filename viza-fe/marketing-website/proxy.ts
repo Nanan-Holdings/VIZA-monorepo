@@ -18,6 +18,14 @@ const PREFIXED = ENABLED_LOCALES.filter((l) => l !== DEFAULT_LOCALE);
  */
 export default function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  // Agents that ask for markdown get the markdown twin of the home page.
+  if (pathname === "/" && request.headers.get("accept")?.includes("text/markdown")) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/index.md";
+    const res = NextResponse.redirect(url, 307);
+    res.headers.set("Vary", "Accept");
+    return res;
+  }
   if (pathname === "/") {
     const chosen = request.cookies.get(LOCALE_COOKIE)?.value;
     const prefixed = PREFIXED.find((l) => l === chosen);
