@@ -9561,7 +9561,11 @@ async function isSafeForIdleExit(): Promise<boolean> {
       wakeRunnerJobs();
       return false;
     }
-    if (LEGACY_SUBMISSION_QUEUE_ENABLED && await hasLegacyWorkerWork()) {
+    if (LEGACY_SUBMISSION_QUEUE_ENABLED && await hasLegacyWorkerWork({
+      providerAllowlist: SUBMISSION_PROVIDER_ALLOWLIST,
+      providerDenylist: SUBMISSION_PROVIDER_DENYLIST,
+      vietnamStatusChecks: VN_STATUS_CHECKS_ENABLED,
+    })) {
       console.log("[idle] Unclaimed submission_queue work found while idle; starting a drain.");
       wakeSubmissionQueue();
       return false;

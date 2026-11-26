@@ -28,3 +28,31 @@ test("malformed scheduled metadata is treated as work", () => {
     true,
   );
 });
+
+async function scopedQueryParams(scope: import("./work-availability.js").LegacyWorkScope): Promise<URLSearchParams> {
+  process.env.SUPABASE_URL ??= "http://127.0.0.1:9";
+  process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-key";
+  const { scopeProviders } = await import("./work-availability.js");
+  const { supabase } = await import("./supabase.js");
+  const query = scopeProviders(supabase.from("submission_queue").select("id"), scope);
+  return (query as unknown as { url: URL }).url.searchParams;
+}
+
+test("a dedicated worker counts only the providers it can claim", async () => {
+  const params = await scopedQueryParams({
+    providerAllowlist: new Set(["france_visas_live", "france_visas_dry_run"]),
+  });
+  assert.equal(params.get("provider"), "in.(france_visas_live,france_visas_dry_run)");
+});
+
+test("the Singapore worker ignores providers served by dedicated workers", async () => {
+  const params = await scopedQueryParams({ providerDenylist: ["ceac_live", "france_visas_live"] });
+  assert.equal(params.get("or"), "(provider.is.null,provider.not.in.(ceac_live,france_visas_live))");
+  assert.equal(params.get("provider"), null);
+});
+
+test("an unscoped worker counts every provider", async () => {
+  const params = await scopedQueryParams({});
+  assert.equal(params.get("provider"), null);
+  assert.equal(params.get("or"), null);
+});

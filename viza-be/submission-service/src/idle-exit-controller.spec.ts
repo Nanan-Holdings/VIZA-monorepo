@@ -134,6 +134,6 @@ test("an idle worker that finds unclaimed work starts a drain instead of waiting
   const body = indexSource.slice(start, indexSource.indexOf("\nasync function main", start));
 
   assert.match(body, /hasCountryRunnerWork\([^)]*\)\s*\)\s*\{[\s\S]*?wakeRunnerJobs\(\);\s*return false;/);
-  assert.match(body, /hasLegacyWorkerWork\(\)\)\s*\{[\s\S]*?wakeSubmissionQueue\(\);\s*return false;/);
+  assert.match(body, /hasLegacyWorkerWork\(\{[\s\S]*?providerAllowlist: SUBMISSION_PROVIDER_ALLOWLIST[\s\S]*?vietnamStatusChecks: VN_STATUS_CHECKS_ENABLED[\s\S]*?\}\)\)\s*\{[\s\S]*?wakeSubmissionQueue\(\);\s*return false;/);
   assert.match(body, /hasIndonesiaWorkerWork\(\)\)\s*\{[\s\S]*?wakeSubmissionQueue\(\);\s*return false;/);
 });

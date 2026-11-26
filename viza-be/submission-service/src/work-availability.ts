@@ -33,6 +33,35 @@ export const LEGACY_SCHEDULED_QUEUE_STATUSES = [
   "phetravel_live_assisted_scheduled",
 ] as const;
 
+/**
+ * What a legacy-kind worker can actually claim. A dedicated worker (DS-160,
+ * France-Visas) narrows the providers it serves, and the Singapore worker
+ * denylists those; the idle check must count only that work, or a dedicated
+ * worker sees another worker's job, never claims it and never stops.
+ */
+export interface LegacyWorkScope {
+  providerAllowlist?: Iterable<string>;
+  providerDenylist?: Iterable<string>;
+  vietnamStatusChecks?: boolean;
+}
+
+interface ProviderFilterable {
+  in(column: string, values: readonly string[]): ProviderFilterable;
+  or(filters: string): ProviderFilterable;
+}
+
+// PostgREST filter builders return themselves, so the scoped query keeps the
+// caller's type; checking Supabase's deep builder generics against a
+// structural constraint overflows tsc (TS2589), hence the narrow cast.
+export function scopeProviders<Q>(query: Q, scope: LegacyWorkScope): Q {
+  const allow = [...(scope.providerAllowlist ?? [])];
+  const deny = [...(scope.providerDenylist ?? [])];
+  let scoped = query as unknown as ProviderFilterable;
+  if (allow.length > 0) scoped = scoped.in("provider", allow);
+  if (deny.length > 0) scoped = scoped.or(`provider.is.null,provider.not.in.(${deny.join(",")})`);
+  return scoped as unknown as Q;
+}
+
 type ScheduledQueueRow = {
   application_id: string;
   status: string;
@@ -43,13 +72,15 @@ type ScheduledApplicationRow = {
   submission_result: unknown;
 };
 
-async function hasDueScheduledSubmission(now: Date): Promise<boolean> {
-  const { data: scheduledRows, error } = await supabase
-    .from("submission_queue")
-    .select("application_id, status")
-    .in("status", [...LEGACY_SCHEDULED_QUEUE_STATUSES])
-    .lt("attempts", 3)
-    .limit(1_000);
+async function hasDueScheduledSubmission(now: Date, scope: LegacyWorkScope): Promise<boolean> {
+  const { data: scheduledRows, error } = await scopeProviders(
+    supabase
+      .from("submission_queue")
+      .select("application_id, status")
+      .in("status", [...LEGACY_SCHEDULED_QUEUE_STATUSES])
+      .lt("attempts", 3),
+    scope,
+  ).limit(1_000);
   if (error) throw new Error(`scheduled submission work check: ${error.message}`);
   const rows = (scheduledRows ?? []) as ScheduledQueueRow[];
   if (rows.length === 0) return false;
@@ -131,27 +162,38 @@ export async function hasIndonesiaWorkerWork(): Promise<boolean> {
   return (handoffCount ?? 0) > 0;
 }
 
-export async function hasLegacyWorkerWork(now = new Date()): Promise<boolean> {
-  const { count, error } = await supabase
-    .from("submission_queue")
-    .select("id", { count: "exact", head: true })
-    .in("status", [...LEGACY_IMMEDIATE_QUEUE_STATUSES])
-    .lt("attempts", 3);
+export async function hasLegacyWorkerWork(
+  scope: LegacyWorkScope = {},
+  now = new Date(),
+): Promise<boolean> {
+  const { count, error } = await scopeProviders(
+    supabase
+      .from("submission_queue")
+      .select("id", { count: "exact", head: true })
+      .in("status", [...LEGACY_IMMEDIATE_QUEUE_STATUSES])
+      .lt("attempts", 3),
+    scope,
+  );
   if (error) throw new Error(`submission_queue idle work check: ${error.message}`);
   if ((count ?? 0) > 0) return true;
 
   // An open Vietnam applicant handoff keeps the worker alive so its watcher
   // can record the official registration code or expire the handoff.
-  const { count: handoffCount, error: handoffError } = await supabase
-    .from("submission_queue")
-    .select("id", { count: "exact", head: true })
-    .in("status", ["vn_applicant_handoff", "vn_applicant_submitted"]);
+  const { count: handoffCount, error: handoffError } = await scopeProviders(
+    supabase
+      .from("submission_queue")
+      .select("id", { count: "exact", head: true })
+      .in("status", ["vn_applicant_handoff", "vn_applicant_submitted"]),
+    scope,
+  );
   if (handoffError) throw new Error(`Vietnam handoff work check: ${handoffError.message}`);
   if ((handoffCount ?? 0) > 0) return true;
 
   const [scheduledDue, statusDue] = await Promise.all([
-    hasDueScheduledSubmission(now),
-    hasDueVietnamStatusCheck(now.toISOString()),
+    hasDueScheduledSubmission(now, scope),
+    scope.vietnamStatusChecks === false
+      ? Promise.resolve(false)
+      : hasDueVietnamStatusCheck(now.toISOString()),
   ]);
   return scheduledDue || statusDue;
 }
