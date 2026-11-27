@@ -32,7 +32,7 @@ test("UK timing records fixed fields and deterministic durations", () => {
 
   const page = timing.start("page_goto", "standardApplicantsEmail");
   clock.advance(23);
-  page.end("failed");
+  page.end("failed", 1, "radio_option_unmatched");
 
   clock.advance(5);
   const summary = timing.finish("failed");
@@ -54,6 +54,7 @@ test("UK timing records fixed fields and deterministic durations", () => {
       durationMs: 23,
       outcome: "failed",
       count: 1,
+      diagnosticCode: "radio_option_unmatched",
     },
     {
       runId: "run-test",

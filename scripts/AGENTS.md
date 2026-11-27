@@ -68,9 +68,10 @@ smoke-test helpers for the VIZA monorepo.
   the production UK legacy Fly worker. It accepts no command or app input,
   invokes only `fly machines list` and `fly logs --no-tail --json`, and emits
   only an allowlisted machine summary plus reconstructed `[uk-timing]` stage,
-  slug, duration, outcome, and count fields. Raw Fly output, URLs, answers,
-  errors, credentials, and environment values must remain suppressed. The
-  manual workflow entry point is `.github/workflows/diagnose-submission-service-fly.yml`.
+  slug, duration, outcome, count, and fixed diagnostic-code fields. Raw Fly
+  output, URLs, answers, errors, credentials, and environment values must
+  remain suppressed. The manual workflow entry point is
+  `.github/workflows/diagnose-submission-service-fly.yml`.
 - `production-db-maintenance.mjs`: fail-closed production database maintenance
   helper invoked only from the protected GitHub Environment. Preflight uses
   Supabase's read-only Management API endpoint and emits aggregate queue/lease,

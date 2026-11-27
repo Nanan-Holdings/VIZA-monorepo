@@ -41,6 +41,14 @@ const ALLOWED_STAGES = new Set([
 ]);
 
 const ALLOWED_OUTCOMES = new Set(["success", "failed", "stopped", "skipped", "timeout"]);
+const ALLOWED_DIAGNOSTIC_CODES = new Set([
+  "radio_group_missing",
+  "radio_label_missing",
+  "radio_option_unmatched",
+  "radio_disabled",
+  "radio_check_failed",
+  "unknown",
+]);
 const SAFE_ID = /^[A-Za-z0-9-]{4,80}$/u;
 const SAFE_IMAGE = /^(?:registry\.fly\.io|ghcr\.io)\/[A-Za-z0-9._/-]+(?::[A-Za-z0-9._-]+|@sha256:[a-f0-9]{64})?$/u;
 const TIMING_PREFIX = "[uk-timing]";
@@ -277,7 +285,11 @@ function timingRecord(value) {
   if (outcome !== null && (typeof outcome !== "string" || !ALLOWED_OUTCOMES.has(outcome))) return null;
   const count = value.count === undefined ? null : boundedInteger(value.count, 1_000_000);
   if (value.count !== undefined && count === null) return null;
-  return { stage: value.stage, slug, durationMs, outcome, count };
+  const report = { stage: value.stage, slug, durationMs, outcome, count };
+  if (typeof value.diagnosticCode === "string" && ALLOWED_DIAGNOSTIC_CODES.has(value.diagnosticCode)) {
+    report.diagnosticCode = value.diagnosticCode;
+  }
+  return report;
 }
 
 export function parseUkTimingLogs(stdout) {

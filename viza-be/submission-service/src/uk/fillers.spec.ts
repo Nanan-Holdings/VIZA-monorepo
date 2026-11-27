@@ -10,9 +10,9 @@ import {
   ukSelectCountry,
   ukSelectOption,
 } from "./fillers.js";
-import { UK_DOCUMENTS_FILLER } from "./page-bindings.js";
+import { UK_DOCUMENTS_FILLER, UK_PAGE_FILLERS } from "./page-bindings.js";
 
-type WidgetMode = "missing" | "disabled" | "check_failure" | "label_mismatch" | "working";
+type WidgetMode = "missing" | "disabled" | "check_failure" | "label_mismatch" | "working" | "wrapped_label" | "delayed_label";
 
 class FakeLocator {
   private checked = false;
@@ -22,6 +22,7 @@ class FakeLocator {
     private readonly mode: WidgetMode,
     private readonly id = "control-1",
     private readonly label = "Yes",
+    private readonly wrappedLabel = "",
   ) {}
 
   public async count(): Promise<number> {
@@ -41,6 +42,7 @@ class FakeLocator {
   }
 
   public async textContent(): Promise<string> {
+    if (this.mode === "missing") return null as unknown as string;
     return this.mode === "label_mismatch" ? "Other" : this.label;
   }
 
@@ -79,36 +81,97 @@ class FakeLocator {
   }
 
   public async evaluate<T>(): Promise<T> {
-    return "" as T;
+    return (this.mode === "wrapped_label" ? this.wrappedLabel : "") as T;
+  }
+
+  public async waitFor(): Promise<void> {
+    if (this.mode === "missing") throw new Error("missing widget");
   }
 }
 
 class FakePage {
+  private waitedMs = 0;
+
   public constructor(
     private readonly mode: WidgetMode,
     private readonly label = "Yes",
+    private readonly wrappedLabel = "",
   ) {}
 
   public locator(selector: string): FakeLocator {
-    if (selector.startsWith("label[for=")) return new FakeLocator(this.mode, "label-1", this.label);
+    const label = this.mode === "delayed_label" && this.waitedMs < 100 ? "Other" : this.label;
+    if (selector.startsWith("label[for=")) {
+      return new FakeLocator(this.mode === "wrapped_label" ? "missing" : this.mode, "label-1", label);
+    }
     if (selector.includes("input[type=\"radio\"]") || selector.includes("input[type=\"checkbox\"]")) {
-      return new FakeLocator(this.mode, "control-1", this.label);
+      return new FakeLocator(this.mode, "control-1", label, this.wrappedLabel);
     }
     if (selector.startsWith("#")) return new FakeLocator(this.mode);
     return new FakeLocator("missing");
   }
 
-  public async waitForTimeout(): Promise<void> {}
+  public async waitForTimeout(durationMs = 0): Promise<void> {
+    this.waitedMs += durationMs;
+  }
 }
 
 const asPage = (page: FakePage): Page => page as unknown as Page;
 
 test("radio widgets fail when the requested label is missing", async () => {
-  await assert.rejects(ukPickRadio(asPage(new FakePage("label_mismatch")), "choice", "Yes"), /not found/);
+  await assert.rejects(
+    ukPickRadio(asPage(new FakePage("label_mismatch")), "choice", "Yes"),
+    (error: unknown) =>
+      error instanceof Error &&
+      "diagnosticCode" in error &&
+      error.diagnosticCode === "radio_option_unmatched",
+  );
+});
+
+test("purpose radio matching normalizes line breaks and non-breaking spaces", async () => {
+  await ukPickRadio(
+    asPage(new FakePage("working", "Tourism (including\u00a0visiting\n family and friends)")),
+    "purposeRef",
+    "Tourism (including visiting family and friends)",
+  );
+});
+
+test("radio matching falls back to a wrapped label without a for/id association", async () => {
+  await ukPickRadio(
+    asPage(new FakePage("wrapped_label", "", "Tourism (including visiting family and friends)")),
+    "purposeRef",
+    "Tourism (including visiting family and friends)",
+  );
+});
+
+test("radio matching waits briefly for an option that renders after the group", async () => {
+  await ukPickRadio(
+    asPage(new FakePage("delayed_label", "Tourism (including visiting family and friends)")),
+    "purposeRef",
+    "Tourism (including visiting family and friends)",
+  );
+});
+
+test("UK purpose binding selects the official tourism option in purposeRef", async () => {
+  await UK_PAGE_FILLERS.purposeOfVisitForVV(
+    asPage(new FakePage("working", "Tourism (including visiting family and friends)")),
+    { purpose_of_visit: "tourism" },
+  );
 });
 
 test("disabled radio widgets fail unless the requested value was already checked", async () => {
-  await assert.rejects(ukPickRadio(asPage(new FakePage("disabled")), "choice", "Yes"), /disabled/);
+  await assert.rejects(
+    ukPickRadio(asPage(new FakePage("disabled")), "choice", "Yes"),
+    (error: unknown) =>
+      error instanceof Error && "diagnosticCode" in error && error.diagnosticCode === "radio_disabled",
+  );
+});
+
+test("missing radio groups produce an allowlisted diagnostic", async () => {
+  await assert.rejects(
+    ukPickRadio(asPage(new FakePage("missing")), "purposeRef", "Tourism"),
+    (error: unknown) =>
+      error instanceof Error && "diagnosticCode" in error && error.diagnosticCode === "radio_group_missing",
+  );
 });
 
 test("disabled checkbox widgets fail instead of being silently ignored", async () => {

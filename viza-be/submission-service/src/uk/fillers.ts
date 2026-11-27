@@ -12,9 +12,27 @@
 
 import type { Page } from "@playwright/test";
 import { resolveCountryIso3 } from "./country-iso3";
+import type { UkTimingDiagnosticCode } from "./timing.js";
 
 const SHORT_TIMEOUT = 4_000;
 const SETTLE_MS = 0;
+
+export class UkRadioFillError extends Error {
+  public readonly diagnosticCode: Exclude<UkTimingDiagnosticCode, "unknown">;
+
+  public constructor(
+    diagnosticCode: Exclude<UkTimingDiagnosticCode, "unknown">,
+    message: string,
+  ) {
+    super(message);
+    this.name = "UkRadioFillError";
+    this.diagnosticCode = diagnosticCode;
+  }
+}
+
+function normalizeVisibleLabel(value: string): string {
+  return value.replace(/\u00a0/gu, " ").replace(/\s+/gu, " ").trim().toLocaleLowerCase("en-US");
+}
 
 async function settle(page: Page): Promise<void> {
   if (SETTLE_MS <= 0) return;
@@ -151,27 +169,69 @@ export async function ukPickRadio(
 ): Promise<void> {
   if (!visibleLabel) return;
   const groupLocator = page.locator(`input[type="radio"][name="${cssEscape(groupName)}"]`);
-  const n = await groupLocator.count();
-  for (let i = 0; i < n; i++) {
-    const radio = groupLocator.nth(i);
-    const id = await radio.getAttribute("id");
-    if (!id) continue;
-    const labelText = await page.locator(`label[for="${cssEscape(id)}"]`).first().textContent().catch(() => null);
-    if (!labelText) continue;
-    if (labelText.trim().toLowerCase() === visibleLabel.trim().toLowerCase()) {
-      if (await radio.isChecked().catch(() => false)) return;
-      if (await radio.isDisabled().catch(() => true)) {
-        throw new Error(`Radio "${visibleLabel}" is disabled in group "${groupName}"`);
-      }
-      await radio.check({ force: true, timeout: SHORT_TIMEOUT });
-      if (!(await radio.isChecked())) {
-        throw new Error(`Radio "${visibleLabel}" did not become checked in group "${groupName}"`);
-      }
-      await settle(page);
-      return;
-    }
+  let n = await groupLocator.count();
+  if (n === 0) {
+    await groupLocator.first().waitFor({ state: "attached", timeout: 1_000 }).catch(() => undefined);
+    n = await groupLocator.count();
   }
-  throw new Error(`Radio label "${visibleLabel}" was not found in group "${groupName}"`);
+  if (n === 0) {
+    throw new UkRadioFillError("radio_group_missing", `Radio group "${groupName}" was not found`);
+  }
+  let sawUsableLabel = false;
+  let labelPolls = 0;
+  while (true) {
+    for (let i = 0; i < n; i++) {
+      const radio = groupLocator.nth(i);
+      const id = await radio.getAttribute("id");
+      const associatedLabelLocator = id
+        ? page.locator(`label[for="${cssEscape(id)}"]`).first()
+        : null;
+      let labelText = associatedLabelLocator && (await associatedLabelLocator.count()) > 0
+        ? await associatedLabelLocator.textContent().catch(() => null)
+        : null;
+      if (!labelText?.trim()) {
+        labelText = await radio
+          .evaluate((element) => element.closest("label")?.textContent ?? null)
+          .catch(() => null);
+      }
+      if (!labelText?.trim()) continue;
+      sawUsableLabel = true;
+      if (normalizeVisibleLabel(labelText) === normalizeVisibleLabel(visibleLabel)) {
+        if (await radio.isChecked().catch(() => false)) return;
+        if (await radio.isDisabled().catch(() => true)) {
+          throw new UkRadioFillError(
+            "radio_disabled",
+            `Radio "${visibleLabel}" is disabled in group "${groupName}"`,
+          );
+        }
+        try {
+          await radio.check({ force: true, timeout: SHORT_TIMEOUT });
+        } catch {
+          throw new UkRadioFillError(
+            "radio_check_failed",
+            `Radio "${visibleLabel}" could not be checked in group "${groupName}"`,
+          );
+        }
+        if (!(await radio.isChecked())) {
+          throw new UkRadioFillError(
+            "radio_check_failed",
+            `Radio "${visibleLabel}" did not become checked in group "${groupName}"`,
+          );
+        }
+        await settle(page);
+        return;
+      }
+    }
+
+    if (labelPolls >= 10) break;
+    labelPolls += 1;
+    await page.waitForTimeout(100);
+    n = await groupLocator.count();
+  }
+  throw new UkRadioFillError(
+    sawUsableLabel ? "radio_option_unmatched" : "radio_label_missing",
+    `Radio label "${visibleLabel}" was not found in group "${groupName}"`,
+  );
 }
 
 /** Pick a gov.uk yes/no radio group backed by `true`/`false` values. */

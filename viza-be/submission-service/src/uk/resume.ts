@@ -20,6 +20,7 @@ import {
   resolveUkPageSlug,
   ukPageHasValidationErrors,
   ukValidationErrorText,
+  UkRadioFillError,
   type UkFormProbe,
 } from "./fillers";
 import {
@@ -258,7 +259,7 @@ export async function resumeUkApplication(
         try {
           await filler(page, input.answers);
         } catch (err) {
-          fillSpan.end("failed");
+          fillSpan.end("failed", 1, err instanceof UkRadioFillError ? err.diagnosticCode : "unknown");
           return complete(incompleteResult(
             page,
             input,
