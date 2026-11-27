@@ -1,0 +1,358 @@
+<title>VIZA Site Redesign</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700&family=Inter:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one calm reading column (max 1080px) on a soft paper ground; mock-ups sit in large rounded frames like the Framer design. */
+:root {
+  --paper: #F5F6F4;
+  --surface: #FFFFFF;
+  --ink: #0E1726;
+  --muted: #5A6475;
+  --line: #E2E5E9;
+  --navy: #03346E;
+  --navy-tint: #EAF0F8;
+  --sky-a: #C9D8EC;
+  --sky-b: #F1E7D6;
+  --ok: #1F7A4D;
+  --warn: #A4561A;
+  --display: "Inter Tight", "Switzer", "Noto Sans SC", system-ui, sans-serif;
+  --body: "Inter", "Noto Sans SC", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
+  --r-lg: 20px; --r-md: 12px; --r-sm: 6px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #0D121B; --surface: #151C28; --ink: #E9EDF3; --muted: #9AA5B6; --line: #263042;
+  --navy: #8FB4E8; --navy-tint: #1A2740; --sky-a: #23365A; --sky-b: #3A3328; --ok: #6CC79A; --warn: #E0A06A; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --paper: #0D121B; --surface: #151C28; --ink: #E9EDF3; --muted: #9AA5B6; --line: #263042;
+  --navy: #8FB4E8; --navy-tint: #1A2740; --sky-a: #23365A; --sky-b: #3A3328; --ok: #6CC79A; --warn: #E0A06A; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font: 400 16px/1.6 var(--body); }
+.wrap { max-width: 1080px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 56px 96px; display: grid; gap: 88px; }
+h1, h2, h3 { font-family: var(--display); letter-spacing: -0.02em; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(2.2rem, 5vw, 3.4rem); line-height: 1.05; font-weight: 700; }
+h2 { font-size: 1.9rem; line-height: 1.15; font-weight: 600; }
+h3 { font-size: 1.1rem; font-weight: 600; letter-spacing: -0.01em; }
+p { margin: 0; max-width: 65ch; }
+.muted { color: var(--muted); }
+.mono { font-family: var(--mono); font-size: 0.78rem; letter-spacing: 0.02em; }
+section { display: grid; gap: 28px; }
+.lead { font-size: 1.15rem; color: var(--muted); }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 24px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+ul.clean { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+ul.clean li { padding-left: 18px; position: relative; }
+ul.clean li::before { content: ""; position: absolute; left: 0; top: 0.7em; width: 7px; height: 7px; border-radius: 50%; background: var(--navy); }
+ul.clean.x li::before { background: transparent; border: 1.5px solid var(--muted); }
+
+/* header */
+.top { display: grid; gap: 18px; }
+.top .meta { display: flex; flex-wrap: wrap; gap: 8px 18px; }
+.pitch { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 28px; display: grid; gap: 14px; }
+.pitch strong { color: var(--navy); }
+
+/* mock site */
+.mock { background: var(--surface); border: 1px solid var(--line); border-radius: 28px; padding: 18px; display: grid; gap: 18px; overflow: hidden; }
+.mnav { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 8px; font-size: 0.88rem; flex-wrap: wrap; }
+.logo { font-family: var(--display); font-weight: 700; letter-spacing: 0.08em; color: var(--navy); font-size: 1.15rem; }
+.mnav .links { display: flex; gap: 20px; color: var(--muted); flex-wrap: wrap; }
+.btn { display: inline-flex; align-items: center; gap: 8px; border-radius: 999px; padding: 10px 18px; font-weight: 500; font-size: 0.9rem; background: var(--ink); color: var(--paper); border: 1px solid var(--ink); white-space: nowrap; }
+.btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+.hero { position: relative; border-radius: var(--r-lg); min-height: 360px; padding: 40px 36px; display: grid; align-content: end; gap: 16px;
+  background: radial-gradient(120% 90% at 80% 10%, var(--sky-b), transparent 60%), linear-gradient(180deg, var(--sky-a), var(--sky-b)); }
+.hero .ph { position: absolute; top: 16px; right: 18px; }
+.hero h3 { font-size: clamp(1.8rem, 4.5vw, 3rem); line-height: 1.08; font-weight: 700; letter-spacing: -0.03em; max-width: 14ch; font-family: var(--display); }
+.search { background: var(--surface); border-radius: 999px; padding: 8px 8px 8px 20px; display: flex; align-items: center; gap: 12px; max-width: 520px; border: 1px solid var(--line); flex-wrap: wrap; }
+.search span { flex: 1; color: var(--muted); font-size: 0.95rem; min-width: 140px; }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip { font-size: 0.8rem; padding: 5px 12px; border-radius: 999px; background: color-mix(in srgb, var(--surface) 75%, transparent); border: 1px solid var(--line); }
+
+/* destination card */
+.dest { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+.dcard { border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--surface); overflow: hidden; display: grid; }
+.dimg { aspect-ratio: 4 / 3; max-width: 100%; background: linear-gradient(160deg, var(--sky-a), var(--sky-b)); position: relative; }
+.dimg .ph { position: absolute; left: 12px; bottom: 10px; }
+.dbody { padding: 16px; display: grid; gap: 12px; }
+.dtitle { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.dtitle b { font-family: var(--display); font-size: 1.15rem; }
+.foil { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; padding: 12px; border-radius: var(--r-md); background: var(--navy-tint); }
+.foil div { display: grid; gap: 2px; }
+.foil .k { font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.foil .v { font-size: 0.92rem; font-weight: 500; font-variant-numeric: tabular-nums; }
+.mrz { font-family: var(--mono); font-size: 0.66rem; color: var(--muted); letter-spacing: 0.12em; white-space: nowrap; overflow: hidden; text-overflow: clip; }
+
+/* tokens */
+.swatches { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.sw { border-radius: var(--r-md); border: 1px solid var(--line); overflow: hidden; background: var(--surface); }
+.sw i { display: block; height: 64px; }
+.sw div { padding: 10px 12px; display: grid; gap: 2px; font-size: 0.85rem; }
+.type { display: grid; gap: 18px; }
+.type .zh { font-family: var(--display); font-weight: 700; font-size: clamp(1.8rem, 4vw, 2.6rem); letter-spacing: -0.02em; line-height: 1.15; }
+.type .zhb { font-size: 1.05rem; max-width: 40ch; }
+
+/* table */
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); }
+table { border-collapse: collapse; width: 100%; min-width: 720px; font-size: 0.92rem; }
+th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+tr:last-child td { border-bottom: 0; }
+td code { font-family: var(--mono); font-size: 0.82rem; color: var(--navy); white-space: nowrap; }
+.tag { display: inline-block; font-size: 0.72rem; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.tag.new { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, transparent); }
+.tag.chg { color: var(--navy); border-color: color-mix(in srgb, var(--navy) 40%, transparent); }
+
+/* issues */
+.issue { border-left: 3px solid var(--warn); }
+.issue h3 { color: var(--ink); }
+.issue .mono { color: var(--warn); }
+
+/* steps */
+ol.steps { margin: 0; padding: 0; list-style: none; display: grid; gap: 12px; counter-reset: s; }
+ol.steps li { counter-increment: s; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); padding: 16px 18px 16px 58px; position: relative; }
+ol.steps li::before { content: counter(s); position: absolute; left: 18px; top: 15px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-family: var(--mono); font-size: 0.8rem; background: var(--navy-tint); color: var(--navy); }
+ol.steps b { display: block; margin-bottom: 2px; }
+
+/* page outline */
+.outline { display: grid; gap: 8px; }
+.outline div { display: grid; grid-template-columns: 150px 1fr; gap: 14px; padding: 10px 0; border-bottom: 1px dashed var(--line); }
+.outline div:last-child { border-bottom: 0; }
+@media (max-width: 560px) { .outline div { grid-template-columns: 1fr; gap: 2px; } .hero { padding: 28px 20px; min-height: 300px; } }
+
+.decide { background: var(--navy-tint); border-radius: var(--r-lg); padding: 28px; display: grid; gap: 16px; }
+.decide ol { margin: 0; padding-left: 20px; display: grid; gap: 10px; }
+a { color: var(--navy); }
+@media (prefers-reduced-motion: no-preference) { .mock, .card { transition: transform .2s ease; } }
+</style>
+
+<div class="wrap">
+
+<header class="top">
+  <span class="mono muted">VIZA · viza.it.com · proposal for Edward · 25 Nov 2026</span>
+  <h1>VIZA site redesign</h1>
+  <p class="lead">Your Framer design becomes the look of the whole marketing site. The destination gallery you like stays and gets room to breathe. Every destination becomes a real, indexable page built for search.</p>
+  <div class="pitch">
+    <p><strong>The direction in one line:</strong> a calm, editorial travel brand that reads like a trustworthy consulate office, with the destination photo as the hero and the visa facts set out like the fields on a visa label.</p>
+    <p class="muted">Why it fixes the "scam" feel: the current site stacks badges on every card (快速通道, 保证送达, VIZA, 免费) in a tight grid. Sales noise is what makes a free service look suspicious. The new site says less, shows the real facts plainly, and lets whitespace and photography carry the trust.</p>
+  </div>
+</header>
+
+<section>
+  <h2>Direction</h2>
+  <div class="mock" aria-label="Mock-up of the new home page top">
+    <div class="mnav">
+      <span class="logo">VIZA</span>
+      <span class="links"><span>目的地</span><span>申请流程</span><span>企业服务</span><span>签证攻略</span><span>关于我们</span></span>
+      <span style="display:flex;gap:8px;flex-wrap:wrap"><span class="btn ghost">EN</span><span class="btn">登录</span></span>
+    </div>
+    <div class="hero">
+      <span class="chip ph">目的地照片</span>
+      <h3>签证申请，全程交给 VIZA</h3>
+      <p class="muted" style="color:var(--ink);opacity:.8">顾问与 AI 一起准备材料、核对、提交。VIZA 服务免费，政府签证费由您直接支付。</p>
+      <div class="search"><span>你要去哪里？例如 日本、申根、美国</span><span class="btn">查看签证要求</span></div>
+      <div class="chips"><span class="chip">日本</span><span class="chip">申根</span><span class="chip">美国 B1/B2</span><span class="chip">越南电子签</span></div>
+    </div>
+    <div class="dest">
+      <div class="dcard">
+        <div class="dimg"><span class="chip ph">京都</span></div>
+        <div class="dbody">
+          <div class="dtitle"><b>日本</b><span class="muted" style="font-size:.85rem">旅游签证</span></div>
+          <div class="foil">
+            <div><span class="k">Stay</span><span class="v">90 天</span></div>
+            <div><span class="k">Processing</span><span class="v">5 至 7 个工作日</span></div>
+            <div><span class="k">Type</span><span class="v">纸质签证</span></div>
+            <div><span class="k">VIZA fee</span><span class="v">免费</span></div>
+          </div>
+          <div class="mrz">V&lt;JPN&lt;&lt;TOURIST&lt;&lt;&lt;&lt;90D&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;</div>
+        </div>
+      </div>
+      <div class="dcard">
+        <div class="dimg"><span class="chip ph">会安</span></div>
+        <div class="dbody">
+          <div class="dtitle"><b>越南</b><span class="muted" style="font-size:.85rem">电子签证</span></div>
+          <div class="foil">
+            <div><span class="k">Stay</span><span class="v">90 天</span></div>
+            <div><span class="k">Processing</span><span class="v">3 个工作日</span></div>
+            <div><span class="k">Type</span><span class="v">电子签</span></div>
+            <div><span class="k">VIZA fee</span><span class="v">免费</span></div>
+          </div>
+          <div class="mrz">V&lt;VNM&lt;&lt;EVISA&lt;&lt;&lt;&lt;&lt;90D&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;</div>
+        </div>
+      </div>
+      <div class="dcard">
+        <div class="dimg"><span class="chip ph">巴黎</span></div>
+        <div class="dbody">
+          <div class="dtitle"><b>法国</b><span class="muted" style="font-size:.85rem">申根签证</span></div>
+          <div class="foil">
+            <div><span class="k">Stay</span><span class="v">90 天</span></div>
+            <div><span class="k">Processing</span><span class="v">约 15 天</span></div>
+            <div><span class="k">Type</span><span class="v">申根 C 类</span></div>
+            <div><span class="k">VIZA fee</span><span class="v">免费</span></div>
+          </div>
+          <div class="mrz">V&lt;FRA&lt;&lt;SCHENGEN&lt;C&lt;&lt;90D&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="muted" style="font-size:.9rem">Mock-up only. Processing times above are placeholders, the real ones come from <code class="mono">lib/visa-content</code>. Photos stay as large rounded frames from your Framer hero.</p>
+
+  <div class="grid3">
+    <div class="card"><h3>Paper and navy</h3><p class="muted">A soft paper grey ground with white surfaces, like your Framer file. VIZA navy is the only strong colour and is kept for links, the logo and the visa fact panel. No gradients on UI, no red badges.</p></div>
+    <div class="card"><h3>Visa label facts</h3><p class="muted">Each destination shows four facts in a tinted panel with small mono labels, the way a visa foil sets out its fields. One optional machine readable line sits under it as the single playful touch.</p></div>
+    <div class="card"><h3>Room to breathe</h3><p class="muted">Three cards per row on desktop instead of four, one idea per section, 120px or more between sections. Your Framer section rhythm, with the template filler taken out.</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>Tokens</h2>
+  <div class="swatches">
+    <div class="sw"><i style="background:#F5F6F4"></i><div><b>Paper</b><span class="mono muted">#F5F6F4</span></div></div>
+    <div class="sw"><i style="background:#FFFFFF"></i><div><b>Surface</b><span class="mono muted">#FFFFFF</span></div></div>
+    <div class="sw"><i style="background:#0E1726"></i><div><b>Ink</b><span class="mono muted">#0E1726</span></div></div>
+    <div class="sw"><i style="background:#03346E"></i><div><b>VIZA navy</b><span class="mono muted">#03346E</span></div></div>
+    <div class="sw"><i style="background:#EAF0F8"></i><div><b>Navy tint</b><span class="mono muted">#EAF0F8</span></div></div>
+  </div>
+  <div class="card type">
+    <div class="zh">下一站，签证先办好</div>
+    <p class="zhb muted">正文用 Noto Sans SC，标题用 Switzer 配中文黑体。数字统一等宽对齐，比如 90 天、5 至 7 个工作日、S$ 0。</p>
+    <p class="mono muted">Headings: Switzer (your brand face, self-hosted from Fontshare) + Noto Sans SC · Body: Inter + Noto Sans SC · Labels and figures: IBM Plex Mono</p>
+    <p class="muted" style="font-size:.9rem">This page uses Inter Tight as a stand-in for Switzer, which isn't on Google Fonts. Corners: 20px for photo frames and cards, pill buttons, as in your Framer design.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Keep and change</h2>
+  <div class="grid2">
+    <div class="card">
+      <h3>From the Framer design, keep</h3>
+      <ul class="clean">
+        <li>Big rounded photo hero with the headline sitting on the image</li>
+        <li>Light grey ground with white cards, black pill buttons</li>
+        <li>Visa types row, four step process, Guided vs Full-service service tiers</li>
+        <li>Why VIZA cards, FAQ accordion, guides strip, contact form footer</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>From the template, remove</h3>
+      <ul class="clean x">
+        <li>Partner logo strip (45 Degrees, QuartzAI and so on) and "Used by 60+ developers"</li>
+        <li>Stats with no source (50+ countries, 98% approval, 500+ clients) until we have real numbers</li>
+        <li>Invented testimonials (张先生, 李女士) until real clients agree to be quoted</li>
+        <li>Vienna, Brussels, Zagreb, Copenhagen offices and residio.inc emails</li>
+        <li>Eyebrow lines above headings (← 我们的成绩) and "Recent Works"</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>From the current site, keep</h3>
+      <ul class="clean">
+        <li>The destination gallery with filters and map view, moved to <code class="mono">/visa</code> and shown as a strip on home</li>
+        <li>Passport selector, so facts change by nationality</li>
+        <li>Blog data, apply flow to the portal, status, security, legal pages</li>
+        <li>Data in <code class="mono">lib/countries.ts</code> and <code class="mono">lib/visa-content</code></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>From the current site, change</h3>
+      <ul class="clean x">
+        <li>Four badges per card down to the four facts that matter</li>
+        <li>Singapore passport banner and filter bar take up the first screen; they move under the hero</li>
+        <li>Destination pages are client rendered with a generic title; they become server pages</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Pages</h2>
+  <p class="muted">Built around how people search: a destination plus a visa type, then a guide when they get stuck. Chinese and English versions of each.</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Page</th><th>URL</th><th>Search intent it serves</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>Home</td><td><code>/</code></td><td>新加坡 签证代办, visa agency Singapore</td><td><span class="tag chg">redesign</span></td></tr>
+        <tr><td>Destinations</td><td><code>/visa</code></td><td>Browse all, the gallery you like with filters and map</td><td><span class="tag chg">moved from home</span></td></tr>
+        <tr><td>Destination</td><td><code>/visa/japan</code></td><td>日本签证 新加坡, Japan visa from Singapore (16 now)</td><td><span class="tag chg">server rendered</span></td></tr>
+        <tr><td>Visa type</td><td><code>/visa/usa/b1-b2</code></td><td>美国旅游签证 材料, US visitor visa documents</td><td><span class="tag new">new, phase 2</span></td></tr>
+        <tr><td>Schengen hub</td><td><code>/visa/schengen</code></td><td>申根签证, the biggest single head term, links to France, Italy</td><td><span class="tag new">new</span></td></tr>
+        <tr><td>Guides</td><td><code>/guides</code></td><td>Evergreen: document lists, refusal reasons, e-visa vs visa</td><td><span class="tag new">new</span></td></tr>
+        <tr><td>News</td><td><code>/news</code></td><td>Policy updates (today's blog posts), linked from each destination</td><td><span class="tag chg">from /blog</span></td></tr>
+        <tr><td>How it works</td><td><code>/how-it-works</code></td><td>Is VIZA free, how does it work, Guided vs Full-service</td><td><span class="tag chg">from /product</span></td></tr>
+        <tr><td>Business</td><td><code>/business</code></td><td>Employee and business travel visas for companies</td><td><span class="tag new">new</span></td></tr>
+        <tr><td>About, Contact, Careers, Security, Status, Legal</td><td><code>/about</code> …</td><td>Trust: Singapore address, team, data handling</td><td><span class="tag chg">restyle</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>Destination page template</h3>
+    <div class="outline">
+      <div><span class="mono muted">H1</span><span>日本签证（新加坡申请）· Japan visa for travellers in Singapore</span></div>
+      <div><span class="mono muted">Facts panel</span><span>Visa type, stay, processing time, government fee, VIZA fee, by passport</span></div>
+      <div><span class="mono muted">Who needs one</span><span>By nationality, with visa free cases stated clearly</span></div>
+      <div><span class="mono muted">Documents</span><span>Checklist people can tick through, the part most searchers want</span></div>
+      <div><span class="mono muted">Steps and timing</span><span>Guided vs Full-service, what VIZA does at each step</span></div>
+      <div><span class="mono muted">FAQ</span><span>Taken from real "People also ask" questions, with FAQPage schema</span></div>
+      <div><span class="mono muted">Latest updates</span><span>News posts tagged with this country</span></div>
+      <div><span class="mono muted">Related</span><span>Nearby destinations and the matching guides</span></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Fixes first</h2>
+  <p class="muted">Found while checking the live site today. These hold back search more than any design change, so they ship first.</p>
+  <div class="grid3">
+    <div class="card issue">
+      <span class="mono">critical</span>
+      <h3>English pages never reach Google</h3>
+      <p class="muted">Every visitor without a language cookie, Googlebot included, is sent with a 307 from any English URL to <code class="mono">/zh-CN</code>. 27 of the 38 URLs in the sitemap are redirects. Fix: serve each URL in its own language with hreflang and x-default, and offer the switch in a small bar instead of forcing it.</p>
+    </div>
+    <div class="card issue">
+      <span class="mono">critical</span>
+      <h3>Destination pages are invisible</h3>
+      <p class="muted"><code class="mono">/zh-CN/visa/japan</code> renders on the client, has the site-wide title "VIZA — AI-powered visa applications" and an English description, and none of the 16 destinations is in the sitemap. These are the pages that should bring most traffic.</p>
+    </div>
+    <div class="card issue">
+      <span class="mono">high</span>
+      <h3>Chinese content is thin</h3>
+      <p class="muted">All 13 blog posts are English only and <code class="mono">/zh-CN/blog</code> is the only Chinese blog URL. Chinese guides and news are the content gap for the Phase 1 market.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>SEO pipeline</h2>
+  <p class="muted">The same steps as the LUCA Robotics and Nanan Auto sites, run for VIZA.</p>
+  <ol class="steps">
+    <li><b>Keyword research</b>Semrush Keyword Magic Tool in the Kelin Chrome profile (Singapore database, English and Chinese queries), plus Google Keyword Planner. Output: <code class="mono">docs/seo/keywords.csv</code> and <code class="mono">keyword-clusters.md</code> with one primary and several secondary keywords per page. The Semrush API has no units left and the Ryze plan has ended, so this goes through the web UI as it did for Nanan Auto.</li>
+    <li><b>Page map</b>Clusters decide which destination, visa type and guide pages exist. Zero-volume pages are built only when they help someone who already landed.</li>
+    <li><b>Content to template length</b>Semrush SEO Content Template per target keyword sets the length, related terms and questions. Copy rewritten in Chinese first, then English.</li>
+    <li><b>Technical layer</b>Server rendered pages, per-page titles and descriptions, hreflang with x-default, sitemap with every destination, schema (Organization, TravelAgency with the Pasir Panjang address, BreadcrumbList, FAQPage), <code class="mono">llms.txt</code>, a 1200x630 link preview per page.</li>
+    <li><b>Checks in the build</b>A copy check that blocks dashes, unsupported claims ("guaranteed approval", "official") and over-long titles, and a verify script that fetches every route as Googlebot and WhatsApp.</li>
+    <li><b>Site Audit and tracking</b>Semrush Site Audit after launch, fixes in one follow-up PR. Search Console verified for the domain, sitemap submitted, GA4 and Clarity (both already on the site) checked.</li>
+  </ol>
+</section>
+
+<section>
+  <h2>Build</h2>
+  <ol class="steps">
+    <li><b>Scrape the Framer file</b>Reuse <code class="mono">nanan-auto/reference/scrape.mjs</code>: SSR HTML, CSS, screenshots per section at 1440, 1000 and 390, computed styles.</li>
+    <li><b>Design system</b><code class="mono">docs/design-system/ANALYSIS.md</code> with each Framer value next to the VIZA value, then <code class="mono">tokens.css</code>, base styles and section components inside the existing Next.js 16 marketing site, wired into its Tailwind config.</li>
+    <li><b>Pages</b>Home, destinations, destination template and how it works first; the rest restyled on the same sections. Existing data, next-intl copy and the portal apply flow stay.</li>
+    <li><b>Ship</b>Screenshots at desktop and phone for review, then merge and deploy. The repo is on the Viza Hobby Vercel team, which can't build the private repo from a push, so deploys go out with the VIZA Vercel token.</li>
+  </ol>
+</section>
+
+<div class="decide">
+  <h2>Decisions</h2>
+  <ol>
+    <li>Approve this direction, or tell me what to push harder (more photography, darker, more playful).</li>
+    <li>Who should search find first: anyone in Singapore applying for a visa, or Chinese nationals in Singapore? This sets whether Chinese sits at <code class="mono">/</code> and which keywords lead. My pick: Chinese at <code class="mono">/</code>, English at <code class="mono">/en</code>.</li>
+    <li>Launch domain: stay on viza.it.com, or move to viza.sg (the Framer footer says VIZA.sg) before the SEO work? Moving later throws away rankings.</li>
+    <li>Any real numbers or client quotes we can show? Until then those sections stay out.</li>
+  </ol>
+</div>
+
+</div>
