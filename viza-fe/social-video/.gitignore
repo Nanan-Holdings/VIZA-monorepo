@@ -1,2 +1,10 @@
 node_modules/
 out/
+.env.local
+pipeline/credentials/
+pipeline/runs/
+__pycache__/
+styles/*/out/
+styles/*/content/
+styles/*/stills/
+styles/*/fonts/*.ttf

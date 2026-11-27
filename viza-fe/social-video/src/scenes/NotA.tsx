@@ -21,7 +21,7 @@ export const NotA: React.FC<{ props: NotAProps; beats: number[]; zh: boolean }> 
   const strike = lerp(frame, 10, 20, 0, 1);
   const stamp = pop(frame, 18, 9, 0.9);
   const up = ease(frame, b1, 18);
-  const rows = zh ? ["护照信息", "行程信息", "网上获批"] : ["Passport details", "Travel plans", "Approved online"];
+  const rows = (props.rows ?? []).slice(0, 3);
   return (
     <SceneShell>
       <AbsoluteFill>

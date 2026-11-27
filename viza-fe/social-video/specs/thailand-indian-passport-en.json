@@ -1,0 +1,685 @@
+{
+ "slug": "thailand-indian-passport",
+ "locale": "en",
+ "topic": "Thailand · Visa free",
+ "voice": "voice/thailand-indian-passport-en.mp3",
+ "music": "music/bed-calm-tech.mp3",
+ "durationSec": 33.47,
+ "scenes": [
+  {
+   "kind": "hook",
+   "start": 0,
+   "end": 9.91,
+   "beats": [
+    0.17
+   ],
+   "props": {
+    "kicker": "Indian passport in Singapore?",
+    "lines": [
+     "Thailand is visa free",
+     "for 30 days now"
+    ],
+    "turn": "Visa on arrival is gone for Indian passports."
+   }
+  },
+  {
+   "kind": "notA",
+   "start": 9.91,
+   "end": 12.77,
+   "beats": [
+    10.09
+   ],
+   "props": {
+    "struck": "VOA",
+    "stamp": "NOT VISA ON ARRIVAL",
+    "is": "A 30-day visa free entry",
+    "like?": "Walk in with your passport",
+    "rows": [
+     "Tourism only",
+     "In force 15 Sep 2026",
+     "Longer stay: e-visa"
+    ]
+   }
+  },
+  {
+   "kind": "stats",
+   "start": 12.77,
+   "end": 15.35,
+   "beats": [
+    12.95
+   ],
+   "props": {
+    "title": "The 30-day entry",
+    "items": [
+     {
+      "value": "30",
+      "suffix": " days",
+      "label": "Visa free, tourism only"
+     },
+     {
+      "value": "15 Sep 2026",
+      "label": "In force"
+     },
+     {
+      "value": "1",
+      "suffix": " card",
+      "label": "TDAC per entry"
+     }
+    ]
+   }
+  },
+  {
+   "kind": "verdict",
+   "start": 15.35,
+   "end": 30.06,
+   "beats": [
+    15.53
+   ],
+   "props": {
+    "badge": "Longer than 30 days",
+    "headline": "Apply for the e-visa first",
+    "note": "Fee paid to the Embassy, not VIZA."
+   }
+  },
+  {
+   "kind": "cta",
+   "start": 30.06,
+   "end": 33.471000000000004,
+   "beats": [
+    30.24
+   ],
+   "props": {
+    "question": "Travelling to Thailand soon?",
+    "url": "viza.it.com",
+    "pill": "Free",
+    "disclaimer": "VIZA is not a government agency. Always verify with official sources."
+   }
+  }
+ ],
+ "captions": [
+  {
+   "text": "Indian passport holders in Singapore,",
+   "start": 0.17,
+   "end": 2.42,
+   "words": [
+    {
+     "text": "Indian",
+     "start": 0.17,
+     "end": 0.42
+    },
+    {
+     "text": "passport",
+     "start": 0.42,
+     "end": 0.96
+    },
+    {
+     "text": "holders",
+     "start": 1.16,
+     "end": 1.45
+    },
+    {
+     "text": "in",
+     "start": 1.45,
+     "end": 1.59
+    },
+    {
+     "text": "Singapore,",
+     "start": 1.59,
+     "end": 2.42
+    }
+   ]
+  },
+  {
+   "text": "this is for you.",
+   "start": 2.48,
+   "end": 3.28,
+   "words": [
+    {
+     "text": "this",
+     "start": 2.48,
+     "end": 2.62
+    },
+    {
+     "text": "is",
+     "start": 2.68,
+     "end": 2.8
+    },
+    {
+     "text": "for",
+     "start": 2.8,
+     "end": 2.99
+    },
+    {
+     "text": "you.",
+     "start": 2.99,
+     "end": 3.28
+    }
+   ]
+  },
+  {
+   "text": "From 15 September 2026,",
+   "start": 3.45,
+   "end": 5.68,
+   "words": [
+    {
+     "text": "From",
+     "start": 3.45,
+     "end": 3.57
+    },
+    {
+     "text": "15",
+     "start": 3.57,
+     "end": 3.95
+    },
+    {
+     "text": "September",
+     "start": 4.01,
+     "end": 4.65
+    },
+    {
+     "text": "2026,",
+     "start": 4.65,
+     "end": 5.68
+    }
+   ]
+  },
+  {
+   "text": "Indian passports enter Thailand",
+   "start": 5.68,
+   "end": 7.48,
+   "words": [
+    {
+     "text": "Indian",
+     "start": 5.68,
+     "end": 6.06
+    },
+    {
+     "text": "passports",
+     "start": 6.06,
+     "end": 6.31
+    },
+    {
+     "text": "enter",
+     "start": 6.73,
+     "end": 6.96
+    },
+    {
+     "text": "Thailand",
+     "start": 6.96,
+     "end": 7.48
+    }
+   ]
+  },
+  {
+   "text": "visa free for up",
+   "start": 7.533,
+   "end": 8.67,
+   "words": [
+    {
+     "text": "visa",
+     "start": 7.533,
+     "end": 7.967
+    },
+    {
+     "text": "free",
+     "start": 7.967,
+     "end": 8.183
+    },
+    {
+     "text": "for",
+     "start": 8.32,
+     "end": 8.5
+    },
+    {
+     "text": "up",
+     "start": 8.54,
+     "end": 8.67
+    }
+   ]
+  },
+  {
+   "text": "to 30 days.",
+   "start": 8.77,
+   "end": 9.89,
+   "words": [
+    {
+     "text": "to",
+     "start": 8.77,
+     "end": 8.88
+    },
+    {
+     "text": "30",
+     "start": 9.1,
+     "end": 9.35
+    },
+    {
+     "text": "days.",
+     "start": 9.35,
+     "end": 9.89
+    }
+   ]
+  },
+  {
+   "text": "Visa on arrival is",
+   "start": 10.09,
+   "end": 11.08,
+   "words": [
+    {
+     "text": "Visa",
+     "start": 10.09,
+     "end": 10.22
+    },
+    {
+     "text": "on",
+     "start": 10.22,
+     "end": 10.37
+    },
+    {
+     "text": "arrival",
+     "start": 10.37,
+     "end": 10.88
+    },
+    {
+     "text": "is",
+     "start": 10.88,
+     "end": 11.08
+    }
+   ]
+  },
+  {
+   "text": "gone for Indian travellers.",
+   "start": 11.08,
+   "end": 12.782,
+   "words": [
+    {
+     "text": "gone",
+     "start": 11.08,
+     "end": 11.35
+    },
+    {
+     "text": "for",
+     "start": 11.35,
+     "end": 11.55
+    },
+    {
+     "text": "Indian",
+     "start": 11.6,
+     "end": 12.01
+    },
+    {
+     "text": "travellers.",
+     "start": 12.19,
+     "end": 12.782
+    }
+   ]
+  },
+  {
+   "text": "The 30 days is",
+   "start": 12.95,
+   "end": 14,
+   "words": [
+    {
+     "text": "The",
+     "start": 12.95,
+     "end": 12.96
+    },
+    {
+     "text": "30",
+     "start": 13.37,
+     "end": 13.62
+    },
+    {
+     "text": "days",
+     "start": 13.62,
+     "end": 13.92
+    },
+    {
+     "text": "is",
+     "start": 13.92,
+     "end": 14
+    }
+   ]
+  },
+  {
+   "text": "for tourism only.",
+   "start": 14.08,
+   "end": 15.31,
+   "words": [
+    {
+     "text": "for",
+     "start": 14.08,
+     "end": 14.29
+    },
+    {
+     "text": "tourism",
+     "start": 14.29,
+     "end": 14.81
+    },
+    {
+     "text": "only.",
+     "start": 14.81,
+     "end": 15.31
+    }
+   ]
+  },
+  {
+   "text": "For a longer stay,",
+   "start": 15.53,
+   "end": 16.52,
+   "words": [
+    {
+     "text": "For",
+     "start": 15.53,
+     "end": 15.58
+    },
+    {
+     "text": "a",
+     "start": 15.58,
+     "end": 15.65
+    },
+    {
+     "text": "longer",
+     "start": 15.65,
+     "end": 16.03
+    },
+    {
+     "text": "stay,",
+     "start": 16.08,
+     "end": 16.52
+    }
+   ]
+  },
+  {
+   "text": "apply for the tourist",
+   "start": 16.52,
+   "end": 17.83,
+   "words": [
+    {
+     "text": "apply",
+     "start": 16.52,
+     "end": 16.87
+    },
+    {
+     "text": "for",
+     "start": 16.88,
+     "end": 17.1
+    },
+    {
+     "text": "the",
+     "start": 17.1,
+     "end": 17.32
+    },
+    {
+     "text": "tourist",
+     "start": 17.32,
+     "end": 17.83
+    }
+   ]
+  },
+  {
+   "text": "e-visa through the Royal",
+   "start": 17.84,
+   "end": 18.93,
+   "words": [
+    {
+     "text": "e-visa",
+     "start": 17.84,
+     "end": 18.32
+    },
+    {
+     "text": "through",
+     "start": 18.32,
+     "end": 18.39
+    },
+    {
+     "text": "the",
+     "start": 18.39,
+     "end": 18.81
+    },
+    {
+     "text": "Royal",
+     "start": 18.81,
+     "end": 18.93
+    }
+   ]
+  },
+  {
+   "text": "Thai Embassy in Singapore,",
+   "start": 19.01,
+   "end": 20.4,
+   "words": [
+    {
+     "text": "Thai",
+     "start": 19.01,
+     "end": 19.2
+    },
+    {
+     "text": "Embassy",
+     "start": 19.2,
+     "end": 19.66
+    },
+    {
+     "text": "in",
+     "start": 19.69,
+     "end": 19.76
+    },
+    {
+     "text": "Singapore,",
+     "start": 19.76,
+     "end": 20.4
+    }
+   ]
+  },
+  {
+   "text": "and stay in Singapore",
+   "start": 20.57,
+   "end": 21.36,
+   "words": [
+    {
+     "text": "and",
+     "start": 20.57,
+     "end": 20.59
+    },
+    {
+     "text": "stay",
+     "start": 20.59,
+     "end": 20.85
+    },
+    {
+     "text": "in",
+     "start": 20.85,
+     "end": 20.98
+    },
+    {
+     "text": "Singapore",
+     "start": 20.98,
+     "end": 21.36
+    }
+   ]
+  },
+  {
+   "text": "until it is approved.",
+   "start": 21.56,
+   "end": 22.87,
+   "words": [
+    {
+     "text": "until",
+     "start": 21.56,
+     "end": 21.88
+    },
+    {
+     "text": "it",
+     "start": 21.88,
+     "end": 22.01
+    },
+    {
+     "text": "is",
+     "start": 22.01,
+     "end": 22.14
+    },
+    {
+     "text": "approved.",
+     "start": 22.14,
+     "end": 22.87
+    }
+   ]
+  },
+  {
+   "text": "Every visitor still fills",
+   "start": 22.88,
+   "end": 24.24,
+   "words": [
+    {
+     "text": "Every",
+     "start": 22.88,
+     "end": 23.18
+    },
+    {
+     "text": "visitor",
+     "start": 23.18,
+     "end": 23.43
+    },
+    {
+     "text": "still",
+     "start": 23.85,
+     "end": 23.92
+    },
+    {
+     "text": "fills",
+     "start": 23.92,
+     "end": 24.24
+    }
+   ]
+  },
+  {
+   "text": "in the free TDAC",
+   "start": 24.24,
+   "end": 25.812,
+   "words": [
+    {
+     "text": "in",
+     "start": 24.24,
+     "end": 24.32
+    },
+    {
+     "text": "the",
+     "start": 24.32,
+     "end": 24.7
+    },
+    {
+     "text": "free",
+     "start": 24.73,
+     "end": 25.24
+    },
+    {
+     "text": "TDAC",
+     "start": 25.58,
+     "end": 25.812
+    }
+   ]
+  },
+  {
+   "text": "arrival card within three",
+   "start": 25.812,
+   "end": 27.32,
+   "words": [
+    {
+     "text": "arrival",
+     "start": 25.812,
+     "end": 26.505
+    },
+    {
+     "text": "card",
+     "start": 26.19,
+     "end": 26.48
+    },
+    {
+     "text": "within",
+     "start": 26.68,
+     "end": 26.94
+    },
+    {
+     "text": "three",
+     "start": 26.94,
+     "end": 27.32
+    }
+   ]
+  },
+  {
+   "text": "days before arrival,",
+   "start": 27.32,
+   "end": 28.82,
+   "words": [
+    {
+     "text": "days",
+     "start": 27.32,
+     "end": 27.62
+    },
+    {
+     "text": "before",
+     "start": 27.84,
+     "end": 28.07
+    },
+    {
+     "text": "arrival,",
+     "start": 28.07,
+     "end": 28.82
+    }
+   ]
+  },
+  {
+   "text": "one for each entry.",
+   "start": 28.97,
+   "end": 30.24,
+   "words": [
+    {
+     "text": "one",
+     "start": 28.97,
+     "end": 29.04
+    },
+    {
+     "text": "for",
+     "start": 29.04,
+     "end": 29.23
+    },
+    {
+     "text": "each",
+     "start": 29.35,
+     "end": 29.56
+    },
+    {
+     "text": "entry.",
+     "start": 29.56,
+     "end": 30.24
+    }
+   ]
+  },
+  {
+   "text": "Check free at viza.it.com.",
+   "start": 30.24,
+   "end": 31.951,
+   "words": [
+    {
+     "text": "Check",
+     "start": 30.24,
+     "end": 30.53
+    },
+    {
+     "text": "free",
+     "start": 30.53,
+     "end": 30.74
+    },
+    {
+     "text": "at",
+     "start": 30.78,
+     "end": 30.88
+    },
+    {
+     "text": "viza.it.com.",
+     "start": 30.897,
+     "end": 31.951
+    }
+   ]
+  }
+ ]
+}

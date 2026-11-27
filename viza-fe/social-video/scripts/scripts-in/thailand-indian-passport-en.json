@@ -1,0 +1,102 @@
+{
+  "slug": "thailand-indian-passport",
+  "locale": "en",
+  "topic": "Thailand · Visa free",
+  "voiceText": "[calm] Indian passport holders in Singapore, this is for you. From 15 September 2026, Indian passports enter Thailand visa free for up to 30 days. Visa on arrival is gone for Indian travellers. The 30 days is for tourism only. For a longer stay, apply for the tourist e-visa through the Royal Thai Embassy in Singapore, and stay in Singapore until it is approved. Every visitor still fills in the free TDAC arrival card within three days before arrival, one for each entry. Check free at viza dot it dot com.",
+  "voice": "voice/thailand-indian-passport-en.mp3",
+  "music": "music/bed-calm-tech.mp3",
+  "timings": "timings/thailand-indian-passport-en.json",
+  "out": "specs/thailand-indian-passport-en.json",
+  "captionReplace": [
+    [
+      "viza dot it dot com",
+      "viza.it.com"
+    ]
+  ],
+  "scenes": [
+    {
+      "kind": "hook",
+      "cue": "Indian passport holders in Singapore",
+      "props": {
+        "kicker": "Indian passport in Singapore?",
+        "lines": [
+          "Thailand is visa free",
+          "for 30 days now"
+        ],
+        "turn": "Visa on arrival is gone for Indian passports."
+      },
+      "beats": [
+        "Indian passport holders in Singapore"
+      ]
+    },
+    {
+      "kind": "notA",
+      "cue": "Visa on arrival is gone",
+      "props": {
+        "struck": "VOA",
+        "stamp": "NOT VISA ON ARRIVAL",
+        "is": "A 30-day visa free entry",
+        "like?": "Walk in with your passport",
+        "rows": [
+          "Tourism only",
+          "In force 15 Sep 2026",
+          "Longer stay: e-visa"
+        ]
+      },
+      "beats": [
+        "Visa on arrival is gone for Indian travellers."
+      ]
+    },
+    {
+      "kind": "stats",
+      "cue": "The 30 days is for tourism only",
+      "props": {
+        "title": "The 30-day entry",
+        "items": [
+          {
+            "value": "30",
+            "suffix": " days",
+            "label": "Visa free, tourism only"
+          },
+          {
+            "value": "15 Sep 2026",
+            "label": "In force"
+          },
+          {
+            "value": "1",
+            "suffix": " card",
+            "label": "TDAC per entry"
+          }
+        ]
+      },
+      "beats": [
+        "The 30 days is for tourism only."
+      ]
+    },
+    {
+      "kind": "verdict",
+      "cue": "For a longer stay",
+      "props": {
+        "badge": "Longer than 30 days",
+        "headline": "Apply for the e-visa first",
+        "note": "Fee paid to the Embassy, not VIZA."
+      },
+      "beats": [
+        "For a longer stay, apply for the tourist e-visa through the Royal Thai Embassy in Singapore, and stay in Singapore until it is approved."
+      ]
+    },
+    {
+      "kind": "cta",
+      "cue": "Check free at viza",
+      "props": {
+        "question": "Travelling to Thailand soon?",
+        "url": "viza.it.com",
+        "pill": "Free",
+        "disclaimer": "VIZA is not a government agency. Always verify with official sources."
+      },
+      "beats": [
+        "Check free at viza dot it dot com."
+      ]
+    }
+  ]
+}

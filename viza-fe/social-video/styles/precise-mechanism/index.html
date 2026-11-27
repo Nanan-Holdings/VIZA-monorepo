@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>VIZA short · Color-Coded Mechanism</title>
+<style>
+  @font-face{font-family:"Inter";src:url(fonts/Inter-VF.ttf) format("truetype");font-weight:100 900;font-display:block}
+  @font-face{font-family:"Noto Sans SC";src:url(fonts/NotoSansSC-VF.ttf) format("truetype");font-weight:100 900;font-display:block}
+  @font-face{font-family:"Plex Mono";src:url(fonts/IBMPlexMono-Medium.ttf) format("truetype");font-weight:500;font-display:block}
+  html,body{margin:0;width:100vw;height:100vh;overflow:hidden;background:#F3F0EA}
+  #stage,#ov{position:absolute;left:0;top:0;width:100vw;height:100vh}
+  #stage canvas{display:block;width:100vw!important;height:100vh!important}
+  #ov{pointer-events:none;font-family:"Inter","Noto Sans SC",sans-serif;color:#25282D;-webkit-font-smoothing:antialiased}
+</style>
+<link rel="stylesheet" href="film.css">
+<script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/addons/":"/node_modules/three/examples/jsm/"}}</script>
+</head><body><div id="stage"></div><div id="ov"><svg id="lines" style="position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible"></svg></div>
+<!-- ?spec=<name> renders content/<name>/ (build.sh prepares it); without it, content/current.json names the spec -->
+<script type="module" src="main.js"></script></body></html>

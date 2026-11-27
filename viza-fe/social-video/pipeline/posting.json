@@ -1,0 +1,15 @@
+{
+  "enabled": false,
+  "platforms": [
+    "youtube",
+    "instagram",
+    "facebook",
+    "tiktok"
+  ],
+  "styles": [
+    "silkscreen-poster",
+    "ascii-crt",
+    "precise-mechanism"
+  ],
+  "_doc": "Posting switch. Stays false until Edward approves the samples and the posting rhythm. styles rotate topic by topic for the A/B test; metrics.py scores them. launchd runs daily.py at the time in ops/com.viza.shorts.plist."
+}

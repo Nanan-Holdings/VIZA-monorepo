@@ -1,0 +1,95 @@
+{
+  "_doc": "Daily VIZA shorts queue. daily.py takes the first topic with no ledger row. Each topic names the repo files that are the ONLY fact source for its script (paths from viza-fe/marketing-website). Order follows Search Console demand (27 Nov 2026).",
+  "topics": [
+    {
+      "id": "sg-arrival-card",
+      "langs": ["en"],
+      "audience": "anyone flying or sailing into Singapore, visitors and residents",
+      "angle": "Who must submit the SG Arrival Card, the 3 day window, that it is free on ICA's site or the MyICA app, and the paid look-alike sites to avoid.",
+      "sources": ["lib/arrival-cards/en/singapore-sg-arrival-card.ts"],
+      "link": "https://viza.it.com/arrival-cards/singapore-sg-arrival-card",
+      "hashtags": ["#SGArrivalCard", "#Singapore", "#TravelTips", "#ICA"]
+    },
+    {
+      "id": "thailand-indian-passport",
+      "langs": ["en"],
+      "audience": "Indian passport holders living in Singapore",
+      "angle": "Indian passports now enter Thailand visa free for up to 30 days (in force 15 Sep 2026), no visa on arrival any more, the e-visa for longer stays, and the TDAC arrival card.",
+      "sources": ["lib/visa-content/thailand.ts", "lib/arrival-cards/en/thailand-tdac.ts"],
+      "link": "https://viza.it.com/visa/thailand",
+      "hashtags": ["#ThailandVisa", "#IndianPassport", "#SingaporeIndians", "#TDAC"]
+    },
+    {
+      "id": "japan-visa-zh",
+      "langs": ["zh"],
+      "audience": "在新加坡生活的中国护照持有人",
+      "angle": "新加坡护照免签，但在新加坡的中国护照持有人去日本需要签证：通过签证中心向日本驻新加坡大使馆申请，符合条件可在线办 JAPAN eVISA，需要准证和银行流水。",
+      "sources": ["lib/visa-content/zh-CN/japan.ts"],
+      "link": "https://viza.it.com/zh-CN/visa/japan",
+      "hashtags": ["#日本签证", "#新加坡", "#中国护照", "#签证攻略"]
+    },
+    {
+      "id": "thailand-visa-zh",
+      "langs": ["zh"],
+      "audience": "在新加坡生活的中国护照持有人",
+      "angle": "中国护照入境泰国免签 30 天，入境前填写免费的 TDAC 泰国数字入境卡，停留更久要提前办电子签。",
+      "sources": ["lib/visa-content/zh-CN/thailand.ts", "lib/arrival-cards/en/thailand-tdac.ts"],
+      "link": "https://viza.it.com/zh-CN/visa/thailand",
+      "hashtags": ["#泰国签证", "#新加坡", "#中国护照", "#TDAC"]
+    },
+    {
+      "id": "us-visa-zh",
+      "langs": ["zh"],
+      "audience": "在新加坡生活的中国护照持有人",
+      "angle": "在新加坡申请美国 B1/B2 签证：DS-160 表格、预约面签、面签准备要点。",
+      "sources": ["lib/visa-content/zh-CN/united-states.ts"],
+      "link": "https://viza.it.com/zh-CN/visa/united-states",
+      "hashtags": ["#美国签证", "#新加坡", "#DS160", "#面签"]
+    },
+    {
+      "id": "mdac-malaysia",
+      "langs": ["en"],
+      "audience": "anyone crossing from Singapore into Malaysia by land, sea or air",
+      "angle": "Who needs the Malaysia Digital Arrival Card (MDAC), who is exempt, when to submit it, and that it is free on the official site.",
+      "sources": ["lib/arrival-cards/en/malaysia-mdac.ts"],
+      "link": "https://viza.it.com/arrival-cards/malaysia-mdac",
+      "hashtags": ["#MDAC", "#Malaysia", "#Singapore", "#TravelTips"]
+    },
+    {
+      "id": "visit-japan-web",
+      "langs": ["en"],
+      "audience": "Singapore travellers heading to Japan",
+      "angle": "What Visit Japan Web is, the QR codes for immigration and customs, and when to fill it in before the flight.",
+      "sources": ["lib/arrival-cards/en/japan-visit-japan-web.ts"],
+      "link": "https://viza.it.com/arrival-cards/japan-visit-japan-web",
+      "hashtags": ["#VisitJapanWeb", "#JapanTravel", "#Singapore", "#TravelTips"]
+    },
+    {
+      "id": "korea-e-arrival",
+      "langs": ["en"],
+      "audience": "Singapore travellers heading to South Korea",
+      "angle": "The Korea e-Arrival Card: who fills it in, when, and how it sits next to K-ETA.",
+      "sources": ["lib/arrival-cards/en/korea-e-arrival-card.ts", "lib/visa-content/south-korea.ts"],
+      "link": "https://viza.it.com/arrival-cards/korea-e-arrival-card",
+      "hashtags": ["#KoreaTravel", "#KETA", "#Singapore", "#TravelTips"]
+    },
+    {
+      "id": "all-indonesia",
+      "langs": ["en"],
+      "audience": "Singapore travellers heading to Bali, Batam or anywhere in Indonesia",
+      "angle": "All Indonesia, the single arrival form for immigration, customs and health: who fills it in and when.",
+      "sources": ["lib/arrival-cards/en/indonesia-all-indonesia.ts"],
+      "link": "https://viza.it.com/arrival-cards/indonesia-all-indonesia",
+      "hashtags": ["#Bali", "#Indonesia", "#Singapore", "#TravelTips"]
+    },
+    {
+      "id": "tdac-thailand",
+      "langs": ["en"],
+      "audience": "Singapore travellers heading to Thailand",
+      "angle": "The Thailand Digital Arrival Card (TDAC): it replaced the paper TM6, it is free, and when to fill it in.",
+      "sources": ["lib/arrival-cards/en/thailand-tdac.ts"],
+      "link": "https://viza.it.com/arrival-cards/thailand-tdac",
+      "hashtags": ["#TDAC", "#Thailand", "#Singapore", "#TravelTips"]
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.viza.shorts</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/zsh</string>
+        <string>-lc</string>
+        <string>$HOME/Github/Nanan-Holdings/VIZA-shorts/viza-fe/social-video/ops/viza-shorts-daily.sh</string>
+    </array>
+    <!-- 12:00 and 20:00 SGT: two posts a day (Edward, 27 Nov 2026), clear of GrooveSheet shorts 08:30 and the outliers engine 09:45. -->
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict><key>Hour</key><integer>12</integer><key>Minute</key><integer>0</integer></dict>
+        <dict><key>Hour</key><integer>20</integer><key>Minute</key><integer>0</integer></dict>
+    </array>
+    <key>StandardOutPath</key>
+    <string>/tmp/com.viza.shorts.out</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/com.viza.shorts.err</string>
+</dict>
+</plist>

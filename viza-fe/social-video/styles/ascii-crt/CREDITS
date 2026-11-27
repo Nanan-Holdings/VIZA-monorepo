@@ -1,0 +1,5 @@
+Fonts (SIL Open Font License 1.1, fetched by tools/fonts.sh, licence texts in fonts/):
+  VT323 (Peter Hull), google/fonts ofl/vt323
+  Noto Sans SC (Google), google/fonts ofl/notosanssc
+Code: crt.js imported from lemo-opuscar styles/ascii-crt/demo (adapted from core/post/crt.js); term.js and the foley in mix.py adapted from that demo.
+Music and sound: synthesised in mix.py. Voice: VIZA spec voice (Kokoro). Logo: VIZA logotype (public/brand), shown unaltered.

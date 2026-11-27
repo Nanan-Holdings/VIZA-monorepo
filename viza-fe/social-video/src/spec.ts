@@ -3,9 +3,9 @@ export type Locale = "en" | "zh-CN";
 export type Word = { text: string; start: number; end: number };
 export type Caption = { text: string; start: number; end: number; words: Word[] };
 
-export type HookProps = { kicker: string; lines: string[]; turn: string };
+export type HookProps = { kicker: string; lines: string[]; turn: string; /** "eu" draws the EU star ring; only for EU/Schengen topics. */ ring?: "eu" };
 export type AcronymProps = { acronym: string; words: string[]; note?: string };
-export type NotAProps = { struck: string; stamp: string; is: string; like?: string };
+export type NotAProps = { struck: string; stamp: string; is: string; like?: string; /** Up to 3 short ticked facts under the card, from the source. */ rows?: string[] };
 export type StatItem = { value: string; countTo?: number; prefix?: string; suffix?: string; label: string; struck?: string };
 export type StatsProps = { title?: string; items: StatItem[] };
 export type TimelinePoint = { label: string; note?: string; state: "slipped" | "target" };

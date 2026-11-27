@@ -1,0 +1,466 @@
+{
+ "source": "kokoro af_heart x1.05, clause-synthesised",
+ "durationSec": 32.824,
+ "words": [
+  {
+   "text": "Flying",
+   "start": 0.22,
+   "end": 0.42
+  },
+  {
+   "text": "or",
+   "start": 0.42,
+   "end": 0.55
+  },
+  {
+   "text": "sailing",
+   "start": 0.57,
+   "end": 1.05
+  },
+  {
+   "text": "into",
+   "start": 1.05,
+   "end": 1.32
+  },
+  {
+   "text": "Singapore?",
+   "start": 1.32,
+   "end": 2.1
+  },
+  {
+   "text": "Most",
+   "start": 2.18,
+   "end": 2.31
+  },
+  {
+   "text": "travellers",
+   "start": 2.352,
+   "end": 2.91
+  },
+  {
+   "text": "must",
+   "start": 2.8,
+   "end": 3.03
+  },
+  {
+   "text": "submit",
+   "start": 3.16,
+   "end": 3.36
+  },
+  {
+   "text": "the",
+   "start": 3.36,
+   "end": 3.68
+  },
+  {
+   "text": "SG",
+   "start": 3.68,
+   "end": 4
+  },
+  {
+   "text": "Arrival",
+   "start": 4,
+   "end": 4.35
+  },
+  {
+   "text": "Card.",
+   "start": 4.41,
+   "end": 4.96
+  },
+  {
+   "text": "It",
+   "start": 4.96,
+   "end": 5.18
+  },
+  {
+   "text": "is",
+   "start": 5.18,
+   "end": 5.26
+  },
+  {
+   "text": "ICA's",
+   "start": 5.26,
+   "end": 5.63
+  },
+  {
+   "text": "online",
+   "start": 5.63,
+   "end": 6.09
+  },
+  {
+   "text": "form",
+   "start": 6.09,
+   "end": 6.4
+  },
+  {
+   "text": "with",
+   "start": 6.4,
+   "end": 6.69
+  },
+  {
+   "text": "a",
+   "start": 6.71,
+   "end": 6.75
+  },
+  {
+   "text": "health",
+   "start": 7.14,
+   "end": 7.24
+  },
+  {
+   "text": "declaration,",
+   "start": 7.24,
+   "end": 8.31
+  },
+  {
+   "text": "and",
+   "start": 8.31,
+   "end": 8.48
+  },
+  {
+   "text": "it",
+   "start": 8.54,
+   "end": 8.67
+  },
+  {
+   "text": "is",
+   "start": 8.69,
+   "end": 8.83
+  },
+  {
+   "text": "not",
+   "start": 8.83,
+   "end": 9.05
+  },
+  {
+   "text": "a",
+   "start": 9.05,
+   "end": 9.12
+  },
+  {
+   "text": "visa.",
+   "start": 9.12,
+   "end": 9.64
+  },
+  {
+   "text": "Submit",
+   "start": 9.9,
+   "end": 10.05
+  },
+  {
+   "text": "within",
+   "start": 10.05,
+   "end": 10.42
+  },
+  {
+   "text": "three",
+   "start": 10.42,
+   "end": 10.73
+  },
+  {
+   "text": "days",
+   "start": 10.73,
+   "end": 10.97
+  },
+  {
+   "text": "before",
+   "start": 10.97,
+   "end": 11.33
+  },
+  {
+   "text": "arrival,",
+   "start": 11.33,
+   "end": 11.92
+  },
+  {
+   "text": "counting",
+   "start": 11.92,
+   "end": 12.42
+  },
+  {
+   "text": "the",
+   "start": 12.42,
+   "end": 12.61
+  },
+  {
+   "text": "day",
+   "start": 12.61,
+   "end": 12.71
+  },
+  {
+   "text": "you",
+   "start": 12.84,
+   "end": 12.99
+  },
+  {
+   "text": "land.",
+   "start": 12.99,
+   "end": 13.44
+  },
+  {
+   "text": "It",
+   "start": 13.44,
+   "end": 13.66
+  },
+  {
+   "text": "is",
+   "start": 13.66,
+   "end": 13.88
+  },
+  {
+   "text": "free",
+   "start": 13.88,
+   "end": 14.33
+  },
+  {
+   "text": "on",
+   "start": 14.33,
+   "end": 14.55
+  },
+  {
+   "text": "ica.gov.sg",
+   "start": 14.603,
+   "end": 15.842
+  },
+  {
+   "text": "or",
+   "start": 15.62,
+   "end": 15.65
+  },
+  {
+   "text": "in",
+   "start": 15.65,
+   "end": 15.87
+  },
+  {
+   "text": "the",
+   "start": 15.87,
+   "end": 16.21
+  },
+  {
+   "text": "MyICA",
+   "start": 16.21,
+   "end": 16.76
+  },
+  {
+   "text": "app.",
+   "start": 16.76,
+   "end": 17.52
+  },
+  {
+   "text": "ICA",
+   "start": 17.59,
+   "end": 17.73
+  },
+  {
+   "text": "does",
+   "start": 17.74,
+   "end": 18.01
+  },
+  {
+   "text": "not",
+   "start": 18.01,
+   "end": 18.22
+  },
+  {
+   "text": "endorse",
+   "start": 18.22,
+   "end": 18.71
+  },
+  {
+   "text": "companies",
+   "start": 18.71,
+   "end": 19.29
+  },
+  {
+   "text": "that",
+   "start": 19.29,
+   "end": 19.7
+  },
+  {
+   "text": "charge",
+   "start": 19.7,
+   "end": 20.04
+  },
+  {
+   "text": "to",
+   "start": 20.04,
+   "end": 20.18
+  },
+  {
+   "text": "submit",
+   "start": 20.18,
+   "end": 20.53
+  },
+  {
+   "text": "for",
+   "start": 20.68,
+   "end": 20.81
+  },
+  {
+   "text": "you,",
+   "start": 20.81,
+   "end": 21.15
+  },
+  {
+   "text": "so",
+   "start": 21.15,
+   "end": 21.26
+  },
+  {
+   "text": "avoid",
+   "start": 21.26,
+   "end": 21.55
+  },
+  {
+   "text": "look-alike",
+   "start": 21.55,
+   "end": 22.16
+  },
+  {
+   "text": "sites.",
+   "start": 22.16,
+   "end": 22.88
+  },
+  {
+   "text": "Residents",
+   "start": 23.1,
+   "end": 23.5
+  },
+  {
+   "text": "arriving",
+   "start": 23.5,
+   "end": 24.05
+  },
+  {
+   "text": "by",
+   "start": 24.05,
+   "end": 24.18
+  },
+  {
+   "text": "air",
+   "start": 24.18,
+   "end": 24.38
+  },
+  {
+   "text": "or",
+   "start": 24.38,
+   "end": 24.47
+  },
+  {
+   "text": "sea",
+   "start": 24.51,
+   "end": 24.67
+  },
+  {
+   "text": "still",
+   "start": 24.67,
+   "end": 25.06
+  },
+  {
+   "text": "submit",
+   "start": 25.06,
+   "end": 25.46
+  },
+  {
+   "text": "the",
+   "start": 25.46,
+   "end": 25.66
+  },
+  {
+   "text": "health",
+   "start": 25.66,
+   "end": 26.07
+  },
+  {
+   "text": "declaration.",
+   "start": 26.07,
+   "end": 27.11
+  },
+  {
+   "text": "Transit",
+   "start": 27.34,
+   "end": 27.61
+  },
+  {
+   "text": "passengers",
+   "start": 27.61,
+   "end": 28.31
+  },
+  {
+   "text": "who",
+   "start": 28.31,
+   "end": 28.5
+  },
+  {
+   "text": "do",
+   "start": 28.52,
+   "end": 28.66
+  },
+  {
+   "text": "not",
+   "start": 28.66,
+   "end": 28.85
+  },
+  {
+   "text": "clear",
+   "start": 28.87,
+   "end": 28.91
+  },
+  {
+   "text": "immigration",
+   "start": 29.3,
+   "end": 29.97
+  },
+  {
+   "text": "are",
+   "start": 29.99,
+   "end": 30.15
+  },
+  {
+   "text": "exempt.",
+   "start": 30.28,
+   "end": 30.88
+  },
+  {
+   "text": "Check",
+   "start": 31.1,
+   "end": 31.24
+  },
+  {
+   "text": "free",
+   "start": 31.24,
+   "end": 31.53
+  },
+  {
+   "text": "at",
+   "start": 31.53,
+   "end": 31.62
+  },
+  {
+   "text": "viza",
+   "start": 31.62,
+   "end": 31.801
+  },
+  {
+   "text": "dot",
+   "start": 31.801,
+   "end": 31.977
+  },
+  {
+   "text": "it",
+   "start": 31.977,
+   "end": 32.153
+  },
+  {
+   "text": "dot",
+   "start": 32.153,
+   "end": 32.328
+  },
+  {
+   "text": "com.",
+   "start": 32.328,
+   "end": 32.504
+  }
+ ]
+}

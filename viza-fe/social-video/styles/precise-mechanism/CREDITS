@@ -1,0 +1,10 @@
+VIZA shorts, Color-Coded Mechanism style (precise-mechanism)
+
+Code: built on the lemo-opuscar library (style demo shader, gears.js, film-outline.js, render and audio tools), used from $LIB.
+Fonts (SIL Open Font License 1.1, from github.com/google/fonts, licence texts in fonts/):
+  Inter, Noto Sans SC, IBM Plex Mono.
+Samples: VCSL (Versilian Community Sample Library), CC0 1.0: harp, marimba, glockenspiel, vibraphone, bowed vibraphone
+  (exact lines written to out/<name>/instruments.txt on every build).
+Voice: the VideoSpec's own voice file (public/voice/), used as given.
+Brand: VIZA logotype (public/brand/viza-logotype-light.svg), VIZA's own mark, used as drawn.
+Foley and the 3D machine are generated in code.
