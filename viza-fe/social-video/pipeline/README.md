@@ -39,7 +39,7 @@ Posting is off (`posting.json` `enabled: false`) until Edward approves samples a
 | Facebook | VIZA Page 1295218977003879 | Yes: never-expiring Page token from the "Kelin Social Publisher" Meta app (`~/.config/kelin/social/page-1295218977003879.env`) |
 | Instagram | @viza_com (17841447940558846) | Yes: same token, `instagram_content_publish` |
 | YouTube | @viza_com (UCpuXOccUlIDfniCYQqBt9CQ), no uploads | No: needs an OAuth token for the VIZA Google account |
-| TikTok | @viza_it_com, public, 0 videos | No: VIZA's Zernio holds Facebook + LinkedIn (its 2 free slots); Facebook now posts direct, so that slot can move to TikTok, as GrooveSheet did |
+| TikTok | @viza_it_com | Yes since 27 Nov 2026: VIZA's Zernio (Facebook slot freed, Facebook posts direct), account 6b091f7b12016961c5daf5c3 |
 
 ## Credentials (`pipeline/credentials/`, gitignored)
 

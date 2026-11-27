@@ -1,5 +1,5 @@
 {
-  "enabled": false,
+  "enabled": true,
   "platforms": [
     "youtube",
     "instagram",
@@ -11,5 +11,5 @@
     "ascii-crt",
     "precise-mechanism"
   ],
-  "_doc": "Posting switch. Stays false until Edward approves the samples and the posting rhythm. styles rotate topic by topic for the A/B test; metrics.py scores them. launchd runs daily.py at the time in ops/com.viza.shorts.plist."
+  "_doc": "Posting ON since 27 Nov 2026 (Edward: two posts a day, different topics and styles). Platforms without credentials are skipped. styles rotate per new topic; metrics.py scores them; Ivy (OpenClaw agent viza) writes plan.json."
 }
