@@ -163,7 +163,9 @@ export async function setJsfTextInputs(
       const missing = [];
       for (const [fieldName, value] of writes) {
         const escaped = fieldName.replace(/"/g, '\\"');
-        const el = document.querySelector('input[name="' + escaped + '"]');
+        const el = document.querySelector(
+          'input[name="' + escaped + '"], textarea[name="' + escaped + '"]',
+        );
         if (!el) { missing.push(fieldName); continue; }
         el.focus();
         el.value = value;
@@ -243,6 +245,17 @@ export async function setJsfCheckboxGroup(
         if (input.checked !== shouldCheck) input.click();
       }
     })()`);
+}
+
+/** Names of the visible, editable text boxes in a JSF form, in page order. */
+export async function listVisibleTextFields(page: Page, formId: string): Promise<string[]> {
+  return (await page.evaluate(`(() => {
+      const form = document.getElementById(${pageLiteral(formId)});
+      if (!form) return [];
+      return Array.from(form.querySelectorAll('input[type="text"], input:not([type]), textarea'))
+        .filter((el) => el.name && !el.disabled && !el.readOnly && el.getClientRects().length > 0)
+        .map((el) => el.name);
+    })()`)) as string[];
 }
 
 /**

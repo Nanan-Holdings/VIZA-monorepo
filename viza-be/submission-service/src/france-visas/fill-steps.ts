@@ -24,6 +24,7 @@ import {
   selectPrimeFacesOption,
   selectPrimeFacesRadio,
   setJsfCheckbox,
+  listVisibleTextFields,
   setJsfCheckboxGroup,
   setJsfTextInputs,
   waitForJsfIdle,
@@ -319,7 +320,22 @@ export async function fillStep5(page: Page, a: FvStep5Answers): Promise<void> {
 
   // Auto-funding methods (multi-select checkbox group)
   if (a.cbxHasAutoFunding && a.autoFundings && a.autoFundings.length > 0) {
+    const shownBefore = new Set(await listVisibleTextFields(page, "formStep5"));
     await setJsfCheckboxGroup(page, "formStep5:autoFundings", a.autoFundings);
+    const otherDetail = a.autoFundingOther;
+    if (a.autoFundings.includes("AUT") && otherDetail) {
+      // "Other" reveals a required box saying what the means are. Its name was
+      // never captured live, so fill whichever box the tick revealed.
+      await waitForJsfIdle(page);
+      let revealed: string[] = [];
+      for (let waited = 0; revealed.length === 0 && waited <= 5_000; waited += 250) {
+        if (waited > 0) await page.waitForTimeout(250);
+        revealed = (await listVisibleTextFields(page, "formStep5"))
+          .filter((name) => !shownBefore.has(name));
+      }
+      console.log(`[france-visas] step5 "Other" funding revealed ${JSON.stringify(revealed)}`);
+      await setJsfTextInputs(page, revealed.map((name) => [name, otherDetail] as const));
+    }
   }
 
   // Optional representative

@@ -146,6 +146,8 @@ export interface FvStep5Answers {
 
   // Required iff cbxHasAutoFunding — at least one funding method must be selected.
   autoFundings?: FvAutoFunding[];
+  /** What the "Other" (AUT) means are; the portal requires it once AUT is ticked. */
+  autoFundingOther?: string;
 
   // Optional representative info (if someone else is filling the form)
   representativeSurname?: string;

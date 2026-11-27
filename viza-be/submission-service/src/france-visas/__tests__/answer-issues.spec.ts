@@ -201,6 +201,12 @@ test("phones use France-Visas' international extended form and funding follows t
     ["ARG", "CCR", "HPP"],
   );
   assert.deepEqual(toFvAutoFundings({}), ["CCR", "ARG"]);
+  // "Other" goes only with a description the portal can take.
+  assert.deepEqual(toFvAutoFundings({ self_means_cash: "yes", self_means_other: "yes" }), ["ARG"]);
+  assert.deepEqual(
+    toFvAutoFundings({ self_means_cash: "yes", self_means_other: "yes", self_means_other_explain: "Scholarship" }),
+    ["ARG", "AUT"],
+  );
 });
 
 test("a hotel stay fills the host organisation with the reception as contact", async () => {

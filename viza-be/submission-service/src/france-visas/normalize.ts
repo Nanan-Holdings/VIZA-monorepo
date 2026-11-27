@@ -389,6 +389,8 @@ const SELF_MEANS_TO_FV: ReadonlyArray<[string, FvAutoFunding]> = [
 export function toFvAutoFundings(a: AnswerMap): FvAutoFunding[] {
   const chosen = SELF_MEANS_TO_FV
     .filter(([field]) => (a[field] ?? "").trim().toLowerCase() === "yes")
+    // France-Visas requires a description for "Other"; without one, leave it out.
+    .filter(([field]) => field !== "self_means_other" || toFvPlainText(a.self_means_other_explain) !== undefined)
     .map(([, code]) => code);
   // Only fall back to the earlier default when the applicant answered nothing.
   return chosen.length > 0 ? chosen : ["CCR", "ARG"];
@@ -639,6 +641,7 @@ export function normalizeFvAnswers(input: NormalizeInput): FvApplicationAnswers 
       : {}),
     autoFundings: (fvOverrides.step5?.autoFundings as readonly FvAutoFunding[] | undefined)?.slice()
       ?? toFvAutoFundings(a),
+    autoFundingOther: toFvPlainText(a.self_means_other_explain),
     representativeSurname: fvOverrides.step5?.representativeSurname,
     representativeFirstnames: fvOverrides.step5?.representativeFirstnames,
     representativeStreet: fvOverrides.step5?.representativeStreet,

@@ -60,6 +60,43 @@ test("setJsfTextInputs names every missing field", async (t) => {
   }
 });
 
+test("step 5 fills the description box that ticking Other funding reveals", async (t) => {
+  const browser = await launch(t);
+  if (!browser) return;
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`
+      <form id="formStep5">
+        <input type="checkbox" name="formStep5:cbxHasAutoFunding_input">
+        <input type="checkbox" name="formStep5:autoFundings" value="ARG">
+        <input type="checkbox" name="formStep5:autoFundings" value="AUT">
+        <input name="formStep5:visas-input-application-representative-surname">
+        <textarea name="formStep5:otherMeans" style="display:none"></textarea>
+      </form>
+      <script>
+        document.querySelector('[value="AUT"]').addEventListener("click", () => {
+          setTimeout(() => { document.querySelector("textarea").style.display = ""; }, 200);
+        });
+      </script>`);
+
+    const { fillStep5 } = await import("../fill-steps");
+    await fillStep5(page, {
+      cbxHasHostPerson: false,
+      cbxHasHostOrganization: false,
+      cbxHasPlaceOfApplication: false,
+      cbxHasAutoFunding: true,
+      cbxHasGuarantor: false,
+      autoFundings: ["ARG", "AUT"],
+      autoFundingOther: "Scholarship",
+    });
+
+    assert.equal(await page.inputValue("textarea"), "Scholarship");
+    assert.equal(await page.inputValue('input[name$="representative-surname"]'), "");
+  } finally {
+    await browser.close();
+  }
+});
+
 test("selectPrimeFacesOption selects a widget that registers late", async (t) => {
   const browser = await launch(t);
   if (!browser) return;
