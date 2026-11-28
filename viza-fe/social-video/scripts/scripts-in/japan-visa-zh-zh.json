@@ -1,0 +1,124 @@
+{
+  "slug": "japan-visa-zh",
+  "locale": "zh-CN",
+  "topic": "日本 · 新加坡办理",
+  "voiceText": "[calm] 在新加坡持中国护照，去日本需要签证。新加坡护照免签九十天，但规则看护照，不看住址。您通过签证中心向日本驻新加坡大使馆申请，符合条件也可以在线办 JAPAN eVISA。需要出示新加坡准证和最近两个月的银行流水，准证有效期要覆盖整个行程。使馆表示材料齐全至少五个工作日，建议至少提前两个月申请。上 viza 点 it 点 com，免费查询。",
+  "voice": "voice/japan-visa-zh-zh.mp3",
+  "music": "music/bed-calm-tech.mp3",
+  "timings": "timings/japan-visa-zh-zh.json",
+  "out": "specs/japan-visa-zh-zh.json",
+  "captionReplace": [
+    [
+      "viza点it点com",
+      "viza.it.com"
+    ],
+    [
+      "九十天",
+      "90天"
+    ],
+    [
+      "两个月",
+      "2个月"
+    ],
+    [
+      "五个工作日",
+      "5个工作日"
+    ],
+    [
+      "viza 点 it 点 com",
+      "viza.it.com"
+    ]
+  ],
+  "scenes": [
+    {
+      "kind": "hook",
+      "cue": "在新加坡持中国护照",
+      "props": {
+        "kicker": "在新加坡持中国护照？",
+        "lines": [
+          "去日本需要签证",
+          "看护照，不看住址"
+        ],
+        "turn": "新加坡护照免签，中国护照要办"
+      },
+      "beats": [
+        "在新加坡持中国护照",
+        "去日本需要签证",
+        "新加坡护照免签九十天"
+      ]
+    },
+    {
+      "kind": "notA",
+      "cue": "您通过签证中心",
+      "props": {
+        "struck": "免签",
+        "stamp": "NOT A 免签",
+        "is": "短期滞在旅游签证",
+        "like?:": "类似去使馆办旅游签",
+        "rows": [
+          "准证有效期覆盖行程",
+          "最近两个月银行流水",
+          "使馆或 eVISA 递交"
+        ]
+      },
+      "beats": [
+        "您通过签证中心",
+        "符合条件也可以"
+      ]
+    },
+    {
+      "kind": "stats",
+      "cue": "需要出示新加坡准证",
+      "props": {
+        "title": "核心材料",
+        "items": [
+          {
+            "value": "2",
+            "suffix": "个月",
+            "label": "银行流水"
+          },
+          {
+            "value": "90",
+            "suffix": "天",
+            "label": "最长停留"
+          },
+          {
+            "value": "1",
+            "suffix": "本",
+            "label": "有效护照"
+          }
+        ]
+      },
+      "beats": [
+        "需要出示新加坡准证",
+        "最近两个月的银行流水",
+        "准证有效期要覆盖整个行程"
+      ]
+    },
+    {
+      "kind": "verdict",
+      "cue": "使馆表示材料齐全",
+      "props": {
+        "badge": "提前准备",
+        "headline": "至少提前两个月申请",
+        "note": "使馆表示材料齐全至少五个工作日"
+      },
+      "beats": [
+        "使馆表示材料齐全"
+      ]
+    },
+    {
+      "kind": "cta",
+      "cue": "上 viza 点 it 点 com",
+      "props": {
+        "question": "去日本要办签证吗？",
+        "url": "viza.it.com",
+        "pill": "免费",
+        "disclaimer": "VIZA 并非政府机构，请以官方信息为准。"
+      },
+      "beats": [
+        "上 viza 点"
+      ]
+    }
+  ]
+}

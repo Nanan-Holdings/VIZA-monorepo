@@ -1,0 +1,103 @@
+{
+  "slug": "sg-arrival-card",
+  "locale": "en",
+  "topic": "SG · Arrival Card",
+  "voiceText": "[calm] Flying or sailing into Singapore? Most travellers must submit the SG Arrival Card. It is ICA's online form with a health declaration, and it is not a visa. Submit within three days before arrival, counting the day you land. It is free on ica.gov.sg or in the MyICA app. ICA does not endorse companies that charge to submit for you, so avoid look-alike sites. Residents arriving by air or sea still submit the health declaration. Transit passengers who do not clear immigration are exempt. Check free at viza dot it dot com.",
+  "voice": "voice/sg-arrival-card-en.mp3",
+  "music": "music/bed-calm-tech.mp3",
+  "timings": "timings/sg-arrival-card-en.json",
+  "out": "specs/sg-arrival-card-en.json",
+  "captionReplace": [
+    [
+      "viza dot it dot com",
+      "viza.it.com"
+    ]
+  ],
+  "scenes": [
+    {
+      "kind": "hook",
+      "cue": "Flying or sailing into Singapore?",
+      "props": {
+        "kicker": "Arriving in Singapore?",
+        "lines": [
+          "Most travellers need",
+          "the SG Arrival Card"
+        ],
+        "turn": "It is free, and it is not a visa."
+      },
+      "beats": [
+        "Flying or sailing into Singapore?",
+        "Most travellers must submit the SG Arrival Card.",
+        "It is ICA's online form with a health declaration, and it is not a visa."
+      ]
+    },
+    {
+      "kind": "timeline",
+      "cue": "Submit within three days",
+      "props": {
+        "title": "The 3 day window",
+        "points": [
+          {
+            "label": "Arrival day",
+            "note": "counts as day 1",
+            "state": "target"
+          },
+          {
+            "label": "3 days before",
+            "note": "earliest you can submit",
+            "state": "target"
+          },
+          {
+            "label": "Too early",
+            "note": "wait for the window",
+            "state": "slipped"
+          }
+        ],
+        "caveat": "One submission can cover up to three trips."
+      },
+      "beats": [
+        "Submit within three days before arrival, counting the day you land."
+      ]
+    },
+    {
+      "kind": "notA",
+      "cue": "It is free on ica.gov.sg",
+      "props": {
+        "struck": "Fee",
+        "stamp": "NOT A PAID FORM",
+        "is": "Free on ICA's site or the MyICA app",
+        "like": "Like a free government form"
+      },
+      "beats": [
+        "It is free on ica.gov.sg or in the MyICA app.",
+        "ICA does not endorse companies that charge to submit for you, so avoid look-alike sites."
+      ]
+    },
+    {
+      "kind": "verdict",
+      "cue": "Residents arriving by air or sea",
+      "props": {
+        "badge": "Who submits",
+        "headline": "Visitors: full form. Residents: health only.",
+        "note": "Transit passengers who do not clear immigration are exempt."
+      },
+      "beats": [
+        "Residents arriving by air or sea still submit the health declaration.",
+        "Transit passengers who do not clear immigration are exempt."
+      ]
+    },
+    {
+      "kind": "cta",
+      "cue": "Check free at viza dot it dot com.",
+      "props": {
+        "question": "Not sure if you need the SG Arrival Card?",
+        "url": "viza.it.com",
+        "pill": "Free",
+        "disclaimer": "VIZA is not a government agency. Always verify with official sources."
+      },
+      "beats": [
+        "Check free at viza dot it dot com."
+      ]
+    }
+  ]
+}

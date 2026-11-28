@@ -26,8 +26,8 @@ export const Hook: React.FC<{ props: HookProps; beats: number[]; zh: boolean }> 
   return (
     <SceneShell>
       <AbsoluteFill>
-        {/* EU star ring */}
-        {Array.from({ length: 12 }).map((_, i) => {
+        {/* EU star ring, only for EU topics */}
+        {Array.from({ length: props.ring === "eu" ? 12 : 0 }).map((_, i) => {
           const a = (i / 12) * Math.PI * 2 - Math.PI / 2 + frame / 400;
           const p = pop(frame, b1 + i * 1.6, 12, 0.5);
           const dim = interpolate(turn, [0, 1], [1, 0.35]);

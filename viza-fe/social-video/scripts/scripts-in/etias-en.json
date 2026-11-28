@@ -21,7 +21,8 @@
           "Europe is still visa-free.",
           "visa-free"
         ],
-        "turn": "But a new step is coming."
+        "turn": "But a new step is coming.",
+        "ring": "eu"
       }
     },
     {
@@ -49,7 +50,12 @@
         "struck": "VISA",
         "stamp": "NOT A VISA",
         "is": "An online travel authorisation",
-        "like": "Similar to the US ESTA"
+        "like": "Similar to the US ESTA",
+        "rows": [
+          "Passport details",
+          "Travel plans",
+          "Approved online"
+        ]
       }
     },
     {

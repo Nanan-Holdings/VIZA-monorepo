@@ -1,0 +1,57 @@
+/* Text layer for the vertical (1080x1920) VIZA shorts. STYLE.md §4: three levels only.
+   Sizes are the demo's scaled up for a phone held upright (a 1080 px frame shows at about 375 pt).
+   Primary: headline 84 px, part label 56 px + a 34 px line. Secondary: 40 px mid grey. Tertiary: 24 to 30 px mono.
+   Inter (Latin), Noto Sans SC (Chinese), IBM Plex Mono (figure line, readings, units). All OFL, in fonts/. */
+.o { position: absolute; white-space: nowrap; }
+.zh .o, .zh.o { letter-spacing: .02em; }
+.fig { font: 500 25px/1 "Plex Mono", "Noto Sans SC", monospace; letter-spacing: .14em; text-transform: uppercase; color: #8C867D; }
+.head { transform-origin: 0 0; white-space: normal; width: 952px; }
+.head.h1 { font: 650 84px/1.06 "Inter", "Noto Sans SC", sans-serif; letter-spacing: -.028em; }
+.zh .head.h1 { font-weight: 700; letter-spacing: .01em; line-height: 1.16; }
+.head.kick { font: 500 40px/1.2 "Inter", "Noto Sans SC", sans-serif; color: #5E5A54; letter-spacing: -.01em; }
+.head.note { font: 400 38px/1.28 "Inter", "Noto Sans SC", sans-serif; color: #5E5A54; width: 900px; }
+.head.badge { font: 500 28px/1 "Plex Mono", "Noto Sans SC", monospace; letter-spacing: .16em; text-transform: uppercase; color: #25282D; }
+.head.big { font: 640 190px/1 "Inter", sans-serif; letter-spacing: -.045em; }
+.co { position: absolute; line-height: 1; }
+.co .nm { font: 600 56px/1.08 "Inter", "Noto Sans SC", sans-serif; letter-spacing: -.015em; color: #25282D; white-space: normal; position: relative; }
+.zh .co .nm { font-weight: 700; letter-spacing: .01em; line-height: 1.18; }
+.co .nm .k { font-weight: 700; }
+.co .nm .r { font-weight: 450; color: #5E5A54; }
+.co .d { font: 400 34px/1.3 "Inter", "Noto Sans SC", sans-serif; color: #5E5A54; margin-top: 10px; white-space: normal; }
+.co .strike { position: absolute; left: -6px; top: 52%; height: 5px; background: #25282D; transform-origin: 0 50%; border-radius: 2px; }
+.co.left { text-align: right; }
+.dot { position: absolute; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%; box-shadow: inset 0 0 0 2px rgba(37,40,45,.5); }
+.tag { position: absolute; font: 500 30px/1.15 "Plex Mono", "Noto Sans SC", monospace; color: #3E3B37; letter-spacing: .01em; white-space: nowrap; }
+.tag .n { color: #8C867D; margin-right: 14px; }
+.stamp { position: absolute; font: 500 40px/1 "Plex Mono", "Noto Sans SC", monospace; letter-spacing: .14em; text-transform: uppercase; color: #25282D;
+  padding: 16px 22px 14px; border: 5px solid #25282D; border-radius: 10px; transform-origin: 50% 50%; white-space: nowrap; }
+/* stats: instrument readouts */
+.ro { position: absolute; left: 64px; width: 952px; }
+.ro .rule { position: absolute; left: 0; right: 0; top: 0; height: 2px; background: #25282D; transform-origin: 0 0; }
+.ro .row { display: flex; justify-content: space-between; align-items: baseline; padding-top: 18px; }
+.ro .k { font: 500 36px/1.15 "Inter", "Noto Sans SC", sans-serif; color: #25282D; white-space: normal; max-width: 520px; }
+.ro .v { font: 640 132px/1 "Inter", "Noto Sans SC", sans-serif; letter-spacing: -.04em; color: #25282D; white-space: nowrap; text-align: right; }
+.ro .v .u { font-size: .5em; font-weight: 500; letter-spacing: -.01em; margin-left: 6px; color: #5E5A54; }
+.ro .was { font: 500 44px/1 "Plex Mono", monospace; color: #8C867D; margin-right: 22px; position: relative; display: inline-block; vertical-align: .55em; letter-spacing: 0; }
+.ro .was i { position: absolute; left: -4px; right: -4px; top: 50%; height: 4px; background: #8C867D; transform-origin: 0 50%; }
+/* the closing title block: ink rules, mono field names, values in the grotesk */
+.tb { position: absolute; left: 64px; width: 952px; }
+.tb .row { position: relative; display: flex; align-items: center; min-height: 86px; padding: 12px 0; }
+.tb .rule { position: absolute; left: 0; right: 0; top: 0; height: 2.6px; background: #25282D; transform-origin: 0 0; display: block; }
+.tb .rule.end { position: relative; }
+.tb .rule.thin { height: 1.4px; }
+.tb .k { width: 190px; flex: none; font: 500 22px/1.2 "Plex Mono", "Noto Sans SC", monospace; letter-spacing: .16em; text-transform: uppercase; color: #8C867D; }
+.tb .v { color: #25282D; white-space: normal; }
+.tb .vq { font: 600 46px/1.15 "Inter", "Noto Sans SC", sans-serif; letter-spacing: -.012em; }
+.tb .vu { font: 650 76px/1 "Inter", sans-serif; letter-spacing: -.03em; }
+.tb .vf { font: 600 46px/1 "Inter", "Noto Sans SC", sans-serif; }
+.tb .vd { font: 400 27px/1.35 "Inter", "Noto Sans SC", sans-serif; color: #5E5A54; }
+.tb .logo { height: 78px; display: block; }
+/* captions: bottom left, no plate, one or two lines, kept above the platform's bottom 520 px */
+.cap { position: absolute; left: 64px; width: 952px; white-space: normal; }
+.cap .l { font: 500 44px/1.24 "Inter", "Noto Sans SC", sans-serif; color: #25282D; letter-spacing: -.005em; }
+.zh .cap .l { font: 500 48px/1.3 "Noto Sans SC", sans-serif; letter-spacing: .03em; }
+.key { left: 64px; width: 952px; white-space: normal; display: grid; grid-template-columns: 1fr 1fr; gap: 18px 30px; }
+.key .it { font: 500 30px/1 "Inter", "Noto Sans SC", sans-serif; color: #5E5A54; display: inline-flex; align-items: center; }
+.key .it i { width: 22px; height: 22px; border-radius: 6px; margin-right: 12px; box-shadow: inset 0 0 0 2px rgba(37,40,45,.25); }
+.head u.em { text-decoration: underline; text-decoration-thickness: 7px; text-underline-offset: 12px; text-decoration-skip-ink: none; }
