@@ -74,8 +74,16 @@ test("step 5 fills the description box that ticking Other funding reveals", asyn
         <textarea name="formStep5:otherMeans" style="display:none"></textarea>
       </form>
       <script>
+        // Like the live portal: the box shows at once, then the postback that
+        // is still in flight re-renders it empty.
+        window.jQuery = { active: 0 };
         document.querySelector('[value="AUT"]').addEventListener("click", () => {
+          window.jQuery.active = 1;
           setTimeout(() => { document.querySelector("textarea").style.display = ""; }, 200);
+          setTimeout(() => {
+            document.querySelector("textarea").outerHTML = '<textarea name="formStep5:otherMeans"></textarea>';
+            window.jQuery.active = 0;
+          }, 700);
         });
       </script>`);
 
@@ -90,6 +98,7 @@ test("step 5 fills the description box that ticking Other funding reveals", asyn
       autoFundingOther: "Scholarship",
     });
 
+    await page.waitForFunction("window.jQuery.active === 0");
     assert.equal(await page.inputValue("textarea"), "Scholarship");
     assert.equal(await page.inputValue('input[name$="representative-surname"]'), "");
   } finally {

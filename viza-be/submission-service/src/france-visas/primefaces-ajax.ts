@@ -258,22 +258,39 @@ export async function listVisibleTextFields(page: Page, formId: string): Promise
     })()`)) as string[];
 }
 
+/** Names of the visible, editable text boxes on the page that are still empty. */
+export async function listEmptyVisibleTextFields(page: Page): Promise<string[]> {
+  return (await page.evaluate(`(() => Array.from(
+      document.querySelectorAll('form input[type="text"], form input:not([type]), form textarea'))
+      .filter((el) => el.name && !el.disabled && !el.readOnly && el.getClientRects().length > 0
+        && String(el.value || "").trim() === "")
+      .map((el) => el.name)
+      .slice(0, 20))()`)) as string[];
+}
+
 /**
- * Waits for the JSF ViewState to stabilize — no pending AJAX requests.
- * Useful between transitions where multiple cascading postbacks may still
- * be in flight. Returns when the page has been idle for `quietMs`.
+ * Waits until no PrimeFaces/jQuery AJAX request is queued or in flight, and
+ * the page has stayed that way for `quietMs`. (Playwright's "networkidle"
+ * load state can't do this: once reached at page load it returns at once,
+ * so it never waited for the postbacks a click starts.) Gives up quietly
+ * after `timeoutMs`.
  */
 export async function waitForJsfIdle(
   page: Page,
   options: { quietMs?: number; timeoutMs?: number } = {},
 ): Promise<void> {
-  const quietMs = options.quietMs ?? 800;
-  const timeoutMs = options.timeoutMs ?? 15_000;
-  try {
-    await page.waitForLoadState("networkidle", { timeout: timeoutMs });
-  } catch {
-    // networkidle can be noisy on JSF apps with long-polling; fall back
-    // to a plain quiet-period sleep.
-    await page.waitForTimeout(quietMs);
+  const quietMs = options.quietMs ?? 300;
+  const deadline = Date.now() + (options.timeoutMs ?? 15_000);
+  let quietSince = Date.now();
+  while (Date.now() < deadline) {
+    const busy = (await page.evaluate(`(() => {
+        const queue = window.PrimeFaces && window.PrimeFaces.ajax && window.PrimeFaces.ajax.Queue;
+        const queued = !!queue && typeof queue.isEmpty === "function" && !queue.isEmpty();
+        const jq = window.jQuery;
+        return queued || !!(jq && jq.active > 0);
+      })()`).catch(() => false)) as boolean;
+    if (busy) quietSince = Date.now();
+    else if (Date.now() - quietSince >= quietMs) return;
+    await page.waitForTimeout(100);
   }
 }

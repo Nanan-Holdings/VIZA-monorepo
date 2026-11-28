@@ -34,7 +34,7 @@ import {
 import { fillStep1, fillStep2, fillStep3, fillStep4, fillStep5 } from "./fill-steps";
 import { waitForPage, detectPage, type FvPageId } from "./pages";
 import { readEmptyRequiredFieldNames, readInvalidFieldNames, readValidationMessages } from "./navigator";
-import { waitForJsfIdle } from "./primefaces-ajax";
+import { listEmptyVisibleTextFields, waitForJsfIdle } from "./primefaces-ajax";
 import { NavigationError, serializeError } from "./errors";
 import type { FvApplicationAnswers } from "./field-mappings";
 import {
@@ -421,10 +421,15 @@ async function advanceStep(
         const bodyPreview = await readBodyPreview(page).catch(() => "");
         const invalidFields = await readInvalidFieldNames(page).catch(() => [] as string[]);
         const emptyRequired = await readEmptyRequiredFieldNames(page).catch(() => [] as string[]);
+        // Neither check named the field: list every visible empty box instead.
+        const emptyVisible = invalidFields.length || emptyRequired.length
+          ? []
+          : await listEmptyVisibleTextFields(page).catch(() => [] as string[]);
         throw new NavigationError(
-          `France-Visas ${from} rejected advance: ${validation.all[0]}` +
+          `France-Visas ${from} rejected advance: ${validation.all.join(" | ")}` +
             `${invalidFields.length ? ` [fields=${invalidFields.join(",")}]` : ""}` +
-            `${emptyRequired.length ? ` [empty_required=${emptyRequired.join(",")}]` : ""}`,
+            `${emptyRequired.length ? ` [empty_required=${emptyRequired.join(",")}]` : ""}` +
+            `${emptyVisible.length ? ` [empty_visible=${emptyVisible.join(",")}]` : ""}`,
           {
             expected: to,
             detected: from,

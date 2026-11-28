@@ -24,6 +24,7 @@ import {
   selectPrimeFacesOption,
   selectPrimeFacesRadio,
   setJsfCheckbox,
+  listEmptyVisibleTextFields,
   listVisibleTextFields,
   setJsfCheckboxGroup,
   setJsfTextInputs,
@@ -334,7 +335,14 @@ export async function fillStep5(page: Page, a: FvStep5Answers): Promise<void> {
           .filter((name) => !shownBefore.has(name));
       }
       console.log(`[france-visas] step5 "Other" funding revealed ${JSON.stringify(revealed)}`);
-      await setJsfTextInputs(page, revealed.map((name) => [name, otherDetail] as const));
+      // A late postback can re-render the box empty after it was filled:
+      // refill until it holds the value once the page is idle.
+      for (let tries = 0; tries < 3 && revealed.length > 0; tries += 1) {
+        await setJsfTextInputs(page, revealed.map((name) => [name, otherDetail] as const));
+        await waitForJsfIdle(page);
+        const empty = new Set(await listEmptyVisibleTextFields(page));
+        revealed = revealed.filter((name) => empty.has(name));
+      }
     }
   }
 
